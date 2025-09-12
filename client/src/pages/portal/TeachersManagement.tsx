@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap } from 'lucide-react';
+import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2 } from 'lucide-react';
 
 const teacherFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -39,6 +39,7 @@ export default function TeachersManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<any>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<TeacherForm>({
     resolver: zodResolver(teacherFormSchema),
@@ -102,6 +103,30 @@ export default function TeachersManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to update teacher", 
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete teacher mutation
+  const deleteTeacherMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/users/${id}`);
+      if (!response.ok) throw new Error('Failed to delete teacher');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Teacher deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setTeacherToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete teacher",
         variant: "destructive",
       });
     },
@@ -471,15 +496,26 @@ export default function TeachersManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(teacher)}
-                          data-testid={`button-edit-teacher-${teacher.id}`}
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(teacher)}
+                            data-testid={`button-edit-teacher-${teacher.id}`}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setTeacherToDelete(teacher)}
+                            data-testid={`button-delete-teacher-${teacher.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -495,6 +531,36 @@ export default function TeachersManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {teacherToDelete && (
+        <Dialog open={!!teacherToDelete} onOpenChange={() => setTeacherToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>
+                Are you sure you want to delete <strong>{teacherToDelete.firstName} {teacherToDelete.lastName}</strong>? 
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setTeacherToDelete(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => deleteTeacherMutation.mutate(teacherToDelete.id)}
+                  disabled={deleteTeacherMutation.isPending}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteTeacherMutation.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

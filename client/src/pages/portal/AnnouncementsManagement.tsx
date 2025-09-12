@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Search, Megaphone, Calendar, Users } from 'lucide-react';
+import { Plus, Edit, Search, Megaphone, Calendar, Users, Trash2 } from 'lucide-react';
 
 const announcementFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -31,6 +31,7 @@ export default function AnnouncementsManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<any>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<AnnouncementForm>({
     resolver: zodResolver(announcementFormSchema),

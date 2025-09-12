@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Search, Users, GraduationCap, BookOpen } from 'lucide-react';
+import { Plus, Edit, Search, Users, GraduationCap, BookOpen, Trash2 } from 'lucide-react';
 
 const classFormSchema = z.object({
   name: z.string().min(1, 'Class name is required'),
@@ -30,6 +30,7 @@ export default function ClassesManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [editingClass, setEditingClass] = useState<any>(null);
+  const [classToDelete, setClassToDelete] = useState<any>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<ClassForm>({
     resolver: zodResolver(classFormSchema),
@@ -107,6 +108,30 @@ export default function ClassesManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to update class", 
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete class mutation
+  const deleteClassMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/classes/${id}`);
+      if (!response.ok) throw new Error('Failed to delete class');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Class deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
+      setClassToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete class",
         variant: "destructive",
       });
     },
@@ -357,15 +382,26 @@ export default function ClassesManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(classItem)}
-                            data-testid={`button-edit-class-${classItem.id}`}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(classItem)}
+                              data-testid={`button-edit-class-${classItem.id}`}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setClassToDelete(classItem)}
+                              data-testid={`button-delete-class-${classItem.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -382,6 +418,36 @@ export default function ClassesManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {classToDelete && (
+        <Dialog open={!!classToDelete} onOpenChange={() => setClassToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>
+                Are you sure you want to delete <strong>{classToDelete.name}</strong>? 
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setClassToDelete(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => deleteClassMutation.mutate(classToDelete.id)}
+                  disabled={deleteClassMutation.isPending}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteClassMutation.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

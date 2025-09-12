@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Search, BookOpen } from 'lucide-react';
+import { Plus, Edit, Search, BookOpen, Trash2 } from 'lucide-react';
 
 const subjectFormSchema = z.object({
   name: z.string().min(1, 'Subject name is required'),
@@ -27,6 +27,7 @@ export default function SubjectsManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSubject, setEditingSubject] = useState<any>(null);
+  const [subjectToDelete, setSubjectToDelete] = useState<any>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<SubjectForm>({
     resolver: zodResolver(subjectFormSchema),
@@ -87,6 +88,30 @@ export default function SubjectsManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to update subject", 
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete subject mutation
+  const deleteSubjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/subjects/${id}`);
+      if (!response.ok) throw new Error('Failed to delete subject');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subject deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/subjects'] });
+      setSubjectToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete subject",
         variant: "destructive",
       });
     },
@@ -278,15 +303,26 @@ export default function SubjectsManagement() {
                         }
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(subject)}
-                          data-testid={`button-edit-subject-${subject.id}`}
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(subject)}
+                            data-testid={`button-edit-subject-${subject.id}`}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setSubjectToDelete(subject)}
+                            data-testid={`button-delete-subject-${subject.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -302,6 +338,36 @@ export default function SubjectsManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {subjectToDelete && (
+        <Dialog open={!!subjectToDelete} onOpenChange={() => setSubjectToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>
+                Are you sure you want to delete <strong>{subjectToDelete.name}</strong>? 
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setSubjectToDelete(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => deleteSubjectMutation.mutate(subjectToDelete.id)}
+                  disabled={deleteSubjectMutation.isPending}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteSubjectMutation.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

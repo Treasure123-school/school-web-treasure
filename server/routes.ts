@@ -208,6 +208,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUser(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Student management
   app.get("/api/students", async (req, res) => {
     try {
@@ -245,6 +260,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(classes);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch classes" });
+    }
+  });
+
+  app.post("/api/classes", async (req, res) => {
+    try {
+      const classData = {
+        name: req.body.name,
+        level: req.body.level,
+        classTeacherId: req.body.classTeacherId,
+        capacity: req.body.capacity,
+      };
+      const classObj = await storage.createClass(classData);
+      res.json(classObj);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid class data" });
+    }
+  });
+
+  app.put("/api/classes/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const classData = {
+        name: req.body.name,
+        level: req.body.level,
+        classTeacherId: req.body.classTeacherId,
+        capacity: req.body.capacity,
+      };
+      const classObj = await storage.updateClass(id, classData);
+      
+      if (!classObj) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+      
+      res.json(classObj);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid class data" });
+    }
+  });
+
+  app.delete("/api/classes/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteClass(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+      
+      res.json({ message: "Class deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete class" });
     }
   });
 
@@ -289,6 +355,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(subject);
     } catch (error) {
       res.status(400).json({ message: "Invalid subject data" });
+    }
+  });
+
+  app.delete("/api/subjects/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteSubject(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Subject not found" });
+      }
+      
+      res.json({ message: "Subject deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete subject" });
     }
   });
 
@@ -383,6 +464,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(announcement);
     } catch (error) {
       res.status(400).json({ message: "Invalid announcement data" });
+    }
+  });
+
+  app.delete("/api/announcements/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteAnnouncement(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      
+      res.json({ message: "Announcement deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete announcement" });
     }
   });
 
