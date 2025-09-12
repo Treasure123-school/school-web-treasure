@@ -28,6 +28,8 @@ import StudentManagement from "@/pages/portal/StudentManagement";
 import AttendanceManagement from "@/pages/portal/AttendanceManagement";
 import TeachersManagement from "@/pages/portal/TeachersManagement";
 import ClassesManagement from "@/pages/portal/ClassesManagement";
+import SubjectsManagement from "@/pages/portal/SubjectsManagement";
+import AnnouncementsManagement from "@/pages/portal/AnnouncementsManagement";
 
 import NotFound from "@/pages/not-found";
 
@@ -96,6 +98,16 @@ function Router() {
       <Route path="/portal/admin/classes">
         <ProtectedRoute allowedRoles={['Admin']}>
           <ClassesManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/subjects">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <SubjectsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/announcements">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <AnnouncementsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/attendance">

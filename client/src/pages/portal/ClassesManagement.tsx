@@ -150,7 +150,7 @@ export default function ClassesManagement() {
   });
 
   // Get unique levels for filter
-  const levels = Array.from(new Set(classes.map((c: any) => c.level).filter(Boolean)));
+  const levels = Array.from(new Set(classes.map((c: any) => c.level).filter(Boolean))) as string[];
 
   return (
     <div className="space-y-6" data-testid="classes-management">

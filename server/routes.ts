@@ -258,6 +258,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/subjects", async (req, res) => {
+    try {
+      const subjectData = {
+        name: req.body.name,
+        code: req.body.code,
+        description: req.body.description,
+      };
+      const subject = await storage.createSubject(subjectData);
+      res.json(subject);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid subject data" });
+    }
+  });
+
+  app.put("/api/subjects/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const subjectData = {
+        name: req.body.name,
+        code: req.body.code,
+        description: req.body.description,
+      };
+      const subject = await storage.updateSubject(id, subjectData);
+      
+      if (!subject) {
+        return res.status(404).json({ message: "Subject not found" });
+      }
+      
+      res.json(subject);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid subject data" });
+    }
+  });
+
   // Attendance management
   app.post("/api/attendance", async (req, res) => {
     try {
@@ -330,6 +364,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const announcementData = insertAnnouncementSchema.parse(req.body);
       const announcement = await storage.createAnnouncement(announcementData);
+      res.json(announcement);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid announcement data" });
+    }
+  });
+
+  app.put("/api/announcements/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const announcementData = insertAnnouncementSchema.partial().parse(req.body);
+      const announcement = await storage.updateAnnouncement(id, announcementData);
+      
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      
       res.json(announcement);
     } catch (error) {
       res.status(400).json({ message: "Invalid announcement data" });
