@@ -2,8 +2,25 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import type { HomePageContent } from '@shared/schema';
 
 export default function Home() {
+  // Fetch dynamic content from database
+  const { data: heroImages = [] } = useQuery<HomePageContent[]>({
+    queryKey: ['/api/homepage-content', 'hero_image'],
+    queryFn: () => fetch('/api/homepage-content?contentType=hero_image').then(res => res.json()),
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: galleryPreviewImages = [] } = useQuery<HomePageContent[]>({
+    queryKey: ['/api/homepage-content', 'gallery_preview'],
+    queryFn: () => fetch('/api/homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3').then(res => res.json()),
+    refetchOnWindowFocus: false,
+  });
+
+  // Get the primary hero image (first active hero image)
+  const heroImage = heroImages.find(img => img.isActive) || null;
   const features = [
     {
       icon: 'fas fa-chalkboard-teacher',
@@ -32,7 +49,18 @@ export default function Home() {
     { value: '95%', label: 'Success Rate' }
   ];
 
-  const galleryImages = [
+  // Combine dynamic gallery preview images with fallbacks
+  const dynamicGalleryImages = galleryPreviewImages
+    .filter(img => img.isActive && img.imageUrl)
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .slice(0, 4)
+    .map(img => ({
+      src: img.imageUrl!,
+      alt: img.altText || img.caption || 'School gallery image'
+    }));
+
+  // Fallback images if no dynamic images are available
+  const fallbackGalleryImages = [
     {
       src: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=300',
       alt: 'Students engaged in classroom learning'
@@ -50,6 +78,9 @@ export default function Home() {
       alt: 'Graduation ceremony with students and families'
     }
   ];
+
+  // Use dynamic images if available, otherwise use fallbacks
+  const galleryImages = dynamicGalleryImages.length > 0 ? dynamicGalleryImages : fallbackGalleryImages;
 
   return (
     <PublicLayout>
@@ -85,8 +116,8 @@ export default function Home() {
             <div className="lg:text-right">
               <div className="relative">
                 <img 
-                  src="https://pixabay.com/get/gc7d2935b2c7daee5b00c7f4e5f775c0789f703b5347bf11383e16d0cf64f931493583d7ca01db3a2fd0940d4aa02adb939bbce4c48a8fb42f8bd002547dfe709_1280.jpg" 
-                  alt="Treasure-Home School campus with modern facilities" 
+                  src={heroImage?.imageUrl || "https://pixabay.com/get/gc7d2935b2c7daee5b00c7f4e5f775c0789f703b5347bf11383e16d0cf64f931493583d7ca01db3a2fd0940d4aa02adb939bbce4c48a8fb42f8bd002547dfe709_1280.jpg"} 
+                  alt={heroImage?.altText || "Treasure-Home School campus with modern facilities"} 
                   className="rounded-xl shadow-2xl w-full h-auto"
                   data-testid="img-hero-school"
                 />
