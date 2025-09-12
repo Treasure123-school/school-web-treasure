@@ -7,7 +7,9 @@ import type {
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
   ExamResult, InsertExamResult, Announcement, InsertAnnouncement,
   Message, InsertMessage, Gallery, InsertGallery, GalleryCategory, InsertGalleryCategory,
-  Role, AcademicTerm
+  HomePageContent, InsertHomePageContent, Role, AcademicTerm,
+  ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
+  ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer
 } from "@shared/schema";
 
 const sql = neon(process.env.DATABASE_URL!);
@@ -96,6 +98,13 @@ export interface IStorage {
   getGalleryImages(categoryId?: number): Promise<Gallery[]>;
   getGalleryImageById(id: string): Promise<Gallery | undefined>;
   deleteGalleryImage(id: string): Promise<boolean>;
+
+  // Home page content management
+  createHomePageContent(content: InsertHomePageContent): Promise<HomePageContent>;
+  getHomePageContent(contentType?: string): Promise<HomePageContent[]>;
+  getHomePageContentById(id: number): Promise<HomePageContent | undefined>;
+  updateHomePageContent(id: number, content: Partial<InsertHomePageContent>): Promise<HomePageContent | undefined>;
+  deleteHomePageContent(id: number): Promise<boolean>;
 
   // Analytics and Reports
   getAnalyticsOverview(): Promise<any>;
@@ -389,6 +398,45 @@ export class DatabaseStorage implements IStorage {
   async deleteGalleryImage(id: string): Promise<boolean> {
     const result = await db.delete(schema.gallery)
       .where(eq(schema.gallery.id, parseInt(id)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Home page content management
+  async createHomePageContent(content: InsertHomePageContent): Promise<HomePageContent> {
+    const result = await db.insert(schema.homePageContent).values(content).returning();
+    return result[0];
+  }
+
+  async getHomePageContent(contentType?: string): Promise<HomePageContent[]> {
+    if (contentType) {
+      return await db.select().from(schema.homePageContent)
+        .where(and(eq(schema.homePageContent.contentType, contentType), eq(schema.homePageContent.isActive, true)))
+        .orderBy(asc(schema.homePageContent.displayOrder));
+    }
+    return await db.select().from(schema.homePageContent)
+      .where(eq(schema.homePageContent.isActive, true))
+      .orderBy(asc(schema.homePageContent.displayOrder), asc(schema.homePageContent.contentType));
+  }
+
+  async getHomePageContentById(id: number): Promise<HomePageContent | undefined> {
+    const result = await db.select().from(schema.homePageContent)
+      .where(eq(schema.homePageContent.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateHomePageContent(id: number, content: Partial<InsertHomePageContent>): Promise<HomePageContent | undefined> {
+    const result = await db.update(schema.homePageContent)
+      .set({ ...content, updatedAt: new Date() })
+      .where(eq(schema.homePageContent.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteHomePageContent(id: number): Promise<boolean> {
+    const result = await db.delete(schema.homePageContent)
+      .where(eq(schema.homePageContent.id, id))
       .returning();
     return result.length > 0;
   }

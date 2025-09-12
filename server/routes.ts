@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -1249,6 +1249,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Gallery delete error:', error);
       res.status(500).json({ message: "Failed to delete gallery image" });
+    }
+  });
+
+  // Home page content management routes (Admin only)
+  app.get("/api/homepage-content", async (req, res) => {
+    try {
+      const { contentType } = req.query;
+      const content = await storage.getHomePageContent(contentType as string);
+      res.json(content);
+    } catch (error) {
+      console.error('Home page content fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch home page content" });
+    }
+  });
+
+  app.post("/api/homepage-content", authenticateUser, authorizeRoles(4), async (req, res) => {
+    try {
+      const contentData = insertHomePageContentSchema.parse(req.body);
+      const content = await storage.createHomePageContent(contentData);
+      res.json(content);
+    } catch (error) {
+      console.error('Home page content creation error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid content data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to create home page content" });
+    }
+  });
+
+  app.put("/api/homepage-content/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const contentData = insertHomePageContentSchema.partial().parse(req.body);
+      const content = await storage.updateHomePageContent(parseInt(id), contentData);
+      
+      if (!content) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+      
+      res.json(content);
+    } catch (error) {
+      console.error('Home page content update error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid content data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to update home page content" });
+    }
+  });
+
+  app.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteHomePageContent(parseInt(id));
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+      
+      res.json({ message: "Home page content deleted successfully" });
+    } catch (error) {
+      console.error('Home page content delete error:', error);
+      res.status(500).json({ message: "Failed to delete home page content" });
+    }
+  });
+
+  // Special endpoint for uploading home page images (Admin only)
+  app.post("/api/upload/homepage", authenticateUser, authorizeRoles(4), upload.single('homePageImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { contentType, altText, caption, displayOrder } = req.body;
+      if (!contentType) {
+        return res.status(400).json({ message: "Content type is required" });
+      }
+
+      const imageUrl = `/uploads/homepage/${req.file.filename}`;
+      
+      const homePageContent = await storage.createHomePageContent({
+        contentType,
+        imageUrl,
+        altText: altText || null,
+        caption: caption || null,
+        displayOrder: displayOrder ? parseInt(displayOrder) : 0,
+        isActive: true,
+        uploadedBy: req.user.userId
+      });
+
+      res.json({ 
+        message: "Home page image uploaded successfully", 
+        content: homePageContent 
+      });
+    } catch (error) {
+      console.error('Home page upload error:', error);
+      res.status(500).json({ message: "Failed to upload home page image" });
     }
   });
 
