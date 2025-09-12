@@ -45,6 +45,10 @@ export default function Login() {
       return await response.json();
     },
     onSuccess: (userData) => {
+      // Store the JWT token for API authentication  
+      if (userData.token) {
+        localStorage.setItem('token', userData.token);
+      }
       login(userData.user);
       
       // Navigate to appropriate portal based on role
