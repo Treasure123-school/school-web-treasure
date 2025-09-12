@@ -340,8 +340,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User management
-  app.get("/api/users", async (req, res) => {
+  // User management - Admin only
+  app.get("/api/users", authenticateUser, authorizeRoles(4), async (req, res) => {
     try {
       const { role } = req.query;
       let users: any[] = [];
@@ -363,7 +363,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(users);
+      // Remove sensitive data from response
+      const sanitizedUsers = users.map(user => {
+        const { passwordHash, ...safeUser } = user;
+        return safeUser;
+      });
+      res.json(sanitizedUsers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
     }
