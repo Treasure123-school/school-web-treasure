@@ -30,6 +30,8 @@ import TeachersManagement from "@/pages/portal/TeachersManagement";
 import ClassesManagement from "@/pages/portal/ClassesManagement";
 import SubjectsManagement from "@/pages/portal/SubjectsManagement";
 import AnnouncementsManagement from "@/pages/portal/AnnouncementsManagement";
+import ReportsManagement from "@/pages/portal/ReportsManagement";
+import SettingsManagement from "@/pages/portal/SettingsManagement";
 
 import NotFound from "@/pages/not-found";
 
@@ -108,6 +110,16 @@ function Router() {
       <Route path="/portal/admin/announcements">
         <ProtectedRoute allowedRoles={['Admin']}>
           <AnnouncementsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/reports">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <ReportsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/settings">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <SettingsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/attendance">
