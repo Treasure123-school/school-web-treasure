@@ -6,11 +6,12 @@ import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
-  role: z.string()
+  password: z.string().min(6)
 });
 
 const contactSchema = z.object({
@@ -19,32 +20,83 @@ const contactSchema = z.object({
   message: z.string().min(1)
 });
 
-// Simple authentication middleware
+// JWT secret - MUST be provided via environment variable for security
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('CRITICAL: JWT_SECRET environment variable is required but not set!');
+  console.error('Please set a secure JWT_SECRET environment variable before starting the server.');
+  process.exit(1);
+}
+const JWT_EXPIRES_IN = '24h';
+
+// Rate limiting for login attempts (simple in-memory store)
+const loginAttempts = new Map();
+const MAX_LOGIN_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const BCRYPT_ROUNDS = 12;
+
+// Secure JWT authentication middleware
 const authenticateUser = async (req: any, res: any, next: any) => {
   try {
-    const { userId } = req.body;
     const authHeader = req.headers.authorization;
     
-    // For demo purposes, allow uploads if userId is provided
-    // In production, this would validate JWT tokens or sessions
-    if (!userId && !authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    // Basic validation - ensure user exists
-    if (userId) {
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid user" });
-      }
-      req.user = user;
+    // Extract JWT token from Bearer header
+    const token = authHeader.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ message: "Invalid token" });
     }
     
+    // Verify JWT token
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      console.error('JWT verification failed:', jwtError);
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+    
+    // Validate user still exists in database
+    const user = await storage.getUser(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User no longer exists" });
+    }
+    
+    // Ensure role hasn't changed since token was issued
+    if (user.roleId !== decoded.roleId) {
+      return res.status(401).json({ message: "User role has changed, please log in again" });
+    }
+    
+    req.user = user;
     next();
   } catch (error) {
     console.error('Authentication error:', error);
     res.status(401).json({ message: "Authentication failed" });
   }
+};
+
+// Role-based authorization middleware
+const authorizeRoles = (...allowedRoles: number[]) => {
+  return async (req: any, res: any, next: any) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      if (!allowedRoles.includes(req.user.roleId)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Authorization error:', error);
+      res.status(403).json({ message: "Authorization failed" });
+    }
+  };
 };
 
 // Configure multer for file uploads
@@ -188,26 +240,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log('Login attempt with data:', req.body);
-      const { email, password, role } = loginSchema.parse(req.body);
+      console.log('Login attempt for email:', req.body.email || 'unknown');
+      
+      // Rate limiting to prevent brute force attacks
+      const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+      const attemptKey = `${clientIp}:${req.body.email || 'no-email'}`;
+      const now = Date.now();
+      
+      // Clean up old attempts
+      for (const [key, data] of loginAttempts.entries()) {
+        if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
+          loginAttempts.delete(key);
+        }
+      }
+      
+      // Check rate limit
+      const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
+      if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
+        console.warn(`Rate limit exceeded for ${attemptKey}`);
+        return res.status(429).json({ 
+          message: "Too many login attempts. Please try again in 15 minutes." 
+        });
+      }
+      
+      // Validate input - note: role is now derived from database, not from client
+      const { email, password } = loginSchema.parse(req.body);
+      
+      // Increment attempt counter
+      loginAttempts.set(attemptKey, {
+        count: attempts.count + 1,
+        lastAttempt: now
+      });
       
       const user = await storage.getUserByEmail(email);
-      console.log('User found:', user ? 'Yes' : 'No');
       if (!user) {
+        console.log(`Login failed: User not found for email ${email}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
-
-      // In a real app, you'd verify the password hash here
-      // For now, we'll simulate successful login
       
-      const userRole = await storage.getRoleByName(role);
-      console.log('User role found:', userRole ? userRole.name : 'No');
-      if (!userRole || user.roleId !== userRole.id) {
-        console.log('Role mismatch - user roleId:', user.roleId, 'expected roleId:', userRole?.id);
-        return res.status(401).json({ message: "Invalid role for user" });
+      // CRITICAL: Verify password hash with bcrypt
+      if (!user.passwordHash) {
+        console.error(`SECURITY WARNING: User ${email} has no password hash set`);
+        return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
       }
-
+      
+      // Compare provided password with stored hash
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        console.log(`Login failed: Invalid password for email ${email}`);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Password verification successful - reset rate limit
+      loginAttempts.delete(attemptKey);
+      
+      // Generate JWT token with user claims
+      const tokenPayload = {
+        userId: user.id,
+        email: user.email,
+        roleId: user.roleId,
+        iat: Math.floor(Date.now() / 1000),
+      };
+      
+      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+      
+      console.log(`Login successful for ${email}`);
       res.json({ 
+        token,
         user: { 
           id: user.id, 
           email: user.email, 
@@ -218,7 +317,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(400).json({ message: "Invalid request data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid email or password format" });
+      }
+      res.status(500).json({ message: "Login failed. Please try again." });
     }
   });
 
@@ -267,11 +369,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      // Extract password from request and hash it before storage
+      const { password, ...otherUserData } = req.body;
+      
+      if (!password || typeof password !== 'string' || password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+      
+      // Hash password with bcrypt
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      
+      // Prepare user data with hashed password
+      const userData = insertUserSchema.parse({
+        ...otherUserData,
+        passwordHash
+      });
+      
       const user = await storage.createUser(userData);
-      res.json(user);
+      
+      // Remove password hash from response for security
+      const { passwordHash: _, ...userResponse } = user;
+      res.json(userResponse);
     } catch (error) {
-      res.status(400).json({ message: "Invalid user data" });
+      console.error('User creation error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid user data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to create user" });
     }
   });
 
@@ -501,10 +628,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exams
-  app.post("/api/exams", authenticateUser, async (req, res) => {
+  app.post("/api/exams", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
-      const examData = insertExamSchema.parse(req.body);
-      const exam = await storage.createExam(examData);
+      const examData = insertExamSchema.omit({ createdBy: true }).parse(req.body);
+      const examWithCreator = { ...examData, createdBy: req.user.id };
+      const exam = await storage.createExam(examWithCreator);
       res.json(exam);
     } catch (error) {
       res.status(400).json({ message: "Invalid exam data" });
@@ -543,9 +671,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/exams/:id", authenticateUser, async (req, res) => {
+  app.put("/api/exams/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // First get the existing exam to check ownership
+      const existingExam = await storage.getExamById(parseInt(id));
+      if (!existingExam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      
+      // Ownership check: Teachers (roleId 2) can only modify their own exams
+      // Admins (roleId 1) can modify any exam
+      if (req.user.roleId === 2 && existingExam.createdBy !== req.user.id) {
+        return res.status(403).json({ message: "You can only modify exams you created" });
+      }
+      
       const examData = insertExamSchema.partial().parse(req.body);
       const exam = await storage.updateExam(parseInt(id), examData);
       if (!exam) {
@@ -557,9 +698,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/exams/:id", authenticateUser, async (req, res) => {
+  app.delete("/api/exams/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // First get the existing exam to check ownership
+      const existingExam = await storage.getExamById(parseInt(id));
+      if (!existingExam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      
+      // Ownership check: Teachers (roleId 2) can only delete their own exams
+      // Admins (roleId 1) can delete any exam
+      if (req.user.roleId === 2 && existingExam.createdBy !== req.user.id) {
+        return res.status(403).json({ message: "You can only delete exams you created" });
+      }
+      
       const success = await storage.deleteExam(parseInt(id));
       if (!success) {
         return res.status(404).json({ message: "Exam not found" });
@@ -571,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exam Questions routes
-  app.post("/api/exam-questions", authenticateUser, async (req, res) => {
+  app.post("/api/exam-questions", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
       const questionData = insertExamQuestionSchema.parse(req.body);
       const question = await storage.createExamQuestion(questionData);
@@ -581,17 +735,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exam-questions/:examId", async (req, res) => {
+  app.get("/api/exam-questions/:examId", authenticateUser, async (req, res) => {
     try {
       const { examId } = req.params;
       const questions = await storage.getExamQuestions(parseInt(examId));
+      
+      // Students (roleId 3+) should not see certain sensitive data during active exams
+      // For now, return all questions but options will be filtered separately
       res.json(questions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch exam questions" });
     }
   });
 
-  app.put("/api/exam-questions/:id", authenticateUser, async (req, res) => {
+  app.put("/api/exam-questions/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
       const { id } = req.params;
       const questionData = insertExamQuestionSchema.partial().parse(req.body);
@@ -605,7 +762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/exam-questions/:id", authenticateUser, async (req, res) => {
+  app.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteExamQuestion(parseInt(id));
@@ -619,7 +776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Question Options routes  
-  app.post("/api/question-options", authenticateUser, async (req, res) => {
+  app.post("/api/question-options", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
     try {
       const optionData = insertQuestionOptionSchema.parse(req.body);
       const option = await storage.createQuestionOption(optionData);
@@ -629,21 +786,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/question-options/:questionId", async (req, res) => {
+  app.get("/api/question-options/:questionId", authenticateUser, async (req, res) => {
     try {
       const { questionId } = req.params;
       const options = await storage.getQuestionOptions(parseInt(questionId));
-      res.json(options);
+      
+      // Hide answer keys from students (roleId 3+ are students/parents)
+      // Only admin (roleId 1) and teachers (roleId 2) can see correct answers
+      const isStudentOrParent = req.user.roleId >= 3;
+      
+      if (isStudentOrParent) {
+        // Remove the isCorrect field from options for students
+        const sanitizedOptions = options.map(option => {
+          const { isCorrect, ...sanitizedOption } = option;
+          return sanitizedOption;
+        });
+        res.json(sanitizedOptions);
+      } else {
+        // Admin and teachers can see all data including correct answers
+        res.json(options);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch question options" });
     }
   });
 
   // Exam results
-  app.post("/api/exam-results", async (req, res) => {
+  app.post("/api/exam-results", authenticateUser, async (req, res) => {
     try {
       const resultData = insertExamResultSchema.parse(req.body);
-      const result = await storage.recordExamResult(resultData);
+      
+      // Security validation: Only teachers (roleId 2) and admins (roleId 1) can record results
+      // Students cannot submit their own scores to prevent tampering
+      if (req.user.roleId >= 3) {
+        return res.status(403).json({ message: "Students cannot submit exam results directly" });
+      }
+      
+      // Set recordedBy to the authenticated user
+      const secureResultData = {
+        ...resultData,
+        recordedBy: req.user.id
+      };
+      
+      const result = await storage.recordExamResult(secureResultData);
       res.json(result);
     } catch (error) {
       res.status(400).json({ message: "Invalid exam result data" });
