@@ -4,15 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
-import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit, Camera } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FileUpload } from '@/components/ui/file-upload';
+import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function StudentProfile() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
@@ -63,6 +69,17 @@ export default function StudentProfile() {
       });
     }
   }, [student, user]);
+
+  const handleProfileImageUpload = (result: any) => {
+    toast({
+      title: "Profile image updated",
+      description: "Your profile image has been uploaded successfully.",
+    });
+    
+    // Refresh user data to show new profile image
+    queryClient.invalidateQueries({ queryKey: ['student', user.id] });
+    setShowImageUpload(false);
+  };
 
   const handleSave = async () => {
     try {
@@ -141,16 +158,38 @@ export default function StudentProfile() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="text-center">
-                  <Avatar className="h-24 w-24 mx-auto mb-4">
-                    <AvatarImage src={student?.profileImage} />
-                    <AvatarFallback className="text-lg">
-                      {user.firstName[0]}{user.lastName[0]}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative inline-block">
+                    <Avatar className="h-24 w-24 mx-auto mb-4">
+                      <AvatarImage src={user?.profileImageUrl || student?.profileImage} />
+                      <AvatarFallback className="text-lg">
+                        {user.firstName[0]}{user.lastName[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                      onClick={() => setShowImageUpload(!showImageUpload)}
+                      data-testid="profile-image-upload-button"
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <h3 className="text-lg font-semibold">
                     {user.firstName} {user.lastName}
                   </h3>
                   <p className="text-muted-foreground">Student</p>
+                  
+                  {showImageUpload && (
+                    <div className="mt-4">
+                      <FileUpload
+                        type="profile"
+                        userId={user.id}
+                        onUploadSuccess={handleProfileImageUpload}
+                        className="max-w-sm mx-auto"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">

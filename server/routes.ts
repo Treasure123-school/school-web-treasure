@@ -1,8 +1,11 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -16,7 +19,87 @@ const contactSchema = z.object({
   message: z.string().min(1)
 });
 
+// Simple authentication middleware
+const authenticateUser = async (req: any, res: any, next: any) => {
+  try {
+    const { userId } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    // For demo purposes, allow uploads if userId is provided
+    // In production, this would validate JWT tokens or sessions
+    if (!userId && !authHeader) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    // Basic validation - ensure user exists
+    if (userId) {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid user" });
+      }
+      req.user = user;
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    res.status(401).json({ message: "Authentication failed" });
+  }
+};
+
+// Configure multer for file uploads
+const uploadDir = 'uploads';
+const galleryDir = 'uploads/gallery';
+const profileDir = 'uploads/profiles';
+
+// Ensure upload directories exist
+fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
+fs.mkdir(galleryDir, { recursive: true }).catch(() => {});
+fs.mkdir(profileDir, { recursive: true }).catch(() => {});
+
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadType = req.body.uploadType || 'general';
+    let dir = uploadDir;
+    
+    if (uploadType === 'gallery') {
+      dir = galleryDir;
+    } else if (uploadType === 'profile') {
+      dir = profileDir;
+    }
+    
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const name = path.basename(file.originalname, ext);
+    cb(null, `${name}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage_multer,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Static file serving for uploads
+  app.use('/uploads', express.static(path.resolve('uploads')));
+  
   // Setup/Demo data route (for development)
   app.post("/api/setup-demo", async (req, res) => {
     try {
@@ -287,7 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         classTeacherId: req.body.classTeacherId,
         capacity: req.body.capacity,
       };
-      const classObj = await storage.updateClass(id, classData);
+      const classObj = await storage.updateClass(parseInt(id), classData);
       
       if (!classObj) {
         return res.status(404).json({ message: "Class not found" });
@@ -302,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/classes/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteClass(id);
+      const success = await storage.deleteClass(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ message: "Class not found" });
@@ -346,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         code: req.body.code,
         description: req.body.description,
       };
-      const subject = await storage.updateSubject(id, subjectData);
+      const subject = await storage.updateSubject(parseInt(id), subjectData);
       
       if (!subject) {
         return res.status(404).json({ message: "Subject not found" });
@@ -361,7 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/subjects/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteSubject(id);
+      const success = await storage.deleteSubject(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ message: "Subject not found" });
@@ -455,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const announcementData = insertAnnouncementSchema.partial().parse(req.body);
-      const announcement = await storage.updateAnnouncement(id, announcementData);
+      const announcement = await storage.updateAnnouncement(parseInt(id), announcementData);
       
       if (!announcement) {
         return res.status(404).json({ message: "Announcement not found" });
@@ -470,7 +553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/announcements/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteAnnouncement(id);
+      const success = await storage.deleteAnnouncement(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ message: "Announcement not found" });
@@ -532,6 +615,214 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(term);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch current term" });
+    }
+  });
+
+  // File upload routes
+  app.post("/api/upload/profile", authenticateUser, upload.single('profileImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+
+      const imageUrl = `/uploads/profiles/${req.file.filename}`;
+      
+      // Update user profile with new image URL
+      const updatedUser = await storage.updateUser(userId, { profileImageUrl: imageUrl });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ 
+        message: "Profile image uploaded successfully", 
+        imageUrl,
+        user: updatedUser 
+      });
+    } catch (error) {
+      console.error('Profile upload error:', error);
+      res.status(500).json({ message: "Failed to upload profile image" });
+    }
+  });
+
+  app.post("/api/upload/gallery", authenticateUser, upload.single('galleryImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { caption, categoryId, uploadedBy } = req.body;
+      const imageUrl = `/uploads/gallery/${req.file.filename}`;
+      
+      const galleryImage = await storage.uploadGalleryImage({
+        imageUrl,
+        caption: caption || null,
+        categoryId: categoryId ? parseInt(categoryId) : null,
+        uploadedBy: uploadedBy || null
+      });
+
+      res.json({ 
+        message: "Gallery image uploaded successfully", 
+        image: galleryImage 
+      });
+    } catch (error) {
+      console.error('Gallery upload error:', error);
+      res.status(500).json({ message: "Failed to upload gallery image" });
+    }
+  });
+
+  // File serving route with security validation
+  app.get("/uploads/*", async (req, res) => {
+    try {
+      // Prevent directory traversal attacks
+      const requestedPath = req.path;
+      const normalizedPath = path.normalize(requestedPath);
+      
+      // Ensure the path is within the uploads directory
+      if (!normalizedPath.startsWith('/uploads/')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if file type is in allowed directories
+      const pathParts = normalizedPath.split('/');
+      if (pathParts.length < 3 || !['profiles', 'gallery'].includes(pathParts[2])) {
+        return res.status(403).json({ message: "Invalid file path" });
+      }
+      
+      const safePath = path.join(process.cwd(), normalizedPath);
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      
+      // Double check the resolved path is within uploads directory
+      if (!safePath.startsWith(uploadsDir)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if file exists before serving
+      try {
+        await fs.access(safePath);
+        res.sendFile(safePath);
+      } catch (accessError) {
+        res.status(404).json({ message: "File not found" });
+      }
+    } catch (error) {
+      console.error('File serving error:', error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Delete gallery image by record ID (secure)
+  app.delete("/api/gallery/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get image record first to find the file path
+      const image = await storage.getGalleryImageById(id);
+      if (!image) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+      
+      // Delete the file from filesystem
+      const filePath = path.join(process.cwd(), image.imageUrl);
+      try {
+        await fs.unlink(filePath);
+      } catch (fileError) {
+        console.error('File deletion error:', fileError);
+        // Continue with database deletion even if file deletion fails
+      }
+      
+      // Delete the record from storage
+      const success = await storage.deleteGalleryImage(id);
+      if (!success) {
+        return res.status(404).json({ message: "Failed to delete image record" });
+      }
+      
+      res.json({ message: "Image deleted successfully" });
+    } catch (error) {
+      console.error('Image deletion error:', error);
+      res.status(500).json({ message: "Failed to delete image" });
+    }
+  });
+  
+  // Delete profile image (updates user record)
+  app.delete("/api/users/:userId/profile-image", authenticateUser, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get user record to find current profile image
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (user.profileImageUrl) {
+        // Delete the file from filesystem
+        const filePath = path.join(process.cwd(), user.profileImageUrl);
+        try {
+          await fs.unlink(filePath);
+        } catch (fileError) {
+          console.error('File deletion error:', fileError);
+          // Continue with database update even if file deletion fails
+        }
+      }
+      
+      // Update user record to remove profile image URL
+      const updatedUser = await storage.updateUser(userId, { profileImageUrl: null });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Failed to update user record" });
+      }
+      
+      res.json({ message: "Profile image deleted successfully", user: updatedUser });
+    } catch (error) {
+      console.error('Profile image deletion error:', error);
+      res.status(500).json({ message: "Failed to delete profile image" });
+    }
+  });
+
+  // Gallery routes
+  app.get("/api/gallery", async (req, res) => {
+    try {
+      const images = await storage.getGalleryImages();
+      res.json(images);
+    } catch (error) {
+      console.error('Gallery fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch gallery images" });
+    }
+  });
+
+  app.get("/api/gallery/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const image = await storage.getGalleryImageById(id);
+      
+      if (!image) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+      
+      res.json(image);
+    } catch (error) {
+      console.error('Gallery image fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch gallery image" });
+    }
+  });
+
+  app.delete("/api/gallery/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteGalleryImage(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+      
+      res.json({ message: "Gallery image deleted successfully" });
+    } catch (error) {
+      console.error('Gallery delete error:', error);
+      res.status(500).json({ message: "Failed to delete gallery image" });
     }
   });
 
