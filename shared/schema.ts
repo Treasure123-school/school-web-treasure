@@ -211,6 +211,20 @@ export const gallery = pgTable("gallery", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Home page content management
+export const homePageContent = pgTable("home_page_content", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  contentType: varchar("content_type", { length: 50 }).notNull(), // 'hero_image', 'gallery_preview_1', 'gallery_preview_2', etc.
+  imageUrl: text("image_url"),
+  altText: text("alt_text"),
+  caption: text("caption"),
+  isActive: boolean("is_active").default(true).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+  uploadedBy: uuid("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -224,6 +238,7 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 export const insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
 export const insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
+export const insertHomePageContentSchema = createInsertSchema(homePageContent).omit({ id: true, createdAt: true, updatedAt: true });
 
 // New exam delivery schemas
 export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true });
@@ -245,6 +260,7 @@ export type Announcement = typeof announcements.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type GalleryCategory = typeof galleryCategories.$inferSelect;
 export type Gallery = typeof gallery.$inferSelect;
+export type HomePageContent = typeof homePageContent.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -264,6 +280,7 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
+export type InsertHomePageContent = z.infer<typeof insertHomePageContentSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
