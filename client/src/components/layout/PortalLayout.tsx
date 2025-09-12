@@ -24,6 +24,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       case 'student':
         return [
           ...baseNav,
+          { name: 'My Exams', href: `/portal/${userRole}/exams`, icon: BookOpen },
           { name: 'My Grades', href: `/portal/${userRole}/grades`, icon: BookOpen },
           { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },

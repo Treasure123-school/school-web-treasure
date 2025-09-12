@@ -21,6 +21,7 @@ import StudentAnnouncements from "@/pages/portal/StudentAnnouncements";
 import StudentAttendance from "@/pages/portal/StudentAttendance";
 import StudentMessages from "@/pages/portal/StudentMessages";
 import StudentProfile from "@/pages/portal/StudentProfile";
+import StudentExams from "@/pages/portal/StudentExams";
 import PortalGallery from "@/pages/portal/Gallery";
 import TeacherDashboard from "@/pages/portal/TeacherDashboard";
 import AdminDashboard from "@/pages/portal/AdminDashboard";
@@ -54,6 +55,11 @@ function Router() {
       <Route path="/portal/student">
         <ProtectedRoute allowedRoles={['Student']}>
           <StudentDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/exams">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentExams />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/grades">
