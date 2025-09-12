@@ -20,7 +20,7 @@ export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: text("password_hash"),
-  roleId: bigserial("role_id", { mode: "number" }).references(() => roles.id).notNull(),
+  roleId: integer("role_id").references(() => roles.id).notNull(),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   phone: varchar("phone", { length: 20 }),
@@ -51,7 +51,7 @@ export const classes = pgTable("classes", {
   level: varchar("level", { length: 20 }).notNull(),
   capacity: integer("capacity").default(30),
   classTeacherId: uuid("class_teacher_id").references(() => users.id),
-  currentTermId: bigserial("current_term_id", { mode: "number" }).references(() => academicTerms.id),
+  currentTermId: integer("current_term_id").references(() => academicTerms.id),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -69,7 +69,7 @@ export const subjects = pgTable("subjects", {
 export const students = pgTable("students", {
   id: uuid("id").references(() => users.id).primaryKey(),
   admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
-  classId: bigserial("class_id", { mode: "number" }).references(() => classes.id),
+  classId: integer("class_id").references(() => classes.id),
   parentId: uuid("parent_id").references(() => users.id),
   admissionDate: date("admission_date").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -79,7 +79,7 @@ export const students = pgTable("students", {
 export const attendance = pgTable("attendance", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   studentId: uuid("student_id").references(() => students.id).notNull(),
-  classId: bigserial("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  classId: integer("class_id").references(() => classes.id).notNull(),
   date: date("date").notNull(),
   status: attendanceStatusEnum("status"),
   recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
@@ -92,10 +92,10 @@ export const exams = pgTable("exams", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   classId: bigserial("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-  subjectId: bigserial("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+  subjectId: integer("subject_id").references(() => subjects.id).notNull(),
   totalMarks: integer("total_marks").notNull(),
   date: date("date").notNull(),
-  termId: bigserial("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
+  termId: integer("term_id").references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -103,7 +103,7 @@ export const exams = pgTable("exams", {
 // Exam results table
 export const examResults = pgTable("exam_results", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigserial("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+  examId: integer("exam_id").references(() => exams.id).notNull(),
   studentId: uuid("student_id").references(() => students.id).notNull(),
   marksObtained: integer("marks_obtained").notNull(),
   grade: varchar("grade", { length: 5 }),
@@ -119,7 +119,7 @@ export const announcements = pgTable("announcements", {
   content: text("content").notNull(),
   authorId: uuid("author_id").references(() => users.id).notNull(),
   targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
-  targetClasses: bigserial("target_classes", { mode: "number" }).array().default(sql`'{}'::bigint[]`),
+  targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
   isPublished: boolean("is_published").default(false),
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -149,7 +149,7 @@ export const gallery = pgTable("gallery", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   imageUrl: text("image_url").notNull(),
   caption: text("caption"),
-  categoryId: bigserial("category_id", { mode: "number" }).references(() => galleryCategories.id),
+  categoryId: integer("category_id").references(() => galleryCategories.id),
   uploadedBy: uuid("uploaded_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
