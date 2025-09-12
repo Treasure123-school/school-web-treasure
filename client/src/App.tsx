@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Public pages
 import Home from "@/pages/Home";
@@ -34,13 +35,37 @@ function Router() {
       <Route path="/admissions" component={Admissions} />
       <Route path="/login" component={Login} />
       
-      {/* Portal pages */}
-      <Route path="/portal/student" component={StudentDashboard} />
-      <Route path="/portal/teacher" component={TeacherDashboard} />
-      <Route path="/portal/admin" component={AdminDashboard} />
-      <Route path="/portal/admin/students" component={StudentManagement} />
-      <Route path="/portal/teacher/attendance" component={AttendanceManagement} />
-      <Route path="/portal/parent" component={ParentDashboard} />
+      {/* Protected Portal pages */}
+      <Route path="/portal/student">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher">
+        <ProtectedRoute allowedRoles={['Teacher']}>
+          <TeacherDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/students">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <StudentManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/attendance">
+        <ProtectedRoute allowedRoles={['Teacher']}>
+          <AttendanceManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/parent">
+        <ProtectedRoute allowedRoles={['Parent']}>
+          <ParentDashboard />
+        </ProtectedRoute>
+      </Route>
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

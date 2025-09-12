@@ -14,64 +14,83 @@ export default function StudentDashboard() {
     return <div>Please log in to access the student portal.</div>;
   }
 
-  // Mock data for demo - in real app this would come from API
-  const mockGrades = [
-    {
-      subject: 'Mathematics',
-      assessment: 'Mid-term Exam',
-      score: '85/100',
-      grade: 'A',
-      color: 'border-primary'
-    },
-    {
-      subject: 'English Language',
-      assessment: 'Essay Assignment',
-      score: '78/100',
-      grade: 'B+',
-      color: 'border-secondary'
-    },
-    {
-      subject: 'Basic Science',
-      assessment: 'Lab Report',
-      score: '92/100',
-      grade: 'A+',
-      color: 'border-green-500'
+  // Fetch real data from API
+  const { data: examResults, isLoading: isLoadingGrades } = useQuery({
+    queryKey: ['examResults', user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/exam-results/${user.id}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch exam results');
+      return response.json();
     }
-  ];
+  });
 
-  const mockAnnouncements = [
-    {
-      id: 1,
-      title: 'Parent-Teacher Conference',
-      content: 'Scheduled for December 15th. Please ensure your parents register...',
-      publishedAt: '2 hours ago',
-      color: 'border-primary'
-    },
-    {
-      id: 2,
-      title: 'Inter-house Sports',
-      content: 'Registration is now open for the annual inter-house sports...',
-      publishedAt: '1 day ago',
-      color: 'border-secondary'
-    },
-    {
-      id: 3,
-      title: 'Exam Timetable Released',
-      content: 'End of term examination timetable is now available...',
-      publishedAt: '3 days ago',
-      color: 'border-green-500'
+  const { data: announcements, isLoading: isLoadingAnnouncements } = useQuery({
+    queryKey: ['announcements', 'Student'],
+    queryFn: async () => {
+      const response = await fetch('/api/announcements?role=Student', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch announcements');
+      return response.json();
     }
-  ];
+  });
 
-  const mockAttendance = [
-    { day: 'Mon', status: 'present' },
-    { day: 'Tue', status: 'present' },
-    { day: 'Wed', status: 'absent' },
-    { day: 'Thu', status: 'present' },
-    { day: 'Fri', status: 'late' },
-    { day: 'Sat', status: null },
-    { day: 'Sun', status: null }
-  ];
+  const { data: attendance, isLoading: isLoadingAttendance } = useQuery({
+    queryKey: ['attendance', user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/attendance/${user.id}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch attendance');
+      return response.json();
+    }
+  });
+
+  // Calculate grade based on score
+  const calculateGrade = (score: number) => {
+    if (score >= 90) return 'A+';
+    if (score >= 80) return 'A';
+    if (score >= 70) return 'B+';
+    if (score >= 60) return 'B';
+    if (score >= 50) return 'C';
+    return 'F';
+  };
+
+  // Format exam results for display
+  const formattedGrades = examResults?.map((result: any, index: number) => ({
+    subject: result.subjectName || result.subject,
+    assessment: result.examType || result.assessment || 'Assessment',
+    score: `${result.score || result.marks}/${result.maxScore || result.totalMarks || 100}`,
+    grade: result.grade || calculateGrade(result.score || result.marks),
+    color: ['border-primary', 'border-secondary', 'border-green-500'][index % 3]
+  })) || [];
+
+  // Format announcements for display
+  const formattedAnnouncements = announcements?.map((announcement: any, index: number) => ({
+    id: announcement.id,
+    title: announcement.title,
+    content: announcement.content,
+    publishedAt: new Date(announcement.createdAt || announcement.publishedAt).toLocaleDateString(),
+    color: ['border-primary', 'border-secondary', 'border-green-500'][index % 3]
+  })) || [];
+
+  // Format attendance for weekly view
+  const formatAttendanceWeekly = (attendanceData: any[]) => {
+    const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return daysOfWeek.map(day => {
+      const attendanceRecord = attendanceData?.find(record => 
+        new Date(record.date).toLocaleDateString('en-US', { weekday: 'short' }) === day
+      );
+      return {
+        day,
+        status: attendanceRecord ? attendanceRecord.status : null
+      };
+    });
+  };
+
+  const formattedAttendance = formatAttendanceWeekly(attendance || []);
 
   const getAttendanceIcon = (status: string | null) => {
     switch (status) {
@@ -153,7 +172,10 @@ export default function StudentDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockGrades.map((grade, index) => (
+              {isLoadingGrades ? (
+                <div className="text-center py-4">Loading grades...</div>
+              ) : formattedGrades.length > 0 ? (
+                formattedGrades.map((grade, index) => (
                 <div 
                   key={index} 
                   className={`flex items-center justify-between p-3 bg-muted/50 rounded-lg border-l-4 ${grade.color}`}
@@ -176,7 +198,10 @@ export default function StudentDashboard() {
                     </p>
                   </div>
                 </div>
-              ))}
+              ))
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">No grades available</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -198,7 +223,10 @@ export default function StudentDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockAnnouncements.map((announcement, index) => (
+              {isLoadingAnnouncements ? (
+                <div className="text-center py-4">Loading announcements...</div>
+              ) : formattedAnnouncements.length > 0 ? (
+                formattedAnnouncements.map((announcement, index) => (
                 <div 
                   key={announcement.id} 
                   className={`border-l-4 ${announcement.color} pl-4`}
@@ -214,7 +242,10 @@ export default function StudentDashboard() {
                     {announcement.publishedAt}
                   </p>
                 </div>
-              ))}
+              ))
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">No announcements yet</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -230,14 +261,18 @@ export default function StudentDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
-            {mockAttendance.map((day, index) => (
-              <div key={index} className="text-center" data-testid={`attendance-day-${index}`}>
-                <p className="text-xs text-muted-foreground mb-2">{day.day}</p>
-                <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center ${getAttendanceColor(day.status)}`}>
-                  {getAttendanceIcon(day.status)}
+            {isLoadingAttendance ? (
+              <div className="col-span-7 text-center py-4">Loading attendance...</div>
+            ) : (
+              formattedAttendance.map((day, index) => (
+                <div key={index} className="text-center" data-testid={`attendance-day-${index}`}>
+                  <p className="text-xs text-muted-foreground mb-2">{day.day}</p>
+                  <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center ${getAttendanceColor(day.status)}`}>
+                    {getAttendanceIcon(day.status)}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <div className="flex items-center justify-center space-x-6 mt-4 text-xs">
             <div className="flex items-center space-x-2">
