@@ -79,6 +79,20 @@ export interface IStorage {
   createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption>;
   getQuestionOptions(questionId: number): Promise<QuestionOption[]>;
 
+  // Exam sessions management
+  createExamSession(session: InsertExamSession): Promise<ExamSession>;
+  getExamSessionById(id: number): Promise<ExamSession | undefined>;
+  getExamSessionsByExam(examId: number): Promise<ExamSession[]>;
+  getExamSessionsByStudent(studentId: string): Promise<ExamSession[]>;
+  updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined>;
+  deleteExamSession(id: number): Promise<boolean>;
+  getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined>;
+
+  // Student answers management
+  createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
+  getStudentAnswers(sessionId: number): Promise<StudentAnswer[]>;
+  updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined>;
+
   // Announcements
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
   getAnnouncements(targetRole?: string): Promise<Announcement[]>;
@@ -351,6 +365,76 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.questionOptions)
       .where(eq(schema.questionOptions.questionId, questionId))
       .orderBy(asc(schema.questionOptions.orderNumber));
+  }
+
+  // Exam sessions management
+  async createExamSession(session: InsertExamSession): Promise<ExamSession> {
+    const result = await db.insert(schema.examSessions).values(session).returning();
+    return result[0];
+  }
+
+  async getExamSessionById(id: number): Promise<ExamSession | undefined> {
+    const result = await db.select().from(schema.examSessions)
+      .where(eq(schema.examSessions.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getExamSessionsByExam(examId: number): Promise<ExamSession[]> {
+    return await db.select().from(schema.examSessions)
+      .where(eq(schema.examSessions.examId, examId))
+      .orderBy(desc(schema.examSessions.startedAt));
+  }
+
+  async getExamSessionsByStudent(studentId: string): Promise<ExamSession[]> {
+    return await db.select().from(schema.examSessions)
+      .where(eq(schema.examSessions.studentId, studentId))
+      .orderBy(desc(schema.examSessions.startedAt));
+  }
+
+  async updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined> {
+    const result = await db.update(schema.examSessions)
+      .set(session)
+      .where(eq(schema.examSessions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteExamSession(id: number): Promise<boolean> {
+    const result = await db.delete(schema.examSessions)
+      .where(eq(schema.examSessions.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined> {
+    const result = await db.select().from(schema.examSessions)
+      .where(and(
+        eq(schema.examSessions.examId, examId),
+        eq(schema.examSessions.studentId, studentId),
+        eq(schema.examSessions.isCompleted, false)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  // Student answers management
+  async createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer> {
+    const result = await db.insert(schema.studentAnswers).values(answer).returning();
+    return result[0];
+  }
+
+  async getStudentAnswers(sessionId: number): Promise<StudentAnswer[]> {
+    return await db.select().from(schema.studentAnswers)
+      .where(eq(schema.studentAnswers.sessionId, sessionId))
+      .orderBy(asc(schema.studentAnswers.answeredAt));
+  }
+
+  async updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined> {
+    const result = await db.update(schema.studentAnswers)
+      .set(answer)
+      .where(eq(schema.studentAnswers.id, id))
+      .returning();
+    return result[0];
   }
 
   // Announcements
@@ -1437,6 +1521,90 @@ class MemoryStorage implements IStorage {
 
   async getQuestionOptions(questionId: number): Promise<QuestionOption[]> {
     return this.questionOptions.filter(o => o.questionId === questionId);
+  }
+
+  // Exam sessions management (MemoryStorage)
+  private examSessions: ExamSession[] = [];
+  private studentAnswers: StudentAnswer[] = [];
+
+  async createExamSession(session: InsertExamSession): Promise<ExamSession> {
+    const newSession: ExamSession = {
+      id: this.examSessions.length + 1,
+      ...session,
+      startedAt: session.startedAt ?? new Date(),
+      submittedAt: session.submittedAt ?? null,
+      timeRemaining: session.timeRemaining ?? null,
+      isCompleted: session.isCompleted ?? false,
+      score: session.score ?? null,
+      maxScore: session.maxScore ?? null,
+      status: session.status ?? 'in_progress',
+      createdAt: new Date()
+    };
+    this.examSessions.push(newSession);
+    return newSession;
+  }
+
+  async getExamSessionById(id: number): Promise<ExamSession | undefined> {
+    return this.examSessions.find(s => s.id === id);
+  }
+
+  async getExamSessionsByExam(examId: number): Promise<ExamSession[]> {
+    return this.examSessions.filter(s => s.examId === examId);
+  }
+
+  async getExamSessionsByStudent(studentId: string): Promise<ExamSession[]> {
+    return this.examSessions.filter(s => s.studentId === studentId);
+  }
+
+  async updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined> {
+    const index = this.examSessions.findIndex(s => s.id === id);
+    if (index === -1) return undefined;
+    
+    this.examSessions[index] = { ...this.examSessions[index], ...session };
+    return this.examSessions[index];
+  }
+
+  async deleteExamSession(id: number): Promise<boolean> {
+    const index = this.examSessions.findIndex(s => s.id === id);
+    if (index === -1) return false;
+    
+    this.examSessions.splice(index, 1);
+    return true;
+  }
+
+  async getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined> {
+    return this.examSessions.find(s => 
+      s.examId === examId && 
+      s.studentId === studentId && 
+      !s.isCompleted
+    );
+  }
+
+  // Student answers management (MemoryStorage)
+  async createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer> {
+    const newAnswer: StudentAnswer = {
+      id: this.studentAnswers.length + 1,
+      ...answer,
+      selectedOptionId: answer.selectedOptionId ?? null,
+      textAnswer: answer.textAnswer ?? null,
+      isCorrect: answer.isCorrect ?? null,
+      pointsEarned: answer.pointsEarned ?? 0,
+      answeredAt: new Date()
+    };
+    this.studentAnswers.push(newAnswer);
+    return newAnswer;
+  }
+
+  async getStudentAnswers(sessionId: number): Promise<StudentAnswer[]> {
+    return this.studentAnswers.filter(a => a.sessionId === sessionId);
+  }
+
+  async updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined> {
+    const index = this.studentAnswers.findIndex(a => a.id === id);
+    if (index === -1) return undefined;
+    
+    this.studentAnswers[index] = { ...this.studentAnswers[index], ...answer };
+    return this.studentAnswers[index];
   }
 
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
