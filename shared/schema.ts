@@ -97,7 +97,64 @@ export const exams = pgTable("exams", {
   date: date("date").notNull(),
   termId: integer("term_id").references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
+  // Enhanced exam delivery fields
+  timeLimit: integer("time_limit"), // in minutes
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
+  instructions: text("instructions"),
+  isPublished: boolean("is_published").default(false),
+  allowRetakes: boolean("allow_retakes").default(false),
+  shuffleQuestions: boolean("shuffle_questions").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exam questions table
+export const examQuestions = pgTable("exam_questions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  examId: integer("exam_id").references(() => exams.id).notNull(),
+  questionText: text("question_text").notNull(),
+  questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay'
+  points: integer("points").default(1),
+  orderNumber: integer("order_number").notNull(),
+  imageUrl: text("image_url"), // for questions with images
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Question options table (for multiple choice questions)
+export const questionOptions = pgTable("question_options", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  questionId: integer("question_id").references(() => examQuestions.id).notNull(),
+  optionText: text("option_text").notNull(),
+  isCorrect: boolean("is_correct").default(false),
+  orderNumber: integer("order_number").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Student exam sessions table
+export const examSessions = pgTable("exam_sessions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  examId: integer("exam_id").references(() => exams.id).notNull(),
+  studentId: uuid("student_id").references(() => students.id).notNull(),
+  startedAt: timestamp("started_at").defaultNow(),
+  submittedAt: timestamp("submitted_at"),
+  timeRemaining: integer("time_remaining"), // in seconds
+  isCompleted: boolean("is_completed").default(false),
+  score: integer("score"),
+  maxScore: integer("max_score"),
+  status: varchar("status", { length: 20 }).default('in_progress'), // 'in_progress', 'submitted', 'graded'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Student answers table
+export const studentAnswers = pgTable("student_answers", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  sessionId: integer("session_id").references(() => examSessions.id).notNull(),
+  questionId: integer("question_id").references(() => examQuestions.id).notNull(),
+  selectedOptionId: integer("selected_option_id").references(() => questionOptions.id), // for multiple choice
+  textAnswer: text("text_answer"), // for text/essay questions
+  isCorrect: boolean("is_correct"),
+  pointsEarned: integer("points_earned").default(0),
+  answeredAt: timestamp("answered_at").defaultNow(),
 });
 
 // Exam results table
@@ -168,6 +225,12 @@ export const insertMessageSchema = createInsertSchema(messages).omit({ id: true,
 export const insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
 export const insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
 
+// New exam delivery schemas
+export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true });
+export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true });
+export const insertExamSessionSchema = createInsertSchema(examSessions).omit({ id: true, createdAt: true });
+export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
+
 // Types
 export type Role = typeof roles.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -183,6 +246,12 @@ export type Message = typeof messages.$inferSelect;
 export type GalleryCategory = typeof galleryCategories.$inferSelect;
 export type Gallery = typeof gallery.$inferSelect;
 
+// New exam delivery types
+export type ExamQuestion = typeof examQuestions.$inferSelect;
+export type QuestionOption = typeof questionOptions.$inferSelect;
+export type ExamSession = typeof examSessions.$inferSelect;
+export type StudentAnswer = typeof studentAnswers.$inferSelect;
+
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
@@ -195,3 +264,9 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
+
+// New exam delivery insert types
+export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
+export type InsertQuestionOption = z.infer<typeof insertQuestionOptionSchema>;
+export type InsertExamSession = z.infer<typeof insertExamSessionSchema>;
+export type InsertStudentAnswer = z.infer<typeof insertStudentAnswerSchema>;
