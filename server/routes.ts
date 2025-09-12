@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -501,7 +501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exams
-  app.post("/api/exams", async (req, res) => {
+  app.post("/api/exams", authenticateUser, async (req, res) => {
     try {
       const examData = insertExamSchema.parse(req.body);
       const exam = await storage.createExam(examData);
@@ -543,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/exams/:id", async (req, res) => {
+  app.put("/api/exams/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
       const examData = insertExamSchema.partial().parse(req.body);
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/exams/:id", async (req, res) => {
+  app.delete("/api/exams/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteExam(parseInt(id));
@@ -567,6 +567,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Exam deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete exam" });
+    }
+  });
+
+  // Exam Questions routes
+  app.post("/api/exam-questions", authenticateUser, async (req, res) => {
+    try {
+      const questionData = insertExamQuestionSchema.parse(req.body);
+      const question = await storage.createExamQuestion(questionData);
+      res.json(question);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid question data" });
+    }
+  });
+
+  app.get("/api/exam-questions/:examId", async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const questions = await storage.getExamQuestions(parseInt(examId));
+      res.json(questions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exam questions" });
+    }
+  });
+
+  app.put("/api/exam-questions/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const questionData = insertExamQuestionSchema.partial().parse(req.body);
+      const question = await storage.updateExamQuestion(parseInt(id), questionData);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.json(question);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid question data" });
+    }
+  });
+
+  app.delete("/api/exam-questions/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteExamQuestion(parseInt(id));
+      if (!deleted) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.json({ message: "Question deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete question" });
+    }
+  });
+
+  // Question Options routes  
+  app.post("/api/question-options", authenticateUser, async (req, res) => {
+    try {
+      const optionData = insertQuestionOptionSchema.parse(req.body);
+      const option = await storage.createQuestionOption(optionData);
+      res.json(option);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid option data" });
+    }
+  });
+
+  app.get("/api/question-options/:questionId", async (req, res) => {
+    try {
+      const { questionId } = req.params;
+      const options = await storage.getQuestionOptions(parseInt(questionId));
+      res.json(options);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch question options" });
     }
   });
 

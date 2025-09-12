@@ -91,7 +91,7 @@ export const attendance = pgTable("attendance", {
 export const exams = pgTable("exams", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
-  classId: bigserial("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  classId: integer("class_id").references(() => classes.id).notNull(),
   subjectId: integer("subject_id").references(() => subjects.id).notNull(),
   totalMarks: integer("total_marks").notNull(),
   date: date("date").notNull(),

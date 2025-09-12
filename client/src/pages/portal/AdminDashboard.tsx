@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3 } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function AdminDashboard() {
@@ -86,6 +86,12 @@ export default function AdminDashboard() {
       href: '/portal/admin/teachers/add'
     },
     {
+      title: 'Manage Exams',
+      icon: FileText,
+      color: 'bg-purple-100 hover:bg-purple-200 text-purple-600',
+      href: '/portal/admin/exams'
+    },
+    {
       title: 'Create Class',
       icon: School,
       color: 'bg-green-100 hover:bg-green-200 text-green-600',
@@ -100,7 +106,7 @@ export default function AdminDashboard() {
     {
       title: 'Generate Report',
       icon: BarChart3,
-      color: 'bg-purple-100 hover:bg-purple-200 text-purple-600',
+      color: 'bg-orange-100 hover:bg-orange-200 text-orange-600',
       href: '/portal/admin/reports'
     }
   ];

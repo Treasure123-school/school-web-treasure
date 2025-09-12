@@ -80,6 +80,12 @@ export default function TeacherDashboard() {
       href: '/portal/teacher/grades'
     },
     {
+      title: 'Manage Exams',
+      icon: 'fas fa-file-alt',
+      color: 'bg-purple-100 hover:bg-purple-200 text-purple-600',
+      href: '/portal/teacher/exams'
+    },
+    {
       title: 'Send Announcement',
       icon: 'fas fa-bullhorn',
       color: 'bg-green-100 hover:bg-green-200 text-green-600',

@@ -67,6 +67,16 @@ export interface IStorage {
   getExamResultsByStudent(studentId: string): Promise<ExamResult[]>;
   getExamResultsByExam(examId: number): Promise<ExamResult[]>;
 
+  // Exam questions management
+  createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion>;
+  getExamQuestions(examId: number): Promise<ExamQuestion[]>;
+  updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined>;
+  deleteExamQuestion(id: number): Promise<boolean>;
+
+  // Question options management  
+  createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption>;
+  getQuestionOptions(questionId: number): Promise<QuestionOption[]>;
+
   // Announcements
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
   getAnnouncements(targetRole?: string): Promise<Announcement[]>;
@@ -923,6 +933,9 @@ class MemoryStorage implements IStorage {
     }
   ];
 
+  private examQuestions: ExamQuestion[] = [];
+  private questionOptions: QuestionOption[] = [];
+
   private examResults: ExamResult[] = [
     { id: 1, examId: 1, studentId: '1', marksObtained: 85, grade: 'A', remarks: 'Excellent performance', recordedBy: '2', createdAt: new Date() },
     { id: 2, examId: 2, studentId: '1', marksObtained: 78, grade: 'B+', remarks: 'Good improvement', recordedBy: '2', createdAt: new Date() },
@@ -1257,6 +1270,56 @@ class MemoryStorage implements IStorage {
 
   async getExamResultsByExam(examId: number): Promise<ExamResult[]> {
     return this.examResults.filter(r => r.examId === examId);
+  }
+
+  // Exam questions management
+  async createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion> {
+    const newQuestion: ExamQuestion = {
+      id: this.examQuestions.length + 1,
+      ...question,
+      createdAt: new Date()
+    };
+    this.examQuestions.push(newQuestion);
+    return newQuestion;
+  }
+
+  async getExamQuestions(examId: number): Promise<ExamQuestion[]> {
+    return this.examQuestions
+      .filter(q => q.examId === examId)
+      .sort((a, b) => a.orderNumber - b.orderNumber);
+  }
+
+  async updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined> {
+    const index = this.examQuestions.findIndex(q => q.id === id);
+    if (index === -1) return undefined;
+    
+    this.examQuestions[index] = { ...this.examQuestions[index], ...question };
+    return this.examQuestions[index];
+  }
+
+  async deleteExamQuestion(id: number): Promise<boolean> {
+    const index = this.examQuestions.findIndex(q => q.id === id);
+    if (index === -1) return false;
+    
+    // Also delete associated options
+    this.questionOptions = this.questionOptions.filter(o => o.questionId !== id);
+    this.examQuestions.splice(index, 1);
+    return true;
+  }
+
+  // Question options management
+  async createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption> {
+    const newOption: QuestionOption = {
+      id: this.questionOptions.length + 1,
+      ...option,
+      createdAt: new Date()
+    };
+    this.questionOptions.push(newOption);
+    return newOption;
+  }
+
+  async getQuestionOptions(questionId: number): Promise<QuestionOption[]> {
+    return this.questionOptions.filter(o => o.questionId === questionId);
   }
 
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
