@@ -314,6 +314,45 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(schema.examResults.createdAt));
   }
 
+  // Exam questions management
+  async createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion> {
+    const result = await db.insert(schema.examQuestions).values(question).returning();
+    return result[0];
+  }
+
+  async getExamQuestions(examId: number): Promise<ExamQuestion[]> {
+    return await db.select().from(schema.examQuestions)
+      .where(eq(schema.examQuestions.examId, examId))
+      .orderBy(asc(schema.examQuestions.orderNumber));
+  }
+
+  async updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined> {
+    const result = await db.update(schema.examQuestions)
+      .set(question)
+      .where(eq(schema.examQuestions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteExamQuestion(id: number): Promise<boolean> {
+    const result = await db.delete(schema.examQuestions)
+      .where(eq(schema.examQuestions.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Question options management  
+  async createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption> {
+    const result = await db.insert(schema.questionOptions).values(option).returning();
+    return result[0];
+  }
+
+  async getQuestionOptions(questionId: number): Promise<QuestionOption[]> {
+    return await db.select().from(schema.questionOptions)
+      .where(eq(schema.questionOptions.questionId, questionId))
+      .orderBy(asc(schema.questionOptions.orderNumber));
+  }
+
   // Announcements
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
     const result = await db.insert(schema.announcements).values(announcement).returning();
@@ -1073,6 +1112,33 @@ class MemoryStorage implements IStorage {
     { id: 5, imageUrl: '/placeholder-gallery-5.jpg', caption: 'Graduation Ceremony 2023', categoryId: 1, uploadedBy: '4', createdAt: new Date() }
   ];
 
+  private homePageContent: HomePageContent[] = [
+    { 
+      id: 1, 
+      contentType: 'hero_image', 
+      imageUrl: '/placeholder-hero.jpg', 
+      altText: 'Welcome to Treasure-Home School', 
+      caption: 'Excellence in Education', 
+      isActive: true, 
+      displayOrder: 1, 
+      uploadedBy: '4', 
+      createdAt: new Date(), 
+      updatedAt: new Date() 
+    },
+    { 
+      id: 2, 
+      contentType: 'gallery_preview_1', 
+      imageUrl: '/placeholder-gallery-preview-1.jpg', 
+      altText: 'Science Fair', 
+      caption: 'Annual Science Fair 2023', 
+      isActive: true, 
+      displayOrder: 2, 
+      uploadedBy: '4', 
+      createdAt: new Date(), 
+      updatedAt: new Date() 
+    }
+  ];
+
   async getUser(id: string): Promise<User | undefined> {
     return this.users.find(u => u.id === id);
   }
@@ -1325,6 +1391,8 @@ class MemoryStorage implements IStorage {
     const newQuestion: ExamQuestion = {
       id: this.examQuestions.length + 1,
       ...question,
+      points: question.points ?? null,
+      imageUrl: question.imageUrl ?? null,
       createdAt: new Date()
     };
     this.examQuestions.push(newQuestion);
@@ -1360,6 +1428,7 @@ class MemoryStorage implements IStorage {
     const newOption: QuestionOption = {
       id: this.questionOptions.length + 1,
       ...option,
+      isCorrect: option.isCorrect ?? null,
       createdAt: new Date()
     };
     this.questionOptions.push(newOption);
@@ -1476,6 +1545,56 @@ class MemoryStorage implements IStorage {
       return true;
     }
     return false;
+  }
+
+  // Home page content management
+  async createHomePageContent(content: InsertHomePageContent): Promise<HomePageContent> {
+    const newContent: HomePageContent = {
+      id: this.homePageContent.length + 1,
+      ...content,
+      imageUrl: content.imageUrl ?? null,
+      altText: content.altText ?? null,
+      caption: content.caption ?? null,
+      uploadedBy: content.uploadedBy ?? null,
+      isActive: content.isActive ?? true,
+      displayOrder: content.displayOrder ?? 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.homePageContent.push(newContent);
+    return newContent;
+  }
+
+  async getHomePageContent(contentType?: string): Promise<HomePageContent[]> {
+    let content = this.homePageContent.filter(c => c.isActive);
+    if (contentType) {
+      content = content.filter(c => c.contentType === contentType);
+    }
+    return content.sort((a, b) => a.displayOrder - b.displayOrder);
+  }
+
+  async getHomePageContentById(id: number): Promise<HomePageContent | undefined> {
+    return this.homePageContent.find(c => c.id === id);
+  }
+
+  async updateHomePageContent(id: number, content: Partial<InsertHomePageContent>): Promise<HomePageContent | undefined> {
+    const index = this.homePageContent.findIndex(c => c.id === id);
+    if (index === -1) return undefined;
+    
+    this.homePageContent[index] = { 
+      ...this.homePageContent[index], 
+      ...content, 
+      updatedAt: new Date() 
+    };
+    return this.homePageContent[index];
+  }
+
+  async deleteHomePageContent(id: number): Promise<boolean> {
+    const index = this.homePageContent.findIndex(c => c.id === id);
+    if (index === -1) return false;
+    
+    this.homePageContent.splice(index, 1);
+    return true;
   }
 
   // Analytics and Reports
