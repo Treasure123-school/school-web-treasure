@@ -422,10 +422,10 @@ export class DatabaseStorage implements IStorage {
         subjectPerformance,
         recentActivity: {
           newStudentsThisMonth: students.filter(s => 
-            new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           ).length,
           examsThisMonth: exams.filter(e => 
-            new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            e.createdAt && new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           ).length
         }
       };
@@ -457,7 +457,7 @@ export class DatabaseStorage implements IStorage {
       // Calculate performance metrics
       const totalExams = examResults.length;
       const averageScore = totalExams > 0 ? 
-        examResults.reduce((sum, r) => sum + r.obtainedMarks, 0) / totalExams : 0;
+        examResults.reduce((sum, r) => sum + r.marksObtained, 0) / totalExams : 0;
       
       const gradeDistribution = this.calculateGradeDistribution(examResults);
       
@@ -475,7 +475,7 @@ export class DatabaseStorage implements IStorage {
         performanceTrends,
         topPerformers: studentPerformance.slice(0, 5),
         strugglingStudents: studentPerformance.slice(-5),
-        passRate: Math.round((examResults.filter(r => r.obtainedMarks >= 50).length / totalExams) * 100)
+        passRate: Math.round((examResults.filter(r => r.marksObtained >= 50).length / totalExams) * 100)
       };
     } catch (error) {
       console.error('Error in getPerformanceAnalytics:', error);
@@ -1333,10 +1333,10 @@ class MemoryStorage implements IStorage {
       subjectPerformance: this.calculateSubjectPerformance(this.examResults, this.subjects),
       recentActivity: {
         newStudentsThisMonth: students.filter(s => 
-          new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         ).length,
         examsThisMonth: this.exams.filter(e => 
-          new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          e.createdAt && new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         ).length
       }
     };
@@ -1361,7 +1361,7 @@ class MemoryStorage implements IStorage {
     // Calculate performance metrics
     const totalExams = examResults.length;
     const averageScore = totalExams > 0 ? 
-      examResults.reduce((sum, r) => sum + r.obtainedMarks, 0) / totalExams : 0;
+      examResults.reduce((sum, r) => sum + r.marksObtained, 0) / totalExams : 0;
     
     const gradeDistribution = this.calculateGradeDistribution(examResults);
     const performanceTrends = this.calculatePerformanceTrends(examResults);
@@ -1375,7 +1375,7 @@ class MemoryStorage implements IStorage {
       performanceTrends,
       topPerformers: studentPerformance.slice(0, 5),
       strugglingStudents: studentPerformance.slice(-5),
-      passRate: Math.round((examResults.filter(r => r.obtainedMarks >= 50).length / totalExams) * 100)
+      passRate: Math.round((examResults.filter(r => r.marksObtained >= 50).length / totalExams) * 100)
     };
   }
 
