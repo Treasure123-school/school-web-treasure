@@ -27,6 +27,8 @@ if (!JWT_SECRET) {
   console.error('Please set a secure JWT_SECRET environment variable before starting the server.');
   process.exit(1);
 }
+// Type assertion since we've already checked for existence
+const SECRET_KEY = JWT_SECRET as string;
 const JWT_EXPIRES_IN = '24h';
 
 // Rate limiting for login attempts (simple in-memory store)
@@ -54,7 +56,7 @@ const authenticateUser = async (req: any, res: any, next: any) => {
     // Verify JWT token
     let decoded: any;
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(token, SECRET_KEY);
     } catch (jwtError) {
       console.error('JWT verification failed:', jwtError);
       return res.status(401).json({ message: "Invalid or expired token" });
@@ -248,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = Date.now();
       
       // Clean up old attempts
-      for (const [key, data] of loginAttempts.entries()) {
+      for (const [key, data] of Array.from(loginAttempts.entries())) {
         if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
           loginAttempts.delete(key);
         }
@@ -302,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         iat: Math.floor(Date.now() / 1000),
       };
       
-      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+      const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
       
       console.log(`Login successful for ${email}`);
       res.json({ 
