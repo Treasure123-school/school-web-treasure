@@ -165,22 +165,24 @@ export default function StudentProfile() {
                         {user.firstName[0]}{user.lastName[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                      onClick={() => setShowImageUpload(!showImageUpload)}
-                      data-testid="profile-image-upload-button"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
+                    {user.roleId === 4 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                        onClick={() => setShowImageUpload(!showImageUpload)}
+                        data-testid="profile-image-upload-button"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                   <h3 className="text-lg font-semibold">
                     {user.firstName} {user.lastName}
                   </h3>
                   <p className="text-muted-foreground">Student</p>
                   
-                  {showImageUpload && (
+                  {user.roleId === 4 && showImageUpload && (
                     <div className="mt-4">
                       <FileUpload
                         type="profile"

@@ -87,29 +87,31 @@ export default function Gallery() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Gallery</h1>
             <p className="text-muted-foreground">
-              Upload and manage your images
+              {user.roleId === 4 ? "Upload and manage your images" : "Browse school gallery"}
             </p>
           </div>
-          <Button 
-            onClick={() => setShowUpload(!showUpload)}
-            data-testid="gallery-upload-toggle"
-          >
-            {showUpload ? (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Hide Upload
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" />
-                Upload Image
-              </>
-            )}
-          </Button>
+          {user.roleId === 4 && (
+            <Button 
+              onClick={() => setShowUpload(!showUpload)}
+              data-testid="gallery-upload-toggle"
+            >
+              {showUpload ? (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Hide Upload
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload Image
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
-        {/* Upload Section */}
-        {showUpload && (
+        {/* Upload Section - Admin Only */}
+        {user.roleId === 4 && showUpload && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -152,17 +154,19 @@ export default function Gallery() {
                           alt={image.caption || 'Gallery image'}
                           className="w-full h-full object-cover"
                         />
-                        <div className="absolute top-2 right-2">
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="h-8 w-8 rounded-full p-0"
-                            onClick={() => handleDeleteImage(image.id)}
-                            data-testid={`delete-image-${image.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {user.roleId === 4 && (
+                          <div className="absolute top-2 right-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 w-8 rounded-full p-0"
+                              onClick={() => handleDeleteImage(image.id)}
+                              data-testid={`delete-image-${image.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       {image.caption && (
                         <CardContent className="p-3">
@@ -185,12 +189,14 @@ export default function Gallery() {
                           No images yet
                         </h3>
                         <p className="text-gray-500 mb-4">
-                          Upload your first image to get started.
+                          {user.roleId === 4 ? "Upload your first image to get started." : "No images have been uploaded yet."}
                         </p>
-                        <Button onClick={() => setShowUpload(true)} data-testid="upload-first-image">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Upload Image
-                        </Button>
+                        {user.roleId === 4 && (
+                          <Button onClick={() => setShowUpload(true)} data-testid="upload-first-image">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Upload Image
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
