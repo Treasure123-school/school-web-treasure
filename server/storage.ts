@@ -80,6 +80,7 @@ export interface IStorage {
   uploadGalleryImage(image: InsertGallery): Promise<Gallery>;
   getGalleryImages(categoryId?: number): Promise<Gallery[]>;
   getGalleryImageById(id: string): Promise<Gallery | undefined>;
+  deleteGalleryImage(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -612,6 +613,12 @@ class MemoryStorage implements IStorage {
     const newUser: User = {
       id: String(this.users.length + 1),
       ...user,
+      gender: user.gender ?? null,
+      passwordHash: user.passwordHash ?? null,
+      phone: user.phone ?? null,
+      address: user.address ?? null,
+      dateOfBirth: user.dateOfBirth ?? null,
+      profileImageUrl: user.profileImageUrl ?? null,
       isActive: user.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -653,10 +660,12 @@ class MemoryStorage implements IStorage {
 
   async createStudent(student: InsertStudent): Promise<Student> {
     const newStudent: Student = {
-      id: String(this.students.length + 1),
       ...student,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      id: student.id ?? String(this.students.length + 1),
+      classId: student.classId ?? null,
+      parentId: student.parentId ?? null,
+      admissionDate: student.admissionDate ?? null,
+      createdAt: new Date()
     };
     this.students.push(newStudent);
     return newStudent;
@@ -686,8 +695,11 @@ class MemoryStorage implements IStorage {
     const newClass: Class = {
       id: this.classes.length + 1,
       ...classData,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      isActive: classData.isActive ?? true,
+      capacity: classData.capacity ?? 30,
+      classTeacherId: classData.classTeacherId ?? null,
+      currentTermId: classData.currentTermId ?? null,
+      createdAt: new Date()
     };
     this.classes.push(newClass);
     return newClass;
@@ -720,6 +732,7 @@ class MemoryStorage implements IStorage {
     const newSubject: Subject = {
       id: this.subjects.length + 1,
       ...subject,
+      description: subject.description ?? null,
       createdAt: new Date()
     };
     this.subjects.push(newSubject);
@@ -742,7 +755,7 @@ class MemoryStorage implements IStorage {
   }
 
   async getCurrentTerm(): Promise<AcademicTerm | undefined> {
-    return this.terms.find(t => t.isActive);
+    return this.terms.find(t => t.isCurrent);
   }
 
   async getTerms(): Promise<AcademicTerm[]> {
@@ -753,8 +766,9 @@ class MemoryStorage implements IStorage {
     const newAttendance: Attendance = {
       id: this.attendance.length + 1,
       ...attendance,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      status: attendance.status ?? null,
+      notes: attendance.notes ?? null,
+      createdAt: new Date()
     };
     this.attendance.push(newAttendance);
     return newAttendance;
@@ -772,8 +786,8 @@ class MemoryStorage implements IStorage {
     const newExam: Exam = {
       id: this.exams.length + 1,
       ...exam,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      classId: exam.classId ?? 1,
+      createdAt: new Date()
     };
     this.exams.push(newExam);
     return newExam;
@@ -787,8 +801,9 @@ class MemoryStorage implements IStorage {
     const newResult: ExamResult = {
       id: this.examResults.length + 1,
       ...result,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      grade: result.grade ?? null,
+      remarks: result.remarks ?? null,
+      createdAt: new Date()
     };
     this.examResults.push(newResult);
     return newResult;
@@ -802,6 +817,10 @@ class MemoryStorage implements IStorage {
     const newAnnouncement: Announcement = {
       id: this.announcements.length + 1,
       ...announcement,
+      targetRoles: announcement.targetRoles ?? null,
+      targetClasses: announcement.targetClasses ?? null,
+      isPublished: announcement.isPublished ?? false,
+      publishedAt: announcement.publishedAt ?? null,
       createdAt: new Date()
     };
     this.announcements.push(newAnnouncement);
@@ -838,22 +857,21 @@ class MemoryStorage implements IStorage {
     const newMessage: Message = {
       id: this.messages.length + 1,
       ...message,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      isRead: message.isRead ?? false,
+      createdAt: new Date()
     };
     this.messages.push(newMessage);
     return newMessage;
   }
 
   async getMessagesByUser(userId: string): Promise<Message[]> {
-    return this.messages.filter(m => m.senderId === userId || m.receiverId === userId);
+    return this.messages.filter(m => m.senderId === userId || m.recipientId === userId);
   }
 
   async markMessageAsRead(id: number): Promise<void> {
     const message = this.messages.find(m => m.id === id);
     if (message) {
       message.isRead = true;
-      message.readAt = new Date();
     }
   }
 
@@ -861,8 +879,8 @@ class MemoryStorage implements IStorage {
     const newCategory: GalleryCategory = {
       id: this.galleryCategories.length + 1,
       ...category,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      description: category.description ?? null,
+      createdAt: new Date()
     };
     this.galleryCategories.push(newCategory);
     return newCategory;
@@ -876,8 +894,10 @@ class MemoryStorage implements IStorage {
     const newImage: Gallery = {
       id: this.galleryImages.length + 1,
       ...image,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      caption: image.caption ?? null,
+      categoryId: image.categoryId ?? null,
+      uploadedBy: image.uploadedBy ?? null,
+      createdAt: new Date()
     };
     this.galleryImages.push(newImage);
     return newImage;
