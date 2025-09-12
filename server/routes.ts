@@ -167,6 +167,86 @@ const upload = multer({
   }
 });
 
+// Auto-scoring function for multiple choice questions
+async function autoScoreExamSession(sessionId: number, storage: any): Promise<void> {
+  try {
+    // Get the exam session
+    const session = await storage.getExamSessionById(sessionId);
+    if (!session) {
+      throw new Error(`Exam session ${sessionId} not found`);
+    }
+
+    // Get all student answers for this session
+    const studentAnswers = await storage.getStudentAnswers(sessionId);
+    
+    // Get all questions for this exam
+    const examQuestions = await storage.getExamQuestions(session.examId);
+    
+    let totalScore = 0;
+    let maxPossibleScore = 0;
+    let autoScoredQuestions = 0;
+
+    console.log(`Auto-scoring session ${sessionId}: Found ${examQuestions.length} questions, ${studentAnswers.length} answers`);
+
+    // Calculate scores for multiple choice questions
+    for (const question of examQuestions) {
+      maxPossibleScore += question.points || 1;
+
+      if (question.questionType === 'multiple_choice') {
+        // Find student's answer for this question
+        const studentAnswer = studentAnswers.find(a => a.questionId === question.id);
+        
+        if (studentAnswer && studentAnswer.selectedOptionId) {
+          // Get question options to find the correct answer
+          const questionOptions = await storage.getQuestionOptions(question.id);
+          const correctOption = questionOptions.find(option => option.isCorrect);
+          
+          if (correctOption && studentAnswer.selectedOptionId === correctOption.id) {
+            // Student got it right!
+            totalScore += question.points || 1;
+            console.log(`Question ${question.id}: Correct! (+${question.points || 1} points)`);
+          } else {
+            console.log(`Question ${question.id}: Incorrect`);
+          }
+          autoScoredQuestions++;
+        } else {
+          console.log(`Question ${question.id}: No answer provided`);
+        }
+      } else {
+        // Essay questions need manual grading - don't include in auto-score
+        console.log(`Question ${question.id}: Essay type, requires manual grading`);
+      }
+    }
+
+    // Create or update exam result
+    const existingResults = await storage.getExamResultsByStudent(session.studentId);
+    const existingResult = existingResults.find(r => r.examId === session.examId);
+
+    const resultData = {
+      examId: session.examId,
+      studentId: session.studentId,
+      score: totalScore,
+      maxScore: maxPossibleScore,
+      autoScored: autoScoredQuestions > 0,
+      recordedBy: 'system-auto-scoring' // Indicate this was auto-generated
+    };
+
+    if (existingResult) {
+      // Update existing result
+      await storage.updateExamResult(existingResult.id, resultData);
+      console.log(`Updated exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore}`);
+    } else {
+      // Create new result
+      await storage.recordExamResult(resultData);
+      console.log(`Created exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore}`);
+    }
+
+  } catch (error) {
+    console.error('Auto-scoring error:', error);
+    throw error;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Secure file serving for uploads - require authentication
   app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
@@ -1177,6 +1257,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cannot change examId or studentId" });
       }
       
+      // Auto-scoring logic: If session is being marked as completed, calculate scores
+      if (allowedUpdates.isCompleted === true && !existingSession.isCompleted) {
+        try {
+          console.log('Triggering auto-scoring for session:', id);
+          await autoScoreExamSession(parseInt(id), storage);
+        } catch (error) {
+          console.error('Auto-scoring failed:', error);
+          // Continue with session update even if auto-scoring fails
+        }
+      }
+
       const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
       if (!session) {
         return res.status(404).json({ message: "Exam session not found" });
