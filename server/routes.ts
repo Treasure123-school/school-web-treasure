@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
@@ -8,6 +8,15 @@ import path from "path";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+
+// Type for authenticated user
+interface AuthenticatedUser {
+  id: string;
+  email: string;
+  roleId: number;
+  firstName: string;
+  lastName: string;
+}
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -681,7 +690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const examData = insertExamSchema.omit({ createdBy: true }).parse(req.body);
-      const examWithCreator = { ...examData, createdBy: req.user.id };
+      const examWithCreator = { ...examData, createdBy: (req as any).user.id };
       const exam = await storage.createExam(examWithCreator);
       res.json(exam);
     } catch (error) {
@@ -733,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Ownership check: Teachers can only modify their own exams
       // Admins can modify any exam
-      if (req.user.roleId === ROLES.TEACHER && existingExam.createdBy !== req.user.id) {
+      if ((req as any).user.roleId === ROLES.TEACHER && existingExam.createdBy !== (req as any).user.id) {
         return res.status(403).json({ message: "You can only modify exams you created" });
       }
       
@@ -760,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Ownership check: Teachers can only delete their own exams
       // Admins can delete any exam
-      if (req.user.roleId === ROLES.TEACHER && existingExam.createdBy !== req.user.id) {
+      if ((req as any).user.roleId === ROLES.TEACHER && existingExam.createdBy !== (req as any).user.id) {
         return res.status(403).json({ message: "You can only delete exams you created" });
       }
       
@@ -926,14 +935,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Security validation: Only teachers (roleId 2) and admins (roleId 1) can record results
       // Students cannot submit their own scores to prevent tampering
-      if (req.user.roleId >= 3) {
+      if ((req as any).user.roleId >= 3) {
         return res.status(403).json({ message: "Students cannot submit exam results directly" });
       }
       
       // Set recordedBy to the authenticated user
       const secureResultData = {
         ...resultData,
-        recordedBy: req.user.id
+        recordedBy: (req as any).user.id
       };
       
       const result = await storage.recordExamResult(secureResultData);
@@ -1775,7 +1784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caption: caption || null,
         displayOrder: displayOrder ? parseInt(displayOrder) : 0,
         isActive: true,
-        uploadedBy: req.user.userId
+        uploadedBy: (req as any).user.id
       });
 
       res.json({ 
