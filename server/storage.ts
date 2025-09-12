@@ -1719,6 +1719,6 @@ class MemoryStorage implements IStorage {
 
 // Use real database storage
 const storage: IStorage = new DatabaseStorage();
-console.log('Using PostgreSQL database storage');
+console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage with URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 export { storage };
