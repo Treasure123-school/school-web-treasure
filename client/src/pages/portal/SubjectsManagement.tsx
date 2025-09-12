@@ -98,7 +98,7 @@ export default function SubjectsManagement() {
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/subjects/${id}`);
       if (!response.ok) throw new Error('Failed to delete subject');
-      return response.json();
+      return response.status === 204 ? null : response.json();
     },
     onSuccess: () => {
       toast({
@@ -352,7 +352,11 @@ export default function SubjectsManagement() {
                 This action cannot be undone.
               </p>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setSubjectToDelete(null)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSubjectToDelete(null)}
+                  data-testid="button-cancel-delete"
+                >
                   Cancel
                 </Button>
                 <Button 

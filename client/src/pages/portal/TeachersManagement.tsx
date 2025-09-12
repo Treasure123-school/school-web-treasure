@@ -69,7 +69,7 @@ export default function TeachersManagement() {
         title: "Success",
         description: "Teacher created successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setIsDialogOpen(false);
       reset();
     },
@@ -94,7 +94,7 @@ export default function TeachersManagement() {
         title: "Success",
         description: "Teacher updated successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setIsDialogOpen(false);
       setEditingTeacher(null);
       reset();
@@ -113,14 +113,14 @@ export default function TeachersManagement() {
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/users/${id}`);
       if (!response.ok) throw new Error('Failed to delete teacher');
-      return response.json();
+      return response.status === 204 ? null : response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Teacher deleted successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setTeacherToDelete(null);
     },
     onError: (error: any) => {
@@ -545,7 +545,11 @@ export default function TeachersManagement() {
                 This action cannot be undone.
               </p>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setTeacherToDelete(null)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setTeacherToDelete(null)}
+                  data-testid="button-cancel-delete"
+                >
                   Cancel
                 </Button>
                 <Button 

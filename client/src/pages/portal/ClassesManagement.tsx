@@ -118,7 +118,7 @@ export default function ClassesManagement() {
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/classes/${id}`);
       if (!response.ok) throw new Error('Failed to delete class');
-      return response.json();
+      return response.status === 204 ? null : response.json();
     },
     onSuccess: () => {
       toast({
@@ -432,7 +432,11 @@ export default function ClassesManagement() {
                 This action cannot be undone.
               </p>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setClassToDelete(null)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setClassToDelete(null)}
+                  data-testid="button-cancel-delete"
+                >
                   Cancel
                 </Button>
                 <Button 

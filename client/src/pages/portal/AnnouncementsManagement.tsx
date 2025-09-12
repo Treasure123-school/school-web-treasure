@@ -110,6 +110,30 @@ export default function AnnouncementsManagement() {
     },
   });
 
+  // Delete announcement mutation
+  const deleteAnnouncementMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/announcements/${id}`);
+      if (!response.ok) throw new Error('Failed to delete announcement');
+      return response.status === 204 ? null : response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Announcement deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+      setAnnouncementToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete announcement",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: AnnouncementForm) => {
     if (editingAnnouncement) {
       updateAnnouncementMutation.mutate({ id: editingAnnouncement.id, data });
@@ -382,15 +406,26 @@ export default function AnnouncementsManagement() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(announcement)}
-                            data-testid={`button-edit-announcement-${announcement.id}`}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(announcement)}
+                              data-testid={`button-edit-announcement-${announcement.id}`}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setAnnouncementToDelete(announcement)}
+                              data-testid={`button-delete-announcement-${announcement.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -407,6 +442,40 @@ export default function AnnouncementsManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {announcementToDelete && (
+        <Dialog open={!!announcementToDelete} onOpenChange={() => setAnnouncementToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>
+                Are you sure you want to delete <strong>{announcementToDelete.title}</strong>? 
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setAnnouncementToDelete(null)}
+                  data-testid="button-cancel-delete"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => deleteAnnouncementMutation.mutate(announcementToDelete.id)}
+                  disabled={deleteAnnouncementMutation.isPending}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteAnnouncementMutation.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
