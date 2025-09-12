@@ -192,6 +192,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userData = insertUserSchema.partial().parse(req.body);
+      const user = await storage.updateUser(id, userData);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid user data" });
+    }
+  });
+
   // Student management
   app.get("/api/students", async (req, res) => {
     try {

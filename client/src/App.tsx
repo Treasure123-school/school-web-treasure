@@ -26,6 +26,7 @@ import AdminDashboard from "@/pages/portal/AdminDashboard";
 import ParentDashboard from "@/pages/portal/ParentDashboard";
 import StudentManagement from "@/pages/portal/StudentManagement";
 import AttendanceManagement from "@/pages/portal/AttendanceManagement";
+import TeachersManagement from "@/pages/portal/TeachersManagement";
 
 import NotFound from "@/pages/not-found";
 
@@ -84,6 +85,11 @@ function Router() {
       <Route path="/portal/admin/students">
         <ProtectedRoute allowedRoles={['Admin']}>
           <StudentManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/teachers">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <TeachersManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/attendance">
