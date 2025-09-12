@@ -1717,8 +1717,8 @@ class MemoryStorage implements IStorage {
   }
 }
 
-// Use memory storage for now (demo mode)
-const storage: IStorage = new MemoryStorage();
-console.log('Using memory storage with demo data');
+// Use real database storage
+const storage: IStorage = new DatabaseStorage();
+console.log('Using PostgreSQL database storage');
 
 export { storage };
