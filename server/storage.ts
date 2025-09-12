@@ -867,9 +867,60 @@ class MemoryStorage implements IStorage {
   ];
 
   private exams: Exam[] = [
-    { id: 1, name: 'First Term Test', classId: 1, subjectId: 1, termId: 1, date: '2023-10-15', totalMarks: 100, createdBy: '2', createdAt: new Date() },
-    { id: 2, name: 'First Term Test', classId: 1, subjectId: 2, termId: 1, date: '2023-10-16', totalMarks: 100, createdBy: '2', createdAt: new Date() },
-    { id: 3, name: 'Mid-Term Assessment', classId: 1, subjectId: 1, termId: 1, date: '2023-11-15', totalMarks: 50, createdBy: '2', createdAt: new Date() }
+    { 
+      id: 1, 
+      name: 'First Term Test', 
+      classId: 1, 
+      subjectId: 1, 
+      termId: 1, 
+      date: '2023-10-15', 
+      totalMarks: 100, 
+      createdBy: '2', 
+      timeLimit: 120, 
+      startTime: null, 
+      endTime: null, 
+      instructions: 'Answer all questions. Good luck!', 
+      isPublished: true, 
+      allowRetakes: false, 
+      shuffleQuestions: false,
+      createdAt: new Date() 
+    },
+    { 
+      id: 2, 
+      name: 'First Term Test', 
+      classId: 1, 
+      subjectId: 2, 
+      termId: 1, 
+      date: '2023-10-16', 
+      totalMarks: 100, 
+      createdBy: '2', 
+      timeLimit: 90, 
+      startTime: null, 
+      endTime: null, 
+      instructions: 'Read questions carefully before answering.', 
+      isPublished: true, 
+      allowRetakes: false, 
+      shuffleQuestions: true,
+      createdAt: new Date() 
+    },
+    { 
+      id: 3, 
+      name: 'Mid-Term Assessment', 
+      classId: 1, 
+      subjectId: 1, 
+      termId: 1, 
+      date: '2023-11-15', 
+      totalMarks: 50, 
+      createdBy: '2', 
+      timeLimit: 60, 
+      startTime: null, 
+      endTime: null, 
+      instructions: 'This is a mid-term assessment. Show your work.', 
+      isPublished: false, 
+      allowRetakes: true, 
+      shuffleQuestions: false,
+      createdAt: new Date() 
+    }
   ];
 
   private examResults: ExamResult[] = [
@@ -1147,6 +1198,13 @@ class MemoryStorage implements IStorage {
       id: this.exams.length + 1,
       ...exam,
       classId: exam.classId ?? 1,
+      timeLimit: exam.timeLimit ?? null,
+      startTime: exam.startTime ?? null,
+      endTime: exam.endTime ?? null,
+      instructions: exam.instructions ?? null,
+      isPublished: exam.isPublished ?? false,
+      allowRetakes: exam.allowRetakes ?? false,
+      shuffleQuestions: exam.shuffleQuestions ?? false,
       createdAt: new Date()
     };
     this.exams.push(newExam);
