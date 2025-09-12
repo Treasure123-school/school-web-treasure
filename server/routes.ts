@@ -1118,13 +1118,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Exam is not published" });
       }
       
+      // Check exam time window (startTime/endTime)
+      const now = new Date();
+      if (exam.startTime && now < new Date(exam.startTime)) {
+        return res.status(403).json({ message: "Exam has not started yet" });
+      }
+      if (exam.endTime && now > new Date(exam.endTime)) {
+        return res.status(403).json({ message: "Exam has ended" });
+      }
+
       // Check for existing active session to prevent duplicates
       const existingSession = await storage.getActiveExamSession(sessionData.examId, sessionData.studentId);
       if (existingSession) {
         return res.status(409).json({ message: "Active exam session already exists", sessionId: existingSession.id });
       }
+
+      // Check retakes policy: if retakes not allowed, check for completed sessions
+      if (!exam.allowRetakes) {
+        const allStudentSessions = await storage.getExamSessionsByStudent(sessionData.studentId);
+        const completedSession = allStudentSessions.find(s => 
+          s.examId === sessionData.examId && s.isCompleted
+        );
+        if (completedSession) {
+          return res.status(403).json({ message: "Retakes are not allowed for this exam" });
+        }
+      }
+
+      // Initialize session with remaining time based on exam time limit
+      const sessionWithTimeLimit = {
+        ...sessionData,
+        timeRemaining: exam.timeLimit ? exam.timeLimit * 60 : null, // convert minutes to seconds
+        startedAt: now
+      };
       
-      const session = await storage.createExamSession(sessionData);
+      const session = await storage.createExamSession(sessionWithTimeLimit);
+      console.log(`Created exam session ${session.id} for student ${sessionData.studentId} with ${exam.timeLimit || 'unlimited'} minutes`);
       res.json(session);
     } catch (error) {
       console.error('Error creating exam session:', error);
@@ -1257,6 +1285,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cannot change examId or studentId" });
       }
       
+      // Time limit validation on session completion
+      if (allowedUpdates.isCompleted === true && existingSession.timeRemaining && existingSession.startedAt) {
+        const now = new Date();
+        const timeElapsedInSeconds = (now.getTime() - new Date(existingSession.startedAt).getTime()) / 1000;
+        
+        if (timeElapsedInSeconds > existingSession.timeRemaining) {
+          console.log(`Session ${id} completion after time limit: ${(timeElapsedInSeconds/60).toFixed(1)} > ${(existingSession.timeRemaining/60).toFixed(1)} minutes`);
+          // Allow completion even if time exceeded - they're being honest about submitting
+        }
+      }
+
       // Auto-scoring logic: If session is being marked as completed, calculate scores
       if (allowedUpdates.isCompleted === true && !existingSession.isCompleted) {
         try {
@@ -1312,6 +1351,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if session is still active (not completed)
       if (session.isCompleted) {
         return res.status(409).json({ message: "Cannot submit answers to completed exam" });
+      }
+
+      // Server-side time limit enforcement
+      if (session.remainingTime && session.startedAt) {
+        const now = new Date();
+        const timeElapsedInMinutes = (now.getTime() - new Date(session.startedAt).getTime()) / (1000 * 60);
+        
+        if (timeElapsedInMinutes > session.remainingTime) {
+          // Time limit exceeded - automatically complete the session
+          console.log(`Time limit exceeded for session ${session.id}: ${timeElapsedInMinutes.toFixed(1)} > ${session.remainingTime} minutes`);
+          await storage.updateExamSession(session.id, { isCompleted: true });
+          
+          // Trigger auto-scoring for completed session
+          try {
+            await autoScoreExamSession(session.id, storage);
+          } catch (error) {
+            console.error('Auto-scoring failed after time limit:', error);
+          }
+          
+          return res.status(403).json({ message: "Time limit exceeded. Exam has been automatically submitted." });
+        }
       }
       
       // Check if answer already exists and update instead of create
