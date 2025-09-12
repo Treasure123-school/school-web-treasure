@@ -196,10 +196,10 @@ export default function ExamManagement() {
   // Map roleId to role name (lowercase as expected by PortalLayout)
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
-      1: 'admin',
+      1: 'student',
       2: 'teacher', 
       3: 'parent',
-      4: 'student'
+      4: 'admin'
     };
     return roleMap[roleId] || 'teacher';
   };

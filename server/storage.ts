@@ -71,6 +71,7 @@ export interface IStorage {
 
   // Exam questions management
   createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion>;
+  createExamQuestionWithOptions(question: InsertExamQuestion, options?: Array<{optionText: string; isCorrect: boolean}>): Promise<ExamQuestion>;
   getExamQuestions(examId: number): Promise<ExamQuestion[]>;
   updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined>;
   deleteExamQuestion(id: number): Promise<boolean>;
@@ -332,6 +333,38 @@ export class DatabaseStorage implements IStorage {
   async createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion> {
     const result = await db.insert(schema.examQuestions).values(question).returning();
     return result[0];
+  }
+
+  async createExamQuestionWithOptions(
+    question: InsertExamQuestion, 
+    options?: Array<{optionText: string; isCorrect: boolean}>
+  ): Promise<ExamQuestion> {
+    // Insert question first
+    const questionResult = await db.insert(schema.examQuestions).values(question).returning();
+    const createdQuestion = questionResult[0];
+
+    // Insert options if provided (remove strict type gate)
+    if (Array.isArray(options) && options.length > 0) {
+      try {
+        const optionsToInsert = options.map((option, index) => ({
+          questionId: createdQuestion.id,
+          optionText: option.optionText,
+          orderNumber: index + 1,
+          isCorrect: option.isCorrect
+        }));
+
+        // Use individual inserts instead of bulk insert (Neon HTTP limitation)
+        for (const optionData of optionsToInsert) {
+          await db.insert(schema.questionOptions).values(optionData);
+        }
+      } catch (error) {
+        // Compensating action: delete the question if options fail
+        await db.delete(schema.examQuestions).where(eq(schema.examQuestions.id, createdQuestion.id));
+        throw new Error(`Failed to create question options: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return createdQuestion;
   }
 
   async getExamQuestions(examId: number): Promise<ExamQuestion[]> {
@@ -1480,6 +1513,38 @@ class MemoryStorage implements IStorage {
       createdAt: new Date()
     };
     this.examQuestions.push(newQuestion);
+    return newQuestion;
+  }
+
+  async createExamQuestionWithOptions(
+    question: InsertExamQuestion, 
+    options?: Array<{optionText: string; isCorrect: boolean}>
+  ): Promise<ExamQuestion> {
+    // Create the question first
+    const newQuestion: ExamQuestion = {
+      id: this.examQuestions.length + 1,
+      ...question,
+      points: question.points ?? null,
+      imageUrl: question.imageUrl ?? null,
+      createdAt: new Date()
+    };
+    this.examQuestions.push(newQuestion);
+
+    // Create options if provided
+    if (options && options.length > 0) {
+      options.forEach((option, index) => {
+        const newOption: QuestionOption = {
+          id: this.questionOptions.length + 1,
+          questionId: newQuestion.id,
+          optionText: option.optionText,
+          orderNumber: index + 1,
+          isCorrect: option.isCorrect,
+          createdAt: new Date()
+        };
+        this.questionOptions.push(newOption);
+      });
+    }
+
     return newQuestion;
   }
 

@@ -786,11 +786,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Exam Questions routes
   app.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      const questionData = insertExamQuestionSchema.parse(req.body);
-      const question = await storage.createExamQuestion(questionData);
+      const { options, ...questionData } = req.body;
+      
+      // Normalize questionType to canonical value
+      if (questionData.questionType) {
+        questionData.questionType = String(questionData.questionType).toLowerCase().replace(/[-\s]/g, '_');
+      }
+      
+      const validatedQuestion = insertExamQuestionSchema.parse(questionData);
+      
+      // Validate options for multiple choice questions
+      if (validatedQuestion.questionType === 'multiple_choice') {
+        if (!options || !Array.isArray(options) || options.length < 2) {
+          return res.status(400).json({ message: "Multiple choice questions require at least 2 options" });
+        }
+        
+        const hasCorrectAnswer = options.some(option => option.isCorrect === true);
+        if (!hasCorrectAnswer) {
+          return res.status(400).json({ message: "Multiple choice questions require at least one correct answer" });
+        }
+      }
+      
+      // Create question with options atomically (compensation-based)
+      const question = await storage.createExamQuestionWithOptions(validatedQuestion, options);
       res.json(question);
     } catch (error) {
-      res.status(400).json({ message: "Invalid question data" });
+      const message = error instanceof Error ? error.message : "Invalid question data";
+      res.status(400).json({ message });
     }
   });
 
