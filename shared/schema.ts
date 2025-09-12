@@ -1,0 +1,197 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, uuid, bigserial, integer, date, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Enums
+export const genderEnum = pgEnum('gender', ['Male', 'Female', 'Other']);
+export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Late', 'Excused']);
+
+// Roles table
+export const roles = pgTable("roles", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  permissions: text("permissions").array().default(sql`'{}'::text[]`),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Users table
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  passwordHash: text("password_hash"),
+  roleId: bigserial("role_id", { mode: "number" }).references(() => roles.id).notNull(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
+  address: text("address"),
+  dateOfBirth: date("date_of_birth"),
+  gender: genderEnum("gender"),
+  profileImageUrl: text("profile_image_url"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Academic terms table
+export const academicTerms = pgTable("academic_terms", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 50 }).notNull(),
+  year: varchar("year", { length: 9 }).notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  isCurrent: boolean("is_current").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Classes table
+export const classes = pgTable("classes", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  level: varchar("level", { length: 20 }).notNull(),
+  capacity: integer("capacity").default(30),
+  classTeacherId: uuid("class_teacher_id").references(() => users.id),
+  currentTermId: bigserial("current_term_id", { mode: "number" }).references(() => academicTerms.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Subjects table
+export const subjects = pgTable("subjects", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Students table
+export const students = pgTable("students", {
+  id: uuid("id").references(() => users.id).primaryKey(),
+  admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
+  classId: bigserial("class_id", { mode: "number" }).references(() => classes.id),
+  parentId: uuid("parent_id").references(() => users.id),
+  admissionDate: date("admission_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Attendance table
+export const attendance = pgTable("attendance", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  studentId: uuid("student_id").references(() => students.id).notNull(),
+  classId: bigserial("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  date: date("date").notNull(),
+  status: attendanceStatusEnum("status"),
+  recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exams table
+export const exams = pgTable("exams", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  classId: bigserial("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  subjectId: bigserial("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+  totalMarks: integer("total_marks").notNull(),
+  date: date("date").notNull(),
+  termId: bigserial("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exam results table
+export const examResults = pgTable("exam_results", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  examId: bigserial("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+  studentId: uuid("student_id").references(() => students.id).notNull(),
+  marksObtained: integer("marks_obtained").notNull(),
+  grade: varchar("grade", { length: 5 }),
+  remarks: text("remarks"),
+  recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Announcements table
+export const announcements = pgTable("announcements", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  authorId: uuid("author_id").references(() => users.id).notNull(),
+  targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
+  targetClasses: bigserial("target_classes", { mode: "number" }).array().default(sql`'{}'::bigint[]`),
+  isPublished: boolean("is_published").default(false),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Messages table
+export const messages = pgTable("messages", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  senderId: uuid("sender_id").references(() => users.id).notNull(),
+  recipientId: uuid("recipient_id").references(() => users.id).notNull(),
+  subject: varchar("subject", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Gallery categories table
+export const galleryCategories = pgTable("gallery_categories", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Gallery table
+export const gallery = pgTable("gallery", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  imageUrl: text("image_url").notNull(),
+  caption: text("caption"),
+  categoryId: bigserial("category_id", { mode: "number" }).references(() => galleryCategories.id),
+  uploadedBy: uuid("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Insert schemas
+export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
+export const insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
+export const insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
+export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
+export const insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true });
+export const insertExamResultSchema = createInsertSchema(examResults).omit({ id: true, createdAt: true });
+export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
+export const insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
+export const insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
+
+// Types
+export type Role = typeof roles.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type Student = typeof students.$inferSelect;
+export type Class = typeof classes.$inferSelect;
+export type Subject = typeof subjects.$inferSelect;
+export type AcademicTerm = typeof academicTerms.$inferSelect;
+export type Attendance = typeof attendance.$inferSelect;
+export type Exam = typeof exams.$inferSelect;
+export type ExamResult = typeof examResults.$inferSelect;
+export type Announcement = typeof announcements.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type GalleryCategory = typeof galleryCategories.$inferSelect;
+export type Gallery = typeof gallery.$inferSelect;
+
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertStudent = z.infer<typeof insertStudentSchema>;
+export type InsertClass = z.infer<typeof insertClassSchema>;
+export type InsertSubject = z.infer<typeof insertSubjectSchema>;
+export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
+export type InsertExam = z.infer<typeof insertExamSchema>;
+export type InsertExamResult = z.infer<typeof insertExamResultSchema>;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
+export type InsertGallery = z.infer<typeof insertGallerySchema>;

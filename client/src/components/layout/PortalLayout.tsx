@@ -1,0 +1,165 @@
+import { Link, useLocation } from 'wouter';
+import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
+interface PortalLayoutProps {
+  children: React.ReactNode;
+  userRole: 'student' | 'teacher' | 'admin' | 'parent';
+  userName: string;
+  userInitials: string;
+}
+
+export default function PortalLayout({ children, userRole, userName, userInitials }: PortalLayoutProps) {
+  const [location] = useLocation();
+  const { logout } = useAuth();
+
+  const getNavigation = () => {
+    const baseNav = [
+      { name: 'Dashboard', href: `/portal/${userRole}`, icon: Home },
+    ];
+
+    switch (userRole) {
+      case 'student':
+        return [
+          ...baseNav,
+          { name: 'My Grades', href: `/portal/${userRole}/grades`, icon: BookOpen },
+          { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
+          { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
+          { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
+          { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },
+        ];
+      case 'teacher':
+        return [
+          ...baseNav,
+          { name: 'My Classes', href: `/portal/${userRole}/classes`, icon: Users },
+          { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
+          { name: 'Grades & Exams', href: `/portal/${userRole}/grades`, icon: BookOpen },
+          { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
+          { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
+        ];
+      case 'admin':
+        return [
+          ...baseNav,
+          { name: 'Students', href: `/portal/${userRole}/students`, icon: Users },
+          { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
+          { name: 'Classes', href: `/portal/${userRole}/classes`, icon: BookOpen },
+          { name: 'Subjects', href: `/portal/${userRole}/subjects`, icon: BookOpen },
+          { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
+          { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
+          { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
+        ];
+      case 'parent':
+        return [
+          ...baseNav,
+          { name: 'My Children', href: `/portal/${userRole}/children`, icon: Users },
+          { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
+          { name: 'Grades', href: `/portal/${userRole}/grades`, icon: BookOpen },
+          { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
+          { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },
+        ];
+      default:
+        return baseNav;
+    }
+  };
+
+  const navigation = getNavigation();
+  const isActive = (path: string) => location === path || location.startsWith(path + '/');
+
+  const getRoleTitle = () => {
+    switch (userRole) {
+      case 'student': return 'Student Portal';
+      case 'teacher': return 'Teacher Portal';
+      case 'admin': return 'Admin Portal';
+      case 'parent': return 'Parent Portal';
+      default: return 'Portal';
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/';
+  };
+
+  return (
+    <div className="min-h-screen bg-muted/30 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-card shadow-sm border-r border-border h-screen sticky top-0">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center space-x-3">
+            <div className="bg-primary rounded-lg p-2">
+              <GraduationCap className="text-primary-foreground h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="font-bold text-sm">Treasure-Home</h1>
+              <p className="text-xs text-muted-foreground">{getRoleTitle()}</p>
+            </div>
+          </div>
+        </div>
+        
+        <nav className="p-4 space-y-2">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive(item.href) ? 'active-nav' : 'nav-link'
+                }`}
+                data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-card border-b border-border p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold">Welcome back, {userName.split(' ')[0]}!</h1>
+              <p className="text-muted-foreground">
+                {userRole === 'student' && "Here's what's happening with your academics today."}
+                {userRole === 'teacher' && "Ready to inspire minds today?"}
+                {userRole === 'admin' && "Manage all aspects of Treasure-Home School"}
+                {userRole === 'parent' && "Stay connected with your child's education."}
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="icon" data-testid="button-notifications">
+                <Bell className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center space-x-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium" data-testid="text-username">{userName}</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLogout}
+                data-testid="button-logout"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 p-6">{children}</main>
+      </div>
+    </div>
+  );
+}
