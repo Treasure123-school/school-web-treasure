@@ -708,6 +708,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics and Reports endpoints
+  app.get("/api/reports/overview", async (req, res) => {
+    try {
+      const overview = await storage.getAnalyticsOverview();
+      res.json(overview);
+    } catch (error) {
+      console.error('Error fetching analytics overview:', error);
+      res.status(500).json({ message: "Failed to fetch analytics overview" });
+    }
+  });
+
+  app.get("/api/reports/performance", async (req, res) => {
+    try {
+      const { classId, subjectId, termId } = req.query;
+      const filters = {
+        classId: classId ? parseInt(classId as string) : undefined,
+        subjectId: subjectId ? parseInt(subjectId as string) : undefined,
+        termId: termId ? parseInt(termId as string) : undefined,
+      };
+      const performance = await storage.getPerformanceAnalytics(filters);
+      res.json(performance);
+    } catch (error) {
+      console.error('Error fetching performance analytics:', error);
+      res.status(500).json({ message: "Failed to fetch performance analytics" });
+    }
+  });
+
+  app.get("/api/reports/trends", async (req, res) => {
+    try {
+      const { months = 6 } = req.query;
+      const trends = await storage.getTrendAnalytics(parseInt(months as string));
+      res.json(trends);
+    } catch (error) {
+      console.error('Error fetching trend analytics:', error);
+      res.status(500).json({ message: "Failed to fetch trend analytics" });
+    }
+  });
+
+  app.get("/api/reports/attendance", async (req, res) => {
+    try {
+      const { classId, startDate, endDate } = req.query;
+      const filters = {
+        classId: classId ? parseInt(classId as string) : undefined,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      };
+      const attendance = await storage.getAttendanceAnalytics(filters);
+      res.json(attendance);
+    } catch (error) {
+      console.error('Error fetching attendance analytics:', error);
+      res.status(500).json({ message: "Failed to fetch attendance analytics" });
+    }
+  });
+
   // File upload routes
   app.post("/api/upload/profile", authenticateUser, upload.single('profileImage'), async (req, res) => {
     try {
