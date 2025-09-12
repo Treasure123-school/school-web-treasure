@@ -700,7 +700,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/exams", authenticateUser, async (req, res) => {
     try {
-      const exams = await storage.getAllExams();
+      const user = (req as any).user;
+      let exams: any[] = [];
+
+      if (user.roleId === ROLES.STUDENT) {
+        // For students: only show published exams for their class
+        const student = await storage.getStudent(user.id);
+        if (student && student.classId) {
+          const classExams = await storage.getExamsByClass(student.classId);
+          // Filter to only published exams
+          exams = classExams.filter(exam => exam.isPublished);
+        }
+      } else {
+        // For teachers and admins: show all exams they have access to
+        if (user.roleId === ROLES.TEACHER) {
+          // Teachers see their own exams
+          const allExams = await storage.getAllExams();
+          exams = allExams.filter(exam => exam.createdBy === user.id);
+        } else {
+          // Admins see all exams
+          exams = await storage.getAllExams();
+        }
+      }
+
       res.json(exams);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch exams" });
