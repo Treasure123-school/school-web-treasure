@@ -1256,8 +1256,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/homepage-content", async (req, res) => {
     try {
       const { contentType } = req.query;
-      const content = await storage.getHomePageContent(contentType as string);
-      res.json(content);
+      
+      // Handle multiple contentType parameters (array support)
+      let contentTypes: string[] = [];
+      if (contentType) {
+        if (Array.isArray(contentType)) {
+          contentTypes = contentType as string[];
+        } else {
+          contentTypes = [contentType as string];
+        }
+      }
+      
+      // If no contentType specified, get all content
+      if (contentTypes.length === 0) {
+        const content = await storage.getHomePageContent();
+        return res.json(content);
+      }
+      
+      // Fetch content for each contentType and combine results
+      const allContent = [];
+      for (const type of contentTypes) {
+        const content = await storage.getHomePageContent(type);
+        allContent.push(...content);
+      }
+      
+      // Remove duplicates based on id
+      const uniqueContent = allContent.filter((item, index, self) => 
+        index === self.findIndex((t) => t.id === item.id)
+      );
+      
+      res.json(uniqueContent);
     } catch (error) {
       console.error('Home page content fetch error:', error);
       res.status(500).json({ message: "Failed to fetch home page content" });
@@ -1307,10 +1335,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // First get the content to retrieve file information before deletion
+      const content = await storage.getHomePageContentById(parseInt(id));
+      
+      if (!content) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+      
+      // Delete from database first
       const deleted = await storage.deleteHomePageContent(parseInt(id));
       
       if (!deleted) {
         return res.status(404).json({ message: "Content not found" });
+      }
+      
+      // If there's an associated image file, remove it from disk
+      if (content.imageUrl) {
+        try {
+          // Remove leading slash and construct full file path
+          const filePath = content.imageUrl.startsWith('/') 
+            ? content.imageUrl.substring(1) 
+            : content.imageUrl;
+          
+          const fullPath = path.resolve(filePath);
+          
+          // Check if file exists and delete it
+          try {
+            await fs.access(fullPath);
+            await fs.unlink(fullPath);
+            console.log(`Successfully deleted file: ${fullPath}`);
+          } catch (fileError: any) {
+            if (fileError.code === 'ENOENT') {
+              console.warn(`File not found (already deleted?): ${fullPath}`);
+            } else {
+              console.error(`Failed to delete file ${fullPath}:`, fileError);
+            }
+          }
+        } catch (pathError) {
+          console.error('Error processing file path for deletion:', pathError);
+        }
       }
       
       res.json({ message: "Home page content deleted successfully" });
