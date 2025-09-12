@@ -58,9 +58,14 @@ export interface IStorage {
 
   // Exam management
   createExam(exam: InsertExam): Promise<Exam>;
+  getAllExams(): Promise<Exam[]>;
+  getExamById(id: number): Promise<Exam | undefined>;
   getExamsByClass(classId: number): Promise<Exam[]>;
+  updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined>;
+  deleteExam(id: number): Promise<boolean>;
   recordExamResult(result: InsertExamResult): Promise<ExamResult>;
   getExamResultsByStudent(studentId: string): Promise<ExamResult[]>;
+  getExamResultsByExam(examId: number): Promise<ExamResult[]>;
 
   // Announcements
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
@@ -235,10 +240,36 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getAllExams(): Promise<Exam[]> {
+    return await db.select().from(schema.exams)
+      .orderBy(desc(schema.exams.date));
+  }
+
+  async getExamById(id: number): Promise<Exam | undefined> {
+    const result = await db.select().from(schema.exams)
+      .where(eq(schema.exams.id, id))
+      .limit(1);
+    return result[0];
+  }
+
   async getExamsByClass(classId: number): Promise<Exam[]> {
     return await db.select().from(schema.exams)
       .where(eq(schema.exams.classId, classId))
       .orderBy(desc(schema.exams.date));
+  }
+
+  async updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined> {
+    const result = await db.update(schema.exams)
+      .set(exam)
+      .where(eq(schema.exams.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteExam(id: number): Promise<boolean> {
+    const result = await db.delete(schema.exams)
+      .where(eq(schema.exams.id, id));
+    return result.rowCount > 0;
   }
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
@@ -249,6 +280,12 @@ export class DatabaseStorage implements IStorage {
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     return await db.select().from(schema.examResults)
       .where(eq(schema.examResults.studentId, studentId))
+      .orderBy(desc(schema.examResults.createdAt));
+  }
+
+  async getExamResultsByExam(examId: number): Promise<ExamResult[]> {
+    return await db.select().from(schema.examResults)
+      .where(eq(schema.examResults.examId, examId))
       .orderBy(desc(schema.examResults.createdAt));
   }
 
@@ -793,8 +830,32 @@ class MemoryStorage implements IStorage {
     return newExam;
   }
 
+  async getAllExams(): Promise<Exam[]> {
+    return [...this.exams].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  async getExamById(id: number): Promise<Exam | undefined> {
+    return this.exams.find(e => e.id === id);
+  }
+
   async getExamsByClass(classId: number): Promise<Exam[]> {
     return this.exams.filter(e => e.classId === classId);
+  }
+
+  async updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined> {
+    const index = this.exams.findIndex(e => e.id === id);
+    if (index === -1) return undefined;
+    
+    this.exams[index] = { ...this.exams[index], ...exam };
+    return this.exams[index];
+  }
+
+  async deleteExam(id: number): Promise<boolean> {
+    const index = this.exams.findIndex(e => e.id === id);
+    if (index === -1) return false;
+    
+    this.exams.splice(index, 1);
+    return true;
   }
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
@@ -811,6 +872,10 @@ class MemoryStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     return this.examResults.filter(r => r.studentId === studentId);
+  }
+
+  async getExamResultsByExam(examId: number): Promise<ExamResult[]> {
+    return this.examResults.filter(r => r.examId === examId);
   }
 
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {

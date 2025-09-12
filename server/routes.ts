@@ -500,11 +500,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Exams
+  app.post("/api/exams", async (req, res) => {
+    try {
+      const examData = insertExamSchema.parse(req.body);
+      const exam = await storage.createExam(examData);
+      res.json(exam);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid exam data" });
+    }
+  });
+
+  app.get("/api/exams", async (req, res) => {
+    try {
+      const exams = await storage.getAllExams();
+      res.json(exams);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exams" });
+    }
+  });
+
+  app.get("/api/exams/class/:classId", async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const exams = await storage.getExamsByClass(parseInt(classId));
+      res.json(exams);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exams for class" });
+    }
+  });
+
+  app.get("/api/exams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const exam = await storage.getExamById(parseInt(id));
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.json(exam);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exam" });
+    }
+  });
+
+  app.put("/api/exams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const examData = insertExamSchema.partial().parse(req.body);
+      const exam = await storage.updateExam(parseInt(id), examData);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.json(exam);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid exam data" });
+    }
+  });
+
+  app.delete("/api/exams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteExam(parseInt(id));
+      if (!success) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.json({ message: "Exam deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete exam" });
+    }
+  });
+
   // Exam results
+  app.post("/api/exam-results", async (req, res) => {
+    try {
+      const resultData = insertExamResultSchema.parse(req.body);
+      const result = await storage.recordExamResult(resultData);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid exam result data" });
+    }
+  });
+
   app.get("/api/exam-results/:studentId", async (req, res) => {
     try {
       const { studentId } = req.params;
       const results = await storage.getExamResultsByStudent(studentId);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exam results" });
+    }
+  });
+
+  app.get("/api/exam-results/exam/:examId", async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const results = await storage.getExamResultsByExam(parseInt(examId));
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch exam results" });
