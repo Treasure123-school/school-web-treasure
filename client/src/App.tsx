@@ -35,6 +35,7 @@ import ReportsManagement from "@/pages/portal/ReportsManagement";
 import SettingsManagement from "@/pages/portal/SettingsManagement";
 import TeacherGrades from "@/pages/portal/TeacherGrades";
 import ExamManagement from "@/pages/portal/ExamManagement";
+import HomepageManagement from "@/pages/portal/HomepageManagement";
 
 import NotFound from "@/pages/not-found";
 
@@ -128,6 +129,11 @@ function Router() {
       <Route path="/portal/admin/settings">
         <ProtectedRoute allowedRoles={['Admin']}>
           <SettingsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/homepage">
+        <ProtectedRoute allowedRoles={['Admin']}>
+          <HomepageManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/attendance">

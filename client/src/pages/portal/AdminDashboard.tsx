@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function AdminDashboard() {
@@ -102,6 +102,12 @@ export default function AdminDashboard() {
       icon: MessageSquare,
       color: 'bg-blue-100 hover:bg-blue-200 text-blue-600',
       href: '/portal/admin/announcements/add'
+    },
+    {
+      title: 'Manage Home Page',
+      icon: ImageIcon,
+      color: 'bg-pink-100 hover:bg-pink-200 text-pink-600',
+      href: '/portal/admin/homepage'
     },
     {
       title: 'Generate Report',
