@@ -16,6 +16,11 @@ import Login from "@/pages/Login";
 
 // Portal pages
 import StudentDashboard from "@/pages/portal/StudentDashboard";
+import StudentGrades from "@/pages/portal/StudentGrades";
+import StudentAnnouncements from "@/pages/portal/StudentAnnouncements";
+import StudentAttendance from "@/pages/portal/StudentAttendance";
+import StudentMessages from "@/pages/portal/StudentMessages";
+import StudentProfile from "@/pages/portal/StudentProfile";
 import TeacherDashboard from "@/pages/portal/TeacherDashboard";
 import AdminDashboard from "@/pages/portal/AdminDashboard";
 import ParentDashboard from "@/pages/portal/ParentDashboard";
@@ -39,6 +44,31 @@ function Router() {
       <Route path="/portal/student">
         <ProtectedRoute allowedRoles={['Student']}>
           <StudentDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/grades">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentGrades />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/announcements">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/attendance">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentAttendance />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/messages">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentMessages />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/profile">
+        <ProtectedRoute allowedRoles={['Student']}>
+          <StudentProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher">
