@@ -1389,7 +1389,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error('Error creating/updating student answer:', error);
-      res.status(400).json({ message: "Invalid student answer data" });
+      
+      // Handle Zod validation errors specifically
+      if (error?.name === 'ZodError' || (error?.issues && Array.isArray(error.issues))) {
+        const validationErrors = error.issues || [];
+        return res.status(400).json({
+          message: "Answer validation failed",
+          type: "validation_error", 
+          errors: validationErrors.map((issue: any) => ({
+            field: issue.path?.join('.') || 'unknown',
+            message: issue.message,
+            code: issue.code
+          }))
+        });
+      }
+      
+      // Handle other structured errors
+      if (error instanceof Error) {
+        // Handle database constraint errors
+        if (error.message.includes('foreign key constraint')) {
+          return res.status(400).json({ 
+            message: "Invalid question or session reference",
+            type: "reference_error"
+          });
+        }
+        
+        // Handle unique constraint violations  
+        if (error.message.includes('unique constraint')) {
+          return res.status(409).json({
+            message: "Answer already exists for this question",
+            type: "duplicate_error"
+          });
+        }
+        
+        // Handle database connection issues
+        if (error.message.includes('ECONNREFUSED') || error.message.includes('connection')) {
+          return res.status(503).json({
+            message: "Database temporarily unavailable. Please try again.",
+            type: "connection_error"
+          });
+        }
+      }
+      
+      // Generic error fallback
+      res.status(500).json({ 
+        message: "Failed to save answer. Please try again.",
+        type: "server_error",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

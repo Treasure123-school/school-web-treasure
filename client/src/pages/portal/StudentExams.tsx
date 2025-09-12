@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
@@ -12,8 +12,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer } from 'lucide-react';
+import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
+
+// Question save status type
+type QuestionSaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
 export default function StudentExams() {
   const { toast } = useToast();
@@ -24,6 +27,11 @@ export default function StudentExams() {
   const [answers, setAnswers] = useState<Record<number, any>>({});
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Per-question save status tracking
+  const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
+  const [pendingSaves, setPendingSaves] = useState<Set<number>>(new Set());
+  const saveTimeoutsRef = useRef<Record<number, NodeJS.Timeout>>({});
 
   // Fetch available exams
   const { data: exams = [], isLoading: loadingExams } = useQuery<Exam[]>({
@@ -65,14 +73,14 @@ export default function StudentExams() {
     }
   }, [existingAnswers]);
 
-  // Timer countdown
+  // Timer countdown with race condition protection
   useEffect(() => {
     if (timeRemaining !== null && timeRemaining > 0 && activeSession && !activeSession.isCompleted) {
       const timer = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev === null || prev <= 1) {
-            // Auto-submit when time runs out
-            handleSubmitExam();
+            // Auto-submit when time runs out, but wait for pending saves
+            handleAutoSubmitOnTimeout();
             return 0;
           }
           return prev - 1;
@@ -82,6 +90,87 @@ export default function StudentExams() {
       return () => clearInterval(timer);
     }
   }, [timeRemaining, activeSession]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
+    };
+  }, []);
+
+  // Client-side answer validation
+  const validateAnswer = (questionType: string, answer: any): { isValid: boolean; error?: string } => {
+    if (questionType === 'multiple_choice') {
+      if (!answer || isNaN(parseInt(answer))) {
+        return { isValid: false, error: 'Please select an option' };
+      }
+      return { isValid: true };
+    }
+    
+    if (questionType === 'text' || questionType === 'essay') {
+      if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
+        return { isValid: false, error: 'Please enter an answer' };
+      }
+      if (answer.trim().length < 1) {
+        return { isValid: false, error: 'Answer is too short' };
+      }
+      return { isValid: true };
+    }
+    
+    return { isValid: false, error: 'Unknown question type' };
+  };
+
+  // Check if any answers are currently being saved
+  const hasPendingSaves = (): boolean => {
+    return pendingSaves.size > 0;
+  };
+
+  // Auto-submit with pending save protection
+  const handleAutoSubmitOnTimeout = async () => {
+    if (hasPendingSaves()) {
+      // Wait for pending saves to complete, then force submit
+      toast({
+        title: "Time's Up!",
+        description: "Waiting for answers to save before submitting...",
+      });
+      
+      // Wait up to 5 seconds for saves to complete
+      const maxWaitTime = 5000;
+      const checkInterval = 500;
+      let waitTime = 0;
+      
+      const checkSaves = () => {
+        if (!hasPendingSaves()) {
+          // All saves completed, now submit
+          toast({
+            title: "Submitting Exam",
+            description: "All answers saved successfully. Submitting exam...",
+          });
+          forceSubmitExam();
+        } else if (waitTime >= maxWaitTime) {
+          // Force submit after waiting
+          toast({
+            title: "Submitting Exam",
+            description: "Time limit reached. Submitting exam with any unsaved answers...",
+            variant: "destructive",
+          });
+          forceSubmitExam();
+        } else {
+          // Keep waiting
+          waitTime += checkInterval;
+          setTimeout(checkSaves, checkInterval);
+        }
+      };
+      
+      checkSaves();
+    } else {
+      toast({
+        title: "Submitting Exam",
+        description: "Time limit reached. Submitting exam...",
+      });
+      forceSubmitExam();
+    }
+  };
 
   // Start exam mutation
   const startExamMutation = useMutation({
@@ -118,16 +207,86 @@ export default function StudentExams() {
     },
   });
 
-  // Submit answer mutation
+  // Enhanced submit answer mutation with status tracking and validation
   const submitAnswerMutation = useMutation({
-    mutationFn: async ({ questionId, answer }: { questionId: number; answer: any }) => {
-      const answerData = currentQuestion?.questionType === 'multiple_choice'
+    mutationFn: async ({ questionId, answer, questionType }: { questionId: number; answer: any; questionType: string }) => {
+      // Client-side validation before submission
+      const validation = validateAnswer(questionType, answer);
+      if (!validation.isValid) {
+        throw new Error(validation.error || 'Invalid answer');
+      }
+
+      const answerData = questionType === 'multiple_choice'
         ? { sessionId: activeSession!.id, questionId, selectedOptionId: answer }
         : { sessionId: activeSession!.id, questionId, textAnswer: answer };
 
       const response = await apiRequest('POST', '/api/student-answers', answerData);
-      if (!response.ok) throw new Error('Failed to submit answer');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        let errorMessage = `Failed to submit answer (${response.status})`;
+        
+        // Parse structured error responses
+        if (errorData?.message) {
+          errorMessage = errorData.message;
+        } else if (errorData?.errors) {
+          // Handle Zod validation errors
+          errorMessage = Array.isArray(errorData.errors) 
+            ? errorData.errors.map((e: any) => e.message).join(', ')
+            : 'Validation failed';
+        }
+        
+        throw new Error(errorMessage);
+      }
       return response.json();
+    },
+    onMutate: (variables) => {
+      // Set status to saving and track pending save
+      setQuestionSaveStatus(prev => ({ ...prev, [variables.questionId]: 'saving' }));
+      setPendingSaves(prev => new Set(prev).add(variables.questionId));
+      
+      // Clear any existing timeout for this question
+      if (saveTimeoutsRef.current[variables.questionId]) {
+        clearTimeout(saveTimeoutsRef.current[variables.questionId]);
+      }
+    },
+    onSuccess: (data, variables) => {
+      // Mark as saved and remove from pending
+      setQuestionSaveStatus(prev => ({ ...prev, [variables.questionId]: 'saved' }));
+      setPendingSaves(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.questionId);
+        return newSet;
+      });
+      
+      // Auto-clear saved status after 2 seconds
+      saveTimeoutsRef.current[variables.questionId] = setTimeout(() => {
+        setQuestionSaveStatus(prev => ({ ...prev, [variables.questionId]: 'idle' }));
+      }, 2000);
+
+      // Invalidate cache to ensure UI stays in sync
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/student-answers/session', activeSession?.id] 
+      });
+      
+      console.log(`Answer saved for question ${variables.questionId}:`, data);
+    },
+    onError: (error: Error, variables) => {
+      // Mark as failed and remove from pending
+      setQuestionSaveStatus(prev => ({ ...prev, [variables.questionId]: 'failed' }));
+      setPendingSaves(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.questionId);
+        return newSet;
+      });
+
+      // Show error toast only for unexpected errors, not validation errors
+      if (!error.message.includes('Please select') && !error.message.includes('Please enter')) {
+        toast({
+          title: "Answer Save Failed",
+          description: `Question ${variables.questionId}: ${error.message}`,
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -169,17 +328,82 @@ export default function StudentExams() {
     startExamMutation.mutate(exam.id);
   };
 
-  const handleAnswerChange = (questionId: number, answer: any) => {
+  const handleAnswerChange = (questionId: number, answer: any, questionType: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
-    submitAnswerMutation.mutate({ questionId, answer });
+    
+    // Only submit if answer is meaningful (not empty)
+    const validation = validateAnswer(questionType, answer);
+    if (validation.isValid) {
+      submitAnswerMutation.mutate({ questionId, answer, questionType });
+    }
   };
 
-  const handleSubmitExam = async () => {
+  const handleRetryAnswer = (questionId: number, questionType: string) => {
+    const answer = answers[questionId];
+    if (answer) {
+      submitAnswerMutation.mutate({ questionId, answer, questionType });
+    }
+  };
+
+  // Force submit without checking pending saves (used for auto-submit)
+  const forceSubmitExam = async () => {
     setIsSubmitting(true);
     try {
       await submitExamMutation.mutateAsync();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Regular submit with pending save protection
+  const handleSubmitExam = async () => {
+    if (hasPendingSaves()) {
+      // Don't submit, let the disabled button and UI indicate the state
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await submitExamMutation.mutateAsync();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Get save status indicator for a question
+  const getSaveStatusIndicator = (questionId: number) => {
+    const status = questionSaveStatus[questionId] || 'idle';
+    const hasAnswer = !!answers[questionId];
+    
+    switch (status) {
+      case 'saving':
+        return (
+          <div className="flex items-center space-x-1 text-blue-500">
+            <Loader className="w-3 h-3 animate-spin" />
+            <span className="text-xs">Saving...</span>
+          </div>
+        );
+      case 'saved':
+        return (
+          <div className="flex items-center space-x-1 text-green-500">
+            <CheckCircle className="w-3 h-3" />
+            <span className="text-xs">Saved</span>
+          </div>
+        );
+      case 'failed':
+        return (
+          <div className="flex items-center space-x-1 text-red-500">
+            <AlertCircle className="w-3 h-3" />
+            <span className="text-xs">Failed</span>
+          </div>
+        );
+      default:
+        return hasAnswer ? (
+          <div className="flex items-center space-x-1 text-gray-500">
+            <Save className="w-3 h-3" />
+            <span className="text-xs">Answer ready</span>
+          </div>
+        ) : null;
     }
   };
 
@@ -241,10 +465,16 @@ export default function StudentExams() {
                   )}
                   <Button
                     onClick={handleSubmitExam}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || hasPendingSaves()}
                     data-testid="button-submit-exam"
                   >
-                    {isSubmitting ? 'Submitting...' : 'Submit Exam'}
+                    {isSubmitting ? (
+                      'Submitting...'
+                    ) : hasPendingSaves() ? (
+                      'Waiting for answers to save...'
+                    ) : (
+                      'Submit Exam'
+                    )}
                   </Button>
                 </div>
               </div>
@@ -256,12 +486,29 @@ export default function StudentExams() {
           {currentQuestion && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Question {currentQuestionIndex + 1}
-                  <Badge variant="outline" className="ml-2">
-                    {currentQuestion.points} points
-                  </Badge>
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg">
+                    Question {currentQuestionIndex + 1}
+                    <Badge variant="outline" className="ml-2">
+                      {currentQuestion.points} points
+                    </Badge>
+                  </CardTitle>
+                  <div className="flex items-center space-x-2">
+                    {getSaveStatusIndicator(currentQuestion.id)}
+                    {questionSaveStatus[currentQuestion.id] === 'failed' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
+                        disabled={submitAnswerMutation.isPending}
+                        data-testid="button-retry-answer"
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Retry
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-base leading-relaxed" data-testid="question-text">
@@ -272,7 +519,7 @@ export default function StudentExams() {
                 {currentQuestion.questionType === 'multiple_choice' && (
                   <RadioGroup
                     value={answers[currentQuestion.id]?.toString() || ''}
-                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value))}
+                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
                     data-testid="question-options"
                   >
                     {questionOptions.map((option, index) => (
@@ -298,7 +545,7 @@ export default function StudentExams() {
                   <Textarea
                     placeholder="Enter your answer here..."
                     value={answers[currentQuestion.id] || ''}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
                     rows={currentQuestion.questionType === 'essay' ? 8 : 4}
                     data-testid="text-answer"
                   />
