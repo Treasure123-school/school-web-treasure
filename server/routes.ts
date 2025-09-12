@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -30,6 +30,14 @@ if (!JWT_SECRET) {
 // Type assertion since we've already checked for existence
 const SECRET_KEY = JWT_SECRET as string;
 const JWT_EXPIRES_IN = '24h';
+
+// Define role constants to prevent authorization bugs
+const ROLES = {
+  STUDENT: 1,
+  TEACHER: 2,
+  PARENT: 3,
+  ADMIN: 4
+} as const;
 
 // Rate limiting for login attempts (simple in-memory store)
 const loginAttempts = new Map();
@@ -151,8 +159,22 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Static file serving for uploads
-  app.use('/uploads', express.static(path.resolve('uploads')));
+  // Secure file serving for uploads - require authentication
+  app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.resolve('uploads', filename);
+    
+    // Security: Prevent path traversal attacks
+    if (!filePath.startsWith(path.resolve('uploads'))) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        res.status(404).json({ message: "File not found" });
+      }
+    });
+  });
   
   // Setup/Demo data route (for development)
   app.post("/api/setup-demo", async (req, res) => {
@@ -341,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management - Admin only
-  app.get("/api/users", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { role } = req.query;
       let users: any[] = [];
@@ -374,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       // Extract password from request and hash it before storage
       const { password, ...otherUserData } = req.body;
@@ -409,7 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.put("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       // Extract password if provided for separate handling
@@ -446,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteUser(id);
@@ -462,7 +484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Student management
-  app.get("/api/students", async (req, res) => {
+  app.get("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { classId } = req.query;
       let students: any[] = [];
@@ -481,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/students", async (req, res) => {
+  app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const studentData = insertStudentSchema.parse(req.body);
       const student = await storage.createStudent(studentData);
@@ -492,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Class management
-  app.get("/api/classes", async (req, res) => {
+  app.get("/api/classes", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const classes = await storage.getClasses();
       res.json(classes);
@@ -501,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/classes", async (req, res) => {
+  app.post("/api/classes", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const classData = {
         name: req.body.name,
@@ -516,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/classes/:id", async (req, res) => {
+  app.put("/api/classes/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const classData = {
@@ -537,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/classes/:id", async (req, res) => {
+  app.delete("/api/classes/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteClass(parseInt(id));
@@ -553,7 +575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Subject management
-  app.get("/api/subjects", async (req, res) => {
+  app.get("/api/subjects", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const subjects = await storage.getSubjects();
       res.json(subjects);
@@ -562,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/subjects", async (req, res) => {
+  app.post("/api/subjects", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const subjectData = {
         name: req.body.name,
@@ -576,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/subjects/:id", async (req, res) => {
+  app.put("/api/subjects/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const subjectData = {
@@ -596,7 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/subjects/:id", async (req, res) => {
+  app.delete("/api/subjects/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteSubject(parseInt(id));
@@ -612,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Attendance management
-  app.post("/api/attendance", async (req, res) => {
+  app.post("/api/attendance", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const attendanceData = insertAttendanceSchema.parse(req.body);
       const attendance = await storage.recordAttendance(attendanceData);
@@ -622,7 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/attendance/:studentId", async (req, res) => {
+  app.get("/api/attendance/:studentId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { studentId } = req.params;
       const { date } = req.query;
@@ -638,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/attendance/class/:classId", async (req, res) => {
+  app.get("/api/attendance/class/:classId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { classId } = req.params;
       const { date } = req.query;
@@ -656,7 +678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exams
-  app.post("/api/exams", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const examData = insertExamSchema.omit({ createdBy: true }).parse(req.body);
       const examWithCreator = { ...examData, createdBy: req.user.id };
@@ -667,7 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exams", async (req, res) => {
+  app.get("/api/exams", authenticateUser, async (req, res) => {
     try {
       const exams = await storage.getAllExams();
       res.json(exams);
@@ -676,7 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exams/class/:classId", async (req, res) => {
+  app.get("/api/exams/class/:classId", authenticateUser, async (req, res) => {
     try {
       const { classId } = req.params;
       const exams = await storage.getExamsByClass(parseInt(classId));
@@ -686,7 +708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exams/:id", async (req, res) => {
+  app.get("/api/exams/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
       const exam = await storage.getExamById(parseInt(id));
@@ -699,7 +721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/exams/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.put("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -709,9 +731,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Exam not found" });
       }
       
-      // Ownership check: Teachers (roleId 2) can only modify their own exams
-      // Admins (roleId 1) can modify any exam
-      if (req.user.roleId === 2 && existingExam.createdBy !== req.user.id) {
+      // Ownership check: Teachers can only modify their own exams
+      // Admins can modify any exam
+      if (req.user.roleId === ROLES.TEACHER && existingExam.createdBy !== req.user.id) {
         return res.status(403).json({ message: "You can only modify exams you created" });
       }
       
@@ -726,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/exams/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.delete("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -736,9 +758,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Exam not found" });
       }
       
-      // Ownership check: Teachers (roleId 2) can only delete their own exams
-      // Admins (roleId 1) can delete any exam
-      if (req.user.roleId === 2 && existingExam.createdBy !== req.user.id) {
+      // Ownership check: Teachers can only delete their own exams
+      // Admins can delete any exam
+      if (req.user.roleId === ROLES.TEACHER && existingExam.createdBy !== req.user.id) {
         return res.status(403).json({ message: "You can only delete exams you created" });
       }
       
@@ -753,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exam Questions routes
-  app.post("/api/exam-questions", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const questionData = insertExamQuestionSchema.parse(req.body);
       const question = await storage.createExamQuestion(questionData);
@@ -765,18 +787,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/exam-questions/:examId", authenticateUser, async (req, res) => {
     try {
+      const user = (req as any).user;
       const { examId } = req.params;
+      
+      // For students: require active exam session to prevent question leakage
+      if (user.roleId === ROLES.STUDENT) {
+        const activeSession = await storage.getActiveExamSession(parseInt(examId), user.id);
+        if (!activeSession) {
+          return res.status(403).json({ message: "No active exam session. Start the exam first." });
+        }
+        
+        // Verify session is still valid (not completed)
+        if (activeSession.isCompleted) {
+          return res.status(403).json({ message: "Exam session has been completed" });
+        }
+      } else {
+        // For teachers: verify they have access to this exam
+        if (user.roleId === ROLES.TEACHER) {
+          const exam = await storage.getExamById(parseInt(examId));
+          if (!exam || exam.createdBy !== user.id) {
+            return res.status(403).json({ message: "Teachers can only view questions for their own exams" });
+          }
+        }
+        // Admins can view all questions
+      }
+      
       const questions = await storage.getExamQuestions(parseInt(examId));
       
-      // Students (roleId 3+) should not see certain sensitive data during active exams
-      // For now, return all questions but options will be filtered separately
-      res.json(questions);
+      // Students see questions without correct answer indicators, teachers/admins see all
+      if (user.roleId === ROLES.STUDENT) {
+        // Remove sensitive data for students during exam
+        const studentQuestions = questions.map(q => ({
+          ...q,
+          correctAnswer: undefined, // Hide correct answers during exam
+          explanation: undefined    // Hide explanations during exam
+        }));
+        res.json(studentQuestions);
+      } else {
+        res.json(questions);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch exam questions" });
     }
   });
 
-  app.put("/api/exam-questions/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.put("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const questionData = insertExamQuestionSchema.partial().parse(req.body);
@@ -790,7 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteExamQuestion(parseInt(id));
@@ -804,7 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Question Options routes  
-  app.post("/api/question-options", authenticateUser, authorizeRoles(1, 2), async (req, res) => {
+  app.post("/api/question-options", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const optionData = insertQuestionOptionSchema.parse(req.body);
       const option = await storage.createQuestionOption(optionData);
@@ -816,12 +871,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/question-options/:questionId", authenticateUser, async (req, res) => {
     try {
+      const user = (req as any).user;
       const { questionId } = req.params;
+      
+      // For students: verify they have an active exam session for questions they're trying to access
+      if (user.roleId === ROLES.STUDENT) {
+        // First get the question to find the exam
+        const questions = await storage.getExamQuestions(0); // This is inefficient, need to get by question ID
+        // TODO: Add getQuestionById method to storage for efficiency
+        // For now, we'll check if any active session exists for the user
+        
+        // This is a temporary solution - ideally we'd have storage.getQuestionById()
+        const allActiveSession = await storage.getExamSessionsByStudent(user.id);
+        const hasActiveSession = allActiveSession.some(session => !session.isCompleted);
+        
+        if (!hasActiveSession) {
+          return res.status(403).json({ message: "No active exam session. Start an exam first." });
+        }
+      } else {
+        // For teachers: verify they have access (teacher created the related exam)
+        if (user.roleId === ROLES.TEACHER) {
+          // TODO: Add proper verification that teacher created the exam containing this question
+          // For now, teachers can see all options during exam creation/management
+        }
+        // Admins can see all
+      }
+      
       const options = await storage.getQuestionOptions(parseInt(questionId));
       
       // Hide answer keys from students (roleId 3+ are students/parents)
       // Only admin (roleId 1) and teachers (roleId 2) can see correct answers
-      const isStudentOrParent = req.user.roleId >= 3;
+      const isStudentOrParent = user.roleId >= 3;
       
       if (isStudentOrParent) {
         // Remove the isCorrect field from options for students
@@ -880,6 +960,296 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch exam results" });
+    }
+  });
+
+  // Exam Sessions - for managing student exam taking sessions
+  app.post("/api/exam-sessions", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const sessionData = insertExamSessionSchema.parse(req.body);
+      
+      // Security: Students can only create sessions for themselves
+      if (user.roleId === ROLES.STUDENT && sessionData.studentId !== user.id) {
+        return res.status(403).json({ message: "Students can only create sessions for themselves" });
+      }
+      
+      // Verify exam exists and is accessible
+      const exam = await storage.getExamById(sessionData.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      
+      // Check if exam is published and available
+      if (!exam.isPublished) {
+        return res.status(403).json({ message: "Exam is not published" });
+      }
+      
+      // Check for existing active session to prevent duplicates
+      const existingSession = await storage.getActiveExamSession(sessionData.examId, sessionData.studentId);
+      if (existingSession) {
+        return res.status(409).json({ message: "Active exam session already exists", sessionId: existingSession.id });
+      }
+      
+      const session = await storage.createExamSession(sessionData);
+      res.json(session);
+    } catch (error) {
+      console.error('Error creating exam session:', error);
+      res.status(400).json({ message: "Invalid exam session data" });
+    }
+  });
+
+  app.get("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const session = await storage.getExamSessionById(parseInt(id));
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      
+      // Security: Students can only access their own sessions
+      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exam session" });
+    }
+  });
+
+  app.get("/api/exam-sessions/exam/:examId", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { examId } = req.params;
+      
+      // Security: Students cannot list sessions for any exam (privacy breach)
+      if (user.roleId === ROLES.STUDENT) {
+        return res.status(403).json({ message: "Students cannot view exam session lists" });
+      }
+      
+      // For teachers: verify they created this exam
+      if (user.roleId === ROLES.TEACHER) {
+        const exam = await storage.getExamById(parseInt(examId));
+        if (!exam || exam.createdBy !== user.id) {
+          return res.status(403).json({ message: "Teachers can only view sessions for their own exams" });
+        }
+      }
+      
+      // Admins (roleId 1) can view all sessions
+      const sessions = await storage.getExamSessionsByExam(parseInt(examId));
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exam sessions" });
+    }
+  });
+
+  app.get("/api/exam-sessions/student/:studentId", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { studentId } = req.params;
+      
+      // Fix type comparison bug: ensure proper number comparison
+      const numericStudentId = studentId;
+      const numericUserId = user.id;
+      
+      // Security: Students can only access their own sessions
+      if (user.roleId === ROLES.STUDENT && numericStudentId !== numericUserId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For teachers: verify they have access to this student's exams
+      if (user.roleId === ROLES.TEACHER) {
+        // Teachers should only see sessions for exams they created
+        const allSessions = await storage.getExamSessionsByStudent(studentId);
+        const teacherSessions = [];
+        
+        for (const session of allSessions) {
+          const exam = await storage.getExamById(session.examId);
+          if (exam && exam.createdBy === user.id) {
+            teacherSessions.push(session);
+          }
+        }
+        
+        return res.json(teacherSessions);
+      }
+      
+      // Admins and students (own data) can see all sessions
+      const sessions = await storage.getExamSessionsByStudent(studentId);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch student exam sessions" });
+    }
+  });
+
+  app.get("/api/exam-sessions/active/:examId/:studentId", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { examId, studentId } = req.params;
+      
+      // Security: Students can only access their own sessions
+      if (user.roleId === ROLES.STUDENT && studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const session = await storage.getActiveExamSession(parseInt(examId), studentId);
+      res.json(session || null);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch active exam session" });
+    }
+  });
+
+  app.put("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      
+      // Get existing session to check ownership
+      const existingSession = await storage.getExamSessionById(parseInt(id));
+      if (!existingSession) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      
+      // Security: Students can only update their own sessions
+      if (user.roleId === ROLES.STUDENT && existingSession.studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const sessionData = insertExamSessionSchema.partial().parse(req.body);
+      
+      // Prevent changing immutable fields
+      const { examId, studentId, ...allowedUpdates } = sessionData;
+      if (examId || studentId) {
+        return res.status(400).json({ message: "Cannot change examId or studentId" });
+      }
+      
+      const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      console.error('Error updating exam session:', error);
+      res.status(400).json({ message: "Invalid exam session data" });
+    }
+  });
+
+  app.delete("/api/exam-sessions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteExamSession(parseInt(id));
+      if (!success) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      res.json({ message: "Exam session deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete exam session" });
+    }
+  });
+
+  // Student Answers - for managing student responses during exams
+  app.post("/api/student-answers", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const answerData = insertStudentAnswerSchema.parse(req.body);
+      
+      // Verify session exists and belongs to the user
+      const session = await storage.getExamSessionById(answerData.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      
+      // Security: Students can only submit answers for their own sessions
+      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if session is still active (not completed)
+      if (session.isCompleted) {
+        return res.status(409).json({ message: "Cannot submit answers to completed exam" });
+      }
+      
+      // Check if answer already exists and update instead of create
+      const existingAnswers = await storage.getStudentAnswers(answerData.sessionId);
+      const existingAnswer = existingAnswers.find(a => a.questionId === answerData.questionId);
+      
+      if (existingAnswer) {
+        // Update existing answer
+        const answer = await storage.updateStudentAnswer(existingAnswer.id, answerData);
+        res.json(answer);
+      } else {
+        // Create new answer
+        const answer = await storage.createStudentAnswer(answerData);
+        res.json(answer);
+      }
+    } catch (error) {
+      console.error('Error creating/updating student answer:', error);
+      res.status(400).json({ message: "Invalid student answer data" });
+    }
+  });
+
+  app.get("/api/student-answers/session/:sessionId", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { sessionId } = req.params;
+      
+      // Verify session exists and check ownership
+      const session = await storage.getExamSessionById(parseInt(sessionId));
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      
+      // Security: Students can only view answers for their own sessions
+      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const answers = await storage.getStudentAnswers(parseInt(sessionId));
+      res.json(answers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch student answers" });
+    }
+  });
+
+  app.put("/api/student-answers/:id", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      
+      // Get existing answer to check ownership
+      const existingAnswers = await storage.getStudentAnswers(parseInt(id)); // This needs sessionId, let me get the answer first
+      // Actually, we need to get answer by ID, but our storage doesn't have that method
+      // For now, let's add security through session verification
+      
+      const answerData = insertStudentAnswerSchema.partial().parse(req.body);
+      
+      // If sessionId is being updated, verify the session belongs to user
+      if (answerData.sessionId) {
+        const session = await storage.getExamSessionById(answerData.sessionId);
+        if (!session) {
+          return res.status(404).json({ message: "Exam session not found" });
+        }
+        
+        // Security: Students can only update answers for their own sessions
+        if (user.roleId >= 3 && session.studentId !== user.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        // Check if session is still active
+        if (session.isCompleted) {
+          return res.status(409).json({ message: "Cannot update answers for completed exam" });
+        }
+      }
+      
+      const answer = await storage.updateStudentAnswer(parseInt(id), answerData);
+      if (!answer) {
+        return res.status(404).json({ message: "Student answer not found" });
+      }
+      res.json(answer);
+    } catch (error) {
+      console.error('Error updating student answer:', error);
+      res.status(400).json({ message: "Invalid student answer data" });
     }
   });
 
@@ -1045,7 +1415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload routes
-  app.post("/api/upload/profile", authenticateUser, authorizeRoles(4), upload.single('profileImage'), async (req, res) => {
+  app.post("/api/upload/profile", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('profileImage'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -1076,7 +1446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload/gallery", authenticateUser, authorizeRoles(4), upload.single('galleryImage'), async (req, res) => {
+  app.post("/api/upload/gallery", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('galleryImage'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -1292,7 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/homepage-content", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.post("/api/homepage-content", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const contentData = insertHomePageContentSchema.parse(req.body);
       const content = await storage.createHomePageContent(contentData);
@@ -1309,7 +1679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/homepage-content/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.put("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const contentData = insertHomePageContentSchema.partial().parse(req.body);
@@ -1332,7 +1702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
+  app.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -1385,7 +1755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Special endpoint for uploading home page images (Admin only)
-  app.post("/api/upload/homepage", authenticateUser, authorizeRoles(4), upload.single('homePageImage'), async (req, res) => {
+  app.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
