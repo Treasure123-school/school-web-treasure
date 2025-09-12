@@ -93,12 +93,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Database error:', dbError);
         res.status(500).json({ 
           message: "Database connection failed", 
-          error: dbError.message 
+          error: dbError instanceof Error ? dbError.message : "Unknown database error"
         });
       }
     } catch (error) {
       console.error('Setup demo error:', error);
-      res.status(500).json({ message: "Setup failed", error: error.message });
+      res.status(500).json({ message: "Setup failed", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
