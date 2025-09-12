@@ -374,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", authenticateUser, authorizeRoles(4), async (req, res) => {
     try {
       // Extract password from request and hash it before storage
       const { password, ...otherUserData } = req.body;
@@ -409,23 +409,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", async (req, res) => {
+  app.put("/api/users/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
     try {
       const { id } = req.params;
-      const userData = insertUserSchema.partial().parse(req.body);
+      // Extract password if provided for separate handling
+      const { password, passwordHash, ...otherUserData } = req.body;
+      
+      // Prevent direct passwordHash manipulation
+      if (passwordHash) {
+        return res.status(400).json({ message: "Direct password hash modification not allowed" });
+      }
+      
+      let updateData = otherUserData;
+      
+      // If password provided, hash it properly
+      if (password) {
+        if (typeof password !== 'string' || password.length < 6) {
+          return res.status(400).json({ message: "Password must be at least 6 characters long" });
+        }
+        const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        updateData = { ...otherUserData, passwordHash: hashedPassword };
+      }
+      
+      const userData = insertUserSchema.partial().parse(updateData);
       const user = await storage.updateUser(id, userData);
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(user);
+      // Remove password hash from response for security
+      const { passwordHash: _, ...userResponse } = user;
+      res.json(userResponse);
     } catch (error) {
       res.status(400).json({ message: "Invalid user data" });
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users/:id", authenticateUser, authorizeRoles(4), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteUser(id);
