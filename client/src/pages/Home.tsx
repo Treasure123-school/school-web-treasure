@@ -9,18 +9,30 @@ export default function Home() {
   // Fetch dynamic content from database
   const { data: heroImages = [] } = useQuery<HomePageContent[]>({
     queryKey: ['/api/homepage-content', 'hero_image'],
-    queryFn: () => fetch('/api/homepage-content?contentType=hero_image').then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch('/api/homepage-content?contentType=hero_image');
+      if (!res.ok) {
+        return [];
+      }
+      return res.json();
+    },
     refetchOnWindowFocus: false,
   });
 
   const { data: galleryPreviewImages = [] } = useQuery<HomePageContent[]>({
     queryKey: ['/api/homepage-content', 'gallery_preview'],
-    queryFn: () => fetch('/api/homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3').then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch('/api/homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3');
+      if (!res.ok) {
+        return [];
+      }
+      return res.json();
+    },
     refetchOnWindowFocus: false,
   });
 
   // Get the primary hero image (first active hero image)
-  const heroImage = heroImages.find(img => img.isActive) || null;
+  const heroImage = Array.isArray(heroImages) ? heroImages.find(img => img.isActive) || null : null;
   const features = [
     {
       icon: 'fas fa-chalkboard-teacher',
