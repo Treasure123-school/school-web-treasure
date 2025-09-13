@@ -11,46 +11,67 @@
   --card-foreground: hsl(222.2, 84%, 4.9%);
   --popover: hsl(0, 0%, 100%);
   --popover-foreground: hsl(222.2, 84%, 4.9%);
-  --primary: hsl(221.2, 83.2%, 53.3%);
-  --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(43.3, 96.4%, 56.3%);
+  --primary: hsl(217, 91%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(45, 100%, 65%);
   --secondary-foreground: hsl(222.2, 84%, 4.9%);
   --muted: hsl(210, 40%, 96%);
   --muted-foreground: hsl(215.4, 16.3%, 46.9%);
-  --accent: hsl(210, 40%, 96%);
-  --accent-foreground: hsl(222.2, 84%, 4.9%);
+  --accent: hsl(196, 75%, 55%);
+  --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(210, 40%, 98%);
   --border: hsl(214.3, 31.8%, 91.4%);
   --input: hsl(214.3, 31.8%, 91.4%);
-  --ring: hsl(221.2, 83.2%, 53.3%);
-  --chart-1: hsl(221.2, 83.2%, 53.3%);
-  --chart-2: hsl(159.7826, 100%, 36.0784%);
-  --chart-3: hsl(43.3, 96.4%, 56.3%);
-  --chart-4: hsl(147.1429, 78.5047%, 41.9608%);
-  --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
+  --ring: hsl(217, 91%, 60%);
+  --chart-1: hsl(217, 91%, 60%);
+  --chart-2: hsl(196, 75%, 55%);
+  --chart-3: hsl(45, 100%, 65%);
+  --chart-4: hsl(260, 100%, 80%);
+  --chart-5: hsl(330, 81%, 60%);
   --sidebar: hsl(0, 0%, 100%);
   --sidebar-foreground: hsl(222.2, 84%, 4.9%);
-  --sidebar-primary: hsl(221.2, 83.2%, 53.3%);
-  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-primary: hsl(217, 91%, 60%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
   --sidebar-accent: hsl(210, 40%, 96%);
   --sidebar-accent-foreground: hsl(222.2, 84%, 4.9%);
   --sidebar-border: hsl(214.3, 31.8%, 91.4%);
-  --sidebar-ring: hsl(221.2, 83.2%, 53.3%);
+  --sidebar-ring: hsl(217, 91%, 60%);
+  
+  /* Beautiful gradient colors */
+  --gradient-blue-start: hsl(217, 91%, 60%);
+  --gradient-blue-middle: hsl(196, 75%, 55%);
+  --gradient-blue-end: hsl(260, 100%, 80%);
+  --gradient-gold: hsl(45, 100%, 65%);
+  --gradient-purple: hsl(260, 100%, 80%);
+  
+  /* Typography */
   --font-sans: 'Inter', sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
-  --radius: 0.5rem;
-  --shadow-2xs: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 1px 2px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 1px 2px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 2px 4px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 4px 6px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 8px 10px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00);
-  --tracking-normal: 0em;
-  --spacing: 0.25rem;
+  
+  /* Layout */
+  --radius: 0.75rem;
+  --max-width: 1440px;
+  --container-padding: 1rem;
+  
+  /* Enhanced shadows */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-colored: 0 25px 50px -12px hsl(217, 91%, 60%, 0.25);
+  
+  /* Spacing scale */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
 }
 
 .dark {
@@ -93,29 +114,164 @@
   }
 }
 
-.hero-gradient {
-  background: linear-gradient(135deg, hsl(221.2, 83.2%, 53.3%) 0%, hsl(221.2, 83.2%, 63.3%) 100%);
+/* Beautiful gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--gradient-blue-start) 0%, var(--gradient-blue-middle) 50%, var(--gradient-blue-end) 100%);
 }
 
+.gradient-hero {
+  background: linear-gradient(135deg, 
+    var(--gradient-blue-start) 0%, 
+    var(--gradient-blue-middle) 35%, 
+    var(--gradient-blue-end) 70%, 
+    var(--gradient-purple) 100%
+  );
+}
+
+.gradient-card {
+  background: linear-gradient(145deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--gradient-blue-start) 0%, var(--gradient-blue-middle) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, var(--gradient-gold) 0%, hsl(30, 100%, 60%) 100%);
+}
+
+/* Enhanced card animations */
 .card-hover {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
 }
 
 .card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
 }
 
+.card-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+/* Professional navigation */
 .nav-link {
-  transition: all 0.2s ease-in-out;
+  @apply relative transition-all duration-300 ease-in-out;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(135deg, var(--gradient-blue-start), var(--gradient-blue-middle));
+  transition: width 0.3s ease-in-out;
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+  width: 100%;
 }
 
 .nav-link:hover {
-  background-color: hsl(210, 40%, 96%);
-  color: hsl(221.2, 83.2%, 53.3%);
+  color: var(--gradient-blue-start);
 }
 
 .active-nav {
-  background-color: hsl(221.2, 83.2%, 53.3%);
-  color: hsl(210, 40%, 98%);
+  color: var(--gradient-blue-start);
+  font-weight: 600;
+}
+
+/* Professional buttons */
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 
+         text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl 
+         transform transition-all duration-200 hover:scale-105;
+}
+
+.btn-secondary {
+  @apply bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 
+         text-gray-900 font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl 
+         transform transition-all duration-200 hover:scale-105;
+}
+
+.btn-ghost {
+  @apply border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white 
+         font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+}
+
+/* Section backgrounds */
+.section-gradient-light {
+  background: linear-gradient(135deg, 
+    rgba(217, 239, 255, 0.3) 0%, 
+    rgba(179, 225, 255, 0.2) 100%
+  );
+}
+
+.section-gradient-accent {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.1) 0%, 
+    rgba(99, 102, 241, 0.1) 100%
+  );
+}
+
+/* Professional animations */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out forwards;
+}
+
+.animate-bounce-gentle {
+  animation: bounceGentle 2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounceGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Mobile-first responsive utilities */
+.container-custom {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--container-padding);
+}
+
+@media (min-width: 640px) {
+  .container-custom {
+    padding: 0 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-custom {
+    padding: 0 4rem;
+  }
 }
