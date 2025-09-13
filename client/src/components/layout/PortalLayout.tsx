@@ -3,7 +3,7 @@ import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Se
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import schoolLogo from '@assets/1000025432-removebg-preview_1757796210092.png';
+import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
 interface PortalLayoutProps {
   children: React.ReactNode;

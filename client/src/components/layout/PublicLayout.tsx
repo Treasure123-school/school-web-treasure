@@ -2,7 +2,7 @@ import { Link, useLocation } from 'wouter';
 import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import schoolLogo from '@assets/1000025432-removebg-preview_1757796210092.png';
+import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
