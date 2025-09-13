@@ -2188,8 +2188,8 @@ class MemoryStorage implements IStorage {
   }
 }
 
-// Use real database storage
-const storage: IStorage = new DatabaseStorage();
-console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage with URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+// Use memory storage as fallback due to database connection issue
+const storage: IStorage = new MemoryStorage();
+console.log('✅ STORAGE: Using MemoryStorage (fallback due to database connection issue)');
 
 export { storage };
