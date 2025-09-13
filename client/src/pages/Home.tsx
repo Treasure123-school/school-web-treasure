@@ -151,39 +151,39 @@ export default function Home() {
 
   return (
     <PublicLayout>
-      {/* Hero Section */}
-      <section className="hero-gradient py-20">
+      {/* Hero Section with improved mobile spacing */}
+      <section className="hero-gradient py-16 md:py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="text-primary-foreground">
-              <h1 className="school-title text-4xl lg:text-6xl mb-4" data-testid="text-hero-title">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div className="text-primary-foreground order-2 lg:order-1 text-center lg:text-left">
+              <h1 className="school-title text-3xl sm:text-4xl lg:text-5xl xl:text-6xl mb-4 leading-tight" data-testid="text-hero-title">
                 Treasure-Home School
               </h1>
-              <p className="school-motto text-xl lg:text-2xl mb-6" data-testid="text-hero-motto">
-                "Honesty and Success"
+              <p className="school-motto text-lg sm:text-xl lg:text-2xl mb-6 font-medium" data-testid="text-hero-motto">
+                Motto: "Honesty and Success"
               </p>
-              <p className="text-lg text-primary-foreground/90 mb-8 leading-relaxed max-w-xl" data-testid="text-hero-description">
+              <p className="text-base sm:text-lg text-primary-foreground/90 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0" data-testid="text-hero-description">
                 Located in Seriki-Soyinka Ifo, Ogun State, we provide comprehensive education from playgroup to senior secondary school, nurturing students with our core values of honesty and success through quality education and moral excellence.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button 
                   asChild 
-                  className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                  className="bg-secondary text-secondary-foreground hover:bg-secondary/90 h-12 px-8 text-base font-semibold"
                   data-testid="button-apply-admission"
                 >
                   <Link href="/admissions">Apply for Admission</Link>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+                  className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10 h-12 px-8 text-base font-semibold"
                   data-testid="button-virtual-tour"
                 >
                   Take Virtual Tour
                 </Button>
               </div>
             </div>
-            <div className="lg:text-right">
-              <div className="relative">
+            <div className="order-1 lg:order-2 lg:text-right">
+              <div className="relative max-w-lg mx-auto lg:max-w-none">
                 <img 
                   src={heroImage?.imageUrl || "https://pixabay.com/get/gc7d2935b2c7daee5b00c7f4e5f775c0789f703b5347bf11383e16d0cf64f931493583d7ca01db3a2fd0940d4aa02adb939bbce4c48a8fb42f8bd002547dfe709_1280.jpg"} 
                   alt={heroImage?.altText || "Treasure-Home School campus with modern facilities"} 
@@ -194,13 +194,13 @@ export default function Home() {
                   decoding="async"
                   data-testid="img-hero-school"
                 />
-                <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-lg shadow-lg">
-                  <div className="flex items-center space-x-3">
+                <div className="absolute -bottom-4 -left-4 sm:-bottom-6 sm:-left-6 bg-card p-3 sm:p-4 rounded-lg shadow-lg">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
                     <div className="bg-primary/10 p-2 rounded-lg">
-                      <i className="fas fa-users text-primary"></i>
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold" data-testid="text-student-count">500+ Students</p>
+                      <p className="text-xs sm:text-sm font-semibold" data-testid="text-student-count">500+ Students</p>
                       <p className="text-xs text-muted-foreground">Enrolled</p>
                     </div>
                   </div>
@@ -211,19 +211,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Key Features Section */}
-      <section className="py-16 bg-muted/30">
+      {/* Key Features Section with improved spacing */}
+      <section className="py-16 md:py-20 lg:py-24 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4" data-testid="text-features-title">
+          <div className="text-center mb-12 lg:mb-16">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 lg:mb-6" data-testid="text-features-title">
               Why Choose Treasure-Home School?
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto" data-testid="text-features-description">
+            <p className="text-muted-foreground max-w-2xl mx-auto text-base sm:text-lg" data-testid="text-features-description">
               We provide comprehensive education with modern facilities and experienced teachers, preparing students for academic excellence and moral development.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             {features.map((feature, index) => (
               <Card key={index} className="card-hover shadow-sm border border-border" data-testid={`card-feature-${index}`}>
                 <CardContent className="p-6">
@@ -337,54 +337,74 @@ export default function Home() {
           </div>
           
           {galleryImages.length > 0 ? (
-            <div className="relative">
-              {/* Main carousel */}
-              <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden mb-6">
+            <div className="relative max-w-4xl mx-auto">
+              {/* Main carousel with improved responsive design */}
+              <div className="relative h-60 sm:h-72 md:h-80 lg:h-96 rounded-2xl overflow-hidden mb-6 shadow-2xl">
                 <img
                   src={galleryImages[currentImageIndex]?.src}
                   alt={galleryImages[currentImageIndex]?.alt}
-                  className="w-full h-full object-cover transition-opacity duration-500"
+                  className="w-full h-full object-cover transition-all duration-700 ease-in-out"
                   data-testid={`img-gallery-main-${currentImageIndex}`}
                 />
                 
-                {/* Navigation arrows */}
-                <div className="absolute inset-0 flex items-center justify-between p-4">
+                {/* Enhanced navigation arrows */}
+                <div className="absolute inset-0 flex items-center justify-between p-3 sm:p-4">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="bg-black/20 hover:bg-black/40 text-white rounded-full"
+                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:scale-110"
                     onClick={prevImage}
                     data-testid="button-gallery-prev"
                   >
-                    <ChevronLeft className="h-6 w-6" />
+                    <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="bg-black/20 hover:bg-black/40 text-white rounded-full"
+                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:scale-110"
                     onClick={nextImage}
                     data-testid="button-gallery-next"
                   >
-                    <ChevronRight className="h-6 w-6" />
+                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
                   </Button>
                 </div>
                 
-                {/* Image counter */}
-                <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-                  {currentImageIndex + 1} / {galleryImages.length}
+                {/* Enhanced image counter */}
+                <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-black/60 text-white px-3 py-2 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
+                  <span className="flex items-center space-x-1">
+                    <span>{currentImageIndex + 1}</span>
+                    <span className="text-white/60">/</span>
+                    <span>{galleryImages.length}</span>
+                  </span>
+                </div>
+
+                {/* Progress indicator dots */}
+                <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                  {galleryImages.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                        currentImageIndex === index 
+                          ? 'bg-white scale-125' 
+                          : 'bg-white/50 hover:bg-white/75'
+                      }`}
+                      data-testid={`button-gallery-dot-${index}`}
+                    />
+                  ))}
                 </div>
               </div>
               
-              {/* Thumbnail navigation */}
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {/* Enhanced thumbnail navigation */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3">
                 {galleryImages.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`relative h-16 rounded-lg overflow-hidden transition-all ${
+                    className={`relative h-16 sm:h-20 rounded-xl overflow-hidden transition-all duration-300 transform ${
                       currentImageIndex === index 
-                        ? 'ring-2 ring-primary ring-offset-2' 
-                        : 'hover:opacity-80'
+                        ? 'ring-2 ring-primary ring-offset-2 scale-105 shadow-lg' 
+                        : 'hover:opacity-80 hover:scale-105 hover:shadow-md'
                     }`}
                     data-testid={`button-gallery-thumbnail-${index}`}
                   >
@@ -394,7 +414,10 @@ export default function Home() {
                       className="w-full h-full object-cover"
                     />
                     {currentImageIndex !== index && (
-                      <div className="absolute inset-0 bg-black/30" />
+                      <div className="absolute inset-0 bg-black/40" />
+                    )}
+                    {currentImageIndex === index && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent" />
                     )}
                   </button>
                 ))}
