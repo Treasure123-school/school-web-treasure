@@ -3,6 +3,7 @@ import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Se
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import schoolLogo from '@assets/1000025432-removebg-preview_1757796210092.png';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -90,8 +91,12 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       <div className="w-64 bg-card shadow-sm border-r border-border h-screen sticky top-0">
         <div className="p-6 border-b border-border">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary rounded-lg p-2">
-              <GraduationCap className="text-primary-foreground h-5 w-5" />
+            <div className="bg-white rounded-xl p-2 border border-blue-100 shadow-sm">
+              <img 
+                src={schoolLogo} 
+                alt="Treasure-Home School Logo" 
+                className="h-8 w-8 object-contain"
+              />
             </div>
             <div>
               <h1 className="font-bold text-sm">Treasure-Home</h1>

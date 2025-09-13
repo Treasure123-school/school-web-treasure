@@ -2,6 +2,7 @@ import { Link, useLocation } from 'wouter';
 import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
+import schoolLogo from '@assets/1000025432-removebg-preview_1757796210092.png';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -35,8 +36,12 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             <div className="flex justify-between items-center h-20">
               {/* Professional school branding */}
               <Link href="/" className="flex items-center space-x-4 group">
-                <div className="bg-blue-600 rounded-lg p-3 shadow-md group-hover:shadow-lg transition-all duration-300">
-                  <GraduationCap className="text-white h-7 w-7" />
+                <div className="bg-white rounded-2xl p-2 shadow-md group-hover:shadow-lg transition-all duration-300 border border-blue-100">
+                  <img 
+                    src={schoolLogo} 
+                    alt="Treasure-Home School Logo" 
+                    className="h-12 w-12 object-contain"
+                  />
                 </div>
                 <div className="flex flex-col">
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
@@ -144,8 +149,12 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             {/* School Branding */}
             <div className="lg:col-span-2">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="gradient-primary rounded-xl p-3 shadow-lg">
-                  <GraduationCap className="text-white h-8 w-8" />
+                <div className="bg-white rounded-2xl p-3 shadow-lg border border-blue-200">
+                  <img 
+                    src={schoolLogo} 
+                    alt="Treasure-Home School Logo" 
+                    className="h-10 w-10 object-contain"
+                  />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold gradient-text">Treasure-Home School</h2>
