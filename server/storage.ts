@@ -70,6 +70,7 @@ export interface IStorage {
   updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined>;
   deleteExam(id: number): Promise<boolean>;
   recordExamResult(result: InsertExamResult): Promise<ExamResult>;
+  updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined>;
   getExamResultsByStudent(studentId: string): Promise<ExamResult[]>;
   getExamResultsByExam(examId: number): Promise<ExamResult[]>;
 
@@ -381,6 +382,14 @@ export class DatabaseStorage implements IStorage {
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
     const examResult = await db.insert(schema.examResults).values(result).returning();
     return examResult[0];
+  }
+
+  async updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined> {
+    const updated = await db.update(schema.examResults)
+      .set(result)
+      .where(eq(schema.examResults.id, id))
+      .returning();
+    return updated[0];
   }
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
@@ -737,7 +746,7 @@ export class DatabaseStorage implements IStorage {
       // Calculate performance metrics
       const totalExams = examResults.length;
       const averageScore = totalExams > 0 ? 
-        examResults.reduce((sum, r) => sum + r.marksObtained, 0) / totalExams : 0;
+        examResults.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
       
       const gradeDistribution = this.calculateGradeDistribution(examResults);
       
@@ -755,7 +764,7 @@ export class DatabaseStorage implements IStorage {
         performanceTrends,
         topPerformers: studentPerformance.slice(0, 5),
         strugglingStudents: studentPerformance.slice(-5),
-        passRate: Math.round((examResults.filter(r => r.marksObtained >= 50).length / totalExams) * 100)
+        passRate: Math.round((examResults.filter(r => (r.marksObtained || 0) >= 50).length / totalExams) * 100)
       };
     } catch (error) {
       console.error('Error in getPerformanceAnalytics:', error);
@@ -1207,11 +1216,11 @@ class MemoryStorage implements IStorage {
   private questionOptions: QuestionOption[] = [];
 
   private examResults: ExamResult[] = [
-    { id: 1, examId: 1, studentId: '1', marksObtained: 85, grade: 'A', remarks: 'Excellent performance', recordedBy: '2', createdAt: new Date() },
-    { id: 2, examId: 2, studentId: '1', marksObtained: 78, grade: 'B+', remarks: 'Good improvement', recordedBy: '2', createdAt: new Date() },
-    { id: 3, examId: 1, studentId: '5', marksObtained: 72, grade: 'B', remarks: 'Good effort', recordedBy: '2', createdAt: new Date() },
-    { id: 4, examId: 2, studentId: '5', marksObtained: 68, grade: 'B-', remarks: 'Need more practice in essay writing', recordedBy: '2', createdAt: new Date() },
-    { id: 5, examId: 3, studentId: '1', marksObtained: 42, grade: 'A', remarks: 'Excellent', recordedBy: '2', createdAt: new Date() }
+    { id: 1, examId: 1, studentId: '1', score: 85, maxScore: 100, marksObtained: 85, grade: 'A', remarks: 'Excellent performance', autoScored: false, recordedBy: 'teacher-manual', createdAt: new Date() },
+    { id: 2, examId: 2, studentId: '1', score: 78, maxScore: 100, marksObtained: 78, grade: 'B+', remarks: 'Good improvement', autoScored: false, recordedBy: 'teacher-manual', createdAt: new Date() },
+    { id: 3, examId: 1, studentId: '5', score: 72, maxScore: 100, marksObtained: 72, grade: 'B', remarks: 'Good effort', autoScored: false, recordedBy: 'teacher-manual', createdAt: new Date() },
+    { id: 4, examId: 2, studentId: '5', score: 68, maxScore: 100, marksObtained: 68, grade: 'B-', remarks: 'Need more practice in essay writing', autoScored: false, recordedBy: 'teacher-manual', createdAt: new Date() },
+    { id: 5, examId: 3, studentId: '1', score: 42, maxScore: 50, marksObtained: 42, grade: 'A', remarks: 'Excellent', autoScored: true, recordedBy: 'system-auto-scoring', createdAt: new Date() }
   ];
 
   private announcements: Announcement[] = [
@@ -1552,13 +1561,30 @@ class MemoryStorage implements IStorage {
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
     const newResult: ExamResult = {
       id: this.examResults.length + 1,
-      ...result,
+      examId: result.examId,
+      studentId: result.studentId,
+      score: result.score,
+      maxScore: result.maxScore ?? null,
+      marksObtained: result.marksObtained ?? null,
       grade: result.grade ?? null,
       remarks: result.remarks ?? null,
+      autoScored: result.autoScored ?? false,
+      recordedBy: result.recordedBy,
       createdAt: new Date()
     };
     this.examResults.push(newResult);
     return newResult;
+  }
+
+  async updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined> {
+    const index = this.examResults.findIndex(r => r.id === id);
+    if (index === -1) return undefined;
+    
+    this.examResults[index] = {
+      ...this.examResults[index],
+      ...result
+    };
+    return this.examResults[index];
   }
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
@@ -1948,7 +1974,7 @@ class MemoryStorage implements IStorage {
     // Calculate performance metrics
     const totalExams = examResults.length;
     const averageScore = totalExams > 0 ? 
-      examResults.reduce((sum, r) => sum + r.marksObtained, 0) / totalExams : 0;
+      examResults.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
     
     const gradeDistribution = this.calculateGradeDistribution(examResults);
     const performanceTrends = this.calculatePerformanceTrends(examResults);
@@ -1962,7 +1988,7 @@ class MemoryStorage implements IStorage {
       performanceTrends,
       topPerformers: studentPerformance.slice(0, 5),
       strugglingStudents: studentPerformance.slice(-5),
-      passRate: Math.round((examResults.filter(r => r.marksObtained >= 50).length / totalExams) * 100)
+      passRate: Math.round((examResults.filter(r => (r.marksObtained || 0) >= 50).length / totalExams) * 100)
     };
   }
 

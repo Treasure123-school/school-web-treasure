@@ -162,10 +162,13 @@ export const examResults = pgTable("exam_results", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   examId: integer("exam_id").references(() => exams.id).notNull(),
   studentId: uuid("student_id").references(() => students.id).notNull(),
-  marksObtained: integer("marks_obtained").notNull(),
+  score: integer("score").notNull(),
+  maxScore: integer("max_score"),
+  marksObtained: integer("marks_obtained"), // Legacy field for backward compatibility
   grade: varchar("grade", { length: 5 }),
   remarks: text("remarks"),
-  recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
+  autoScored: boolean("auto_scored").default(false),
+  recordedBy: text("recorded_by").notNull(), // Changed from UUID to text to support 'system-auto-scoring'
   createdAt: timestamp("created_at").defaultNow(),
 });
 
