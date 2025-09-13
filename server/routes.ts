@@ -40,6 +40,42 @@ if (!JWT_SECRET) {
 const SECRET_KEY = JWT_SECRET as string;
 const JWT_EXPIRES_IN = '24h';
 
+// Helper to normalize UUIDs from various formats
+function normalizeUuid(raw: any): string | undefined {
+  if (!raw) return undefined;
+  
+  // If already a valid UUID string, return as-is
+  if (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
+    return raw;
+  }
+  
+  let bytes: number[] | undefined;
+  
+  // Handle comma-separated string of numbers
+  if (typeof raw === 'string' && raw.includes(',')) {
+    const parts = raw.split(',').map(s => parseInt(s.trim()));
+    if (parts.length === 16 && parts.every(n => n >= 0 && n <= 255)) {
+      bytes = parts;
+    }
+  }
+  
+  // Handle number array or Uint8Array
+  if (Array.isArray(raw) && raw.length === 16) {
+    bytes = raw;
+  } else if (raw instanceof Uint8Array && raw.length === 16) {
+    bytes = Array.from(raw);
+  }
+  
+  // Convert bytes to UUID format
+  if (bytes) {
+    const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
+  }
+  
+  console.warn('Failed to normalize UUID:', raw);
+  return undefined;
+}
+
 // Define role constants to prevent authorization bugs
 const ROLES = {
   STUDENT: 1,
@@ -79,8 +115,15 @@ const authenticateUser = async (req: any, res: any, next: any) => {
       return res.status(401).json({ message: "Invalid or expired token" });
     }
     
+    // Normalize decoded userId before database lookup
+    const normalizedUserId = normalizeUuid(decoded.userId);
+    if (!normalizedUserId) {
+      console.error('Invalid userId in token:', decoded.userId);
+      return res.status(401).json({ message: "Invalid token format" });
+    }
+
     // Validate user still exists in database
-    const user = await storage.getUser(decoded.userId);
+    const user = await storage.getUser(normalizedUserId);
     if (!user) {
       return res.status(401).json({ message: "User no longer exists" });
     }
@@ -407,9 +450,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Password verification successful - reset rate limit
       loginAttempts.delete(attemptKey);
       
-      // Generate JWT token with user claims
+      // Generate JWT token with user claims - ensure UUID is string
+      const userId = typeof user.id === 'string' ? user.id : String(user.id);
       const tokenPayload = {
-        userId: user.id,
+        userId: userId,
         email: user.email,
         roleId: user.roleId,
         iat: Math.floor(Date.now() / 1000),
@@ -421,7 +465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         token,
         user: { 
-          id: user.id, 
+          id: userId, 
           email: user.email, 
           firstName: user.firstName, 
           lastName: user.lastName,
