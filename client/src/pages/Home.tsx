@@ -187,7 +187,11 @@ export default function Home() {
                 <img 
                   src={heroImage?.imageUrl || "https://pixabay.com/get/gc7d2935b2c7daee5b00c7f4e5f775c0789f703b5347bf11383e16d0cf64f931493583d7ca01db3a2fd0940d4aa02adb939bbce4c48a8fb42f8bd002547dfe709_1280.jpg"} 
                   alt={heroImage?.altText || "Treasure-Home School campus with modern facilities"} 
-                  className="rounded-xl shadow-2xl w-full h-auto"
+                  className="rounded-xl shadow-2xl w-full h-auto aspect-[4/3] object-cover"
+                  width="600"
+                  height="450"
+                  loading="eager"
+                  decoding="async"
                   data-testid="img-hero-school"
                 />
                 <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-lg shadow-lg">
