@@ -12,9 +12,6 @@ import type {
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer
 } from "@shared/schema";
 
-// Configure Node.js to accept self-signed certificates for database connection
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 const sql = neon(process.env.DATABASE_URL!, {
   fetchOptions: {
     cache: 'no-store',
