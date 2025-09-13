@@ -12,15 +12,24 @@ import type {
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer
 } from "@shared/schema";
 
-// Configure PostgreSQL connection for Supabase
-const sql = postgres(process.env.DATABASE_URL!, {
-  ssl: { rejectUnauthorized: false },
-  prepare: false // Required for Supabase transaction pooler
-});
-const db = drizzle(sql, { schema });
+// Configure PostgreSQL connection for Supabase (lazy initialization)
+let sql: any;
+let db: any;
 
-// Export db for migrations
-export { db };
+function initializeDatabase() {
+  if (!sql && process.env.DATABASE_URL) {
+    sql = postgres(process.env.DATABASE_URL, {
+      ssl: process.env.NODE_ENV === 'production' ? 'require' : { rejectUnauthorized: false },
+      prepare: false // Required for Supabase transaction pooler
+    });
+    db = drizzle(sql, { schema });
+  }
+  return { sql, db };
+}
+
+// Export db for migrations (initialize if needed)  
+const { db: exportDb } = initializeDatabase();
+export { exportDb as db };
 
 export interface IStorage {
   // User management
@@ -173,9 +182,19 @@ function normalizeUuid(raw: any): string | undefined {
 }
 
 export class DatabaseStorage implements IStorage {
+  private db: any;
+  
+  constructor() {
+    const { db } = initializeDatabase();
+    this.db = db;
+    if (!this.db) {
+      throw new Error('Database not available - DATABASE_URL not set or invalid');
+    }
+  }
+
   // User management
   async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+    const result = await this.db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -2212,8 +2231,37 @@ class MemoryStorage implements IStorage {
   }
 }
 
-// Use real database storage
-const storage: IStorage = new DatabaseStorage();
-console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage with URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+// Initialize storage with database fallback to memory storage
+async function initializeStorage(): Promise<IStorage> {
+  // Try database storage first
+  if (process.env.DATABASE_URL) {
+    try {
+      const dbStorage = new DatabaseStorage();
+      // Simple connectivity test instead of schema-dependent query
+      await dbStorage.getRoles(); // Use a simple existing method instead of raw SQL
+      console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage');
+      return dbStorage;
+    } catch (error) {
+      console.warn('⚠️ Database connection failed, falling back to MemoryStorage:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  } else {
+    console.log('📝 DATABASE_URL not set, using MemoryStorage');
+  }
+  
+  // Fall back to memory storage
+  console.log('✅ STORAGE: Using MemoryStorage with demo data');
+  return new MemoryStorage();
+}
 
-export { storage };
+// Use mutable binding for proper storage switching
+export let storage: IStorage = new MemoryStorage(); // Default to memory storage
+
+// Asynchronously initialize and replace storage
+(async () => {
+  try {
+    storage = await initializeStorage();
+  } catch (error) {
+    console.error('Failed to initialize storage:', error);
+    // Keep default MemoryStorage
+  }
+})();
