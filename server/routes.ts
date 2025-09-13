@@ -813,12 +813,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Exams
   app.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
+      console.log('Exam creation request body:', JSON.stringify(req.body, null, 2));
       const examData = insertExamSchema.omit({ createdBy: true }).parse(req.body);
+      console.log('Parsed exam data:', JSON.stringify(examData, null, 2));
       const examWithCreator = { ...examData, createdBy: (req as any).user.id };
+      console.log('Final exam data with creator:', JSON.stringify(examWithCreator, null, 2));
       const exam = await storage.createExam(examWithCreator);
       res.json(exam);
     } catch (error) {
-      res.status(400).json({ message: "Invalid exam data" });
+      console.error('Exam creation error:', error);
+      if (error instanceof Error) {
+        res.status(400).json({ message: "Invalid exam data", details: error.message });
+      } else {
+        res.status(400).json({ message: "Invalid exam data" });
+      }
     }
   });
 
