@@ -456,7 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
       
-      console.log(`Login successful for ${email}`);
+      console.log(`Login successful for ${email} with roleId: ${user.roleId}`);
       
       res.json({ 
         token,
@@ -2194,6 +2194,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Home page upload error:', error);
       res.status(500).json({ message: "Failed to upload home page image" });
+    }
+  });
+
+  // Debug endpoint to list all users with their roles (Admin only)
+  app.get("/api/debug/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    
+    try {
+      const allRoles = await storage.getRoles();
+      const allUsers = [];
+      for (const role of allRoles) {
+        const users = await storage.getUsersByRole(role.id);
+        for (const user of users) {
+          allUsers.push({
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            roleId: user.roleId,
+            roleName: role.name
+          });
+        }
+      }
+      res.json(allUsers);
+    } catch (error) {
+      console.error('Debug users error:', error);
+      res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // Admin endpoint to update user roles (for fixing role issues)
+  app.patch("/api/users/:id/role", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    
+    try {
+      const { id } = req.params;
+      const { roleId } = req.body;
+      
+      // Validate roleId
+      if (!roleId || ![ROLES.STUDENT, ROLES.TEACHER, ROLES.PARENT, ROLES.ADMIN].includes(roleId)) {
+        return res.status(400).json({ message: "Invalid role ID" });
+      }
+      
+      const updatedUser = await storage.updateUser(id, { roleId });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      console.log(`Admin ${(req as any).user.email} updated user ${id} roleId to ${roleId}`);
+      res.json({ message: "User role updated successfully", user: updatedUser });
+    } catch (error) {
+      console.error('User role update error:', error);
+      res.status(500).json({ message: "Failed to update user role" });
     }
   });
 
