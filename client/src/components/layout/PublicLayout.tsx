@@ -94,34 +94,35 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           
         </nav>
         
-        {/* Clean Mobile Navigation Dropdown */}
+        {/* Beautiful Modern Mobile Navigation Dropdown */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg">
-            <div className="container-custom py-4">
-              <div className="flex flex-col space-y-1">
-                {navigation.map((item) => (
+          <div className="lg:hidden bg-white/95 backdrop-blur-lg border-t border-blue-100 shadow-2xl animate-slide-down">
+            <div className="container-custom py-6">
+              <div className="flex flex-col space-y-2">
+                {navigation.map((item, index) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 ${
+                    className={`px-6 py-4 rounded-2xl text-base font-medium transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 ${
                       isActive(item.href) 
-                        ? 'bg-blue-50 text-blue-600 font-semibold' 
-                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-lg shadow-blue-500/25' 
+                        : 'bg-gradient-to-r from-blue-50 to-teal-50 text-blue-700 hover:from-blue-100 hover:to-teal-100 hover:text-blue-800 hover:shadow-lg'
                     }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
                     onClick={() => setIsMobileMenuOpen(false)}
                     data-testid={`nav-mobile-${item.name.toLowerCase()}`}
                   >
                     {item.name}
                   </Link>
                 ))}
-                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="pt-6 mt-4 border-t border-gradient-to-r from-blue-200 to-teal-200">
                   <Button 
                     asChild 
-                    className="bg-blue-600 hover:bg-blue-700 text-white w-full h-12 text-base font-semibold"
+                    className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold w-full h-14 text-base rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
                     data-testid="button-mobile-portal-login"
                   >
                     <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                      Portal Login
+                      🎓 Portal Login
                     </Link>
                   </Button>
                 </div>
