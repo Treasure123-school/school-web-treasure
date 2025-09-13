@@ -18,7 +18,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { insertExamSchema, insertExamQuestionSchema, insertQuestionOptionSchema, type Exam, type ExamQuestion, type QuestionOption, type Class, type Subject } from '@shared/schema';
 import { z } from 'zod';
-import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play } from 'lucide-react';
+import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload } from 'lucide-react';
 
 // Form schemas
 const examFormSchema = insertExamSchema.extend({
@@ -205,6 +205,109 @@ export default function ExamManagement() {
     const newOptions = [...currentOptions];
     newOptions[index] = { ...newOptions[index], [field]: value };
     setQuestionValue('options', newOptions);
+  };
+
+  // CSV upload mutation
+  const csvUploadMutation = useMutation({
+    mutationFn: async (questions: any[]) => {
+      const response = await apiRequest(`/api/exam-questions/bulk`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          examId: selectedExam?.id,
+          questions 
+        }),
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: `${data.created} questions uploaded successfully`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload questions",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle CSV file upload
+  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedExam) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csv = e.target?.result as string;
+        const questions = parseCSV(csv);
+        csvUploadMutation.mutate(questions);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to parse CSV file",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input
+    event.target.value = '';
+  };
+
+  // Parse CSV content into questions array
+  const parseCSV = (csvContent: string) => {
+    const lines = csvContent.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('CSV must have at least a header row and one question row');
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const expectedHeaders = ['QuestionText', 'Type', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Points'];
+    
+    // Validate headers
+    if (!expectedHeaders.every(h => headers.includes(h))) {
+      throw new Error(`CSV headers must include: ${expectedHeaders.join(', ')}`);
+    }
+
+    const questions = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(',').map(cell => cell.trim().replace(/"/g, ''));
+      if (row.length < headers.length) continue; // Skip incomplete rows
+
+      const question: any = {
+        questionText: row[headers.indexOf('QuestionText')],
+        questionType: row[headers.indexOf('Type')],
+        points: parseInt(row[headers.indexOf('Points')]) || 1,
+        orderNumber: i
+      };
+
+      // Add options for multiple choice questions
+      if (question.questionType === 'multiple_choice') {
+        const correctAnswer = row[headers.indexOf('CorrectAnswer')].toUpperCase();
+        const options = ['A', 'B', 'C', 'D'].map(letter => ({
+          optionText: row[headers.indexOf(`Option${letter}`)],
+          isCorrect: letter === correctAnswer
+        })).filter(opt => opt.optionText); // Remove empty options
+
+        question.options = options;
+      }
+
+      questions.push(question);
+    }
+
+    if (questions.length === 0) {
+      throw new Error('No valid questions found in CSV');
+    }
+
+    return questions;
   };
 
   const filteredExams = exams.filter((exam: Exam) => 
@@ -533,123 +636,146 @@ export default function ExamManagement() {
                   <div className="text-sm text-muted-foreground">
                     {examQuestions.length} questions • {selectedExam.totalMarks} total marks
                   </div>
-                  <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button data-testid="button-add-question">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Question
+                  <div className="flex space-x-2">
+                    {/* CSV Upload Button */}
+                    <div className="relative">
+                      <input
+                        type="file"
+                        id="csv-upload"
+                        accept=".csv"
+                        onChange={handleCSVUpload}
+                        className="hidden"
+                        data-testid="input-csv-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => document.getElementById('csv-upload')?.click()}
+                        data-testid="button-upload-csv"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload CSV
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Add New Question</DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={handleQuestionSubmit(onSubmitQuestion)} className="space-y-4">
-                        <div>
-                          <Label htmlFor="questionText">Question Text</Label>
-                          <Textarea 
-                            id="questionText" 
-                            {...registerQuestion('questionText')} 
-                            data-testid="textarea-question-text"
-                            placeholder="Enter your question here..."
-                            rows={3}
-                          />
-                          {questionErrors.questionText && <p className="text-sm text-red-500">{questionErrors.questionText.message}</p>}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
+                    </div>
+                    
+                    {/* Manual Add Question */}
+                    <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button data-testid="button-add-question">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Question
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Add New Question</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleQuestionSubmit(onSubmitQuestion)} className="space-y-4">
                           <div>
-                            <Label htmlFor="questionType">Question Type</Label>
-                            <Controller
-                              name="questionType"
-                              control={questionControl}
-                              render={({ field }) => (
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <SelectTrigger data-testid="select-question-type">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                                    <SelectItem value="text">Short Answer</SelectItem>
-                                    <SelectItem value="essay">Essay</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
+                            <Label htmlFor="questionText">Question Text</Label>
+                            <Textarea 
+                              id="questionText" 
+                              {...registerQuestion('questionText')} 
+                              data-testid="textarea-question-text"
+                              placeholder="Enter your question here..."
+                              rows={3}
                             />
+                            {questionErrors.questionText && <p className="text-sm text-red-500">{questionErrors.questionText.message}</p>}
                           </div>
-                          <div>
-                            <Label htmlFor="points">Points</Label>
-                            <Input 
-                              id="points" 
-                              type="number" 
-                              {...registerQuestion('points', { valueAsNumber: true })} 
-                              data-testid="input-question-points"
-                              min="1"
-                            />
-                          </div>
-                        </div>
 
-                        {questionType === 'multiple_choice' && (
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <Label>Answer Options</Label>
-                              <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                                <Plus className="w-4 h-4 mr-1" />
-                                Add Option
-                              </Button>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="questionType">Question Type</Label>
+                              <Controller
+                                name="questionType"
+                                control={questionControl}
+                                render={({ field }) => (
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <SelectTrigger data-testid="select-question-type">
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                                      <SelectItem value="text">Short Answer</SelectItem>
+                                      <SelectItem value="essay">Essay</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
                             </div>
-                            <div className="space-y-2">
-                              {options?.map((option, index) => (
-                                <div key={index} className="flex items-center space-x-2">
-                                  <input
-                                    type="radio"
-                                    name="correctOption"
-                                    checked={option.isCorrect}
-                                    onChange={() => {
-                                      // Uncheck all other options
-                                      const newOptions = options.map((opt, i) => ({
-                                        ...opt,
-                                        isCorrect: i === index
-                                      }));
-                                      setQuestionValue('options', newOptions);
-                                    }}
-                                    data-testid={`radio-option-${index}`}
-                                  />
-                                  <Input
-                                    value={option.optionText}
-                                    onChange={(e) => updateOption(index, 'optionText', e.target.value)}
-                                    placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                                    className="flex-1"
-                                    data-testid={`input-option-${index}`}
-                                  />
-                                  {options.length > 2 && (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => removeOption(index)}
-                                      data-testid={`button-remove-option-${index}`}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              ))}
+                            <div>
+                              <Label htmlFor="points">Points</Label>
+                              <Input 
+                                id="points" 
+                                type="number" 
+                                {...registerQuestion('points', { valueAsNumber: true })} 
+                                data-testid="input-question-points"
+                                min="1"
+                              />
                             </div>
                           </div>
-                        )}
 
-                        <div className="flex justify-end space-x-2">
-                          <Button type="button" variant="outline" onClick={() => setIsQuestionDialogOpen(false)}>
-                            Cancel
-                          </Button>
-                          <Button type="submit" disabled={createQuestionMutation.isPending} data-testid="button-submit-question">
-                            {createQuestionMutation.isPending ? 'Adding...' : 'Add Question'}
-                          </Button>
-                        </div>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                          {questionType === 'multiple_choice' && (
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <Label>Answer Options</Label>
+                                <Button type="button" variant="outline" size="sm" onClick={addOption}>
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Add Option
+                                </Button>
+                              </div>
+                              <div className="space-y-2">
+                                {options?.map((option, index) => (
+                                  <div key={index} className="flex items-center space-x-2">
+                                    <input
+                                      type="radio"
+                                      name="correctOption"
+                                      checked={option.isCorrect}
+                                      onChange={() => {
+                                        // Uncheck all other options
+                                        const newOptions = options.map((opt, i) => ({
+                                          ...opt,
+                                          isCorrect: i === index
+                                        }));
+                                        setQuestionValue('options', newOptions);
+                                      }}
+                                      data-testid={`radio-option-${index}`}
+                                    />
+                                    <Input
+                                      value={option.optionText}
+                                      onChange={(e) => updateOption(index, 'optionText', e.target.value)}
+                                      placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                                      className="flex-1"
+                                      data-testid={`input-option-${index}`}
+                                    />
+                                    {options.length > 2 && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => removeOption(index)}
+                                        data-testid={`button-remove-option-${index}`}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex justify-end space-x-2">
+                            <Button type="button" variant="outline" onClick={() => setIsQuestionDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button type="submit" disabled={createQuestionMutation.isPending} data-testid="button-submit-question">
+                              {createQuestionMutation.isPending ? 'Adding...' : 'Add Question'}
+                            </Button>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
 
                 {/* Questions List */}

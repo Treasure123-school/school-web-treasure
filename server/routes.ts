@@ -991,6 +991,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk Question Upload - for CSV uploads
+  app.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles([ROLES.ADMIN, ROLES.TEACHER]), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { examId, questions } = req.body;
+
+      if (!examId || !questions || !Array.isArray(questions)) {
+        return res.status(400).json({ message: "Exam ID and questions array are required" });
+      }
+
+      // Verify exam exists and user has permission
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // For teachers: verify they created this exam
+      if (user.roleId === ROLES.TEACHER && exam.createdBy !== user.id) {
+        return res.status(403).json({ message: "You can only add questions to exams you created" });
+      }
+
+      const createdQuestions = [];
+      let createdCount = 0;
+
+      for (const questionData of questions) {
+        try {
+          // Validate question data
+          const questionToCreate = {
+            examId: examId,
+            questionText: questionData.questionText,
+            questionType: questionData.questionType,
+            points: questionData.points || 1,
+            orderNumber: questionData.orderNumber || (createdCount + 1)
+          };
+
+          // Create the question
+          const question = await storage.createExamQuestion(questionToCreate);
+          createdQuestions.push(question);
+          createdCount++;
+
+          // Create options for multiple choice questions
+          if (questionData.questionType === 'multiple_choice' && questionData.options) {
+            for (const [index, optionData] of questionData.options.entries()) {
+              if (optionData.optionText) {
+                await storage.createQuestionOption({
+                  questionId: question.id,
+                  optionText: optionData.optionText,
+                  isCorrect: optionData.isCorrect || false,
+                  orderNumber: index + 1
+                });
+              }
+            }
+          }
+
+        } catch (error) {
+          console.error(`Failed to create question: ${questionData.questionText}`, error);
+          // Continue with other questions
+        }
+      }
+
+      res.json({ 
+        message: `Successfully created ${createdCount} questions`,
+        created: createdCount,
+        questions: createdQuestions 
+      });
+
+    } catch (error) {
+      console.error('Bulk question upload error:', error);
+      res.status(500).json({ message: "Failed to upload questions" });
+    }
+  });
+
   // Question Options routes  
   app.post("/api/question-options", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
