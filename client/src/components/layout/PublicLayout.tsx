@@ -104,6 +104,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                     key={item.name}
                     href={item.href}
                     className={`px-6 py-4 rounded-2xl text-base font-medium transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 ${
+                      index === 0 ? 'mt-2' : ''
+                    } ${
                       isActive(item.href) 
                         ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-lg shadow-blue-500/25' 
                         : 'bg-gradient-to-r from-blue-50 to-teal-50 text-blue-700 hover:from-blue-100 hover:to-teal-100 hover:text-blue-800 hover:shadow-lg'
@@ -115,7 +117,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                     {item.name}
                   </Link>
                 ))}
-                <div className="pt-6 mt-4 border-t border-gradient-to-r from-blue-200 to-teal-200">
+                <div className="pt-8 mt-6 border-t border-gradient-to-r from-blue-200 to-teal-200">
                   <Button 
                     asChild 
                     className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold w-full h-14 text-base rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
