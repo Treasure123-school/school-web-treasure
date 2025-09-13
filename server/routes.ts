@@ -1354,13 +1354,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Server-side time limit enforcement
-      if (session.remainingTime && session.startedAt) {
+      if (session.timeRemaining && session.startedAt) {
         const now = new Date();
         const timeElapsedInMinutes = (now.getTime() - new Date(session.startedAt).getTime()) / (1000 * 60);
         
-        if (timeElapsedInMinutes > session.remainingTime) {
+        if (timeElapsedInMinutes > session.timeRemaining) {
           // Time limit exceeded - automatically complete the session
-          console.log(`Time limit exceeded for session ${session.id}: ${timeElapsedInMinutes.toFixed(1)} > ${session.remainingTime} minutes`);
+          console.log(`Time limit exceeded for session ${session.id}: ${timeElapsedInMinutes.toFixed(1)} > ${session.timeRemaining} minutes`);
           await storage.updateExamSession(session.id, { isCompleted: true });
           
           // Trigger auto-scoring for completed session

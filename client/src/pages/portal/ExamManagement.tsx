@@ -37,6 +37,38 @@ const questionFormSchema = insertExamQuestionSchema.extend({
 type ExamForm = z.infer<typeof examFormSchema>;
 type QuestionForm = z.infer<typeof questionFormSchema>;
 
+// Component to display question options
+function QuestionOptions({ questionId }: { questionId: number }) {
+  const { data: options = [], isLoading } = useQuery<QuestionOption[]>({
+    queryKey: ['/api/question-options', questionId],
+    enabled: !!questionId,
+  });
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Loading options...</div>;
+  }
+
+  if (options.length === 0) {
+    return <div className="text-sm text-muted-foreground">No options added yet</div>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {options.map((option: any, index: number) => (
+        <div key={option.id} className="flex items-center space-x-2">
+          <span className="text-sm font-mono text-muted-foreground min-w-[20px]">
+            {String.fromCharCode(65 + index)}.
+          </span>
+          <span className="text-sm">{option.optionText}</span>
+          {option.isCorrect && (
+            <span className="text-xs bg-green-100 text-green-800 px-1 rounded">✓ Correct</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ExamManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -642,8 +674,7 @@ export default function ExamManagement() {
                               <p className="mb-2">{question.questionText}</p>
                               {question.questionType === 'multiple_choice' && (
                                 <div className="ml-4 space-y-1">
-                                  {/* TODO: Load and display question options */}
-                                  <p className="text-sm text-muted-foreground">Options will be displayed here</p>
+                                  <QuestionOptions questionId={question.id} />
                                 </div>
                               )}
                             </div>
