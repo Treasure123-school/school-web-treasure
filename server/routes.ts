@@ -1674,6 +1674,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Academic terms
+  app.get("/api/terms", async (req, res) => {
+    try {
+      const terms = await storage.getTerms();
+      res.json(terms);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch terms" });
+    }
+  });
+
   app.get("/api/terms/current", async (req, res) => {
     try {
       const term = await storage.getCurrentTerm();

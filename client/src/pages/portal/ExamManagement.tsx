@@ -119,6 +119,10 @@ export default function ExamManagement() {
     queryKey: ['/api/subjects'],
   });
 
+  const { data: terms = [] } = useQuery<any[]>({
+    queryKey: ['/api/terms'],
+  });
+
   const { data: examQuestions = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', selectedExam?.id],
     enabled: !!selectedExam?.id,
@@ -176,6 +180,14 @@ export default function ExamManagement() {
 
   const onSubmitExam = (data: ExamForm) => {
     createExamMutation.mutate(data);
+  };
+
+  const onInvalidExam = (errors: any) => {
+    toast({
+      title: "Validation Error",
+      description: "Please check all required fields",
+      variant: "destructive",
+    });
   };
 
   const onSubmitQuestion = (data: QuestionForm) => {
@@ -360,7 +372,7 @@ export default function ExamManagement() {
               <DialogHeader>
                 <DialogTitle>Create New Exam</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleExamSubmit(onSubmitExam)} className="space-y-4">
+              <form onSubmit={handleExamSubmit(onSubmitExam, onInvalidExam)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name">Exam Name</Label>
@@ -431,7 +443,29 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="term">Academic Term</Label>
+                    <Controller
+                      name="termId"
+                      control={examControl}
+                      render={({ field }) => (
+                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                          <SelectTrigger data-testid="select-exam-term">
+                            <SelectValue placeholder="Select term" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {terms.map((term: any) => (
+                              <SelectItem key={term.id} value={term.id.toString()}>
+                                {term.name} ({term.year})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {examErrors.termId && <p className="text-sm text-red-500">{examErrors.termId.message}</p>}
+                  </div>
                   <div>
                     <Label htmlFor="totalMarks">Total Marks</Label>
                     <Input 
