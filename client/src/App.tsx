@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { ROLE_IDS } from "@/lib/roles";
 
 // Public pages
 import Home from "@/pages/Home";
@@ -53,117 +54,117 @@ function Router() {
       
       {/* Protected Portal pages */}
       <Route path="/portal/student">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/exams">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentExams />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/grades">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentGrades />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/announcements">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/attendance">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentAttendance />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/messages">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentMessages />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/profile">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/gallery">
-        <ProtectedRoute allowedRoles={['Student']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <PortalGallery />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher">
-        <ProtectedRoute allowedRoles={['Teacher']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AdminDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/students">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <StudentManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/teachers">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <TeachersManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/classes">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <ClassesManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/subjects">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <SubjectsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/announcements">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AnnouncementsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/reports">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <ReportsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/settings">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <SettingsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/homepage">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <HomepageManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/attendance">
-        <ProtectedRoute allowedRoles={['Teacher']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <AttendanceManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/grades">
-        <ProtectedRoute allowedRoles={['Teacher']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherGrades />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/exams">
-        <ProtectedRoute allowedRoles={['Teacher']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <ExamManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/exams">
-        <ProtectedRoute allowedRoles={['Admin']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <ExamManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/parent">
-        <ProtectedRoute allowedRoles={['Parent']}>
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
           <ParentDashboard />
         </ProtectedRoute>
       </Route>
