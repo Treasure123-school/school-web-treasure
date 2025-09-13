@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
 import { useEffect } from 'react';
+import { getRoleNameById, getPortalByRole } from '@/lib/roles';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -36,28 +37,6 @@ export default function ProtectedRoute({
   const isRoleAllowed = (userRoleId: number, allowedRoles: string[]): boolean => {
     const userRole = getRoleNameById(userRoleId);
     return allowedRoles.includes(userRole);
-  };
-
-  // Helper function to get role name by ID
-  const getRoleNameById = (roleId: number): string => {
-    const roleMap: Record<number, string> = {
-      1: 'Student',
-      2: 'Teacher', 
-      3: 'Parent',
-      4: 'Admin'
-    };
-    return roleMap[roleId] || 'Student';
-  };
-
-  // Helper function to get correct portal by role
-  const getPortalByRole = (role: string): string => {
-    const portalMap: Record<string, string> = {
-      'Student': '/portal/student',
-      'Teacher': '/portal/teacher',
-      'Parent': '/portal/parent',
-      'Admin': '/portal/admin'
-    };
-    return portalMap[role] || '/portal/student';
   };
 
   // Show loading or nothing while checking authentication

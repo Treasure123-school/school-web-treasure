@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GraduationCap } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,11 +12,11 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Link, useLocation } from 'wouter';
+import { getRoleNameById, getPortalByRoleId, isValidRoleId } from '@/lib/roles';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(1, 'Password is required'),
-  role: z.string().min(1, 'Please select your role'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -31,13 +30,11 @@ export default function Login() {
     register,
     handleSubmit,
     formState: { errors },
-    setValue,
-    watch,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
 
-  const selectedRole = watch('role');
+
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
@@ -45,26 +42,30 @@ export default function Login() {
       return await response.json();
     },
     onSuccess: (userData) => {
+      // Validate roleId from backend
+      if (!isValidRoleId(userData.user.roleId)) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Invalid account configuration. Please contact administrator.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Store the JWT token for API authentication  
       if (userData.token) {
         localStorage.setItem('token', userData.token);
       }
       login(userData.user);
       
-      // Navigate to appropriate portal based on role
-      const rolePortalMap = {
-        'Student': '/portal/student',
-        'Teacher': '/portal/teacher',
-        'Admin': '/portal/admin',
-        'Parent': '/portal/parent'
-      };
-      
-      const targetPath = rolePortalMap[selectedRole as keyof typeof rolePortalMap] || '/portal/student';
+      // Navigate to appropriate portal based on user's ACTUAL role from database
+      const userRole = getRoleNameById(userData.user.roleId);
+      const targetPath = getPortalByRoleId(userData.user.roleId);
       navigate(targetPath);
       
       toast({
         title: 'Login Successful',
-        description: `Welcome to your ${selectedRole} portal!`,
+        description: `Welcome to your ${userRole} portal!`,
       });
     },
     onError: () => {
@@ -80,27 +81,6 @@ export default function Login() {
     loginMutation.mutate(data);
   };
 
-  const roles = [
-    { value: 'Student', label: 'Student' },
-    { value: 'Teacher', label: 'Teacher' },
-    { value: 'Parent', label: 'Parent' },
-    { value: 'Admin', label: 'Administrator' }
-  ];
-
-  const getRoleDescription = (role: string) => {
-    switch (role) {
-      case 'Student':
-        return 'Access your grades, attendance, assignments, and school announcements';
-      case 'Teacher':
-        return 'Manage classes, record attendance, submit grades, and communicate with parents';
-      case 'Parent':
-        return 'Monitor your child\'s progress, view reports, and communicate with teachers';
-      case 'Admin':
-        return 'Manage school operations, users, classes, and generate comprehensive reports';
-      default:
-        return 'Select your role to access the appropriate portal';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
@@ -165,35 +145,12 @@ export default function Login() {
                 )}
               </div>
 
-              <div>
-                <Label>Login As</Label>
-                <Select onValueChange={(value) => setValue('role', value)}>
-                  <SelectTrigger className="mt-2" data-testid="select-role">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role.value} value={role.value}>
-                        {role.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.role && (
-                  <p className="text-destructive text-sm mt-1" data-testid="error-role">
-                    {errors.role.message}
-                  </p>
-                )}
+              {/* Info about role-based access */}
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Automatic Portal Assignment:</strong> You'll be redirected to the appropriate dashboard based on your account type.
+                </p>
               </div>
-
-              {/* Role Description */}
-              {selectedRole && (
-                <div className="p-3 bg-muted/50 rounded-lg" data-testid="role-description">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>{selectedRole} Portal:</strong> {getRoleDescription(selectedRole)}
-                  </p>
-                </div>
-              )}
 
               <Button 
                 type="submit" 
