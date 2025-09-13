@@ -340,8 +340,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllExams(): Promise<Exam[]> {
-    return await db.select().from(schema.exams)
-      .orderBy(desc(schema.exams.date));
+    try {
+      const result = await db.select().from(schema.exams)
+        .orderBy(desc(schema.exams.date));
+      return result || [];
+    } catch (error) {
+      console.error('Error in getAllExams:', error);
+      return [];
+    }
   }
 
   async getExamById(id: number): Promise<Exam | undefined> {
@@ -352,9 +358,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamsByClass(classId: number): Promise<Exam[]> {
-    return await db.select().from(schema.exams)
-      .where(eq(schema.exams.classId, classId))
-      .orderBy(desc(schema.exams.date));
+    try {
+      const result = await db.select().from(schema.exams)
+        .where(eq(schema.exams.classId, classId))
+        .orderBy(desc(schema.exams.date));
+      return result || [];
+    } catch (error) {
+      console.error('Error in getExamsByClass:', error);
+      return [];
+    }
   }
 
   async updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined> {
