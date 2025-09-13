@@ -1013,6 +1013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(questions);
       }
     } catch (error) {
+      console.error('Error fetching exam questions:', error);
       res.status(500).json({ message: "Failed to fetch exam questions" });
     }
   });
