@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { GraduationCap, Menu, X, Phone, Mail, MapPin } from 'lucide-react';
+import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 
@@ -34,12 +34,9 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 <div className="gradient-primary rounded-xl p-3 shadow-lg group-hover:shadow-xl transition-all duration-300">
                   <GraduationCap className="text-white h-8 w-8" />
                 </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-xl font-bold gradient-text">Treasure-Home School</h1>
-                  <p className="text-sm text-muted-foreground font-medium">"Honesty and Success"</p>
-                </div>
-                <div className="sm:hidden">
-                  <h1 className="text-lg font-bold gradient-text">Treasure-Home</h1>
+                <div className="flex flex-col">
+                  <h1 className="text-lg sm:text-xl font-bold gradient-text leading-tight">Treasure-Home School</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium -mt-1">Motto: Honesty and Success</p>
                 </div>
               </Link>
               
@@ -66,57 +63,68 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 </Button>
               </div>
               
-              {/* Mobile menu button */}
+              {/* Mobile menu button with improved styling */}
               <div className="lg:hidden">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   data-testid="button-mobile-menu"
-                  className="hover:bg-white/20"
+                  className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all duration-300 border border-transparent hover:border-primary/20"
                 >
                   {isMobileMenuOpen ? (
-                    <X className="h-6 w-6" />
+                    <X className="h-5 w-5 transition-transform duration-300 rotate-90" />
                   ) : (
-                    <Menu className="h-6 w-6" />
+                    <Menu className="h-5 w-5 transition-transform duration-300" />
                   )}
                 </Button>
               </div>
             </div>
           </div>
           
-          {/* Beautiful Mobile Navigation Overlay */}
+          {/* Beautiful Mobile Navigation Overlay with improved animations */}
           {isMobileMenuOpen && (
             <>
               <div 
-                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden" 
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md lg:hidden animate-fade-in" 
                 onClick={() => setIsMobileMenuOpen(false)}
               />
-              <div className="absolute top-full left-0 right-0 z-50 lg:hidden">
-                <div className="gradient-primary mx-4 mt-2 rounded-2xl shadow-2xl border border-white/20">
-                  <div className="card-glass p-6">
-                    <div className="flex flex-col space-y-3">
-                      {navigation.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          className={`nav-link px-4 py-3 rounded-xl text-white font-medium transition-all duration-300 ${
-                            isActive(item.href) ? 'bg-white/20 font-semibold' : 'hover:bg-white/10'
-                          }`}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          data-testid={`nav-mobile-${item.name.toLowerCase()}`}
-                        >
-                          {item.name}
-                        </Link>
-                      ))}
-                      <div className="pt-3 border-t border-white/20">
+              <div className="absolute top-full left-0 right-0 z-50 lg:hidden animate-slide-down">
+                <div className="gradient-primary mx-3 mt-3 rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+                  <div className="card-glass p-0">
+                    <div className="p-6">
+                      <div className="flex flex-col space-y-1">
+                        {navigation.map((item, index) => (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className={`nav-link px-5 py-4 rounded-xl text-white font-medium transition-all duration-300 hover:translate-x-1 ${
+                              isActive(item.href) 
+                                ? 'bg-white/25 font-semibold shadow-lg' 
+                                : 'hover:bg-white/15 hover:shadow-md'
+                            }`}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            data-testid={`nav-mobile-${item.name.toLowerCase()}`}
+                            style={{ animationDelay: `${index * 50}ms` }}
+                          >
+                            <span className="flex items-center justify-between">
+                              {item.name}
+                              <ChevronRight className="h-4 w-4 opacity-60" />
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                      <div className="pt-4 mt-4 border-t border-white/20">
                         <Button 
                           asChild 
-                          className="btn-secondary w-full"
+                          className="btn-secondary w-full h-12 text-base font-semibold"
                           data-testid="button-mobile-portal-login"
                         >
                           <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                            Portal Login
+                            <span className="flex items-center justify-center space-x-2">
+                              <span>Portal Login</span>
+                              <ArrowRight className="h-4 w-4" />
+                            </span>
                           </Link>
                         </Button>
                       </div>
