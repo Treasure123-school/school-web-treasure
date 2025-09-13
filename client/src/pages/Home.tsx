@@ -156,12 +156,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="text-primary-foreground">
-              <h1 className="text-4xl lg:text-5xl font-bold mb-6" data-testid="text-hero-title">
-                Quality Education &<br />
-                <span className="text-secondary">Moral Excellence</span>
+              <h1 className="school-title text-4xl lg:text-6xl mb-4" data-testid="text-hero-title">
+                Treasure-Home School
               </h1>
-              <p className="text-lg text-primary-foreground/90 mb-8 leading-relaxed" data-testid="text-hero-description">
-                Located in Seriki-Soyinka Ifo, Ogun State, we provide comprehensive education from playgroup to senior secondary school, nurturing students with our core values of honesty and success.
+              <p className="school-motto text-xl lg:text-2xl mb-6" data-testid="text-hero-motto">
+                "Honesty and Success"
+              </p>
+              <p className="text-lg text-primary-foreground/90 mb-8 leading-relaxed max-w-xl" data-testid="text-hero-description">
+                Located in Seriki-Soyinka Ifo, Ogun State, we provide comprehensive education from playgroup to senior secondary school, nurturing students with our core values of honesty and success through quality education and moral excellence.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
