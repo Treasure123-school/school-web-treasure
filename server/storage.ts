@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "@shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import type { 
@@ -12,15 +12,9 @@ import type {
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer
 } from "@shared/schema";
 
-// Temporarily disable TLS verification for Neon database in development
-if (process.env.NODE_ENV === 'development') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
-const sql = neon(process.env.DATABASE_URL!, {
-  fetchOptions: {
-    cache: 'no-store',
-  }
+// Configure PostgreSQL connection for Supabase
+const sql = postgres(process.env.DATABASE_URL!, {
+  ssl: { rejectUnauthorized: false }
 });
 const db = drizzle(sql, { schema });
 
@@ -2188,8 +2182,8 @@ class MemoryStorage implements IStorage {
   }
 }
 
-// Use memory storage as fallback due to database connection issue
-const storage: IStorage = new MemoryStorage();
-console.log('✅ STORAGE: Using MemoryStorage (fallback due to database connection issue)');
+// Use real database storage
+const storage: IStorage = new DatabaseStorage();
+console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage with URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 export { storage };
