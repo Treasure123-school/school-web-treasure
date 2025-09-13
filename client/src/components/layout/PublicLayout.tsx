@@ -73,19 +73,19 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 </Button>
               </div>
               
-              {/* Mobile menu button */}
+              {/* Enhanced Mobile menu button */}
               <div className="lg:hidden">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   data-testid="button-mobile-menu"
-                  className="h-10 w-10 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  className="h-12 w-12 text-blue-600 hover:bg-gradient-to-br hover:from-blue-50 hover:to-teal-50 hover:text-blue-700 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-110 hover:-translate-y-1 border border-transparent hover:border-blue-200"
                 >
                   {isMobileMenuOpen ? (
-                    <X className="h-6 w-6" />
+                    <X className="h-6 w-6 transition-transform duration-300 hover:rotate-90" />
                   ) : (
-                    <Menu className="h-6 w-6" />
+                    <Menu className="h-6 w-6 transition-transform duration-300 hover:rotate-12" />
                   )}
                 </Button>
               </div>
