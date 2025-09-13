@@ -14,7 +14,8 @@ import type {
 
 // Configure PostgreSQL connection for Supabase
 const sql = postgres(process.env.DATABASE_URL!, {
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  prepare: false // Required for Supabase transaction pooler
 });
 const db = drizzle(sql, { schema });
 
