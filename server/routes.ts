@@ -237,12 +237,12 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
       if (question.questionType === 'multiple_choice') {
         // Find student's answer for this question
-        const studentAnswer = studentAnswers.find(a => a.questionId === question.id);
+        const studentAnswer = studentAnswers.find((a: any) => a.questionId === question.id);
         
         if (studentAnswer && studentAnswer.selectedOptionId) {
           // Get question options to find the correct answer
           const questionOptions = await storage.getQuestionOptions(question.id);
-          const correctOption = questionOptions.find(option => option.isCorrect);
+          const correctOption = questionOptions.find((option: any) => option.isCorrect);
           
           if (correctOption && studentAnswer.selectedOptionId === correctOption.id) {
             // Student got it right!
@@ -263,7 +263,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     // Create or update exam result
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
-    const existingResult = existingResults.find(r => r.examId === session.examId);
+    const existingResult = existingResults.find((r: any) => r.examId === session.examId);
 
     const resultData = {
       examId: session.examId,
@@ -1046,7 +1046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk Question Upload - for CSV uploads
-  app.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles([ROLES.ADMIN, ROLES.TEACHER]), async (req, res) => {
+  app.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const user = (req as any).user;
       const { examId, questions } = req.body;
@@ -1517,8 +1517,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error creating/updating student answer:', error);
       
       // Handle Zod validation errors specifically
-      if (error?.name === 'ZodError' || (error?.issues && Array.isArray(error.issues))) {
-        const validationErrors = error.issues || [];
+      if ((error as any)?.name === 'ZodError' || ((error as any)?.issues && Array.isArray((error as any).issues))) {
+        const validationErrors = (error as any).issues || [];
         return res.status(400).json({
           message: "Answer validation failed",
           type: "validation_error", 
