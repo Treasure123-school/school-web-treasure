@@ -183,9 +183,12 @@ export default function ExamManagement() {
   };
 
   const onInvalidExam = (errors: any) => {
+    console.log('Form validation errors:', errors);
+    const errorFields = Object.keys(errors);
+    const errorMessages = errorFields.map(field => `${field}: ${errors[field].message}`).join(', ');
     toast({
       title: "Validation Error",
-      description: "Please check all required fields",
+      description: errorMessages || "Please check all required fields",
       variant: "destructive",
     });
   };
