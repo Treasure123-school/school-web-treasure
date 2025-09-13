@@ -457,6 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
       
       console.log(`Login successful for ${email}`);
+      
       res.json({ 
         token,
         user: { 
@@ -475,6 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Login failed. Please try again." });
     }
   });
+
 
   // Public contact form with 100% Supabase persistence
   app.post("/api/contact", async (req, res) => {
