@@ -11,20 +11,27 @@ app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
+  const isProduction = process.env.NODE_ENV === 'production';
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+  // Only capture response body in development for debugging
+  if (!isProduction) {
+    const originalResJson = res.json;
+    res.json = function (bodyJson, ...args) {
+      capturedJsonResponse = bodyJson;
+      return originalResJson.apply(res, [bodyJson, ...args]);
+    };
+  }
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      
+      // Only log response body in development and redact sensitive fields
+      if (!isProduction && capturedJsonResponse) {
+        const sanitizedResponse = sanitizeLogData(capturedJsonResponse);
+        logLine += ` :: ${JSON.stringify(sanitizedResponse)}`;
       }
 
       if (logLine.length > 80) {
@@ -38,6 +45,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Sanitize sensitive data from logs
+function sanitizeLogData(data: any): any {
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeLogData(item));
+  }
+  
+  if (data && typeof data === 'object') {
+    const sanitized = { ...data };
+    
+    // Redact common sensitive fields
+    const sensitiveFields = ['password', 'token', 'jwt', 'secret', 'key', 'auth', 'session'];
+    
+    for (const field of sensitiveFields) {
+      if (field in sanitized) {
+        sanitized[field] = '[REDACTED]';
+      }
+    }
+    
+    // Recursively sanitize nested objects
+    for (const key in sanitized) {
+      if (sanitized[key] && typeof sanitized[key] === 'object') {
+        sanitized[key] = sanitizeLogData(sanitized[key]);
+      }
+    }
+    
+    return sanitized;
+  }
+  
+  return data;
+}
+
 (async () => {
   // Apply database migrations at startup
   try {
@@ -45,8 +83,29 @@ app.use((req, res, next) => {
     await migrate(db, { migrationsFolder: "./migrations" });
     log("✅ Database migrations completed successfully");
   } catch (error) {
-    log(`⚠️ Migration failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-    // Continue startup - migrations might already be applied
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // Check if this is a benign idempotency case (migrations already applied)
+    const isIdempotencyError = errorMessage.includes('already exists') || 
+                              errorMessage.includes('relation') && errorMessage.includes('already exists') ||
+                              errorMessage.includes('duplicate key') ||
+                              errorMessage.includes('nothing to migrate');
+    
+    if (isIdempotencyError) {
+      log(`ℹ️ Migrations already applied: ${errorMessage}`);
+    } else {
+      // This is a real migration error - log it prominently but still continue
+      console.error(`🚨 MIGRATION ERROR: ${errorMessage}`);
+      console.error(error);
+      log(`⚠️ Migration failed: ${errorMessage}`);
+      
+      // In production, we might want to fail fast on real migration errors
+      if (process.env.NODE_ENV === 'production') {
+        console.error('Production migration failure detected. Review required.');
+        // Uncomment the next line if you want to fail fast in production:
+        // process.exit(1);
+      }
+    }
   }
 
   const server = await registerRoutes(app);
