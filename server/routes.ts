@@ -1979,7 +1979,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allContent = [];
       for (const type of contentTypes) {
         const content = await storage.getHomePageContent(type);
-        allContent.push(...content);
+        if (content && Array.isArray(content)) {
+          allContent.push(...content);
+        }
       }
       
       // Remove duplicates based on id
