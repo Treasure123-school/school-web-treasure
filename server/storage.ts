@@ -19,6 +19,9 @@ const sql = postgres(process.env.DATABASE_URL!, {
 });
 const db = drizzle(sql, { schema });
 
+// Export db for migrations
+export { db };
+
 export interface IStorage {
   // User management
   getUser(id: string): Promise<User | undefined>;

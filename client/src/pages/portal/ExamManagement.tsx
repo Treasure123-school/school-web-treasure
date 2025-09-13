@@ -32,6 +32,22 @@ const questionFormSchema = insertExamQuestionSchema.extend({
     optionText: z.string().min(1, 'Option text is required'),
     isCorrect: z.boolean(),
   })).optional(),
+}).refine((data) => {
+  if (data.questionType === 'multiple_choice') {
+    if (!data.options || data.options.length < 2) {
+      return false;
+    }
+    const nonEmptyOptions = data.options.filter(opt => opt.optionText.trim() !== '');
+    if (nonEmptyOptions.length < 2) {
+      return false;
+    }
+    const hasCorrectAnswer = nonEmptyOptions.some(opt => opt.isCorrect);
+    return hasCorrectAnswer;
+  }
+  return true;
+}, {
+  message: "Multiple choice questions require at least 2 non-empty options with one marked as correct",
+  path: ["options"]
 });
 
 type ExamForm = z.infer<typeof examFormSchema>;
@@ -167,7 +183,18 @@ export default function ExamManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
       setIsQuestionDialogOpen(false);
-      resetQuestion();
+      // Reset form with default values
+      resetQuestion({
+        questionType: 'multiple_choice',
+        points: 1,
+        questionText: '',
+        options: [
+          { optionText: '', isCorrect: false },
+          { optionText: '', isCorrect: false },
+          { optionText: '', isCorrect: false },
+          { optionText: '', isCorrect: false },
+        ]
+      });
     },
     onError: (error: any) => {
       toast({
@@ -197,11 +224,31 @@ export default function ExamManagement() {
     if (!selectedExam) return;
     
     const nextOrderNumber = examQuestions.length + 1;
-    createQuestionMutation.mutate({
+    
+    // Prepare the question data
+    const questionData: any = {
       ...data,
       examId: selectedExam.id,
       orderNumber: nextOrderNumber,
-    });
+    };
+    
+    // For multiple choice questions, filter out empty options and validate
+    if (data.questionType === 'multiple_choice' && data.options) {
+      const validOptions = data.options
+        .filter(option => option.optionText.trim() !== '')
+        .map((option, index) => ({
+          optionText: option.optionText.trim(),
+          isCorrect: option.isCorrect,
+          orderNumber: index + 1
+        }));
+      
+      questionData.options = validOptions;
+    } else {
+      // For non-multiple choice questions, don't send options
+      delete questionData.options;
+    }
+    
+    createQuestionMutation.mutate(questionData);
   };
 
   const addOption = () => {
@@ -796,6 +843,9 @@ export default function ExamManagement() {
                                   </div>
                                 ))}
                               </div>
+                              {questionErrors.options && (
+                                <p className="text-sm text-red-500 mt-2">{questionErrors.options.message}</p>
+                              )}
                             </div>
                           )}
 

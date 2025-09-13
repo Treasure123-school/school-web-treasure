@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { db } from "./storage";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +39,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Apply database migrations at startup
+  try {
+    log("Applying database migrations...");
+    await migrate(db, { migrationsFolder: "./migrations" });
+    log("✅ Database migrations completed successfully");
+  } catch (error) {
+    log(`⚠️ Migration failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    // Continue startup - migrations might already be applied
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {

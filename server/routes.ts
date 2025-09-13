@@ -93,17 +93,12 @@ const BCRYPT_ROUNDS = 12;
 // Secure JWT authentication middleware
 const authenticateUser = async (req: any, res: any, next: any) => {
   try {
-    const authHeader = req.headers.authorization;
+    // Robust Authorization header parsing (case-insensitive, handles whitespace)
+    const authHeader = (req.headers.authorization || '').trim();
+    const [scheme, token] = authHeader.split(/\s+/);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!/^bearer$/i.test(scheme) || !token) {
       return res.status(401).json({ message: "Authentication required" });
-    }
-    
-    // Extract JWT token from Bearer header
-    const token = authHeader.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: "Invalid token" });
     }
     
     // Verify JWT token
