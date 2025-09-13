@@ -478,6 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
   // Public contact form with 100% Supabase persistence
   app.post("/api/contact", async (req, res) => {
     try {

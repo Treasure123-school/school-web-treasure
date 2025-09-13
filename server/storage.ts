@@ -18,11 +18,15 @@ let db: any;
 
 function initializeDatabase() {
   if (!sql && process.env.DATABASE_URL) {
+    console.log("🔗 CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ':***@'));
     sql = postgres(process.env.DATABASE_URL, {
       ssl: process.env.NODE_ENV === 'production' ? 'require' : { rejectUnauthorized: false },
       prepare: false // Required for Supabase transaction pooler
     });
     db = drizzle(sql, { schema });
+    console.log("✅ POSTGRESQL DATABASE CONNECTION ESTABLISHED");
+  } else if (!process.env.DATABASE_URL) {
+    console.log("⚠️  WARNING: DATABASE_URL not set - falling back to memory storage");
   }
   return { sql, db };
 }
