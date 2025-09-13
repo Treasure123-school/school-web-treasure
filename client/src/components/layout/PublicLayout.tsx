@@ -23,31 +23,36 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Beautiful gradient navigation header */}
-      <header className="sticky top-0 z-50 backdrop-blur-lg bg-white/80 dark:bg-gray-900/80 border-b border-white/20">
-        <div className="gradient-primary absolute inset-0 opacity-10"></div>
-        <nav className="relative">
+      {/* Clean professional navigation header */}
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <nav>
           <div className="container-custom">
             <div className="flex justify-between items-center h-20">
-              {/* Logo with gradient effect */}
+              {/* Professional school branding */}
               <Link href="/" className="flex items-center space-x-4 group">
-                <div className="gradient-primary rounded-xl p-3 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                  <GraduationCap className="text-white h-8 w-8" />
+                <div className="bg-blue-600 rounded-lg p-3 shadow-md group-hover:shadow-lg transition-all duration-300">
+                  <GraduationCap className="text-white h-7 w-7" />
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="text-lg sm:text-xl font-bold gradient-text leading-tight">Treasure-Home School</h1>
-                  <p className="text-xs sm:text-sm text-muted-foreground font-medium -mt-1">Motto: Honesty and Success</p>
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+                    Treasure-Home School
+                  </h1>
+                  <p className="text-xs sm:text-sm text-blue-600 font-semibold tracking-wide uppercase">
+                    Honesty and Success
+                  </p>
                 </div>
               </Link>
               
-              {/* Desktop Navigation with beautiful hover effects */}
+              {/* Desktop Navigation with clean styling */}
               <div className="hidden lg:flex items-center space-x-1">
                 {navigation.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                      isActive(item.href) ? 'active' : ''
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive(item.href) 
+                        ? 'bg-blue-50 text-blue-600 font-semibold' 
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                     }`}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
@@ -56,85 +61,69 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 ))}
                 <Button 
                   asChild 
-                  className="btn-primary ml-4"
+                  className="bg-blue-600 hover:bg-blue-700 text-white ml-4 px-6"
                   data-testid="button-portal-login"
                 >
                   <Link href="/login">Portal Login</Link>
                 </Button>
               </div>
               
-              {/* Mobile menu button with improved styling */}
+              {/* Mobile menu button */}
               <div className="lg:hidden">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   data-testid="button-mobile-menu"
-                  className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all duration-300 border border-transparent hover:border-primary/20"
+                  className="h-10 w-10 text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
                   {isMobileMenuOpen ? (
-                    <X className="h-5 w-5 transition-transform duration-300 rotate-90" />
+                    <X className="h-6 w-6" />
                   ) : (
-                    <Menu className="h-5 w-5 transition-transform duration-300" />
+                    <Menu className="h-6 w-6" />
                   )}
                 </Button>
               </div>
             </div>
           </div>
           
-          {/* Beautiful Mobile Navigation Overlay with improved animations */}
-          {isMobileMenuOpen && (
-            <>
-              <div 
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md lg:hidden animate-fade-in" 
-                onClick={() => setIsMobileMenuOpen(false)}
-              />
-              <div className="absolute top-full left-0 right-0 z-50 lg:hidden animate-slide-down">
-                <div className="gradient-primary mx-3 mt-3 rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-                  <div className="card-glass p-0">
-                    <div className="p-6">
-                      <div className="flex flex-col space-y-1">
-                        {navigation.map((item, index) => (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`nav-link px-5 py-4 rounded-xl text-white font-medium transition-all duration-300 hover:translate-x-1 ${
-                              isActive(item.href) 
-                                ? 'bg-white/25 font-semibold shadow-lg' 
-                                : 'hover:bg-white/15 hover:shadow-md'
-                            }`}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            data-testid={`nav-mobile-${item.name.toLowerCase()}`}
-                            style={{ animationDelay: `${index * 50}ms` }}
-                          >
-                            <span className="flex items-center justify-between">
-                              {item.name}
-                              <ChevronRight className="h-4 w-4 opacity-60" />
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-white/20">
-                        <Button 
-                          asChild 
-                          className="btn-secondary w-full h-12 text-base font-semibold"
-                          data-testid="button-mobile-portal-login"
-                        >
-                          <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                            <span className="flex items-center justify-center space-x-2">
-                              <span>Portal Login</span>
-                              <ArrowRight className="h-4 w-4" />
-                            </span>
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+        </nav>
+        
+        {/* Clean Mobile Navigation Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+            <div className="container-custom py-4">
+              <div className="flex flex-col space-y-1">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 ${
+                      isActive(item.href) 
+                        ? 'bg-blue-50 text-blue-600 font-semibold' 
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    data-testid={`nav-mobile-${item.name.toLowerCase()}`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Button 
+                    asChild 
+                    className="bg-blue-600 hover:bg-blue-700 text-white w-full h-12 text-base font-semibold"
+                    data-testid="button-mobile-portal-login"
+                  >
+                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      Portal Login
+                    </Link>
+                  </Button>
                 </div>
               </div>
-            </>
-          )}
-        </nav>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content with fade-in animation */}
