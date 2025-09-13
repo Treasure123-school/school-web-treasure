@@ -211,7 +211,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     const result = await db.delete(schema.users).where(eq(schema.users.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 
   // Role management
@@ -270,7 +270,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClass(id: number): Promise<boolean> {
     const result = await db.delete(schema.classes).where(eq(schema.classes.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 
   // Subject management
@@ -295,7 +295,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSubject(id: number): Promise<boolean> {
     const result = await db.delete(schema.subjects).where(eq(schema.subjects.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 
   // Academic terms
@@ -376,7 +376,7 @@ export class DatabaseStorage implements IStorage {
   async deleteExam(id: number): Promise<boolean> {
     const result = await db.delete(schema.exams)
       .where(eq(schema.exams.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
@@ -511,7 +511,7 @@ export class DatabaseStorage implements IStorage {
   async deleteExamSession(id: number): Promise<boolean> {
     const result = await db.delete(schema.examSessions)
       .where(eq(schema.examSessions.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 
   async getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined> {
@@ -576,7 +576,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAnnouncement(id: number): Promise<boolean> {
     const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 
   // Messages
