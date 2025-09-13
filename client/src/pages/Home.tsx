@@ -151,57 +151,57 @@ export default function Home() {
 
   return (
     <PublicLayout>
-      {/* Hero Section with improved mobile spacing */}
-      <section className="hero-gradient py-16 md:py-24 lg:py-32">
+      {/* Enhanced Hero Section with beautiful styling */}
+      <section className="hero-gradient py-20 md:py-28 lg:py-36">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="text-primary-foreground order-2 lg:order-1 text-center lg:text-left">
-              <h1 className="school-title text-3xl sm:text-4xl lg:text-5xl xl:text-6xl mb-4 leading-tight" data-testid="text-hero-title">
+              <h1 className="school-title text-4xl sm:text-5xl lg:text-6xl xl:text-7xl mb-6 leading-tight animate-slide-down" data-testid="text-hero-title">
                 Treasure-Home School
               </h1>
-              <p className="school-motto text-lg sm:text-xl lg:text-2xl mb-6 font-medium" data-testid="text-hero-motto">
+              <p className="school-motto text-xl sm:text-2xl lg:text-3xl mb-8 font-medium animate-slide-down" data-testid="text-hero-motto">
                 Motto: "Honesty and Success"
               </p>
-              <p className="text-base sm:text-lg text-primary-foreground/90 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0" data-testid="text-hero-description">
+              <p className="text-lg sm:text-xl text-primary-foreground/95 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" data-testid="text-hero-description">
                 Located in Seriki-Soyinka Ifo, Ogun State, we provide comprehensive education from playgroup to senior secondary school, nurturing students with our core values of honesty and success through quality education and moral excellence.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start animate-slide-up">
                 <Button 
                   asChild 
-                  className="bg-secondary text-secondary-foreground hover:bg-secondary/90 h-12 px-8 text-base font-semibold"
+                  className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold h-14 px-10 text-lg rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
                   data-testid="button-apply-admission"
                 >
                   <Link href="/admissions">Apply for Admission</Link>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10 h-12 px-8 text-base font-semibold"
+                  className="border-2 border-white/30 text-white hover:bg-white/15 backdrop-blur-sm font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1"
                   data-testid="button-virtual-tour"
                 >
                   Take Virtual Tour
                 </Button>
               </div>
             </div>
-            <div className="order-1 lg:order-2 lg:text-right">
+            <div className="order-1 lg:order-2 lg:text-right animate-fade-in">
               <div className="relative max-w-lg mx-auto lg:max-w-none">
                 <img 
                   src={heroImage?.imageUrl || "https://pixabay.com/get/gc7d2935b2c7daee5b00c7f4e5f775c0789f703b5347bf11383e16d0cf64f931493583d7ca01db3a2fd0940d4aa02adb939bbce4c48a8fb42f8bd002547dfe709_1280.jpg"} 
                   alt={heroImage?.altText || "Treasure-Home School campus with modern facilities"} 
-                  className="rounded-xl shadow-2xl w-full h-auto aspect-[4/3] object-cover"
+                  className="rounded-3xl shadow-2xl w-full h-auto aspect-[4/3] object-cover transform transition-all duration-500 hover:scale-105"
                   width="600"
                   height="450"
                   loading="eager"
                   decoding="async"
                   data-testid="img-hero-school"
                 />
-                <div className="absolute -bottom-4 -left-4 sm:-bottom-6 sm:-left-6 bg-card p-3 sm:p-4 rounded-lg shadow-lg">
-                  <div className="flex items-center space-x-2 sm:space-x-3">
-                    <div className="bg-primary/10 p-2 rounded-lg">
-                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <div className="absolute -bottom-6 -left-6 sm:-bottom-8 sm:-left-8 bg-white/95 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20">
+                  <div className="flex items-center space-x-3 sm:space-x-4">
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
+                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm font-semibold" data-testid="text-student-count">500+ Students</p>
-                      <p className="text-xs text-muted-foreground">Enrolled</p>
+                      <p className="text-sm sm:text-base font-bold text-gray-900" data-testid="text-student-count">500+ Students</p>
+                      <p className="text-xs sm:text-sm text-gray-600 font-medium">Enrolled</p>
                     </div>
                   </div>
                 </div>
@@ -211,37 +211,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Key Features Section with improved spacing */}
-      <section className="py-16 md:py-20 lg:py-24 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 lg:mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 lg:mb-6" data-testid="text-features-title">
+      {/* Enhanced Key Features Section with beautiful styling */}
+      <section className="section-gradient-light py-20 md:py-24 lg:py-32 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16 lg:mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 lg:mb-8 animate-slide-down" data-testid="text-features-title">
               Why Choose Treasure-Home School?
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-base sm:text-lg" data-testid="text-features-description">
+            <p className="text-muted-foreground max-w-3xl mx-auto text-lg sm:text-xl leading-relaxed animate-fade-in" data-testid="text-features-description">
               We provide comprehensive education with modern facilities and experienced teachers, preparing students for academic excellence and moral development.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
             {features.map((feature, index) => (
-              <Card key={index} className="card-hover shadow-sm border border-border" data-testid={`card-feature-${index}`}>
-                <CardContent className="p-6">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-                    feature.color === 'primary' ? 'bg-primary/10' :
-                    feature.color === 'secondary' ? 'bg-secondary/10' :
-                    'bg-green-100'
+              <Card key={index} className="card-hover bg-white/80 backdrop-blur-sm border-0 shadow-xl animate-slide-up" data-testid={`card-feature-${index}`}>
+                <CardContent className="p-8 lg:p-10 text-center">
+                  <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center mb-6 mx-auto transform transition-all duration-300 ${
+                    feature.color === 'primary' ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25' :
+                    feature.color === 'secondary' ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg shadow-yellow-500/25' :
+                    'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
                   }`}>
-                    <feature.icon className={`${
-                      feature.color === 'primary' ? 'text-primary' :
-                      feature.color === 'secondary' ? 'text-secondary' :
-                      'text-green-600'
-                    } h-6 w-6`} />
+                    <feature.icon className="text-white h-8 w-8 lg:h-10 lg:w-10" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2" data-testid={`text-feature-title-${index}`}>
+                  <h3 className="text-xl lg:text-2xl font-bold mb-4 text-gray-900" data-testid={`text-feature-title-${index}`}>
                     {feature.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm" data-testid={`text-feature-description-${index}`}>
+                  <p className="text-gray-600 text-base lg:text-lg leading-relaxed" data-testid={`text-feature-description-${index}`}>
                     {feature.description}
                   </p>
                 </CardContent>
@@ -251,20 +247,50 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Quick Stats Section */}
-      <section className="py-16">
+      {/* Enhanced Stats Section */}
+      <section className="py-20 bg-gradient-to-br from-white to-blue-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {stats.map((stat, index) => (
-              <div key={index} data-testid={`stat-${index}`}>
-                <div className="text-3xl font-bold text-primary mb-2" data-testid={`text-stat-value-${index}`}>
+              <div key={index} className="group animate-bounce-gentle" style={{ animationDelay: `${index * 0.2}s` }} data-testid={`stat-${index}`}>
+                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300" data-testid={`text-stat-value-${index}`}>
                   {stat.value}
                 </div>
-                <div className="text-muted-foreground" data-testid={`text-stat-label-${index}`}>
+                <div className="text-gray-600 font-medium text-sm lg:text-base" data-testid={`text-stat-label-${index}`}>
                   {stat.label}
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Beautiful Mission/Vision Section */}
+      <section className="section-gradient-accent py-20 lg:py-28 relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold gradient-text mb-6 animate-slide-down">Our Mission & Vision</h2>
+            <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-teal-500 mx-auto rounded-full"></div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-16">
+            <div className="text-center md:text-left animate-slide-up">
+              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover">
+                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">Our Mission</h3>
+                <p className="text-gray-600 text-lg leading-relaxed">
+                  To provide quality, comprehensive education from playgroup to senior secondary level, fostering academic excellence and moral development. We are committed to nurturing students with our core values of <strong className="text-blue-600">honesty and success</strong> through innovative teaching methods and modern facilities.
+                </p>
+              </div>
+            </div>
+            
+            <div className="text-center md:text-left animate-slide-up" style={{ animationDelay: '0.2s' }}>
+              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover">
+                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">Our Vision</h3>
+                <p className="text-gray-600 text-lg leading-relaxed">
+                  To be a leading educational institution that shapes future leaders with strong moral character, academic excellence, and practical skills. We envision a generation of students who embody <strong className="text-green-600">integrity, knowledge, and success</strong> in all their endeavors.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

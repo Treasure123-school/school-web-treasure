@@ -316,15 +316,19 @@
   50% { transform: translateY(-10px); }
 }
 
-/* Hero section gradient - Professional school branding */
+/* Enhanced hero section gradient - Professional educational branding */
 .hero-gradient {
   background: linear-gradient(135deg, 
     hsl(217, 91%, 60%) 0%,     /* Royal blue */
-    hsl(196, 75%, 55%) 35%,    /* Sky blue */
-    hsl(260, 100%, 80%) 70%,   /* Light purple */
+    hsl(196, 88%, 58%) 20%,    /* Enhanced sky blue */
+    hsl(178, 85%, 55%) 40%,    /* Teal */
+    hsl(196, 88%, 58%) 60%,    /* Sky blue return */
+    hsl(260, 100%, 80%) 80%,   /* Light purple */
     hsl(45, 100%, 65%) 100%    /* Golden yellow accent */
   );
   position: relative;
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
 }
 
 .hero-gradient::before {
@@ -335,9 +339,23 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, 
-    rgba(59, 130, 246, 0.9) 0%, 
-    rgba(37, 99, 235, 0.8) 100%
+    rgba(59, 130, 246, 0.95) 0%, 
+    rgba(14, 165, 233, 0.9) 50%,
+    rgba(37, 99, 235, 0.85) 100%
   );
+  z-index: 1;
+}
+
+.hero-gradient::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
   z-index: 1;
 }
 
@@ -346,25 +364,27 @@
   z-index: 2;
 }
 
-/* Professional school typography */
+/* Enhanced professional school typography */
 .school-title {
   font-family: var(--font-sans);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #ffffff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .school-motto {
   font-family: var(--font-serif);
   font-style: italic;
-  font-weight: 500;
-  color: hsl(45, 100%, 75%);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-weight: 600;
+  color: hsl(45, 100%, 82%);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
 }
 
 /* Mobile-first responsive utilities */
