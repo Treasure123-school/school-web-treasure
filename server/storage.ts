@@ -2237,8 +2237,8 @@ async function initializeStorage(): Promise<IStorage> {
   if (process.env.DATABASE_URL) {
     try {
       const dbStorage = new DatabaseStorage();
-      // Simple connectivity test instead of schema-dependent query
-      await dbStorage.getRoles(); // Use a simple existing method instead of raw SQL
+      // Schema-agnostic connectivity test  
+      await dbStorage.db.execute('SELECT 1');
       console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage');
       return dbStorage;
     } catch (error) {
