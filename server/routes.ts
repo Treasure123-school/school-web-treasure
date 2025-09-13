@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -476,17 +476,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public contact form
+  // Public contact form with 100% Supabase persistence
   app.post("/api/contact", async (req, res) => {
     try {
       const data = contactSchema.parse(req.body);
       
-      // In a real app, you'd send an email or save to database
-      console.log("Contact form submission:", data);
+      // Save to Supabase database permanently
+      const contactMessageData = insertContactMessageSchema.parse({
+        name: data.name,
+        email: data.email,
+        message: data.message,
+        subject: null, // Can be extended later if needed
+        isRead: false
+      });
       
-      res.json({ message: "Message sent successfully" });
+      const savedMessage = await storage.createContactMessage(contactMessageData);
+      console.log("✅ Contact form saved to database:", { id: savedMessage.id, email: data.email });
+      
+      res.json({ 
+        message: "Message sent successfully! We'll get back to you soon.",
+        id: savedMessage.id 
+      });
     } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      console.error("❌ Contact form error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request data" });
+      }
+      res.status(500).json({ message: "Failed to send message. Please try again." });
     }
   });
 

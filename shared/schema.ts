@@ -228,6 +228,20 @@ export const homePageContent = pgTable("home_page_content", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Contact messages table for permanent storage of contact form submissions
+export const contactMessages = pgTable("contact_messages", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 200 }),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  respondedAt: timestamp("responded_at"),
+  respondedBy: uuid("responded_by").references(() => users.id),
+  response: text("response"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -242,6 +256,7 @@ export const insertMessageSchema = createInsertSchema(messages).omit({ id: true,
 export const insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
 export const insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
 export const insertHomePageContentSchema = createInsertSchema(homePageContent).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
 
 // New exam delivery schemas
 export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true });
@@ -264,6 +279,7 @@ export type Message = typeof messages.$inferSelect;
 export type GalleryCategory = typeof galleryCategories.$inferSelect;
 export type Gallery = typeof gallery.$inferSelect;
 export type HomePageContent = typeof homePageContent.$inferSelect;
+export type ContactMessage = typeof contactMessages.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -284,6 +300,7 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
 export type InsertHomePageContent = z.infer<typeof insertHomePageContentSchema>;
+export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;

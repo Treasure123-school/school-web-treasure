@@ -7,8 +7,8 @@ import type {
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
   ExamResult, InsertExamResult, Announcement, InsertAnnouncement,
   Message, InsertMessage, Gallery, InsertGallery, GalleryCategory, InsertGalleryCategory,
-  HomePageContent, InsertHomePageContent, Role, AcademicTerm,
-  ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
+  HomePageContent, InsertHomePageContent, ContactMessage, InsertContactMessage,
+  Role, AcademicTerm, ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer
 } from "@shared/schema";
 
@@ -137,6 +137,13 @@ export interface IStorage {
   getHomePageContentById(id: number): Promise<HomePageContent | undefined>;
   updateHomePageContent(id: number, content: Partial<InsertHomePageContent>): Promise<HomePageContent | undefined>;
   deleteHomePageContent(id: number): Promise<boolean>;
+
+  // Contact messages management
+  createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
+  getContactMessages(): Promise<ContactMessage[]>;
+  getContactMessageById(id: number): Promise<ContactMessage | undefined>;
+  markContactMessageAsRead(id: number): Promise<boolean>;
+  respondToContactMessage(id: number, response: string, respondedBy: string): Promise<ContactMessage | undefined>;
 
   // Analytics and Reports
   getAnalyticsOverview(): Promise<any>;
@@ -1009,6 +1016,42 @@ export class DatabaseStorage implements IStorage {
       totalSubjects: 0,
       error: 'Unable to calculate analytics - database unavailable'
     };
+  }
+
+  // Contact messages management - ensuring 100% Supabase persistence
+  async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
+    const result = await this.db.insert(schema.contactMessages).values(message).returning();
+    return result[0];
+  }
+
+  async getContactMessages(): Promise<ContactMessage[]> {
+    return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
+  }
+
+  async getContactMessageById(id: number): Promise<ContactMessage | undefined> {
+    const result = await this.db.select().from(schema.contactMessages).where(eq(schema.contactMessages.id, id)).limit(1);
+    return result[0];
+  }
+
+  async markContactMessageAsRead(id: number): Promise<boolean> {
+    const result = await this.db.update(schema.contactMessages)
+      .set({ isRead: true })
+      .where(eq(schema.contactMessages.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async respondToContactMessage(id: number, response: string, respondedBy: string): Promise<ContactMessage | undefined> {
+    const result = await this.db.update(schema.contactMessages)
+      .set({ 
+        response, 
+        respondedBy, 
+        respondedAt: new Date(),
+        isRead: true 
+      })
+      .where(eq(schema.contactMessages.id, id))
+      .returning();
+    return result[0];
   }
 }
 
