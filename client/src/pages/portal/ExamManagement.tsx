@@ -210,13 +210,11 @@ export default function ExamManagement() {
   // CSV upload mutation
   const csvUploadMutation = useMutation({
     mutationFn: async (questions: any[]) => {
-      const response = await apiRequest(`/api/exam-questions/bulk`, {
-        method: 'POST',
-        body: JSON.stringify({ 
-          examId: selectedExam?.id,
-          questions 
-        }),
+      const response = await apiRequest('POST', '/api/exam-questions/bulk', { 
+        examId: selectedExam?.id,
+        questions 
       });
+      if (!response.ok) throw new Error('Failed to upload questions');
       return response.json();
     },
     onSuccess: (data) => {
