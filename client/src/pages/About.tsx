@@ -1,27 +1,47 @@
 import PublicLayout from '@/components/layout/PublicLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Link } from 'wouter';
+import { 
+  Heart, 
+  Trophy, 
+  Star, 
+  Lightbulb, 
+  Target, 
+  Eye, 
+  Check, 
+  BookOpen, 
+  Users,
+  Award,
+  Building2,
+  GraduationCap
+} from 'lucide-react';
 
 export default function About() {
   const values = [
     {
       title: 'Honesty',
       description: 'We believe in fostering integrity and truthfulness in all aspects of our educational journey.',
-      icon: 'fas fa-heart'
+      icon: Heart,
+      color: 'red'
     },
     {
       title: 'Success',
       description: 'We are committed to achieving excellence in academics, character development, and life skills.',
-      icon: 'fas fa-trophy'
+      icon: Trophy,
+      color: 'primary'
     },
     {
       title: 'Excellence',
       description: 'We strive for the highest standards in teaching, learning, and personal development.',
-      icon: 'fas fa-star'
+      icon: Star,
+      color: 'yellow'
     },
     {
       title: 'Innovation',
       description: 'We embrace modern teaching methods and technology to enhance the learning experience.',
-      icon: 'fas fa-lightbulb'
+      icon: Lightbulb,
+      color: 'secondary'
     }
   ];
 
@@ -57,7 +77,7 @@ export default function About() {
             <Card className="shadow-sm border border-border" data-testid="card-mission">
               <CardContent className="p-8">
                 <div className="bg-primary/10 w-16 h-16 rounded-lg flex items-center justify-center mb-6">
-                  <i className="fas fa-bullseye text-primary text-2xl"></i>
+                  <Target className="text-primary h-8 w-8" />
                 </div>
                 <h2 className="text-2xl font-bold mb-4" data-testid="text-mission-title">Our Mission</h2>
                 <p className="text-muted-foreground leading-relaxed" data-testid="text-mission-content">
@@ -71,7 +91,7 @@ export default function About() {
             <Card className="shadow-sm border border-border" data-testid="card-vision">
               <CardContent className="p-8">
                 <div className="bg-secondary/10 w-16 h-16 rounded-lg flex items-center justify-center mb-6">
-                  <i className="fas fa-eye text-secondary text-2xl"></i>
+                  <Eye className="text-secondary h-8 w-8" />
                 </div>
                 <h2 className="text-2xl font-bold mb-4" data-testid="text-vision-title">Our Vision</h2>
                 <p className="text-muted-foreground leading-relaxed" data-testid="text-vision-content">
@@ -101,8 +121,18 @@ export default function About() {
             {values.map((value, index) => (
               <Card key={index} className="card-hover shadow-sm border border-border" data-testid={`card-value-${index}`}>
                 <CardContent className="p-6 text-center">
-                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className={`${value.icon} text-primary text-xl`}></i>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                    value.color === 'red' ? 'bg-red-100' :
+                    value.color === 'primary' ? 'bg-primary/10' :
+                    value.color === 'yellow' ? 'bg-yellow-100' :
+                    'bg-secondary/10'
+                  }`}>
+                    <value.icon className={`h-6 w-6 ${
+                      value.color === 'red' ? 'text-red-600' :
+                      value.color === 'primary' ? 'text-primary' :
+                      value.color === 'yellow' ? 'text-yellow-600' :
+                      'text-secondary'
+                    }`} />
                   </div>
                   <h3 className="text-lg font-semibold mb-3" data-testid={`text-value-title-${index}`}>
                     {value.title}
