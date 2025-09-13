@@ -117,10 +117,10 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                     {item.name}
                   </Link>
                 ))}
-                <div className="pt-8 mt-6 border-t border-gradient-to-r from-blue-200 to-teal-200">
+                <div className="pt-8 mt-6 pb-4 border-t border-gradient-to-r from-blue-200 to-teal-200">
                   <Button 
                     asChild 
-                    className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold w-full h-14 text-base rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
+                    className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold w-full h-14 text-base rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1 mb-2"
                     data-testid="button-mobile-portal-login"
                   >
                     <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
