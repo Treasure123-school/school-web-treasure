@@ -1216,9 +1216,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exam-results/:studentId", async (req, res) => {
+  app.get("/api/exam-results/:studentId", authenticateUser, async (req, res) => {
     try {
       const { studentId } = req.params;
+      const user = (req as any).user;
+      
+      // Security: Students can only view their own results, teachers and admins can view any
+      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
+        return res.status(403).json({ message: "Students can only view their own exam results" });
+      }
+      
       const results = await storage.getExamResultsByStudent(studentId);
       res.json(results);
     } catch (error) {
@@ -1226,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/exam-results/exam/:examId", async (req, res) => {
+  app.get("/api/exam-results/exam/:examId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { examId } = req.params;
       const results = await storage.getExamResultsByExam(parseInt(examId));
