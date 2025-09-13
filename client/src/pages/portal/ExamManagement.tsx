@@ -660,7 +660,7 @@ export default function ExamManagement() {
 
         {/* Question Management Modal */}
         {selectedExam && (
-          <Dialog open={!!selectedExam} onOpenChange={() => setSelectedExam(null)}>
+          <Dialog open={!!selectedExam} onOpenChange={(open) => { if (!open) setSelectedExam(null); }}>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Manage Questions - {selectedExam.name}</DialogTitle>
