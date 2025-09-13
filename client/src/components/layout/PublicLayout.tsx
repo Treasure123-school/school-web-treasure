@@ -36,7 +36,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             <div className="flex justify-between items-center h-20">
               {/* Professional school branding */}
               <Link href="/" className="flex items-center space-x-4 group">
-                <div className="bg-white rounded-2xl p-3 shadow-lg group-hover:shadow-xl transition-all duration-300 border-2 border-blue-200">
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-full p-2 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School Logo" 
@@ -149,7 +149,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             {/* School Branding */}
             <div className="lg:col-span-2">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-blue-300">
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-full p-2 shadow-xl">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School Logo" 

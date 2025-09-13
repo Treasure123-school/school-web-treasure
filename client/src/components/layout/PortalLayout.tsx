@@ -91,7 +91,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       <div className="w-64 bg-card shadow-sm border-r border-border h-screen sticky top-0">
         <div className="p-6 border-b border-border">
           <div className="flex items-center space-x-3">
-            <div className="bg-white rounded-xl p-3 border-2 border-blue-200 shadow-lg">
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-full p-2 shadow-lg">
               <img 
                 src={schoolLogo} 
                 alt="Treasure-Home School Logo" 
