@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,11 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => location === path;
+
+  // Auto-scroll to top when route changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location]);
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -61,7 +66,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 ))}
                 <Button 
                   asChild 
-                  className="bg-blue-600 hover:bg-blue-700 text-white ml-4 px-6"
+                  className="bg-blue-600 hover:bg-blue-700 text-white ml-8 px-6"
                   data-testid="button-portal-login"
                 >
                   <Link href="/login">Portal Login</Link>

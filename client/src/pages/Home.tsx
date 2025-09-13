@@ -174,11 +174,12 @@ export default function Home() {
                   <Link href="/admissions">Apply for Admission</Link>
                 </Button>
                 <Button 
+                  asChild
                   variant="outline" 
                   className="border-2 border-white/30 text-white hover:bg-white/15 backdrop-blur-sm font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1"
-                  data-testid="button-virtual-tour"
+                  data-testid="button-contact-us"
                 >
-                  Take Virtual Tour
+                  <Link href="/contact">Contact Us</Link>
                 </Button>
               </div>
             </div>
