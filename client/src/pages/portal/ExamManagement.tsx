@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload } from 'lucide-react';
 
 // Form schemas
-const examFormSchema = insertExamSchema.extend({
+const examFormSchema = insertExamSchema.omit({ createdBy: true }).extend({
   classId: z.number().min(1, 'Class is required'),
   subjectId: z.number().min(1, 'Subject is required'),
   timeLimit: z.number().min(1, 'Time limit must be at least 1 minute').optional(),
