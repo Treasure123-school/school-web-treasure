@@ -176,7 +176,7 @@ export default function Home() {
                 <Button 
                   asChild
                   variant="outline" 
-                  className="border-2 border-white/30 text-white hover:bg-white/15 backdrop-blur-sm font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1"
+                  className="border-2 border-white bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1"
                   data-testid="button-contact-us"
                 >
                   <Link href="/contact">Contact Us</Link>

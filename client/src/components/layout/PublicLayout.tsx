@@ -66,7 +66,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 ))}
                 <Button 
                   asChild 
-                  className="bg-blue-600 hover:bg-blue-700 text-white ml-8 px-6"
+                  className="bg-blue-600 hover:bg-blue-700 text-white ml-8 px-6 py-2"
                   data-testid="button-portal-login"
                 >
                   <Link href="/login">Portal Login</Link>
