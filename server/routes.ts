@@ -1822,7 +1822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload routes
-  app.post("/api/upload/profile", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('profileImage'), async (req, res) => {
+  app.post("/api/upload/profile", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), upload.single('profileImage'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -1853,7 +1853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload/gallery", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('galleryImage'), async (req, res) => {
+  app.post("/api/upload/gallery", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), upload.single('galleryImage'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
