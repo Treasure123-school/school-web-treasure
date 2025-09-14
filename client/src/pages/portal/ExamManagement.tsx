@@ -220,6 +220,17 @@ export default function ExamManagement() {
     });
   };
 
+  const onInvalidQuestion = (errors: any) => {
+    console.log('Question form validation errors:', errors);
+    const errorFields = Object.keys(errors);
+    const errorMessages = errorFields.map(field => `${field}: ${errors[field].message}`).join(', ');
+    toast({
+      title: "Question Validation Error",
+      description: errorMessages || "Please check all required fields",
+      variant: "destructive",
+    });
+  };
+
   const onSubmitQuestion = (data: QuestionForm) => {
     if (!selectedExam) return;
     
@@ -751,7 +762,7 @@ export default function ExamManagement() {
                         <DialogHeader>
                           <DialogTitle>Add New Question</DialogTitle>
                         </DialogHeader>
-                        <form onSubmit={handleQuestionSubmit(onSubmitQuestion)} className="space-y-4">
+                        <form onSubmit={handleQuestionSubmit(onSubmitQuestion, onInvalidQuestion)} className="space-y-4">
                           <div>
                             <Label htmlFor="questionText">Question Text</Label>
                             <Textarea 
