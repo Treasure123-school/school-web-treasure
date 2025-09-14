@@ -286,33 +286,115 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // TEMPORARY DEBUG ROUTE - FIRST ROUTE TO AVOID MIDDLEWARE - Check current users in database
-  app.get("/api/debug/users", async (req, res) => {
+  // SETUP REAL USERS - Replace demo data with actual user accounts
+  app.post("/api/setup-real-users", async (req, res) => {
     try {
-      const allRoles = await storage.getRoles();
-      const allUsers = [];
+      console.log('Setting up real user accounts...');
       
-      for (const role of allRoles) {
-        const users = await storage.getUsersByRole(role.id);
-        for (const user of users) {
-          allUsers.push({
-            id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            roleId: user.roleId,
-            roleName: role.name,
-            isActive: user.isActive
-          });
-        }
+      // Check if bcrypt is available
+      if (!bcrypt) {
+        throw new Error('bcrypt is not available');
       }
       
+      // Get existing roles
+      const allRoles = await storage.getRoles();
+      const roleMap: Record<string, number> = {};
+      allRoles.forEach(role => {
+        roleMap[role.name] = role.id;
+      });
+
+      // Hash passwords for the real accounts
+      const hashedStudentPassword = await bcrypt.hash('student123', BCRYPT_ROUNDS);
+      const hashedTeacherPassword = await bcrypt.hash('teacher123', BCRYPT_ROUNDS);
+      const hashedParentPassword = await bcrypt.hash('parent123', BCRYPT_ROUNDS);
+      const hashedAdminPassword = await bcrypt.hash('admin123', BCRYPT_ROUNDS);
+
+      // Define real user accounts
+      const realUsers = [
+        {
+          email: 'student@treasure.com',
+          firstName: 'oluwadare',
+          lastName: 'Marvellous',
+          roleId: roleMap['Student'],
+          passwordHash: hashedStudentPassword
+        },
+        {
+          email: 'teacher@treasure.com',
+          firstName: 'oluwadare',
+          lastName: 'precious',
+          roleId: roleMap['Teacher'],
+          passwordHash: hashedTeacherPassword
+        },
+        {
+          email: 'parent@treasure.com',
+          firstName: 'oluwadare',
+          lastName: 'olufunke',
+          roleId: roleMap['Parent'],
+          passwordHash: hashedParentPassword
+        },
+        {
+          email: 'admin@treasure.com',
+          firstName: 'oluwadare',
+          lastName: 'ademuyiwa',
+          roleId: roleMap['Admin'],
+          passwordHash: hashedAdminPassword
+        }
+      ];
+
+      // First, remove demo users if they exist
+      const demoEmails = ['admin@demo.com', 'student@demo.com', 'teacher@demo.com', 'parent@demo.com'];
+      let removedCount = 0;
+      
+      for (const email of demoEmails) {
+        try {
+          const demoUser = await storage.getUserByEmail(email);
+          if (demoUser) {
+            await storage.deleteUser(demoUser.id);
+            removedCount++;
+            console.log(`Removed demo user: ${email}`);
+          }
+        } catch (error) {
+          console.log(`Demo user ${email} not found or already removed`);
+        }
+      }
+
+      // Create/update real users
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const userData of realUsers) {
+        try {
+          const existingUser = await storage.getUserByEmail(userData.email);
+          if (existingUser) {
+            // Update existing user with correct information
+            await storage.updateUser(existingUser.id, userData);
+            updatedCount++;
+            console.log(`Updated user: ${userData.email} -> ${userData.firstName} ${userData.lastName}`);
+          } else {
+            // Create new user
+            await storage.createUser(userData);
+            createdCount++;
+            console.log(`Created user: ${userData.email} -> ${userData.firstName} ${userData.lastName}`);
+          }
+        } catch (userError) {
+          console.error(`Failed to process user ${userData.email}:`, userError);
+        }
+      }
+
       res.json({
-        totalUsers: allUsers.length,
-        users: allUsers
+        message: "Real user accounts setup completed successfully!",
+        demoUsersRemoved: removedCount,
+        usersCreated: createdCount,
+        usersUpdated: updatedCount,
+        accounts: [
+          "student@treasure.com (oluwadare Marvellous)",
+          "teacher@treasure.com (oluwadare precious)", 
+          "parent@treasure.com (oluwadare olufunke)",
+          "admin@treasure.com (oluwadare ademuyiwa)"
+        ]
       });
     } catch (error) {
-      console.error('Debug users error:', error);
+      console.error('Setup real users error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
