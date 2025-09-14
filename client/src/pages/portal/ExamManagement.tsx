@@ -239,7 +239,12 @@ export default function ExamManagement() {
   };
 
   const onInvalidQuestion = (errors: any) => {
+    console.log('=== FORM VALIDATION ERRORS ===');
     console.log('Question form validation errors:', errors);
+    console.log('Error keys:', Object.keys(errors));
+    Object.keys(errors).forEach(key => {
+      console.log(`${key} error:`, errors[key]);
+    });
     const errorFields = Object.keys(errors);
     const errorMessages = errorFields.map(field => `${field}: ${errors[field].message}`).join(', ');
     toast({
@@ -795,6 +800,11 @@ export default function ExamManagement() {
                           data-testid="button-add-question" 
                           disabled={!selectedExam}
                           title={!selectedExam ? "Please select an exam first" : ""}
+                          onClick={() => {
+                            console.log('=== ADD QUESTION BUTTON CLICKED ===');
+                            console.log('Selected exam:', selectedExam);
+                            console.log('Is dialog open before:', isQuestionDialogOpen);
+                          }}
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Question
