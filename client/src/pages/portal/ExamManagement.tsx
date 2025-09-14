@@ -232,7 +232,14 @@ export default function ExamManagement() {
   };
 
   const onSubmitQuestion = (data: QuestionForm) => {
-    if (!selectedExam) return;
+    if (!selectedExam) {
+      toast({
+        title: "No Exam Selected",
+        description: "Please select an exam before adding questions",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const nextOrderNumber = examQuestions.length + 1;
     
@@ -744,6 +751,8 @@ export default function ExamManagement() {
                         variant="outline"
                         onClick={() => document.getElementById('csv-upload')?.click()}
                         data-testid="button-upload-csv"
+                        disabled={!selectedExam}
+                        title={!selectedExam ? "Please select an exam first" : ""}
                       >
                         <Upload className="w-4 h-4 mr-2" />
                         Upload CSV
@@ -753,7 +762,11 @@ export default function ExamManagement() {
                     {/* Manual Add Question */}
                     <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button data-testid="button-add-question">
+                        <Button 
+                          data-testid="button-add-question" 
+                          disabled={!selectedExam}
+                          title={!selectedExam ? "Please select an exam first" : ""}
+                        >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Question
                         </Button>
