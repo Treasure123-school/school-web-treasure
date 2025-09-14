@@ -286,116 +286,135 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // SETUP REAL USERS - Replace demo data with actual user accounts
-  app.post("/api/setup-real-users", async (req, res) => {
+  // SIMPLE TEST UPDATE - Test if basic user updates work  
+  app.post("/api/test-update", async (req, res) => {
     try {
-      console.log('Setting up real user accounts...');
-      
-      // Check if bcrypt is available
-      if (!bcrypt) {
-        throw new Error('bcrypt is not available');
+      // Get the demo admin user
+      const demoUser = await storage.getUserByEmail('admin@demo.com');
+      if (!demoUser) {
+        return res.status(404).json({ error: 'Demo admin not found' });
       }
-      
-      // Get existing roles
-      const allRoles = await storage.getRoles();
-      const roleMap: Record<string, number> = {};
-      allRoles.forEach(role => {
-        roleMap[role.name] = role.id;
+
+      // Try a simple name update first (not email)
+      const result = await storage.updateUser(demoUser.id, {
+        firstName: 'TEST',
+        lastName: 'NAME'
       });
 
-      // Hash passwords for the real accounts
+      if (result) {
+        return res.json({
+          message: 'Basic update test successful',
+          original: { firstName: demoUser.firstName, lastName: demoUser.lastName },
+          updated: { firstName: result.firstName, lastName: result.lastName }
+        });
+      } else {
+        return res.json({ error: 'Update returned null' });
+      }
+    } catch (error) {
+      return res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // UPDATE DEMO USERS WITH REAL INFO - Simpler direct approach
+  app.post("/api/update-demo-users", async (req, res) => {
+    try {
+      console.log('Updating demo users with real information...');
+
+      // Hash the new passwords
       const hashedStudentPassword = await bcrypt.hash('student123', BCRYPT_ROUNDS);
       const hashedTeacherPassword = await bcrypt.hash('teacher123', BCRYPT_ROUNDS);
       const hashedParentPassword = await bcrypt.hash('parent123', BCRYPT_ROUNDS);
       const hashedAdminPassword = await bcrypt.hash('admin123', BCRYPT_ROUNDS);
 
-      // Define real user accounts
-      const realUsers = [
+      // Update mappings: demo email -> real info  
+      const updates = [
         {
-          email: 'student@treasure.com',
-          firstName: 'oluwadare',
-          lastName: 'Marvellous',
-          roleId: roleMap['Student'],
-          passwordHash: hashedStudentPassword
-        },
-        {
-          email: 'teacher@treasure.com',
-          firstName: 'oluwadare',
-          lastName: 'precious',
-          roleId: roleMap['Teacher'],
-          passwordHash: hashedTeacherPassword
-        },
-        {
-          email: 'parent@treasure.com',
-          firstName: 'oluwadare',
-          lastName: 'olufunke',
-          roleId: roleMap['Parent'],
-          passwordHash: hashedParentPassword
-        },
-        {
-          email: 'admin@treasure.com',
+          demoEmail: 'admin@demo.com',
+          newEmail: 'admin@treasure.com',
           firstName: 'oluwadare',
           lastName: 'ademuyiwa',
-          roleId: roleMap['Admin'],
-          passwordHash: hashedAdminPassword
+          password: hashedAdminPassword
+        },
+        {
+          demoEmail: 'student@demo.com',
+          newEmail: 'student@treasure.com', 
+          firstName: 'oluwadare',
+          lastName: 'Marvellous',
+          password: hashedStudentPassword
+        },
+        {
+          demoEmail: 'teacher@demo.com',
+          newEmail: 'teacher@treasure.com',
+          firstName: 'oluwadare', 
+          lastName: 'precious',
+          password: hashedTeacherPassword
+        },
+        {
+          demoEmail: 'parent@demo.com',
+          newEmail: 'parent@treasure.com',
+          firstName: 'oluwadare',
+          lastName: 'olufunke', 
+          password: hashedParentPassword
         }
       ];
 
-      // First, remove demo users if they exist
-      const demoEmails = ['admin@demo.com', 'student@demo.com', 'teacher@demo.com', 'parent@demo.com'];
-      let removedCount = 0;
-      
-      for (const email of demoEmails) {
+      let updateCount = 0;
+      const results = [];
+
+      for (const update of updates) {
         try {
-          const demoUser = await storage.getUserByEmail(email);
+          console.log(`🔍 Looking for demo user: ${update.demoEmail}`);
+          // Get the existing demo user
+          const demoUser = await storage.getUserByEmail(update.demoEmail);
           if (demoUser) {
-            await storage.deleteUser(demoUser.id);
-            removedCount++;
-            console.log(`Removed demo user: ${email}`);
+            console.log(`✅ Found demo user: ${update.demoEmail} (ID: ${demoUser.id})`);
+            
+            // Update with new information
+            console.log(`🔄 Updating user with email: ${update.newEmail}, name: ${update.firstName} ${update.lastName}`);
+            const updatedUser = await storage.updateUser(demoUser.id, {
+              email: update.newEmail,
+              firstName: update.firstName,
+              lastName: update.lastName,
+              passwordHash: update.password
+            });
+            
+            if (updatedUser) {
+              console.log(`✅ Update successful! User now has email: ${updatedUser.email}, name: ${updatedUser.firstName} ${updatedUser.lastName}`);
+              updateCount++;
+              results.push(`${update.newEmail} (${update.firstName} ${update.lastName})`);
+              
+              // Verify we can find the user by the new email
+              console.log(`🔍 Verifying new email lookup: ${update.newEmail}`);
+              const verificationUser = await storage.getUserByEmail(update.newEmail);
+              if (verificationUser) {
+                console.log(`✅ Verification successful! Can find user by new email: ${update.newEmail}`);
+              } else {
+                console.log(`❌ Verification FAILED! Cannot find user by new email: ${update.newEmail}`);
+              }
+            } else {
+              console.log(`❌ Update returned null/undefined for ${update.demoEmail}`);
+            }
+          } else {
+            console.log(`❌ Demo user ${update.demoEmail} not found`);
           }
         } catch (error) {
-          console.log(`Demo user ${email} not found or already removed`);
-        }
-      }
-
-      // Create/update real users
-      let createdCount = 0;
-      let updatedCount = 0;
-
-      for (const userData of realUsers) {
-        try {
-          const existingUser = await storage.getUserByEmail(userData.email);
-          if (existingUser) {
-            // Update existing user with correct information
-            await storage.updateUser(existingUser.id, userData);
-            updatedCount++;
-            console.log(`Updated user: ${userData.email} -> ${userData.firstName} ${userData.lastName}`);
-          } else {
-            // Create new user
-            await storage.createUser(userData);
-            createdCount++;
-            console.log(`Created user: ${userData.email} -> ${userData.firstName} ${userData.lastName}`);
-          }
-        } catch (userError) {
-          console.error(`Failed to process user ${userData.email}:`, userError);
+          console.error(`❌ Failed to update ${update.demoEmail}:`, error);
         }
       }
 
       res.json({
-        message: "Real user accounts setup completed successfully!",
-        demoUsersRemoved: removedCount,
-        usersCreated: createdCount,
-        usersUpdated: updatedCount,
-        accounts: [
-          "student@treasure.com (oluwadare Marvellous)",
-          "teacher@treasure.com (oluwadare precious)", 
-          "parent@treasure.com (oluwadare olufunke)",
-          "admin@treasure.com (oluwadare ademuyiwa)"
-        ]
+        message: `Successfully updated ${updateCount} demo users with real information!`,
+        updatedCount: updateCount,
+        updatedAccounts: results,
+        note: "You can now login with your @treasure.com email addresses"
       });
+
     } catch (error) {
-      console.error('Setup real users error:', error);
-      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+      console.error('Update demo users error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Failed to update demo users"
+      });
     }
   });
 

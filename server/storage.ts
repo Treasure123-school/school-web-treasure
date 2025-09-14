@@ -193,7 +193,7 @@ function normalizeUuid(raw: any): string | undefined {
 }
 
 export class DatabaseStorage implements IStorage {
-  private db: any;
+  public db: any;
   
   constructor() {
     const { db } = initializeDatabase();
@@ -217,7 +217,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+    const result = await this.db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -229,12 +229,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const result = await db.insert(schema.users).values(user).returning();
+    const result = await this.db.insert(schema.users).values(user).returning();
     return result[0];
   }
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
-    const result = await db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
+    const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
     return result[0];
   }
 
