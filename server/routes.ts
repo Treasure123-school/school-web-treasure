@@ -320,11 +320,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Updating demo users with real information...');
 
-      // Hash the new passwords
-      const hashedStudentPassword = await bcrypt.hash('student123', BCRYPT_ROUNDS);
-      const hashedTeacherPassword = await bcrypt.hash('teacher123', BCRYPT_ROUNDS);
-      const hashedParentPassword = await bcrypt.hash('parent123', BCRYPT_ROUNDS);
-      const hashedAdminPassword = await bcrypt.hash('admin123', BCRYPT_ROUNDS);
+      // Hash the new password (same for all users)
+      const hashedPassword = await bcrypt.hash('password123', BCRYPT_ROUNDS);
 
       // Update mappings: demo email -> real info  
       const updates = [
@@ -333,28 +330,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newEmail: 'admin@treasure.com',
           firstName: 'oluwadare',
           lastName: 'ademuyiwa',
-          password: hashedAdminPassword
+          password: hashedPassword
         },
         {
           demoEmail: 'student@demo.com',
           newEmail: 'student@treasure.com', 
           firstName: 'oluwadare',
           lastName: 'Marvellous',
-          password: hashedStudentPassword
+          password: hashedPassword
         },
         {
           demoEmail: 'teacher@demo.com',
           newEmail: 'teacher@treasure.com',
           firstName: 'oluwadare', 
           lastName: 'precious',
-          password: hashedTeacherPassword
+          password: hashedPassword
         },
         {
           demoEmail: 'parent@demo.com',
           newEmail: 'parent@treasure.com',
           firstName: 'oluwadare',
           lastName: 'olufunke', 
-          password: hashedParentPassword
+          password: hashedPassword
         }
       ];
 
@@ -363,39 +360,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const update of updates) {
         try {
-          console.log(`🔍 Looking for demo user: ${update.demoEmail}`);
-          // Get the existing demo user
-          const demoUser = await storage.getUserByEmail(update.demoEmail);
-          if (demoUser) {
-            console.log(`✅ Found demo user: ${update.demoEmail} (ID: ${demoUser.id})`);
+          console.log(`🔍 Looking for user: ${update.demoEmail} or ${update.newEmail}`);
+          // Try to find user by demo email first, then by new email (idempotent fallback)
+          const existing = await storage.getUserByEmail(update.demoEmail) || await storage.getUserByEmail(update.newEmail);
+          
+          if (existing) {
+            const foundBy = existing.email === update.demoEmail ? update.demoEmail : update.newEmail;
+            console.log(`✅ Found user: ${foundBy} (ID: ${existing.id})`);
             
-            // Update with new information
-            console.log(`🔄 Updating user with email: ${update.newEmail}, name: ${update.firstName} ${update.lastName}`);
-            const updatedUser = await storage.updateUser(demoUser.id, {
-              email: update.newEmail,
-              firstName: update.firstName,
-              lastName: update.lastName,
-              passwordHash: update.password
-            });
+            // Build update patch with password and any needed corrections
+            const updatePatch: any = { passwordHash: update.password };
+            if (existing.email !== update.newEmail) updatePatch.email = update.newEmail;
+            if (existing.firstName !== update.firstName) updatePatch.firstName = update.firstName;
+            if (existing.lastName !== update.lastName) updatePatch.lastName = update.lastName;
+            
+            console.log(`🔄 Updating user with:`, updatePatch);
+            const updatedUser = await storage.updateUser(existing.id, updatePatch);
             
             if (updatedUser) {
               console.log(`✅ Update successful! User now has email: ${updatedUser.email}, name: ${updatedUser.firstName} ${updatedUser.lastName}`);
               updateCount++;
               results.push(`${update.newEmail} (${update.firstName} ${update.lastName})`);
               
-              // Verify we can find the user by the new email
-              console.log(`🔍 Verifying new email lookup: ${update.newEmail}`);
+              // Verify we can find the user by the final email
+              console.log(`🔍 Verifying final email lookup: ${update.newEmail}`);
               const verificationUser = await storage.getUserByEmail(update.newEmail);
               if (verificationUser) {
-                console.log(`✅ Verification successful! Can find user by new email: ${update.newEmail}`);
+                console.log(`✅ Verification successful! Can find user by final email: ${update.newEmail}`);
               } else {
-                console.log(`❌ Verification FAILED! Cannot find user by new email: ${update.newEmail}`);
+                console.log(`❌ Verification FAILED! Cannot find user by final email: ${update.newEmail}`);
               }
             } else {
-              console.log(`❌ Update returned null/undefined for ${update.demoEmail}`);
+              console.log(`❌ Update returned null/undefined for user ${existing.email}`);
             }
           } else {
-            console.log(`❌ Demo user ${update.demoEmail} not found`);
+            console.log(`❌ User not found by either ${update.demoEmail} or ${update.newEmail}`);
           }
         } catch (error) {
           console.error(`❌ Failed to update ${update.demoEmail}:`, error);
