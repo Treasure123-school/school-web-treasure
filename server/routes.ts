@@ -1080,48 +1080,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only add questions to exams you created" });
       }
 
-      const createdQuestions = [];
-      let createdCount = 0;
+      // Get existing questions to determine proper order numbers
+      const existingQuestions = await storage.getExamQuestions(examId);
+      const maxOrder = existingQuestions.length > 0 ? Math.max(...existingQuestions.map(q => q.orderNumber || 0)) : 0;
 
-      for (const questionData of questions) {
+      const createdQuestions = [];
+      let validationErrors = [];
+
+      // Validate all questions first
+      for (let i = 0; i < questions.length; i++) {
+        const questionData = questions[i];
         try {
-          // Validate question data
-          const questionToCreate = {
+          // Normalize questionType
+          if (questionData.questionType) {
+            questionData.questionType = String(questionData.questionType).toLowerCase().replace(/[-\s]/g, '_');
+          }
+
+          // Validate with schema
+          const validatedQuestion = insertExamQuestionSchema.parse({
             examId: examId,
             questionText: questionData.questionText,
             questionType: questionData.questionType,
             points: questionData.points || 1,
-            orderNumber: questionData.orderNumber || (createdCount + 1)
-          };
+            orderNumber: maxOrder + i + 1
+          });
 
-          // Create the question
-          const question = await storage.createExamQuestion(questionToCreate);
-          createdQuestions.push(question);
-          createdCount++;
-
-          // Create options for multiple choice questions
-          if (questionData.questionType === 'multiple_choice' && questionData.options) {
-            for (const [index, optionData] of questionData.options.entries()) {
-              if (optionData.optionText) {
-                await storage.createQuestionOption({
-                  questionId: question.id,
-                  optionText: optionData.optionText,
-                  isCorrect: optionData.isCorrect || false,
-                  orderNumber: index + 1
-                });
-              }
+          // Validate options for multiple choice questions
+          if (validatedQuestion.questionType === 'multiple_choice') {
+            if (!questionData.options || !Array.isArray(questionData.options) || questionData.options.length < 2) {
+              validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least 2 options`);
+              continue;
+            }
+            
+            const hasCorrectAnswer = questionData.options.some((option: any) => option.isCorrect === true);
+            if (!hasCorrectAnswer) {
+              validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least one correct answer`);
+              continue;
             }
           }
 
+          questions[i] = { ...questionData, validatedQuestion };
         } catch (error) {
-          console.error(`Failed to create question: ${questionData.questionText}`, error);
-          // Continue with other questions
+          validationErrors.push(`Question ${i + 1}: ${error instanceof Error ? error.message : 'Invalid question data'}`);
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        return res.status(400).json({ 
+          message: "Validation errors found",
+          errors: validationErrors
+        });
+      }
+
+      // Create all questions in sequence using atomic method
+      for (const questionData of questions) {
+        try {
+          const question = await storage.createExamQuestionWithOptions(
+            questionData.validatedQuestion, 
+            questionData.options || []
+          );
+          createdQuestions.push(question);
+        } catch (error) {
+          console.error('Failed to create question:', error);
+          // If any question fails, we should ideally rollback, but for now log and continue
+          // TODO: Implement proper transaction handling in storage layer
         }
       }
 
       res.json({ 
-        message: `Successfully created ${createdCount} questions`,
-        created: createdCount,
+        message: `Successfully created ${createdQuestions.length} questions`,
+        created: createdQuestions.length,
         questions: createdQuestions 
       });
 
