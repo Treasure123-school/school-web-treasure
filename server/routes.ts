@@ -286,6 +286,37 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // TEMPORARY DEBUG ROUTE - FIRST ROUTE TO AVOID MIDDLEWARE - Check current users in database
+  app.get("/api/debug/users", async (req, res) => {
+    try {
+      const allRoles = await storage.getRoles();
+      const allUsers = [];
+      
+      for (const role of allRoles) {
+        const users = await storage.getUsersByRole(role.id);
+        for (const user of users) {
+          allUsers.push({
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            roleId: user.roleId,
+            roleName: role.name,
+            isActive: user.isActive
+          });
+        }
+      }
+      
+      res.json({
+        totalUsers: allUsers.length,
+        users: allUsers
+      });
+    } catch (error) {
+      console.error('Debug users error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // Secure file serving for uploads - require authentication
   app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
@@ -476,7 +507,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Login failed. Please try again." });
     }
   });
-
 
 
   // Public contact form with 100% Supabase persistence
