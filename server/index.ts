@@ -108,6 +108,12 @@ function sanitizeLogData(data: any): any {
     }
   }
 
+  // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
+  app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
+    log(`🚨 BLOCKED dangerous route: ${req.method} ${req.path}`);
+    res.status(410).json({ message: "Gone - Route disabled for security" });
+  });
+
   const server = await registerRoutes(app);
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {

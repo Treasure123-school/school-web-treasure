@@ -286,133 +286,85 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // SIMPLE TEST UPDATE - Test if basic user updates work  
-  app.post("/api/test-update", async (req, res) => {
+
+  // Secure admin-only route to reset weak passwords
+  app.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      // Get the demo admin user
-      const demoUser = await storage.getUserByEmail('admin@demo.com');
-      if (!demoUser) {
-        return res.status(404).json({ error: 'Demo admin not found' });
+      console.log('Admin password reset requested by:', req.user?.email);
+      
+      // Get all users to check for weak passwords
+      const allRoles = await storage.getRoles();
+      let allUsers: any[] = [];
+      for (const role of allRoles) {
+        const roleUsers = await storage.getUsersByRole(role.id);
+        allUsers.push(...roleUsers);
       }
-
-      // Try a simple name update first (not email)
-      const result = await storage.updateUser(demoUser.id, {
-        firstName: 'TEST',
-        lastName: 'NAME'
-      });
-
-      if (result) {
-        return res.json({
-          message: 'Basic update test successful',
-          original: { firstName: demoUser.firstName, lastName: demoUser.lastName },
-          updated: { firstName: result.firstName, lastName: result.lastName }
-        });
-      } else {
-        return res.json({ error: 'Update returned null' });
-      }
-    } catch (error) {
-      return res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  });
-
-  // UPDATE DEMO USERS WITH REAL INFO - Simpler direct approach
-  app.post("/api/update-demo-users", async (req, res) => {
-    try {
-      console.log('Updating demo users with real information...');
-
-      // Hash the new password (same for all users)
-      const hashedPassword = await bcrypt.hash('password123', BCRYPT_ROUNDS);
-
-      // Update mappings: demo email -> real info  
-      const updates = [
-        {
-          demoEmail: 'admin@demo.com',
-          newEmail: 'admin@treasure.com',
-          firstName: 'oluwadare',
-          lastName: 'ademuyiwa',
-          password: hashedPassword
-        },
-        {
-          demoEmail: 'student@demo.com',
-          newEmail: 'student@treasure.com', 
-          firstName: 'oluwadare',
-          lastName: 'Marvellous',
-          password: hashedPassword
-        },
-        {
-          demoEmail: 'teacher@demo.com',
-          newEmail: 'teacher@treasure.com',
-          firstName: 'oluwadare', 
-          lastName: 'precious',
-          password: hashedPassword
-        },
-        {
-          demoEmail: 'parent@demo.com',
-          newEmail: 'parent@treasure.com',
-          firstName: 'oluwadare',
-          lastName: 'olufunke', 
-          password: hashedPassword
-        }
-      ];
-
-      let updateCount = 0;
-      const results = [];
-
-      for (const update of updates) {
-        try {
-          console.log(`🔍 Looking for user: ${update.demoEmail} or ${update.newEmail}`);
-          // Try to find user by demo email first, then by new email (idempotent fallback)
-          const existing = await storage.getUserByEmail(update.demoEmail) || await storage.getUserByEmail(update.newEmail);
-          
-          if (existing) {
-            const foundBy = existing.email === update.demoEmail ? update.demoEmail : update.newEmail;
-            console.log(`✅ Found user: ${foundBy} (ID: ${existing.id})`);
-            
-            // Build update patch with password and any needed corrections
-            const updatePatch: any = { passwordHash: update.password };
-            if (existing.email !== update.newEmail) updatePatch.email = update.newEmail;
-            if (existing.firstName !== update.firstName) updatePatch.firstName = update.firstName;
-            if (existing.lastName !== update.lastName) updatePatch.lastName = update.lastName;
-            
-            console.log(`🔄 Updating user with:`, updatePatch);
-            const updatedUser = await storage.updateUser(existing.id, updatePatch);
-            
-            if (updatedUser) {
-              console.log(`✅ Update successful! User now has email: ${updatedUser.email}, name: ${updatedUser.firstName} ${updatedUser.lastName}`);
-              updateCount++;
-              results.push(`${update.newEmail} (${update.firstName} ${update.lastName})`);
-              
-              // Verify we can find the user by the final email
-              console.log(`🔍 Verifying final email lookup: ${update.newEmail}`);
-              const verificationUser = await storage.getUserByEmail(update.newEmail);
-              if (verificationUser) {
-                console.log(`✅ Verification successful! Can find user by final email: ${update.newEmail}`);
-              } else {
-                console.log(`❌ Verification FAILED! Cannot find user by final email: ${update.newEmail}`);
-              }
-            } else {
-              console.log(`❌ Update returned null/undefined for user ${existing.email}`);
+      
+      // Check users who might have the weak default password by attempting to verify against 'password123'
+      const usersToUpdate = [];
+      for (const user of allUsers) {
+        if (user.passwordHash) {
+          try {
+            const hasWeakPassword = await bcrypt.compare('password123', user.passwordHash);
+            if (hasWeakPassword) {
+              usersToUpdate.push(user);
             }
-          } else {
-            console.log(`❌ User not found by either ${update.demoEmail} or ${update.newEmail}`);
+          } catch (error) {
+            // Skip users with invalid password hashes
+            console.warn(`Skipping user ${user.email} - invalid password hash`);
+          }
+        }
+      }
+      
+      console.log(`Found ${usersToUpdate.length} users with weak passwords`);
+      
+      if (usersToUpdate.length === 0) {
+        return res.json({
+          message: "No users found with weak passwords",
+          updatedCount: 0
+        });
+      }
+      
+      // Generate strong unique passwords and update users
+      const passwordUpdates = [];
+      let updateCount = 0;
+      
+      for (const user of usersToUpdate) {
+        try {
+          // Generate a strong random password
+          const strongPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12).toUpperCase() + Math.floor(Math.random() * 100);
+          const hashedPassword = await bcrypt.hash(strongPassword, BCRYPT_ROUNDS);
+          
+          // Update user with new password
+          const updatedUser = await storage.updateUser(user.id, { passwordHash: hashedPassword });
+          
+          if (updatedUser) {
+            passwordUpdates.push({
+              email: user.email,
+              name: `${user.firstName} ${user.lastName}`,
+              newPassword: strongPassword
+            });
+            updateCount++;
+            console.log(`✅ Updated password for ${user.email}`);
           }
         } catch (error) {
-          console.error(`❌ Failed to update ${update.demoEmail}:`, error);
+          console.error(`❌ Failed to update password for ${user.email}:`, error);
         }
       }
-
+      
+      // Return results - Note: In production, consider more secure ways to communicate new passwords
       res.json({
-        message: `Successfully updated ${updateCount} demo users with real information!`,
+        message: `Successfully updated ${updateCount} user passwords`,
         updatedCount: updateCount,
-        updatedAccounts: results,
-        note: "You can now login with your @treasure.com email addresses"
+        warning: "Please securely communicate new passwords to users",
+        passwordUpdates: passwordUpdates
       });
-
+      
     } catch (error) {
-      console.error('Update demo users error:', error);
+      console.error('Password reset error:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : 'Unknown error',
-        message: "Failed to update demo users"
+        message: "Failed to reset passwords" 
       });
     }
   });
@@ -434,8 +386,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
-  // Setup/Demo data route (for development)
-  app.post("/api/setup-demo", async (req, res) => {
+  // Setup/Demo data route (for development) - Admin only for security
+  app.post("/api/setup-demo", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       console.log('Setting up demo data...');
       
