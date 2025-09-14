@@ -777,14 +777,16 @@ export default function ExamManagement() {
                     {/* Manual Add Question */}
                     <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button 
-                          data-testid="button-add-question" 
-                          disabled={!selectedExam}
-                          title={!selectedExam ? "Select an exam from the list above to add questions" : ""}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Question
-                        </Button>
+                        <div title={!selectedExam ? "Select an exam from the list above to add questions" : ""}>
+                          <Button 
+                            data-testid="button-add-question" 
+                            disabled={!selectedExam}
+                            style={!selectedExam ? { pointerEvents: 'none' } : {}}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Question
+                          </Button>
+                        </div>
                       </DialogTrigger>
                       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
