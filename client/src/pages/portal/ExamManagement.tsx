@@ -172,11 +172,26 @@ export default function ExamManagement() {
   // Create question mutation
   const createQuestionMutation = useMutation({
     mutationFn: async (questionData: QuestionForm & { examId: number }) => {
+      console.log('=== CREATE QUESTION MUTATION DEBUG ===');
+      console.log('Mutation called with data:', questionData);
+      
       const response = await apiRequest('POST', '/api/exam-questions', questionData);
-      if (!response.ok) throw new Error('Failed to create question');
-      return response.json();
+      console.log('API Response status:', response.status, response.statusText);
+      console.log('API Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('API Error response body:', errorText);
+        throw new Error(`Failed to create question: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Success response:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('=== CREATE QUESTION SUCCESS ===');
+      console.log('Success data:', data);
       toast({
         title: "Success",
         description: "Question added successfully",
@@ -197,6 +212,9 @@ export default function ExamManagement() {
       });
     },
     onError: (error: any) => {
+      console.log('=== CREATE QUESTION ERROR ===');
+      console.log('Error object:', error);
+      console.log('Error message:', error.message);
       toast({
         title: "Error",
         description: error.message || "Failed to create question",
@@ -232,7 +250,12 @@ export default function ExamManagement() {
   };
 
   const onSubmitQuestion = (data: QuestionForm) => {
+    console.log('=== ADD QUESTION FORM SUBMISSION DEBUG ===');
+    console.log('Form data received:', data);
+    console.log('Selected exam:', selectedExam);
+    
     if (!selectedExam) {
+      console.log('ERROR: No exam selected');
       toast({
         title: "No Exam Selected",
         description: "Please select an exam before adding questions",
@@ -242,6 +265,7 @@ export default function ExamManagement() {
     }
     
     const nextOrderNumber = examQuestions.length + 1;
+    console.log('Next order number:', nextOrderNumber);
     
     // Prepare the question data
     const questionData: any = {
@@ -252,6 +276,7 @@ export default function ExamManagement() {
     
     // For multiple choice questions, filter out empty options and validate
     if (data.questionType === 'multiple_choice' && data.options) {
+      console.log('Processing multiple choice options:', data.options);
       const validOptions = data.options
         .filter(option => option.optionText.trim() !== '')
         .map((option, index) => ({
@@ -260,12 +285,16 @@ export default function ExamManagement() {
           orderNumber: index + 1
         }));
       
+      console.log('Valid options after filtering:', validOptions);
       questionData.options = validOptions;
     } else {
+      console.log('Non-multiple choice question, removing options');
       // For non-multiple choice questions, don't send options
       delete questionData.options;
     }
     
+    console.log('Final question data to be sent:', questionData);
+    console.log('Calling createQuestionMutation.mutate...');
     createQuestionMutation.mutate(questionData);
   };
 
