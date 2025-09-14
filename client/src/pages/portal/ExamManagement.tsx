@@ -723,6 +723,21 @@ export default function ExamManagement() {
           </CardContent>
         </Card>
 
+        {/* Empty state guidance when no exam is selected */}
+        {!selectedExam && (
+          <Card className="mt-6">
+            <CardContent className="pt-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">Select an Exam to Manage Questions</h3>
+                <p className="text-sm">
+                  To add questions or upload CSV files, please select an exam from the list above by clicking the "Manage Questions" button.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Question Management Modal */}
         {selectedExam && (
           <Dialog open={!!selectedExam} onOpenChange={(open) => { if (!open) setSelectedExam(null); }}>
@@ -765,7 +780,7 @@ export default function ExamManagement() {
                         <Button 
                           data-testid="button-add-question" 
                           disabled={!selectedExam}
-                          title={!selectedExam ? "Please select an exam first" : ""}
+                          title={!selectedExam ? "Select an exam from the list above to add questions" : ""}
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Question
