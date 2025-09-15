@@ -4,24 +4,24 @@
  */
 
 export const ROLE_IDS = {
-  STUDENT: 1,
+  ADMIN: 1,
   TEACHER: 2, 
-  PARENT: 3,
-  ADMIN: 4
+  STUDENT: 3,
+  PARENT: 4
 } as const;
 
 export const ROLE_NAMES = {
-  [ROLE_IDS.STUDENT]: 'Student',
+  [ROLE_IDS.ADMIN]: 'Admin',
   [ROLE_IDS.TEACHER]: 'Teacher',
-  [ROLE_IDS.PARENT]: 'Parent',
-  [ROLE_IDS.ADMIN]: 'Admin'
+  [ROLE_IDS.STUDENT]: 'Student',
+  [ROLE_IDS.PARENT]: 'Parent'
 } as const;
 
 export const ROLE_PORTALS = {
-  [ROLE_IDS.STUDENT]: '/portal/student',
+  [ROLE_IDS.ADMIN]: '/portal/admin',
   [ROLE_IDS.TEACHER]: '/portal/teacher',
-  [ROLE_IDS.PARENT]: '/portal/parent',
-  [ROLE_IDS.ADMIN]: '/portal/admin'
+  [ROLE_IDS.STUDENT]: '/portal/student',
+  [ROLE_IDS.PARENT]: '/portal/parent'
 } as const;
 
 /**

@@ -78,10 +78,10 @@ function normalizeUuid(raw: any): string | undefined {
 
 // Define role constants to prevent authorization bugs
 const ROLES = {
-  STUDENT: 1,
+  ADMIN: 1,
   TEACHER: 2,
-  PARENT: 3,
-  ADMIN: 4
+  STUDENT: 3,
+  PARENT: 4
 } as const;
 
 // Rate limiting for login attempts (simple in-memory store)
