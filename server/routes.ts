@@ -931,13 +931,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = (req as any).user;
       let exams: any[] = [];
 
+      console.log(`Fetching exams for user: ${user.email} (role: ${user.roleId})`);
+
       if (user.roleId === ROLES.STUDENT) {
         // For students: only show published exams for their class
         const student = await storage.getStudent(user.id);
+        console.log(`Student data:`, student);
+        
         if (student && student.classId) {
           const classExams = await storage.getExamsByClass(student.classId);
+          console.log(`Found ${classExams.length} exams for class ${student.classId}`);
+          
           // Filter to only published exams
           exams = classExams.filter(exam => exam.isPublished);
+          console.log(`Filtered to ${exams.length} published exams for student`);
+        } else {
+          console.log('Student not found or has no class assigned');
         }
       } else {
         // For teachers and admins: show all exams they have access to
@@ -945,9 +954,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Teachers see their own exams
           const allExams = await storage.getAllExams();
           exams = allExams.filter(exam => exam.createdBy === user.id);
+          console.log(`Teacher sees ${exams.length} exams they created`);
         } else {
           // Admins see all exams
           exams = await storage.getAllExams();
+          console.log(`Admin sees all ${exams.length} exams`);
         }
       }
 
