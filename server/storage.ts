@@ -882,7 +882,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAttendanceAnalytics(filters: any): Promise<any> {
     try {
-      let attendance = await db.select().from(schema.attendance);
+      let attendance: Attendance[] = await db.select().from(schema.attendance);
       
       // Apply filters
       if (filters.classId) {
@@ -1024,7 +1024,7 @@ export class DatabaseStorage implements IStorage {
 
   private async calculateClassAttendanceComparison(): Promise<any[]> {
     try {
-      const classes = await db.select().from(schema.classes);
+      const classes: Class[] = await db.select().from(schema.classes);
       return classes.map(cls => ({
         className: cls.name,
         attendanceRate: 85 + Math.floor(Math.random() * 15), // Simplified for demo
