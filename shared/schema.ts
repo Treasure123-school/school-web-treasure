@@ -261,7 +261,15 @@ export const insertContactMessageSchema = createInsertSchema(contactMessages).om
 // New exam delivery schemas
 export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true });
 export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true });
-export const insertExamSessionSchema = createInsertSchema(examSessions).omit({ id: true, createdAt: true });
+// For exam sessions, only require examId from client - studentId is set from authenticated user
+export const insertExamSessionSchema = createInsertSchema(examSessions).omit({ 
+  id: true, 
+  createdAt: true, 
+  startedAt: true,
+  studentId: true  // Server sets this from authenticated user
+}).partial().required({ 
+  examId: true
+});
 export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
 
 // Types

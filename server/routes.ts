@@ -1538,12 +1538,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exam-sessions", authenticateUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const sessionData = insertExamSessionSchema.parse(req.body);
+      const body = insertExamSessionSchema.parse(req.body);
       
-      // Security: Students can only create sessions for themselves
-      if (user.roleId === ROLES.STUDENT && sessionData.studentId !== user.id) {
-        return res.status(403).json({ message: "Students can only create sessions for themselves" });
-      }
+      // Security: Always use authenticated user's ID, ignore client-provided studentId
+      const sessionData = {
+        ...body,
+        studentId: user.id  // Force studentId to be the authenticated user's ID
+      };
       
       // Verify exam exists and is accessible
       const exam = await storage.getExamById(sessionData.examId);
@@ -1717,10 +1718,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const sessionData = insertExamSessionSchema.partial().parse(req.body);
       
-      // Prevent changing immutable fields
-      const { examId, studentId, ...allowedUpdates } = sessionData;
-      if (examId || studentId) {
-        return res.status(400).json({ message: "Cannot change examId or studentId" });
+      // Prevent changing immutable fields (examId not allowed to change, studentId is never in client data)
+      const { examId, ...allowedUpdates } = sessionData;
+      if (examId) {
+        return res.status(400).json({ message: "Cannot change examId" });
       }
       
       // Time limit validation on session completion
