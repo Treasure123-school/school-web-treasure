@@ -429,8 +429,8 @@ export default function StudentExams() {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
       1: 'admin',
       2: 'teacher', 
-      3: 'parent',
-      4: 'student'
+      3: 'student',
+      4: 'parent'
     };
     return roleMap[roleId] || 'student';
   };
