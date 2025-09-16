@@ -144,6 +144,21 @@ export default function ExamManagement() {
     enabled: !!selectedExam?.id,
   });
 
+  // Fetch question counts for all exams
+  const { data: questionCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)],
+    enabled: exams.length > 0,
+    queryFn: async () => {
+      const examIds = exams.map(exam => exam.id);
+      if (examIds.length === 0) return {};
+      
+      const queryString = examIds.map(id => `examIds=${id}`).join('&');
+      const response = await apiRequest('GET', `/api/exams/question-counts?${queryString}`);
+      if (!response.ok) throw new Error('Failed to fetch question counts');
+      return response.json();
+    },
+  });
+
   // Create exam mutation
   const createExamMutation = useMutation({
     mutationFn: async (examData: ExamForm) => {
@@ -169,6 +184,29 @@ export default function ExamManagement() {
     },
   });
 
+  // Publish/Unpublish exam mutation
+  const togglePublishMutation = useMutation({
+    mutationFn: async ({ examId, isPublished }: { examId: number; isPublished: boolean }) => {
+      const response = await apiRequest('PATCH', `/api/exams/${examId}/publish`, { isPublished });
+      if (!response.ok) throw new Error('Failed to update exam publish status');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Exam publish status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update exam publish status",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create question mutation
   const createQuestionMutation = useMutation({
     mutationFn: async (questionData: QuestionForm & { examId: number }) => {
@@ -182,6 +220,7 @@ export default function ExamManagement() {
         description: "Question added successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] });
       setIsQuestionDialogOpen(false);
       // Reset form with default values
       resetQuestion({
@@ -684,8 +723,7 @@ export default function ExamManagement() {
                       <TableCell>
                         <div className="flex items-center">
                           <FileText className="w-4 h-4 mr-1" />
-                          {/* TODO: Get question count from API */}
-                          0 questions
+                          {questionCounts[exam.id] || 0} question{(questionCounts[exam.id] || 0) !== 1 ? 's' : ''}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -698,6 +736,19 @@ export default function ExamManagement() {
                           >
                             <Edit className="w-4 h-4 mr-1" />
                             Questions
+                          </Button>
+                          <Button
+                            variant={exam.isPublished ? "default" : "secondary"}
+                            size="sm"
+                            onClick={() => togglePublishMutation.mutate({ 
+                              examId: exam.id, 
+                              isPublished: !exam.isPublished 
+                            })}
+                            disabled={togglePublishMutation.isPending}
+                            data-testid={`button-toggle-publish-${exam.id}`}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            {exam.isPublished ? 'Unpublish' : 'Publish'}
                           </Button>
                           <Button
                             variant="outline"

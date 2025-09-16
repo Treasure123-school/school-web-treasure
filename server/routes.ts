@@ -1141,6 +1141,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get question counts for multiple exams
+  app.get("/api/exams/question-counts", authenticateUser, async (req, res) => {
+    try {
+      const { examIds } = req.query;
+      
+      if (!examIds) {
+        return res.status(400).json({ message: "examIds parameter is required" });
+      }
+      
+      const idsArray = Array.isArray(examIds) ? examIds.map(id => parseInt(id as string)) : [parseInt(examIds as string)];
+      const questionCounts = await storage.getExamQuestionCounts(idsArray);
+      
+      res.json(questionCounts);
+    } catch (error) {
+      console.error('Error fetching question counts:', error);
+      res.status(500).json({ message: "Failed to fetch question counts" });
+    }
+  });
+
+  // Publish/Unpublish exam
+  app.patch("/api/exams/:id/publish", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { isPublished } = req.body;
+
+      const exam = await storage.getExamById(parseInt(id));
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // For teachers: verify they created this exam
+      if (user.roleId === ROLES.TEACHER && exam.createdBy !== user.id) {
+        return res.status(403).json({ message: "You can only publish exams you created" });
+      }
+
+      const updatedExam = await storage.updateExam(parseInt(id), { isPublished });
+      if (!updatedExam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      res.json(updatedExam);
+    } catch (error) {
+      console.error('Error updating exam publish status:', error);
+      res.status(500).json({ message: "Failed to update exam publish status" });
+    }
+  });
+
   // Bulk Question Upload - for CSV uploads
   app.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {

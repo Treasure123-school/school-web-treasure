@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@shared/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql as dsql, inArray } from "drizzle-orm";
 import type { 
   User, InsertUser, Student, InsertStudent, Class, InsertClass, 
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -13,22 +13,22 @@ import type {
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
-let sql: any;
+let pg: any;
 let db: any;
 
 function initializeDatabase() {
-  if (!sql && process.env.DATABASE_URL) {
+  if (!pg && process.env.DATABASE_URL) {
     console.log("🔗 CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ':***@'));
-    sql = postgres(process.env.DATABASE_URL, {
+    pg = postgres(process.env.DATABASE_URL, {
       ssl: process.env.NODE_ENV === 'production' ? 'require' : { rejectUnauthorized: false },
       prepare: false // Required for Supabase transaction pooler
     });
-    db = drizzle(sql, { schema });
+    db = drizzle(pg, { schema });
     console.log("✅ POSTGRESQL DATABASE CONNECTION ESTABLISHED");
   } else if (!process.env.DATABASE_URL) {
     console.log("⚠️  WARNING: DATABASE_URL not set - falling back to memory storage");
   }
-  return { sql, db };
+  return { pg, db };
 }
 
 // Export db for migrations (initialize if needed)  
@@ -96,6 +96,8 @@ export interface IStorage {
   getExamQuestions(examId: number): Promise<ExamQuestion[]>;
   updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined>;
   deleteExamQuestion(id: number): Promise<boolean>;
+  getExamQuestionCount(examId: number): Promise<number>;
+  getExamQuestionCounts(examIds: number[]): Promise<Record<number, number>>;
 
   // Question options management  
   createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption>;
@@ -479,6 +481,28 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.examQuestions)
       .where(eq(schema.examQuestions.examId, examId))
       .orderBy(asc(schema.examQuestions.orderNumber));
+  }
+
+  async getExamQuestionCount(examId: number): Promise<number> {
+    const result = await db.select({ count: dsql`count(*)` }).from(schema.examQuestions)
+      .where(eq(schema.examQuestions.examId, examId));
+    return Number(result[0]?.count || 0);
+  }
+
+  async getExamQuestionCounts(examIds: number[]): Promise<Record<number, number>> {
+    if (examIds.length === 0) return {};
+    
+    const result = await db.select({ 
+      examId: schema.examQuestions.examId,
+      count: dsql`count(*)` 
+    }).from(schema.examQuestions)
+      .where(inArray(schema.examQuestions.examId, examIds))
+      .groupBy(schema.examQuestions.examId);
+    
+    const counts: Record<number, number> = {};
+    examIds.forEach(id => counts[id] = 0); // Initialize all to 0
+    result.forEach(row => counts[row.examId] = Number(row.count));
+    return counts;
   }
 
   async updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined> {
