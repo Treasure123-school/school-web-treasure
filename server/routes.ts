@@ -18,6 +18,15 @@ interface AuthenticatedUser {
   lastName: string;
 }
 
+// Extend Express Request interface to include user property added by authentication middleware
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthenticatedUser;
+    }
+  }
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6)

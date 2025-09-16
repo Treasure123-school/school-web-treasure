@@ -2303,13 +2303,11 @@ class MemoryStorage implements IStorage {
 }
 
 // Initialize storage with database fallback to memory storage
-async function initializeStorage(): Promise<IStorage> {
-  // Try database storage first
+function initializeStorageSync(): IStorage {
+  // Always prefer database storage if available
   if (process.env.DATABASE_URL) {
     try {
       const dbStorage = new DatabaseStorage();
-      // Schema-agnostic connectivity test  
-      await dbStorage.db.execute('SELECT 1');
       console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage');
       return dbStorage;
     } catch (error) {
@@ -2324,15 +2322,5 @@ async function initializeStorage(): Promise<IStorage> {
   return new MemoryStorage();
 }
 
-// Use mutable binding for proper storage switching
-export let storage: IStorage = new MemoryStorage(); // Default to memory storage
-
-// Asynchronously initialize and replace storage
-(async () => {
-  try {
-    storage = await initializeStorage();
-  } catch (error) {
-    console.error('Failed to initialize storage:', error);
-    // Keep default MemoryStorage
-  }
-})();
+// Initialize storage synchronously to avoid race conditions
+export const storage: IStorage = initializeStorageSync();
