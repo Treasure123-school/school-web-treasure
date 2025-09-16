@@ -501,7 +501,7 @@ export class DatabaseStorage implements IStorage {
     
     const counts: Record<number, number> = {};
     examIds.forEach(id => counts[id] = 0); // Initialize all to 0
-    result.forEach(row => counts[row.examId] = Number(row.count));
+    result.forEach((row: any) => counts[row.examId] = Number(row.count));
     return counts;
   }
 
@@ -767,10 +767,10 @@ export class DatabaseStorage implements IStorage {
         gradeDistribution,
         subjectPerformance,
         recentActivity: {
-          newStudentsThisMonth: students.filter(s => 
+          newStudentsThisMonth: students.filter((s: any) => 
             s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           ).length,
-          examsThisMonth: exams.filter(e => 
+          examsThisMonth: exams.filter((e: any) => 
             e.createdAt && new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           ).length
         }
@@ -789,21 +789,21 @@ export class DatabaseStorage implements IStorage {
       if (filters.classId) {
         const studentsInClass = await db.select().from(schema.students)
           .where(eq(schema.students.classId, filters.classId));
-        const studentIds = studentsInClass.map(s => s.id);
-        examResults = examResults.filter(r => studentIds.includes(r.studentId));
+        const studentIds = studentsInClass.map((s: any) => s.id);
+        examResults = examResults.filter((r: any) => studentIds.includes(r.studentId));
       }
 
       if (filters.subjectId) {
         const examsForSubject = await db.select().from(schema.exams)
           .where(eq(schema.exams.subjectId, filters.subjectId));
-        const examIds = examsForSubject.map(e => e.id);
-        examResults = examResults.filter(r => examIds.includes(r.examId));
+        const examIds = examsForSubject.map((e: any) => e.id);
+        examResults = examResults.filter((r: any) => examIds.includes(r.examId));
       }
 
       // Calculate performance metrics
       const totalExams = examResults.length;
       const averageScore = totalExams > 0 ? 
-        examResults.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
+        examResults.reduce((sum: any, r: any) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
       
       const gradeDistribution = this.calculateGradeDistribution(examResults);
       
@@ -821,7 +821,7 @@ export class DatabaseStorage implements IStorage {
         performanceTrends,
         topPerformers: studentPerformance.slice(0, 5),
         strugglingStudents: studentPerformance.slice(-5),
-        passRate: Math.round((examResults.filter(r => (r.marksObtained || 0) >= 50).length / totalExams) * 100)
+        passRate: Math.round((examResults.filter((r: any) => (r.marksObtained || 0) >= 50).length / totalExams) * 100)
       };
     } catch (error) {
       console.error('Error in getPerformanceAnalytics:', error);
@@ -888,8 +888,8 @@ export class DatabaseStorage implements IStorage {
       if (filters.classId) {
         const studentsInClass = await db.select().from(schema.students)
           .where(eq(schema.students.classId, filters.classId));
-        const studentIds = studentsInClass.map(s => s.id);
-        attendance = attendance.filter(a => studentIds.includes(a.studentId));
+        const studentIds = studentsInClass.map((s: any) => s.id);
+        attendance = attendance.filter((a: any) => studentIds.includes(a.studentId));
       }
 
       if (filters.startDate && filters.endDate) {
