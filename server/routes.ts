@@ -1144,14 +1144,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get question counts for multiple exams
   app.get("/api/exams/question-counts", authenticateUser, async (req, res) => {
     try {
-      const { examIds } = req.query;
+      const raw = req.query.examIds;
       
-      if (!examIds) {
+      if (!raw) {
         return res.status(400).json({ message: "examIds parameter is required" });
       }
       
-      const idsArray = Array.isArray(examIds) ? examIds.map(id => parseInt(id as string)) : [parseInt(examIds as string)];
-      const questionCounts = await storage.getExamQuestionCounts(idsArray);
+      // Robust parsing: handle array, comma-separated string, or single value
+      const ids = (Array.isArray(raw) ? raw : (typeof raw === 'string' ? raw.split(',') : []))
+        .map(x => parseInt(String(x), 10))
+        .filter(Number.isFinite);
+      
+      if (ids.length === 0) {
+        return res.status(400).json({ message: "No valid exam IDs provided" });
+      }
+      
+      console.log('Fetching question counts for exam IDs:', ids);
+      const questionCounts = await storage.getExamQuestionCounts(ids);
+      console.log('Question counts result:', questionCounts);
       
       res.json(questionCounts);
     } catch (error) {
