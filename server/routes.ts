@@ -743,11 +743,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      const studentData = insertStudentSchema.parse(req.body);
-      const student = await storage.createStudent(studentData);
-      res.json(student);
+      console.log('Creating student with data:', req.body);
+      
+      // Combined validation schema for user + student fields
+      const createStudentSchema = z.object({
+        // User fields
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        firstName: z.string().min(1, "First name is required"),
+        lastName: z.string().min(1, "Last name is required"),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        dateOfBirth: z.string().optional(),
+        gender: z.enum(['Male', 'Female', 'Other']).optional(),
+        profileImageUrl: z.string().optional(),
+        // Student-specific fields
+        admissionNumber: z.string().min(1, "Admission number is required"),
+        classId: z.number().optional(),
+        parentId: z.string().optional(),
+        admissionDate: z.string().optional(),
+      });
+
+      const validatedData = createStudentSchema.parse(req.body);
+      
+      // Check if user with this email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(409).json({ message: "Email address already exists" });
+      }
+
+      // Hash the password
+      const passwordHash = await bcrypt.hash(validatedData.password, BCRYPT_ROUNDS);
+
+      // Prepare user data
+      const userData = {
+        email: validatedData.email,
+        passwordHash,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        phone: validatedData.phone || null,
+        address: validatedData.address || null,
+        dateOfBirth: validatedData.dateOfBirth || null,
+        gender: validatedData.gender || null,
+        profileImageUrl: validatedData.profileImageUrl || null,
+        roleId: ROLES.STUDENT, // Always set to student role
+        isActive: true
+      };
+
+      // Create user first
+      console.log('Creating user for student...');
+      const user = await storage.createUser(userData);
+      console.log('User created with ID:', user.id);
+
+      try {
+        // Prepare student data
+        const studentData = {
+          id: user.id, // Use the same ID as the user
+          admissionNumber: validatedData.admissionNumber,
+          classId: validatedData.classId || null,
+          parentId: validatedData.parentId || null,
+          admissionDate: validatedData.admissionDate || null,
+        };
+
+        // Create student record
+        console.log('Creating student record...');
+        const student = await storage.createStudent(studentData);
+        console.log('Student created successfully');
+
+        res.json({ 
+          message: "Student created successfully",
+          student,
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          }
+        });
+
+      } catch (studentError) {
+        // Rollback: delete the user if student creation fails
+        console.error('Student creation failed, rolling back user:', studentError);
+        try {
+          await storage.deleteUser(user.id);
+        } catch (rollbackError) {
+          console.error('Rollback failed:', rollbackError);
+        }
+        
+        if ((studentError as any).code === '23505') {
+          return res.status(409).json({ message: "Admission number already exists" });
+        }
+        
+        throw studentError;
+      }
+
     } catch (error) {
-      res.status(400).json({ message: "Invalid student data" });
+      console.error('Error creating student:', error);
+      
+      // Handle validation errors
+      if ((error as any)?.name === 'ZodError' || ((error as any)?.issues && Array.isArray((error as any).issues))) {
+        const validationErrors = (error as any).issues || [];
+        const errorMessage = validationErrors.map((err: any) => `${err.path.join('.')}: ${err.message}`).join(', ');
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: errorMessage 
+        });
+      }
+      
+      res.status(500).json({ message: "Failed to create student" });
     }
   });
 

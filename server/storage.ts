@@ -1083,7 +1083,9 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Use memory storage as fallback if database isn't working
+// REMOVED: MemoryStorage - All data must be stored in Supabase database only
+// The following class has been removed to ensure exclusive Supabase storage
+/*
 class MemoryStorage implements IStorage {
   private roles: Role[] = [
     { id: 1, name: 'Student', permissions: [], createdAt: new Date() },
@@ -2301,26 +2303,30 @@ class MemoryStorage implements IStorage {
     };
   }
 }
+*/
 
-// Initialize storage with database fallback to memory storage
+// Initialize storage - SUPABASE DATABASE ONLY (no fallback)
 function initializeStorageSync(): IStorage {
-  // Always prefer database storage if available
-  if (process.env.DATABASE_URL) {
-    try {
-      const dbStorage = new DatabaseStorage();
-      console.log('✅ STORAGE: Using PostgreSQL DatabaseStorage');
-      return dbStorage;
-    } catch (error) {
-      console.warn('⚠️ Database connection failed, falling back to MemoryStorage:', error instanceof Error ? error.message : 'Unknown error');
-    }
-  } else {
-    console.log('📝 DATABASE_URL not set, using MemoryStorage');
+  // CRITICAL: Only use Supabase database - no memory storage fallback
+  if (!process.env.DATABASE_URL) {
+    console.error('🚨 CRITICAL: DATABASE_URL environment variable is required');
+    console.error('🚨 This application ONLY stores data in Supabase database');
+    console.error('🚨 Please ensure your Supabase DATABASE_URL is properly configured');
+    process.exit(1);
   }
-  
-  // Fall back to memory storage
-  console.log('✅ STORAGE: Using MemoryStorage with demo data');
-  return new MemoryStorage();
+
+  try {
+    const dbStorage = new DatabaseStorage();
+    console.log('✅ STORAGE: Using SUPABASE PostgreSQL Database - ALL DATA STORED IN SUPABASE');
+    return dbStorage;
+  } catch (error) {
+    console.error('🚨 CRITICAL: Failed to connect to Supabase database');
+    console.error('🚨 All data MUST be stored in Supabase database as requested');
+    console.error('🚨 Database connection error:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('🚨 Application cannot continue without Supabase database connection');
+    process.exit(1);
+  }
 }
 
-// Initialize storage synchronously to avoid race conditions
+// Initialize storage - Supabase database only
 export const storage: IStorage = initializeStorageSync();
