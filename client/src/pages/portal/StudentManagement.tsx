@@ -83,8 +83,9 @@ export default function StudentManagement() {
   // Create student mutation
   const createStudentMutation = useMutation({
     mutationFn: async (data: StudentForm) => {
-      // First create the user
-      const userResponse = await apiRequest('POST', '/api/users', {
+      // Create student with all data in single API call
+      const studentResponse = await apiRequest('POST', '/api/students', {
+        // User fields
         email: data.email,
         password: data.password,
         firstName: data.firstName,
@@ -93,20 +94,13 @@ export default function StudentManagement() {
         address: data.address,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
-        roleId: 1, // Student role
-      });
-      
-      const user = await userResponse.json();
-      
-      // Then create the student record
-      const studentResponse = await apiRequest('POST', '/api/students', {
-        id: user.id,
+        // Student-specific fields
         admissionNumber: data.admissionNumber,
         classId: parseInt(data.classId),
         parentId: data.parentId,
         emergencyContact: data.emergencyContact,
         medicalInfo: data.medicalInfo || null,
-        dateOfAdmission: data.dateOfAdmission,
+        admissionDate: data.dateOfAdmission,
       });
       
       return await studentResponse.json();
