@@ -754,14 +754,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: z.string().min(1, "Last name is required"),
         phone: z.string().optional(),
         address: z.string().optional(),
-        dateOfBirth: z.string().optional(),
+        dateOfBirth: z.string().optional().transform(val => {
+          if (!val) return null;
+          // Convert DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
+          if (val.includes('/')) {
+            const [day, month, year] = val.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+          return val;
+        }),
         gender: z.enum(['Male', 'Female', 'Other']).optional(),
         profileImageUrl: z.string().optional(),
         // Student-specific fields
         admissionNumber: z.string().min(1, "Admission number is required"),
         classId: z.number().optional(),
         parentId: z.string().optional(),
-        admissionDate: z.string().optional(),
+        admissionDate: z.string().optional().transform(val => {
+          if (!val) return null;
+          // Convert DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
+          if (val.includes('/')) {
+            const [day, month, year] = val.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+          return val;
+        }),
         emergencyContact: z.string().optional(),
         medicalInfo: z.string().nullable().optional().transform(val => val === null ? "" : val),
       });
@@ -852,6 +868,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Validation failed", 
           errors: errorMessage 
         });
+      }
+      
+      // Handle specific database errors
+      if ((error as any)?.code) {
+        switch ((error as any).code) {
+          case '23503': // Foreign key violation
+            if ((error as any).message.includes('role_id')) {
+              return res.status(400).json({ message: "Invalid user role. Please contact administrator." });
+            } else if ((error as any).message.includes('class_id')) {
+              return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
+            } else if ((error as any).message.includes('parent_id')) {
+              return res.status(400).json({ message: "Selected parent does not exist. Please select a valid parent." });
+            }
+            return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
+          case '22007': // Invalid datetime format
+            return res.status(400).json({ message: "Invalid date format. Please use DD/MM/YYYY format." });
+          case '23505': // Unique violation (handled above for admission number, but just in case)
+            if ((error as any).message.includes('email')) {
+              return res.status(409).json({ message: "Email address already exists" });
+            }
+            break;
+        }
       }
       
       res.status(500).json({ message: "Failed to create student" });
