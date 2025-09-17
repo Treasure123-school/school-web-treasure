@@ -17,18 +17,18 @@ import { UserPlus, Edit, Search, Download } from 'lucide-react';
 
 const studentFormSchema = z.object({
   admissionNumber: z.string().min(1, 'Admission number is required'),
-  classId: z.string().min(1, 'Class is required'),
-  parentId: z.string().min(1, 'Parent is required'),
+  classId: z.coerce.number().positive('Please select a valid class'),
+  parentId: z.string().uuid('Please select a valid parent').optional(),
   emergencyContact: z.string().min(1, 'Emergency contact is required'),
   medicalInfo: z.string().optional(),
-  dateOfAdmission: z.string().min(1, 'Date of admission is required'),
+  admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Valid email is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   phone: z.string().optional(),
   address: z.string().optional(),
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   gender: z.enum(['Male', 'Female', 'Other']),
 });
 
@@ -90,18 +90,23 @@ export default function StudentManagement() {
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: data.phone,
-        address: data.address,
+        phone: data.phone || null,
+        address: data.address || null,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         // Student-specific fields
         admissionNumber: data.admissionNumber,
-        classId: parseInt(data.classId),
-        parentId: data.parentId,
+        classId: data.classId, // Already coerced to number by zod
+        parentId: data.parentId || null,
         emergencyContact: data.emergencyContact,
-        medicalInfo: data.medicalInfo || "",
-        admissionDate: data.dateOfAdmission,
+        medicalInfo: data.medicalInfo || null,
+        admissionDate: data.admissionDate, // Fixed field name
       });
+      
+      if (!studentResponse.ok) {
+        const errorData = await studentResponse.json();
+        throw new Error(errorData.message || 'Failed to create student');
+      }
       
       return await studentResponse.json();
     },
@@ -115,10 +120,10 @@ export default function StudentManagement() {
       setIsDialogOpen(false);
       reset();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: 'Failed to create student',
+        description: error.message || 'Failed to create student',
         variant: 'destructive',
       });
     },
@@ -239,15 +244,15 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="dateOfAdmission">Date of Admission</Label>
+                  <Label htmlFor="admissionDate">Date of Admission</Label>
                   <Input
-                    id="dateOfAdmission"
+                    id="admissionDate"
                     type="date"
-                    {...register('dateOfAdmission')}
-                    data-testid="input-dateOfAdmission"
+                    {...register('admissionDate')}
+                    data-testid="input-admissionDate"
                   />
-                  {errors.dateOfAdmission && (
-                    <p className="text-red-500 text-sm">{errors.dateOfAdmission.message}</p>
+                  {errors.admissionDate && (
+                    <p className="text-red-500 text-sm">{errors.admissionDate.message}</p>
                   )}
                 </div>
               </div>
@@ -286,7 +291,7 @@ export default function StudentManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="classId">Class</Label>
-                  <Select onValueChange={(value) => setValue('classId', value)}>
+                  <Select onValueChange={(value) => setValue('classId', parseInt(value))}>
                     <SelectTrigger data-testid="select-class">
                       <SelectValue placeholder="Select class" />
                     </SelectTrigger>

@@ -754,12 +754,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: z.string().min(1, "Last name is required"),
         phone: z.string().optional(),
         address: z.string().optional(),
-        dateOfBirth: z.string().optional().transform(val => {
+        dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format").optional().transform(val => {
           if (!val) return null;
-          // Convert DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
-          if (val.includes('/')) {
-            const [day, month, year] = val.split('/');
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          // Validate the date is actually valid
+          const date = new Date(val + 'T00:00:00');
+          if (isNaN(date.getTime())) {
+            throw new Error('Invalid date');
           }
           return val;
         }),
@@ -767,14 +767,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profileImageUrl: z.string().optional(),
         // Student-specific fields
         admissionNumber: z.string().min(1, "Admission number is required"),
-        classId: z.number().optional(),
-        parentId: z.string().optional(),
-        admissionDate: z.string().optional().transform(val => {
+        classId: z.coerce.number().positive("Please select a valid class").optional(),
+        parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
+        admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format").optional().transform(val => {
           if (!val) return null;
-          // Convert DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
-          if (val.includes('/')) {
-            const [day, month, year] = val.split('/');
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          // Validate the date is actually valid
+          const date = new Date(val + 'T00:00:00');
+          if (isNaN(date.getTime())) {
+            throw new Error('Invalid date');
           }
           return val;
         }),
@@ -883,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
           case '22007': // Invalid datetime format
-            return res.status(400).json({ message: "Invalid date format. Please use DD/MM/YYYY format." });
+            return res.status(400).json({ message: "Invalid date format. Please use YYYY-MM-DD format." });
           case '23505': // Unique violation (handled above for admission number, but just in case)
             if ((error as any).message.includes('email')) {
               return res.status(409).json({ message: "Email address already exists" });
