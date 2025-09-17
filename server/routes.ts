@@ -763,7 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parentId: z.string().optional(),
         admissionDate: z.string().optional(),
         emergencyContact: z.string().optional(),
-        medicalInfo: z.string().optional(),
+        medicalInfo: z.string().nullable().optional().transform(val => val === null ? "" : val),
       });
 
       const validatedData = createStudentSchema.parse(req.body);
