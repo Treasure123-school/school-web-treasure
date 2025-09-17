@@ -99,7 +99,7 @@ export default function StudentManagement() {
         classId: parseInt(data.classId),
         parentId: data.parentId,
         emergencyContact: data.emergencyContact,
-        medicalInfo: data.medicalInfo || null,
+        medicalInfo: data.medicalInfo || "",
         admissionDate: data.dateOfAdmission,
       });
       
