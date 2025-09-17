@@ -269,6 +269,14 @@ export const insertExamSessionSchema = createInsertSchema(examSessions).omit({
   studentId: true  // Server sets this from authenticated user
 }).partial().required({ 
   examId: true
+}).extend({
+  // Handle date strings from frontend (JSON serialization converts Date objects to strings)
+  submittedAt: z.union([z.date(), z.string()]).optional().transform((val) => {
+    if (typeof val === 'string') {
+      return new Date(val);
+    }
+    return val;
+  })
 });
 export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
 
