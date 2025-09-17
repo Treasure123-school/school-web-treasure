@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -1756,12 +1756,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const sessionData = insertExamSessionSchema.partial().parse(req.body);
+      const sessionData = updateExamSessionSchema.parse(req.body);
       
-      // Prevent changing immutable fields (examId not allowed to change, studentId is never in client data)
-      const { examId, ...allowedUpdates } = sessionData;
-      if (examId) {
-        return res.status(400).json({ message: "Cannot change examId" });
+      // SECURITY: Double-check that only safe fields are being updated by students
+      // This provides defense in depth even if schema validation were bypassed
+      const allowedFields = ['isCompleted', 'submittedAt', 'timeRemaining', 'status'] as const;
+      const allowedUpdates = Object.fromEntries(
+        Object.entries(sessionData).filter(([key]) => allowedFields.includes(key as any))
+      );
+      
+      // Additional validation: ensure status transitions are valid for students
+      if (allowedUpdates.status && allowedUpdates.status !== 'submitted') {
+        return res.status(400).json({ message: "Students can only set status to 'submitted'" });
       }
       
       // Time limit validation on session completion

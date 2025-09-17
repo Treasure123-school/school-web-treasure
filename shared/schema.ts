@@ -278,6 +278,16 @@ export const insertExamSessionSchema = createInsertSchema(examSessions).omit({
     return val;
   })
 });
+
+// For updating exam sessions - SECURITY: Only allow students to update safe fields
+export const updateExamSessionSchema = z.object({
+  // Students can only update these specific fields when submitting exams
+  isCompleted: z.boolean().optional(),
+  submittedAt: z.coerce.date().refine(d => !isNaN(d.getTime()), 'Invalid date').optional(),
+  timeRemaining: z.number().int().min(0).optional(),
+  // Only allow valid status transitions for student updates
+  status: z.enum(['in_progress', 'submitted']).optional()
+}).strict(); // .strict() prevents any additional fields from being accepted
 export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
 
 // Types
@@ -322,4 +332,5 @@ export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
 export type InsertQuestionOption = z.infer<typeof insertQuestionOptionSchema>;
 export type InsertExamSession = z.infer<typeof insertExamSessionSchema>;
+export type UpdateExamSession = z.infer<typeof updateExamSessionSchema>;
 export type InsertStudentAnswer = z.infer<typeof insertStudentAnswerSchema>;
