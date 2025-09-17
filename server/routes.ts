@@ -762,6 +762,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         classId: z.number().optional(),
         parentId: z.string().optional(),
         admissionDate: z.string().optional(),
+        emergencyContact: z.string().optional(),
+        medicalInfo: z.string().optional(),
       });
 
       const validatedData = createStudentSchema.parse(req.body);
@@ -803,6 +805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           classId: validatedData.classId || null,
           parentId: validatedData.parentId || null,
           admissionDate: validatedData.admissionDate || null,
+          emergencyContact: validatedData.emergencyContact || null,
+          medicalInfo: validatedData.medicalInfo || null,
         };
 
         // Create student record
