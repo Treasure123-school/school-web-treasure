@@ -1538,16 +1538,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exam-sessions", authenticateUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const body = insertExamSessionSchema.parse(req.body);
       
-      // Security: Always use authenticated user's ID, ignore client-provided studentId
-      const sessionData = {
-        ...body,
-        studentId: user.id  // Force studentId to be the authenticated user's ID
-      };
+      // Check if user is a student
+      if (user.roleId !== ROLES.STUDENT) {
+        return res.status(403).json({ message: "Only students can start exam sessions" });
+      }
+      
+      // Check if user has a corresponding student record
+      const student = await storage.getStudent(user.id);
+      if (!student) {
+        return res.status(403).json({ message: "Student profile not found. Please contact your administrator." });
+      }
+      
+      // Client-facing schema - only require examId
+      const createExamSessionBody = z.object({
+        examId: z.number()
+      });
+      
+      const { examId } = createExamSessionBody.parse(req.body);
       
       // Verify exam exists and is accessible
-      const exam = await storage.getExamById(sessionData.examId);
+      const exam = await storage.getExamById(examId);
       if (!exam) {
         return res.status(404).json({ message: "Exam not found" });
       }
@@ -1555,6 +1566,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if exam is published and available
       if (!exam.isPublished) {
         return res.status(403).json({ message: "Exam is not published" });
+      }
+      
+      // SECURITY: Check if student belongs to exam's class
+      if (student.classId !== exam.classId) {
+        return res.status(403).json({ message: "You are not authorized to take this exam" });
       }
       
       // Check exam time window (startTime/endTime)
@@ -1567,35 +1583,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check for existing active session to prevent duplicates
-      const existingSession = await storage.getActiveExamSession(sessionData.examId, sessionData.studentId);
+      const existingSession = await storage.getActiveExamSession(examId, user.id);
       if (existingSession) {
         return res.status(409).json({ message: "Active exam session already exists", sessionId: existingSession.id });
       }
 
       // Check retakes policy: if retakes not allowed, check for completed sessions
       if (!exam.allowRetakes) {
-        const allStudentSessions = await storage.getExamSessionsByStudent(sessionData.studentId);
+        const allStudentSessions = await storage.getExamSessionsByStudent(user.id);
         const completedSession = allStudentSessions.find(s => 
-          s.examId === sessionData.examId && s.isCompleted
+          s.examId === examId && s.isCompleted
         );
         if (completedSession) {
           return res.status(403).json({ message: "Retakes are not allowed for this exam" });
         }
       }
 
-      // Initialize session with remaining time based on exam time limit
-      const sessionWithTimeLimit = {
-        ...sessionData,
+      // Build session data server-side
+      const sessionData = {
+        examId,
+        studentId: user.id,
         timeRemaining: exam.timeLimit ? exam.timeLimit * 60 : null, // convert minutes to seconds
         startedAt: now
       };
       
-      const session = await storage.createExamSession(sessionWithTimeLimit);
-      console.log(`Created exam session ${session.id} for student ${sessionData.studentId} with ${exam.timeLimit || 'unlimited'} minutes`);
+      const session = await storage.createExamSession(sessionData);
+      console.log(`Created exam session ${session.id} for student ${user.id} with ${exam.timeLimit || 'unlimited'} minutes`);
       res.json(session);
     } catch (error) {
       console.error('Error creating exam session:', error);
-      res.status(400).json({ message: "Invalid exam session data" });
+      
+      // Improved error handling with proper instance checks
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request data format" });
+      }
+      
+      if (error instanceof Error) {
+        // Check for specific PostgreSQL error codes if available
+        const pgError = error as any;
+        if (pgError.code === '23503') { // Foreign key violation
+          return res.status(400).json({ message: "Student profile not found. Please contact your administrator." });
+        }
+        if (pgError.code === '42703') { // Undefined column
+          return res.status(500).json({ message: "Database schema error. Please contact your administrator." });
+        }
+        
+        // Fallback to message checking for other database errors
+        if (error.message.includes('foreign key')) {
+          return res.status(400).json({ message: "Student profile not found. Please contact your administrator." });
+        }
+      }
+      
+      // Default to 500 for unexpected server errors
+      res.status(500).json({ message: "An unexpected error occurred. Please try again." });
     }
   });
 
