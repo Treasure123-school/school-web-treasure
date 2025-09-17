@@ -72,6 +72,8 @@ export const students = pgTable("students", {
   classId: integer("class_id").references(() => classes.id),
   parentId: uuid("parent_id").references(() => users.id),
   admissionDate: date("admission_date").defaultNow(),
+  emergencyContact: varchar("emergency_contact", { length: 20 }),
+  medicalInfo: text("medical_info"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
