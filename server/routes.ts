@@ -238,7 +238,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     let maxPossibleScore = 0;
     let autoScoredQuestions = 0;
 
-    console.log(`Auto-scoring session ${sessionId}: Found ${examQuestions.length} questions, ${studentAnswers.length} answers`);
+    const hasMultipleChoiceQuestions = examQuestions.some((q: any) => q.questionType === 'multiple_choice');
+    const hasEssayQuestions = examQuestions.some((q: any) => q.questionType !== 'multiple_choice');
+    
+    console.log(`Auto-scoring session ${sessionId}: Found ${examQuestions.length} questions (${hasMultipleChoiceQuestions ? 'MC' : 'no MC'}, ${hasEssayQuestions ? 'Essays' : 'no Essays'}), ${studentAnswers.length} answers`);
 
     // Calculate scores for multiple choice questions
     for (const question of examQuestions) {
@@ -262,15 +265,16 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
           }
           autoScoredQuestions++;
         } else {
-          console.log(`Question ${question.id}: No answer provided`);
+          console.log(`Question ${question.id}: No answer provided (MC)`);
         }
       } else {
-        // Essay questions need manual grading - don't include in auto-score
-        console.log(`Question ${question.id}: Essay type, requires manual grading`);
+        // Essay questions need manual grading - don't include in auto-score for now
+        console.log(`Question ${question.id}: Essay type, needs manual grading (not included in current auto-score)`);
       }
     }
 
     // Create or update exam result
+    console.log(`Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
 
@@ -279,18 +283,27 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       studentId: session.studentId,
       score: totalScore,
       maxScore: maxPossibleScore,
-      autoScored: autoScoredQuestions > 0,
+      autoScored: true, // Always true when auto-scoring pass completes
       recordedBy: 'system-auto-scoring' // Indicate this was auto-generated
     };
 
-    if (existingResult) {
-      // Update existing result
-      await storage.updateExamResult(existingResult.id, resultData);
-      console.log(`Updated exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore}`);
-    } else {
-      // Create new result
-      await storage.recordExamResult(resultData);
-      console.log(`Created exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore}`);
+    console.log('Result data to save:', resultData);
+
+    try {
+      if (existingResult) {
+        // Update existing result
+        const updatedResult = await storage.updateExamResult(existingResult.id, resultData);
+        console.log(`✅ Updated exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
+        console.log('Updated result:', updatedResult);
+      } else {
+        // Create new result
+        const newResult = await storage.recordExamResult(resultData);
+        console.log(`✅ Created new exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${newResult.id})`);
+        console.log('New result:', newResult);
+      }
+    } catch (resultError) {
+      console.error('❌ Failed to save exam result:', resultError);
+      throw resultError;
     }
 
   } catch (error) {
@@ -1722,10 +1735,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Students can only view their own exam results" });
       }
       
+      console.log(`Fetching exam results for student: ${studentId}`);
       const results = await storage.getExamResultsByStudent(studentId);
-      res.json(results);
+      console.log(`Found ${results.length} exam results for student ${studentId}`);
+      
+      // Return empty array if no results found (this is normal)
+      res.json(results || []);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exam results" });
+      console.error('Error fetching exam results:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ 
+        message: "Failed to fetch exam results", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
