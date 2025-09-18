@@ -782,6 +782,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         medicalInfo: z.string().nullable().optional().transform(val => val === null ? "" : val),
       });
 
+      // Defensive normalization: convert null/empty strings to undefined for optional string fields
+      for (const field of ["phone", "address", "medicalInfo", "parentId"]) {
+        if (req.body[field] == null || req.body[field] === "") {
+          delete req.body[field];
+        }
+      }
+
       const validatedData = createStudentSchema.parse(req.body);
       
       // Check if user with this email already exists

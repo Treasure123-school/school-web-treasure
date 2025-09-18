@@ -90,16 +90,16 @@ export default function StudentManagement() {
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: data.phone || null,
-        address: data.address || null,
+        phone: data.phone?.trim() || undefined,
+        address: data.address?.trim() || undefined,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         // Student-specific fields
         admissionNumber: data.admissionNumber,
         classId: data.classId, // Already coerced to number by zod
-        parentId: data.parentId || null,
+        parentId: data.parentId || undefined,
         emergencyContact: data.emergencyContact,
-        medicalInfo: data.medicalInfo || null,
+        medicalInfo: data.medicalInfo?.trim() || undefined,
         admissionDate: data.admissionDate, // Fixed field name
       });
       
