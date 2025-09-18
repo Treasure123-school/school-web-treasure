@@ -273,8 +273,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       }
     }
 
-    // Create or update exam result
-    console.log(`Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
+    // Create or update exam result - CRITICAL for instant feedback
+    console.log(`🎯 Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
+    console.log(`📊 Score calculation: ${totalScore}/${maxPossibleScore} (${autoScoredQuestions} MC questions auto-scored)`);
+    
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
 
@@ -290,24 +292,43 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       recordedBy: SYSTEM_AUTO_SCORING_UUID // Special UUID for auto-generated results
     };
 
-    console.log('Result data to save:', resultData);
+    console.log('💾 Result data to save:', JSON.stringify(resultData, null, 2));
 
     try {
       if (existingResult) {
         // Update existing result
-        console.log(`Updating existing exam result ID: ${existingResult.id}`);
+        console.log(`🔄 Updating existing exam result ID: ${existingResult.id}`);
         const updatedResult = await storage.updateExamResult(existingResult.id, resultData);
+        if (!updatedResult) {
+          throw new Error(`Failed to update exam result ID: ${existingResult.id} - updateExamResult returned null/undefined`);
+        }
         console.log(`✅ Updated exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
-        console.log('Updated result details:', JSON.stringify(updatedResult, null, 2));
+        console.log(`🎉 INSTANT FEEDBACK READY: Result updated successfully!`);
       } else {
         // Create new result
-        console.log('Creating new exam result...');
+        console.log('🆕 Creating new exam result...');
         const newResult = await storage.recordExamResult(resultData);
+        if (!newResult || !newResult.id) {
+          throw new Error('Failed to create exam result - recordExamResult returned null/undefined or missing ID');
+        }
         console.log(`✅ Created new exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${newResult.id})`);
-        console.log('New result details:', JSON.stringify(newResult, null, 2));
+        console.log(`🎉 INSTANT FEEDBACK READY: New result created successfully!`);
       }
+
+      // Verify the result was saved by immediately retrieving it
+      console.log(`🔍 Verifying result was saved - fetching results for student ${session.studentId}...`);
+      const verificationResults = await storage.getExamResultsByStudent(session.studentId);
+      const savedResult = verificationResults.find((r: any) => r.examId === session.examId && r.autoScored === true);
+      
+      if (!savedResult) {
+        throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the auto-scored result');
+      }
+      
+      console.log(`✅ Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
+      console.log(`🚀 AUTO-SCORING COMPLETE - Student should see instant results!`);
+
     } catch (resultError) {
-      console.error('❌ Failed to save exam result:', resultError);
+      console.error('❌ CRITICAL: Failed to save exam result:', resultError);
       console.error('❌ Result data that failed:', JSON.stringify(resultData, null, 2));
       if (resultError instanceof Error) {
         console.error('❌ Error details:', resultError.message);
@@ -2024,9 +2045,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           console.log('Triggering auto-scoring for session:', id);
           await autoScoreExamSession(parseInt(id), storage);
+          console.log('Auto-scoring completed successfully for session:', id);
         } catch (error) {
-          console.error('Auto-scoring failed:', error);
-          // Continue with session update even if auto-scoring fails
+          console.error('Auto-scoring failed for session:', id, error);
+          // Continue with session update but log the failure prominently
+          console.error('❌ AUTO-SCORING FAILURE - Student will not see instant results:', error);
         }
       }
 
