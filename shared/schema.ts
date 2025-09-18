@@ -171,7 +171,7 @@ export const examResults = pgTable("exam_results", {
   grade: varchar("grade", { length: 5 }),
   remarks: text("remarks"),
   autoScored: boolean("auto_scored").default(false),
-  recordedBy: text("recorded_by").notNull(), // Changed from UUID to text to support 'system-auto-scoring'
+  recordedBy: uuid("recorded_by").notNull(), // UUID field to match database schema
   createdAt: timestamp("created_at").defaultNow(),
 });
 

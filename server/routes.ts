@@ -278,13 +278,16 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
 
+    // Use a special UUID for system auto-scoring
+    const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
+    
     const resultData = {
       examId: session.examId,
       studentId: session.studentId,
       score: totalScore,
       maxScore: maxPossibleScore,
       autoScored: true, // Always true when auto-scoring pass completes
-      recordedBy: 'system-auto-scoring' // Indicate this was auto-generated
+      recordedBy: SYSTEM_AUTO_SCORING_UUID // Special UUID for auto-generated results
     };
 
     console.log('Result data to save:', resultData);
@@ -292,17 +295,24 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     try {
       if (existingResult) {
         // Update existing result
+        console.log(`Updating existing exam result ID: ${existingResult.id}`);
         const updatedResult = await storage.updateExamResult(existingResult.id, resultData);
         console.log(`✅ Updated exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
-        console.log('Updated result:', updatedResult);
+        console.log('Updated result details:', JSON.stringify(updatedResult, null, 2));
       } else {
         // Create new result
+        console.log('Creating new exam result...');
         const newResult = await storage.recordExamResult(resultData);
         console.log(`✅ Created new exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${newResult.id})`);
-        console.log('New result:', newResult);
+        console.log('New result details:', JSON.stringify(newResult, null, 2));
       }
     } catch (resultError) {
       console.error('❌ Failed to save exam result:', resultError);
+      console.error('❌ Result data that failed:', JSON.stringify(resultData, null, 2));
+      if (resultError instanceof Error) {
+        console.error('❌ Error details:', resultError.message);
+        console.error('❌ Error stack:', resultError.stack);
+      }
       throw resultError;
     }
 
