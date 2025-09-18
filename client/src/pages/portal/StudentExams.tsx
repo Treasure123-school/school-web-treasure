@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader } from 'lucide-react';
+import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 
 // Question save status type
@@ -27,6 +27,9 @@ export default function StudentExams() {
   const [answers, setAnswers] = useState<Record<number, any>>({});
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [examResults, setExamResults] = useState<any>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [isScoring, setIsScoring] = useState(false);
   
   // Per-question save status tracking
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
@@ -50,6 +53,27 @@ export default function StudentExams() {
   const { data: questionOptions = [] } = useQuery<QuestionOption[]>({
     queryKey: ['/api/question-options', currentQuestion?.id],
     enabled: !!currentQuestion?.id && currentQuestion?.questionType === 'multiple_choice',
+  });
+
+  // Fetch all question options for multiple choice questions (needed for results review)
+  const { data: allQuestionOptions = [] } = useQuery<QuestionOption[]>({
+    queryKey: ['/api/question-options/all', examQuestions.map(q => q.id).join(',')],
+    queryFn: async () => {
+      if (!examQuestions.length) return [];
+      
+      const allOptions: QuestionOption[] = [];
+      const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice');
+      
+      for (const question of mcQuestions) {
+        const response = await apiRequest('GET', `/api/question-options/${question.id}`);
+        if (response.ok) {
+          const options = await response.json();
+          allOptions.push(...options);
+        }
+      }
+      return allOptions;
+    },
+    enabled: !!examQuestions.length && (showResults || examQuestions.some(q => q.questionType === 'multiple_choice')),
   });
 
   // Fetch existing answers for active session
@@ -290,31 +314,79 @@ export default function StudentExams() {
     },
   });
 
-  // Submit exam mutation
+  // Submit exam mutation with reliable polling
   const submitExamMutation = useMutation({
     mutationFn: async () => {
       if (!activeSession) throw new Error('No active session');
       
+      // Step 1: Submit the exam
       const response = await apiRequest('PUT', `/api/exam-sessions/${activeSession.id}`, {
         isCompleted: true,
         submittedAt: new Date(),
         status: 'submitted',
       });
       if (!response.ok) throw new Error('Failed to submit exam');
-      return response.json();
+      const updatedSession = await response.json();
+      
+      // Step 2: Poll for scoring completion with timeout
+      const maxWaitTime = 30000; // 30 seconds
+      const pollInterval = 1000; // 1 second
+      let waitTime = 0;
+      
+      while (waitTime < maxWaitTime) {
+        // Check if results are available
+        const resultsResponse = await apiRequest('GET', `/api/exam-results/${user?.id}`);
+        if (resultsResponse.ok) {
+          const allResults = await resultsResponse.json();
+          const currentExamResult = allResults.find((result: any) => result.examId === activeSession.examId);
+          
+          if (currentExamResult && currentExamResult.autoScored) {
+            // Auto-scoring completed, return results
+            return { session: updatedSession, result: currentExamResult };
+          }
+        }
+        
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        waitTime += pollInterval;
+      }
+      
+      // Timeout: return session without results (manual grading needed)
+      return { session: updatedSession, result: null };
     },
-    onSuccess: () => {
-      setActiveSession(null);
-      setAnswers({});
-      setTimeRemaining(null);
-      setCurrentQuestionIndex(0);
+    onMutate: () => {
+      setIsScoring(true);
+    },
+    onSuccess: (data) => {
+      setIsScoring(false);
+      if (data.result) {
+        setExamResults(data.result);
+        // Refresh answer data to get updated correctness after scoring
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/student-answers/session', activeSession?.id] 
+        });
+        setShowResults(true);
+        toast({
+          title: "Exam Submitted",
+          description: "Your exam has been submitted and scored!",
+        });
+      } else {
+        // No auto-scoring results (essay questions or timeout)
+        toast({
+          title: "Exam Submitted",
+          description: "Your exam has been submitted. Results will be available after manual grading.",
+        });
+        // Reset to exam list
+        setActiveSession(null);
+        setAnswers({});
+        setTimeRemaining(null);
+        setCurrentQuestionIndex(0);
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
-      toast({
-        title: "Exam Submitted",
-        description: "Your exam has been submitted successfully!",
-      });
     },
     onError: (error: Error) => {
+      setIsScoring(false);
+      setIsSubmitting(false);
       toast({
         title: "Error",
         description: error.message,
@@ -343,6 +415,17 @@ export default function StudentExams() {
     if (answer) {
       submitAnswerMutation.mutate({ questionId, answer, questionType });
     }
+  };
+
+  // Handle returning to exam list after viewing results
+  const handleBackToExams = () => {
+    setShowResults(false);
+    setExamResults(null);
+    setActiveSession(null);
+    setAnswers({});
+    setTimeRemaining(null);
+    setCurrentQuestionIndex(0);
+    setSelectedExam(null);
   };
 
   // Force submit without checking pending saves (used for auto-submit)
@@ -441,8 +524,148 @@ export default function StudentExams() {
       userName={user.firstName + ' ' + user.lastName}
       userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
     >
-      {/* Active Exam Interface */}
-      {activeSession && examQuestions.length > 0 ? (
+      {/* Scoring Screen */}
+      {isScoring ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <Loader className="w-8 h-8 animate-spin mx-auto text-primary" />
+            <div>
+              <h2 className="text-2xl font-bold">Scoring Your Exam</h2>
+              <p className="text-muted-foreground">Please wait while we calculate your results...</p>
+            </div>
+          </div>
+        </div>
+      ) : /* Results Screen */
+      showResults ? (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Exam Results</h1>
+              <p className="text-muted-foreground">Your exam has been submitted and scored</p>
+            </div>
+            <Button 
+              onClick={handleBackToExams}
+              data-testid="button-back-to-exams"
+            >
+              Back to Exams
+            </Button>
+          </div>
+
+          {examResults && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Score Overview */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Trophy className="w-5 h-5" />
+                    <span>Your Score</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-primary">
+                      {examResults.score}/{examResults.maxScore}
+                    </div>
+                    <div className="text-2xl font-semibold text-muted-foreground">
+                      {Math.round((examResults.score / examResults.maxScore) * 100)}%
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Total Questions:</span>
+                      <span>{examQuestions.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Points Earned:</span>
+                      <span className="text-green-600 font-medium">
+                        {examResults.score} out of {examResults.maxScore}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Auto Scored:</span>
+                      <span>{examResults.autoScored ? 'Yes' : 'No'}</span>
+                    </div>
+                  </div>
+
+                  {/* Performance indicator */}
+                  <div className="pt-4 border-t">
+                    <div className="text-sm text-muted-foreground mb-2">Performance</div>
+                    <div className={`text-lg font-semibold ${
+                      (examResults.score / examResults.maxScore) >= 0.8 ? 'text-green-600' :
+                      (examResults.score / examResults.maxScore) >= 0.6 ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>
+                      {(examResults.score / examResults.maxScore) >= 0.8 ? 'Excellent!' :
+                       (examResults.score / examResults.maxScore) >= 0.6 ? 'Good Job!' :
+                       'Keep Practicing!'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Answer Review */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <FileText className="w-5 h-5" />
+                    <span>Answer Review</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {allQuestionOptions.length === 0 && examQuestions.some(q => q.questionType === 'multiple_choice') ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Loading answer options...
+                    </div>
+                  ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {examQuestions.map((question, index) => {
+                      const studentAnswer = existingAnswers.find(a => a.questionId === question.id);
+                      const isCorrect = studentAnswer?.isCorrect;
+                      
+                      return (
+                        <div key={question.id} className="border rounded-lg p-4 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="text-sm font-medium">Q{index + 1}.</span>
+                                <span className="text-sm text-muted-foreground">({question.points} pts)</span>
+                                {isCorrect !== undefined && (
+                                  <Badge variant={isCorrect ? 'default' : 'destructive'}>
+                                    {isCorrect ? 'Correct' : 'Incorrect'}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm">{question.questionText}</p>
+                            </div>
+                          </div>
+                          
+                          {studentAnswer && (
+                            <div className="pl-4 border-l-2 border-muted">
+                              <div className="text-xs text-muted-foreground mb-1">Your Answer:</div>
+                              <div className="text-sm">
+                                {question.questionType === 'multiple_choice' ? (
+                                  allQuestionOptions
+                                    .filter(opt => opt.questionId === question.id)
+                                    .find(opt => opt.id === studentAnswer.selectedOptionId)?.optionText || 'No answer selected'
+                                ) : (
+                                  studentAnswer.textAnswer || 'No text answer provided'
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      ) : /* Active Exam Interface */
+      activeSession && examQuestions.length > 0 ? (
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Exam Header */}
           <Card>
