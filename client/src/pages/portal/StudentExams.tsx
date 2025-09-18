@@ -328,28 +328,40 @@ export default function StudentExams() {
       if (!response.ok) throw new Error('Failed to submit exam');
       const updatedSession = await response.json();
       
-      // Step 2: Poll for scoring completion with timeout
-      const maxWaitTime = 30000; // 30 seconds
-      const pollInterval = 1000; // 1 second
+      // Step 2: Poll for scoring completion with improved timeout and feedback
+      const maxWaitTime = 45000; // 45 seconds - increased for reliability
+      const pollInterval = 500; // 500ms - faster polling for instant feedback
       let waitTime = 0;
       
+      console.log('Starting auto-scoring polling for exam:', activeSession.examId);
+      
       while (waitTime < maxWaitTime) {
-        // Check if results are available
-        const resultsResponse = await apiRequest('GET', `/api/exam-results/${user?.id}`);
-        if (resultsResponse.ok) {
-          const allResults = await resultsResponse.json();
-          const currentExamResult = allResults.find((result: any) => result.examId === activeSession.examId);
-          
-          if (currentExamResult && currentExamResult.autoScored) {
-            // Auto-scoring completed, return results
-            return { session: updatedSession, result: currentExamResult };
+        try {
+          // Check if results are available
+          const resultsResponse = await apiRequest('GET', `/api/exam-results/${user?.id}`);
+          if (resultsResponse.ok) {
+            const allResults = await resultsResponse.json();
+            const currentExamResult = allResults.find((result: any) => result.examId === activeSession.examId);
+            
+            if (currentExamResult && currentExamResult.autoScored) {
+              console.log('Auto-scoring completed successfully:', currentExamResult);
+              // Auto-scoring completed, return results
+              return { session: updatedSession, result: currentExamResult };
+            }
+          } else {
+            console.warn('Failed to fetch exam results during polling:', resultsResponse.status);
           }
+        } catch (error) {
+          console.error('Error during result polling:', error);
+          // Continue polling even if one request fails
         }
         
         // Wait before next poll
         await new Promise(resolve => setTimeout(resolve, pollInterval));
         waitTime += pollInterval;
       }
+      
+      console.log('Auto-scoring polling timeout reached after', maxWaitTime / 1000, 'seconds');
       
       // Timeout: return session without results (manual grading needed)
       return { session: updatedSession, result: null };
@@ -361,14 +373,33 @@ export default function StudentExams() {
       setIsScoring(false);
       if (data.result) {
         setExamResults(data.result);
-        // Refresh answer data to get updated correctness after scoring
+        
+        // Enhanced cache invalidation for all related data
         queryClient.invalidateQueries({ 
           queryKey: ['/api/student-answers/session', activeSession?.id] 
         });
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/exam-results', user?.id] 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/exam-sessions', activeSession?.id] 
+        });
+        
         setShowResults(true);
+        
+        // Support legacy data with fallback to marksObtained
+        const score = data.result.score ?? data.result.marksObtained ?? 0;
+        const maxScore = data.result.maxScore ?? 0;
+        
+        // Calculate percentage with safe guards
+        const percentage = maxScore > 0 
+          ? Math.round((score / maxScore) * 100) 
+          : 0;
+        
+        // Provide instant feedback with score details
         toast({
-          title: "Exam Submitted",
-          description: "Your exam has been submitted and scored!",
+          title: "Exam Submitted Successfully! 🎉",
+          description: `Your Score: ${score}/${maxScore} (${percentage}%). Results are now available!`,
         });
       } else {
         // No auto-scoring results (essay questions or timeout)
@@ -387,11 +418,21 @@ export default function StudentExams() {
     onError: (error: Error) => {
       setIsScoring(false);
       setIsSubmitting(false);
+      
+      // More specific error messages for better user experience
+      const isScoreError = error.message.includes('score') || error.message.includes('column');
+      const errorTitle = isScoreError ? "Scoring System Error" : "Submission Error";
+      const errorDescription = isScoreError 
+        ? "There was an issue with the automatic scoring system. Your exam has been submitted and will be graded manually. Please contact your teacher if this issue persists."
+        : error.message;
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
       });
+      
+      console.error("Exam submission error:", error);
     },
   });
 
