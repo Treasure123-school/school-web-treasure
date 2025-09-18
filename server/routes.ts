@@ -132,6 +132,11 @@ const authenticateUser = async (req: any, res: any, next: any) => {
       return res.status(401).json({ message: "User no longer exists" });
     }
     
+    // Block inactive users (blocked/deactivated accounts)
+    if (user.isActive === false) {
+      return res.status(401).json({ message: "Account has been deactivated. Please contact administrator." });
+    }
+    
     // Ensure role hasn't changed since token was issued
     if (user.roleId !== decoded.roleId) {
       return res.status(401).json({ message: "User role has changed, please log in again" });
@@ -900,6 +905,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ message: "Failed to create student" });
+    }
+  });
+
+  // Update student (PATCH)
+  app.patch("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`Updating student ${id}`);
+      
+      // Separate user and student data
+      const { password, email, firstName, lastName, phone, address, dateOfBirth, gender, profileImageUrl, ...studentData } = req.body;
+      
+      // Prepare user patch data
+      let userPatch: any = {};
+      if (email !== undefined) userPatch.email = email;
+      if (firstName !== undefined) userPatch.firstName = firstName;
+      if (lastName !== undefined) userPatch.lastName = lastName;
+      if (phone !== undefined) userPatch.phone = phone;
+      if (address !== undefined) userPatch.address = address;
+      if (dateOfBirth !== undefined) userPatch.dateOfBirth = dateOfBirth;
+      if (gender !== undefined) userPatch.gender = gender;
+      if (profileImageUrl !== undefined) userPatch.profileImageUrl = profileImageUrl;
+      
+      // Handle password separately if provided
+      if (password && password.length >= 6) {
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        userPatch.passwordHash = passwordHash;
+      }
+      
+      // Prepare student patch data
+      let studentPatch: any = {};
+      if (studentData.admissionNumber !== undefined) studentPatch.admissionNumber = studentData.admissionNumber;
+      if (studentData.classId !== undefined) studentPatch.classId = studentData.classId;
+      if (studentData.parentId !== undefined) studentPatch.parentId = studentData.parentId;
+      if (studentData.admissionDate !== undefined) studentPatch.admissionDate = studentData.admissionDate;
+      if (studentData.emergencyContact !== undefined) studentPatch.emergencyContact = studentData.emergencyContact;
+      if (studentData.medicalInfo !== undefined) studentPatch.medicalInfo = studentData.medicalInfo;
+      
+      // Check for existing email if email is being updated
+      if (email) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(409).json({ message: "Email address already exists" });
+        }
+      }
+      
+      // Check for existing admission number if admission number is being updated
+      if (studentPatch.admissionNumber) {
+        const existingStudent = await storage.getStudentByAdmissionNumber(studentPatch.admissionNumber);
+        if (existingStudent && existingStudent.id !== id) {
+          return res.status(409).json({ message: "Admission number already exists" });
+        }
+      }
+      
+      // Update student using transactional method
+      const result = await storage.updateStudent(id, { 
+        userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
+        studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : undefined
+      });
+      
+      if (!result) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      
+      // Remove password hash from response for security
+      const { passwordHash: _, ...userResponse } = result.user;
+      
+      res.json({
+        message: "Student updated successfully",
+        user: userResponse,
+        student: result.student
+      });
+      
+    } catch (error) {
+      console.error('Error updating student:', error);
+      
+      // Handle specific database errors
+      if ((error as any)?.code) {
+        switch ((error as any).code) {
+          case '23503': // Foreign key violation
+            if ((error as any).message.includes('class_id')) {
+              return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
+            } else if ((error as any).message.includes('parent_id')) {
+              return res.status(400).json({ message: "Selected parent does not exist. Please select a valid parent." });
+            }
+            return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
+          case '23505': // Unique violation
+            if ((error as any).message.includes('email')) {
+              return res.status(409).json({ message: "Email address already exists" });
+            } else if ((error as any).message.includes('admission_number')) {
+              return res.status(409).json({ message: "Admission number already exists" });
+            }
+            return res.status(409).json({ message: "Duplicate value detected" });
+          default:
+            console.error('Database error:', (error as any).code, (error as any).message);
+        }
+      }
+      
+      res.status(500).json({ message: "Failed to update student" });
+    }
+  });
+
+  // Block/Unblock student (PATCH)
+  app.patch("/api/students/:id/block", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ message: "isActive must be a boolean value" });
+      }
+      
+      console.log(`${isActive ? 'Unblocking' : 'Blocking'} student ${id}`);
+      
+      const result = await storage.setUserActive(id, isActive);
+      
+      if (!result) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      
+      res.json({
+        message: `Student ${isActive ? 'unblocked' : 'blocked'} successfully`,
+        user: { id: result.id, isActive: result.isActive }
+      });
+      
+    } catch (error) {
+      console.error('Error blocking/unblocking student:', error);
+      res.status(500).json({ message: "Failed to update student status" });
+    }
+  });
+
+  // Delete student (logical deletion - DELETE)
+  app.delete("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`Logically deleting student ${id}`);
+      
+      const success = await storage.deleteStudent(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      
+      res.json({ 
+        message: "Student deactivated successfully",
+        status: "deactivated"
+      });
+      
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      res.status(500).json({ message: "Failed to delete student" });
     }
   });
 

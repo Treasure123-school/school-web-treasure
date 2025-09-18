@@ -51,8 +51,11 @@ export interface IStorage {
   // Student management
   getStudent(id: string): Promise<Student | undefined>;
   createStudent(student: InsertStudent): Promise<Student>;
+  updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined>;
+  setUserActive(id: string, isActive: boolean): Promise<User | undefined>;
+  deleteStudent(id: string): Promise<boolean>;
   getStudentsByClass(classId: number): Promise<Student[]>;
-  getAllStudents(): Promise<Student[]>;
+  getAllStudents(includeInactive?: boolean): Promise<Student[]>;
   getStudentByAdmissionNumber(admissionNumber: string): Promise<Student | undefined>;
 
   // Class management
@@ -270,12 +273,88 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined> {
+    // Use transaction to ensure both user and student are updated atomically
+    return await this.db.transaction(async (tx: any) => {
+      let updatedUser: User | undefined;
+      let updatedStudent: Student | undefined;
+
+      // Update user if userPatch is provided
+      if (updates.userPatch && Object.keys(updates.userPatch).length > 0) {
+        const userResult = await tx.update(schema.users)
+          .set(updates.userPatch)
+          .where(eq(schema.users.id, id))
+          .returning();
+        updatedUser = userResult[0];
+      } else {
+        // Get current user data if no updates
+        const userResult = await tx.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+        updatedUser = userResult[0];
+      }
+
+      // Update student if studentPatch is provided
+      if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
+        const studentResult = await tx.update(schema.students)
+          .set(updates.studentPatch)
+          .where(eq(schema.students.id, id))
+          .returning();
+        updatedStudent = studentResult[0];
+      } else {
+        // Get current student data if no updates
+        const studentResult = await tx.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
+        updatedStudent = studentResult[0];
+      }
+
+      if (updatedUser && updatedStudent) {
+        return { user: updatedUser, student: updatedStudent };
+      }
+      return undefined;
+    });
+  }
+
+  async setUserActive(id: string, isActive: boolean): Promise<User | undefined> {
+    const result = await this.db.update(schema.users)
+      .set({ isActive })
+      .where(eq(schema.users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteStudent(id: string): Promise<boolean> {
+    // Logical deletion by setting user as inactive
+    // This preserves referential integrity for attendance, exams, etc.
+    const result = await this.db.update(schema.users)
+      .set({ isActive: false })
+      .where(eq(schema.users.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
   async getStudentsByClass(classId: number): Promise<Student[]> {
     return await db.select().from(schema.students).where(eq(schema.students.classId, classId));
   }
 
-  async getAllStudents(): Promise<Student[]> {
-    return await db.select().from(schema.students).orderBy(asc(schema.students.createdAt));
+  async getAllStudents(includeInactive = false): Promise<Student[]> {
+    if (includeInactive) {
+      // Return all students regardless of active status
+      return await this.db.select().from(schema.students).orderBy(asc(schema.students.createdAt));
+    } else {
+      // Only return students with active user accounts
+      return await this.db.select({
+        id: schema.students.id,
+        admissionNumber: schema.students.admissionNumber,
+        classId: schema.students.classId,
+        parentId: schema.students.parentId,
+        admissionDate: schema.students.admissionDate,
+        emergencyContact: schema.students.emergencyContact,
+        medicalInfo: schema.students.medicalInfo,
+        createdAt: schema.students.createdAt,
+      })
+      .from(schema.students)
+      .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+      .where(eq(schema.users.isActive, true))
+      .orderBy(asc(schema.students.createdAt));
+    }
   }
 
   async getStudentByAdmissionNumber(admissionNumber: string): Promise<Student | undefined> {

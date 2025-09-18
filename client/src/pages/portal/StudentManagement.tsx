@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
-import { UserPlus, Edit, Search, Download } from 'lucide-react';
+import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff } from 'lucide-react';
 
 // Use shared schema to prevent frontend/backend drift
 type StudentForm = CreateStudentRequest;
@@ -21,11 +22,18 @@ type StudentForm = CreateStudentRequest;
 export default function StudentManagement() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<StudentForm>({
     resolver: zodResolver(createStudentSchema),
+  });
+
+  // Edit form
+  const { register: registerEdit, handleSubmit: handleEditSubmit, formState: { errors: editErrors }, setValue: setEditValue, reset: resetEdit } = useForm<StudentForm>({
+    resolver: zodResolver(createStudentSchema.partial()),
   });
 
   // Fetch students
@@ -115,6 +123,126 @@ export default function StudentManagement() {
 
   const onSubmit = (data: StudentForm) => {
     createStudentMutation.mutate(data);
+  };
+
+  // Update student mutation
+  const updateStudentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<StudentForm> }) => {
+      const response = await apiRequest('PATCH', `/api/students/${id}`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update student');
+      }
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Student updated successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setIsEditDialogOpen(false);
+      resetEdit();
+      setEditingStudent(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update student',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Block/Unblock student mutation
+  const blockStudentMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const response = await apiRequest('PATCH', `/api/students/${id}/block`, { isActive });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update student status');
+      }
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update student status',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete student mutation
+  const deleteStudentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/students/${id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete student');
+      }
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete student',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const onEditSubmit = (data: Partial<StudentForm>) => {
+    if (editingStudent) {
+      updateStudentMutation.mutate({ id: editingStudent.id, data });
+    }
+  };
+
+  const handleEditClick = (student: any) => {
+    setEditingStudent(student);
+    // Populate edit form with current student data
+    resetEdit({
+      email: student.user?.email || '',
+      firstName: student.user?.firstName || '',
+      lastName: student.user?.lastName || '',
+      phone: student.user?.phone || '',
+      address: student.user?.address || '',
+      dateOfBirth: student.user?.dateOfBirth || '',
+      gender: student.user?.gender || '',
+      admissionNumber: student.admissionNumber || '',
+      classId: student.classId || '',
+      parentId: student.parentId || '',
+      admissionDate: student.admissionDate || '',
+      emergencyContact: student.emergencyContact || '',
+      medicalInfo: student.medicalInfo || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleBlockToggle = (student: any) => {
+    const newActiveStatus = !student.user?.isActive;
+    blockStudentMutation.mutate({ id: student.id, isActive: newActiveStatus });
+  };
+
+  const handleDeleteStudent = (studentId: string) => {
+    deleteStudentMutation.mutate(studentId);
   };
 
   // Get student details with user info
@@ -367,6 +495,217 @@ export default function StudentManagement() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Student Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Student</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editFirstName">First Name</Label>
+                  <Input
+                    id="editFirstName"
+                    {...registerEdit('firstName')}
+                    data-testid="input-edit-firstName"
+                  />
+                  {editErrors.firstName && (
+                    <p className="text-red-500 text-sm">{editErrors.firstName.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editLastName">Last Name</Label>
+                  <Input
+                    id="editLastName"
+                    {...registerEdit('lastName')}
+                    data-testid="input-edit-lastName"
+                  />
+                  {editErrors.lastName && (
+                    <p className="text-red-500 text-sm">{editErrors.lastName.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="editEmail">Email</Label>
+                <Input
+                  id="editEmail"
+                  type="email"
+                  {...registerEdit('email')}
+                  data-testid="input-edit-email"
+                />
+                {editErrors.email && (
+                  <p className="text-red-500 text-sm">{editErrors.email.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="editPassword">New Password (Optional)</Label>
+                <Input
+                  id="editPassword"
+                  type="password"
+                  {...registerEdit('password')}
+                  placeholder="Leave blank to keep current password"
+                  data-testid="input-edit-password"
+                />
+                {editErrors.password && (
+                  <p className="text-red-500 text-sm">{editErrors.password.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editAdmissionNumber">Admission Number</Label>
+                  <Input
+                    id="editAdmissionNumber"
+                    {...registerEdit('admissionNumber')}
+                    data-testid="input-edit-admissionNumber"
+                  />
+                  {editErrors.admissionNumber && (
+                    <p className="text-red-500 text-sm">{editErrors.admissionNumber.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editAdmissionDate">Date of Admission</Label>
+                  <Input
+                    id="editAdmissionDate"
+                    type="date"
+                    {...registerEdit('admissionDate')}
+                    data-testid="input-edit-admissionDate"
+                  />
+                  {editErrors.admissionDate && (
+                    <p className="text-red-500 text-sm">{editErrors.admissionDate.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editDateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="editDateOfBirth"
+                    type="date"
+                    {...registerEdit('dateOfBirth')}
+                    data-testid="input-edit-dateOfBirth"
+                  />
+                  {editErrors.dateOfBirth && (
+                    <p className="text-red-500 text-sm">{editErrors.dateOfBirth.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editGender">Gender</Label>
+                  <Select onValueChange={(value) => setEditValue('gender', value as 'Male' | 'Female' | 'Other')}>
+                    <SelectTrigger data-testid="select-edit-gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {editErrors.gender && (
+                    <p className="text-red-500 text-sm">{editErrors.gender.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editClassId">Class</Label>
+                  <Select onValueChange={(value) => setEditValue('classId', parseInt(value))}>
+                    <SelectTrigger data-testid="select-edit-class">
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id.toString()}>
+                          {cls.name} ({cls.level})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {editErrors.classId && (
+                    <p className="text-red-500 text-sm">{editErrors.classId.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editParentId">Parent</Label>
+                  <Select onValueChange={(value) => setEditValue('parentId', value)}>
+                    <SelectTrigger data-testid="select-edit-parent">
+                      <SelectValue placeholder="Select parent" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Parent</SelectItem>
+                      {parents.map((parent: any) => (
+                        <SelectItem key={parent.id} value={parent.id}>
+                          {parent.firstName} {parent.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {editErrors.parentId && (
+                    <p className="text-red-500 text-sm">{editErrors.parentId.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="editEmergencyContact">Emergency Contact</Label>
+                <Input
+                  id="editEmergencyContact"
+                  {...registerEdit('emergencyContact')}
+                  data-testid="input-edit-emergencyContact"
+                />
+                {editErrors.emergencyContact && (
+                  <p className="text-red-500 text-sm">{editErrors.emergencyContact.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="editPhone">Phone (Optional)</Label>
+                <Input
+                  id="editPhone"
+                  {...registerEdit('phone')}
+                  data-testid="input-edit-phone"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editAddress">Address (Optional)</Label>
+                <Input
+                  id="editAddress"
+                  {...registerEdit('address')}
+                  data-testid="input-edit-address"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editMedicalInfo">Medical Information (Optional)</Label>
+                <Input
+                  id="editMedicalInfo"
+                  {...registerEdit('medicalInfo')}
+                  data-testid="input-edit-medicalInfo"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateStudentMutation.isPending}
+                  data-testid="button-update-student"
+                >
+                  {updateStudentMutation.isPending ? 'Updating...' : 'Update Student'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filter and Search */}
@@ -468,9 +807,57 @@ export default function StudentManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" data-testid={`button-edit-${student.id}`}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditClick(student)}
+                          data-testid={`button-edit-${student.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleBlockToggle(student)}
+                          data-testid={`button-block-${student.id}`}
+                        >
+                          {student.user?.isActive ? (
+                            <ShieldOff className="h-4 w-4 text-orange-600" />
+                          ) : (
+                            <Shield className="h-4 w-4 text-green-600" />
+                          )}
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              data-testid={`button-delete-${student.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Student</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {student.user?.firstName} {student.user?.lastName}? 
+                                This will deactivate the student account and cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteStudent(student.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete Student
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
