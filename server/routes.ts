@@ -2207,7 +2207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/announcements", async (req, res) => {
+  app.post("/api/announcements", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const announcementData = insertAnnouncementSchema.parse(req.body);
       const announcement = await storage.createAnnouncement(announcementData);
@@ -2217,7 +2217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/announcements/:id", async (req, res) => {
+  app.put("/api/announcements/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { id } = req.params;
       const announcementData = insertAnnouncementSchema.partial().parse(req.body);
@@ -2233,7 +2233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/announcements/:id", async (req, res) => {
+  app.delete("/api/announcements/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteAnnouncement(parseInt(id));
