@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { migrate } from "drizzle-orm/migrator";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { db } from "./storage";
 
 const app = express();
