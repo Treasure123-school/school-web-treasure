@@ -158,7 +158,10 @@ export default function StudentManagement() {
   // Block/Unblock student mutation
   const blockStudentMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      console.log('🟡 BLOCK MUTATION CALLED with ID:', id, 'isActive:', isActive);
+      console.log('🟡 Making PATCH request to:', `/api/students/${id}/block`);
       const response = await apiRequest('PATCH', `/api/students/${id}/block`, { isActive });
+      console.log('🟡 BLOCK response status:', response.status);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update student status');
@@ -185,7 +188,10 @@ export default function StudentManagement() {
   // Delete student mutation
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: string) => {
+      console.log('🔴 DELETE MUTATION CALLED with ID:', id);
+      console.log('🔴 Making DELETE request to:', `/api/students/${id}`);
       const response = await apiRequest('DELETE', `/api/students/${id}`);
+      console.log('🔴 DELETE response status:', response.status);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to delete student');
@@ -237,11 +243,14 @@ export default function StudentManagement() {
   };
 
   const handleBlockToggle = (student: any) => {
+    console.log('🟡 HANDLE BLOCK TOGGLE called for student:', student.id);
     const newActiveStatus = !student.user?.isActive;
+    console.log('🟡 Setting isActive to:', newActiveStatus);
     blockStudentMutation.mutate({ id: student.id, isActive: newActiveStatus });
   };
 
   const handleDeleteStudent = (studentId: string) => {
+    console.log('🔴 HANDLE DELETE STUDENT called for studentId:', studentId);
     deleteStudentMutation.mutate(studentId);
   };
 
