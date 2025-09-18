@@ -1036,21 +1036,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete student (logical deletion - DELETE)
+  // Delete student (hard deletion - DELETE)
   app.delete("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      console.log(`Logically deleting student ${id}`);
+      console.log(`Hard deleting student ${id}`);
       
-      const success = await storage.deleteStudent(id);
+      const success = await storage.hardDeleteStudent(id);
       
       if (!success) {
         return res.status(404).json({ message: "Student not found" });
       }
       
       res.json({ 
-        message: "Student deactivated successfully",
-        status: "deactivated"
+        message: "Student deleted successfully",
+        status: "deleted"
       });
       
     } catch (error) {

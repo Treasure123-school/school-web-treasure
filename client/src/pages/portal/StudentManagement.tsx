@@ -225,10 +225,10 @@ export default function StudentManagement() {
       phone: student.user?.phone || '',
       address: student.user?.address || '',
       dateOfBirth: student.user?.dateOfBirth || '',
-      gender: student.user?.gender || '',
+      gender: student.user?.gender || undefined,
       admissionNumber: student.admissionNumber || '',
-      classId: student.classId || '',
-      parentId: student.parentId || '',
+      classId: student.classId || undefined,
+      parentId: student.parentId || undefined,
       admissionDate: student.admissionDate || '',
       emergencyContact: student.emergencyContact || '',
       medicalInfo: student.medicalInfo || '',
@@ -596,7 +596,10 @@ export default function StudentManagement() {
                 </div>
                 <div>
                   <Label htmlFor="editGender">Gender</Label>
-                  <Select onValueChange={(value) => setEditValue('gender', value as 'Male' | 'Female' | 'Other')}>
+                  <Select 
+                    value={editingStudent?.user?.gender ?? undefined} 
+                    onValueChange={(value) => setEditValue('gender', value as 'Male' | 'Female' | 'Other')}
+                  >
                     <SelectTrigger data-testid="select-edit-gender">
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
@@ -615,7 +618,10 @@ export default function StudentManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="editClassId">Class</Label>
-                  <Select onValueChange={(value) => setEditValue('classId', parseInt(value))}>
+                  <Select 
+                    value={editingStudent?.classId ? editingStudent.classId.toString() : ''} 
+                    onValueChange={(value) => setEditValue('classId', parseInt(value))}
+                  >
                     <SelectTrigger data-testid="select-edit-class">
                       <SelectValue placeholder="Select class" />
                     </SelectTrigger>
@@ -633,12 +639,15 @@ export default function StudentManagement() {
                 </div>
                 <div>
                   <Label htmlFor="editParentId">Parent</Label>
-                  <Select onValueChange={(value) => setEditValue('parentId', value)}>
+                  <Select 
+                    value={editingStudent?.parentId || 'none'} 
+                    onValueChange={(value) => setEditValue('parentId', value === 'none' ? undefined : value)}
+                  >
                     <SelectTrigger data-testid="select-edit-parent">
                       <SelectValue placeholder="Select parent" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Parent</SelectItem>
+                      <SelectItem value="none">No Parent</SelectItem>
                       {parents.map((parent: any) => (
                         <SelectItem key={parent.id} value={parent.id}>
                           {parent.firstName} {parent.lastName}

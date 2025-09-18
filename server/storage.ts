@@ -54,6 +54,7 @@ export interface IStorage {
   updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined>;
   setUserActive(id: string, isActive: boolean): Promise<User | undefined>;
   deleteStudent(id: string): Promise<boolean>;
+  hardDeleteStudent(id: string): Promise<boolean>;
   getStudentsByClass(classId: number): Promise<Student[]>;
   getAllStudents(includeInactive?: boolean): Promise<Student[]>;
   getStudentByAdmissionNumber(admissionNumber: string): Promise<Student | undefined>;
@@ -328,6 +329,53 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.users.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async hardDeleteStudent(id: string): Promise<boolean> {
+    // Hard deletion with proper cascade handling
+    // Delete in correct order to respect foreign key constraints
+    return await this.db.transaction(async (tx: any) => {
+      try {
+        // 1. Get all exam sessions for this student
+        const examSessions = await tx.select({ id: schema.examSessions.id })
+          .from(schema.examSessions)
+          .where(eq(schema.examSessions.studentId, id));
+        
+        const sessionIds = examSessions.map((session: any) => session.id);
+        
+        // 2. Delete student answers for all their exam sessions
+        if (sessionIds.length > 0) {
+          await tx.delete(schema.studentAnswers)
+            .where(inArray(schema.studentAnswers.sessionId, sessionIds));
+        }
+        
+        // 3. Delete exam sessions for this student
+        await tx.delete(schema.examSessions)
+          .where(eq(schema.examSessions.studentId, id));
+        
+        // 4. Delete exam results for this student
+        await tx.delete(schema.examResults)
+          .where(eq(schema.examResults.studentId, id));
+        
+        // 5. Delete attendance records for this student
+        await tx.delete(schema.attendance)
+          .where(eq(schema.attendance.studentId, id));
+        
+        // 6. Delete the student record
+        await tx.delete(schema.students)
+          .where(eq(schema.students.id, id));
+        
+        // 7. Delete the user record
+        const userResult = await tx.delete(schema.users)
+          .where(eq(schema.users.id, id))
+          .returning();
+        
+        return userResult.length > 0;
+      } catch (error) {
+        console.error('Error in hard delete transaction:', error);
+        throw error;
+      }
+    });
   }
 
   async getStudentsByClass(classId: number): Promise<Student[]> {
