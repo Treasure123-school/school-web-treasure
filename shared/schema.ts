@@ -6,6 +6,7 @@ import { z } from "zod";
 // Enums
 export const genderEnum = pgEnum('gender', ['Male', 'Female', 'Other']);
 export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Late', 'Excused']);
+export const reportCardStatusEnum = pgEnum('report_card_status', ['draft', 'finalized', 'published']);
 
 // Roles table
 export const roles = pgTable("roles", {
@@ -244,6 +245,36 @@ export const contactMessages = pgTable("contact_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Report cards table for consolidated term-based student reports
+export const reportCards = pgTable("report_cards", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  studentId: uuid("student_id").references(() => students.id).notNull(),
+  classId: integer("class_id").references(() => classes.id).notNull(),
+  termId: integer("term_id").references(() => academicTerms.id).notNull(),
+  averagePercentage: integer("average_percentage"), // Overall percentage
+  overallGrade: varchar("overall_grade", { length: 5 }), // A+, A, B+, etc.
+  teacherRemarks: text("teacher_remarks"),
+  status: reportCardStatusEnum("status").default('draft'),
+  locked: boolean("locked").default(false),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  finalizedAt: timestamp("finalized_at"),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Report card items table for per-subject breakdown
+export const reportCardItems = pgTable("report_card_items", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  reportCardId: integer("report_card_id").references(() => reportCards.id).notNull(),
+  subjectId: integer("subject_id").references(() => subjects.id).notNull(),
+  totalMarks: integer("total_marks").notNull(),
+  obtainedMarks: integer("obtained_marks").notNull(),
+  percentage: integer("percentage").notNull(),
+  grade: varchar("grade", { length: 5 }), // A+, A, B+, etc.
+  teacherRemarks: text("teacher_remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -259,6 +290,8 @@ export const insertGalleryCategorySchema = createInsertSchema(galleryCategories)
 export const insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
 export const insertHomePageContentSchema = createInsertSchema(homePageContent).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
+export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
+export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
 
 // Shared schema for creating students - prevents drift between frontend and backend
 export const createStudentSchema = z.object({
@@ -331,6 +364,8 @@ export type GalleryCategory = typeof galleryCategories.$inferSelect;
 export type Gallery = typeof gallery.$inferSelect;
 export type HomePageContent = typeof homePageContent.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+export type ReportCard = typeof reportCards.$inferSelect;
+export type ReportCardItem = typeof reportCardItems.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -352,6 +387,8 @@ export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
 export type InsertHomePageContent = z.infer<typeof insertHomePageContentSchema>;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+export type InsertReportCard = z.infer<typeof insertReportCardSchema>;
+export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
