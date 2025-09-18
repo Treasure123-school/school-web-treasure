@@ -12,27 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
 import { UserPlus, Edit, Search, Download } from 'lucide-react';
 
-const studentFormSchema = z.object({
-  admissionNumber: z.string().min(1, 'Admission number is required'),
-  classId: z.coerce.number().positive('Please select a valid class'),
-  parentId: z.string().uuid('Please select a valid parent').optional(),
-  emergencyContact: z.string().min(1, 'Emergency contact is required'),
-  medicalInfo: z.string().optional(),
-  admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Valid email is required'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-  gender: z.enum(['Male', 'Female', 'Other']),
-});
-
-type StudentForm = z.infer<typeof studentFormSchema>;
+// Use shared schema to prevent frontend/backend drift
+type StudentForm = CreateStudentRequest;
 
 export default function StudentManagement() {
   const { toast } = useToast();
@@ -41,7 +25,7 @@ export default function StudentManagement() {
   const [selectedClass, setSelectedClass] = useState<string>('all');
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<StudentForm>({
-    resolver: zodResolver(studentFormSchema),
+    resolver: zodResolver(createStudentSchema),
   });
 
   // Fetch students

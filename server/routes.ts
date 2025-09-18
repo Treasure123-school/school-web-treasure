@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -743,42 +743,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      console.log('Creating student with data:', req.body);
+      console.log('Creating student for email:', req.body.email); // Log context without sensitive data
       
-      // Combined validation schema for user + student fields
-      const createStudentSchema = z.object({
-        // User fields
-        email: z.string().email("Invalid email address"),
-        password: z.string().min(6, "Password must be at least 6 characters"),
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
-        phone: z.string().optional(),
-        address: z.string().optional(),
-        dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format").optional().transform(val => {
-          if (!val) return null;
-          // Validate the date is actually valid
-          const date = new Date(val + 'T00:00:00');
-          if (isNaN(date.getTime())) {
-            throw new Error('Invalid date');
-          }
-          return val;
-        }),
-        gender: z.enum(['Male', 'Female', 'Other']).optional(),
-        profileImageUrl: z.string().optional(),
-        // Student-specific fields
-        admissionNumber: z.string().min(1, "Admission number is required"),
-        classId: z.coerce.number().positive("Please select a valid class").optional(),
-        parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
-        admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format").optional().transform(val => {
-          if (!val) return null;
-          // Validate the date is actually valid
-          const date = new Date(val + 'T00:00:00');
-          if (isNaN(date.getTime())) {
-            throw new Error('Invalid date');
-          }
-          return val;
-        }),
-        emergencyContact: z.string().optional(),
+      // Simple date validation function that doesn't use Date constructor
+      const isValidDate = (dateString: string): boolean => {
+        const regex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!regex.test(dateString)) return false;
+        
+        const [year, month, day] = dateString.split('-').map(Number);
+        if (year < 1900 || year > 2100) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        
+        // Check for invalid dates like Feb 30
+        if (month === 2) {
+          const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+          if (day > (isLeapYear ? 29 : 28)) return false;
+        } else if ([4, 6, 9, 11].includes(month) && day > 30) {
+          return false;
+        }
+        
+        return true;
+      };
+
+      // Use shared schema and add enhanced date validation - prevents frontend/backend drift
+      const sharedCreateStudentSchema = createStudentSchema.extend({
+        dateOfBirth: createStudentSchema.shape.dateOfBirth.refine(isValidDate, "Invalid date of birth"),
+        admissionDate: createStudentSchema.shape.admissionDate.refine(isValidDate, "Invalid admission date"),
         medicalInfo: z.string().nullable().optional().transform(val => val === null ? "" : val),
       });
 
@@ -789,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const validatedData = createStudentSchema.parse(req.body);
+      const validatedData = sharedCreateStudentSchema.parse(req.body);
       
       // Check if user with this email already exists
       const existingUser = await storage.getUserByEmail(validatedData.email);
@@ -800,7 +791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash the password
       const passwordHash = await bcrypt.hash(validatedData.password, BCRYPT_ROUNDS);
 
-      // Prepare user data
+      // Prepare user data - store exact date strings, no conversion
       const userData = {
         email: validatedData.email,
         passwordHash,
@@ -808,8 +799,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: validatedData.lastName,
         phone: validatedData.phone || null,
         address: validatedData.address || null,
-        dateOfBirth: validatedData.dateOfBirth || null,
-        gender: validatedData.gender || null,
+        dateOfBirth: validatedData.dateOfBirth, // Store exact YYYY-MM-DD string
+        gender: validatedData.gender,
         profileImageUrl: validatedData.profileImageUrl || null,
         roleId: ROLES.STUDENT, // Always set to student role
         isActive: true
@@ -821,14 +812,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('User created with ID:', user.id);
 
       try {
-        // Prepare student data
+        // Prepare student data - store exact values, no null conversion for required fields
         const studentData = {
           id: user.id, // Use the same ID as the user
           admissionNumber: validatedData.admissionNumber,
-          classId: validatedData.classId || null,
+          classId: validatedData.classId,
           parentId: validatedData.parentId || null,
-          admissionDate: validatedData.admissionDate || null,
-          emergencyContact: validatedData.emergencyContact || null,
+          admissionDate: validatedData.admissionDate, // Store exact YYYY-MM-DD string
+          emergencyContact: validatedData.emergencyContact,
           medicalInfo: validatedData.medicalInfo || null,
         };
 
@@ -867,13 +858,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error creating student:', error);
       
-      // Handle validation errors
+      // Handle validation errors with detailed information
       if ((error as any)?.name === 'ZodError' || ((error as any)?.issues && Array.isArray((error as any).issues))) {
         const validationErrors = (error as any).issues || [];
-        const errorMessage = validationErrors.map((err: any) => `${err.path.join('.')}: ${err.message}`).join(', ');
+        const formattedErrors = validationErrors.map((err: any) => {
+          const fieldPath = err.path.length > 0 ? err.path.join('.') : 'unknown field';
+          return `${fieldPath}: ${err.message}`;
+        });
+        console.error('Student creation validation errors:', formattedErrors);
         return res.status(400).json({ 
           message: "Validation failed", 
-          errors: errorMessage 
+          errors: formattedErrors.join(', '),
+          details: validationErrors // Include full details for debugging
         });
       }
       
@@ -894,8 +890,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case '23505': // Unique violation (handled above for admission number, but just in case)
             if ((error as any).message.includes('email')) {
               return res.status(409).json({ message: "Email address already exists" });
+            } else if ((error as any).message.includes('admission_number')) {
+              return res.status(409).json({ message: "Admission number already exists" });
             }
-            break;
+            return res.status(409).json({ message: "Duplicate value detected" });
+          default:
+            console.error('Database error:', (error as any).code, (error as any).message);
         }
       }
       
