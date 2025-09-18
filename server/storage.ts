@@ -331,6 +331,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStudentsByClass(classId: number): Promise<Student[]> {
+    // Return all students in class regardless of active status for admin management
     return await db.select().from(schema.students).where(eq(schema.students.classId, classId));
   }
 

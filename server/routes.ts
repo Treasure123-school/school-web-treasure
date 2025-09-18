@@ -735,8 +735,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (classId && typeof classId === 'string') {
         students = await storage.getStudentsByClass(parseInt(classId));
       } else {
-        // Get all students
-        students = await storage.getAllStudents();
+        // Get all students including inactive ones so blocked students can be unblocked
+        students = await storage.getAllStudents(true);
       }
       
       res.json(students);
