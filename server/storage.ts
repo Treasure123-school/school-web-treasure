@@ -556,15 +556,73 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
-    return await db.select().from(schema.examResults)
-      .where(eq(schema.examResults.studentId, studentId))
-      .orderBy(desc(schema.examResults.createdAt));
+    try {
+      return await db.select().from(schema.examResults)
+        .where(eq(schema.examResults.studentId, studentId))
+        .orderBy(desc(schema.examResults.createdAt));
+    } catch (error: any) {
+      // Handle missing columns by selecting only the columns that exist
+      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
+        console.log('⚠️ Database schema mismatch detected, using fallback query with existing columns only');
+        try {
+          return await db.select({
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            marksObtained: schema.examResults.marksObtained, // Use legacy field
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            autoScored: schema.examResults.autoScored,
+            recordedBy: schema.examResults.recordedBy,
+            createdAt: schema.examResults.createdAt,
+            // Map marksObtained to score for compatibility
+            score: schema.examResults.marksObtained,
+            maxScore: dsql`null`.as('maxScore')
+          }).from(schema.examResults)
+            .where(eq(schema.examResults.studentId, studentId))
+            .orderBy(desc(schema.examResults.createdAt));
+        } catch (fallbackError) {
+          console.error('❌ Fallback query also failed:', fallbackError);
+          return [];
+        }
+      }
+      throw error;
+    }
   }
 
   async getExamResultsByExam(examId: number): Promise<ExamResult[]> {
-    return await db.select().from(schema.examResults)
-      .where(eq(schema.examResults.examId, examId))
-      .orderBy(desc(schema.examResults.createdAt));
+    try {
+      return await db.select().from(schema.examResults)
+        .where(eq(schema.examResults.examId, examId))
+        .orderBy(desc(schema.examResults.createdAt));
+    } catch (error: any) {
+      // Handle missing columns by selecting only the columns that exist
+      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
+        console.log('⚠️ Database schema mismatch detected, using fallback query with existing columns only');
+        try {
+          return await db.select({
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            marksObtained: schema.examResults.marksObtained, // Use legacy field
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            autoScored: schema.examResults.autoScored,
+            recordedBy: schema.examResults.recordedBy,
+            createdAt: schema.examResults.createdAt,
+            // Map marksObtained to score for compatibility
+            score: schema.examResults.marksObtained,
+            maxScore: dsql`null`.as('maxScore')
+          }).from(schema.examResults)
+            .where(eq(schema.examResults.examId, examId))
+            .orderBy(desc(schema.examResults.createdAt));
+        } catch (fallbackError) {
+          console.error('❌ Fallback query also failed:', fallbackError);
+          return [];
+        }
+      }
+      throw error;
+    }
   }
 
   // Exam questions management
