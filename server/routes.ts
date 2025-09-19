@@ -1756,6 +1756,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add dedicated auto-scoring status endpoint for better polling
+  app.get("/api/exam-sessions/:sessionId/scoring-status", authenticateUser, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const user = (req as any).user;
+      
+      // Get the session to verify ownership
+      const session = await storage.getExamSessionById(parseInt(sessionId));
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      
+      // Security: Students can only check their own sessions
+      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if auto-scoring result exists
+      console.log(`Checking auto-scoring status for session ${sessionId}, student ${session.studentId}, exam ${session.examId}`);
+      const results = await storage.getExamResultsByStudent(session.studentId);
+      const autoScoredResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
+      
+      if (autoScoredResult) {
+        console.log(`✅ Auto-scoring result found for session ${sessionId}:`, autoScoredResult.score, '/', autoScoredResult.maxScore);
+        res.json({ 
+          status: 'completed', 
+          result: autoScoredResult,
+          message: 'Auto-scoring completed successfully'
+        });
+      } else if (session.isCompleted) {
+        console.log(`⏳ Session ${sessionId} is completed but no auto-scored result yet`);
+        res.json({ 
+          status: 'processing', 
+          result: null,
+          message: 'Auto-scoring in progress'
+        });
+      } else {
+        console.log(`📝 Session ${sessionId} is still in progress`);
+        res.json({ 
+          status: 'in_progress', 
+          result: null,
+          message: 'Exam session still in progress'
+        });
+      }
+    } catch (error) {
+      console.error('Error checking auto-scoring status:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        result: null,
+        message: "Failed to check auto-scoring status",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.get("/api/exam-results/:studentId", authenticateUser, async (req, res) => {
     try {
       const { studentId } = req.params;
@@ -1769,6 +1824,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Fetching exam results for student: ${studentId}`);
       const results = await storage.getExamResultsByStudent(studentId);
       console.log(`Found ${results.length} exam results for student ${studentId}`);
+      
+      // Add debug logging for auto-scored results
+      const autoScoredCount = results.filter((r: any) => r.autoScored === true).length;
+      console.log(`   - ${autoScoredCount} auto-scored results found`);
       
       // Return empty array if no results found (this is normal)
       res.json(results || []);
@@ -2043,13 +2102,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Auto-scoring logic: If session is being marked as completed, calculate scores
       if (allowedUpdates.isCompleted === true && !existingSession.isCompleted) {
         try {
-          console.log('Triggering auto-scoring for session:', id);
+          console.log('🎯 Triggering auto-scoring for session:', id);
+          console.log('   - Student ID:', existingSession.studentId);
+          console.log('   - Exam ID:', existingSession.examId);
           await autoScoreExamSession(parseInt(id), storage);
-          console.log('Auto-scoring completed successfully for session:', id);
+          console.log('✅ Auto-scoring completed successfully for session:', id);
         } catch (error) {
-          console.error('Auto-scoring failed for session:', id, error);
+          console.error('❌ Auto-scoring failed for session:', id, error);
           // Continue with session update but log the failure prominently
           console.error('❌ AUTO-SCORING FAILURE - Student will not see instant results:', error);
+          if (error instanceof Error) {
+            console.error('❌ Error details:', error.message);
+            console.error('❌ Error stack:', error.stack);
+          }
         }
       }
 
