@@ -1817,7 +1817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } else if (session.isCompleted) {
           // SAFETY CHECK: If session completed more than 30 seconds ago and no result, something went wrong
-          const completedAt = session.submittedAt || session.updatedAt;
+          const completedAt = session.submittedAt || session.createdAt;
           const now = new Date();
           const timeSinceCompletion = completedAt ? (now.getTime() - new Date(completedAt).getTime()) / 1000 : 0;
           
