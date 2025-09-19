@@ -15,6 +15,13 @@
       "when": 1758138770453,
       "tag": "0001_marvelous_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758252125370,
+      "tag": "0002_equal_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

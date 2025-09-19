@@ -380,6 +380,8 @@ export default function StudentExams() {
           }
         } catch (error) {
           console.error(`❌ Error during auto-scoring poll ${pollCount}:`, error);
+          console.error('❌ Error message:', error instanceof Error ? error.message : 'Unknown error');
+          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack available');
           // Continue polling even if one request fails
         }
         
