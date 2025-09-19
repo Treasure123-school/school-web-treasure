@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, bigserial, integer, date, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -94,11 +94,11 @@ export const attendance = pgTable("attendance", {
 export const exams = pgTable("exams", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
-  classId: integer("class_id").references(() => classes.id).notNull(),
-  subjectId: integer("subject_id").references(() => subjects.id).notNull(),
+  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
   totalMarks: integer("total_marks").notNull(),
   date: date("date").notNull(),
-  termId: integer("term_id").references(() => academicTerms.id).notNull(),
+  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
   // Enhanced exam delivery fields
   timeLimit: integer("time_limit"), // in minutes
@@ -114,7 +114,7 @@ export const exams = pgTable("exams", {
 // Exam questions table
 export const examQuestions = pgTable("exam_questions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: integer("exam_id").references(() => exams.id).notNull(),
+  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
   questionText: text("question_text").notNull(),
   questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay'
   points: integer("points").default(1),
@@ -126,7 +126,7 @@ export const examQuestions = pgTable("exam_questions", {
 // Question options table (for multiple choice questions)
 export const questionOptions = pgTable("question_options", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  questionId: integer("question_id").references(() => examQuestions.id).notNull(),
+  questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
   optionText: text("option_text").notNull(),
   isCorrect: boolean("is_correct").default(false),
   orderNumber: integer("order_number").notNull(),
@@ -136,7 +136,7 @@ export const questionOptions = pgTable("question_options", {
 // Student exam sessions table
 export const examSessions = pgTable("exam_sessions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: integer("exam_id").references(() => exams.id).notNull(),
+  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
   studentId: uuid("student_id").references(() => students.id).notNull(),
   startedAt: timestamp("started_at").defaultNow(),
   submittedAt: timestamp("submitted_at"),
@@ -151,9 +151,9 @@ export const examSessions = pgTable("exam_sessions", {
 // Student answers table
 export const studentAnswers = pgTable("student_answers", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: integer("session_id").references(() => examSessions.id).notNull(),
-  questionId: integer("question_id").references(() => examQuestions.id).notNull(),
-  selectedOptionId: integer("selected_option_id").references(() => questionOptions.id), // for multiple choice
+  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id).notNull(),
+  questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
+  selectedOptionId: bigint("selected_option_id", { mode: "number" }).references(() => questionOptions.id), // for multiple choice
   textAnswer: text("text_answer"), // for text/essay questions
   isCorrect: boolean("is_correct"),
   pointsEarned: integer("points_earned").default(0),
@@ -163,7 +163,7 @@ export const studentAnswers = pgTable("student_answers", {
 // Exam results table
 export const examResults = pgTable("exam_results", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: integer("exam_id").references(() => exams.id).notNull(),
+  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
   studentId: uuid("student_id").references(() => students.id).notNull(),
   score: integer("score"),
   maxScore: integer("max_score"),
