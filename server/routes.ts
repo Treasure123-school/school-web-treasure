@@ -2100,29 +2100,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Auto-scoring logic: If session is being marked as completed, calculate scores
+      // CRITICAL FIX: Complete auto-scoring BEFORE updating session to prevent race conditions
       if (allowedUpdates.isCompleted === true && !existingSession.isCompleted) {
         try {
           console.log('🎯 Triggering auto-scoring for session:', id);
           console.log('   - Student ID:', existingSession.studentId);
           console.log('   - Exam ID:', existingSession.examId);
+          
+          // SYNCHRONOUS auto-scoring - must complete before session update
           await autoScoreExamSession(parseInt(id), storage);
           console.log('✅ Auto-scoring completed successfully for session:', id);
-        } catch (error) {
-          console.error('❌ Auto-scoring failed for session:', id, error);
-          // Continue with session update but log the failure prominently
-          console.error('❌ AUTO-SCORING FAILURE - Student will not see instant results:', error);
-          if (error instanceof Error) {
-            console.error('❌ Error details:', error.message);
-            console.error('❌ Error stack:', error.stack);
+          
+          // Only update session after auto-scoring succeeds
+          const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
+          if (!session) {
+            return res.status(404).json({ message: "Exam session not found" });
           }
+          
+          // Verify auto-scoring result exists before responding
+          const results = await storage.getExamResultsByStudent(existingSession.studentId);
+          const autoScoredResult = results.find((r: any) => r.examId === existingSession.examId && r.autoScored === true);
+          
+          if (autoScoredResult) {
+            console.log('🎉 Confirmed auto-scored result exists:', autoScoredResult.score, '/', autoScoredResult.maxScore);
+          } else {
+            console.warn('⚠️ Session updated but no auto-scored result found - this may cause client polling issues');
+          }
+          
+          res.json(session);
+        } catch (error) {
+          console.error('❌ CRITICAL: Auto-scoring failed for session:', id);
+          console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
+          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack available');
+          
+          // IMPORTANT: Still update session but with a flag indicating manual grading needed
+          const sessionWithFallback = await storage.updateExamSession(parseInt(id), {
+            ...allowedUpdates,
+            // Add a custom field or note about scoring failure if your schema supports it
+          });
+          
+          if (!sessionWithFallback) {
+            return res.status(404).json({ message: "Exam session not found" });
+          }
+          
+          // Return session with warning that manual grading is needed
+          res.json({
+            ...sessionWithFallback,
+            scoringStatus: 'failed',
+            scoringError: 'Auto-scoring failed, manual grading required'
+          });
         }
+      } else {
+        // Normal session update without auto-scoring
+        const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
+        if (!session) {
+          return res.status(404).json({ message: "Exam session not found" });
+        }
+        res.json(session);
       }
-
-      const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
-      if (!session) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      res.json(session);
     } catch (error) {
       console.error('Error updating exam session:', error);
       res.status(400).json({ message: "Invalid exam session data" });
