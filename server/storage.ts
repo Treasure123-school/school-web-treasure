@@ -543,16 +543,59 @@ export class DatabaseStorage implements IStorage {
   }
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
-    const examResult = await db.insert(schema.examResults).values(result).returning();
-    return examResult[0];
+    try {
+      const examResult = await db.insert(schema.examResults).values(result).returning();
+      return examResult[0];
+    } catch (error: any) {
+      // Handle missing columns by removing autoScored from the insert
+      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('auto_scored')) {
+        console.log('⚠️ Database schema mismatch detected - auto_scored column missing, using fallback insert');
+        const { autoScored, ...resultWithoutAutoScored } = result;
+        // Map score to marksObtained for compatibility with existing schema
+        const compatibleResult = {
+          ...resultWithoutAutoScored,
+          marksObtained: result.score || 0
+        };
+        const examResult = await db.insert(schema.examResults).values(compatibleResult).returning();
+        return {
+          ...examResult[0],
+          autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001',
+          score: examResult[0].marksObtained || 0
+        } as ExamResult;
+      }
+      throw error;
+    }
   }
 
   async updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined> {
-    const updated = await db.update(schema.examResults)
-      .set(result)
-      .where(eq(schema.examResults.id, id))
-      .returning();
-    return updated[0];
+    try {
+      const updated = await db.update(schema.examResults)
+        .set(result)
+        .where(eq(schema.examResults.id, id))
+        .returning();
+      return updated[0];
+    } catch (error: any) {
+      // Handle missing columns by removing autoScored from the update
+      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('auto_scored')) {
+        console.log('⚠️ Database schema mismatch detected - auto_scored column missing, using fallback update');
+        const { autoScored, ...resultWithoutAutoScored } = result;
+        // Map score to marksObtained for compatibility with existing schema
+        const compatibleResult = {
+          ...resultWithoutAutoScored,
+          marksObtained: result.score || 0
+        };
+        const updated = await db.update(schema.examResults)
+          .set(compatibleResult)
+          .where(eq(schema.examResults.id, id))
+          .returning();
+        return {
+          ...updated[0],
+          autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001',
+          score: updated[0].marksObtained || 0
+        } as ExamResult;
+      }
+      throw error;
+    }
   }
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
@@ -572,12 +615,13 @@ export class DatabaseStorage implements IStorage {
             marksObtained: schema.examResults.marksObtained, // Use legacy field
             grade: schema.examResults.grade,
             remarks: schema.examResults.remarks,
-            autoScored: schema.examResults.autoScored,
             recordedBy: schema.examResults.recordedBy,
             createdAt: schema.examResults.createdAt,
             // Map marksObtained to score for compatibility
             score: schema.examResults.marksObtained,
-            maxScore: dsql`null`.as('maxScore')
+            maxScore: dsql`null`.as('maxScore'),
+            // Since auto_scored column doesn't exist, determine from recordedBy
+            autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
           }).from(schema.examResults)
             .where(eq(schema.examResults.studentId, studentId))
             .orderBy(desc(schema.examResults.createdAt));
@@ -607,12 +651,13 @@ export class DatabaseStorage implements IStorage {
             marksObtained: schema.examResults.marksObtained, // Use legacy field
             grade: schema.examResults.grade,
             remarks: schema.examResults.remarks,
-            autoScored: schema.examResults.autoScored,
             recordedBy: schema.examResults.recordedBy,
             createdAt: schema.examResults.createdAt,
             // Map marksObtained to score for compatibility
             score: schema.examResults.marksObtained,
-            maxScore: dsql`null`.as('maxScore')
+            maxScore: dsql`null`.as('maxScore'),
+            // Since auto_scored column doesn't exist, determine from recordedBy
+            autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
           }).from(schema.examResults)
             .where(eq(schema.examResults.examId, examId))
             .orderBy(desc(schema.examResults.createdAt));
