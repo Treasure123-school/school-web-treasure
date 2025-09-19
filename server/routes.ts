@@ -277,8 +277,26 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     console.log(`🎯 Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
     console.log(`📊 Score calculation: ${totalScore}/${maxPossibleScore} (${autoScoredQuestions} MC questions auto-scored)`);
     
+    // ENHANCED ERROR HANDLING: Add validation before database operations
+    if (!session.studentId) {
+      throw new Error('CRITICAL: Session missing studentId - cannot create exam result');
+    }
+    if (!session.examId) {
+      throw new Error('CRITICAL: Session missing examId - cannot create exam result');
+    }
+    if (maxPossibleScore === 0 && examQuestions.length > 0) {
+      console.warn('⚠️ WARNING: Max possible score is 0 but exam has questions - check question points configuration');
+    }
+    
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
+    console.log(`🔍 Found ${existingResults.length} existing results for student ${session.studentId}`);
+    
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
+    if (existingResult) {
+      console.log(`📋 Found existing result ID ${existingResult.id} for exam ${session.examId} - will update`);
+    } else {
+      console.log(`🆕 No existing result found for exam ${session.examId} - will create new`);
+    }
 
     // Use a special UUID for system auto-scoring
     const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
@@ -1765,43 +1783,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the session to verify ownership
       const session = await storage.getExamSessionById(parseInt(sessionId));
       if (!session) {
-        return res.status(404).json({ message: "Exam session not found" });
+        return res.status(404).json({ 
+          status: 'error',
+          message: "Exam session not found",
+          result: null 
+        });
       }
       
       // Security: Students can only check their own sessions
       if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
+        return res.status(403).json({ 
+          status: 'error',
+          message: "Access denied",
+          result: null 
+        });
       }
       
-      // Check if auto-scoring result exists
+      // ENHANCED LOGIC: Check if auto-scoring result exists
       console.log(`Checking auto-scoring status for session ${sessionId}, student ${session.studentId}, exam ${session.examId}`);
-      const results = await storage.getExamResultsByStudent(session.studentId);
-      const autoScoredResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
       
-      if (autoScoredResult) {
-        console.log(`✅ Auto-scoring result found for session ${sessionId}:`, autoScoredResult.score, '/', autoScoredResult.maxScore);
-        res.json({ 
-          status: 'completed', 
-          result: autoScoredResult,
-          message: 'Auto-scoring completed successfully'
-        });
-      } else if (session.isCompleted) {
-        console.log(`⏳ Session ${sessionId} is completed but no auto-scored result yet`);
-        res.json({ 
-          status: 'processing', 
+      try {
+        const results = await storage.getExamResultsByStudent(session.studentId);
+        console.log(`📊 Found ${results.length} total results for student ${session.studentId}`);
+        
+        const autoScoredResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
+        
+        if (autoScoredResult) {
+          console.log(`✅ Auto-scoring result found for session ${sessionId}:`, autoScoredResult.score, '/', autoScoredResult.maxScore);
+          res.json({ 
+            status: 'completed', 
+            result: autoScoredResult,
+            message: 'Auto-scoring completed successfully'
+          });
+        } else if (session.isCompleted) {
+          // SAFETY CHECK: If session completed more than 30 seconds ago and no result, something went wrong
+          const completedAt = session.submittedAt || session.updatedAt;
+          const now = new Date();
+          const timeSinceCompletion = completedAt ? (now.getTime() - new Date(completedAt).getTime()) / 1000 : 0;
+          
+          if (timeSinceCompletion > 30) {
+            console.warn(`⚠️ Session ${sessionId} completed ${timeSinceCompletion}s ago but no auto-scored result found - possible scoring failure`);
+            
+            // Check if there are any exam questions at all
+            const examQuestions = await storage.getExamQuestions(session.examId);
+            const hasAutoScorableQuestions = examQuestions.some((q: any) => q.questionType === 'multiple_choice');
+            
+            if (!hasAutoScorableQuestions) {
+              console.log(`📝 No auto-scorable questions found for exam ${session.examId} - manual grading required`);
+              res.json({ 
+                status: 'manual_grading_required', 
+                result: null,
+                message: 'This exam requires manual grading by your instructor'
+              });
+            } else {
+              console.error(`❌ TIMEOUT: Auto-scoring failed for session ${sessionId} after ${timeSinceCompletion}s`);
+              res.json({ 
+                status: 'timeout', 
+                result: null,
+                message: 'Auto-scoring timed out. Your instructor will grade manually and results will be available soon.'
+              });
+            }
+          } else {
+            console.log(`⏳ Session ${sessionId} is completed but no auto-scored result yet (${timeSinceCompletion}s ago)`);
+            res.json({ 
+              status: 'processing', 
+              result: null,
+              message: 'Auto-scoring in progress'
+            });
+          }
+        } else {
+          console.log(`📝 Session ${sessionId} is still in progress`);
+          res.json({ 
+            status: 'in_progress', 
+            result: null,
+            message: 'Exam session still in progress'
+          });
+        }
+      } catch (dbError) {
+        console.error('❌ Database error while checking scoring status:', dbError);
+        res.status(500).json({ 
+          status: 'error', 
           result: null,
-          message: 'Auto-scoring in progress'
-        });
-      } else {
-        console.log(`📝 Session ${sessionId} is still in progress`);
-        res.json({ 
-          status: 'in_progress', 
-          result: null,
-          message: 'Exam session still in progress'
+          message: "Database error while checking results",
+          error: dbError instanceof Error ? dbError.message : 'Database error'
         });
       }
     } catch (error) {
-      console.error('Error checking auto-scoring status:', error);
+      console.error('❌ Error checking auto-scoring status:', error);
       res.status(500).json({ 
         status: 'error', 
         result: null,
