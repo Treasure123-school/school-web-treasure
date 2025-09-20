@@ -93,6 +93,7 @@ export interface IStorage {
   updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined>;
   getExamResultsByStudent(studentId: string): Promise<ExamResult[]>;
   getExamResultsByExam(examId: number): Promise<ExamResult[]>;
+  getExamResultsByClass(classId: number): Promise<ExamResult[]>;
 
   // Exam questions management
   createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion>;
@@ -663,6 +664,66 @@ export class DatabaseStorage implements IStorage {
             .orderBy(desc(schema.examResults.createdAt));
         } catch (fallbackError) {
           console.error('❌ Fallback query also failed:', fallbackError);
+          return [];
+        }
+      }
+      throw error;
+    }
+  }
+
+  async getExamResultsByClass(classId: number): Promise<ExamResult[]> {
+    try {
+      // Join examResults with exams to filter by class
+      const results = await db.select({
+        id: schema.examResults.id,
+        examId: schema.examResults.examId,
+        studentId: schema.examResults.studentId,
+        score: schema.examResults.score,
+        maxScore: schema.examResults.maxScore,
+        marksObtained: schema.examResults.marksObtained,
+        grade: schema.examResults.grade,
+        remarks: schema.examResults.remarks,
+        recordedBy: schema.examResults.recordedBy,
+        autoScored: schema.examResults.autoScored,
+        createdAt: schema.examResults.createdAt,
+      })
+        .from(schema.examResults)
+        .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .where(eq(schema.exams.classId, classId))
+        .orderBy(desc(schema.examResults.createdAt));
+
+      return results;
+    } catch (error: any) {
+      console.error('Error in getExamResultsByClass:', error);
+      
+      // Handle missing columns by using a fallback query
+      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
+        console.log('⚠️ Database schema mismatch detected, using fallback query for getExamResultsByClass');
+        try {
+          // Fallback query using only existing columns
+          const results = await db.select({
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            marksObtained: schema.examResults.marksObtained,
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            recordedBy: schema.examResults.recordedBy,
+            createdAt: schema.examResults.createdAt,
+            // Map marksObtained to score for compatibility
+            score: schema.examResults.marksObtained,
+            maxScore: dsql`null`.as('maxScore'),
+            // Infer autoScored based on recordedBy
+            autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
+          })
+            .from(schema.examResults)
+            .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+            .where(eq(schema.exams.classId, classId))
+            .orderBy(desc(schema.examResults.createdAt));
+
+          return results;
+        } catch (fallbackError) {
+          console.error('❌ Fallback query also failed for getExamResultsByClass:', fallbackError);
           return [];
         }
       }
@@ -1919,6 +1980,13 @@ class MemoryStorage implements IStorage {
 
   async getExamResultsByExam(examId: number): Promise<ExamResult[]> {
     return this.examResults.filter(r => r.examId === examId);
+  }
+
+  async getExamResultsByClass(classId: number): Promise<ExamResult[]> {
+    // Get all exams for the class, then filter results
+    const classExams = this.exams.filter(e => e.classId === classId);
+    const classExamIds = classExams.map(e => e.id);
+    return this.examResults.filter(r => classExamIds.includes(r.examId));
   }
 
   // Exam questions management
