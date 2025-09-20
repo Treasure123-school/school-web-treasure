@@ -2245,6 +2245,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // MILESTONE 1: Synchronous Exam Submit API - POST /api/exams/:examId/submit
+  // Provides instant feedback without polling for maximum user experience
+  app.post("/api/exams/:examId/submit", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { examId } = req.params;
+      
+      console.log(`🚀 SYNCHRONOUS SUBMIT: User ${user.id} submitting exam ${examId}`);
+      
+      // Security: Only students can submit exams
+      if (user.roleId !== ROLES.STUDENT) {
+        return res.status(403).json({ 
+          message: "Only students can submit exams",
+          submitted: false 
+        });
+      }
+      
+      // Find the active exam session for this student and exam
+      const activeSession = await storage.getActiveExamSession(parseInt(examId), user.id);
+      if (!activeSession) {
+        return res.status(404).json({ 
+          message: "No active exam session found. Please start the exam first.",
+          submitted: false 
+        });
+      }
+      
+      console.log(`📋 Found active session ${activeSession.id} for exam ${examId}`);
+      
+      // IDEMPOTENCY GUARD: Check if already submitted
+      if (activeSession.isCompleted) {
+        console.log(`⚠️ IDEMPOTENCY: Session ${activeSession.id} already completed, returning existing result`);
+        
+        // Get existing result if available
+        const existingResults = await storage.getExamResultsByStudent(user.id);
+        const existingResult = existingResults.find((r: any) => r.examId === parseInt(examId));
+        
+        if (existingResult) {
+          return res.json({
+            message: "Exam already submitted",
+            submitted: true,
+            alreadySubmitted: true,
+            result: {
+              score: existingResult.score,
+              maxScore: existingResult.maxScore,
+              percentage: (existingResult.maxScore ?? 0) > 0 
+                ? Math.round(((existingResult.score ?? 0) / (existingResult.maxScore ?? 0)) * 100)
+                : 0,
+              autoScored: existingResult.autoScored,
+              submittedAt: activeSession.submittedAt
+            }
+          });
+        } else {
+          return res.json({
+            message: "Exam already submitted, results pending",
+            submitted: true,
+            alreadySubmitted: true,
+            result: null
+          });
+        }
+      }
+      
+      // SERVER-SIDE TIMEOUT ENFORCEMENT WITH GRACE PERIOD
+      const exam = await storage.getExamById(parseInt(examId));
+      let isLateSubmission = false;
+      const GRACE_PERIOD_SECONDS = 10; // Allow 10 seconds grace for pending saves
+      
+      if (exam?.timeLimit && activeSession.startedAt) {
+        const now = new Date();
+        const timeElapsedInMinutes = (now.getTime() - new Date(activeSession.startedAt).getTime()) / (1000 * 60);
+        const gracePeriodMinutes = GRACE_PERIOD_SECONDS / 60;
+        
+        if (timeElapsedInMinutes > (exam.timeLimit + gracePeriodMinutes)) {
+          isLateSubmission = true;
+          console.log(`⏰ LATE SUBMISSION: Session ${activeSession.id} exceeded ${exam.timeLimit} minutes + ${GRACE_PERIOD_SECONDS}s grace (elapsed: ${timeElapsedInMinutes.toFixed(1)})`);
+          // Continue with submission but mark as timed out - don't reject!
+        } else if (timeElapsedInMinutes > exam.timeLimit) {
+          isLateSubmission = true;
+          console.log(`⏰ LATE SUBMISSION (within grace): Session ${activeSession.id} exceeded ${exam.timeLimit} minutes but within grace period (elapsed: ${timeElapsedInMinutes.toFixed(1)})`);
+        }
+      }
+      
+      // STEP 1: Run instant auto-scoring BEFORE marking as completed (for robustness)
+      console.log(`🎯 STEP 1: Running instant auto-scoring for session ${activeSession.id}`);
+      let scoringResult = null;
+      let scoringError = null;
+      
+      try {
+        // Run auto-scoring synchronously
+        await autoScoreExamSession(activeSession.id, storage);
+        console.log(`✅ Auto-scoring completed successfully for session ${activeSession.id}`);
+        
+        // Get the results immediately after scoring
+        console.log(`📊 Fetching auto-scoring results for student ${user.id}, exam ${examId}`);
+        const results = await storage.getExamResultsByStudent(user.id);
+        const examResult = results.find((r: any) => r.examId === parseInt(examId) && r.autoScored === true);
+        
+        if (examResult) {
+          const score = examResult.score ?? 0;
+          const maxScore = examResult.maxScore ?? 0;
+          const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+          
+          console.log(`🎉 INSTANT FEEDBACK: Score ${score}/${maxScore} (${percentage}%) for exam ${examId}`);
+          
+          // Get question breakdown for detailed feedback
+          const examQuestions = await storage.getExamQuestions(parseInt(examId));
+          const studentAnswers = await storage.getStudentAnswers(activeSession.id);
+          const mcQuestions = examQuestions.filter((q: any) => q.questionType === 'multiple_choice');
+          const essayQuestions = examQuestions.filter((q: any) => q.questionType !== 'multiple_choice');
+          
+          scoringResult = {
+            score,
+            maxScore,
+            percentage,
+            autoScored: true,
+            breakdown: {
+              totalQuestions: examQuestions.length,
+              multipleChoiceQuestions: mcQuestions.length,
+              essayQuestions: essayQuestions.length,
+              answeredQuestions: studentAnswers.length,
+              autoScoredQuestions: mcQuestions.length,
+              pendingManualReview: essayQuestions.length
+            }
+          };
+        }
+        
+      } catch (error) {
+        console.error(`❌ Auto-scoring failed for session ${activeSession.id}:`, error);
+        scoringError = error instanceof Error ? error.message : 'Auto-scoring failed';
+        // Continue with submission even if scoring fails
+      }
+      
+      // STEP 2: Mark session as completed (only after scoring attempt)
+      console.log(`✅ STEP 2: Marking session ${activeSession.id} as completed`);
+      const completedSession = await storage.updateExamSession(activeSession.id, {
+        isCompleted: true,
+        submittedAt: new Date(),
+        status: 'submitted'
+      });
+      
+      if (!completedSession) {
+        throw new Error('Failed to complete exam session');
+      }
+      
+      // STEP 3: Return standardized response
+      const baseMessage = isLateSubmission 
+        ? "Exam submitted (after time limit). Results available below."
+        : "Exam submitted successfully! 🎉";
+      
+      if (scoringResult) {
+        return res.json({
+          message: baseMessage,
+          submitted: true,
+          alreadySubmitted: false,
+          timedOut: isLateSubmission,
+          result: {
+            ...scoringResult,
+            submittedAt: completedSession.submittedAt,
+            timedOut: isLateSubmission
+          }
+        });
+      } else {
+        // Scoring failed or no result found
+        const fallbackMessage = isLateSubmission
+          ? "Exam submitted (after time limit). Manual grading will be performed by your instructor."
+          : scoringError 
+            ? "Exam submitted successfully. Manual grading will be performed by your instructor."
+            : "Exam submitted successfully. Results are being processed.";
+            
+        return res.json({
+          message: fallbackMessage,
+          submitted: true,
+          alreadySubmitted: false,
+          timedOut: isLateSubmission,
+          result: null,
+          scoringError: scoringError || undefined
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ SYNCHRONOUS SUBMIT ERROR:', error);
+      
+      // Determine error type for better user experience
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // Don't expose internal errors to students
+      const isInternalError = errorMessage.includes('database') || 
+                            errorMessage.includes('storage') || 
+                            errorMessage.includes('SQL');
+      
+      const userMessage = isInternalError 
+        ? "A technical error occurred. Please try again or contact your instructor."
+        : errorMessage;
+      
+      res.status(500).json({ 
+        message: userMessage,
+        submitted: false,
+        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      });
+    }
+  });
+
   // Student Answers - for managing student responses during exams
   app.post("/api/student-answers", authenticateUser, async (req, res) => {
     try {
