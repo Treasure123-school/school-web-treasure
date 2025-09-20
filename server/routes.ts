@@ -1920,6 +1920,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Teacher-specific result views
+  app.get("/api/teachers/results/by-class/:classId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const user = (req as any).user;
+      
+      console.log(`Teacher ${user.email} fetching results for class ${classId}`);
+      
+      // For teachers, ensure they have access to this class (they created exams for it or are class teacher)
+      if (user.roleId === ROLES.TEACHER) {
+        // Check if teacher has created any exams for this class or is the class teacher
+        const classExams = await storage.getExamsByClass(parseInt(classId));
+        const teacherExams = classExams.filter((exam: any) => exam.createdBy === user.id);
+        
+        // Also check if they are the class teacher
+        const classInfo = await storage.getClass(parseInt(classId));
+        const isClassTeacher = classInfo && classInfo.classTeacherId === user.id;
+        
+        if (teacherExams.length === 0 && !isClassTeacher) {
+          return res.status(403).json({ 
+            message: "Access denied. You can only view results for classes where you've created exams or are the class teacher." 
+          });
+        }
+      }
+      
+      const results = await storage.getExamResultsByClass(parseInt(classId));
+      
+      // Enhance results with additional information (exam names, student names, subjects)
+      const enhancedResults = await Promise.all(results.map(async (result: any) => {
+        try {
+          // Get exam information
+          const exam = await storage.getExamById(result.examId);
+          
+          // Get student information
+          const student = await storage.getStudent(result.studentId);
+          let studentName = 'Unknown Student';
+          if (student) {
+            const user = await storage.getUser(student.id);
+            if (user) {
+              studentName = `${user.firstName} ${user.lastName}`;
+            }
+          }
+          
+          // Get subject information
+          let subjectName = 'Unknown Subject';
+          if (exam) {
+            const subject = await storage.getSubject(exam.subjectId);
+            if (subject) {
+              subjectName = subject.name;
+            }
+          }
+          
+          return {
+            ...result,
+            examName: exam ? exam.name : 'Unknown Exam',
+            studentName,
+            subjectName,
+            examDate: exam ? exam.date : null,
+            totalMarks: exam ? exam.totalMarks : null
+          };
+        } catch (error) {
+          console.error('Error enhancing result:', error);
+          return result;
+        }
+      }));
+      
+      console.log(`Found ${enhancedResults.length} results for class ${classId}`);
+      res.json(enhancedResults);
+    } catch (error) {
+      console.error('Error fetching class results:', error);
+      res.status(500).json({ message: "Failed to fetch class results" });
+    }
+  });
+
+  app.get("/api/teachers/results/by-exam/:examId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const user = (req as any).user;
+      
+      console.log(`Teacher ${user.email} fetching results for exam ${examId}`);
+      
+      // For teachers, ensure they created this exam
+      if (user.roleId === ROLES.TEACHER) {
+        const exam = await storage.getExamById(parseInt(examId));
+        if (!exam || exam.createdBy !== user.id) {
+          return res.status(403).json({ 
+            message: "Access denied. You can only view results for exams you created." 
+          });
+        }
+      }
+      
+      const results = await storage.getExamResultsByExam(parseInt(examId));
+      
+      // Enhance results with additional information (student names, class information)
+      const enhancedResults = await Promise.all(results.map(async (result: any) => {
+        try {
+          // Get student information
+          const student = await storage.getStudent(result.studentId);
+          let studentName = 'Unknown Student';
+          let className = 'Unknown Class';
+          
+          if (student) {
+            const user = await storage.getUser(student.id);
+            if (user) {
+              studentName = `${user.firstName} ${user.lastName}`;
+            }
+            
+            // Get class information
+            if (student.classId) {
+              const classInfo = await storage.getClass(student.classId);
+              if (classInfo) {
+                className = classInfo.name;
+              }
+            }
+          }
+          
+          return {
+            ...result,
+            studentName,
+            className,
+            admissionNumber: student ? student.admissionNumber : null
+          };
+        } catch (error) {
+          console.error('Error enhancing result:', error);
+          return result;
+        }
+      }));
+      
+      console.log(`Found ${enhancedResults.length} results for exam ${examId}`);
+      res.json(enhancedResults);
+    } catch (error) {
+      console.error('Error fetching exam results:', error);
+      res.status(500).json({ message: "Failed to fetch exam results" });
+    }
+  });
+
   // Exam Sessions - for managing student exam taking sessions
   app.post("/api/exam-sessions", authenticateUser, async (req, res) => {
     try {
