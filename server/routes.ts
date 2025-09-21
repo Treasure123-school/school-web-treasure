@@ -174,11 +174,13 @@ const authorizeRoles = (...allowedRoles: number[]) => {
 const uploadDir = 'uploads';
 const galleryDir = 'uploads/gallery';
 const profileDir = 'uploads/profiles';
+const studyResourcesDir = 'uploads/study-resources';
 
 // Ensure upload directories exist
 fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
 fs.mkdir(galleryDir, { recursive: true }).catch(() => {});
 fs.mkdir(profileDir, { recursive: true }).catch(() => {});
+fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {});
 
 const storage_multer = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -189,6 +191,8 @@ const storage_multer = multer.diskStorage({
       dir = galleryDir;
     } else if (uploadType === 'profile') {
       dir = profileDir;
+    } else if (uploadType === 'study-resource') {
+      dir = studyResourcesDir;
     }
     
     cb(null, dir);
@@ -215,6 +219,25 @@ const upload = multer({
       return cb(null, true);
     } else {
       cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
+
+// Separate multer configuration for study resources (documents)
+const uploadDocument = multer({
+  storage: storage_multer,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for documents
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /pdf|doc|docx|txt|rtf|odt|ppt|pptx|xls|xlsx/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = /application\/(pdf|msword|vnd\.openxmlformats-officedocument|vnd\.oasis\.opendocument|text\/plain|vnd\.ms-powerpoint|vnd\.ms-excel)/.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only document files (PDF, DOC, DOCX, TXT, RTF, ODT, PPT, PPTX, XLS, XLSX) are allowed!'));
     }
   }
 });
@@ -2997,7 +3020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if file type is in allowed directories
       const pathParts = normalizedPath.split('/');
-      if (pathParts.length < 3 || !['profiles', 'gallery'].includes(pathParts[2])) {
+      if (pathParts.length < 3 || !['profiles', 'gallery', 'study-resources'].includes(pathParts[2])) {
         return res.status(403).json({ message: "Invalid file path" });
       }
       
@@ -3130,6 +3153,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Gallery delete error:', error);
       res.status(500).json({ message: "Failed to delete gallery image" });
+    }
+  });
+
+  // Study resources routes
+  app.post("/api/study-resources", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), uploadDocument.single('studyResource'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { title, description, resourceType, subjectId, classId, termId } = req.body;
+      const user = (req as any).user;
+      
+      if (!title || !resourceType) {
+        return res.status(400).json({ message: "Title and resource type are required" });
+      }
+
+      const fileUrl = `/uploads/study-resources/${req.file.filename}`;
+      
+      const studyResource = await storage.createStudyResource({
+        title,
+        description: description || null,
+        fileUrl,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        resourceType,
+        subjectId: subjectId ? parseInt(subjectId) : null,
+        classId: classId ? parseInt(classId) : null,
+        termId: termId ? parseInt(termId) : null,
+        uploadedBy: user.id,
+        isPublished: true
+      });
+
+      res.json({ 
+        message: "Study resource uploaded successfully", 
+        resource: studyResource 
+      });
+    } catch (error) {
+      console.error('Study resource upload error:', error);
+      res.status(500).json({ message: "Failed to upload study resource" });
+    }
+  });
+
+  app.get("/api/study-resources", authenticateUser, async (req, res) => {
+    try {
+      const { classId, subjectId, termId, resourceType } = req.query;
+      const user = (req as any).user;
+
+      // For students, filter by their class
+      let filters: any = {};
+      if (user.roleId === ROLES.STUDENT) {
+        const student = await storage.getStudent(user.id);
+        if (student?.classId) {
+          filters.classId = student.classId;
+        }
+      } else {
+        // For teachers and admins, allow filtering by all parameters
+        if (classId) filters.classId = parseInt(classId as string);
+      }
+      
+      if (subjectId) filters.subjectId = parseInt(subjectId as string);
+      if (termId) filters.termId = parseInt(termId as string);
+      if (resourceType) filters.resourceType = resourceType as string;
+
+      const resources = await storage.getStudyResources(filters);
+      res.json(resources);
+    } catch (error) {
+      console.error('Study resources fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch study resources" });
+    }
+  });
+
+  app.get("/api/study-resources/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const resource = await storage.getStudyResourceById(parseInt(id));
+      
+      if (!resource) {
+        return res.status(404).json({ message: "Study resource not found" });
+      }
+      
+      res.json(resource);
+    } catch (error) {
+      console.error('Study resource fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch study resource" });
+    }
+  });
+
+  app.get("/api/study-resources/:id/download", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const resource = await storage.getStudyResourceById(parseInt(id));
+      
+      if (!resource) {
+        return res.status(404).json({ message: "Study resource not found" });
+      }
+
+      // Increment download count
+      await storage.incrementStudyResourceDownloads(parseInt(id));
+      
+      // Serve the file
+      const filePath = path.join(process.cwd(), resource.fileUrl);
+      res.download(filePath, resource.fileName);
+    } catch (error) {
+      console.error('Study resource download error:', error);
+      res.status(500).json({ message: "Failed to download study resource" });
+    }
+  });
+
+  app.delete("/api/study-resources/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get resource first to find the file path
+      const resource = await storage.getStudyResourceById(parseInt(id));
+      if (!resource) {
+        return res.status(404).json({ message: "Study resource not found" });
+      }
+      
+      // Delete the file from filesystem
+      const filePath = path.join(process.cwd(), resource.fileUrl);
+      try {
+        await fs.unlink(filePath);
+      } catch (fileError) {
+        console.error('File deletion error:', fileError);
+        // Continue with database deletion even if file deletion fails
+      }
+      
+      // Delete the record from storage
+      const success = await storage.deleteStudyResource(parseInt(id));
+      if (!success) {
+        return res.status(404).json({ message: "Failed to delete study resource record" });
+      }
+      
+      res.json({ message: "Study resource deleted successfully" });
+    } catch (error) {
+      console.error('Study resource deletion error:', error);
+      res.status(500).json({ message: "Failed to delete study resource" });
     }
   });
 

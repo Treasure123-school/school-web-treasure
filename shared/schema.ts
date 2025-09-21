@@ -275,6 +275,24 @@ export const reportCardItems = pgTable("report_card_items", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Study resources table for past papers and study materials
+export const studyResources = pgTable("study_resources", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  fileUrl: text("file_url").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileSize: integer("file_size"), // in bytes
+  resourceType: varchar("resource_type", { length: 50 }).notNull(), // 'past_paper', 'study_guide', 'notes', 'assignment'
+  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
+  classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
+  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+  uploadedBy: uuid("uploaded_by").references(() => users.id).notNull(),
+  isPublished: boolean("is_published").default(true),
+  downloads: integer("downloads").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -292,6 +310,7 @@ export const insertHomePageContentSchema = createInsertSchema(homePageContent).o
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
 export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
 export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
+export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
 
 // Shared schema for creating students - prevents drift between frontend and backend
 export const createStudentSchema = z.object({
@@ -366,6 +385,7 @@ export type HomePageContent = typeof homePageContent.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type ReportCard = typeof reportCards.$inferSelect;
 export type ReportCardItem = typeof reportCardItems.$inferSelect;
+export type StudyResource = typeof studyResources.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -389,6 +409,7 @@ export type InsertHomePageContent = z.infer<typeof insertHomePageContentSchema>;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertReportCard = z.infer<typeof insertReportCardSchema>;
 export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
+export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;

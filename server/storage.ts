@@ -9,7 +9,8 @@ import type {
   Message, InsertMessage, Gallery, InsertGallery, GalleryCategory, InsertGalleryCategory,
   HomePageContent, InsertHomePageContent, ContactMessage, InsertContactMessage,
   Role, AcademicTerm, ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
-  ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer
+  ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
+  StudyResource, InsertStudyResource
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
@@ -141,6 +142,18 @@ export interface IStorage {
   getGalleryImages(categoryId?: number): Promise<Gallery[]>;
   getGalleryImageById(id: string): Promise<Gallery | undefined>;
   deleteGalleryImage(id: string): Promise<boolean>;
+
+  // Study resources management
+  createStudyResource(resource: InsertStudyResource): Promise<StudyResource>;
+  getStudyResources(filters?: {
+    classId?: number;
+    subjectId?: number;
+    termId?: number;
+    resourceType?: string;
+  }): Promise<StudyResource[]>;
+  getStudyResourceById(id: number): Promise<StudyResource | undefined>;
+  incrementStudyResourceDownloads(id: number): Promise<void>;
+  deleteStudyResource(id: number): Promise<boolean>;
 
   // Home page content management
   createHomePageContent(content: InsertHomePageContent): Promise<HomePageContent>;
@@ -978,6 +991,57 @@ export class DatabaseStorage implements IStorage {
   async deleteGalleryImage(id: string): Promise<boolean> {
     const result = await db.delete(schema.gallery)
       .where(eq(schema.gallery.id, parseInt(id)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Study resources management
+  async createStudyResource(resource: InsertStudyResource): Promise<StudyResource> {
+    const result = await db.insert(schema.studyResources).values(resource).returning();
+    return result[0];
+  }
+
+  async getStudyResources(filters?: {
+    classId?: number;
+    subjectId?: number;
+    termId?: number;
+    resourceType?: string;
+  }): Promise<StudyResource[]> {
+    let query = db.select().from(schema.studyResources)
+      .where(eq(schema.studyResources.isPublished, true));
+
+    if (filters?.classId) {
+      query = query.where(eq(schema.studyResources.classId, filters.classId));
+    }
+    if (filters?.subjectId) {
+      query = query.where(eq(schema.studyResources.subjectId, filters.subjectId));
+    }
+    if (filters?.termId) {
+      query = query.where(eq(schema.studyResources.termId, filters.termId));
+    }
+    if (filters?.resourceType) {
+      query = query.where(eq(schema.studyResources.resourceType, filters.resourceType));
+    }
+
+    return await query.orderBy(desc(schema.studyResources.createdAt));
+  }
+
+  async getStudyResourceById(id: number): Promise<StudyResource | undefined> {
+    const result = await db.select().from(schema.studyResources)
+      .where(eq(schema.studyResources.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async incrementStudyResourceDownloads(id: number): Promise<void> {
+    await db.update(schema.studyResources)
+      .set({ downloads: dsql`${schema.studyResources.downloads} + 1` })
+      .where(eq(schema.studyResources.id, id));
+  }
+
+  async deleteStudyResource(id: number): Promise<boolean> {
+    const result = await db.delete(schema.studyResources)
+      .where(eq(schema.studyResources.id, id))
       .returning();
     return result.length > 0;
   }
