@@ -4,27 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { useState } from 'react';
-import { Download, FileText, Search, Filter, BookOpen, Calendar, Tag } from 'lucide-react';
+import { Download, FileText, Search, Filter, BookOpen, Calendar, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface StudyResource {
-  id: number;
-  title: string;
-  description?: string;
-  fileUrl: string;
-  fileName: string;
-  fileSize: number;
-  resourceType: string;
-  subjectId?: number;
-  classId?: number;
-  termId?: number;
-  uploadedBy: string;
-  downloads: number;
-  createdAt: string;
-}
+import type { StudyResource, Subject } from '@shared/schema';
 
 export default function StudentStudyResources() {
   const { user } = useAuth();
@@ -38,31 +25,16 @@ export default function StudentStudyResources() {
   }
 
   // Fetch study resources
-  const { data: studyResources = [], isLoading: loadingResources } = useQuery({
-    queryKey: ['study-resources', selectedSubject, selectedResourceType],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (selectedSubject) params.append('subjectId', selectedSubject);
-      if (selectedResourceType) params.append('resourceType', selectedResourceType);
-      
-      const response = await fetch(`/api/study-resources?${params.toString()}`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch study resources');
-      return response.json();
-    }
+  const { data: studyResources = [], isLoading: loadingResources, error: resourcesError } = useQuery<StudyResource[]>({
+    queryKey: ['/api/study-resources', { 
+      subjectId: selectedSubject || undefined, 
+      resourceType: selectedResourceType || undefined 
+    }]
   });
 
   // Fetch subjects for filtering
-  const { data: subjects = [] } = useQuery({
-    queryKey: ['subjects'],
-    queryFn: async () => {
-      const response = await fetch('/api/subjects', {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch subjects');
-      return response.json();
-    }
+  const { data: subjects = [], isLoading: loadingSubjects, error: subjectsError } = useQuery<Subject[]>({
+    queryKey: ['/api/subjects']
   });
 
   // Filter resources based on search term
@@ -72,9 +44,10 @@ export default function StudentStudyResources() {
   );
 
   // Handle resource download
-  const handleDownload = async (resourceId: number, fileName: string) => {
-    try {
+  const downloadMutation = useMutation({
+    mutationFn: async ({ resourceId, fileName }: { resourceId: number; fileName: string }) => {
       const response = await fetch(`/api/study-resources/${resourceId}/download`, {
+        method: 'GET',
         credentials: 'include'
       });
       
@@ -92,33 +65,43 @@ export default function StudentStudyResources() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
+      return fileName;
+    },
+    onSuccess: (fileName) => {
       toast({
         title: "Download started",
         description: `Downloading ${fileName}`,
       });
-    } catch (error) {
+      // Invalidate and refetch study resources to update download counts
+      queryClient.invalidateQueries({ queryKey: ['/api/study-resources'] });
+    },
+    onError: () => {
       toast({
         title: "Download failed",
         description: "Failed to download the file. Please try again.",
         variant: "destructive",
       });
     }
+  });
+
+  const handleDownload = (resourceId: number, fileName: string) => {
+    downloadMutation.mutate({ resourceId, fileName });
   };
 
-  // Get resource type badge color
+  // Get resource type badge variant
   const getResourceTypeBadge = (type: string) => {
     switch (type) {
       case 'past_paper':
-        return { variant: 'default' as const, color: 'bg-blue-100 text-blue-800' };
+        return 'default' as const;
       case 'study_guide':
-        return { variant: 'secondary' as const, color: 'bg-green-100 text-green-800' };
+        return 'secondary' as const;
       case 'notes':
-        return { variant: 'outline' as const, color: 'bg-yellow-100 text-yellow-800' };
+        return 'outline' as const;
       case 'assignment':
-        return { variant: 'destructive' as const, color: 'bg-red-100 text-red-800' };
+        return 'destructive' as const;
       default:
-        return { variant: 'default' as const, color: 'bg-gray-100 text-gray-800' };
+        return 'default' as const;
     }
   };
 
@@ -138,6 +121,29 @@ export default function StudentStudyResources() {
     ).join(' ');
   };
 
+  // Show error state if there are errors
+  if (resourcesError || subjectsError) {
+    return (
+      <PortalLayout 
+        userRole="student" 
+        userName={`${user.firstName} ${user.lastName}`}
+        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
+      >
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+            <div>
+              <h3 className="text-lg font-semibold">Error Loading Study Resources</h3>
+              <p className="text-gray-600">
+                {resourcesError?.message || subjectsError?.message || 'Something went wrong'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </PortalLayout>
+    );
+  }
+
   return (
     <PortalLayout 
       userRole="student" 
@@ -147,16 +153,11 @@ export default function StudentStudyResources() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Study Resources</h1>
-            <p className="text-muted-foreground">
-              Access past papers, study guides, and learning materials for your subjects
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <FileText className="h-4 w-4" />
-              <span>{filteredResources.length} Resources</span>
+          <div className="flex items-center space-x-3">
+            <FileText className="h-8 w-8 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Study Resources</h1>
+              <p className="text-gray-600">Access study materials, past papers, and more</p>
             </div>
           </div>
         </div>
@@ -164,44 +165,48 @@ export default function StudentStudyResources() {
         {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center space-x-2">
               <Filter className="h-5 w-5" />
-              Filters & Search
+              <span>Filter Resources</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
+                  data-testid="input-search"
                   placeholder="Search resources..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
-                  data-testid="search-study-resources"
                 />
               </div>
 
               {/* Subject Filter */}
               <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                <SelectTrigger data-testid="filter-subject">
-                  <SelectValue placeholder="Filter by subject" />
+                <SelectTrigger data-testid="select-subject">
+                  <SelectValue placeholder="All Subjects" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Subjects</SelectItem>
-                  {subjects.map((subject: any) => (
-                    <SelectItem key={subject.id} value={subject.id.toString()}>
-                      {subject.name}
-                    </SelectItem>
-                  ))}
+                  {loadingSubjects ? (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  ) : (
+                    subjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
 
               {/* Resource Type Filter */}
               <Select value={selectedResourceType} onValueChange={setSelectedResourceType}>
-                <SelectTrigger data-testid="filter-resource-type">
-                  <SelectValue placeholder="Filter by type" />
+                <SelectTrigger data-testid="select-resource-type">
+                  <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Types</SelectItem>
@@ -215,115 +220,120 @@ export default function StudentStudyResources() {
           </CardContent>
         </Card>
 
-        {/* Resources Grid */}
-        {loadingResources ? (
+        {/* Loading State */}
+        {loadingResources && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Card key={index}>
                 <CardHeader>
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <div className="flex justify-between items-center pt-2">
+                      <Skeleton className="h-6 w-20" />
+                      <Skeleton className="h-8 w-24" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : filteredResources.length > 0 ? (
+        )}
+
+        {/* Empty State */}
+        {!loadingResources && filteredResources.length === 0 && (
+          <div className="text-center py-12">
+            <FileText className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">No Study Resources Found</h3>
+            <p className="mt-2 text-gray-600">
+              {searchTerm || selectedSubject || selectedResourceType 
+                ? "Try adjusting your search or filter criteria." 
+                : "No study resources are currently available."}
+            </p>
+          </div>
+        )}
+
+        {/* Resources Grid */}
+        {!loadingResources && filteredResources.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredResources.map((resource: StudyResource) => {
-              const badgeInfo = getResourceTypeBadge(resource.resourceType);
-              const subject = subjects.find((s: any) => s.id === resource.subjectId);
+            {filteredResources.map((resource) => {
+              const badgeVariant = getResourceTypeBadge(resource.resourceType);
+              const subject = subjects.find(s => s.id === resource.subjectId);
               
               return (
-                <Card key={resource.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="space-y-2">
+                <Card key={resource.id} className="hover:shadow-lg transition-shadow" data-testid={`card-resource-${resource.id}`}>
+                  <CardHeader>
                     <div className="flex items-start justify-between">
-                      <h3 className="font-semibold line-clamp-2" title={resource.title}>
-                        {resource.title}
-                      </h3>
-                      <Badge className={badgeInfo.color}>
-                        {formatResourceType(resource.resourceType)}
-                      </Badge>
-                    </div>
-                    {resource.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {resource.description}
-                      </p>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Resource Info */}
-                    <div className="space-y-2 text-sm">
-                      {subject && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <BookOpen className="h-4 w-4" />
-                          <span>{subject.name}</span>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg line-clamp-2" data-testid={`text-title-${resource.id}`}>
+                          {resource.title}
+                        </CardTitle>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Badge variant={badgeVariant} data-testid={`badge-type-${resource.id}`}>
+                            {formatResourceType(resource.resourceType)}
+                          </Badge>
+                          {subject && (
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-subject-${resource.id}`}>
+                              <BookOpen className="h-3 w-3 mr-1" />
+                              {subject.name}
+                            </Badge>
+                          )}
                         </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {resource.description && (
+                        <p className="text-sm text-gray-600 line-clamp-3" data-testid={`text-description-${resource.id}`}>
+                          {resource.description}
+                        </p>
                       )}
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <FileText className="h-4 w-4" />
-                        <span>{resource.fileName}</span>
+                      
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span data-testid={`text-file-size-${resource.id}`}>
+                          {resource.fileSize ? formatFileSize(resource.fileSize) : 'Unknown size'}
+                        </span>
+                        <span data-testid={`text-downloads-${resource.id}`}>
+                          {resource.downloads} downloads
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Tag className="h-4 w-4" />
-                        <span>{formatFileSize(resource.fileSize)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        <span>{new Date(resource.createdAt).toLocaleDateString()}</span>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-xs text-gray-400" data-testid={`text-date-${resource.id}`}>
+                          <Calendar className="h-3 w-3 inline mr-1" />
+                          {new Date(resource.createdAt).toLocaleDateString()}
+                        </span>
+                        <Button
+                          data-testid={`button-download-${resource.id}`}
+                          size="sm"
+                          onClick={() => handleDownload(resource.id, resource.fileName)}
+                          disabled={downloadMutation.isPending}
+                          className="flex items-center space-x-1"
+                        >
+                          <Download className="h-4 w-4" />
+                          <span>
+                            {downloadMutation.isPending ? 'Downloading...' : 'Download'}
+                          </span>
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Download Stats */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{resource.downloads} downloads</span>
-                    </div>
-
-                    {/* Download Button */}
-                    <Button 
-                      onClick={() => handleDownload(resource.id, resource.fileName)}
-                      className="w-full"
-                      data-testid={`download-resource-${resource.id}`}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
                   </CardContent>
                 </Card>
               );
             })}
           </div>
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Study Resources Found</h3>
-              <p className="text-muted-foreground text-center max-w-md">
-                {searchTerm || selectedSubject || selectedResourceType 
-                  ? "No resources match your current filters. Try adjusting your search criteria."
-                  : "No study resources have been uploaded yet. Check back later for learning materials."
-                }
-              </p>
-              {(searchTerm || selectedSubject || selectedResourceType) && (
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedSubject('');
-                    setSelectedResourceType('');
-                  }}
-                >
-                  Clear Filters
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+        )}
+
+        {/* Summary */}
+        {!loadingResources && (
+          <div className="text-center text-sm text-gray-500" data-testid="text-summary">
+            Showing {filteredResources.length} of {studyResources.length} resources
+          </div>
         )}
       </div>
     </PortalLayout>
