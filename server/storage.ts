@@ -890,7 +890,20 @@ export class DatabaseStorage implements IStorage {
 
   // Get all active exam sessions for background cleanup service
   async getActiveExamSessions(): Promise<ExamSession[]> {
-    return await db.select().from(schema.examSessions)
+    // Temporarily select only core columns to avoid missing column errors
+    return await db.select({
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt
+    }).from(schema.examSessions)
       .where(eq(schema.examSessions.isCompleted, false))
       .orderBy(desc(schema.examSessions.startedAt));
   }
