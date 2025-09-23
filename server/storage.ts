@@ -117,6 +117,7 @@ export interface IStorage {
   updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined>;
   deleteExamSession(id: number): Promise<boolean>;
   getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined>;
+  getActiveExamSessions(): Promise<ExamSession[]>; // For background cleanup service
 
   // Student answers management
   createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
@@ -887,6 +888,13 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  // Get all active exam sessions for background cleanup service
+  async getActiveExamSessions(): Promise<ExamSession[]> {
+    return await db.select().from(schema.examSessions)
+      .where(eq(schema.examSessions.isCompleted, false))
+      .orderBy(desc(schema.examSessions.startedAt));
+  }
+
   // Student answers management
   async createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer> {
     const result = await db.insert(schema.studentAnswers).values(answer).returning();
@@ -905,6 +913,132 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.studentAnswers.id, id))
       .returning();
     return result[0];
+  }
+
+  // OPTIMIZED SCORING: Get all scoring data in a single query for <2s performance
+  async getExamScoringData(sessionId: number): Promise<{
+    session: ExamSession;
+    scoringData: Array<{
+      questionId: number;
+      questionType: string;
+      points: number;
+      studentSelectedOptionId: number | null;
+      correctOptionId: number | null;
+      isCorrect: boolean;
+      textAnswer: string | null;
+    }>;
+    summary: {
+      totalQuestions: number;
+      maxScore: number;
+      studentScore: number;
+      autoScoredQuestions: number;
+    };
+  }> {
+    try {
+      // First, get the session
+      const sessionResult = await this.db.select()
+        .from(schema.examSessions)
+        .where(eq(schema.examSessions.id, sessionId))
+        .limit(1);
+      
+      if (!sessionResult[0]) {
+        throw new Error(`Exam session ${sessionId} not found`);
+      }
+      
+      const session = sessionResult[0];
+
+      // Single optimized query with JOINs to get all scoring data
+      const scoringQuery = await this.db.select({
+        questionId: schema.examQuestions.id,
+        questionType: schema.examQuestions.questionType,
+        points: schema.examQuestions.points,
+        studentSelectedOptionId: schema.studentAnswers.selectedOptionId,
+        textAnswer: schema.studentAnswers.textAnswer,
+        correctOptionId: schema.questionOptions.id,
+        isCorrectOption: schema.questionOptions.isCorrect,
+      })
+      .from(schema.examQuestions)
+      .leftJoin(schema.studentAnswers, and(
+        eq(schema.studentAnswers.questionId, schema.examQuestions.id),
+        eq(schema.studentAnswers.sessionId, sessionId)
+      ))
+      .leftJoin(schema.questionOptions, eq(schema.questionOptions.questionId, schema.examQuestions.id))
+      .where(eq(schema.examQuestions.examId, session.examId))
+      .orderBy(asc(schema.examQuestions.orderNumber), asc(schema.questionOptions.orderNumber));
+
+      // Process results to calculate scoring
+      const questionMap = new Map<number, {
+        questionType: string;
+        points: number;
+        studentSelectedOptionId: number | null;
+        textAnswer: string | null;
+        correctOptionId: number | null;
+        isCorrect: boolean;
+      }>();
+
+      // Group by question and identify correct answers
+      for (const row of scoringQuery) {
+        if (!questionMap.has(row.questionId)) {
+          questionMap.set(row.questionId, {
+            questionType: row.questionType,
+            points: row.points || 1,
+            studentSelectedOptionId: row.studentSelectedOptionId,
+            textAnswer: row.textAnswer,
+            correctOptionId: null,
+            isCorrect: false,
+          });
+        }
+
+        // Find the correct option for this question
+        if (row.isCorrectOption && row.correctOptionId) {
+          const question = questionMap.get(row.questionId)!;
+          question.correctOptionId = row.correctOptionId;
+          
+          // Check if student's answer is correct
+          if (row.questionType === 'multiple_choice' && 
+              question.studentSelectedOptionId === row.correctOptionId) {
+            question.isCorrect = true;
+          }
+        }
+      }
+
+      // Convert map to array and calculate summary
+      const scoringData = Array.from(questionMap.entries()).map(([questionId, data]) => ({
+        questionId,
+        ...data,
+      }));
+
+      // Calculate summary statistics
+      let totalQuestions = scoringData.length;
+      let maxScore = 0;
+      let studentScore = 0;
+      let autoScoredQuestions = 0;
+
+      for (const question of scoringData) {
+        maxScore += question.points;
+        
+        if (question.questionType === 'multiple_choice') {
+          autoScoredQuestions++;
+          if (question.isCorrect) {
+            studentScore += question.points;
+          }
+        }
+      }
+
+      return {
+        session,
+        scoringData,
+        summary: {
+          totalQuestions,
+          maxScore,
+          studentScore,
+          autoScoredQuestions,
+        }
+      };
+    } catch (error) {
+      console.error('🚨 OPTIMIZED SCORING ERROR:', error);
+      throw error;
+    }
   }
 
   // Announcements
