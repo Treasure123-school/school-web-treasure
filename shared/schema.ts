@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -121,7 +121,11 @@ export const examQuestions = pgTable("exam_questions", {
   orderNumber: integer("order_number").notNull(),
   imageUrl: text("image_url"), // for questions with images
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEX: Critical for scoring JOIN queries
+  examQuestionsExamIdIdx: index("exam_questions_exam_id_idx").on(table.examId),
+  examQuestionsOrderIdx: index("exam_questions_order_idx").on(table.examId, table.orderNumber),
+}));
 
 // Question options table (for multiple choice questions)
 export const questionOptions = pgTable("question_options", {
@@ -131,7 +135,11 @@ export const questionOptions = pgTable("question_options", {
   isCorrect: boolean("is_correct").default(false),
   orderNumber: integer("order_number").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEX: Critical for scoring JOIN queries - find correct options fast
+  questionOptionsQuestionIdIdx: index("question_options_question_id_idx").on(table.questionId),
+  questionOptionsCorrectIdx: index("question_options_correct_idx").on(table.questionId, table.isCorrect),
+}));
 
 // Student exam sessions table
 export const examSessions = pgTable("exam_sessions", {
@@ -151,7 +159,13 @@ export const examSessions = pgTable("exam_sessions", {
   submissionMethod: varchar("submission_method", { length: 20 }).default('manual'), // 'manual', 'auto_timeout', 'server_cleanup'
   lastActivityAt: timestamp("last_activity_at").defaultNow(), // Track student activity for timeout enforcement
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEX: Critical for session lookups and timeout enforcement
+  examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
+  examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
+  examSessionsTimeoutCleanupIdx: index("exam_sessions_timeout_cleanup_idx").on(table.isCompleted, table.serverTimeoutAt),
+  examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
+}));
 
 // Student answers table
 export const studentAnswers = pgTable("student_answers", {
@@ -163,7 +177,12 @@ export const studentAnswers = pgTable("student_answers", {
   isCorrect: boolean("is_correct"),
   pointsEarned: integer("points_earned").default(0),
   answeredAt: timestamp("answered_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEX: Critical for scoring JOIN queries - fetch all answers for a session fast
+  studentAnswersSessionIdIdx: index("student_answers_session_id_idx").on(table.sessionId),
+  studentAnswersSessionQuestionIdx: index("student_answers_session_question_idx").on(table.sessionId, table.questionId),
+  studentAnswersQuestionIdx: index("student_answers_question_id_idx").on(table.questionId),
+}));
 
 // Exam results table
 export const examResults = pgTable("exam_results", {
@@ -178,7 +197,13 @@ export const examResults = pgTable("exam_results", {
   autoScored: boolean("auto_scored").default(false),
   recordedBy: uuid("recorded_by").notNull(), // UUID field to match database schema
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEX: Critical for fast result lookups by exam/student
+  examResultsExamIdIdx: index("exam_results_exam_id_idx").on(table.examId),
+  examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
+  examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
+  examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId),
+}));
 
 // Announcements table
 export const announcements = pgTable("announcements", {
@@ -297,6 +322,7 @@ export const studyResources = pgTable("study_resources", {
   downloads: integer("downloads").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
 
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });

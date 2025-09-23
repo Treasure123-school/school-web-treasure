@@ -394,10 +394,43 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       }
       
       console.log(`✅ Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
+      
+      // ENHANCED PERFORMANCE MONITORING - Track 2-second submission goal
+      const totalResponseTime = Date.now() - startTime;
+      const scoringTime = totalResponseTime - databaseQueryTime;
+      
+      // Performance metrics tracking
+      const performanceMetrics = {
+        sessionId,
+        startTime: new Date(startTime).toISOString(),
+        databaseQueryTime: databaseQueryTime,
+        scoringTime: scoringTime,
+        totalResponseTime: totalResponseTime,
+        goalAchieved: totalResponseTime <= 2000,
+        submissionMethod: 'auto_scoring'
+      };
+      
+      // Alert if submission exceeds 2-second goal
+      if (totalResponseTime > 2000) {
+        console.warn(`🚨 PERFORMANCE ALERT: Auto-scoring took ${totalResponseTime}ms (exceeded 2-second goal by ${totalResponseTime - 2000}ms)`);
+        console.warn(`🔍 PERFORMANCE BREAKDOWN: DB Query: ${databaseQueryTime}ms, Scoring Logic: ${scoringTime}ms`);
+        console.warn(`💡 OPTIMIZATION NEEDED: Consider query optimization or caching for session ${sessionId}`);
+      } else {
+        console.log(`🎯 PERFORMANCE SUCCESS: Auto-scoring completed in ${totalResponseTime}ms (within 2-second goal! ✅)`);
+        console.log(`📊 PERFORMANCE METRICS: DB Query: ${databaseQueryTime}ms, Scoring: ${scoringTime}ms, Total: ${totalResponseTime}ms`);
+      }
+      
+      // Log detailed metrics in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔬 DETAILED METRICS:`, JSON.stringify(performanceMetrics, null, 2));
+      }
+      
       console.log(`🚀 AUTO-SCORING COMPLETE - Student should see instant results!`);
 
     } catch (resultError) {
-      console.error('❌ CRITICAL: Failed to save exam result:', resultError);
+      // Enhanced error handling with timing
+      const totalErrorTime = Date.now() - startTime;
+      console.error(`❌ CRITICAL: Auto-scoring failed after ${totalErrorTime}ms:`, resultError);
       console.error('❌ Result data that failed:', JSON.stringify(resultData, null, 2));
       if (resultError instanceof Error) {
         console.error('❌ Error details:', resultError.message);
@@ -407,7 +440,8 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     }
 
   } catch (error) {
-    console.error('Auto-scoring error:', error);
+    const totalErrorTime = Date.now() - startTime;
+    console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
     throw error;
   }
 }

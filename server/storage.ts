@@ -124,6 +124,26 @@ export interface IStorage {
   getStudentAnswers(sessionId: number): Promise<StudentAnswer[]>;
   updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined>;
 
+  // Performance optimization - single query exam scoring
+  getExamScoringData(sessionId: number): Promise<{
+    session: ExamSession;
+    scoringData: Array<{
+      questionId: number;
+      questionType: string;
+      points: number;
+      studentSelectedOptionId: number | null;
+      correctOptionId: number | null;
+      isCorrect: boolean;
+      textAnswer: string | null;
+    }>;
+    summary: {
+      totalQuestions: number;
+      maxScore: number;
+      studentScore: number;
+      autoScoredQuestions: number;
+    };
+  }>;
+
   // Announcements
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
   getAnnouncements(targetRole?: string): Promise<Announcement[]>;
