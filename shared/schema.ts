@@ -145,6 +145,11 @@ export const examSessions = pgTable("exam_sessions", {
   score: integer("score"),
   maxScore: integer("max_score"),
   status: varchar("status", { length: 20 }).default('in_progress'), // 'in_progress', 'submitted', 'graded'
+  // Enhanced server-side timeout protection fields
+  serverTimeoutAt: timestamp("server_timeout_at"), // Server-calculated absolute timeout
+  autoSubmitted: boolean("auto_submitted").default(false), // Track auto-submissions
+  submissionMethod: varchar("submission_method", { length: 20 }).default('manual'), // 'manual', 'auto_timeout', 'server_cleanup'
+  lastActivityAt: timestamp("last_activity_at").defaultNow(), // Track student activity for timeout enforcement
   createdAt: timestamp("created_at").defaultNow(),
 });
 
