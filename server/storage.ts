@@ -10,7 +10,7 @@ import type {
   HomePageContent, InsertHomePageContent, ContactMessage, InsertContactMessage,
   Role, AcademicTerm, ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
-  StudyResource, InsertStudyResource
+  StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
@@ -195,6 +195,17 @@ export interface IStorage {
   getPerformanceAnalytics(filters: any): Promise<any>;
   getTrendAnalytics(months: number): Promise<any>;
   getAttendanceAnalytics(filters: any): Promise<any>;
+
+  // Performance monitoring
+  logPerformanceEvent(event: InsertPerformanceEvent): Promise<PerformanceEvent>;
+  getPerformanceMetrics(hours?: number): Promise<{
+    totalEvents: number;
+    goalAchievementRate: number;
+    averageDuration: number;
+    slowSubmissions: number;
+    eventsByType: Record<string, number>;
+  }>;
+  getRecentPerformanceAlerts(hours?: number): Promise<PerformanceEvent[]>;
 }
 
 // Helper to normalize UUIDs from various formats
@@ -1604,6 +1615,64 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
+
+  // Performance monitoring implementation
+  async logPerformanceEvent(event: InsertPerformanceEvent): Promise<PerformanceEvent> {
+    const result = await this.db.insert(schema.performanceEvents).values(event).returning();
+    return result[0];
+  }
+
+  async getPerformanceMetrics(hours: number = 24): Promise<{
+    totalEvents: number;
+    goalAchievementRate: number;
+    averageDuration: number;
+    slowSubmissions: number;
+    eventsByType: Record<string, number>;
+  }> {
+    const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+    
+    const events = await this.db.select()
+      .from(schema.performanceEvents)
+      .where(dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`);
+
+    const totalEvents = events.length;
+    const goalAchievedCount = events.filter(e => e.goalAchieved).length;
+    const goalAchievementRate = totalEvents > 0 ? (goalAchievedCount / totalEvents) * 100 : 0;
+    
+    const averageDuration = totalEvents > 0 
+      ? events.reduce((sum, e) => sum + e.duration, 0) / totalEvents 
+      : 0;
+    
+    const slowSubmissions = events.filter(e => e.duration > 2000).length;
+    
+    const eventsByType: Record<string, number> = {};
+    events.forEach(e => {
+      eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
+    });
+
+    return {
+      totalEvents,
+      goalAchievementRate: Math.round(goalAchievementRate * 100) / 100,
+      averageDuration: Math.round(averageDuration),
+      slowSubmissions,
+      eventsByType
+    };
+  }
+
+  async getRecentPerformanceAlerts(hours: number = 24): Promise<PerformanceEvent[]> {
+    const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+    
+    return await this.db.select()
+      .from(schema.performanceEvents)
+      .where(
+        and(
+          dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`,
+          eq(schema.performanceEvents.goalAchieved, false)
+        )
+      )
+      .orderBy(desc(schema.performanceEvents.createdAt))
+      .limit(50);
+  }
 }
 
 // REMOVED: MemoryStorage - All data must be stored in Supabase database only
@@ -2831,6 +2900,64 @@ class MemoryStorage implements IStorage {
         examsThisMonth: 0
       }
     };
+  }
+
+  // Performance monitoring implementation
+  async logPerformanceEvent(event: InsertPerformanceEvent): Promise<PerformanceEvent> {
+    const result = await this.db.insert(schema.performanceEvents).values(event).returning();
+    return result[0];
+  }
+
+  async getPerformanceMetrics(hours: number = 24): Promise<{
+    totalEvents: number;
+    goalAchievementRate: number;
+    averageDuration: number;
+    slowSubmissions: number;
+    eventsByType: Record<string, number>;
+  }> {
+    const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+    
+    const events = await this.db.select()
+      .from(schema.performanceEvents)
+      .where(dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`);
+
+    const totalEvents = events.length;
+    const goalAchievedCount = events.filter(e => e.goalAchieved).length;
+    const goalAchievementRate = totalEvents > 0 ? (goalAchievedCount / totalEvents) * 100 : 0;
+    
+    const averageDuration = totalEvents > 0 
+      ? events.reduce((sum, e) => sum + e.duration, 0) / totalEvents 
+      : 0;
+    
+    const slowSubmissions = events.filter(e => e.duration > 2000).length;
+    
+    const eventsByType: Record<string, number> = {};
+    events.forEach(e => {
+      eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
+    });
+
+    return {
+      totalEvents,
+      goalAchievementRate: Math.round(goalAchievementRate * 100) / 100,
+      averageDuration: Math.round(averageDuration),
+      slowSubmissions,
+      eventsByType
+    };
+  }
+
+  async getRecentPerformanceAlerts(hours: number = 24): Promise<PerformanceEvent[]> {
+    const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+    
+    return await this.db.select()
+      .from(schema.performanceEvents)
+      .where(
+        and(
+          dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`,
+          eq(schema.performanceEvents.goalAchieved, false)
+        )
+      )
+      .orderBy(desc(schema.performanceEvents.createdAt))
+      .limit(50);
   }
 }
 */

@@ -312,14 +312,40 @@ export default function StudentExams() {
         return newSet;
       });
 
-      // Show error toast only for unexpected errors, not validation errors
-      if (!error.message.includes('Please select') && !error.message.includes('Please enter')) {
+      // Enhanced error handling with specific user-friendly messages
+      let userFriendlyMessage = error.message;
+      let shouldShowToast = true;
+      
+      // Handle specific error types
+      if (error.message.includes('Please select') || error.message.includes('Please enter')) {
+        // Validation errors - don't show toast, user can see status indicator
+        shouldShowToast = false;
+      } else if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+        userFriendlyMessage = "Network connection issue. Your answer will be retried automatically.";
+        // Auto-retry after 2 seconds for network errors
+        setTimeout(() => {
+          if (answers[variables.questionId]) {
+            handleRetryAnswer(variables.questionId, variables.questionType);
+          }
+        }, 2000);
+      } else if (error.message.includes('500')) {
+        userFriendlyMessage = "Server error. Please try saving your answer again.";
+      } else if (error.message.includes('401') || error.message.includes('Authentication')) {
+        userFriendlyMessage = "Session expired. Please refresh the page and log in again.";
+      } else if (error.message.includes('403')) {
+        userFriendlyMessage = "Permission denied. Please contact your instructor.";
+      }
+
+      if (shouldShowToast) {
         toast({
           title: "Answer Save Failed",
-          description: `Question ${variables.questionId}: ${error.message}`,
+          description: `Question ${variables.questionId}: ${userFriendlyMessage}`,
           variant: "destructive",
         });
       }
+
+      // Log performance data for failed saves
+      console.warn(`📊 ANSWER SAVE FAILED: Question ${variables.questionId} - ${error.message}`);
     },
   });
 
@@ -328,6 +354,7 @@ export default function StudentExams() {
     mutationFn: async () => {
       if (!activeSession) throw new Error('No active session');
       
+      const startTime = Date.now();
       console.log('🚀 MILESTONE 1: Synchronous submission for exam:', activeSession.examId);
       
       // Use the new synchronous submit endpoint - no polling needed!
@@ -339,9 +366,30 @@ export default function StudentExams() {
       }
       
       const submissionData = await response.json();
+      const totalTime = Date.now() - startTime;
+      
+      // Log client-side performance metrics
+      console.log(`📊 CLIENT PERFORMANCE: Exam submission took ${totalTime}ms`);
+      
+      // Send performance metrics to server (fire and forget)
+      try {
+        await apiRequest('POST', '/api/performance-events', {
+          sessionId: activeSession.id,
+          eventType: 'submission',
+          duration: totalTime,
+          metadata: {
+            examId: activeSession.examId,
+            clientSide: true,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (perfError) {
+        console.warn('Failed to log performance metrics:', perfError);
+      }
+      
       console.log('✅ INSTANT FEEDBACK received:', submissionData);
       
-      return submissionData;
+      return { ...submissionData, clientPerformance: { totalTime } };
     },
     onMutate: () => {
       console.log('🔄 Exam submission started, setting scoring state...');

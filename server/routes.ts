@@ -420,6 +420,30 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         console.log(`📊 PERFORMANCE METRICS: DB Query: ${databaseQueryTime}ms, Scoring: ${scoringTime}ms, Total: ${totalResponseTime}ms`);
       }
       
+      // Store performance event in database for monitoring
+      try {
+        await storage.logPerformanceEvent({
+          sessionId,
+          eventType: 'auto_scoring',
+          duration: totalResponseTime,
+          goalAchieved: totalResponseTime <= 2000,
+          metadata: JSON.stringify({
+            databaseQueryTime,
+            scoringTime,
+            submissionMethod: 'auto_scoring',
+            studentId: session.studentId,
+            examId: session.examId
+          }),
+          userId: session.studentId, // Track which student's exam was auto-scored
+          clientSide: false, // Server-side auto-scoring
+          createdAt: new Date()
+        });
+        console.log(`📊 Performance event logged to database: ${totalResponseTime}ms auto-scoring`);
+      } catch (perfLogError) {
+        console.warn('⚠️ Failed to log performance event to database:', perfLogError);
+        // Don't throw - this shouldn't break the auto-scoring process
+      }
+      
       // Log detailed metrics in development
       if (process.env.NODE_ENV === 'development') {
         console.log(`🔬 DETAILED METRICS:`, JSON.stringify(performanceMetrics, null, 2));
@@ -2473,6 +2497,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MILESTONE 1: Synchronous Exam Submit API - POST /api/exams/:examId/submit
   // Provides instant feedback without polling for maximum user experience
   app.post("/api/exams/:examId/submit", authenticateUser, async (req, res) => {
+    const submissionStartTime = Date.now(); // Track total submission time
+    let sessionId: number | null = null;
+    
     try {
       const user = (req as any).user;
       const { examId } = req.params;
@@ -2496,11 +2523,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      sessionId = activeSession.id; // Track for performance logging
       console.log(`📋 Found active session ${activeSession.id} for exam ${examId}`);
       
       // IDEMPOTENCY GUARD: Check if already submitted
       if (activeSession.isCompleted) {
         console.log(`⚠️ IDEMPOTENCY: Session ${activeSession.id} already completed, returning existing result`);
+        
+        // Log this as a duplicate submission attempt
+        const duplicateSubmissionDuration = Date.now() - submissionStartTime;
+        try {
+          await storage.logPerformanceEvent({
+            sessionId: activeSession.id,
+            eventType: 'duplicate_submission_attempt',
+            duration: duplicateSubmissionDuration,
+            goalAchieved: true, // Always fast since it's just a lookup
+            metadata: JSON.stringify({
+              examId: parseInt(examId),
+              studentId: user.id,
+              originalSubmittedAt: activeSession.submittedAt
+            }),
+            userId: user.id,
+            clientSide: false,
+            createdAt: new Date()
+          });
+        } catch (perfError) {
+          console.warn('⚠️ Failed to log duplicate submission performance:', perfError);
+        }
         
         // Get existing result if available
         const existingResults = await storage.getExamResultsByStudent(user.id);
@@ -2618,6 +2667,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? "Exam submitted (after time limit). Results available below."
         : "Exam submitted successfully! 🎉";
       
+      // Log performance event for exam submission
+      const submissionDuration = Date.now() - submissionStartTime;
+      if (sessionId) {
+        try {
+          await storage.logPerformanceEvent({
+            sessionId,
+            eventType: 'exam_submission',
+            duration: submissionDuration,
+            goalAchieved: submissionDuration <= 2000,
+            metadata: JSON.stringify({
+              examId: parseInt(examId),
+              studentId: user.id,
+              isLateSubmission,
+              autoScoringSuccess: !!scoringResult,
+              scoringError: scoringError || null
+            }),
+            userId: user.id,
+            clientSide: false,
+            createdAt: new Date()
+          });
+          console.log(`📊 Exam submission performance logged: ${submissionDuration}ms`);
+        } catch (perfError) {
+          console.warn('⚠️ Failed to log submission performance:', perfError);
+        }
+      }
+
       if (scoringResult) {
         return res.json({
           message: baseMessage,
@@ -2650,6 +2725,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error) {
       console.error('❌ SYNCHRONOUS SUBMIT ERROR:', error);
+      
+      // Log submission error performance event
+      const errorDuration = Date.now() - submissionStartTime;
+      if (sessionId) {
+        try {
+          await storage.logPerformanceEvent({
+            sessionId,
+            eventType: 'exam_submission_error',
+            duration: errorDuration,
+            goalAchieved: false, // Errors always fail the goal
+            metadata: JSON.stringify({
+              examId: parseInt(examId),
+              studentId: (req as any).user?.id,
+              errorMessage: error instanceof Error ? error.message : 'Unknown error',
+              errorType: error instanceof Error ? error.constructor.name : 'UnknownError'
+            }),
+            userId: (req as any).user?.id || null,
+            clientSide: false,
+            createdAt: new Date()
+          });
+          console.log(`📊 Submission error performance logged: ${errorDuration}ms`);
+        } catch (perfError) {
+          console.warn('⚠️ Failed to log error performance:', perfError);
+        }
+      }
       
       // Determine error type for better user experience
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -3576,6 +3676,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('User role update error:', error);
       res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // PERFORMANCE MONITORING API ENDPOINT
+  // Real-time performance metrics for admin monitoring (using real database data)
+  app.get("/api/admin/performance-metrics", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { hours = 24 } = req.query;
+      const hoursNumber = parseInt(hours as string);
+      
+      // Get real performance data from database
+      const metrics = await storage.getPerformanceMetrics(hoursNumber);
+      const recentAlerts = await storage.getRecentPerformanceAlerts(hoursNumber);
+      
+      // Determine system status based on real metrics
+      let currentStatus = "optimal";
+      let recommendations = ["System performing optimally"];
+      
+      if (metrics.goalAchievementRate < 80) {
+        currentStatus = "critical";
+        recommendations = [
+          "Performance below acceptable threshold",
+          "Consider database optimization",
+          "Review exam submission timeouts"
+        ];
+      } else if (metrics.goalAchievementRate < 95) {
+        currentStatus = "warning";
+        recommendations = [
+          "Performance needs attention",
+          "Monitor slow submissions",
+          "Background cleanup active"
+        ];
+      }
+      
+      const performanceStatus = {
+        timestamp: new Date().toISOString(),
+        submissionGoal: 2000, // 2 seconds in milliseconds
+        currentStatus,
+        systemHealth: {
+          database: "connected",
+          backgroundCleanup: "running",
+          averageSubmissionTime: `${metrics.averageDuration}ms`,
+        },
+        metrics: {
+          totalSubmissionsToday: metrics.totalEvents,
+          goalAchievementRate: `${metrics.goalAchievementRate}%`,
+          averageQueryTime: `${metrics.averageDuration}ms`,
+          slowSubmissions: metrics.slowSubmissions,
+          eventsByType: metrics.eventsByType
+        },
+        recentPerformanceAlerts: recentAlerts,
+        recommendations
+      };
+
+      res.json(performanceStatus);
+    } catch (error) {
+      console.error('Performance metrics error:', error);
+      res.status(500).json({ message: "Failed to retrieve performance metrics" });
+    }
+  });
+
+  // Performance alerts endpoint for admin monitoring
+  app.get("/api/admin/performance-alerts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { hours = 24 } = req.query;
+      const hoursNumber = parseInt(hours as string);
+      
+      const alerts = await storage.getRecentPerformanceAlerts(hoursNumber);
+      
+      res.json({
+        alerts,
+        summary: {
+          totalAlerts: alerts.length,
+          timeframe: `${hoursNumber} hours`,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Performance alerts error:', error);
+      res.status(500).json({ message: "Failed to retrieve performance alerts" });
+    }
+  });
+
+  // ENHANCED PERFORMANCE TRACKING ENDPOINT
+  // Log performance events to database for real monitoring (client-side telemetry)
+  app.post("/api/performance-events", authenticateUser, async (req, res) => {
+    try {
+      const { sessionId, eventType, duration, metadata } = req.body;
+      
+      const user = (req as any).user;
+      
+      // Validate and sanitize the event data
+      if (!eventType || typeof duration !== 'number') {
+        return res.status(400).json({ message: "eventType and duration are required" });
+      }
+      
+      // Limit metadata size to prevent abuse
+      const sanitizedMetadata = metadata ? JSON.stringify(metadata).substring(0, 2000) : null;
+      
+      // Create performance event for database storage with user context
+      const performanceEvent = {
+        sessionId: sessionId || null,
+        eventType: eventType,
+        duration: Math.max(0, duration), // Ensure positive duration
+        goalAchieved: duration <= 2000,
+        metadata: sanitizedMetadata,
+        userId: user.id, // Track which user generated the event
+        clientSide: true, // Flag this as client-side telemetry
+        createdAt: new Date()
+      };
+
+      // Store in database
+      const savedEvent = await storage.logPerformanceEvent(performanceEvent);
+
+      // In development, log detailed performance data
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📊 PERFORMANCE EVENT STORED:', JSON.stringify(savedEvent, null, 2));
+      }
+
+      // Alert if performance goal exceeded
+      if (duration > 2000) {
+        console.warn(`🚨 PERFORMANCE ALERT: ${eventType} took ${duration}ms (exceeded 2-second goal)`);
+        if (metadata) {
+          console.warn(`🔍 METADATA:`, JSON.stringify(metadata, null, 2));
+        }
+      }
+
+      res.status(204).send(); // No content response for telemetry
+    } catch (error) {
+      console.error('Performance event logging error:', error);
+      res.status(500).json({ message: "Failed to log performance event" });
     }
   });
 

@@ -323,6 +323,24 @@ export const studyResources = pgTable("study_resources", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Performance events table for monitoring and analytics
+export const performanceEvents = pgTable("performance_events", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id),
+  eventType: varchar("event_type", { length: 50 }).notNull(), // 'submission', 'auto_submit', 'timeout_cleanup', 'answer_save'
+  duration: integer("duration").notNull(), // in milliseconds
+  goalAchieved: boolean("goal_achieved").notNull(), // whether it met the < 2000ms goal
+  metadata: text("metadata"), // JSON string for additional data
+  clientSide: boolean("client_side").default(false), // whether logged from client or server
+  userId: uuid("user_id").references(() => users.id), // for attribution
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Performance indexes for analytics queries
+  performanceEventsTypeIdx: index("performance_events_type_idx").on(table.eventType),
+  performanceEventsDateIdx: index("performance_events_date_idx").on(table.createdAt),
+  performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType),
+}));
+
 
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
@@ -342,6 +360,7 @@ export const insertContactMessageSchema = createInsertSchema(contactMessages).om
 export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
 export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
 export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
+export const insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
 
 // Shared schema for creating students - prevents drift between frontend and backend
 export const createStudentSchema = z.object({
@@ -417,6 +436,7 @@ export type ContactMessage = typeof contactMessages.$inferSelect;
 export type ReportCard = typeof reportCards.$inferSelect;
 export type ReportCardItem = typeof reportCardItems.$inferSelect;
 export type StudyResource = typeof studyResources.$inferSelect;
+export type PerformanceEvent = typeof performanceEvents.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -441,6 +461,7 @@ export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertReportCard = z.infer<typeof insertReportCardSchema>;
 export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
 export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;
+export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
