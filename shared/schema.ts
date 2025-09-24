@@ -108,6 +108,12 @@ export const exams = pgTable("exams", {
   isPublished: boolean("is_published").default(false),
   allowRetakes: boolean("allow_retakes").default(false),
   shuffleQuestions: boolean("shuffle_questions").default(false),
+  // Enhanced auto-grading features
+  autoGradingEnabled: boolean("auto_grading_enabled").default(true),
+  instantFeedback: boolean("instant_feedback").default(false), // Show correct/incorrect immediately
+  showCorrectAnswers: boolean("show_correct_answers").default(false), // Show answers after submission
+  passingScore: integer("passing_score"), // Minimum score to pass (percentage)
+  gradingScale: text("grading_scale").default('standard'), // 'standard', 'custom'
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -116,10 +122,18 @@ export const examQuestions = pgTable("exam_questions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
   questionText: text("question_text").notNull(),
-  questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay'
+  questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'
   points: integer("points").default(1),
   orderNumber: integer("order_number").notNull(),
   imageUrl: text("image_url"), // for questions with images
+  // Enhanced auto-grading features
+  autoGradable: boolean("auto_gradable").default(true), // Can this question be auto-graded?
+  expectedAnswers: text("expected_answers").array(), // For text questions - expected answer variations
+  caseSensitive: boolean("case_sensitive").default(false), // For text answers
+  allowPartialCredit: boolean("allow_partial_credit").default(false),
+  partialCreditRules: text("partial_credit_rules"), // JSON config for partial credit
+  explanationText: text("explanation_text"), // Explanation shown after answering
+  hintText: text("hint_text"), // Optional hint for students
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   // PERFORMANCE INDEX: Critical for scoring JOIN queries
@@ -134,6 +148,9 @@ export const questionOptions = pgTable("question_options", {
   optionText: text("option_text").notNull(),
   isCorrect: boolean("is_correct").default(false),
   orderNumber: integer("order_number").notNull(),
+  // Enhanced auto-grading features
+  partialCreditValue: integer("partial_credit_value").default(0), // Points if selected (for partial credit)
+  explanationText: text("explanation_text"), // Why this option is correct/incorrect
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   // PERFORMANCE INDEX: Critical for scoring JOIN queries - find correct options fast
@@ -153,17 +170,11 @@ export const examSessions = pgTable("exam_sessions", {
   score: integer("score"),
   maxScore: integer("max_score"),
   status: varchar("status", { length: 20 }).default('in_progress'), // 'in_progress', 'submitted', 'graded'
-  // Enhanced server-side timeout protection fields
-  serverTimeoutAt: timestamp("server_timeout_at"), // Server-calculated absolute timeout
-  autoSubmitted: boolean("auto_submitted").default(false), // Track auto-submissions
-  submissionMethod: varchar("submission_method", { length: 20 }).default('manual'), // 'manual', 'auto_timeout', 'server_cleanup'
-  lastActivityAt: timestamp("last_activity_at").defaultNow(), // Track student activity for timeout enforcement
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
-  // PERFORMANCE INDEX: Critical for session lookups and timeout enforcement
+  // PERFORMANCE INDEX: Critical for session lookups
   examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
   examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
-  examSessionsTimeoutCleanupIdx: index("exam_sessions_timeout_cleanup_idx").on(table.isCompleted, table.serverTimeoutAt),
   examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
 }));
 
@@ -177,6 +188,11 @@ export const studentAnswers = pgTable("student_answers", {
   isCorrect: boolean("is_correct"),
   pointsEarned: integer("points_earned").default(0),
   answeredAt: timestamp("answered_at").defaultNow(),
+  // Enhanced auto-grading features
+  autoScored: boolean("auto_scored").default(false), // Was this answer auto-scored?
+  manualOverride: boolean("manual_override").default(false), // Teacher manually adjusted score
+  feedbackText: text("feedback_text"), // Instant feedback shown to student
+  partialCreditReason: text("partial_credit_reason"), // Why partial credit was given
 }, (table) => ({
   // PERFORMANCE INDEX: Critical for scoring JOIN queries - fetch all answers for a session fast
   studentAnswersSessionIdIdx: index("student_answers_session_id_idx").on(table.sessionId),
