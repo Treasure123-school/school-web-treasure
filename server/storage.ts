@@ -23,7 +23,7 @@ function initializeDatabase() {
     
     // Enhanced connection pool configuration for optimal performance
     const connectionConfig = {
-      ssl: process.env.NODE_ENV === 'production' ? 'require' : { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: false }, // Supabase handles SSL certificates properly
       prepare: false, // Required for Supabase transaction pooler
       
       // Optimized connection pool settings
