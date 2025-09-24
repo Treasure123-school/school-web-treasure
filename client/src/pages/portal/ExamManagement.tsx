@@ -20,14 +20,8 @@ import { insertExamSchema, insertExamQuestionSchema, insertQuestionOptionSchema,
 import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload } from 'lucide-react';
 
-// Form schemas
-const examFormSchema = insertExamSchema.omit({ createdBy: true }).extend({
-  classId: z.number().min(1, 'Class is required'),
-  subjectId: z.number().min(1, 'Subject is required'),
-  timeLimit: z.number().min(1, 'Time limit must be at least 1 minute').optional(),
-  // Enhanced auto-grading fields
-  passingScore: z.number().min(0).max(100, 'Passing score must be between 0 and 100').optional(),
-});
+// Form schemas - Use the shared insertExamSchema which has proper preprocessing
+const examFormSchema = insertExamSchema.omit({ createdBy: true });
 
 const questionFormSchema = insertExamQuestionSchema.extend({
   options: z.array(z.object({
