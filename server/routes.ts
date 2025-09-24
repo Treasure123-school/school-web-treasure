@@ -247,15 +247,14 @@ async function cleanupExpiredExamSessions(): Promise<void> {
   try {
     console.log('🧹 TIMEOUT CLEANUP: Checking for expired exam sessions...');
     
-    // Find all active sessions that have exceeded their server timeout
-    const allActiveSessions = await storage.getActiveExamSessions();
+    // PERFORMANCE IMPROVEMENT: Get only expired sessions directly from database
+    // instead of fetching all active sessions and filtering in memory
     const now = new Date();
-    const expiredSessions = allActiveSessions.filter((session: any) => {
-      return session.serverTimeoutAt && now > new Date(session.serverTimeoutAt) && !session.isCompleted;
-    });
-
+    const expiredSessions = await storage.getExpiredExamSessions(now, 50); // Limit batch size to 50
+    
     console.log(`🧹 Found ${expiredSessions.length} expired sessions to cleanup`);
     
+    // Process in smaller batches to avoid overwhelming the database
     for (const session of expiredSessions) {
       try {
         console.log(`⏰ AUTO-CLEANUP: Force submitting expired session ${session.id} for student ${session.studentId}`);
@@ -275,6 +274,7 @@ async function cleanupExpiredExamSessions(): Promise<void> {
         console.log(`✅ Successfully cleaned up expired session ${session.id}`);
       } catch (error) {
         console.error(`❌ Failed to cleanup session ${session.id}:`, error);
+        // Continue with other sessions even if one fails
       }
     }
   } catch (error) {
@@ -282,10 +282,14 @@ async function cleanupExpiredExamSessions(): Promise<void> {
   }
 }
 
-// Start background cleanup service (runs every 30 seconds)
-const cleanupInterval = 30000; // 30 seconds
-setInterval(cleanupExpiredExamSessions, cleanupInterval);
-console.log(`🧹 TIMEOUT PROTECTION: Background cleanup service started (every ${cleanupInterval/1000}s)`);
+// PERFORMANCE FIX: Reduce cleanup frequency from 30s to 3 minutes to prevent database contention
+const cleanupInterval = 3 * 60 * 1000; // 3 minutes (was 30 seconds)
+const jitter = Math.random() * 30000; // Add 0-30s random jitter to prevent thundering herd
+setTimeout(() => {
+  setInterval(cleanupExpiredExamSessions, cleanupInterval);
+  cleanupExpiredExamSessions(); // Run immediately after jitter delay
+}, jitter);
+console.log(`🧹 TIMEOUT PROTECTION: Background cleanup service started (every ${cleanupInterval/1000/60} minutes with jitter)`);
 
 // OPTIMIZED Auto-scoring function for <2 second performance goal
 async function autoScoreExamSession(sessionId: number, storage: any): Promise<void> {

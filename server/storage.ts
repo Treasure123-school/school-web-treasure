@@ -166,6 +166,7 @@ export interface IStorage {
   deleteExamSession(id: number): Promise<boolean>;
   getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined>;
   getActiveExamSessions(): Promise<ExamSession[]>; // For background cleanup service
+  getExpiredExamSessions(now: Date, limit?: number): Promise<ExamSession[]>; // Optimized cleanup query
 
   // Student answers management
   createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
@@ -985,6 +986,35 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.examSessions)
       .where(eq(schema.examSessions.isCompleted, false))
       .orderBy(desc(schema.examSessions.startedAt));
+  }
+
+  // PERFORMANCE OPTIMIZED: Get only expired sessions directly from database
+  async getExpiredExamSessions(now: Date, limit = 100): Promise<ExamSession[]> {
+    // Use the existing timeout_cleanup_idx index for fast queries
+    return await db.select({
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      serverTimeoutAt: schema.examSessions.serverTimeoutAt,
+      autoSubmitted: schema.examSessions.autoSubmitted,
+      submissionMethod: schema.examSessions.submissionMethod,
+      lastActivityAt: schema.examSessions.lastActivityAt,
+      createdAt: schema.examSessions.createdAt
+    }).from(schema.examSessions)
+      .where(and(
+        eq(schema.examSessions.isCompleted, false),
+        dsql`${schema.examSessions.serverTimeoutAt} IS NOT NULL`,
+        dsql`${schema.examSessions.serverTimeoutAt} < ${now}`
+      ))
+      .orderBy(asc(schema.examSessions.serverTimeoutAt)) // Process oldest expired first
+      .limit(limit);
   }
 
   // Student answers management
