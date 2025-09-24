@@ -100,6 +100,7 @@ export const exams = pgTable("exams", {
   date: date("date").notNull(),
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
   // Enhanced exam delivery fields
   timeLimit: integer("time_limit"), // in minutes
   startTime: timestamp("start_time"),
@@ -108,13 +109,12 @@ export const exams = pgTable("exams", {
   isPublished: boolean("is_published").default(false),
   allowRetakes: boolean("allow_retakes").default(false),
   shuffleQuestions: boolean("shuffle_questions").default(false),
-  // Enhanced auto-grading features
+  // Enhanced auto-grading features (will be added via migration)
   autoGradingEnabled: boolean("auto_grading_enabled").default(true),
   instantFeedback: boolean("instant_feedback").default(false), // Show correct/incorrect immediately
   showCorrectAnswers: boolean("show_correct_answers").default(false), // Show answers after submission
   passingScore: integer("passing_score"), // Minimum score to pass (percentage)
   gradingScale: text("grading_scale").default('standard'), // 'standard', 'custom'
-  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Exam questions table
