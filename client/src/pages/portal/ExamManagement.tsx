@@ -25,12 +25,17 @@ const examFormSchema = insertExamSchema.omit({ createdBy: true }).extend({
   classId: z.number().min(1, 'Class is required'),
   subjectId: z.number().min(1, 'Subject is required'),
   timeLimit: z.number().min(1, 'Time limit must be at least 1 minute').optional(),
+  // Enhanced auto-grading fields
+  passingScore: z.number().min(0).max(100, 'Passing score must be between 0 and 100').optional(),
 });
 
 const questionFormSchema = insertExamQuestionSchema.extend({
   options: z.array(z.object({
     optionText: z.string().min(1, 'Option text is required'),
     isCorrect: z.boolean(),
+    // Enhanced option fields
+    partialCreditValue: z.number().min(0).optional(),
+    explanationText: z.string().optional(),
   })).optional(),
 }).refine((data) => {
   if (data.questionType === 'multiple_choice') {
@@ -102,6 +107,12 @@ export default function ExamManagement() {
       isPublished: false,
       allowRetakes: false,
       shuffleQuestions: false,
+      // Enhanced auto-grading defaults
+      autoGradingEnabled: true,
+      instantFeedback: false,
+      showCorrectAnswers: false,
+      passingScore: 60,
+      gradingScale: 'standard',
     }
   });
 
@@ -650,6 +661,93 @@ export default function ExamManagement() {
                       )}
                     />
                     <Label>Shuffle Questions</Label>
+                  </div>
+                </div>
+
+                {/* Enhanced Auto-Grading Controls */}
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium text-sm">Auto-Grading Settings</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="autoGradingEnabled"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-auto-grading"
+                          />
+                        )}
+                      />
+                      <Label>Enable Auto-Grading</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="instantFeedback"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-instant-feedback"
+                          />
+                        )}
+                      />
+                      <Label>Instant Feedback</Label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="showCorrectAnswers"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-show-answers"
+                          />
+                        )}
+                      />
+                      <Label>Show Correct Answers</Label>
+                    </div>
+                    <div>
+                      <Label htmlFor="passingScore">Passing Score (%)</Label>
+                      <Input 
+                        id="passingScore" 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        {...registerExam('passingScore', { valueAsNumber: true })} 
+                        data-testid="input-passing-score"
+                        placeholder="60"
+                      />
+                      {examErrors.passingScore && <p className="text-sm text-red-500">{examErrors.passingScore.message}</p>}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="gradingScale">Grading Scale</Label>
+                    <Controller
+                      name="gradingScale"
+                      control={examControl}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || 'standard'} data-testid="select-grading-scale">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select grading scale" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard">Standard (A-F)</SelectItem>
+                            <SelectItem value="percentage">Percentage Only</SelectItem>
+                            <SelectItem value="points">Points Only</SelectItem>
+                            <SelectItem value="custom">Custom Scale</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </div>
                 </div>
 
