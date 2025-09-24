@@ -1,5 +1,81 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Circuit Breaker Pattern for API requests
+class CircuitBreaker {
+  private failures = 0;
+  private lastFailureTime = 0;
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private readonly failureThreshold = 5;
+  private readonly timeout = 60000; // 1 minute
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state === 'OPEN') {
+      if (Date.now() - this.lastFailureTime > this.timeout) {
+        this.state = 'HALF_OPEN';
+      } else {
+        const error = new Error('Circuit breaker is OPEN - service temporarily unavailable') as ClassifiedError;
+        error.errorType = 'server';
+        throw error;
+      }
+    }
+
+    try {
+      const result = await fn();
+      this.onSuccess();
+      return result;
+    } catch (error: any) {
+      // Only count certain error types as failures for circuit breaker
+      if (this.shouldCountAsFailure(error)) {
+        this.onFailure();
+      }
+      throw error;
+    }
+  }
+
+  private shouldCountAsFailure(error: ClassifiedError): boolean {
+    // Don't count client errors (4xx) toward circuit breaker failures
+    if (error.errorType === 'client' || error.errorType === 'auth') {
+      return false;
+    }
+    
+    // Count network, timeout, and server errors
+    return (
+      error.errorType === 'network' ||
+      error.errorType === 'timeout' ||
+      error.errorType === 'server' ||
+      error?.message?.match(/^(5\d\d|429):/) ||
+      error?.name === 'NetworkError' ||
+      error?.name === 'TypeError' ||
+      error?.name === 'AbortError'
+    );
+  }
+
+  private onSuccess() {
+    this.failures = 0;
+    this.state = 'CLOSED';
+  }
+
+  private onFailure() {
+    this.failures++;
+    this.lastFailureTime = Date.now();
+    
+    if (this.failures >= this.failureThreshold) {
+      this.state = 'OPEN';
+    }
+  }
+
+  getState() {
+    return {
+      state: this.state,
+      failures: this.failures,
+      lastFailureTime: this.lastFailureTime
+    };
+  }
+}
+
+// Global circuit breaker for API requests
+const apiCircuitBreaker = new CircuitBreaker();
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -7,27 +83,81 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Unified HTTP request function with proper error classification
+async function makeRequest(
+  method: string,
+  url: string,
+  data?: unknown | undefined,
+): Promise<Response> {
+  return apiCircuitBreaker.execute(async () => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Create AbortController for request timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      
+      // Check for HTTP errors and classify them properly
+      if (!res.ok) {
+        const text = (await res.text()) || res.statusText;
+        const error = new Error(`${res.status}: ${text}`) as ClassifiedError;
+        
+        // Classify the error type based on HTTP status
+        if (res.status === 401 || res.status === 403) {
+          error.errorType = 'auth';
+        } else if (res.status >= 400 && res.status < 500) {
+          error.errorType = 'client';
+        } else if (res.status >= 500 || res.status === 429) {
+          error.errorType = 'server';
+        }
+        
+        throw error;
+      }
+      
+      return res;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      // Preserve original error properties while adding classification
+      const classifiedError = error as ClassifiedError;
+      classifiedError.originalError = error;
+      
+      // Classify network/timeout errors properly
+      if (error.name === 'AbortError') {
+        classifiedError.errorType = 'timeout';
+        classifiedError.message = 'Request timeout - please try again';
+      } else if (error.name === 'TypeError' || error.name === 'NetworkError' || 
+                 error.message?.includes('fetch') || error.message?.includes('network')) {
+        classifiedError.errorType = 'network';
+        classifiedError.message = 'Network connection failed - please check your internet connection';
+      }
+      
+      throw classifiedError;
+    }
+  });
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const token = localStorage.getItem('token');
-  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
-
-  await throwIfResNotOk(res);
-  return res;
+  return makeRequest(method, url, data);
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -36,25 +166,70 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const token = localStorage.getItem('token');
-    const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    try {
+      // Use the unified request function for queries too
+      const res = await makeRequest('GET', queryKey.join("/") as string);
+      return await res.json();
+    } catch (error: any) {
+      // Handle 401 errors according to the specified behavior
+      if (unauthorizedBehavior === "returnNull" && 
+          (error.errorType === 'auth' || error?.message?.includes('401'))) {
+        return null;
+      }
+      
+      throw error;
     }
-
-    const res = await fetch(queryKey.join("/") as string, {
-      headers,
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
+
+// Enhanced error classification for better error handling
+interface ClassifiedError extends Error {
+  errorType?: 'network' | 'timeout' | 'server' | 'client' | 'auth';
+  originalError?: Error;
+}
+
+// Advanced retry strategy with proper error classification
+const intelligentRetryFn = (failureCount: number, error: ClassifiedError) => {
+  // Don't retry on authentication/authorization errors
+  if (error.errorType === 'auth' || error?.message?.includes('401') || error?.message?.includes('403')) {
+    return false;
+  }
+  
+  // Don't retry on client-side validation errors
+  if (error.errorType === 'client' || error?.message?.match(/^(400|404|409|422):/)) {
+    return false;
+  }
+  
+  // Retry on network errors, timeouts, server errors (5xx), and rate limiting (429)
+  if (
+    error.errorType === 'network' ||
+    error.errorType === 'timeout' ||
+    error.errorType === 'server' ||
+    error?.message?.includes('Network request failed') ||
+    error?.message?.includes('Request timeout') ||
+    error?.message?.includes('Network connection failed') ||
+    error?.message?.match(/^(5\d\d|429):/) ||
+    error?.name === 'NetworkError' ||
+    error?.name === 'TypeError' ||
+    error?.name === 'AbortError'
+  ) {
+    // Maximum 3 retries for critical operations
+    return failureCount < 3;
+  }
+  
+  // Default: no retry for other errors
+  return false;
+};
+
+// Exponential backoff delay calculation
+const retryDelay = (attemptIndex: number) => {
+  // Base delay: 500ms, doubles each attempt, with jitter
+  const baseDelay = 500;
+  const exponentialDelay = baseDelay * Math.pow(2, attemptIndex);
+  const jitter = Math.random() * 200; // Add 0-200ms random jitter
+  
+  // Cap at 10 seconds maximum
+  return Math.min(exponentialDelay + jitter, 10000);
+};
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,10 +238,15 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: false,
+      retry: intelligentRetryFn,
+      retryDelay,
+      // Add timeout for network requests (30 seconds)
+      networkMode: 'online',
     },
     mutations: {
-      retry: false,
+      retry: intelligentRetryFn,
+      retryDelay,
+      networkMode: 'online',
     },
   },
 });

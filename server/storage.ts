@@ -20,12 +20,60 @@ let db: any;
 function initializeDatabase() {
   if (!pg && process.env.DATABASE_URL) {
     console.log("🔗 CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ':***@'));
-    pg = postgres(process.env.DATABASE_URL, {
+    
+    // Enhanced connection pool configuration for optimal performance
+    const connectionConfig = {
       ssl: process.env.NODE_ENV === 'production' ? 'require' : { rejectUnauthorized: false },
-      prepare: false // Required for Supabase transaction pooler
-    });
+      prepare: false, // Required for Supabase transaction pooler
+      
+      // Optimized connection pool settings
+      max: 20, // Maximum connections in pool (increased from default 10)
+      idle_timeout: 300, // Close idle connections after 5 minutes
+      connect_timeout: 30, // Connection timeout: 30 seconds
+      max_lifetime: 3600, // Maximum connection lifetime: 1 hour
+      
+      // Enhanced logging for debugging (development only)
+      debug: process.env.NODE_ENV === 'development' ? (connection: any, query: any, params: any) => {
+        // Only log queries if they contain error indicators or are long-running
+        const queryString = typeof query === 'string' ? query : query?.text || String(query);
+        if (queryString?.includes('ERROR') || queryString?.includes('TIMEOUT')) {
+          console.warn(`🔍 Database Debug - Query: ${queryString.slice(0, 100)}...`);
+        }
+      } : false,
+      
+      // Connection health checks
+      onnotice: (notice: any) => {
+        if (notice.severity === 'WARNING' || notice.severity === 'ERROR') {
+          console.warn(`📊 Database Notice [${notice.severity}]: ${notice.message}`);
+        }
+      },
+      
+      // Connection parameter logging
+      onparameter: (key: string, value: any) => {
+        if (key === 'server_version') {
+          console.log(`🗄️ Connected to PostgreSQL version: ${value}`);
+        } else if (key === 'application_name') {
+          console.log(`📱 Application name set: ${value}`);
+        }
+      },
+      
+      // Connection lifecycle events
+      onconnect: async (connection: any) => {
+        // Set application name and timeout settings at connection time
+        try {
+          await connection.query('SET application_name = $1', ['treasure_home_school']);
+          await connection.query('SET statement_timeout = $1', ['60s']);
+          await connection.query('SET lock_timeout = $1', ['30s']);
+        } catch (error) {
+          console.warn('⚠️ Failed to set connection parameters:', error);
+        }
+      }
+    };
+
+    pg = postgres(process.env.DATABASE_URL, connectionConfig);
     db = drizzle(pg, { schema });
     console.log("✅ POSTGRESQL DATABASE CONNECTION ESTABLISHED");
+    console.log(`📊 Connection Pool: max=${connectionConfig.max}, idle_timeout=${connectionConfig.idle_timeout}s`);
   } else if (!process.env.DATABASE_URL) {
     console.log("⚠️  WARNING: DATABASE_URL not set - falling back to memory storage");
   }
@@ -1636,17 +1684,17 @@ export class DatabaseStorage implements IStorage {
       .where(dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`);
 
     const totalEvents = events.length;
-    const goalAchievedCount = events.filter(e => e.goalAchieved).length;
+    const goalAchievedCount = events.filter((e: PerformanceEvent) => e.goalAchieved).length;
     const goalAchievementRate = totalEvents > 0 ? (goalAchievedCount / totalEvents) * 100 : 0;
     
     const averageDuration = totalEvents > 0 
-      ? events.reduce((sum, e) => sum + e.duration, 0) / totalEvents 
+      ? events.reduce((sum: number, e: PerformanceEvent) => sum + e.duration, 0) / totalEvents 
       : 0;
     
-    const slowSubmissions = events.filter(e => e.duration > 2000).length;
+    const slowSubmissions = events.filter((e: PerformanceEvent) => e.duration > 2000).length;
     
     const eventsByType: Record<string, number> = {};
-    events.forEach(e => {
+    events.forEach((e: PerformanceEvent) => {
       eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
     });
 
@@ -2922,17 +2970,17 @@ class MemoryStorage implements IStorage {
       .where(dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`);
 
     const totalEvents = events.length;
-    const goalAchievedCount = events.filter(e => e.goalAchieved).length;
+    const goalAchievedCount = events.filter((e: PerformanceEvent) => e.goalAchieved).length;
     const goalAchievementRate = totalEvents > 0 ? (goalAchievedCount / totalEvents) * 100 : 0;
     
     const averageDuration = totalEvents > 0 
-      ? events.reduce((sum, e) => sum + e.duration, 0) / totalEvents 
+      ? events.reduce((sum: number, e: PerformanceEvent) => sum + e.duration, 0) / totalEvents 
       : 0;
     
-    const slowSubmissions = events.filter(e => e.duration > 2000).length;
+    const slowSubmissions = events.filter((e: PerformanceEvent) => e.duration > 2000).length;
     
     const eventsByType: Record<string, number> = {};
-    events.forEach(e => {
+    events.forEach((e: PerformanceEvent) => {
       eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
     });
 

@@ -51,6 +51,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Classes', href: `/portal/${userRole}/classes`, icon: BookOpen },
           { name: 'Subjects', href: `/portal/${userRole}/subjects`, icon: BookOpen },
           { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
+          { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Bell },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
         ];

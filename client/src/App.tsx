@@ -39,6 +39,7 @@ import SettingsManagement from "@/pages/portal/SettingsManagement";
 import TeacherGrades from "@/pages/portal/TeacherGrades";
 import ExamManagement from "@/pages/portal/ExamManagement";
 import HomepageManagement from "@/pages/portal/HomepageManagement";
+import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
 
 import NotFound from "@/pages/not-found";
 
@@ -137,6 +138,11 @@ function Router() {
       <Route path="/portal/admin/reports">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <ReportsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/performance">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <PerformanceMonitoring />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/settings">
