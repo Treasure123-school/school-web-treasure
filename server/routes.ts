@@ -1402,7 +1402,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       console.log('Exam creation request body:', JSON.stringify(req.body, null, 2));
-      const examData = insertExamSchema.omit({ createdBy: true }).parse(req.body);
+      
+      // Sanitize request body before parsing - convert empty strings to undefined for optional fields
+      const sanitizedBody = { ...req.body };
+      const optionalNumericFields = ['timeLimit', 'passingScore'];
+      const optionalDateFields = ['startTime', 'endTime'];
+      const optionalTextFields = ['instructions'];
+      
+      [...optionalNumericFields, ...optionalDateFields, ...optionalTextFields].forEach(field => {
+        if (sanitizedBody[field] === '') {
+          sanitizedBody[field] = undefined;
+        }
+      });
+      
+      // Ensure numeric IDs are properly converted
+      if (sanitizedBody.classId) sanitizedBody.classId = Number(sanitizedBody.classId);
+      if (sanitizedBody.subjectId) sanitizedBody.subjectId = Number(sanitizedBody.subjectId);
+      if (sanitizedBody.termId) sanitizedBody.termId = Number(sanitizedBody.termId);
+      if (sanitizedBody.totalMarks) sanitizedBody.totalMarks = Number(sanitizedBody.totalMarks);
+      
+      console.log('Sanitized exam data:', JSON.stringify(sanitizedBody, null, 2));
+      
+      const examData = insertExamSchema.omit({ createdBy: true }).parse(sanitizedBody);
       console.log('Parsed exam data:', JSON.stringify(examData, null, 2));
       const examWithCreator = { ...examData, createdBy: (req as any).user.id };
       console.log('Final exam data with creator:', JSON.stringify(examWithCreator, null, 2));

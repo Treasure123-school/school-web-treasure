@@ -365,7 +365,29 @@ export const insertStudentSchema = createInsertSchema(students).omit({ createdAt
 export const insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
 export const insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
-export const insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true });
+// Enhanced exam schema with proper data coercion and empty string handling
+export const insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
+  // Coerce string IDs to numbers (forms often send IDs as strings)
+  classId: z.coerce.number().positive("Please select a valid class"),
+  subjectId: z.coerce.number().positive("Please select a valid subject"),
+  termId: z.coerce.number().positive("Please select a valid term"),
+  totalMarks: z.coerce.number().positive("Total marks must be a positive number"),
+  
+  // Handle date string from frontend
+  date: z.coerce.date(),
+  
+  // Optional numeric fields - convert empty strings to undefined
+  timeLimit: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(1, "Time limit must be at least 1 minute").optional()),
+  passingScore: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()),
+  
+  // Optional timestamp fields - convert empty strings to undefined
+  startTime: z.preprocess((val) => val === '' ? undefined : val, z.coerce.date().optional()),
+  endTime: z.preprocess((val) => val === '' ? undefined : val, z.coerce.date().optional()),
+  
+  // Text fields - convert empty strings to undefined for optional fields
+  instructions: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+  gradingScale: z.preprocess((val) => val === '' ? 'standard' : val, z.string().default('standard')),
+});
 export const insertExamResultSchema = createInsertSchema(examResults).omit({ id: true, createdAt: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
