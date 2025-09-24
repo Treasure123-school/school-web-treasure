@@ -167,6 +167,7 @@ export interface IStorage {
   getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined>;
   getActiveExamSessions(): Promise<ExamSession[]>; // For background cleanup service
   getExpiredExamSessions(now: Date, limit?: number): Promise<ExamSession[]>; // Optimized cleanup query
+  createOrGetActiveExamSession(examId: number, studentId: string, sessionData: InsertExamSession): Promise<ExamSession & { wasCreated?: boolean }>; // Idempotent session creation
 
   // Student answers management
   createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
@@ -1015,6 +1016,63 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(asc(schema.examSessions.serverTimeoutAt)) // Process oldest expired first
       .limit(limit);
+  }
+
+  // IDEMPOTENT SESSION CREATION: Get existing active session or create new one atomically
+  async createOrGetActiveExamSession(examId: number, studentId: string, sessionData: InsertExamSession): Promise<ExamSession & { wasCreated?: boolean }> {
+    // Use a transaction to ensure atomicity and handle race conditions
+    return await this.db.transaction(async (tx: any) => {
+      try {
+        // First, try to find an existing active session using the indexed query
+        const existingSession = await tx.select()
+          .from(schema.examSessions)
+          .where(and(
+            eq(schema.examSessions.examId, examId),
+            eq(schema.examSessions.studentId, studentId),
+            eq(schema.examSessions.isCompleted, false)
+          ))
+          .limit(1);
+
+        if (existingSession.length > 0) {
+          // Return existing session with flag indicating it wasn't created
+          return { ...existingSession[0], wasCreated: false };
+        }
+
+        // No active session exists, create a new one
+        const newSession = await tx.insert(schema.examSessions)
+          .values(sessionData)
+          .returning();
+
+        // Return new session with flag indicating it was created
+        return { ...newSession[0], wasCreated: true };
+
+      } catch (error: any) {
+        // Handle potential race condition where another transaction created a session
+        // after our check but before our insert (duplicate key violation)
+        if (error?.code === '23505' || error?.message?.includes('duplicate key') || 
+            error?.message?.includes('unique constraint')) {
+          
+          console.log(`Handled race condition for exam ${examId}, student ${studentId} - retrieving existing session`);
+          
+          // Another transaction created the session, retrieve it
+          const existingSession = await tx.select()
+            .from(schema.examSessions)
+            .where(and(
+              eq(schema.examSessions.examId, examId),
+              eq(schema.examSessions.studentId, studentId),
+              eq(schema.examSessions.isCompleted, false)
+            ))
+            .limit(1);
+
+          if (existingSession.length > 0) {
+            return { ...existingSession[0], wasCreated: false };
+          }
+        }
+
+        // Re-throw any other unexpected errors
+        throw error;
+      }
+    });
   }
 
   // Student answers management

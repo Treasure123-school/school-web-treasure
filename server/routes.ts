@@ -2217,12 +2217,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Exam has ended" });
       }
 
-      // Check for existing active session to prevent duplicates
-      const existingSession = await storage.getActiveExamSession(examId, user.id);
-      if (existingSession) {
-        return res.status(409).json({ message: "Active exam session already exists", sessionId: existingSession.id });
-      }
-
       // Check retakes policy: if retakes not allowed, check for completed sessions
       if (!exam.allowRetakes) {
         const allStudentSessions = await storage.getExamSessionsByStudent(user.id);
@@ -2234,7 +2228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Build session data with server-side timeout protection
+      // IDEMPOTENT SESSION CREATION: Get existing active session or create new one atomically
       const sessionData = {
         examId,
         studentId: user.id,
@@ -2246,8 +2240,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         submissionMethod: 'manual' // Default to manual, will be updated if auto-submitted
       };
       
-      const session = await storage.createExamSession(sessionData);
-      console.log(`Created exam session ${session.id} for student ${user.id} with ${exam.timeLimit || 'unlimited'} minutes`);
+      const session = await storage.createOrGetActiveExamSession(examId, user.id, sessionData);
+      console.log(`${session.wasCreated ? 'Created' : 'Retrieved existing'} exam session ${session.id} for student ${user.id} with ${exam.timeLimit || 'unlimited'} minutes`);
       res.json(session);
     } catch (error) {
       console.error('Error creating exam session:', error);
