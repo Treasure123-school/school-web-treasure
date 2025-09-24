@@ -439,8 +439,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
             examId: session.examId
           }),
           userId: session.studentId, // Track which student's exam was auto-scored
-          clientSide: false, // Server-side auto-scoring
-          createdAt: new Date()
+          clientSide: false // Server-side auto-scoring
         });
         console.log(`📊 Performance event logged to database: ${totalResponseTime}ms auto-scoring`);
       } catch (perfLogError) {
@@ -2518,10 +2517,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exams/:examId/submit", authenticateUser, async (req, res) => {
     const submissionStartTime = Date.now(); // Track total submission time
     let sessionId: number | null = null;
+    const { examId } = req.params; // Move outside try block for error handling scope
     
     try {
       const user = (req as any).user;
-      const { examId } = req.params;
       
       console.log(`🚀 SYNCHRONOUS SUBMIT: User ${user.id} submitting exam ${examId}`);
       
@@ -2563,8 +2562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               originalSubmittedAt: activeSession.submittedAt
             }),
             userId: user.id,
-            clientSide: false,
-            createdAt: new Date()
+            clientSide: false
           });
         } catch (perfError) {
           console.warn('⚠️ Failed to log duplicate submission performance:', perfError);
@@ -2703,8 +2701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               scoringError: scoringError || null
             }),
             userId: user.id,
-            clientSide: false,
-            createdAt: new Date()
+            clientSide: false
           });
           console.log(`📊 Exam submission performance logged: ${submissionDuration}ms`);
         } catch (perfError) {
@@ -2762,7 +2759,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }),
             userId: (req as any).user?.id || null,
             clientSide: false,
-            createdAt: new Date()
           });
           console.log(`📊 Submission error performance logged: ${errorDuration}ms`);
         } catch (perfError) {
