@@ -147,6 +147,7 @@ export interface IStorage {
   // Exam questions management
   createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion>;
   createExamQuestionWithOptions(question: InsertExamQuestion, options?: Array<{optionText: string; isCorrect: boolean}>): Promise<ExamQuestion>;
+  createExamQuestionsBulk(questionsData: Array<{question: InsertExamQuestion; options?: Array<{optionText: string; isCorrect: boolean}>}>): Promise<{ created: number; questions: ExamQuestion[]; errors: string[] }>;
   getExamQuestions(examId: number): Promise<ExamQuestion[]>;
   updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined>;
   deleteExamQuestion(id: number): Promise<boolean>;
@@ -836,32 +837,88 @@ export class DatabaseStorage implements IStorage {
     question: InsertExamQuestion, 
     options?: Array<{optionText: string; isCorrect: boolean}>
   ): Promise<ExamQuestion> {
-    // Insert question first
-    const questionResult = await db.insert(schema.examQuestions).values(question).returning();
-    const createdQuestion = questionResult[0];
-
-    // Insert options if provided (remove strict type gate)
-    if (Array.isArray(options) && options.length > 0) {
+    // Use a transaction to ensure atomicity and reduce connection pressure
+    return await db.transaction(async (tx: any) => {
       try {
-        const optionsToInsert = options.map((option, index) => ({
-          questionId: createdQuestion.id,
-          optionText: option.optionText,
-          orderNumber: index + 1,
-          isCorrect: option.isCorrect
-        }));
+        // Insert question first
+        const questionResult = await tx.insert(schema.examQuestions).values(question).returning();
+        const createdQuestion = questionResult[0];
 
-        // Use individual inserts instead of bulk insert (Neon HTTP limitation)
-        for (const optionData of optionsToInsert) {
-          await db.insert(schema.questionOptions).values(optionData);
+        // Insert options if provided
+        if (Array.isArray(options) && options.length > 0) {
+          const optionsToInsert = options.map((option, index) => ({
+            questionId: createdQuestion.id,
+            optionText: option.optionText,
+            orderNumber: index + 1,
+            isCorrect: option.isCorrect
+          }));
+
+          // Batch insert options in smaller chunks to avoid circuit breaker issues
+          const BATCH_SIZE = 5;
+          for (let i = 0; i < optionsToInsert.length; i += BATCH_SIZE) {
+            const batch = optionsToInsert.slice(i, i + BATCH_SIZE);
+            
+            // Insert batch individually to work around Neon limitations while reducing round trips
+            for (const optionData of batch) {
+              await tx.insert(schema.questionOptions).values(optionData);
+            }
+          }
         }
+
+        return createdQuestion;
       } catch (error) {
-        // Compensating action: delete the question if options fail
-        await db.delete(schema.examQuestions).where(eq(schema.examQuestions.id, createdQuestion.id));
-        throw new Error(`Failed to create question options: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Transaction will automatically rollback, no manual cleanup needed
+        console.error('❌ Failed to create exam question with options:', error);
+        throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
+  }
+
+  async createExamQuestionsBulk(
+    questionsData: Array<{
+      question: InsertExamQuestion;
+      options?: Array<{optionText: string; isCorrect: boolean}>;
+    }>
+  ): Promise<{ created: number; questions: ExamQuestion[]; errors: string[] }> {
+    const createdQuestions: ExamQuestion[] = [];
+    const errors: string[] = [];
+    
+    // Process in batches to avoid circuit breaker issues
+    const BATCH_SIZE = 3; // Small batch size to prevent connection pool exhaustion
+    
+    for (let i = 0; i < questionsData.length; i += BATCH_SIZE) {
+      const batch = questionsData.slice(i, i + BATCH_SIZE);
+      
+      // Process batch with delay to prevent overwhelming the connection pool
+      for (let j = 0; j < batch.length; j++) {
+        const { question, options } = batch[j];
+        
+        try {
+          const createdQuestion = await this.createExamQuestionWithOptions(question, options);
+          createdQuestions.push(createdQuestion);
+          
+          // Small delay between questions to prevent circuit breaker
+          if (j < batch.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        } catch (error) {
+          const errorMsg = `Question ${i + j + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          console.error('❌ Bulk create error:', errorMsg);
+          errors.push(errorMsg);
+        }
+      }
+      
+      // Longer delay between batches
+      if (i + BATCH_SIZE < questionsData.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
-
-    return createdQuestion;
+    
+    return {
+      created: createdQuestions.length,
+      questions: createdQuestions,
+      errors
+    };
   }
 
   async getExamQuestions(examId: number): Promise<ExamQuestion[]> {

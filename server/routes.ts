@@ -1747,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingQuestions = await storage.getExamQuestions(examId);
       const maxOrder = existingQuestions.length > 0 ? Math.max(...existingQuestions.map(q => q.orderNumber || 0)) : 0;
 
-      const createdQuestions = [];
+      let createdQuestions = [];
       let validationErrors = [];
 
       // Validate all questions first
@@ -1795,25 +1795,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create all questions in sequence using atomic method
-      for (const questionData of questions) {
-        try {
-          const question = await storage.createExamQuestionWithOptions(
-            questionData.validatedQuestion, 
-            questionData.options || []
-          );
-          createdQuestions.push(question);
-        } catch (error) {
-          console.error('Failed to create question:', error);
-          // If any question fails, we should ideally rollback, but for now log and continue
-          // TODO: Implement proper transaction handling in storage layer
-        }
+      // Use the improved bulk creation method to prevent circuit breaker issues
+      const questionsData = questions.map(questionData => ({
+        question: questionData.validatedQuestion,
+        options: questionData.options || []
+      }));
+
+      const result = await storage.createExamQuestionsBulk(questionsData);
+      createdQuestions = result.questions;
+
+      // Include any errors in the response for debugging
+      if (result.errors.length > 0) {
+        console.warn('⚠️ Some questions failed during bulk upload:', result.errors);
       }
 
       res.json({ 
-        message: `Successfully created ${createdQuestions.length} questions`,
-        created: createdQuestions.length,
-        questions: createdQuestions 
+        message: `Successfully created ${result.created} questions${result.errors.length > 0 ? ` (${result.errors.length} failed)` : ''}`,
+        created: result.created,
+        questions: result.questions,
+        errors: result.errors.length > 0 ? result.errors : undefined
       });
 
     } catch (error) {
