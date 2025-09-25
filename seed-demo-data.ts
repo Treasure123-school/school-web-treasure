@@ -12,12 +12,14 @@ async function seedDemoData() {
   try {
     console.log('Creating roles...');
     
-    // Insert roles
+    // Insert roles in correct order to match application expectations
+    // CRITICAL: Role IDs must match application constants:
+    // Admin = 1, Teacher = 2, Student = 3, Parent = 4
     const roles = [
-      { name: 'Student' },
-      { name: 'Teacher' }, 
-      { name: 'Parent' },
-      { name: 'Admin' }
+      { name: 'Admin' },    // Will get ID 1
+      { name: 'Teacher' },  // Will get ID 2
+      { name: 'Student' },  // Will get ID 3
+      { name: 'Parent' }    // Will get ID 4
     ];
 
     for (const role of roles) {

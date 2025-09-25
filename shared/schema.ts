@@ -97,7 +97,7 @@ export const exams = pgTable("exams", {
   classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
   subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
   totalMarks: integer("total_marks").notNull(),
-  date: date("date").notNull(),
+  date: text("date").notNull(), // Store as YYYY-MM-DD string to avoid Date object conversion
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -376,8 +376,8 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
   termId: z.coerce.number().positive("Please select a valid term"),
   totalMarks: z.coerce.number().positive("Total marks must be a positive number"),
   
-  // Handle date string from frontend
-  date: z.coerce.date(),
+  // Handle date string from frontend - keep as string for database
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   
   // Optional numeric fields - convert empty strings to undefined
   timeLimit: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(1, "Time limit must be at least 1 minute").optional()),
