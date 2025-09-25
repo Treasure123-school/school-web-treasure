@@ -1431,7 +1431,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Exam creation error:', error);
       if (error instanceof Error) {
-        res.status(400).json({ message: "Invalid exam data", details: error.message });
+        // Provide more specific error messages for common validation issues
+        let message = "Invalid exam data";
+        let details = error.message;
+        
+        if (error.message.includes('positive')) {
+          message = "Please check required fields: class, subject, term, and total marks must be selected/filled";
+        } else if (error.message.includes('date')) {
+          message = "Invalid date format - please use a valid date in YYYY-MM-DD format";
+        } else if (error.message.includes('foreign key')) {
+          message = "Invalid reference data - please ensure valid class, subject, and term are selected";
+        }
+        
+        res.status(400).json({ message, details });
       } else {
         res.status(400).json({ message: "Invalid exam data" });
       }
@@ -1585,8 +1597,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const question = await storage.createExamQuestionWithOptions(validatedQuestion, options);
       res.json(question);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Invalid question data";
-      res.status(400).json({ message });
+      console.error('Question creation error:', error);
+      let message = "Invalid question data";
+      let details = "";
+      
+      if (error instanceof Error) {
+        details = error.message;
+        
+        if (error.message.includes('options')) {
+          message = "Invalid question options - multiple choice questions need at least 2 options with one marked as correct";
+        } else if (error.message.includes('questionText')) {
+          message = "Question text is required and must be at least 5 characters";
+        } else if (error.message.includes('questionType')) {
+          message = "Invalid question type - must be multiple_choice, text, or essay";
+        } else if (error.message.includes('foreign key')) {
+          message = "Invalid exam reference - please ensure the exam exists and you have permission to add questions";
+        }
+      }
+      
+      res.status(400).json({ message, details });
     }
   });
 

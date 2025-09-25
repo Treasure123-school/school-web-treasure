@@ -376,8 +376,13 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
   termId: z.coerce.number().positive("Please select a valid term"),
   totalMarks: z.coerce.number().positive("Total marks must be a positive number"),
   
-  // Handle date string from frontend - keep as string for database
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  // Handle date string from frontend - keep as string for database with improved validation
+  date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .refine((dateStr) => {
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime()) && date.toISOString().startsWith(dateStr);
+    }, "Please enter a valid date"),
   
   // Optional numeric fields - convert empty strings to undefined
   timeLimit: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(1, "Time limit must be at least 1 minute").optional()),

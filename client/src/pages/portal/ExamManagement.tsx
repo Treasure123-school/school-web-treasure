@@ -291,10 +291,21 @@ export default function ExamManagement() {
   const onInvalidExam = (errors: any) => {
     console.log('Form validation errors:', errors);
     const errorFields = Object.keys(errors);
-    const errorMessages = errorFields.map(field => `${field}: ${errors[field].message}`).join(', ');
+    const friendlyFieldNames = {
+      classId: 'Class',
+      subjectId: 'Subject', 
+      termId: 'Academic Term',
+      totalMarks: 'Total Marks',
+      date: 'Exam Date',
+      name: 'Exam Name'
+    };
+    const errorMessages = errorFields.map(field => {
+      const friendlyName = friendlyFieldNames[field as keyof typeof friendlyFieldNames] || field;
+      return `${friendlyName}: ${errors[field].message}`;
+    }).join(', ');
     toast({
-      title: "Validation Error",
-      description: errorMessages || "Please check all required fields",
+      title: "Please Fix Required Fields",
+      description: errorMessages || "Please check all required fields and try again",
       variant: "destructive",
     });
   };
