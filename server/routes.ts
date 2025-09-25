@@ -2,7 +2,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema } from "@shared/schema";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -1761,6 +1761,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Exam ID and questions array are required" });
       }
 
+      // Add size limits for CSV uploads
+      if (questions.length > 100) {
+        return res.status(400).json({ message: "Too many questions - maximum 100 questions per upload" });
+      }
+
+      if (questions.length === 0) {
+        return res.status(400).json({ message: "No questions provided for upload" });
+      }
+
       // Verify exam exists and user has permission
       const exam = await storage.getExamById(examId);
       if (!exam) {
@@ -1813,7 +1822,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           questions[i] = { ...questionData, validatedQuestion };
         } catch (error) {
-          validationErrors.push(`Question ${i + 1}: ${error instanceof Error ? error.message : 'Invalid question data'}`);
+          console.log(`Question ${i + 1} validation error:`, error);
+          if (error instanceof ZodError) {
+            // Parse structured errors from Zod for better user feedback
+            const fieldErrors = error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+            validationErrors.push(`Question ${i + 1}: ${fieldErrors}`);
+          } else {
+            validationErrors.push(`Question ${i + 1}: ${error instanceof Error ? error.message : 'Invalid question data'}`);
+          }
         }
       }
 
