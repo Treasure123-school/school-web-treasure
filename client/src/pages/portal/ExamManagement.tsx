@@ -56,6 +56,11 @@ type QuestionForm = z.infer<typeof questionFormSchema>;
 function QuestionOptions({ questionId }: { questionId: number }) {
   const { data: options = [], isLoading } = useQuery<QuestionOption[]>({
     queryKey: ['/api/question-options', questionId],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/question-options/${questionId}`);
+      if (!response.ok) throw new Error('Failed to fetch question options');
+      return response.json();
+    },
     enabled: !!questionId,
   });
 
@@ -219,13 +224,17 @@ export default function ExamManagement() {
       if (!response.ok) throw new Error('Failed to create question');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (createdQuestion) => {
       toast({
         title: "Success",
         description: "Question added successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] });
+      // Invalidate question options for the newly created question to ensure fresh data
+      if (createdQuestion?.id) {
+        queryClient.invalidateQueries({ queryKey: ['/api/question-options', createdQuestion.id] });
+      }
       setIsQuestionDialogOpen(false);
       // Reset form with default values
       resetQuestion({
