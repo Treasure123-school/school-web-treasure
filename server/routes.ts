@@ -1234,7 +1234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Class management
-  app.get("/api/classes", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  app.get("/api/classes", authenticateUser, async (req, res) => {
     try {
       const classes = await storage.getClasses();
       res.json(classes);
@@ -1295,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Subject management
-  app.get("/api/subjects", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  app.get("/api/subjects", authenticateUser, async (req, res) => {
     try {
       const subjects = await storage.getSubjects();
       res.json(subjects);
