@@ -883,36 +883,47 @@ export class DatabaseStorage implements IStorage {
     const createdQuestions: ExamQuestion[] = [];
     const errors: string[] = [];
     
-    // Process in batches to avoid circuit breaker issues
-    const BATCH_SIZE = 3; // Small batch size to prevent connection pool exhaustion
+    console.log(`🔄 Starting SEQUENTIAL bulk creation of ${questionsData.length} questions`);
     
-    for (let i = 0; i < questionsData.length; i += BATCH_SIZE) {
-      const batch = questionsData.slice(i, i + BATCH_SIZE);
+    // SEQUENTIAL processing to prevent circuit breaker - NO parallel requests
+    for (let i = 0; i < questionsData.length; i++) {
+      const { question, options } = questionsData[i];
       
-      // Process batch with delay to prevent overwhelming the connection pool
-      for (let j = 0; j < batch.length; j++) {
-        const { question, options } = batch[j];
+      try {
+        console.log(`📝 Creating question ${i + 1}/${questionsData.length}: "${question.questionText.substring(0, 50)}..."`);
         
-        try {
-          const createdQuestion = await this.createExamQuestionWithOptions(question, options);
-          createdQuestions.push(createdQuestion);
-          
-          // Small delay between questions to prevent circuit breaker
-          if (j < batch.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-          }
-        } catch (error) {
-          const errorMsg = `Question ${i + j + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-          console.error('❌ Bulk create error:', errorMsg);
-          errors.push(errorMsg);
+        const createdQuestion = await this.createExamQuestionWithOptions(question, options);
+        createdQuestions.push(createdQuestion);
+        
+        console.log(`✅ Successfully created question ${i + 1}`);
+        
+        // Throttling delay between EACH question to prevent circuit breaker
+        if (i < questionsData.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 150)); // 150ms delay between questions
+        }
+        
+      } catch (error) {
+        const errorMsg = `Question ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(`❌ Failed to create question ${i + 1}:`, errorMsg);
+        errors.push(errorMsg);
+        
+        // Check if this is a circuit breaker error and implement backoff
+        if (error instanceof Error && (
+          error.message.includes('circuit') || 
+          error.message.includes('breaker') || 
+          error.message.includes('pool') ||
+          error.message.includes('connection')
+        )) {
+          console.warn(`⚠️ Detected potential circuit breaker issue. Implementing backoff...`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second backoff on connection issues
+        } else {
+          // Normal error delay
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
-      
-      // Longer delay between batches
-      if (i + BATCH_SIZE < questionsData.length) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
     }
+    
+    console.log(`✅ SEQUENTIAL bulk creation completed: ${createdQuestions.length} created, ${errors.length} errors`);
     
     return {
       created: createdQuestions.length,

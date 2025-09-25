@@ -220,9 +220,18 @@ export default function ExamManagement() {
   // Create question mutation
   const createQuestionMutation = useMutation({
     mutationFn: async (questionData: QuestionForm & { examId: number }) => {
+      console.log('🔄 Creating question:', questionData);
       const response = await apiRequest('POST', '/api/exam-questions', questionData);
-      if (!response.ok) throw new Error('Failed to create question');
-      return response.json();
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('❌ Question creation failed:', errorData);
+        throw new Error(errorData.message || `Failed to create question with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Question created:', result);
+      return result;
     },
     onSuccess: (createdQuestion) => {
       toast({
@@ -250,9 +259,10 @@ export default function ExamManagement() {
       });
     },
     onError: (error: any) => {
+      console.error('❌ Question creation mutation error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create question",
+        title: "Failed to Create Question",
+        description: error.message || "Please check your question data and try again.",
         variant: "destructive",
       });
     },
@@ -285,10 +295,22 @@ export default function ExamManagement() {
   };
 
   const onSubmitQuestion = (data: QuestionForm) => {
+    console.log('📝 Manual question submission:', data);
+    
     if (!selectedExam) {
       toast({
         title: "No Exam Selected",
         description: "Please select an exam before adding questions",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Enhanced validation for question text
+    if (!data.questionText || data.questionText.trim().length < 5) {
+      toast({
+        title: "Invalid Question",
+        description: "Question text must be at least 5 characters long",
         variant: "destructive",
       });
       return;
@@ -301,24 +323,49 @@ export default function ExamManagement() {
       ...data,
       examId: selectedExam.id,
       orderNumber: nextOrderNumber,
+      questionText: data.questionText.trim(),
+      points: data.points || 1,
     };
     
     // For multiple choice questions, filter out empty options and validate
     if (data.questionType === 'multiple_choice' && data.options) {
       const validOptions = data.options
-        .filter(option => option.optionText.trim() !== '')
+        .filter(option => option.optionText && option.optionText.trim() !== '')
         .map((option, index) => ({
           optionText: option.optionText.trim(),
           isCorrect: option.isCorrect,
           orderNumber: index + 1
         }));
       
+      // Validate multiple choice requirements
+      if (validOptions.length < 2) {
+        toast({
+          title: "Invalid Options",
+          description: "Multiple choice questions require at least 2 non-empty options",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const hasCorrectAnswer = validOptions.some(opt => opt.isCorrect);
+      if (!hasCorrectAnswer) {
+        toast({
+          title: "No Correct Answer",
+          description: "Please mark at least one option as correct",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       questionData.options = validOptions;
+      console.log('✅ Multiple choice validation passed:', validOptions);
     } else {
       // For non-multiple choice questions, don't send options
       delete questionData.options;
+      console.log('✅ Non-multiple choice question ready');
     }
     
+    console.log('🚀 Submitting question data:', questionData);
     createQuestionMutation.mutate(questionData);
   };
 
@@ -343,24 +390,53 @@ export default function ExamManagement() {
   // CSV upload mutation
   const csvUploadMutation = useMutation({
     mutationFn: async (questions: any[]) => {
+      console.log('🔄 Starting CSV upload with', questions.length, 'questions');
       const response = await apiRequest('POST', '/api/exam-questions/bulk', { 
         examId: selectedExam?.id,
         questions 
       });
-      if (!response.ok) throw new Error('Failed to upload questions');
-      return response.json();
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('❌ CSV upload failed:', errorData);
+        throw new Error(errorData.message || `Upload failed with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ CSV upload result:', result);
+      return result;
     },
     onSuccess: (data) => {
+      const successMessage = data.errors && data.errors.length > 0 
+        ? `${data.created} questions uploaded successfully. ${data.errors.length} failed - check logs for details.`
+        : `${data.created} questions uploaded successfully`;
+        
       toast({
-        title: "Success",
-        description: `${data.created} questions uploaded successfully`,
+        title: "Upload Complete",
+        description: successMessage,
+        variant: data.errors && data.errors.length > 0 ? "default" : "default",
       });
+      
+      // Show detailed errors if any
+      if (data.errors && data.errors.length > 0) {
+        console.warn('⚠️ Upload errors:', data.errors);
+        setTimeout(() => {
+          toast({
+            title: "Some Questions Failed",
+            description: `${data.errors.length} questions failed validation. Check browser console for details.`,
+            variant: "destructive",
+          });
+        }, 2000);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] });
     },
     onError: (error: any) => {
+      console.error('❌ CSV upload mutation error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to upload questions",
+        title: "Upload Failed",
+        description: error.message || "Failed to upload questions. Please check your CSV format and try again.",
         variant: "destructive",
       });
     },
@@ -464,6 +540,7 @@ export default function ExamManagement() {
 
   // Parse CSV content into questions array
   const parseCSV = (csvContent: string) => {
+    console.log('📊 Starting CSV parsing...');
     const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
     
     if (lines.length < 2) {
@@ -474,10 +551,17 @@ export default function ExamManagement() {
     const headers = parseCSVLine(lines[0]);
     const expectedHeaders = ['QuestionText', 'Type', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Points'];
     
-    // Validate headers
-    const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
+    console.log('📋 CSV headers found:', headers);
+    console.log('📋 Expected headers:', expectedHeaders);
+    
+    // Validate headers with case-insensitive matching
+    const normalizedHeaders = headers.map(h => h.trim());
+    const missingHeaders = expectedHeaders.filter(expected => 
+      !normalizedHeaders.some(found => found.toLowerCase() === expected.toLowerCase())
+    );
+    
     if (missingHeaders.length > 0) {
-      throw new Error(`Missing required CSV headers: ${missingHeaders.join(', ')}.\nExpected headers: ${expectedHeaders.join(', ')}\nFound headers: ${headers.join(', ')}`);
+      throw new Error(`Missing required CSV headers: ${missingHeaders.join(', ')}.\nExpected headers: ${expectedHeaders.join(', ')}\nFound headers: ${headers.join(', ')}\n\nPlease download the template to see the correct format.`);
     }
 
     const questions = [];
@@ -492,13 +576,19 @@ export default function ExamManagement() {
           continue;
         }
 
-        const questionText = row[headers.indexOf('QuestionText')]?.trim();
-        const questionType = row[headers.indexOf('Type')]?.trim().toLowerCase();
-        const pointsText = row[headers.indexOf('Points')]?.trim();
+        // Use case-insensitive header matching for robustness
+        const getColumnValue = (expectedHeader: string) => {
+          const headerIndex = normalizedHeaders.findIndex(h => h.toLowerCase() === expectedHeader.toLowerCase());
+          return headerIndex >= 0 ? row[headerIndex]?.trim() : '';
+        };
+
+        const questionText = getColumnValue('QuestionText');
+        const questionType = getColumnValue('Type')?.toLowerCase().replace(/[-\s]/g, '_');
+        const pointsText = getColumnValue('Points');
 
         // Validate required fields
-        if (!questionText) {
-          errors.push(`Row ${i + 1}: Question text is required`);
+        if (!questionText || questionText.length < 5) {
+          errors.push(`Row ${i + 1}: Question text is required and must be at least 5 characters`);
           continue;
         }
 
@@ -514,7 +604,7 @@ export default function ExamManagement() {
         }
 
         const question: any = {
-          questionText,
+          questionText: questionText.trim(),
           questionType,
           points,
           orderNumber: i
@@ -522,7 +612,7 @@ export default function ExamManagement() {
 
         // Handle multiple choice questions
         if (questionType === 'multiple_choice') {
-          const correctAnswer = row[headers.indexOf('CorrectAnswer')]?.trim().toUpperCase();
+          const correctAnswer = getColumnValue('CorrectAnswer')?.toUpperCase();
           const optionLetters = ['A', 'B', 'C', 'D'];
           
           if (!optionLetters.includes(correctAnswer)) {
@@ -531,9 +621,9 @@ export default function ExamManagement() {
           }
 
           const options = optionLetters.map(letter => ({
-            optionText: row[headers.indexOf(`Option${letter}`)]?.trim() || '',
+            optionText: getColumnValue(`Option${letter}`),
             isCorrect: letter === correctAnswer
-          })).filter(opt => opt.optionText !== '');
+          })).filter(opt => opt.optionText && opt.optionText.trim() !== '');
 
           if (options.length < 2) {
             errors.push(`Row ${i + 1}: Multiple choice questions need at least 2 non-empty options`);
@@ -546,10 +636,15 @@ export default function ExamManagement() {
             continue;
           }
 
-          question.options = options;
+          question.options = options.map((opt, index) => ({
+            ...opt,
+            optionText: opt.optionText.trim(),
+            orderNumber: index + 1
+          }));
         }
 
         questions.push(question);
+        console.log(`✅ Parsed question ${i}: ${questionText.substring(0, 50)}...`);
       } catch (rowError: any) {
         errors.push(`Row ${i + 1}: ${rowError.message}`);
       }
@@ -557,6 +652,7 @@ export default function ExamManagement() {
 
     // Report any errors found
     if (errors.length > 0) {
+      console.warn('⚠️ CSV parsing errors:', errors);
       throw new Error(`Found ${errors.length} error(s) in CSV:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n... and ' + (errors.length - 5) + ' more errors.' : ''}`);
     }
 
@@ -564,6 +660,7 @@ export default function ExamManagement() {
       throw new Error('No valid questions found in CSV. Please check the format and content.');
     }
 
+    console.log(`✅ CSV parsing completed: ${questions.length} questions parsed`);
     return questions;
   };
 
