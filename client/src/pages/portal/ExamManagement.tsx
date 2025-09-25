@@ -357,10 +357,63 @@ export default function ExamManagement() {
     },
   });
 
+  // Download CSV template
+  const downloadCSVTemplate = () => {
+    const csvContent = `QuestionText,Type,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points
+"What is 2 + 2?",multiple_choice,"2","3","4","5","C",1
+"What is the capital of France?",multiple_choice,"London","Paris","Berlin","Madrid","B",1
+"Explain the process of photosynthesis.",essay,"","","","","",5
+"Define gravity in physics.",text,"","","","","",3`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'exam_questions_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Template Downloaded",
+      description: "CSV template has been downloaded. Fill it with your questions and upload.",
+    });
+  };
+
   // Handle CSV file upload
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedExam) {
+      if (!selectedExam) {
+        toast({
+          title: "No Exam Selected",
+          description: "Please select an exam first before uploading questions.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select a CSV file (.csv extension).",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    // Validate file size (max 1MB)
+    if (file.size > 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "CSV file must be smaller than 1MB.",
+        variant: "destructive",
+      });
+      event.target.value = '';
       return;
     }
 
@@ -369,15 +422,31 @@ export default function ExamManagement() {
       try {
         const csv = e.target?.result as string;
         const questions = parseCSV(csv);
+        
+        // Show preview of what will be uploaded
+        toast({
+          title: "Processing CSV",
+          description: `Found ${questions.length} questions. Uploading to exam...`,
+        });
+        
         csvUploadMutation.mutate(questions);
       } catch (error: any) {
         toast({
-          title: "Error",
-          description: error.message || "Failed to parse CSV file",
+          title: "CSV Format Error",
+          description: error.message || "Failed to parse CSV file. Please check the format and try again.",
           variant: "destructive",
         });
       }
     };
+    
+    reader.onerror = () => {
+      toast({
+        title: "File Read Error",
+        description: "Failed to read the CSV file. Please try again.",
+        variant: "destructive",
+      });
+    };
+    
     reader.readAsText(file);
     
     // Reset the input
@@ -386,50 +455,139 @@ export default function ExamManagement() {
 
   // Parse CSV content into questions array
   const parseCSV = (csvContent: string) => {
-    const lines = csvContent.trim().split('\n');
+    const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
+    
     if (lines.length < 2) {
-      throw new Error('CSV must have at least a header row and one question row');
+      throw new Error('CSV must have at least a header row and one question row. Found only ' + lines.length + ' line(s).');
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    // Parse headers more carefully to handle quoted content
+    const headers = parseCSVLine(lines[0]);
     const expectedHeaders = ['QuestionText', 'Type', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Points'];
     
     // Validate headers
-    if (!expectedHeaders.every(h => headers.includes(h))) {
-      throw new Error(`CSV headers must include: ${expectedHeaders.join(', ')}`);
+    const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+      throw new Error(`Missing required CSV headers: ${missingHeaders.join(', ')}.\nExpected headers: ${expectedHeaders.join(', ')}\nFound headers: ${headers.join(', ')}`);
     }
 
     const questions = [];
+    const errors = [];
+
     for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(',').map(cell => cell.trim().replace(/"/g, ''));
-      if (row.length < headers.length) continue; // Skip incomplete rows
+      try {
+        const row = parseCSVLine(lines[i]);
+        
+        if (row.length < headers.length) {
+          errors.push(`Row ${i + 1}: Incomplete row (expected ${headers.length} columns, found ${row.length})`);
+          continue;
+        }
 
-      const question: any = {
-        questionText: row[headers.indexOf('QuestionText')],
-        questionType: row[headers.indexOf('Type')],
-        points: parseInt(row[headers.indexOf('Points')]) || 1,
-        orderNumber: i
-      };
+        const questionText = row[headers.indexOf('QuestionText')]?.trim();
+        const questionType = row[headers.indexOf('Type')]?.trim().toLowerCase();
+        const pointsText = row[headers.indexOf('Points')]?.trim();
 
-      // Add options for multiple choice questions
-      if (question.questionType === 'multiple_choice') {
-        const correctAnswer = row[headers.indexOf('CorrectAnswer')].toUpperCase();
-        const options = ['A', 'B', 'C', 'D'].map(letter => ({
-          optionText: row[headers.indexOf(`Option${letter}`)],
-          isCorrect: letter === correctAnswer
-        })).filter(opt => opt.optionText); // Remove empty options
+        // Validate required fields
+        if (!questionText) {
+          errors.push(`Row ${i + 1}: Question text is required`);
+          continue;
+        }
 
-        question.options = options;
+        if (!['multiple_choice', 'text', 'essay'].includes(questionType)) {
+          errors.push(`Row ${i + 1}: Invalid question type "${questionType}". Must be: multiple_choice, text, or essay`);
+          continue;
+        }
+
+        const points = parseInt(pointsText) || 1;
+        if (points < 1 || points > 100) {
+          errors.push(`Row ${i + 1}: Points must be between 1 and 100 (found: ${pointsText})`);
+          continue;
+        }
+
+        const question: any = {
+          questionText,
+          questionType,
+          points,
+          orderNumber: i
+        };
+
+        // Handle multiple choice questions
+        if (questionType === 'multiple_choice') {
+          const correctAnswer = row[headers.indexOf('CorrectAnswer')]?.trim().toUpperCase();
+          const optionLetters = ['A', 'B', 'C', 'D'];
+          
+          if (!optionLetters.includes(correctAnswer)) {
+            errors.push(`Row ${i + 1}: Correct answer must be A, B, C, or D (found: "${correctAnswer}")`);
+            continue;
+          }
+
+          const options = optionLetters.map(letter => ({
+            optionText: row[headers.indexOf(`Option${letter}`)]?.trim() || '',
+            isCorrect: letter === correctAnswer
+          })).filter(opt => opt.optionText !== '');
+
+          if (options.length < 2) {
+            errors.push(`Row ${i + 1}: Multiple choice questions need at least 2 non-empty options`);
+            continue;
+          }
+
+          const hasCorrectOption = options.some(opt => opt.isCorrect);
+          if (!hasCorrectOption) {
+            errors.push(`Row ${i + 1}: The correct answer "${correctAnswer}" doesn't match any provided options`);
+            continue;
+          }
+
+          question.options = options;
+        }
+
+        questions.push(question);
+      } catch (rowError: any) {
+        errors.push(`Row ${i + 1}: ${rowError.message}`);
       }
+    }
 
-      questions.push(question);
+    // Report any errors found
+    if (errors.length > 0) {
+      throw new Error(`Found ${errors.length} error(s) in CSV:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n... and ' + (errors.length - 5) + ' more errors.' : ''}`);
     }
 
     if (questions.length === 0) {
-      throw new Error('No valid questions found in CSV');
+      throw new Error('No valid questions found in CSV. Please check the format and content.');
     }
 
     return questions;
+  };
+
+  // Helper function to parse CSV line handling quoted content
+  const parseCSVLine = (line: string): string[] => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          // Escaped quote
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add the last field
+    result.push(current.trim());
+    return result;
   };
 
   const filteredExams = exams.filter((exam: Exam) => 
@@ -895,6 +1053,17 @@ export default function ExamManagement() {
                     {examQuestions.length} questions • {selectedExam.totalMarks} total marks
                   </div>
                   <div className="flex space-x-2">
+                    {/* CSV Template Download */}
+                    <Button
+                      variant="outline"
+                      onClick={downloadCSVTemplate}
+                      data-testid="button-download-template"
+                      title="Download CSV template for bulk question upload"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Download Template
+                    </Button>
+                    
                     {/* CSV Upload Button */}
                     <div className="relative">
                       <input
@@ -909,11 +1078,11 @@ export default function ExamManagement() {
                         variant="outline"
                         onClick={() => document.getElementById('csv-upload')?.click()}
                         data-testid="button-upload-csv"
-                        disabled={!selectedExam}
-                        title={!selectedExam ? "Please select an exam first" : ""}
+                        disabled={!selectedExam || csvUploadMutation.isPending}
+                        title={!selectedExam ? "Please select an exam first" : "Upload questions from CSV file"}
                       >
                         <Upload className="w-4 h-4 mr-2" />
-                        Upload CSV
+                        {csvUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
                       </Button>
                     </div>
                     
