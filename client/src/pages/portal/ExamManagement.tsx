@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, resetCircuitBreaker, getCircuitBreakerStatus } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -260,11 +260,27 @@ export default function ExamManagement() {
     },
     onError: (error: any) => {
       console.error('❌ Question creation mutation error:', error);
-      toast({
-        title: "Failed to Create Question",
-        description: error.message || "Please check your question data and try again.",
-        variant: "destructive",
-      });
+      
+      // Check if this is a circuit breaker error
+      if (error?.message?.includes('Circuit breaker is OPEN')) {
+        toast({
+          title: "Connection Issue",
+          description: "Too many failed requests. Please wait a moment and try again, or click the Reset Connection button.",
+          variant: "destructive",
+        });
+      } else if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log out and log back in to continue.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Failed to Create Question",
+          description: error.message || "Please check your question data and try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -291,6 +307,15 @@ export default function ExamManagement() {
       title: "Question Validation Error",
       description: errorMessages || "Please check all required fields",
       variant: "destructive",
+    });
+  };
+
+  // Circuit breaker status and reset handler
+  const handleCircuitBreakerReset = () => {
+    resetCircuitBreaker();
+    toast({
+      title: "Connection Reset",
+      description: "Circuit breaker has been reset. You can try your request again.",
     });
   };
 
@@ -434,11 +459,33 @@ export default function ExamManagement() {
     },
     onError: (error: any) => {
       console.error('❌ CSV upload mutation error:', error);
-      toast({
-        title: "Upload Failed",
-        description: error.message || "Failed to upload questions. Please check your CSV format and try again.",
-        variant: "destructive",
-      });
+      
+      // Enhanced error handling for CSV uploads
+      if (error?.message?.includes('Circuit breaker is OPEN')) {
+        toast({
+          title: "Connection Issue - CSV Upload",
+          description: "Too many failed requests. Please wait a moment and try again, or click the Reset Connection button below.",
+          variant: "destructive",
+        });
+      } else if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+        toast({
+          title: "Authentication Error",
+          description: "Your session may have expired. Please log out and log back in.",
+          variant: "destructive",
+        });
+      } else if (error?.message?.includes('400') && error?.message?.includes('Validation')) {
+        toast({
+          title: "CSV Format Error",
+          description: "Please check your CSV format. Download the template and ensure all required fields are filled.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Upload Failed",
+          description: error.message || "Failed to upload questions. Please check your CSV format and try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -732,6 +779,44 @@ export default function ExamManagement() {
       userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
     >
       <div className="space-y-6">
+        {/* Circuit Breaker Status Display */}
+        {(() => {
+          const cbStatus = getCircuitBreakerStatus();
+          if (cbStatus.state === 'OPEN' || cbStatus.failures > 0) {
+            return (
+              <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${cbStatus.state === 'OPEN' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                      <span className="text-sm font-medium">
+                        {cbStatus.state === 'OPEN' ? 'Connection Issues Detected' : 'Connection Warnings'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ({cbStatus.failures} failed requests)
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleCircuitBreakerReset}
+                      data-testid="button-reset-connection"
+                    >
+                      Reset Connection
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {cbStatus.state === 'OPEN' 
+                      ? 'Requests are temporarily blocked. Click Reset or wait for automatic recovery.'
+                      : 'Some requests have failed. Monitor for connection issues.'}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          }
+          return null;
+        })()}
+
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Exam Management</h1>

@@ -43,7 +43,7 @@ class CircuitBreaker {
       error.errorType === 'network' ||
       error.errorType === 'timeout' ||
       error.errorType === 'server' ||
-      error?.message?.match(/^(5\d\d|429):/) ||
+      !!error?.message?.match(/^(5\d\d|429):/) ||
       error?.name === 'NetworkError' ||
       error?.name === 'TypeError' ||
       error?.name === 'AbortError'
@@ -71,10 +71,27 @@ class CircuitBreaker {
       lastFailureTime: this.lastFailureTime
     };
   }
+
+  reset() {
+    this.failures = 0;
+    this.lastFailureTime = 0;
+    this.state = 'CLOSED';
+    console.log('🔄 Circuit breaker manually reset - retries enabled');
+  }
 }
 
 // Global circuit breaker for API requests
 const apiCircuitBreaker = new CircuitBreaker();
+
+// Global function to reset circuit breaker - useful when users encounter circuit breaker errors
+export function resetCircuitBreaker() {
+  apiCircuitBreaker.reset();
+}
+
+// Global function to get circuit breaker status
+export function getCircuitBreakerStatus() {
+  return apiCircuitBreaker.getState();
+}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
