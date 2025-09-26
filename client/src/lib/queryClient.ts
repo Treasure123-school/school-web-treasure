@@ -108,7 +108,12 @@ async function makeRequest(
 ): Promise<Response> {
   return apiCircuitBreaker.execute(async () => {
     const token = localStorage.getItem('token');
-    const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+    const headers: Record<string, string> = {};
+    
+    // Handle different data types appropriately
+    if (data && !(data instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -122,7 +127,7 @@ async function makeRequest(
       const res = await fetch(url, {
         method,
         headers,
-        body: data ? JSON.stringify(data) : undefined,
+        body: data ? (data instanceof FormData ? data : JSON.stringify(data)) : undefined,
         credentials: "include",
         signal: controller.signal,
       });
@@ -142,6 +147,10 @@ async function makeRequest(
         } else if (res.status >= 500 || res.status === 429) {
           error.errorType = 'server';
         }
+        
+        // Add specific properties for easier identification
+        error.status = res.status;
+        error.statusText = res.statusText;
         
         throw error;
       }
@@ -202,6 +211,8 @@ export const getQueryFn: <T>(options: {
 interface ClassifiedError extends Error {
   errorType?: 'network' | 'timeout' | 'server' | 'client' | 'auth';
   originalError?: Error;
+  status?: number;
+  statusText?: string;
 }
 
 // Advanced retry strategy with proper error classification

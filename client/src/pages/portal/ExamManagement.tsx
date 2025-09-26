@@ -217,18 +217,14 @@ export default function ExamManagement() {
     },
   });
 
-  // Create question mutation
+  // Create question mutation with no retries to prevent circuit breaker amplification
   const createQuestionMutation = useMutation({
+    retry: false, // Disable retries for question creation to prevent circuit breaker amplification
     mutationFn: async (questionData: QuestionForm & { examId: number }) => {
       console.log('🔄 Creating question:', questionData);
       const response = await apiRequest('POST', '/api/exam-questions', questionData);
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-        console.error('❌ Question creation failed:', errorData);
-        throw new Error(errorData.message || `Failed to create question with status ${response.status}`);
-      }
-      
+      // apiRequest already handles error classification for non-OK responses
       const result = await response.json();
       console.log('✅ Question created:', result);
       return result;
@@ -261,17 +257,36 @@ export default function ExamManagement() {
     onError: (error: any) => {
       console.error('❌ Question creation mutation error:', error);
       
-      // Check if this is a circuit breaker error
+      // Use classified error types for better error handling
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
           title: "Connection Issue",
-          description: "Too many failed requests. Please wait a moment and try again, or click the Reset Connection button.",
+          description: "Too many failed requests. Please click the 'Reset Connection' button above, wait 30 seconds, then try again.",
           variant: "destructive",
+          duration: 8000,
         });
-      } else if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+      } else if (error?.errorType === 'auth') {
         toast({
           title: "Authentication Error",
           description: "Please log out and log back in to continue.",
+          variant: "destructive",
+        });
+      } else if (error?.errorType === 'timeout') {
+        toast({
+          title: "Request Timeout",
+          description: "The request took too long. Please try again.",
+          variant: "destructive",
+        });
+      } else if (error?.errorType === 'network') {
+        toast({
+          title: "Network Error",
+          description: "Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+      } else if (error?.errorType === 'client') {
+        toast({
+          title: "Invalid Question Data",
+          description: error.message || "Please check your question data and try again.",
           variant: "destructive",
         });
       } else {
@@ -423,8 +438,9 @@ export default function ExamManagement() {
     setQuestionValue('options', newOptions);
   };
 
-  // CSV upload mutation
+  // CSV upload mutation with no retries to prevent circuit breaker amplification
   const csvUploadMutation = useMutation({
+    retry: false, // Disable retries for CSV uploads to prevent circuit breaker amplification
     mutationFn: async (questions: any[]) => {
       console.log('🔄 Starting CSV upload with', questions.length, 'questions');
       const response = await apiRequest('POST', '/api/exam-questions/bulk', { 
@@ -432,12 +448,7 @@ export default function ExamManagement() {
         questions 
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-        console.error('❌ CSV upload failed:', errorData);
-        throw new Error(errorData.message || `Upload failed with status ${response.status}`);
-      }
-      
+      // apiRequest already handles error classification for non-OK responses
       const result = await response.json();
       console.log('✅ CSV upload result:', result);
       return result;
@@ -471,20 +482,33 @@ export default function ExamManagement() {
     onError: (error: any) => {
       console.error('❌ CSV upload mutation error:', error);
       
-      // Enhanced error handling for CSV uploads
+      // Enhanced error handling for CSV uploads using classified error types
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
           title: "Connection Issue - CSV Upload",
-          description: "Too many failed requests. Please wait a moment and try again, or click the Reset Connection button below.",
+          description: "Too many failed requests. Please click the 'Reset Connection' button above, wait 30 seconds, then try again.",
           variant: "destructive",
+          duration: 8000,
         });
-      } else if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+      } else if (error?.errorType === 'auth') {
         toast({
           title: "Authentication Error",
           description: "Your session may have expired. Please log out and log back in.",
           variant: "destructive",
         });
-      } else if (error?.message?.includes('400') && error?.message?.includes('Validation')) {
+      } else if (error?.errorType === 'timeout') {
+        toast({
+          title: "Upload Timeout",
+          description: "The CSV upload took too long. Try uploading fewer questions at once.",
+          variant: "destructive",
+        });
+      } else if (error?.errorType === 'network') {
+        toast({
+          title: "Network Error",
+          description: "Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+      } else if (error?.errorType === 'client' || (error?.message?.includes('400') && error?.message?.includes('Validation'))) {
         toast({
           title: "CSV Format Error",
           description: "Please check your CSV format. Download the template and ensure all required fields are filled.",
