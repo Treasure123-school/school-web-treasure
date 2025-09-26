@@ -933,7 +933,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamQuestions(examId: number): Promise<ExamQuestion[]> {
-    return await db.select().from(schema.examQuestions)
+    // Only select columns that actually exist in the current database
+    return await db.select({
+      id: schema.examQuestions.id,
+      examId: schema.examQuestions.examId,
+      questionText: schema.examQuestions.questionText,
+      questionType: schema.examQuestions.questionType,
+      points: schema.examQuestions.points,
+      orderNumber: schema.examQuestions.orderNumber,
+      imageUrl: schema.examQuestions.imageUrl,
+      createdAt: schema.examQuestions.createdAt,
+    }).from(schema.examQuestions)
       .where(eq(schema.examQuestions.examId, examId))
       .orderBy(asc(schema.examQuestions.orderNumber));
   }
@@ -982,7 +992,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getQuestionOptions(questionId: number): Promise<QuestionOption[]> {
-    return await db.select().from(schema.questionOptions)
+    // Only select columns that actually exist in the current database
+    return await db.select({
+      id: schema.questionOptions.id,
+      questionId: schema.questionOptions.questionId,
+      optionText: schema.questionOptions.optionText,
+      isCorrect: schema.questionOptions.isCorrect,
+      orderNumber: schema.questionOptions.orderNumber,
+      createdAt: schema.questionOptions.createdAt,
+    }).from(schema.questionOptions)
       .where(eq(schema.questionOptions.questionId, questionId))
       .orderBy(asc(schema.questionOptions.orderNumber));
   }
@@ -994,20 +1012,59 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamSessionById(id: number): Promise<ExamSession | undefined> {
-    const result = await db.select().from(schema.examSessions)
+    // Only select columns that actually exist in the current database
+    const result = await db.select({
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt,
+    }).from(schema.examSessions)
       .where(eq(schema.examSessions.id, id))
       .limit(1);
     return result[0];
   }
 
   async getExamSessionsByExam(examId: number): Promise<ExamSession[]> {
-    return await db.select().from(schema.examSessions)
+    // Only select columns that actually exist in the current database
+    return await db.select({
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt,
+    }).from(schema.examSessions)
       .where(eq(schema.examSessions.examId, examId))
       .orderBy(desc(schema.examSessions.startedAt));
   }
 
   async getExamSessionsByStudent(studentId: string): Promise<ExamSession[]> {
-    return await db.select().from(schema.examSessions)
+    // Only select columns that actually exist in the current database
+    return await db.select({
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt,
+    }).from(schema.examSessions)
       .where(eq(schema.examSessions.studentId, studentId))
       .orderBy(desc(schema.examSessions.startedAt));
   }
