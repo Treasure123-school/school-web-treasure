@@ -431,9 +431,37 @@ export const createStudentSchema = z.object({
 
 export type CreateStudentRequest = z.infer<typeof createStudentSchema>;
 
-// New exam delivery schemas
-export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true });
-export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true });
+// New exam delivery schemas with proper coercion for numeric fields
+export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
+  // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
+  examId: z.coerce.number().positive("Please select a valid exam"),
+  points: z.preprocess((val) => val === '' ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
+  orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
+  
+  // Handle optional text fields - convert empty strings to undefined
+  imageUrl: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+  expectedAnswers: z.preprocess((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') return val.split(',').map(s => s.trim()).filter(s => s !== '');
+    return undefined;
+  }, z.array(z.string()).optional()),
+  explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+  hintText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+  partialCreditRules: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+});
+
+export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
+  // Coerce string IDs and numeric values to numbers
+  questionId: z.coerce.number().positive("Please select a valid question"),
+  orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
+  
+  // Handle optional numeric fields - convert empty strings to undefined or 0
+  partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
+  
+  // Handle optional text fields - convert empty strings to undefined
+  explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+});
 // For exam sessions, only require examId from client - studentId is set from authenticated user
 export const insertExamSessionSchema = createInsertSchema(examSessions).omit({ 
   id: true, 
