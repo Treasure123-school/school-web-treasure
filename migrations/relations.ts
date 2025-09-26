@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { roles, users, classes, academicTerms, attendance, students, exams, examResults, announcements, messages, galleryCategories, gallery, contactMessages, questionOptions, studentAnswers, examQuestions, examSessions, subjects, homePageContent } from "./schema";
+import { roles, users, classes, academicTerms, attendance, students, exams, examResults, announcements, messages, galleryCategories, gallery, contactMessages, questionOptions, studentAnswers, examQuestions, examSessions, homePageContent, subjects } from "./schema";
 
 export const usersRelations = relations(users, ({one, many}) => ({
 	role: one(roles, {
@@ -24,9 +24,9 @@ export const usersRelations = relations(users, ({one, many}) => ({
 		relationName: "students_parentId_users_id"
 	}),
 	contactMessages: many(contactMessages),
-	exams: many(exams),
 	examSessions: many(examSessions),
 	homePageContents: many(homePageContent),
+	exams: many(exams),
 }));
 
 export const rolesRelations = relations(roles, ({many}) => ({
@@ -103,6 +103,8 @@ export const examResultsRelations = relations(examResults, ({one}) => ({
 
 export const examsRelations = relations(exams, ({one, many}) => ({
 	examResults: many(examResults),
+	examQuestions: many(examQuestions),
+	examSessions: many(examSessions),
 	class: one(classes, {
 		fields: [exams.classId],
 		references: [classes.id]
@@ -119,8 +121,6 @@ export const examsRelations = relations(exams, ({one, many}) => ({
 		fields: [exams.termId],
 		references: [academicTerms.id]
 	}),
-	examQuestions: many(examQuestions),
-	examSessions: many(examSessions),
 }));
 
 export const announcementsRelations = relations(announcements, ({one}) => ({
@@ -209,13 +209,13 @@ export const examSessionsRelations = relations(examSessions, ({one, many}) => ({
 	}),
 }));
 
-export const subjectsRelations = relations(subjects, ({many}) => ({
-	exams: many(exams),
-}));
-
 export const homePageContentRelations = relations(homePageContent, ({one}) => ({
 	user: one(users, {
 		fields: [homePageContent.uploadedBy],
 		references: [users.id]
 	}),
+}));
+
+export const subjectsRelations = relations(subjects, ({many}) => ({
+	exams: many(exams),
 }));
