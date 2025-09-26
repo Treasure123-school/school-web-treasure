@@ -87,9 +87,11 @@ function sanitizeLogData(data: any): any {
     
     // Check if this is a benign idempotency case (migrations already applied)
     const isIdempotencyError = errorMessage.includes('already exists') || 
-                              errorMessage.includes('relation') && errorMessage.includes('already exists') ||
+                              (errorMessage.includes('relation') && errorMessage.includes('already exists')) ||
                               errorMessage.includes('duplicate key') ||
-                              errorMessage.includes('nothing to migrate');
+                              errorMessage.includes('nothing to migrate') ||
+                              errorMessage.includes('PostgresError: relation') ||
+                              (error as any)?.cause?.code === '42P07'; // PostgreSQL error code for "relation already exists"
     
     if (isIdempotencyError) {
       log(`ℹ️ Migrations already applied: ${errorMessage}`);
