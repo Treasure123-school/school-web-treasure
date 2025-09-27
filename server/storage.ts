@@ -725,11 +725,13 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     try {
-      // CRITICAL FIX: Use this.db consistently and ensure proper JOIN with exams table
-      // This should always work because we're using consistent database instance
+      // ENHANCED FIX: Use SQL COALESCE to always return correct autoScored boolean directly from database
+      // This prevents race conditions and ensures consistent results
       console.log(`🔍 Fetching exam results for student: ${studentId}`);
       
-      const rawResults = await this.db.select({
+      const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
+      
+      const results = await this.db.select({
         id: schema.examResults.id,
         examId: schema.examResults.examId,
         studentId: schema.examResults.studentId,
@@ -740,16 +742,13 @@ export class DatabaseStorage implements IStorage {
         remarks: schema.examResults.remarks,
         recordedBy: schema.examResults.recordedBy,
         createdAt: schema.examResults.createdAt,
+        // ARCHITECT RECOMMENDED FIX: Use SQL COALESCE for reliable autoScored boolean
+        // This handles both cases: when auto_scored column exists and when it doesn't
+        autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
       }).from(schema.examResults)
         .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
         .where(eq(schema.examResults.studentId, studentId))
         .orderBy(desc(schema.examResults.createdAt));
-      
-      // CRITICAL FIX: Manually determine autoScored in JavaScript to ensure proper boolean type
-      const results = rawResults.map((result: any) => ({
-        ...result,
-        autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001'
-      }));
       
       console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
       
@@ -764,12 +763,12 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error(`❌ Error fetching exam results for student ${studentId}:`, error);
       
-      // Enhanced fallback with better error handling
+      // Enhanced fallback with better error handling using COALESCE approach
       if (error?.cause?.code === '42703') {
-        console.log('⚠️ Database schema mismatch detected, using fallback query');
+        console.log('⚠️ Database schema mismatch detected, using fallback query with SQL COALESCE');
         try {
-          // Fallback query: Try to get maxScore from exams table with explicit JOIN
-          const rawFallbackResults = await this.db.select({
+          // Fallback query with COALESCE approach for autoScored
+          const fallbackResults = await this.db.select({
             id: schema.examResults.id,
             examId: schema.examResults.examId,
             studentId: schema.examResults.studentId,
@@ -782,18 +781,22 @@ export class DatabaseStorage implements IStorage {
             score: schema.examResults.marksObtained,
             // Try to get maxScore from a separate query if JOIN fails
             maxScore: schema.exams.totalMarks,
+            // ENHANCED FALLBACK: Use SQL to determine autoScored consistently
+            autoScored: sql<boolean>`(${schema.examResults.recordedBy} = ${'00000000-0000-0000-0000-000000000001'}::uuid)`.as('autoScored')
           }).from(schema.examResults)
             .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
             .where(eq(schema.examResults.studentId, studentId))
             .orderBy(desc(schema.examResults.createdAt));
           
-          // CRITICAL FIX: Manually determine autoScored in JavaScript for fallback too
-          const fallbackResults = rawFallbackResults.map((result: any) => ({
-            ...result,
-            autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001'
-          }));
-          
           console.log(`✅ Fallback query successful, found ${fallbackResults.length} results`);
+          
+          // Log detailed fallback results for debugging in development
+          if (process.env.NODE_ENV === 'development' && fallbackResults.length > 0) {
+            fallbackResults.forEach((result: any, index: number) => {
+              console.log(`   Fallback Result ${index + 1}: Score ${result.score}/${result.maxScore}, Auto-scored: ${result.autoScored} (type: ${typeof result.autoScored}), recordedBy: ${result.recordedBy}`);
+            });
+          }
+          
           return fallbackResults;
         } catch (fallbackError) {
           console.error('❌ Fallback query also failed:', fallbackError);
