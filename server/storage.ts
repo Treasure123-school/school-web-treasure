@@ -725,7 +725,23 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     try {
-      return await db.select().from(schema.examResults)
+      // CRITICAL FIX: Always use fallback query to handle missing auto_scored column
+      // Join with exams table to get proper maxScore (totalMarks)
+      return await this.db.select({
+        id: schema.examResults.id,
+        examId: schema.examResults.examId,
+        studentId: schema.examResults.studentId,
+        score: schema.examResults.marksObtained, // Map legacy field to score
+        maxScore: schema.exams.totalMarks, // FIXED: Get proper maxScore from exam
+        marksObtained: schema.examResults.marksObtained,
+        grade: schema.examResults.grade,
+        remarks: schema.examResults.remarks,
+        recordedBy: schema.examResults.recordedBy,
+        createdAt: schema.examResults.createdAt,
+        // CRITICAL: Determine autoScored from recordedBy field
+        autoScored: dsql`CASE WHEN exam_results."recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
+      }).from(schema.examResults)
+        .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
         .where(eq(schema.examResults.studentId, studentId))
         .orderBy(desc(schema.examResults.createdAt));
     } catch (error: any) {
