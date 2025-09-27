@@ -635,10 +635,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExam(id: number): Promise<boolean> {
     try {
-      // First delete related exam questions and their options
+      // First delete student answers (references exam questions)
+      await db.delete(schema.studentAnswers)
+        .where(sql`${schema.studentAnswers.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
+      
+      // Delete question options (references exam questions)
       await db.delete(schema.questionOptions)
         .where(sql`${schema.questionOptions.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
       
+      // Delete exam questions (now safe to delete)
       await db.delete(schema.examQuestions)
         .where(eq(schema.examQuestions.examId, id));
       
@@ -649,10 +654,6 @@ export class DatabaseStorage implements IStorage {
       // Delete exam sessions
       await db.delete(schema.examSessions)
         .where(eq(schema.examSessions.examId, id));
-      
-      // Delete student answers
-      await db.delete(schema.studentAnswers)
-        .where(sql`${schema.studentAnswers.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
       
       // Finally delete the exam itself
       const result = await db.delete(schema.exams)
