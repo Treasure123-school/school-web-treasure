@@ -1664,6 +1664,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+
   // Text similarity calculation for partial credit scoring
   private calculateTextSimilarity(str1: string, str2: string): number {
     // Simple Levenshtein distance-based similarity

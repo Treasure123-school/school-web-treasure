@@ -2818,7 +2818,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timedOut: isLateSubmission,
             result: {
               // Overall summary
-              totalScore: scoringResult.score,
+              score: scoringResult.score,        // ✅ FIXED: Frontend expects 'score'
+              totalScore: scoringResult.score,   // Keep for backward compatibility
               maxScore: scoringResult.maxScore,
               totalQuestions: scoringResult.breakdown.totalQuestions,
               percentage: scoringResult.percentage,
@@ -2899,7 +2900,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               alreadySubmitted: false,
               timedOut: isLateSubmission,
               result: {
-                totalScore: score,
+                score: score,              // ✅ FIXED: Frontend expects 'score'
+                totalScore: score,         // Keep for backward compatibility
                 maxScore: maxScore,
                 percentage: percentage,
                 autoScored: existingResult.autoScored,
