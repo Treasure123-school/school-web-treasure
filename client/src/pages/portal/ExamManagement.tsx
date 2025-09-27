@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -223,6 +224,77 @@ export default function ExamManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to update exam publish status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete exam mutation
+  const deleteExamMutation = useMutation({
+    mutationFn: async (examId: number) => {
+      const response = await apiRequest('DELETE', `/api/exams/${examId}`);
+      if (!response.ok) throw new Error('Failed to delete exam');
+      // Handle 204 No Content response - don't parse JSON
+      if (response.status === 204) return;
+      // Only parse JSON if there's content
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > 0) {
+        return response.json();
+      }
+      return;
+    },
+    onSuccess: (_, examId) => {
+      toast({
+        title: "Success",
+        description: "Exam deleted successfully",
+      });
+      // Clear UI state if the deleted exam was selected
+      if (selectedExam?.id === examId) {
+        setSelectedExam(null);
+        setEditingExam(null);
+        setEditingQuestion(null);
+      }
+      // Invalidate queries broadly to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-questions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete exam",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete question mutation
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async (questionId: number) => {
+      const response = await apiRequest('DELETE', `/api/exam-questions/${questionId}`);
+      if (!response.ok) throw new Error('Failed to delete question');
+      // Handle 204 No Content response - don't parse JSON
+      if (response.status === 204) return;
+      // Only parse JSON if there's content
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > 0) {
+        return response.json();
+      }
+      return;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Question deleted successfully",
+      });
+      // Invalidate queries broadly to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-questions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete question",
         variant: "destructive",
       });
     },
@@ -1257,6 +1329,37 @@ export default function ExamManagement() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={deleteExamMutation.isPending}
+                                data-testid={`button-delete-exam-${exam.id}`}
+                                aria-label={`Delete exam ${exam.name}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete the exam "{exam.name}"? This action cannot be undone and will permanently remove all exam questions and student results.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel disabled={deleteExamMutation.isPending}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteExamMutation.mutate(exam.id)}
+                                  disabled={deleteExamMutation.isPending}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  {deleteExamMutation.isPending ? 'Deleting...' : 'Delete Exam'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1496,9 +1599,37 @@ export default function ExamManagement() {
                               <Button variant="outline" size="sm" data-testid={`button-edit-question-${question.id}`}>
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button variant="outline" size="sm" data-testid={`button-delete-question-${question.id}`}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm" 
+                                    disabled={deleteQuestionMutation.isPending}
+                                    data-testid={`button-delete-question-${question.id}`}
+                                    aria-label={`Delete question ${index + 1}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Question</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this question? This action cannot be undone and will permanently remove the question and all associated answer options.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={deleteQuestionMutation.isPending}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteQuestionMutation.mutate(question.id)}
+                                      disabled={deleteQuestionMutation.isPending}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                    >
+                                      {deleteQuestionMutation.isPending ? 'Deleting...' : 'Delete Question'}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </div>
                         </CardContent>
