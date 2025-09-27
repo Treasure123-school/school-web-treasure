@@ -1270,8 +1270,27 @@ export class DatabaseStorage implements IStorage {
 
         // No active session exists, create a new one
         const newSession = await tx.insert(schema.examSessions)
-          .values(sessionData)
-          .returning();
+          .values({
+            examId: sessionData.examId,
+            studentId: studentId,
+            startedAt: new Date(),
+            timeRemaining: sessionData.timeRemaining,
+            isCompleted: false,
+            status: 'in_progress'
+          })
+          .returning({
+            id: schema.examSessions.id,
+            examId: schema.examSessions.examId,
+            studentId: schema.examSessions.studentId,
+            startedAt: schema.examSessions.startedAt,
+            submittedAt: schema.examSessions.submittedAt,
+            timeRemaining: schema.examSessions.timeRemaining,
+            isCompleted: schema.examSessions.isCompleted,
+            score: schema.examSessions.score,
+            maxScore: schema.examSessions.maxScore,
+            status: schema.examSessions.status,
+            createdAt: schema.examSessions.createdAt
+          });
 
         // Return new session with flag indicating it was created
         return { ...newSession[0], wasCreated: true };
