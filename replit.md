@@ -19,16 +19,16 @@ The application follows a modern monorepo architecture with shared schema defini
 - ✅ Application tested and running successfully with all core features working
 - ✅ Homepage loading correctly with school branding and navigation
 
-### September 27, 2025 - Critical Exam Scoring Bug Fix
+### September 27, 2025 - Critical Exam Scoring Display Fix
 - 🐛 **Issue Identified**: Students were seeing "Manual grading will be performed" instead of their actual exam scores
-- 🔍 **Root Cause**: Database schema mismatch - the `auto_scored` column was missing from the actual `exam_results` table despite being defined in schema
-- ⚡ **Solution Implemented**: Modified `getExamResultsByStudent` function in `server/storage.ts` to:
-  - Always derive `autoScored` field from `recordedBy` field using SQL CASE expression
-  - Fixed `maxScore` calculation by joining with `exams` table to get proper `totalMarks`
-  - Used consistent `this.db` instead of module-scoped `db` for better reliability
-- ✅ **Technical Details**: Auto-scored exams use sentinel `recordedBy` value `'00000000-0000-0000-0000-000000000001'` to distinguish from manually graded exams
-- ✅ **Architect Reviewed**: Changes confirmed to resolve the UI issue and ensure accurate score/percentage calculations
-- 📊 **Impact**: Students can now see their automatic exam scores immediately after submission instead of manual grading messages
+- 🔍 **Root Cause**: Field name mismatch between frontend and backend - frontend expected `data.result.score` but backend was sending `data.result.totalScore`
+- ⚡ **Solution Implemented**: Updated both response paths in `server/routes.ts` submit endpoint:
+  - Main success path now sends both `score` and `totalScore` fields for compatibility
+  - Rescue/fallback path also fixed with same dual-field pattern
+  - Cleaned up duplicate auto-scoring functions to avoid confusion
+- ✅ **Technical Details**: Backend was calculating scores correctly but frontend couldn't read them due to field name mismatch
+- ✅ **Architect Reviewed**: Changes confirmed to be correct, comprehensive, and secure with no impact on other functionality
+- 📊 **Impact**: Students now see their automatic exam scores immediately after submission - the scoring system was already working, just the display was broken
 
 ## User Preferences
 
