@@ -1422,64 +1422,174 @@ export class DatabaseStorage implements IStorage {
       const session = sessionResult[0];
       console.log(`🔍 DIAGNOSTIC: Found session for exam ${session.examId}, student ${session.studentId}`);
 
-      // Single optimized query with JOINs to get all scoring data
-      const scoringQuery = await this.db.select({
+      // CORRECTED QUERY: Get question data and correct options separately to avoid row multiplication issues
+      const questionsQuery = await this.db.select({
         questionId: schema.examQuestions.id,
         questionType: schema.examQuestions.questionType,
         points: schema.examQuestions.points,
         autoGradable: schema.examQuestions.autoGradable,
+        expectedAnswers: schema.examQuestions.expectedAnswers,
+        caseSensitive: schema.examQuestions.caseSensitive,
+        allowPartialCredit: schema.examQuestions.allowPartialCredit,
+        partialCreditRules: schema.examQuestions.partialCreditRules,
         studentSelectedOptionId: schema.studentAnswers.selectedOptionId,
         textAnswer: schema.studentAnswers.textAnswer,
-        correctOptionId: schema.questionOptions.id,
-        isCorrectOption: schema.questionOptions.isCorrect,
       })
       .from(schema.examQuestions)
       .leftJoin(schema.studentAnswers, and(
         eq(schema.studentAnswers.questionId, schema.examQuestions.id),
         eq(schema.studentAnswers.sessionId, sessionId)
       ))
-      .leftJoin(schema.questionOptions, eq(schema.questionOptions.questionId, schema.examQuestions.id))
       .where(eq(schema.examQuestions.examId, session.examId))
-      .orderBy(asc(schema.examQuestions.orderNumber), asc(schema.questionOptions.orderNumber));
+      .orderBy(asc(schema.examQuestions.orderNumber));
 
-      // Process results to calculate scoring
+      // Get correct options separately to avoid confusion
+      const correctOptionsQuery = await this.db.select({
+        questionId: schema.questionOptions.questionId,
+        correctOptionId: schema.questionOptions.id,
+      })
+      .from(schema.questionOptions)
+      .innerJoin(schema.examQuestions, eq(schema.questionOptions.questionId, schema.examQuestions.id))
+      .where(
+        and(
+          eq(schema.examQuestions.examId, session.examId),
+          eq(schema.questionOptions.isCorrect, true)
+        )
+      );
+
+      // Get selected option details for partial credit (only for questions with student answers)
+      const selectedOptionsQuery = await this.db.select({
+        questionId: schema.questionOptions.questionId,
+        optionId: schema.questionOptions.id,
+        partialCreditValue: schema.questionOptions.partialCreditValue,
+        isCorrect: schema.questionOptions.isCorrect,
+      })
+      .from(schema.questionOptions)
+      .innerJoin(schema.studentAnswers, eq(schema.questionOptions.id, schema.studentAnswers.selectedOptionId))
+      .where(eq(schema.studentAnswers.sessionId, sessionId));
+
+      // Create lookup maps for efficient processing
+      const correctOptionsMap = new Map<number, number>();
+      for (const option of correctOptionsQuery) {
+        correctOptionsMap.set(option.questionId, option.correctOptionId);
+      }
+
+      const selectedOptionsMap = new Map<number, { optionId: number; partialCreditValue: number | null; isCorrect: boolean | null }>();
+      for (const option of selectedOptionsQuery) {
+        selectedOptionsMap.set(option.questionId, {
+          optionId: option.optionId,
+          partialCreditValue: option.partialCreditValue,
+          isCorrect: option.isCorrect,
+        });
+      }
+
+      // CORRECTED PROCESSING: Build question data from separate queries
       const questionMap = new Map<number, {
         questionType: string;
         points: number;
         autoGradable: boolean | null;
+        expectedAnswers: string[] | null;
+        caseSensitive: boolean | null;
+        allowPartialCredit: boolean | null;
+        partialCreditRules: string | null;
         studentSelectedOptionId: number | null;
         textAnswer: string | null;
         correctOptionId: number | null;
         isCorrect: boolean;
+        partialCreditEarned: number;
       }>();
 
-      // Group by question and identify correct answers
-      for (const row of scoringQuery) {
-        if (!questionMap.has(row.questionId)) {
-          questionMap.set(row.questionId, {
-            questionType: row.questionType,
-            points: row.points || 1,
-            autoGradable: row.autoGradable,
-            studentSelectedOptionId: row.studentSelectedOptionId,
-            textAnswer: row.textAnswer,
-            correctOptionId: null,
-            isCorrect: false,
-          });
+      // Build questions with correct option IDs
+      for (const question of questionsQuery) {
+        const correctOptionId = correctOptionsMap.get(question.questionId) || null;
+        const selectedOptionData = selectedOptionsMap.get(question.questionId);
+        
+        questionMap.set(question.questionId, {
+          questionType: question.questionType,
+          points: question.points || 1,
+          autoGradable: question.autoGradable,
+          expectedAnswers: question.expectedAnswers,
+          caseSensitive: question.caseSensitive,
+          allowPartialCredit: question.allowPartialCredit,
+          partialCreditRules: question.partialCreditRules,
+          studentSelectedOptionId: question.studentSelectedOptionId,
+          textAnswer: question.textAnswer,
+          correctOptionId,
+          isCorrect: false,
+          partialCreditEarned: 0,
+        });
+
+        // FIXED CORRECTNESS LOGIC: Determine if option-based questions are correct
+        if ((question.questionType === 'multiple_choice' || 
+             question.questionType === 'true_false' || 
+             question.questionType === 'true/false') && 
+            correctOptionId && question.studentSelectedOptionId === correctOptionId) {
+          questionMap.get(question.questionId)!.isCorrect = true;
         }
 
-        // Find the correct option for this question
-        if (row.isCorrectOption && row.correctOptionId) {
-          const question = questionMap.get(row.questionId)!;
-          question.correctOptionId = row.correctOptionId;
+        // FIXED PARTIAL CREDIT LOGIC: Award partial credit for incorrect option-based answers
+        if (question.allowPartialCredit && selectedOptionData && selectedOptionData.partialCreditValue) {
+          const questionData = questionMap.get(question.questionId)!;
           
-          // CRITICAL FIX: Check if student's answer is correct for ANY auto-gradable question type
-          // This evaluates correctness for multiple choice, true/false, and other option-based questions
-          if ((row.questionType === 'multiple_choice' || 
-               row.questionType === 'true_false' || 
-               row.questionType === 'true/false' ||
-               row.autoGradable === true) && 
-              question.studentSelectedOptionId === row.correctOptionId) {
-            question.isCorrect = true;
+          // Only award partial credit if the answer is incorrect but has some value
+          if (!questionData.isCorrect && selectedOptionData.partialCreditValue > 0) {
+            questionData.partialCreditEarned = Math.min(
+              questionData.points,
+              selectedOptionData.partialCreditValue
+            );
+            console.log(`🔤 OPTION PARTIAL CREDIT: Question ${question.questionId} awarded ${questionData.partialCreditEarned}/${questionData.points} pts for selected option`);
+          }
+        }
+      }
+
+      // ENHANCED AUTO-SCORING: Process text-based questions after collecting all data
+      for (const [questionId, question] of Array.from(questionMap.entries())) {
+        if (!question.autoGradable) continue;
+        
+        // Handle text-based questions (text, fill_blank)
+        if ((question.questionType === 'text' || question.questionType === 'fill_blank') && 
+            question.expectedAnswers && question.textAnswer) {
+          
+          const studentAnswer = question.textAnswer.trim();
+          if (!studentAnswer) continue; // Skip empty answers
+          
+          console.log(`🔤 AUTO-SCORING TEXT: Question ${questionId} - Student: "${studentAnswer}", Expected: [${question.expectedAnswers.join(', ')}]`);
+          
+          // Check against all expected answers
+          for (const expectedAnswer of question.expectedAnswers) {
+            const normalizedExpected = question.caseSensitive ? 
+              expectedAnswer.trim() : 
+              expectedAnswer.trim().toLowerCase();
+            
+            const normalizedStudent = question.caseSensitive ? 
+              studentAnswer : 
+              studentAnswer.toLowerCase();
+            
+            // Exact match
+            if (normalizedStudent === normalizedExpected) {
+              question.isCorrect = true;
+              console.log(`✅ TEXT MATCH: Exact match found for question ${questionId}`);
+              break;
+            }
+            
+            // Partial credit for close matches (if enabled)
+            if (question.allowPartialCredit && !question.isCorrect) {
+              const similarity = this.calculateTextSimilarity(normalizedStudent, normalizedExpected);
+              
+              try {
+                const partialRules = question.partialCreditRules ? 
+                  JSON.parse(question.partialCreditRules) : 
+                  { minSimilarity: 0.8, partialPercentage: 0.5 };
+                
+                if (similarity >= (partialRules.minSimilarity || 0.8)) {
+                  question.partialCreditEarned = Math.ceil(question.points * (partialRules.partialPercentage || 0.5));
+                  console.log(`🔤 PARTIAL CREDIT: Question ${questionId} similarity ${similarity.toFixed(2)} awarded ${question.partialCreditEarned}/${question.points} points`);
+                  break;
+                }
+              } catch (err) {
+                console.warn(`⚠️ Invalid partial credit rules for question ${questionId}:`, err);
+              }
+            }
           }
         }
       }
@@ -1507,14 +1617,25 @@ export class DatabaseStorage implements IStorage {
         // Count question types for diagnostic
         questionTypeCount[question.questionType] = (questionTypeCount[question.questionType] || 0) + 1;
         
-        // CRITICAL FIX: Use auto_gradable field from database to determine if question can be auto-scored
+        // ENHANCED SCORING: Use auto_gradable field from database to determine if question can be auto-scored
         // This is the definitive source of truth for auto-scoring eligibility
         if (question.autoGradable === true) {
           autoScoredQuestions++;
+          
+          // Award full points for correct answers
           if (question.isCorrect) {
             studentScore += question.points;
+            console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): CORRECT (+${question.points} pts) - Full credit awarded`);
+          } 
+          // Award partial credit if earned
+          else if (question.partialCreditEarned > 0) {
+            studentScore += question.partialCreditEarned;
+            console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): PARTIAL CREDIT (+${question.partialCreditEarned}/${question.points} pts)`);
           }
-          console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): ${question.isCorrect ? 'CORRECT' : 'INCORRECT'} - Student selected ${question.studentSelectedOptionId}, Correct is ${question.correctOptionId}`);
+          // No credit
+          else {
+            console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): INCORRECT (0 pts)`);
+          }
         } else {
           console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): MANUAL GRADING REQUIRED`);
         }
@@ -1538,6 +1659,38 @@ export class DatabaseStorage implements IStorage {
       console.error('🚨 OPTIMIZED SCORING ERROR:', error);
       throw error;
     }
+  }
+
+  // Text similarity calculation for partial credit scoring
+  private calculateTextSimilarity(str1: string, str2: string): number {
+    // Simple Levenshtein distance-based similarity
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.getEditDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+  
+  private getEditDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+    
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+    
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,     // deletion
+          matrix[j - 1][i] + 1,     // insertion
+          matrix[j - 1][i - 1] + indicator // substitution
+        );
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
   }
 
   // Announcements
