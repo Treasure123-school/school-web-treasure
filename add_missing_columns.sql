@@ -19,3 +19,9 @@ ADD COLUMN IF NOT EXISTS partial_credit_reason text;
 ALTER TABLE question_options
 ADD COLUMN IF NOT EXISTS partial_credit_value integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS explanation_text text;
+
+-- CRITICAL FIX: Add missing columns to exam_results table for auto-scoring
+ALTER TABLE exam_results
+ADD COLUMN IF NOT EXISTS score integer,
+ADD COLUMN IF NOT EXISTS max_score integer,
+ADD COLUMN IF NOT EXISTS auto_scored boolean DEFAULT false;
