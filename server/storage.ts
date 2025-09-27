@@ -1395,6 +1395,8 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
+      console.log(`🔍 DIAGNOSTIC: Starting scoring data fetch for session ${sessionId}`);
+      
       // First, get the session - select only existing columns
       const sessionResult = await this.db.select({
         id: schema.examSessions.id,
@@ -1418,12 +1420,14 @@ export class DatabaseStorage implements IStorage {
       }
       
       const session = sessionResult[0];
+      console.log(`🔍 DIAGNOSTIC: Found session for exam ${session.examId}, student ${session.studentId}`);
 
       // Single optimized query with JOINs to get all scoring data
       const scoringQuery = await this.db.select({
         questionId: schema.examQuestions.id,
         questionType: schema.examQuestions.questionType,
         points: schema.examQuestions.points,
+        autoGradable: schema.examQuestions.autoGradable,
         studentSelectedOptionId: schema.studentAnswers.selectedOptionId,
         textAnswer: schema.studentAnswers.textAnswer,
         correctOptionId: schema.questionOptions.id,
@@ -1442,6 +1446,7 @@ export class DatabaseStorage implements IStorage {
       const questionMap = new Map<number, {
         questionType: string;
         points: number;
+        autoGradable: boolean | null;
         studentSelectedOptionId: number | null;
         textAnswer: string | null;
         correctOptionId: number | null;
@@ -1454,6 +1459,7 @@ export class DatabaseStorage implements IStorage {
           questionMap.set(row.questionId, {
             questionType: row.questionType,
             points: row.points || 1,
+            autoGradable: row.autoGradable,
             studentSelectedOptionId: row.studentSelectedOptionId,
             textAnswer: row.textAnswer,
             correctOptionId: null,
@@ -1466,8 +1472,12 @@ export class DatabaseStorage implements IStorage {
           const question = questionMap.get(row.questionId)!;
           question.correctOptionId = row.correctOptionId;
           
-          // Check if student's answer is correct
-          if (row.questionType === 'multiple_choice' && 
+          // CRITICAL FIX: Check if student's answer is correct for ANY auto-gradable question type
+          // This evaluates correctness for multiple choice, true/false, and other option-based questions
+          if ((row.questionType === 'multiple_choice' || 
+               row.questionType === 'true_false' || 
+               row.questionType === 'true/false' ||
+               row.autoGradable === true) && 
               question.studentSelectedOptionId === row.correctOptionId) {
             question.isCorrect = true;
           }
@@ -1485,17 +1495,34 @@ export class DatabaseStorage implements IStorage {
       let maxScore = 0;
       let studentScore = 0;
       let autoScoredQuestions = 0;
-
+      
+      console.log(`🔍 DIAGNOSTIC: Found ${totalQuestions} total questions for scoring`);
+      
+      // Track question types for debugging
+      const questionTypeCount: Record<string, number> = {};
+      
       for (const question of scoringData) {
         maxScore += question.points;
         
-        if (question.questionType === 'multiple_choice') {
+        // Count question types for diagnostic
+        questionTypeCount[question.questionType] = (questionTypeCount[question.questionType] || 0) + 1;
+        
+        // CRITICAL FIX: Use auto_gradable field from database to determine if question can be auto-scored
+        // This is the definitive source of truth for auto-scoring eligibility
+        if (question.autoGradable === true) {
           autoScoredQuestions++;
           if (question.isCorrect) {
             studentScore += question.points;
           }
+          console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): ${question.isCorrect ? 'CORRECT' : 'INCORRECT'} - Student selected ${question.studentSelectedOptionId}, Correct is ${question.correctOptionId}`);
+        } else {
+          console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): MANUAL GRADING REQUIRED`);
         }
       }
+      
+      console.log(`🔍 DIAGNOSTIC: Question type breakdown:`, questionTypeCount);
+      console.log(`🔍 DIAGNOSTIC: Auto-scored questions: ${autoScoredQuestions}/${totalQuestions}`);
+      console.log(`🔍 DIAGNOSTIC: Student score: ${studentScore}/${maxScore}`);
 
       return {
         session,
