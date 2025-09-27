@@ -1237,13 +1237,21 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  // IDEMPOTENT SESSION CREATION: Get existing active session or create new one atomically
+  // CIRCUIT BREAKER FIX: Idempotent session creation using UPSERT to prevent connection pool exhaustion
   async createOrGetActiveExamSession(examId: number, studentId: string, sessionData: InsertExamSession): Promise<ExamSession & { wasCreated?: boolean }> {
-    // Use a transaction to ensure atomicity and handle race conditions
-    return await this.db.transaction(async (tx: any) => {
-      try {
-        // First, try to find an existing active session using the indexed query
-        const existingSession = await tx.select({
+    try {
+      // STEP 1: Try to insert new session - this will fail if an active session already exists due to unique index
+      const insertResult = await db.insert(schema.examSessions)
+        .values({
+          examId: sessionData.examId,
+          studentId: studentId,
+          startedAt: new Date(),
+          timeRemaining: sessionData.timeRemaining,
+          isCompleted: false,
+          status: 'in_progress'
+        })
+        .onConflictDoNothing() // This requires the unique index we added
+        .returning({
           id: schema.examSessions.id,
           examId: schema.examSessions.examId,
           studentId: schema.examSessions.studentId,
@@ -1255,84 +1263,47 @@ export class DatabaseStorage implements IStorage {
           maxScore: schema.examSessions.maxScore,
           status: schema.examSessions.status,
           createdAt: schema.examSessions.createdAt
-        }).from(schema.examSessions)
-          .where(and(
-            eq(schema.examSessions.examId, examId),
-            eq(schema.examSessions.studentId, studentId),
-            eq(schema.examSessions.isCompleted, false)
-          ))
-          .limit(1);
+        });
 
-        if (existingSession.length > 0) {
-          // Return existing session with flag indicating it wasn't created
-          return { ...existingSession[0], wasCreated: false };
-        }
-
-        // No active session exists, create a new one
-        const newSession = await tx.insert(schema.examSessions)
-          .values({
-            examId: sessionData.examId,
-            studentId: studentId,
-            startedAt: new Date(),
-            timeRemaining: sessionData.timeRemaining,
-            isCompleted: false,
-            status: 'in_progress'
-          })
-          .returning({
-            id: schema.examSessions.id,
-            examId: schema.examSessions.examId,
-            studentId: schema.examSessions.studentId,
-            startedAt: schema.examSessions.startedAt,
-            submittedAt: schema.examSessions.submittedAt,
-            timeRemaining: schema.examSessions.timeRemaining,
-            isCompleted: schema.examSessions.isCompleted,
-            score: schema.examSessions.score,
-            maxScore: schema.examSessions.maxScore,
-            status: schema.examSessions.status,
-            createdAt: schema.examSessions.createdAt
-          });
-
-        // Return new session with flag indicating it was created
-        return { ...newSession[0], wasCreated: true };
-
-      } catch (error: any) {
-        // Handle potential race condition where another transaction created a session
-        // after our check but before our insert (duplicate key violation)
-        if (error?.code === '23505' || error?.message?.includes('duplicate key') || 
-            error?.message?.includes('unique constraint')) {
-          
-          console.log(`Handled race condition for exam ${examId}, student ${studentId} - retrieving existing session`);
-          
-          // Another transaction created the session, retrieve it
-          const existingSession = await tx.select({
-            id: schema.examSessions.id,
-            examId: schema.examSessions.examId,
-            studentId: schema.examSessions.studentId,
-            startedAt: schema.examSessions.startedAt,
-            submittedAt: schema.examSessions.submittedAt,
-            timeRemaining: schema.examSessions.timeRemaining,
-            isCompleted: schema.examSessions.isCompleted,
-            score: schema.examSessions.score,
-            maxScore: schema.examSessions.maxScore,
-            status: schema.examSessions.status,
-            createdAt: schema.examSessions.createdAt
-          }).from(schema.examSessions)
-            .where(and(
-              eq(schema.examSessions.examId, examId),
-              eq(schema.examSessions.studentId, studentId),
-              eq(schema.examSessions.isCompleted, false)
-            ))
-            .limit(1);
-
-          if (existingSession.length > 0) {
-            return { ...existingSession[0], wasCreated: false };
-          }
-        }
-
-        // Re-throw any other unexpected errors
-        throw error;
+      // If insert succeeded, return the new session
+      if (insertResult.length > 0) {
+        console.log(`Created new exam session ${insertResult[0].id} for student ${studentId} exam ${examId}`);
+        return { ...insertResult[0], wasCreated: true };
       }
-    });
+
+      // STEP 2: Insert failed due to conflict, fetch the existing active session
+      const existingSession = await db.select({
+        id: schema.examSessions.id,
+        examId: schema.examSessions.examId,
+        studentId: schema.examSessions.studentId,
+        startedAt: schema.examSessions.startedAt,
+        submittedAt: schema.examSessions.submittedAt,
+        timeRemaining: schema.examSessions.timeRemaining,
+        isCompleted: schema.examSessions.isCompleted,
+        score: schema.examSessions.score,
+        maxScore: schema.examSessions.maxScore,
+        status: schema.examSessions.status,
+        createdAt: schema.examSessions.createdAt
+      }).from(schema.examSessions)
+        .where(and(
+          eq(schema.examSessions.examId, examId),
+          eq(schema.examSessions.studentId, studentId),
+          eq(schema.examSessions.isCompleted, false)
+        ))
+        .limit(1);
+
+      if (existingSession.length > 0) {
+        console.log(`Retrieved existing exam session ${existingSession[0].id} for student ${studentId} exam ${examId}`);
+        return { ...existingSession[0], wasCreated: false };
+      }
+
+      // This should not happen with proper unique index, but handle gracefully
+      throw new Error(`Unable to create or retrieve exam session for student ${studentId} exam ${examId}`);
+
+    } catch (error: any) {
+      console.error('Error in createOrGetActiveExamSession:', error);
+      throw error;
+    }
   }
 
   // Student answers management

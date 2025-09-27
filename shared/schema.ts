@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
+import { sql, eq } from "drizzle-orm";
+import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -179,6 +179,8 @@ export const examSessions = pgTable("exam_sessions", {
   examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
   examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
   examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
+  // UNIQUE CONSTRAINT: Prevent duplicate active sessions (critical for circuit breaker fix)
+  examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(eq(table.isCompleted, false)),
 }));
 
 // Student answers table
