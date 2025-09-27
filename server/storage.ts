@@ -1243,8 +1243,19 @@ export class DatabaseStorage implements IStorage {
     return await this.db.transaction(async (tx: any) => {
       try {
         // First, try to find an existing active session using the indexed query
-        const existingSession = await tx.select()
-          .from(schema.examSessions)
+        const existingSession = await tx.select({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions)
           .where(and(
             eq(schema.examSessions.examId, examId),
             eq(schema.examSessions.studentId, studentId),
@@ -1274,8 +1285,19 @@ export class DatabaseStorage implements IStorage {
           console.log(`Handled race condition for exam ${examId}, student ${studentId} - retrieving existing session`);
           
           // Another transaction created the session, retrieve it
-          const existingSession = await tx.select()
-            .from(schema.examSessions)
+          const existingSession = await tx.select({
+            id: schema.examSessions.id,
+            examId: schema.examSessions.examId,
+            studentId: schema.examSessions.studentId,
+            startedAt: schema.examSessions.startedAt,
+            submittedAt: schema.examSessions.submittedAt,
+            timeRemaining: schema.examSessions.timeRemaining,
+            isCompleted: schema.examSessions.isCompleted,
+            score: schema.examSessions.score,
+            maxScore: schema.examSessions.maxScore,
+            status: schema.examSessions.status,
+            createdAt: schema.examSessions.createdAt
+          }).from(schema.examSessions)
             .where(and(
               eq(schema.examSessions.examId, examId),
               eq(schema.examSessions.studentId, studentId),
