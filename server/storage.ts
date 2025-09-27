@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@shared/schema";
-import { eq, and, desc, asc, sql as dsql, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, sql as dsql, inArray } from "drizzle-orm";
 import type { 
   User, InsertUser, Student, InsertStudent, Class, InsertClass, 
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -634,9 +634,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteExam(id: number): Promise<boolean> {
-    const result = await db.delete(schema.exams)
-      .where(eq(schema.exams.id, id));
-    return result.length > 0;
+    try {
+      // First delete related exam questions and their options
+      await db.delete(schema.questionOptions)
+        .where(sql`${schema.questionOptions.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
+      
+      await db.delete(schema.examQuestions)
+        .where(eq(schema.examQuestions.examId, id));
+      
+      // Delete exam results
+      await db.delete(schema.examResults)
+        .where(eq(schema.examResults.examId, id));
+      
+      // Delete exam sessions
+      await db.delete(schema.examSessions)
+        .where(eq(schema.examSessions.examId, id));
+      
+      // Delete student answers
+      await db.delete(schema.studentAnswers)
+        .where(sql`${schema.studentAnswers.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
+      
+      // Finally delete the exam itself
+      const result = await db.delete(schema.exams)
+        .where(eq(schema.exams.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error in deleteExam:', error);
+      throw error;
+    }
   }
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
@@ -1011,10 +1038,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteExamQuestion(id: number): Promise<boolean> {
-    const result = await db.delete(schema.examQuestions)
-      .where(eq(schema.examQuestions.id, id))
-      .returning();
-    return result.length > 0;
+    try {
+      // First delete question options
+      await db.delete(schema.questionOptions)
+        .where(eq(schema.questionOptions.questionId, id));
+      
+      // Delete student answers for this question
+      await db.delete(schema.studentAnswers)
+        .where(eq(schema.studentAnswers.questionId, id));
+      
+      // Finally delete the question itself
+      const result = await db.delete(schema.examQuestions)
+        .where(eq(schema.examQuestions.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error in deleteExamQuestion:', error);
+      throw error;
+    }
   }
 
   // Question options management  

@@ -1563,9 +1563,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!success) {
         return res.status(404).json({ message: "Exam not found" });
       }
-      res.json({ message: "Exam deleted successfully" });
+      res.status(204).send(); // Return 204 No Content for successful deletion
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete exam" });
+      console.error('Error deleting exam:', error);
+      res.status(500).json({ message: "Failed to delete exam", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -1698,9 +1699,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!deleted) {
         return res.status(404).json({ message: "Question not found" });
       }
-      res.json({ message: "Question deleted successfully" });
+      res.status(204).send(); // Return 204 No Content for successful deletion
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete question" });
+      console.error('Error deleting exam question:', error);
+      res.status(500).json({ message: "Failed to delete question", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
