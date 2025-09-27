@@ -435,8 +435,16 @@ export type CreateStudentRequest = z.infer<typeof createStudentSchema>;
 export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
   // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
   examId: z.coerce.number().positive("Please select a valid exam"),
-  points: z.preprocess((val) => val === '' ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
-  orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
+  points: z.preprocess((val) => {
+    // Handle NaN values from frontend forms with valueAsNumber: true
+    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
+    return val;
+  }, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
+  orderNumber: z.preprocess((val) => {
+    // Handle NaN values from frontend forms with valueAsNumber: true
+    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
+    return val;
+  }, z.coerce.number().int().min(1, "Order number must be a positive number")),
   
   // Handle optional text fields - convert empty strings to undefined
   imageUrl: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
@@ -454,10 +462,18 @@ export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({
 export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
   // Coerce string IDs and numeric values to numbers
   questionId: z.coerce.number().positive("Please select a valid question"),
-  orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
+  orderNumber: z.preprocess((val) => {
+    // Handle NaN values from frontend forms with valueAsNumber: true
+    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
+    return val;
+  }, z.coerce.number().int().min(1, "Order number must be a positive number")),
   
   // Handle optional numeric fields - convert empty strings to undefined or 0
-  partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
+  partialCreditValue: z.preprocess((val) => {
+    // Handle NaN values from frontend forms with valueAsNumber: true
+    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 0;
+    return val;
+  }, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
   
   // Handle optional text fields - convert empty strings to undefined
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
@@ -466,7 +482,11 @@ export const insertQuestionOptionSchema = createInsertSchema(questionOptions).om
 // Schema for creating question options during question creation (without questionId)
 export const createQuestionOptionSchema = insertQuestionOptionSchema.omit({ questionId: true, orderNumber: true }).extend({
   // Optional fields that can be provided during creation
-  partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
+  partialCreditValue: z.preprocess((val) => {
+    // Handle NaN values from frontend forms with valueAsNumber: true
+    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 0;
+    return val;
+  }, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });
 // For exam sessions, only require examId from client - studentId is set from authenticated user
