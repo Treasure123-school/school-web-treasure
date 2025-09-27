@@ -384,8 +384,8 @@ export default function ExamManagement() {
         .filter(option => option.optionText && option.optionText.trim() !== '')
         .map((option, index) => ({
           optionText: option.optionText.trim(),
-          isCorrect: option.isCorrect,
-          orderNumber: index + 1
+          isCorrect: option.isCorrect
+          // orderNumber is automatically set by the backend
         }));
       
       // Validate multiple choice requirements
@@ -468,10 +468,15 @@ export default function ExamManagement() {
       if (data.errors && data.errors.length > 0) {
         console.warn('⚠️ Upload errors:', data.errors);
         setTimeout(() => {
+          // Show first few errors in the toast for immediate feedback
+          const errorSummary = data.errors.slice(0, 3).join('; ');
+          const moreErrors = data.errors.length > 3 ? ` (and ${data.errors.length - 3} more)` : '';
+          
           toast({
-            title: "Some Questions Failed",
-            description: `${data.errors.length} questions failed validation. Check browser console for details.`,
+            title: `${data.errors.length} Questions Failed Validation`,
+            description: `${errorSummary}${moreErrors}. Check browser console for all details.`,
             variant: "destructive",
+            duration: 8000, // Show longer for user to read errors
           });
         }, 2000);
       }
@@ -509,10 +514,18 @@ export default function ExamManagement() {
           variant: "destructive",
         });
       } else if (error?.errorType === 'client' || (error?.message?.includes('400') && error?.message?.includes('Validation'))) {
+        // Extract validation errors from the response if available
+        let errorDetails = "Please check your CSV format. Download the template and ensure all required fields are filled.";
+        if (error?.errors && Array.isArray(error.errors)) {
+          const firstFewErrors = error.errors.slice(0, 2).join('; ');
+          errorDetails = `${firstFewErrors}${error.errors.length > 2 ? ' (and more)' : ''}`;
+        }
+        
         toast({
-          title: "CSV Format Error",
-          description: "Please check your CSV format. Download the template and ensure all required fields are filled.",
+          title: "CSV Validation Errors",
+          description: errorDetails,
           variant: "destructive",
+          duration: 8000,
         });
       } else {
         toast({
@@ -720,8 +733,8 @@ export default function ExamManagement() {
 
           question.options = options.map((opt, index) => ({
             ...opt,
-            optionText: opt.optionText.trim(),
-            orderNumber: index + 1
+            optionText: opt.optionText.trim()
+            // orderNumber is automatically set by the backend
           }));
         }
 
