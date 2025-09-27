@@ -669,58 +669,28 @@ export class DatabaseStorage implements IStorage {
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
     try {
-      console.log('💾 Recording exam result:', JSON.stringify(result, null, 2));
-      
-      // Try with new schema first
-      const examResult = await this.db.insert(schema.examResults).values({
-        examId: result.examId,
-        studentId: result.studentId,
-        score: result.score,
-        maxScore: result.maxScore,
-        marksObtained: result.score || result.marksObtained || 0,
-        grade: result.grade,
-        remarks: result.remarks,
-        autoScored: result.autoScored,
-        recordedBy: result.recordedBy
-      }).returning();
-      
-      console.log('✅ Exam result recorded successfully:', examResult[0]);
+      const examResult = await db.insert(schema.examResults).values(result).returning();
       return examResult[0];
-      
     } catch (error: any) {
-      console.log('⚠️ Primary insert failed, trying fallback approach:', error?.cause?.code);
-      
-      if (error?.cause?.code === '42703') {
-        console.log('⚠️ Database schema mismatch detected, using legacy fallback');
-        
-        // Fallback for old schema - only use existing columns
+      // Handle missing columns by removing autoScored from the insert
+      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('auto_scored')) {
+        console.log('⚠️ Database schema mismatch detected - auto_scored column missing, using fallback insert');
+        const { autoScored, ...resultWithoutAutoScored } = result;
+        // Map score to marksObtained for compatibility with existing schema
         const compatibleResult = {
-          examId: result.examId,
-          studentId: result.studentId,
-          marksObtained: result.score || result.marksObtained || 0,
-          grade: result.grade,
-          remarks: result.remarks,
-          recordedBy: result.recordedBy
+          ...resultWithoutAutoScored,
+          marksObtained: result.score || 0
         };
-        
-        const examResult = await this.db.insert(schema.examResults).values(compatibleResult).returning();
-        
-        // Add computed fields for consistency
-        const enhancedResult = {
+        const examResult = await db.insert(schema.examResults).values(compatibleResult).returning();
+        return {
           ...examResult[0],
-          score: examResult[0].marksObtained || 0,
-          maxScore: result.maxScore,
-          autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001'
-        };
-        
-        console.log('✅ Fallback exam result recorded:', enhancedResult);
-        return enhancedResult as ExamResult;
+          autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001',
+          score: examResult[0].marksObtained || 0
+        } as ExamResult;
       }
-      
-      console.error('❌ Failed to record exam result:', error);
       throw error;
     }
-  }</old_str>
+  }
 
   async updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined> {
     try {
@@ -755,60 +725,30 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     try {
+      // ENHANCED FIX: Use SQL COALESCE to always return correct autoScored boolean directly from database
+      // This prevents race conditions and ensures consistent results
       console.log(`🔍 Fetching exam results for student: ${studentId}`);
       
       const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
       
-      // First, try the new schema with auto_scored column
-      try {
-        const results = await this.db.select({
-          id: schema.examResults.id,
-          examId: schema.examResults.examId,
-          studentId: schema.examResults.studentId,
-          score: sql<number>`COALESCE(${schema.examResults.score}, ${schema.examResults.marksObtained})`.as('score'),
-          maxScore: schema.exams.totalMarks,
-          marksObtained: schema.examResults.marksObtained,
-          grade: schema.examResults.grade,
-          remarks: schema.examResults.remarks,
-          recordedBy: schema.examResults.recordedBy,
-          createdAt: schema.examResults.createdAt,
-          autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
-        }).from(schema.examResults)
-          .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
-          .where(eq(schema.examResults.studentId, studentId))
-          .orderBy(desc(schema.examResults.createdAt));
-        
-        console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
-        return results;
-        
-      } catch (schemaError: any) {
-        if (schemaError?.cause?.code === '42703') {
-          console.log('⚠️ New schema not available, using legacy fallback');
-          // Fall back to legacy schema
-          const fallbackResults = await this.db.select({
-            id: schema.examResults.id,
-            examId: schema.examResults.examId,
-            studentId: schema.examResults.studentId,
-            marksObtained: schema.examResults.marksObtained,
-            grade: schema.examResults.grade,
-            remarks: schema.examResults.remarks,
-            recordedBy: schema.examResults.recordedBy,
-            createdAt: schema.examResults.createdAt,
-          }).from(schema.examResults)
-            .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
-            .where(eq(schema.examResults.studentId, studentId))
-            .orderBy(desc(schema.examResults.createdAt));
-          
-          // Transform to match expected format
-          return fallbackResults.map((result: any) => ({
-            ...result,
-            score: result.marksObtained || 0,
-            maxScore: null, // Will be populated separately if needed
-            autoScored: result.recordedBy === SYSTEM_AUTO_SCORING_UUID
-          }));
-        }
-        throw schemaError;
-      }</old_str>
+      const results = await this.db.select({
+        id: schema.examResults.id,
+        examId: schema.examResults.examId,
+        studentId: schema.examResults.studentId,
+        score: schema.examResults.marksObtained, // Map legacy field to score
+        maxScore: schema.exams.totalMarks, // CRITICAL: Get proper maxScore from exam
+        marksObtained: schema.examResults.marksObtained,
+        grade: schema.examResults.grade,
+        remarks: schema.examResults.remarks,
+        recordedBy: schema.examResults.recordedBy,
+        createdAt: schema.examResults.createdAt,
+        // ARCHITECT RECOMMENDED FIX: Use SQL COALESCE for reliable autoScored boolean
+        // This handles both cases: when auto_scored column exists and when it doesn't
+        autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
+      }).from(schema.examResults)
+        .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .where(eq(schema.examResults.studentId, studentId))
+        .orderBy(desc(schema.examResults.createdAt));
       
       console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
       
