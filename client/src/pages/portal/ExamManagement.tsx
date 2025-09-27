@@ -23,23 +23,25 @@ import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play
 // Form schemas - Use the shared insertExamSchema which has proper preprocessing
 const examFormSchema = insertExamSchema.omit({ createdBy: true });
 
-const questionFormSchema = insertExamQuestionSchema.extend({
-  // Handle NaN values from frontend forms with valueAsNumber: true
-  points: z.preprocess((val) => {
-    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
-    return val;
-  }, z.coerce.number().int().min(1, "Points must be at least 1").default(1)),
-  
-  options: z.array(z.object({
-    optionText: z.string().min(1, 'Option text is required'),
-    isCorrect: z.boolean(),
-    // Enhanced option fields
-    partialCreditValue: z.preprocess((val) => {
-      if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 0;
+const questionFormSchema = insertExamQuestionSchema
+  .omit({ examId: true, orderNumber: true }) // These are added later in onSubmitQuestion
+  .extend({
+    // Handle NaN values from frontend forms with valueAsNumber: true
+    points: z.preprocess((val) => {
+      if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
       return val;
-    }, z.coerce.number().min(0).default(0)).optional(),
-    explanationText: z.string().optional(),
-  })).optional(),
+    }, z.coerce.number().int().min(1, "Points must be at least 1").default(1)),
+    
+    options: z.array(z.object({
+      optionText: z.string().min(1, 'Option text is required'),
+      isCorrect: z.boolean(),
+      // Enhanced option fields
+      partialCreditValue: z.preprocess((val) => {
+        if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 0;
+        return val;
+      }, z.coerce.number().min(0).default(0)).optional(),
+      explanationText: z.string().optional(),
+    })).optional(),
 }).refine((data) => {
   if (data.questionType === 'multiple_choice') {
     if (!data.options || data.options.length < 2) {
