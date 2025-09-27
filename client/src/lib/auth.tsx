@@ -10,7 +10,7 @@ interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (userData: AuthUser) => void;
+  login: (userData: AuthUser, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -32,9 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (userData: AuthUser) => {
+  const login = (userData: AuthUser, token: string) => {
     setUser(userData);
     localStorage.setItem('auth-user', JSON.stringify(userData));
+    localStorage.setItem('token', token);
   };
 
   const logout = () => {

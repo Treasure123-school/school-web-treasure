@@ -54,9 +54,15 @@ export default function Login() {
 
       // Store the JWT token for API authentication  
       if (userData.token) {
-        localStorage.setItem('token', userData.token);
+        login(userData.user, userData.token);
+      } else {
+        toast({
+          title: 'Authentication Error',
+          description: 'No access token received. Please try again.',
+          variant: 'destructive',
+        });
+        return;
       }
-      login(userData.user);
       
       // Navigate to appropriate portal based on user's ACTUAL role from database
       const userRole = getRoleNameById(userData.user.roleId);
