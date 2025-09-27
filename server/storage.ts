@@ -829,7 +829,16 @@ export class DatabaseStorage implements IStorage {
 
   // Exam questions management
   async createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion> {
-    const result = await db.insert(schema.examQuestions).values(question).returning();
+    // Only insert columns that exist in the actual database
+    const basicQuestion = {
+      examId: question.examId,
+      questionText: question.questionText,
+      questionType: question.questionType,
+      points: question.points,
+      orderNumber: question.orderNumber,
+      imageUrl: question.imageUrl,
+    };
+    const result = await db.insert(schema.examQuestions).values(basicQuestion).returning();
     return result[0];
   }
 
@@ -840,8 +849,17 @@ export class DatabaseStorage implements IStorage {
     // Use a transaction to ensure atomicity and reduce connection pressure
     return await db.transaction(async (tx: any) => {
       try {
+        // Only insert columns that exist in the actual database
+        const basicQuestion = {
+          examId: question.examId,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          points: question.points,
+          orderNumber: question.orderNumber,
+          imageUrl: question.imageUrl,
+        };
         // Insert question first
-        const questionResult = await tx.insert(schema.examQuestions).values(question).returning();
+        const questionResult = await tx.insert(schema.examQuestions).values(basicQuestion).returning();
         const createdQuestion = questionResult[0];
 
         // Insert options if provided
