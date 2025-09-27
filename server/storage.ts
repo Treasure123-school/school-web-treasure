@@ -829,16 +829,23 @@ export class DatabaseStorage implements IStorage {
 
   // Exam questions management
   async createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion> {
-    // Only insert columns that exist in the actual database
-    const basicQuestion = {
+    // Use all available columns from the schema
+    const questionData = {
       examId: question.examId,
       questionText: question.questionText,
       questionType: question.questionType,
       points: question.points,
       orderNumber: question.orderNumber,
       imageUrl: question.imageUrl,
+      autoGradable: question.autoGradable ?? true,
+      expectedAnswers: question.expectedAnswers,
+      caseSensitive: question.caseSensitive ?? false,
+      allowPartialCredit: question.allowPartialCredit ?? false,
+      partialCreditRules: question.partialCreditRules,
+      explanationText: question.explanationText,
+      hintText: question.hintText,
     };
-    const result = await db.insert(schema.examQuestions).values(basicQuestion).returning();
+    const result = await db.insert(schema.examQuestions).values(questionData).returning();
     return result[0];
   }
 
@@ -849,17 +856,24 @@ export class DatabaseStorage implements IStorage {
     // Use a transaction to ensure atomicity and reduce connection pressure
     return await db.transaction(async (tx: any) => {
       try {
-        // Only insert columns that exist in the actual database
-        const basicQuestion = {
+        // Use all available columns from the schema
+        const questionData = {
           examId: question.examId,
           questionText: question.questionText,
           questionType: question.questionType,
           points: question.points,
           orderNumber: question.orderNumber,
           imageUrl: question.imageUrl,
+          autoGradable: question.autoGradable ?? true,
+          expectedAnswers: question.expectedAnswers,
+          caseSensitive: question.caseSensitive ?? false,
+          allowPartialCredit: question.allowPartialCredit ?? false,
+          partialCreditRules: question.partialCreditRules,
+          explanationText: question.explanationText,
+          hintText: question.hintText,
         };
         // Insert question first
-        const questionResult = await tx.insert(schema.examQuestions).values(basicQuestion).returning();
+        const questionResult = await tx.insert(schema.examQuestions).values(questionData).returning();
         const createdQuestion = questionResult[0];
 
         // Insert options if provided
