@@ -24,11 +24,20 @@ import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play
 const examFormSchema = insertExamSchema.omit({ createdBy: true });
 
 const questionFormSchema = insertExamQuestionSchema.extend({
+  // Handle NaN values from frontend forms with valueAsNumber: true
+  points: z.preprocess((val) => {
+    if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
+    return val;
+  }, z.coerce.number().int().min(1, "Points must be at least 1").default(1)),
+  
   options: z.array(z.object({
     optionText: z.string().min(1, 'Option text is required'),
     isCorrect: z.boolean(),
     // Enhanced option fields
-    partialCreditValue: z.number().min(0).optional(),
+    partialCreditValue: z.preprocess((val) => {
+      if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 0;
+      return val;
+    }, z.coerce.number().min(0).default(0)).optional(),
     explanationText: z.string().optional(),
   })).optional(),
 }).refine((data) => {
