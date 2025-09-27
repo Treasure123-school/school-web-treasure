@@ -462,6 +462,13 @@ export const insertQuestionOptionSchema = createInsertSchema(questionOptions).om
   // Handle optional text fields - convert empty strings to undefined
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });
+
+// Schema for creating question options during question creation (without questionId)
+export const createQuestionOptionSchema = insertQuestionOptionSchema.omit({ questionId: true, orderNumber: true }).extend({
+  // Optional fields that can be provided during creation
+  partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
+  explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+});
 // For exam sessions, only require examId from client - studentId is set from authenticated user
 export const insertExamSessionSchema = createInsertSchema(examSessions).omit({ 
   id: true, 
@@ -543,6 +550,7 @@ export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
 export type InsertQuestionOption = z.infer<typeof insertQuestionOptionSchema>;
+export type CreateQuestionOption = z.infer<typeof createQuestionOptionSchema>;
 export type InsertExamSession = z.infer<typeof insertExamSessionSchema>;
 export type UpdateExamSession = z.infer<typeof updateExamSessionSchema>;
 export type InsertStudentAnswer = z.infer<typeof insertStudentAnswerSchema>;

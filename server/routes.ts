@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
@@ -1581,7 +1581,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedQuestion = insertExamQuestionSchema.parse(questionData);
       
-      // Validate options for multiple choice questions
+      // Validate options using the creation-specific schema (without questionId)
+      let validatedOptions: any[] = [];
       if (validatedQuestion.questionType === 'multiple_choice') {
         if (!options || !Array.isArray(options) || options.length < 2) {
           return res.status(400).json({ message: "Multiple choice questions require at least 2 options" });
@@ -1591,10 +1592,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!hasCorrectAnswer) {
           return res.status(400).json({ message: "Multiple choice questions require at least one correct answer" });
         }
+        
+        // Validate each option using the creation schema
+        try {
+          validatedOptions = options.map(option => createQuestionOptionSchema.parse(option));
+        } catch (optionError) {
+          return res.status(400).json({ 
+            message: "Invalid option data", 
+            details: optionError instanceof ZodError ? optionError.errors : optionError 
+          });
+        }
       }
       
       // Create question with options atomically (compensation-based)
-      const question = await storage.createExamQuestionWithOptions(validatedQuestion, options);
+      const question = await storage.createExamQuestionWithOptions(validatedQuestion, validatedOptions);
       res.json(question);
     } catch (error) {
       console.error('Question creation error:', error);
@@ -1806,7 +1817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             orderNumber: maxOrder + i + 1
           });
 
-          // Validate options for multiple choice questions
+          // Validate options for multiple choice questions using creation schema
           if (validatedQuestion.questionType === 'multiple_choice') {
             if (!questionData.options || !Array.isArray(questionData.options) || questionData.options.length < 2) {
               validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least 2 options`);
@@ -1816,6 +1827,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const hasCorrectAnswer = questionData.options.some((option: any) => option.isCorrect === true);
             if (!hasCorrectAnswer) {
               validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least one correct answer`);
+              continue;
+            }
+            
+            // Validate each option using the creation schema (without questionId)
+            try {
+              questionData.options = questionData.options.map((option: any) => createQuestionOptionSchema.parse(option));
+            } catch (optionError) {
+              if (optionError instanceof ZodError) {
+                const fieldErrors = optionError.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+                validationErrors.push(`Question ${i + 1} options: ${fieldErrors}`);
+              } else {
+                validationErrors.push(`Question ${i + 1} options: Invalid option data`);
+              }
               continue;
             }
           }
