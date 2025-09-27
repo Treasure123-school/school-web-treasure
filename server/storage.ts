@@ -729,7 +729,7 @@ export class DatabaseStorage implements IStorage {
       // This should always work because we're using consistent database instance
       console.log(`🔍 Fetching exam results for student: ${studentId}`);
       
-      const results = await this.db.select({
+      const rawResults = await this.db.select({
         id: schema.examResults.id,
         examId: schema.examResults.examId,
         studentId: schema.examResults.studentId,
@@ -740,19 +740,23 @@ export class DatabaseStorage implements IStorage {
         remarks: schema.examResults.remarks,
         recordedBy: schema.examResults.recordedBy,
         createdAt: schema.examResults.createdAt,
-        // CRITICAL: Determine autoScored from recordedBy field using proper sentinel value
-        autoScored: dsql`CASE WHEN exam_results."recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
       }).from(schema.examResults)
         .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
         .where(eq(schema.examResults.studentId, studentId))
         .orderBy(desc(schema.examResults.createdAt));
+      
+      // CRITICAL FIX: Manually determine autoScored in JavaScript to ensure proper boolean type
+      const results = rawResults.map((result: any) => ({
+        ...result,
+        autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001'
+      }));
       
       console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
       
       // Log detailed results for debugging in development
       if (process.env.NODE_ENV === 'development' && results.length > 0) {
         results.forEach((result: any, index: number) => {
-          console.log(`   Result ${index + 1}: Score ${result.score}/${result.maxScore}, Auto-scored: ${result.autoScored}`);
+          console.log(`   Result ${index + 1}: Score ${result.score}/${result.maxScore}, Auto-scored: ${result.autoScored} (type: ${typeof result.autoScored}), recordedBy: ${result.recordedBy}`);
         });
       }
       
@@ -765,7 +769,7 @@ export class DatabaseStorage implements IStorage {
         console.log('⚠️ Database schema mismatch detected, using fallback query');
         try {
           // Fallback query: Try to get maxScore from exams table with explicit JOIN
-          const fallbackResults = await this.db.select({
+          const rawFallbackResults = await this.db.select({
             id: schema.examResults.id,
             examId: schema.examResults.examId,
             studentId: schema.examResults.studentId,
@@ -778,12 +782,16 @@ export class DatabaseStorage implements IStorage {
             score: schema.examResults.marksObtained,
             // Try to get maxScore from a separate query if JOIN fails
             maxScore: schema.exams.totalMarks,
-            // Determine autoScored from recordedBy using the sentinel value
-            autoScored: dsql`CASE WHEN exam_results."recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
           }).from(schema.examResults)
             .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
             .where(eq(schema.examResults.studentId, studentId))
             .orderBy(desc(schema.examResults.createdAt));
+          
+          // CRITICAL FIX: Manually determine autoScored in JavaScript for fallback too
+          const fallbackResults = rawFallbackResults.map((result: any) => ({
+            ...result,
+            autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001'
+          }));
           
           console.log(`✅ Fallback query successful, found ${fallbackResults.length} results`);
           return fallbackResults;
