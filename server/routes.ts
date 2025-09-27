@@ -2872,7 +2872,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else {
-        // Scoring failed or no result found
+        // Scoring failed or no result found - BUT CHECK DATABASE FIRST!
+        console.log(`🔍 Auto-scoring failed/incomplete, checking database for existing results for student ${user.id}, exam ${examId}`);
+        
+        try {
+          // CRITICAL FIX: Always check database for existing results before returning null
+          const existingResults = await storage.getExamResultsByStudent(user.id);
+          const existingResult = existingResults.find((r: any) => String(r.examId) === String(examId));
+          
+          if (existingResult && existingResult.autoScored) {
+            console.log(`🎉 RESCUE SUCCESS: Found existing auto-scored result in database despite scoring failure!`);
+            console.log(`📊 Rescued Score: ${existingResult.score}/${existingResult.maxScore} (${existingResult.autoScored ? 'Auto-scored' : 'Manual'})`);
+            
+            // Build the response similar to successful scoring path
+            const score = existingResult.score ?? 0;
+            const maxScore = existingResult.maxScore ?? 0;
+            const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+            
+            const rescueMessage = isLateSubmission 
+              ? "Exam submitted (after time limit). Your results are shown below."
+              : "Exam submitted successfully! Your results are shown below.";
+            
+            return res.json({
+              message: rescueMessage,
+              submitted: true,
+              alreadySubmitted: false,
+              timedOut: isLateSubmission,
+              result: {
+                totalScore: score,
+                maxScore: maxScore,
+                percentage: percentage,
+                autoScored: existingResult.autoScored,
+                submittedAt: completedSession.submittedAt,
+                timedOut: isLateSubmission,
+                // Add immediate results for instant feedback
+                immediateResults: {
+                  score: score,
+                  maxScore: maxScore,
+                  percentage: percentage,
+                  count: 1 // We know there's at least one auto-scored result
+                }
+              },
+              rescuedFromDatabase: true // Flag to help with debugging
+            });
+          } else {
+            console.log(`📝 No auto-scored results found in database for exam ${examId}, proceeding with manual grading message`);
+          }
+        } catch (dbError) {
+          console.error(`❌ Failed to check database for existing results:`, dbError);
+          // Continue with original fallback logic
+        }
+        
+        // Original fallback logic when no results are truly found
         const fallbackMessage = isLateSubmission
           ? "Exam submitted (after time limit). Manual grading will be performed by your instructor."
           : scoringError 
