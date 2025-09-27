@@ -725,52 +725,77 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     try {
-      // CRITICAL FIX: Always use fallback query to handle missing auto_scored column
-      // Join with exams table to get proper maxScore (totalMarks)
-      return await this.db.select({
+      // CRITICAL FIX: Use this.db consistently and ensure proper JOIN with exams table
+      // This should always work because we're using consistent database instance
+      console.log(`🔍 Fetching exam results for student: ${studentId}`);
+      
+      const results = await this.db.select({
         id: schema.examResults.id,
         examId: schema.examResults.examId,
         studentId: schema.examResults.studentId,
         score: schema.examResults.marksObtained, // Map legacy field to score
-        maxScore: schema.exams.totalMarks, // FIXED: Get proper maxScore from exam
+        maxScore: schema.exams.totalMarks, // CRITICAL: Get proper maxScore from exam
         marksObtained: schema.examResults.marksObtained,
         grade: schema.examResults.grade,
         remarks: schema.examResults.remarks,
         recordedBy: schema.examResults.recordedBy,
         createdAt: schema.examResults.createdAt,
-        // CRITICAL: Determine autoScored from recordedBy field
+        // CRITICAL: Determine autoScored from recordedBy field using proper sentinel value
         autoScored: dsql`CASE WHEN exam_results."recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
       }).from(schema.examResults)
         .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
         .where(eq(schema.examResults.studentId, studentId))
         .orderBy(desc(schema.examResults.createdAt));
+      
+      console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
+      
+      // Log detailed results for debugging in development
+      if (process.env.NODE_ENV === 'development' && results.length > 0) {
+        results.forEach((result: any, index: number) => {
+          console.log(`   Result ${index + 1}: Score ${result.score}/${result.maxScore}, Auto-scored: ${result.autoScored}`);
+        });
+      }
+      
+      return results;
     } catch (error: any) {
-      // Handle missing columns by selecting only the columns that exist
-      if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
-        console.log('⚠️ Database schema mismatch detected, using fallback query with existing columns only');
+      console.error(`❌ Error fetching exam results for student ${studentId}:`, error);
+      
+      // Enhanced fallback with better error handling
+      if (error?.cause?.code === '42703') {
+        console.log('⚠️ Database schema mismatch detected, using fallback query');
         try {
-          return await db.select({
+          // Fallback query: Try to get maxScore from exams table with explicit JOIN
+          const fallbackResults = await this.db.select({
             id: schema.examResults.id,
             examId: schema.examResults.examId,
             studentId: schema.examResults.studentId,
-            marksObtained: schema.examResults.marksObtained, // Use legacy field
+            marksObtained: schema.examResults.marksObtained,
             grade: schema.examResults.grade,
             remarks: schema.examResults.remarks,
             recordedBy: schema.examResults.recordedBy,
             createdAt: schema.examResults.createdAt,
             // Map marksObtained to score for compatibility
             score: schema.examResults.marksObtained,
-            maxScore: dsql`null`.as('maxScore'),
-            // Since auto_scored column doesn't exist, determine from recordedBy
-            autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
+            // Try to get maxScore from a separate query if JOIN fails
+            maxScore: schema.exams.totalMarks,
+            // Determine autoScored from recordedBy using the sentinel value
+            autoScored: dsql`CASE WHEN exam_results."recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
           }).from(schema.examResults)
+            .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
             .where(eq(schema.examResults.studentId, studentId))
             .orderBy(desc(schema.examResults.createdAt));
+          
+          console.log(`✅ Fallback query successful, found ${fallbackResults.length} results`);
+          return fallbackResults;
         } catch (fallbackError) {
           console.error('❌ Fallback query also failed:', fallbackError);
+          console.log('🆘 Returning empty array to prevent application crash');
           return [];
         }
       }
+      
+      // For other errors, log and re-throw
+      console.error('❌ Non-schema error occurred:', error);
       throw error;
     }
   }
