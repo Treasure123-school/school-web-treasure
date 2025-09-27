@@ -960,12 +960,12 @@ export default function ExamManagement() {
                 Create New Exam
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Exam</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleExamSubmit(onSubmitExam, onInvalidExam)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name">Exam Name</Label>
                     <Input 
@@ -988,7 +988,7 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="class">Class</Label>
                     <Controller
@@ -1035,7 +1035,7 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="term">Academic Term</Label>
                     <Controller
@@ -1093,7 +1093,7 @@ export default function ExamManagement() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center space-x-2">
                     <Controller
                       name="isPublished"
@@ -1142,7 +1142,7 @@ export default function ExamManagement() {
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
                   <h4 className="font-medium text-sm">Auto-Grading Settings</h4>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
                       <Controller
                         name="autoGradingEnabled"
@@ -1173,7 +1173,7 @@ export default function ExamManagement() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
                       <Controller
                         name="showCorrectAnswers"
