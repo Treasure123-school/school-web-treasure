@@ -2789,17 +2789,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (scoringResult) {
-        return res.json({
-          message: baseMessage,
-          submitted: true,
-          alreadySubmitted: false,
-          timedOut: isLateSubmission,
-          result: {
-            ...scoringResult,
-            submittedAt: completedSession.submittedAt,
-            timedOut: isLateSubmission
-          }
-        });
+        // Enhanced response for professional two-phase results display
+        // Get detailed scoring data for breakdown
+        try {
+          const detailedScoringData = await storage.getExamScoringData(activeSession.id);
+          const { scoringData } = detailedScoringData;
+          
+          // Separate auto-scored questions from manual review questions
+          const autoScoredQuestions = scoringData.filter((q: any) => 
+            q.autoGradable === true
+          );
+          const manualReviewQuestions = scoringData.filter((q: any) => 
+            q.autoGradable !== true
+          );
+          
+          // Calculate auto-scored points
+          const autoScoredPoints = autoScoredQuestions.reduce((total: number, q: any) => 
+            total + (q.isCorrect ? q.points : 0), 0
+          );
+          const autoScoredMaxPoints = autoScoredQuestions.reduce((total: number, q: any) => 
+            total + q.points, 0
+          );
+          
+          return res.json({
+            message: baseMessage,
+            submitted: true,
+            alreadySubmitted: false,
+            timedOut: isLateSubmission,
+            result: {
+              // Overall summary
+              totalScore: scoringResult.score,
+              maxScore: scoringResult.maxScore,
+              totalQuestions: scoringResult.breakdown.totalQuestions,
+              percentage: scoringResult.percentage,
+              
+              // Two-phase breakdown
+              immediateResults: {
+                questions: autoScoredQuestions.map((q: any) => ({
+                  questionId: q.questionId,
+                  questionType: q.questionType,
+                  points: q.points,
+                  isCorrect: q.isCorrect,
+                  studentAnswer: q.questionType === 'multiple_choice' ? 
+                    q.studentSelectedOptionId : q.textAnswer
+                })),
+                score: autoScoredPoints,
+                maxScore: autoScoredMaxPoints,
+                count: autoScoredQuestions.length,
+                percentage: autoScoredMaxPoints > 0 ? Math.round((autoScoredPoints / autoScoredMaxPoints) * 100) : 0
+              },
+              
+              pendingReview: {
+                questions: manualReviewQuestions.map((q: any) => ({
+                  questionId: q.questionId,
+                  questionType: q.questionType,
+                  points: q.points,
+                  textAnswer: q.textAnswer
+                })),
+                count: manualReviewQuestions.length,
+                maxScore: manualReviewQuestions.reduce((total: number, q: any) => total + q.points, 0)
+              },
+              
+              // Legacy fields for compatibility
+              autoScored: scoringResult.autoScored,
+              submittedAt: completedSession.submittedAt,
+              timedOut: isLateSubmission
+            }
+          });
+        } catch (detailedDataError) {
+          console.warn('Failed to get detailed scoring data, falling back to basic response:', detailedDataError);
+          // Fallback to basic response if detailed data fails
+          return res.json({
+            message: baseMessage,
+            submitted: true,
+            alreadySubmitted: false,
+            timedOut: isLateSubmission,
+            result: {
+              ...scoringResult,
+              submittedAt: completedSession.submittedAt,
+              timedOut: isLateSubmission
+            }
+          });
+        }
       } else {
         // Scoring failed or no result found
         const fallbackMessage = isLateSubmission

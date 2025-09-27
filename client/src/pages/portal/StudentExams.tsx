@@ -671,115 +671,165 @@ export default function StudentExams() {
           </div>
 
           {examResults && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Score Overview */}
-              <Card className="lg:col-span-1">
+            <div className="space-y-6">
+              {/* Phase 1: Immediate Results - Auto-scored questions */}
+              {examResults.immediateResults && examResults.immediateResults.count > 0 && (
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2 text-green-700">
+                      <Trophy className="w-5 h-5" />
+                      <span>🎉 Immediate Results - Great Job!</span>
+                    </CardTitle>
+                    <p className="text-green-600">Here are your instant results for auto-scored questions:</p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-green-600">
+                          {examResults.immediateResults.score}/{examResults.immediateResults.maxScore}
+                        </div>
+                        <div className="text-lg font-semibold text-green-700">
+                          {examResults.immediateResults.percentage}%
+                        </div>
+                        <p className="text-sm text-green-600">Auto-scored Points</p>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-primary">
+                          {examResults.immediateResults.count}
+                        </div>
+                        <p className="text-sm text-muted-foreground">Questions Completed</p>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold ${
+                          examResults.immediateResults.percentage >= 80 ? 'text-green-600' :
+                          examResults.immediateResults.percentage >= 60 ? 'text-yellow-600' :
+                          'text-red-600'
+                        }`}>
+                          {examResults.immediateResults.percentage >= 80 ? 'Excellent!' :
+                           examResults.immediateResults.percentage >= 60 ? 'Good Job!' :
+                           'Keep Practicing!'}
+                        </div>
+                        <p className="text-sm text-muted-foreground">Performance</p>
+                      </div>
+                    </div>
+                    
+                    {/* Question breakdown for immediate results */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-green-700">Question Results:</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                        {examResults.immediateResults.questions.map((question: any, index: number) => (
+                          <div key={question.questionId} className={`flex items-center justify-between p-2 rounded ${
+                            question.isCorrect ? 'bg-green-100' : 'bg-red-100'
+                          }`}>
+                            <span className="text-sm font-medium">Q{index + 1}</span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`text-sm ${
+                                question.isCorrect ? 'text-green-700' : 'text-red-700'
+                              }`}>
+                                {question.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                              </span>
+                              <span className="text-xs text-muted-foreground">({question.points} pts)</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Phase 2: Pending Review - Manual grading needed */}
+              {examResults.pendingReview && examResults.pendingReview.count > 0 && (
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2 text-blue-700">
+                      <FileText className="w-5 h-5" />
+                      <span>⏳ Pending Review</span>
+                    </CardTitle>
+                    <p className="text-blue-600">These questions require manual grading by your instructor:</p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-blue-600">
+                          {examResults.pendingReview.count}
+                        </div>
+                        <p className="text-sm text-blue-600">Questions Under Review</p>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-blue-600">
+                          {examResults.pendingReview.maxScore}
+                        </div>
+                        <p className="text-sm text-blue-600">Max Points Available</p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-blue-100 border-l-4 border-blue-400 p-4">
+                      <div className="flex">
+                        <div className="ml-3">
+                          <p className="text-sm text-blue-700">
+                            <strong>Timeline:</strong> Your instructor will review these answers and provide feedback within 2-3 business days.
+                            You'll receive a notification when your complete results are ready.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-blue-700">Questions Under Review:</h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {examResults.pendingReview.questions.map((question: any, index: number) => (
+                          <div key={question.questionId} className="flex items-center justify-between p-2 bg-blue-100 rounded">
+                            <span className="text-sm font-medium text-blue-700">
+                              Q{examResults.immediateResults ? examResults.immediateResults.count + index + 1 : index + 1} - {question.questionType.replace('_', ' ')}
+                            </span>
+                            <span className="text-xs text-blue-600">({question.points} pts)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Overall Summary */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Trophy className="w-5 h-5" />
-                    <span>Your Score</span>
+                    <span>Overall Summary</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-primary">
-                      {examResults.score}/{examResults.maxScore}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-primary">
+                        {examResults.totalScore || examResults.score}/{examResults.maxScore}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Current Score</p>
                     </div>
-                    <div className="text-2xl font-semibold text-muted-foreground">
-                      {Math.round((examResults.score / examResults.maxScore) * 100)}%
+                    <div>
+                      <div className="text-2xl font-bold text-primary">
+                        {Math.round(((examResults.totalScore || examResults.score) / examResults.maxScore) * 100)}%
+                      </div>
+                      <p className="text-sm text-muted-foreground">Percentage</p>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Total Questions:</span>
-                      <span>{examQuestions.length}</span>
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {examResults.immediateResults ? examResults.immediateResults.count : 0}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Auto-scored</p>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Points Earned:</span>
-                      <span className="text-green-600 font-medium">
-                        {examResults.score} out of {examResults.maxScore}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Auto Scored:</span>
-                      <span>{examResults.autoScored ? 'Yes' : 'No'}</span>
-                    </div>
-                  </div>
-
-                  {/* Performance indicator */}
-                  <div className="pt-4 border-t">
-                    <div className="text-sm text-muted-foreground mb-2">Performance</div>
-                    <div className={`text-lg font-semibold ${
-                      (examResults.score / examResults.maxScore) >= 0.8 ? 'text-green-600' :
-                      (examResults.score / examResults.maxScore) >= 0.6 ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {(examResults.score / examResults.maxScore) >= 0.8 ? 'Excellent!' :
-                       (examResults.score / examResults.maxScore) >= 0.6 ? 'Good Job!' :
-                       'Keep Practicing!'}
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {examResults.pendingReview ? examResults.pendingReview.count : 0}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Pending Review</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Answer Review */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <FileText className="w-5 h-5" />
-                    <span>Answer Review</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {allQuestionOptions.length === 0 && examQuestions.some(q => q.questionType === 'multiple_choice') ? (
-                    <div className="text-center py-4 text-muted-foreground">
-                      Loading answer options...
-                    </div>
-                  ) : (
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {examQuestions.map((question, index) => {
-                      const studentAnswer = existingAnswers.find(a => a.questionId === question.id);
-                      const isCorrect = studentAnswer?.isCorrect;
-                      
-                      return (
-                        <div key={question.id} className="border rounded-lg p-4 space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <span className="text-sm font-medium">Q{index + 1}.</span>
-                                <span className="text-sm text-muted-foreground">({question.points} pts)</span>
-                                {isCorrect !== undefined && (
-                                  <Badge variant={isCorrect ? 'default' : 'destructive'}>
-                                    {isCorrect ? 'Correct' : 'Incorrect'}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm">{question.questionText}</p>
-                            </div>
-                          </div>
-                          
-                          {studentAnswer && (
-                            <div className="pl-4 border-l-2 border-muted">
-                              <div className="text-xs text-muted-foreground mb-1">Your Answer:</div>
-                              <div className="text-sm">
-                                {question.questionType === 'multiple_choice' ? (
-                                  allQuestionOptions
-                                    .filter(opt => opt.questionId === question.id)
-                                    .find(opt => opt.id === studentAnswer.selectedOptionId)?.optionText || 'No answer selected'
-                                ) : (
-                                  studentAnswer.textAnswer || 'No text answer provided'
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           )}
         </div>
