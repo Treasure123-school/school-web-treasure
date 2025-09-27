@@ -2696,7 +2696,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get the results immediately after scoring
         console.log(`📊 Fetching auto-scoring results for student ${user.id}, exam ${examId}`);
         const results = await storage.getExamResultsByStudent(user.id);
-        const examResult = results.find((r: any) => r.examId === parseInt(examId) && r.autoScored === true);
+        console.log(`🔍 Looking for exam result with examId: ${examId}, autoScored: true`);
+        console.log(`📋 Available results:`, results.map(r => ({ 
+          id: r.id, 
+          examId: r.examId, 
+          examIdType: typeof r.examId, 
+          autoScored: r.autoScored, 
+          autoScoredType: typeof r.autoScored,
+          score: r.score,
+          maxScore: r.maxScore
+        })));
+        const examResult = results.find((r: any) => 
+          String(r.examId) === String(examId) && 
+          r.autoScored === true
+        );
         
         if (examResult) {
           const score = examResult.score ?? 0;
