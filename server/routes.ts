@@ -263,8 +263,6 @@ async function cleanupExpiredExamSessions(): Promise<void> {
         await storage.updateExamSession(session.id, {
           isCompleted: true,
           submittedAt: now,
-          submissionMethod: 'server_cleanup',
-          autoSubmitted: true,
           status: 'submitted'
         });
 
@@ -410,8 +408,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         databaseQueryTime: databaseQueryTime,
         scoringTime: scoringTime,
         totalResponseTime: totalResponseTime,
-        goalAchieved: totalResponseTime <= 2000,
-        submissionMethod: 'auto_scoring'
+        goalAchieved: totalResponseTime <= 2000
       };
       
       // Alert if submission exceeds 2-second goal
@@ -434,7 +431,6 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
           metadata: JSON.stringify({
             databaseQueryTime,
             scoringTime,
-            submissionMethod: 'auto_scoring',
             studentId: session.studentId,
             examId: session.examId
           }),
@@ -2327,8 +2323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startedAt: now,
         // SERVER-SIDE TIMEOUT PROTECTION: Calculate absolute timeout for fail-safe cleanup
         serverTimeoutAt: exam.timeLimit ? new Date(now.getTime() + (exam.timeLimit * 60 * 1000) + 30000) : null, // +30s grace period
-        lastActivityAt: now,
-        submissionMethod: 'manual' // Default to manual, will be updated if auto-submitted
+        lastActivityAt: now
       };
       
       const session = await storage.createOrGetActiveExamSession(examId, user.id, sessionData);

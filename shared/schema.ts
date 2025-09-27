@@ -170,9 +170,6 @@ export const examSessions = pgTable("exam_sessions", {
   score: integer("score"),
   maxScore: integer("max_score"),
   status: varchar("status", { length: 20 }).default('in_progress'), // 'in_progress', 'submitted', 'graded'
-  // Server-side tracking fields for auto-submission and cleanup
-  submissionMethod: varchar("submission_method", { length: 50 }), // 'student', 'auto_timeout', 'server_cleanup'
-  autoSubmitted: boolean("auto_submitted").default(false), // Track if submitted automatically by system
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   // PERFORMANCE INDEX: Critical for session lookups
