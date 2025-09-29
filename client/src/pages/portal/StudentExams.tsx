@@ -675,7 +675,10 @@ export default function StudentExams() {
               data-testid="banner-success"
             >
               <CheckCircle className="w-6 h-6" aria-hidden="true" />
-              <span className="font-medium">Your exam has been submitted successfully.</span>
+              <div>
+                <span className="font-medium">Your exam answers have been submitted successfully.</span>
+                <p className="text-green-100 text-sm mt-1">Initial scoring complete - Full detailed report coming soon!</p>
+              </div>
             </div>
 
             {examResults && (() => {
@@ -706,15 +709,44 @@ export default function StudentExams() {
                   {/* Provisional Score Warning */}
                   {normalizedResults.pendingCount > 0 && (
                     <div 
-                      className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg flex items-center space-x-3"
+                      className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg"
                       role="status"
                       aria-live="polite"
                       data-testid="banner-provisional"
                     >
-                      <AlertCircle className="w-5 h-5 text-yellow-600" aria-hidden="true" />
-                      <span className="text-sm">Your provisional score is available. Final report will release after teacher's review.</span>
+                      <div className="flex items-start space-x-3">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" aria-hidden="true" />
+                        <div>
+                          <p className="text-sm font-medium">📊 Objective Questions Only</p>
+                          <p className="text-xs mt-1">
+                            This score reflects only your multiple-choice and objective answers. 
+                            Your essay questions, theory responses, and practical assessments 
+                            are still being reviewed by your teacher.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
+
+                  {/* Clarity Banner */}
+                  <div 
+                    className="bg-blue-50 border border-blue-200 p-4 rounded-lg"
+                    data-testid="banner-clarity"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
+                        💡
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">What you're seeing now:</p>
+                        <p className="text-xs text-blue-800 mt-1">
+                          This page shows your immediate results for automatically-graded questions only. 
+                          Your teacher is currently reviewing your written responses, essays, and subjective answers. 
+                          Once complete, you'll receive your final grade and detailed feedback report.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Main Results Card */}
                   <Card className="bg-white shadow-lg" data-testid="card-exam-results">
@@ -761,11 +793,11 @@ export default function StudentExams() {
                             </div>
                           </div>
                           <div className="mt-4 text-center">
-                            <h2 className="text-xl font-semibold text-gray-900">Provisional Score:</h2>
+                            <h2 className="text-xl font-semibold text-gray-900">Objective Questions Score:</h2>
                             <p className="text-lg text-gray-600" data-testid="text-score-fraction">
                               {normalizedResults.score}/{normalizedResults.maxScore} ({normalizedResults.percentage}%)
                             </p>
-                            <p className="text-sm text-gray-500 mt-1">Final score may change after teacher's review</p>
+                            <p className="text-sm text-gray-500 mt-1">📝 Multiple-choice and automatic scoring only</p>
                           </div>
                         </div>
 
@@ -821,15 +853,34 @@ export default function StudentExams() {
 
                     {/* Pending Sections */}
                     {examResults.pendingReview && examResults.pendingReview.count > 0 && (
-                      <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Sections</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <span>• Essay Questions: Awaiting teacher's grading</span>
+                      <div className="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-lg" data-testid="section-pending-review">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <Clock className="w-5 h-5 text-blue-600" aria-hidden="true" />
+                          <h3 className="text-lg font-semibold text-blue-900">🔍 Still Under Review</h3>
+                        </div>
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-start space-x-2 text-sm text-blue-800">
+                            <span className="font-medium">•</span>
+                            <span><strong>Essay Questions</strong> - Being graded by your teacher</span>
                           </div>
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <span>• Overall Report: Will be released after review</span>
+                          <div className="flex items-start space-x-2 text-sm text-blue-800">
+                            <span className="font-medium">•</span>
+                            <span><strong>Theory Responses</strong> - Manual evaluation in progress</span>
                           </div>
+                          <div className="flex items-start space-x-2 text-sm text-blue-800">
+                            <span className="font-medium">•</span>
+                            <span><strong>Practical Assessments</strong> - Awaiting instructor feedback</span>
+                          </div>
+                          <div className="flex items-start space-x-2 text-sm text-blue-800">
+                            <span className="font-medium">•</span>
+                            <span><strong>Final Grade Calculation</strong> - Will include all components</span>
+                          </div>
+                        </div>
+                        <div className="bg-white p-3 rounded border-l-4 border-blue-400">
+                          <p className="text-sm text-gray-700">
+                            <strong>📅 Expected Release:</strong> Your complete report with final grades, 
+                            teacher comments, and detailed feedback will be available within 2-3 business days.
+                          </p>
                         </div>
                       </div>
                     )}
@@ -852,7 +903,7 @@ export default function StudentExams() {
                           className="text-gray-500"
                           data-testid="button-full-report-pending"
                         >
-                          Full Report - Pending
+                          Full Report - Coming Soon
                         </Button>
                       )}
                       
