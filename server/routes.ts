@@ -359,6 +359,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       studentId: session.studentId,
       score: totalScore,
       maxScore: maxPossibleScore,
+      marksObtained: totalScore, // ✅ CRITICAL FIX: Ensure database constraint compatibility
       autoScored: true, // Always true when auto-scoring pass completes
       recordedBy: SYSTEM_AUTO_SCORING_UUID // Special UUID for auto-generated results
     };
@@ -2873,56 +2874,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else {
-        // Scoring failed or no result found - BUT CHECK DATABASE FIRST!
-        console.log(`🔍 Auto-scoring failed/incomplete, checking database for existing results for student ${user.id}, exam ${examId}`);
+        // Scoring failed or no result found - ENHANCED RECOVERY LOGIC!
+        console.log(`🔄 Auto-scoring failed/incomplete for student ${user.id}, exam ${examId}. Attempting enhanced recovery...`);
+        console.log(`📊 Original scoring error:`, scoringError || 'Unknown error');
         
+        // STEP 1: Check if this is a database constraint violation that we can handle
+        const errorMessage = (scoringError && typeof scoringError === 'object' && 'message' in scoringError) 
+          ? (scoringError as Error).message 
+          : String(scoringError || '');
+        const isConstraintViolation = errorMessage && (
+          errorMessage.includes('NOT NULL constraint') ||
+          errorMessage.includes('marks_obtained') ||
+          errorMessage.includes('violates not-null constraint') ||
+          errorMessage.includes('null value in column')
+        );
+        
+        if (isConstraintViolation) {
+          console.log(`🩹 CONSTRAINT VIOLATION DETECTED: Attempting repair with retry...`);
+          
+          try {
+            // Retry auto-scoring once more - the marksObtained fix should resolve this
+            console.log(`🔄 RETRY ATTEMPT: Re-running auto-scoring with enhanced error handling...`);
+            await autoScoreExamSession(activeSession.id, storage);
+            
+            // If retry succeeds, get the results
+            const retryResults = await storage.getExamResultsByStudent(user.id);
+            const retryResult = retryResults.find((r: any) => 
+              String(r.examId) === String(examId) && r.autoScored === true
+            );
+            
+            if (retryResult) {
+              console.log(`✅ RETRY SUCCESS: Auto-scoring worked on second attempt!`);
+              console.log(`🎉 RECOVERED SCORE: ${retryResult.score}/${retryResult.maxScore}`);
+              
+              const score = retryResult.score ?? 0;
+              const maxScore = retryResult.maxScore ?? 0;
+              const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+              
+              return res.json({
+                message: isLateSubmission 
+                  ? "Exam submitted (after time limit). Your results are shown below."
+                  : "Exam submitted successfully! Your results are shown below.",
+                submitted: true,
+                alreadySubmitted: false,
+                timedOut: isLateSubmission,
+                result: {
+                  score: score,
+                  totalScore: score,
+                  maxScore: maxScore,
+                  percentage: percentage,
+                  autoScored: retryResult.autoScored,
+                  submittedAt: completedSession.submittedAt,
+                  timedOut: isLateSubmission,
+                  immediateResults: {
+                    score: score,
+                    maxScore: maxScore,
+                    percentage: percentage,
+                    count: 1
+                  }
+                },
+                recoveredViaRetry: true // Flag for debugging
+              });
+            } else {
+              console.warn(`⚠️ RETRY COMPLETED but no auto-scored result found`);
+            }
+          } catch (retryError) {
+            console.error(`❌ RETRY FAILED:`, retryError);
+          }
+        }
+        
+        // STEP 2: Check database for any existing results (original logic, enhanced)
         try {
-          // CRITICAL FIX: Always check database for existing results before returning null
+          console.log(`🔍 FALLBACK: Checking database for existing results...`);
           const existingResults = await storage.getExamResultsByStudent(user.id);
           const existingResult = existingResults.find((r: any) => String(r.examId) === String(examId));
           
           if (existingResult && existingResult.autoScored) {
-            console.log(`🎉 RESCUE SUCCESS: Found existing auto-scored result in database despite scoring failure!`);
-            console.log(`📊 Rescued Score: ${existingResult.score}/${existingResult.maxScore} (${existingResult.autoScored ? 'Auto-scored' : 'Manual'})`);
+            console.log(`🎉 RESCUE SUCCESS: Found existing auto-scored result despite failure!`);
+            console.log(`📊 Rescued Score: ${existingResult.score}/${existingResult.maxScore}`);
             
-            // Build the response similar to successful scoring path
             const score = existingResult.score ?? 0;
             const maxScore = existingResult.maxScore ?? 0;
             const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
             
-            const rescueMessage = isLateSubmission 
-              ? "Exam submitted (after time limit). Your results are shown below."
-              : "Exam submitted successfully! Your results are shown below.";
-            
             return res.json({
-              message: rescueMessage,
+              message: isLateSubmission 
+                ? "Exam submitted (after time limit). Your results are shown below."
+                : "Exam submitted successfully! Your results are shown below.",
               submitted: true,
               alreadySubmitted: false,
               timedOut: isLateSubmission,
               result: {
-                score: score,              // ✅ FIXED: Frontend expects 'score'
-                totalScore: score,         // Keep for backward compatibility
+                score: score,
+                totalScore: score,
                 maxScore: maxScore,
                 percentage: percentage,
                 autoScored: existingResult.autoScored,
                 submittedAt: completedSession.submittedAt,
                 timedOut: isLateSubmission,
-                // Add immediate results for instant feedback
                 immediateResults: {
                   score: score,
                   maxScore: maxScore,
                   percentage: percentage,
-                  count: 1 // We know there's at least one auto-scored result
+                  count: 1
                 }
               },
-              rescuedFromDatabase: true // Flag to help with debugging
+              rescuedFromDatabase: true
             });
+          } else if (existingResult && !existingResult.autoScored) {
+            console.log(`📋 Found existing manual result for exam ${examId}, but student needs to see immediate feedback for auto-gradable questions`);
+            
+            // Even if there's a manual result, we should try to provide immediate feedback
+            // for any auto-gradable questions that can be scored
+            try {
+              // Get question breakdown to see if there are any auto-gradable questions
+              const examQuestions = await storage.getExamQuestions(parseInt(examId));
+              const autoGradableQuestions = examQuestions.filter((q: any) => q.autoGradable === true);
+              
+              if (autoGradableQuestions.length > 0) {
+                console.log(`🔍 HYBRID APPROACH: Found ${autoGradableQuestions.length} auto-gradable questions, attempting partial auto-scoring...`);
+                
+                // Try to at least score the auto-gradable questions for immediate feedback
+                const studentAnswers = await storage.getStudentAnswers(activeSession.id);
+                let autoScoredPoints = 0;
+                let autoScoredMaxPoints = 0;
+                
+                for (const question of autoGradableQuestions) {
+                  const answer = studentAnswers.find((a: any) => a.questionId === question.id);
+                  const questionPoints = question.points || 0; // ✅ Fix null points issue
+                  autoScoredMaxPoints += questionPoints;
+                  
+                  if (answer && question.questionType === 'multiple_choice') {
+                    const questionOptions = await storage.getQuestionOptions(question.id);
+                    const correctOption = questionOptions.find((opt: any) => opt.isCorrect);
+                    
+                    if (correctOption && answer.selectedOptionId === correctOption.id) {
+                      autoScoredPoints += questionPoints;
+                    }
+                  }
+                }
+                
+                if (autoScoredMaxPoints > 0) {
+                  const autoPercentage = Math.round((autoScoredPoints / autoScoredMaxPoints) * 100);
+                  console.log(`📊 HYBRID RESULTS: Auto-scored ${autoScoredPoints}/${autoScoredMaxPoints} (${autoPercentage}%) from immediate questions`);
+                  
+                  return res.json({
+                    message: isLateSubmission 
+                      ? "Exam submitted (after time limit). Partial results shown below, full results pending."
+                      : "Exam submitted successfully! Partial results shown below, full results pending.",
+                    submitted: true,
+                    alreadySubmitted: false,
+                    timedOut: isLateSubmission,
+                    result: {
+                      score: autoScoredPoints, // Only auto-scored portion
+                      maxScore: autoScoredMaxPoints, // Only auto-scored portion
+                      percentage: autoPercentage,
+                      autoScored: false, // Mixed scoring
+                      submittedAt: completedSession.submittedAt,
+                      timedOut: isLateSubmission,
+                      immediateResults: {
+                        score: autoScoredPoints,
+                        maxScore: autoScoredMaxPoints,
+                        percentage: autoPercentage,
+                        count: autoGradableQuestions.length
+                      },
+                      pendingReview: {
+                        count: examQuestions.length - autoGradableQuestions.length,
+                        maxScore: examQuestions.reduce((sum: number, q: any) => sum + q.points, 0) - autoScoredMaxPoints
+                      }
+                    },
+                    hybridScoring: true // Flag for debugging
+                  });
+                }
+              }
+            } catch (hybridError) {
+              console.error(`❌ Hybrid scoring attempt failed:`, hybridError);
+            }
           } else {
-            console.log(`📝 No auto-scored results found in database for exam ${examId}, proceeding with manual grading message`);
+            console.log(`📝 No results found in database for exam ${examId}`);
           }
         } catch (dbError) {
-          console.error(`❌ Failed to check database for existing results:`, dbError);
-          // Continue with original fallback logic
+          console.error(`❌ Database check failed:`, dbError);
         }
         
         // Original fallback logic when no results are truly found
@@ -3974,6 +4106,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Performance alerts error:', error);
       res.status(500).json({ message: "Failed to retrieve performance alerts" });
+    }
+  });
+
+  // TEST AUTO-SCORING ENDPOINT - Admin only, for debugging auto-scoring issues
+  app.post("/api/test-auto-scoring", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+      
+      console.log(`🧪 ADMIN TEST: Testing auto-scoring for session ${sessionId}`);
+      
+      // Get session details for logging
+      const session = await storage.getExamSessionById(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: `Exam session ${sessionId} not found` });
+      }
+      
+      console.log(`📊 Testing session: ${session.id}, Student: ${session.studentId}, Exam: ${session.examId}, Completed: ${session.isCompleted}`);
+      
+      const startTime = Date.now();
+      
+      try {
+        // Test the auto-scoring function directly
+        await autoScoreExamSession(sessionId, storage);
+        
+        const totalTime = Date.now() - startTime;
+        console.log(`✅ AUTO-SCORING TEST SUCCESS: Completed in ${totalTime}ms`);
+        
+        // Get the results to verify success
+        const results = await storage.getExamResultsByStudent(session.studentId);
+        const testResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
+        
+        if (testResult) {
+          console.log(`🎉 VERIFIED: Auto-scored result found - ${testResult.score}/${testResult.maxScore}`);
+          return res.json({
+            success: true,
+            message: "Auto-scoring test completed successfully",
+            testDetails: {
+              sessionId: sessionId,
+              studentId: session.studentId,
+              examId: session.examId,
+              duration: totalTime,
+              result: {
+                score: testResult.score,
+                maxScore: testResult.maxScore,
+                autoScored: testResult.autoScored,
+                resultId: testResult.id
+              }
+            }
+          });
+        } else {
+          console.warn(`⚠️ AUTO-SCORING COMPLETED but no auto-scored result found`);
+          return res.json({
+            success: false,
+            message: "Auto-scoring completed but no auto-scored result was found",
+            testDetails: {
+              sessionId: sessionId,
+              duration: totalTime,
+              allResults: results.filter((r: any) => r.examId === session.examId)
+            }
+          });
+        }
+      } catch (scoringError) {
+        const totalTime = Date.now() - startTime;
+        console.error(`❌ AUTO-SCORING TEST FAILED after ${totalTime}ms:`, scoringError);
+        
+        return res.status(500).json({
+          success: false,
+          message: "Auto-scoring test failed",
+          error: scoringError instanceof Error ? scoringError.message : String(scoringError),
+          testDetails: {
+            sessionId: sessionId,
+            duration: totalTime,
+            errorType: scoringError instanceof Error ? scoringError.constructor.name : 'UnknownError'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Test auto-scoring endpoint error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to run auto-scoring test",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
