@@ -157,6 +157,7 @@ export interface IStorage {
   // Question options management  
   createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption>;
   getQuestionOptions(questionId: number): Promise<QuestionOption[]>;
+  getQuestionOptionsBulk(questionIds: number[]): Promise<QuestionOption[]>;
 
   // Exam sessions management
   createExamSession(session: InsertExamSession): Promise<ExamSession>;
@@ -1130,6 +1131,25 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.questionOptions)
       .where(eq(schema.questionOptions.questionId, questionId))
       .orderBy(asc(schema.questionOptions.orderNumber));
+  }
+
+  // PERFORMANCE: Bulk fetch question options to eliminate N+1 queries
+  async getQuestionOptionsBulk(questionIds: number[]): Promise<QuestionOption[]> {
+    if (questionIds.length === 0) {
+      return [];
+    }
+    
+    // Use inArray for efficient bulk query
+    return await db.select({
+      id: schema.questionOptions.id,
+      questionId: schema.questionOptions.questionId,
+      optionText: schema.questionOptions.optionText,
+      isCorrect: schema.questionOptions.isCorrect,
+      orderNumber: schema.questionOptions.orderNumber,
+      createdAt: schema.questionOptions.createdAt,
+    }).from(schema.questionOptions)
+      .where(inArray(schema.questionOptions.questionId, questionIds))
+      .orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
   }
 
   // Exam sessions management

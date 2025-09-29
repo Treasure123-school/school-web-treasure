@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
@@ -48,30 +48,31 @@ export default function StudentExams() {
     enabled: !!activeSession?.examId,
   });
 
+  // PERFORMANCE: Memoize current question to prevent unnecessary re-renders
+  const currentQuestion = useMemo(() => examQuestions[currentQuestionIndex], [examQuestions, currentQuestionIndex]);
+  
   // Fetch question options for current question
-  const currentQuestion = examQuestions[currentQuestionIndex];
   const { data: questionOptions = [] } = useQuery<QuestionOption[]>({
     queryKey: ['/api/question-options', currentQuestion?.id],
     enabled: !!currentQuestion?.id && currentQuestion?.questionType === 'multiple_choice',
   });
 
-  // Fetch all question options for multiple choice questions (needed for results review)
+  // PERFORMANCE FIX: Use bulk endpoint to fetch all question options in single request
   const { data: allQuestionOptions = [] } = useQuery<QuestionOption[]>({
-    queryKey: ['/api/question-options/all', examQuestions.map(q => q.id).join(',')],
+    queryKey: ['/api/question-options/bulk', examQuestions.map(q => q.id).join(',')],
     queryFn: async () => {
       if (!examQuestions.length) return [];
       
-      const allOptions: QuestionOption[] = [];
       const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice');
+      if (mcQuestions.length === 0) return [];
       
-      for (const question of mcQuestions) {
-        const response = await apiRequest('GET', `/api/question-options/${question.id}`);
-        if (response.ok) {
-          const options = await response.json();
-          allOptions.push(...options);
-        }
+      const questionIds = mcQuestions.map(q => q.id).join(',');
+      const response = await apiRequest('GET', `/api/question-options/bulk?questionIds=${questionIds}`);
+      
+      if (response.ok) {
+        return await response.json();
       }
-      return allOptions;
+      return [];
     },
     enabled: !!examQuestions.length && (showResults || examQuestions.some(q => q.questionType === 'multiple_choice')),
   });
@@ -82,20 +83,25 @@ export default function StudentExams() {
     enabled: !!activeSession?.id,
   });
 
+  // PERFORMANCE: Memoize answer map calculation to prevent unnecessary computations
+  const answerMap = useMemo(() => {
+    const map: Record<number, any> = {};
+    existingAnswers.forEach(answer => {
+      if (answer.selectedOptionId) {
+        map[answer.questionId] = answer.selectedOptionId;
+      } else if (answer.textAnswer) {
+        map[answer.questionId] = answer.textAnswer;
+      }
+    });
+    return map;
+  }, [existingAnswers]);
+
   // Load existing answers into state
   useEffect(() => {
-    if (existingAnswers.length > 0) {
-      const answerMap: Record<number, any> = {};
-      existingAnswers.forEach(answer => {
-        if (answer.selectedOptionId) {
-          answerMap[answer.questionId] = answer.selectedOptionId;
-        } else if (answer.textAnswer) {
-          answerMap[answer.questionId] = answer.textAnswer;
-        }
-      });
+    if (Object.keys(answerMap).length > 0) {
       setAnswers(answerMap);
     }
-  }, [existingAnswers]);
+  }, [answerMap]);
 
   // Timer countdown with race condition protection
   useEffect(() => {
@@ -620,7 +626,10 @@ export default function StudentExams() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const progress = examQuestions.length > 0 ? ((currentQuestionIndex + 1) / examQuestions.length) * 100 : 0;
+  // PERFORMANCE: Memoize progress calculation to prevent unnecessary computations
+  const progress = useMemo(() => {
+    return examQuestions.length > 0 ? ((currentQuestionIndex + 1) / examQuestions.length) * 100 : 0;
+  }, [examQuestions.length, currentQuestionIndex]);
 
   if (!user) {
     return <div>Please log in to access the exam portal.</div>;

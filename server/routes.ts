@@ -1901,6 +1901,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // BULK ENDPOINT: Fetch multiple question options in a single request to eliminate N+1 queries
+  app.get("/api/question-options/bulk", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { questionIds } = req.query;
+      
+      if (!questionIds) {
+        return res.status(400).json({ message: "questionIds parameter is required" });
+      }
+      
+      const questionIdArray = (questionIds as string).split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      
+      if (questionIdArray.length === 0) {
+        return res.status(400).json({ message: "Valid questionIds are required" });
+      }
+      
+      // For students: verify they have an active exam session
+      if (user.roleId === ROLES.STUDENT) {
+        const allActiveSession = await storage.getExamSessionsByStudent(user.id);
+        const hasActiveSession = allActiveSession.some(session => !session.isCompleted);
+        
+        if (!hasActiveSession) {
+          return res.status(403).json({ message: "No active exam session. Start an exam first." });
+        }
+      }
+      
+      // PERFORMANCE: Fetch all options in a single database query
+      const allOptions = await storage.getQuestionOptionsBulk(questionIdArray);
+      
+      // Hide answer keys from students (roleId 3+ are students/parents)
+      const isStudentOrParent = user.roleId >= 3;
+      
+      if (isStudentOrParent) {
+        // Remove the isCorrect field from options for students
+        const sanitizedOptions = allOptions.map((option: any) => {
+          const { isCorrect, ...sanitizedOption } = option;
+          return sanitizedOption;
+        });
+        res.json(sanitizedOptions);
+      } else {
+        // Admin and teachers can see all data including correct answers
+        res.json(allOptions);
+      }
+    } catch (error) {
+      console.error('Error in bulk question options:', error);
+      res.status(500).json({ message: "Failed to fetch question options" });
+    }
+  });
+
   app.get("/api/question-options/:questionId", authenticateUser, async (req, res) => {
     try {
       const user = (req as any).user;
