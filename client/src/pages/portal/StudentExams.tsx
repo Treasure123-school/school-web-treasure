@@ -674,13 +674,41 @@ export default function StudentExams() {
             <div className="space-y-6">
               {/* Phase 1: Immediate Results - Auto-scored questions */}
               {examResults.immediateResults && examResults.immediateResults.count > 0 && (
-                <Card className="border-green-200 bg-green-50">
+                <Card className={`${
+                  examResults.immediateResults.percentage >= 80 ? 'border-green-200 bg-green-50' :
+                  examResults.immediateResults.percentage >= 60 ? 'border-blue-200 bg-blue-50' :
+                  examResults.immediateResults.percentage >= 40 ? 'border-yellow-200 bg-yellow-50' :
+                  'border-gray-200 bg-gray-50'
+                }`}>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-green-700">
-                      <Trophy className="w-5 h-5" />
-                      <span>🎉 Immediate Results - Great Job!</span>
+                    <CardTitle className={`flex items-center space-x-2 ${
+                      examResults.immediateResults.percentage >= 80 ? 'text-green-700' :
+                      examResults.immediateResults.percentage >= 60 ? 'text-blue-700' :
+                      examResults.immediateResults.percentage >= 40 ? 'text-yellow-700' :
+                      'text-gray-700'
+                    }`}>
+                      {examResults.immediateResults.percentage >= 80 ? <Trophy className="w-5 h-5" /> :
+                       examResults.immediateResults.percentage >= 60 ? <Trophy className="w-5 h-5" /> :
+                       examResults.immediateResults.percentage >= 40 ? <FileText className="w-5 h-5" /> :
+                       <BookOpen className="w-5 h-5" />}
+                      <span>
+                        {examResults.immediateResults.percentage >= 80 ? '🎉 Immediate Results - Excellent Work!' :
+                         examResults.immediateResults.percentage >= 60 ? '📊 Immediate Results - Good Job!' :
+                         examResults.immediateResults.percentage >= 40 ? '📈 Immediate Results - Keep Going!' :
+                         '📚 Immediate Results - Keep Practicing!'}
+                      </span>
                     </CardTitle>
-                    <p className="text-green-600">Here are your instant results for auto-scored questions:</p>
+                    <p className={`${
+                      examResults.immediateResults.percentage >= 80 ? 'text-green-600' :
+                      examResults.immediateResults.percentage >= 60 ? 'text-blue-600' :
+                      examResults.immediateResults.percentage >= 40 ? 'text-yellow-600' :
+                      'text-gray-600'
+                    }`}>
+                      {examResults.immediateResults.percentage >= 80 ? 'Outstanding performance on auto-scored questions!' :
+                       examResults.immediateResults.percentage >= 60 ? 'Good work on auto-scored questions!' :
+                       examResults.immediateResults.percentage >= 40 ? 'You\'re making progress on auto-scored questions!' :
+                       'Here are your results for auto-scored questions - review and try again!'}
+                    </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -702,11 +730,13 @@ export default function StudentExams() {
                       <div className="text-center">
                         <div className={`text-2xl font-bold ${
                           examResults.immediateResults.percentage >= 80 ? 'text-green-600' :
-                          examResults.immediateResults.percentage >= 60 ? 'text-yellow-600' :
-                          'text-red-600'
+                          examResults.immediateResults.percentage >= 60 ? 'text-blue-600' :
+                          examResults.immediateResults.percentage >= 40 ? 'text-yellow-600' :
+                          'text-gray-600'
                         }`}>
                           {examResults.immediateResults.percentage >= 80 ? 'Excellent!' :
                            examResults.immediateResults.percentage >= 60 ? 'Good Job!' :
+                           examResults.immediateResults.percentage >= 40 ? 'Keep Going!' :
                            'Keep Practicing!'}
                         </div>
                         <p className="text-sm text-muted-foreground">Performance</p>
