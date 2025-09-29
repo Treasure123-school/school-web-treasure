@@ -665,212 +665,217 @@ export default function StudentExams() {
         </div>
       ) : /* Results Screen */
       showResults ? (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold">Exam Results</h1>
-              <p className="text-muted-foreground">Your exam has been submitted and scored</p>
-            </div>
-            <Button 
-              onClick={handleBackToExams}
-              data-testid="button-back-to-exams"
+        <div className="min-h-screen bg-gray-50 p-6">
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Success Banner */}
+            <div 
+              className="bg-green-600 text-white p-4 rounded-lg flex items-center space-x-3"
+              role="status"
+              aria-live="polite"
+              data-testid="banner-success"
             >
-              Back to Exams
-            </Button>
-          </div>
+              <CheckCircle className="w-6 h-6" aria-hidden="true" />
+              <span className="font-medium">Your exam has been submitted successfully.</span>
+            </div>
 
-          {examResults && (
-            <div className="space-y-6">
-              {/* Phase 1: Immediate Results - Auto-scored questions */}
-              {examResults.immediateResults && examResults.immediateResults.count > 0 && (
-                <Card className={`${
-                  examResults.immediateResults.percentage >= 80 ? 'border-green-200 bg-green-50' :
-                  examResults.immediateResults.percentage >= 60 ? 'border-blue-200 bg-blue-50' :
-                  examResults.immediateResults.percentage >= 40 ? 'border-yellow-200 bg-yellow-50' :
-                  'border-gray-200 bg-gray-50'
-                }`}>
-                  <CardHeader>
-                    <CardTitle className={`flex items-center space-x-2 ${
-                      examResults.immediateResults.percentage >= 80 ? 'text-green-700' :
-                      examResults.immediateResults.percentage >= 60 ? 'text-blue-700' :
-                      examResults.immediateResults.percentage >= 40 ? 'text-yellow-700' :
-                      'text-gray-700'
-                    }`}>
-                      {examResults.immediateResults.percentage >= 80 ? <Trophy className="w-5 h-5" /> :
-                       examResults.immediateResults.percentage >= 60 ? <Trophy className="w-5 h-5" /> :
-                       examResults.immediateResults.percentage >= 40 ? <FileText className="w-5 h-5" /> :
-                       <BookOpen className="w-5 h-5" />}
-                      <span>
-                        {examResults.immediateResults.percentage >= 80 ? '🎉 Immediate Results - Excellent Work!' :
-                         examResults.immediateResults.percentage >= 60 ? '📊 Immediate Results - Good Job!' :
-                         examResults.immediateResults.percentage >= 40 ? '📈 Immediate Results - Keep Going!' :
-                         '📚 Immediate Results - Keep Practicing!'}
-                      </span>
-                    </CardTitle>
-                    <p className={`${
-                      examResults.immediateResults.percentage >= 80 ? 'text-green-600' :
-                      examResults.immediateResults.percentage >= 60 ? 'text-blue-600' :
-                      examResults.immediateResults.percentage >= 40 ? 'text-yellow-600' :
-                      'text-gray-600'
-                    }`}>
-                      {examResults.immediateResults.percentage >= 80 ? 'Outstanding performance on auto-scored questions!' :
-                       examResults.immediateResults.percentage >= 60 ? 'Good work on auto-scored questions!' :
-                       examResults.immediateResults.percentage >= 40 ? 'You\'re making progress on auto-scored questions!' :
-                       'Here are your results for auto-scored questions - review and try again!'}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-green-600">
-                          {examResults.immediateResults.score}/{examResults.immediateResults.maxScore}
-                        </div>
-                        <div className="text-lg font-semibold text-green-700">
-                          {examResults.immediateResults.percentage}%
-                        </div>
-                        <p className="text-sm text-green-600">Auto-scored Points</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {examResults.immediateResults.count}
-                        </div>
-                        <p className="text-sm text-muted-foreground">Questions Completed</p>
-                      </div>
-                      <div className="text-center">
-                        <div className={`text-2xl font-bold ${
-                          examResults.immediateResults.percentage >= 80 ? 'text-green-600' :
-                          examResults.immediateResults.percentage >= 60 ? 'text-blue-600' :
-                          examResults.immediateResults.percentage >= 40 ? 'text-yellow-600' :
-                          'text-gray-600'
-                        }`}>
-                          {examResults.immediateResults.percentage >= 80 ? 'Excellent!' :
-                           examResults.immediateResults.percentage >= 60 ? 'Good Job!' :
-                           examResults.immediateResults.percentage >= 40 ? 'Keep Going!' :
-                           'Keep Practicing!'}
-                        </div>
-                        <p className="text-sm text-muted-foreground">Performance</p>
-                      </div>
+            {examResults && (() => {
+              // Normalize data structure to handle different response formats
+              const normalizedResults = {
+                score: examResults.totalScore || examResults.score || 0,
+                maxScore: examResults.maxScore || 0,
+                percentage: 0,
+                pendingCount: examResults.pendingReview?.count || 0,
+                correctAnswers: examResults.immediateResults?.questions?.filter((q: any) => q.isCorrect).length || 0,
+                wrongAnswers: examResults.immediateResults?.questions?.filter((q: any) => !q.isCorrect).length || 0,
+                submittedAt: examResults.submittedAt
+              };
+              
+              // Safe percentage calculation with guards
+              if (normalizedResults.maxScore > 0) {
+                normalizedResults.percentage = Math.round((normalizedResults.score / normalizedResults.maxScore) * 100);
+                normalizedResults.percentage = Math.max(0, Math.min(100, normalizedResults.percentage)); // Clamp to [0,100]
+              }
+
+              // SVG progress calculations
+              const radius = 85;
+              const circumference = 2 * Math.PI * radius;
+              const strokeDashoffset = circumference * (1 - normalizedResults.percentage / 100);
+
+              return (
+                <>
+                  {/* Provisional Score Warning */}
+                  {normalizedResults.pendingCount > 0 && (
+                    <div 
+                      className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg flex items-center space-x-3"
+                      role="status"
+                      aria-live="polite"
+                      data-testid="banner-provisional"
+                    >
+                      <AlertCircle className="w-5 h-5 text-yellow-600" aria-hidden="true" />
+                      <span className="text-sm">Your provisional score is available. Final report will release after teacher's review.</span>
                     </div>
-                    
-                    {/* Question breakdown for immediate results */}
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-green-700">Question Results:</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                        {examResults.immediateResults.questions.map((question: any, index: number) => (
-                          <div key={question.questionId} className={`flex items-center justify-between p-2 rounded ${
-                            question.isCorrect ? 'bg-green-100' : 'bg-red-100'
-                          }`}>
-                            <span className="text-sm font-medium">Q{index + 1}</span>
-                            <div className="flex items-center space-x-2">
-                              <span className={`text-sm ${
-                                question.isCorrect ? 'text-green-700' : 'text-red-700'
-                              }`}>
-                                {question.isCorrect ? '✓ Correct' : '✗ Incorrect'}
-                              </span>
-                              <span className="text-xs text-muted-foreground">({question.points} pts)</span>
+                  )}
+
+                  {/* Main Results Card */}
+                  <Card className="bg-white shadow-lg" data-testid="card-exam-results">
+                    <CardContent className="p-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Circular Progress */}
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="relative w-48 h-48">
+                            <svg 
+                              className="w-48 h-48 transform -rotate-90" 
+                              viewBox="0 0 200 200"
+                              role="img"
+                              aria-label={`Score: ${normalizedResults.percentage}% (${normalizedResults.score} out of ${normalizedResults.maxScore})`}
+                              data-testid="progress-circular"
+                            >
+                              {/* Background circle */}
+                              <circle
+                                cx="100"
+                                cy="100"
+                                r={radius}
+                                stroke="currentColor"
+                                strokeWidth="10"
+                                fill="transparent"
+                                className="text-gray-200"
+                              />
+                              {/* Progress circle */}
+                              <circle
+                                cx="100"
+                                cy="100"
+                                r={radius}
+                                stroke="currentColor"
+                                strokeWidth="10"
+                                fill="transparent"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={strokeDashoffset}
+                                className="text-green-500 transition-all duration-1000 ease-in-out"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <div className="text-4xl font-bold text-gray-900" data-testid="text-percentage">
+                                {normalizedResults.percentage}%
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Phase 2: Pending Review - Manual grading needed */}
-              {examResults.pendingReview && examResults.pendingReview.count > 0 && (
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-blue-700">
-                      <FileText className="w-5 h-5" />
-                      <span>⏳ Pending Review</span>
-                    </CardTitle>
-                    <p className="text-blue-600">These questions require manual grading by your instructor:</p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-600">
-                          {examResults.pendingReview.count}
-                        </div>
-                        <p className="text-sm text-blue-600">Questions Under Review</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-600">
-                          {examResults.pendingReview.maxScore}
-                        </div>
-                        <p className="text-sm text-blue-600">Max Points Available</p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-blue-100 border-l-4 border-blue-400 p-4">
-                      <div className="flex">
-                        <div className="ml-3">
-                          <p className="text-sm text-blue-700">
-                            <strong>Timeline:</strong> Your instructor will review these answers and provide feedback within 2-3 business days.
-                            You'll receive a notification when your complete results are ready.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-blue-700">Questions Under Review:</h4>
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {examResults.pendingReview.questions.map((question: any, index: number) => (
-                          <div key={question.questionId} className="flex items-center justify-between p-2 bg-blue-100 rounded">
-                            <span className="text-sm font-medium text-blue-700">
-                              Q{examResults.immediateResults ? examResults.immediateResults.count + index + 1 : index + 1} - {question.questionType.replace('_', ' ')}
-                            </span>
-                            <span className="text-xs text-blue-600">({question.points} pts)</span>
+                          <div className="mt-4 text-center">
+                            <h2 className="text-xl font-semibold text-gray-900">Provisional Score:</h2>
+                            <p className="text-lg text-gray-600" data-testid="text-score-fraction">
+                              {normalizedResults.score}/{normalizedResults.maxScore} ({normalizedResults.percentage}%)
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">Final score may change after teacher's review</p>
                           </div>
-                        ))}
+                        </div>
+
+                        {/* Quick Stats */}
+                        <div className="space-y-6">
+                          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Quick Stats</h3>
+                          
+                          <div className="space-y-4">
+                            {/* Correct Answers */}
+                            <div className="flex items-center space-x-3" data-testid="stat-correct-answers">
+                              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <CheckCircle className="w-5 h-5 text-green-600" aria-hidden="true" />
+                              </div>
+                              <div>
+                                <span className="font-semibold text-green-600">Correct: </span>
+                                <span className="text-gray-900" data-testid="value-correct-count">
+                                  {normalizedResults.correctAnswers}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Wrong Answers */}
+                            <div className="flex items-center space-x-3" data-testid="stat-wrong-answers">
+                              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                <XCircle className="w-5 h-5 text-red-600" aria-hidden="true" />
+                              </div>
+                              <div>
+                                <span className="font-semibold text-red-600">Wrong: </span>
+                                <span className="text-gray-900" data-testid="value-wrong-count">
+                                  {normalizedResults.wrongAnswers}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Time (if available) */}
+                            <div className="flex items-center space-x-3" data-testid="stat-completion-time">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <Clock className="w-5 h-5 text-blue-600" aria-hidden="true" />
+                              </div>
+                              <div>
+                                <span className="font-semibold text-blue-600">Time: </span>
+                                <span className="text-gray-900" data-testid="value-completion-time">
+                                  {normalizedResults.submittedAt ? 
+                                    `Completed at ${new Date(normalizedResults.submittedAt).toLocaleTimeString()}` : 
+                                    'Completed'
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
+
+                    {/* Pending Sections */}
+                    {examResults.pendingReview && examResults.pendingReview.count > 0 && (
+                      <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Sections</h3>
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <span>• Essay Questions: Awaiting teacher's grading</span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <span>• Overall Report: Will be released after review</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="mt-8 flex flex-wrap gap-3 justify-center">
+                      <Button 
+                        onClick={handleBackToExams}
+                        variant="default"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        data-testid="button-back-to-dashboard"
+                      >
+                        Back to Dashboard
+                      </Button>
+                      
+                      {examResults.pendingReview && examResults.pendingReview.count > 0 && (
+                        <Button 
+                          variant="outline"
+                          disabled
+                          className="text-gray-500"
+                          data-testid="button-full-report-pending"
+                        >
+                          Full Report - Pending
+                        </Button>
+                      )}
+                      
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          // Could add functionality to view detailed breakdown
+                          toast({
+                            title: "Feature Coming Soon",
+                            description: "Detailed question breakdown will be available soon."
+                          });
+                        }}
+                        data-testid="button-view-details"
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
-              )}
-              
-              {/* Overall Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Trophy className="w-5 h-5" />
-                    <span>Overall Summary</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold text-primary">
-                        {examResults.totalScore || examResults.score}/{examResults.maxScore}
-                      </div>
-                      <p className="text-sm text-muted-foreground">Current Score</p>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-primary">
-                        {Math.round(((examResults.totalScore || examResults.score) / examResults.maxScore) * 100)}%
-                      </div>
-                      <p className="text-sm text-muted-foreground">Percentage</p>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">
-                        {examResults.immediateResults ? examResults.immediateResults.count : 0}
-                      </div>
-                      <p className="text-sm text-muted-foreground">Auto-scored</p>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">
-                        {examResults.pendingReview ? examResults.pendingReview.count : 0}
-                      </div>
-                      <p className="text-sm text-muted-foreground">Pending Review</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-            </div>
-          )}
+              </>
+            );
+            })()}
+          </div>
         </div>
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
