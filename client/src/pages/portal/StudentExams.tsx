@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText } from 'lucide-react';
+import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 
 // Question save status type
@@ -30,6 +30,7 @@ export default function StudentExams() {
   const [examResults, setExamResults] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Per-question save status tracking
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
@@ -626,6 +627,20 @@ export default function StudentExams() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  // Get timer color based on remaining time
+  const getTimerColor = (seconds: number) => {
+    if (seconds > 600) return 'text-green-600'; // > 10 minutes
+    if (seconds > 300) return 'text-yellow-600'; // 5-10 minutes
+    return 'text-red-600 animate-pulse'; // < 5 minutes
+  };
+
+  // Calculate timer progress percentage for visual indicator
+  const getTimerProgress = () => {
+    if (!timeRemaining || !selectedExam?.timeLimit) return 100;
+    const totalSeconds = selectedExam.timeLimit * 60;
+    return (timeRemaining / totalSeconds) * 100;
+  };
+
   // PERFORMANCE: Memoize progress calculation to prevent unnecessary computations
   const progress = useMemo(() => {
     return examQuestions.length > 0 ? ((currentQuestionIndex + 1) / examQuestions.length) * 100 : 0;
@@ -930,30 +945,120 @@ export default function StudentExams() {
         </div>
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Exam Header */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>{selectedExam?.name}</CardTitle>
-                  <p className="text-muted-foreground">
-                    Question {currentQuestionIndex + 1} of {examQuestions.length}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  {timeRemaining !== null && (
-                    <div className="flex items-center space-x-2">
-                      <Timer className="w-4 h-4" />
-                      <span className={`font-mono ${timeRemaining < 300 ? 'text-red-500' : ''}`}>
-                        {formatTime(timeRemaining)}
+        <div className={`${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : ''}`}>
+          <div className={`${isFullScreen ? 'max-w-7xl mx-auto p-6' : 'flex gap-6'}`}>
+            {/* Question Navigation Sidebar */}
+            <div className={`${isFullScreen ? 'mb-6' : 'w-64 flex-shrink-0'}`}>
+              <Card className="sticky top-6">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-sm">Questions</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsFullScreen(!isFullScreen)}
+                      data-testid="button-toggle-fullscreen"
+                    >
+                      {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Progress Summary */}
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Answered:</span>
+                      <span className="font-semibold text-green-600 dark:text-green-400">
+                        {Object.keys(answers).length}/{examQuestions.length}
                       </span>
                     </div>
+                    <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-2" />
+                  </div>
+
+                  {/* Enhanced Timer Display */}
+                  {timeRemaining !== null && (
+                    <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Time Remaining</span>
+                        <Timer className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className={`text-2xl font-mono font-bold ${getTimerColor(timeRemaining)}`}>
+                        {formatTime(timeRemaining)}
+                      </div>
+                      <Progress value={getTimerProgress()} className="h-1.5 mt-2" />
+                      {timeRemaining < 300 && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">
+                          ⚠️ Less than 5 minutes left!
+                        </p>
+                      )}
+                    </div>
                   )}
+
+                  {/* Question Grid Navigation */}
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Jump to question:</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {examQuestions.map((question, index) => {
+                        const isAnswered = !!answers[question.id];
+                        const isCurrent = currentQuestionIndex === index;
+                        const saveStatus = questionSaveStatus[question.id];
+                        
+                        return (
+                          <button
+                            key={question.id}
+                            onClick={() => setCurrentQuestionIndex(index)}
+                            className={`
+                              relative h-10 w-10 rounded-lg font-semibold text-sm
+                              transition-all duration-200 flex items-center justify-center
+                              ${isCurrent 
+                                ? 'bg-blue-600 text-white shadow-lg scale-110' 
+                                : isAnswered
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-2 border-green-500 dark:border-green-600'
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-2 border-gray-300 dark:border-gray-600'
+                              }
+                              hover:scale-105 hover:shadow-md
+                            `}
+                            data-testid={`question-nav-${index}`}
+                          >
+                            {isAnswered ? (
+                              <CheckCircle2 className="w-5 h-5" />
+                            ) : (
+                              <span>{index + 1}</span>
+                            )}
+                            {saveStatus === 'saving' && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-pulse" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="pt-3 border-t space-y-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="w-6 h-6 rounded bg-blue-600"></div>
+                      <span className="text-gray-600 dark:text-gray-300">Current</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="w-6 h-6 rounded bg-green-100 dark:bg-green-900/30 border-2 border-green-500 dark:border-green-600 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-green-700 dark:text-green-300" />
+                      </div>
+                      <span className="text-gray-600 dark:text-gray-300">Answered</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="w-6 h-6 rounded bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600"></div>
+                      <span className="text-gray-600 dark:text-gray-300">Not answered</span>
+                    </div>
+                  </div>
+
+                  {/* Submit Button in Sidebar */}
                   <Button
                     onClick={handleSubmitExam}
                     disabled={isSubmitting || hasPendingSaves() || isScoring}
-                    data-testid="button-submit-exam"
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-submit-exam-sidebar"
                   >
                     {isScoring ? (
                       'Processing Results...'
@@ -965,11 +1070,26 @@ export default function StudentExams() {
                       'Submit Exam'
                     )}
                   </Button>
-                </div>
-              </div>
-              <Progress value={progress} className="w-full" />
-            </CardHeader>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 space-y-6">
+              {/* Exam Header */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>{selectedExam?.name}</CardTitle>
+                      <p className="text-muted-foreground">
+                        Question {currentQuestionIndex + 1} of {examQuestions.length}
+                      </p>
+                    </div>
+                  </div>
+                  <Progress value={progress} className="w-full mt-2" />
+                </CardHeader>
+              </Card>
 
           {/* Current Question */}
           {currentQuestion && (
@@ -1061,33 +1181,8 @@ export default function StudentExams() {
               </CardContent>
             </Card>
           )}
-
-          {/* Question Navigation */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Question Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-10 gap-2">
-                {examQuestions.map((question, index) => (
-                  <Button
-                    key={question.id}
-                    variant={currentQuestionIndex === index ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentQuestionIndex(index)}
-                    className="h-8 w-8 p-0"
-                    data-testid={`question-nav-${index}`}
-                  >
-                    {answers[question.id] ? (
-                      <CheckCircle className="w-3 h-3" />
-                    ) : (
-                      index + 1
-                    )}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       ) : (
         /* Exam List */
