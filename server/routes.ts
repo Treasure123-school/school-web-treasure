@@ -2867,7 +2867,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             alreadySubmitted: false,
             timedOut: isLateSubmission,
             result: {
-              ...scoringResult,
+              score: scoringResult.score,                    // ✅ CONSISTENT: Always use 'score'
+              totalScore: scoringResult.score,               // Keep for backward compatibility
+              maxScore: scoringResult.maxScore,
+              percentage: scoringResult.percentage,
+              autoScored: scoringResult.autoScored,
               submittedAt: completedSession.submittedAt,
               timedOut: isLateSubmission
             }
