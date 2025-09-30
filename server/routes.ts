@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { apiRequest } from './utils/apiRequest'; // Assuming this utility exists for making internal API requests
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -52,14 +53,14 @@ const JWT_EXPIRES_IN = '24h';
 // Helper to normalize UUIDs from various formats
 function normalizeUuid(raw: any): string | undefined {
   if (!raw) return undefined;
-  
+
   // If already a valid UUID string, return as-is
   if (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
     return raw;
   }
-  
+
   let bytes: number[] | undefined;
-  
+
   // Handle comma-separated string of numbers
   if (typeof raw === 'string' && raw.includes(',')) {
     const parts = raw.split(',').map(s => parseInt(s.trim()));
@@ -67,20 +68,20 @@ function normalizeUuid(raw: any): string | undefined {
       bytes = parts;
     }
   }
-  
+
   // Handle number array or Uint8Array
   if (Array.isArray(raw) && raw.length === 16) {
     bytes = raw;
   } else if (raw instanceof Uint8Array && raw.length === 16) {
     bytes = Array.from(raw);
   }
-  
+
   // Convert bytes to UUID format
   if (bytes) {
     const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
     return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
   }
-  
+
   console.warn('Failed to normalize UUID:', raw);
   return undefined;
 }
@@ -105,11 +106,11 @@ const authenticateUser = async (req: any, res: any, next: any) => {
     // Robust Authorization header parsing (case-insensitive, handles whitespace)
     const authHeader = (req.headers.authorization || '').trim();
     const [scheme, token] = authHeader.split(/\s+/);
-    
+
     if (!/^bearer$/i.test(scheme) || !token) {
       return res.status(401).json({ message: "Authentication required" });
     }
-    
+
     // Verify JWT token
     let decoded: any;
     try {
@@ -118,7 +119,7 @@ const authenticateUser = async (req: any, res: any, next: any) => {
       console.error('JWT verification failed:', jwtError);
       return res.status(401).json({ message: "Invalid or expired token" });
     }
-    
+
     // Normalize decoded userId before database lookup
     const normalizedUserId = normalizeUuid(decoded.userId);
     if (!normalizedUserId) {
@@ -131,17 +132,17 @@ const authenticateUser = async (req: any, res: any, next: any) => {
     if (!user) {
       return res.status(401).json({ message: "User no longer exists" });
     }
-    
+
     // Block inactive users (blocked/deactivated accounts)
     if (user.isActive === false) {
       return res.status(401).json({ message: "Account has been deactivated. Please contact administrator." });
     }
-    
+
     // Ensure role hasn't changed since token was issued
     if (user.roleId !== decoded.roleId) {
       return res.status(401).json({ message: "User role has changed, please log in again" });
     }
-    
+
     req.user = user;
     next();
   } catch (error) {
@@ -157,11 +158,11 @@ const authorizeRoles = (...allowedRoles: number[]) => {
       if (!req.user) {
         return res.status(401).json({ message: "Authentication required" });
       }
-      
+
       if (!allowedRoles.includes(req.user.roleId)) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
-      
+
       next();
     } catch (error) {
       console.error('Authorization error:', error);
@@ -186,7 +187,7 @@ const storage_multer = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadType = req.body.uploadType || 'general';
     let dir = uploadDir;
-    
+
     if (uploadType === 'gallery') {
       dir = galleryDir;
     } else if (uploadType === 'profile') {
@@ -194,7 +195,7 @@ const storage_multer = multer.diskStorage({
     } else if (uploadType === 'study-resource') {
       dir = studyResourcesDir;
     }
-    
+
     cb(null, dir);
   },
   filename: (req, file, cb) => {
@@ -214,7 +215,7 @@ const upload = multer({
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -233,7 +234,7 @@ const uploadDocument = multer({
     const allowedTypes = /pdf|doc|docx|txt|rtf|odt|ppt|pptx|xls|xlsx/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = /application\/(pdf|msword|vnd\.openxmlformats-officedocument|vnd\.oasis\.opendocument|text\/plain|vnd\.ms-powerpoint|vnd\.ms-excel)/.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -246,19 +247,19 @@ const uploadDocument = multer({
 async function cleanupExpiredExamSessions(): Promise<void> {
   try {
     console.log('🧹 TIMEOUT CLEANUP: Checking for expired exam sessions...');
-    
+
     // PERFORMANCE IMPROVEMENT: Get only expired sessions directly from database
     // instead of fetching all active sessions and filtering in memory
     const now = new Date();
     const expiredSessions = await storage.getExpiredExamSessions(now, 50); // Limit batch size to 50
-    
+
     console.log(`🧹 Found ${expiredSessions.length} expired sessions to cleanup`);
-    
+
     // Process in smaller batches to avoid overwhelming the database
     for (const session of expiredSessions) {
       try {
         console.log(`⏰ AUTO-CLEANUP: Force submitting expired session ${session.id} for student ${session.studentId}`);
-        
+
         // Mark session as auto-submitted by server cleanup
         await storage.updateExamSession(session.id, {
           isCompleted: true,
@@ -268,7 +269,7 @@ async function cleanupExpiredExamSessions(): Promise<void> {
 
         // Auto-score the session using our optimized scoring
         await autoScoreExamSession(session.id, storage);
-        
+
         console.log(`✅ Successfully cleaned up expired session ${session.id}`);
       } catch (error) {
         console.error(`❌ Failed to cleanup session ${session.id}:`, error);
@@ -292,29 +293,29 @@ console.log(`🧹 TIMEOUT PROTECTION: Background cleanup service started (every 
 // OPTIMIZED Auto-scoring function for <2 second performance goal
 async function autoScoreExamSession(sessionId: number, storage: any): Promise<void> {
   const startTime = Date.now();
-  
+
   try {
     console.log(`🚀 OPTIMIZED AUTO-SCORING: Starting session ${sessionId} scoring...`);
-    
+
     // PERFORMANCE BREAKTHROUGH: Single optimized query gets ALL scoring data at once
     // This eliminates 5-10+ sequential database queries that were causing the bottleneck
     const scoringResult = await storage.getExamScoringData(sessionId);
     const { session, summary } = scoringResult;
-    
+
     const databaseQueryTime = Date.now() - startTime;
     console.log(`⚡ PERFORMANCE: Database query completed in ${databaseQueryTime}ms (was 3000-8000ms before)`);
-    
+
     const { totalQuestions, maxScore, studentScore, autoScoredQuestions } = summary;
-    
+
     // Use the optimized results
     const totalScore = studentScore;
     const maxPossibleScore = maxScore;
-    
+
     const hasMultipleChoiceQuestions = autoScoredQuestions > 0;
     const hasEssayQuestions = totalQuestions > autoScoredQuestions;
-    
+
     console.log(`✅ OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + ' MC' : 'no MC'}, ${hasEssayQuestions ? (totalQuestions - autoScoredQuestions) + ' Essays' : 'no Essays'})`);
-    
+
     // Log scoring details for debugging if needed
     if (process.env.NODE_ENV === 'development') {
       scoringResult.scoringData.forEach((q: any) => {
@@ -329,7 +330,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     // Create or update exam result - CRITICAL for instant feedback
     console.log(`🎯 Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
     console.log(`📊 Score calculation: ${totalScore}/${maxPossibleScore} (${autoScoredQuestions} MC questions auto-scored)`);
-    
+
     // ENHANCED ERROR HANDLING: Add validation before database operations
     if (!session.studentId) {
       throw new Error('CRITICAL: Session missing studentId - cannot create exam result');
@@ -340,10 +341,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     if (maxPossibleScore === 0 && totalQuestions > 0) {
       console.warn('⚠️ WARNING: Max possible score is 0 but exam has questions - check question points configuration');
     }
-    
+
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
     console.log(`🔍 Found ${existingResults.length} existing results for student ${session.studentId}`);
-    
+
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
     if (existingResult) {
       console.log(`📋 Found existing result ID ${existingResult.id} for exam ${session.examId} - will update`);
@@ -353,7 +354,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     // Use a special UUID for system auto-scoring
     const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
-    
+
     const resultData = {
       examId: session.examId,
       studentId: session.studentId,
@@ -391,17 +392,17 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       console.log(`🔍 Verifying result was saved - fetching results for student ${session.studentId}...`);
       const verificationResults = await storage.getExamResultsByStudent(session.studentId);
       const savedResult = verificationResults.find((r: any) => r.examId === session.examId && r.autoScored === true);
-      
+
       if (!savedResult) {
         throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the auto-scored result');
       }
-      
+
       console.log(`✅ Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
-      
+
       // ENHANCED PERFORMANCE MONITORING - Track 2-second submission goal
       const totalResponseTime = Date.now() - startTime;
       const scoringTime = totalResponseTime - databaseQueryTime;
-      
+
       // Performance metrics tracking
       const performanceMetrics = {
         sessionId,
@@ -411,7 +412,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         totalResponseTime: totalResponseTime,
         goalAchieved: totalResponseTime <= 2000
       };
-      
+
       // Alert if submission exceeds 2-second goal
       if (totalResponseTime > 2000) {
         console.warn(`🚨 PERFORMANCE ALERT: Auto-scoring took ${totalResponseTime}ms (exceeded 2-second goal by ${totalResponseTime - 2000}ms)`);
@@ -421,7 +422,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         console.log(`🎯 PERFORMANCE SUCCESS: Auto-scoring completed in ${totalResponseTime}ms (within 2-second goal! ✅)`);
         console.log(`📊 PERFORMANCE METRICS: DB Query: ${databaseQueryTime}ms, Scoring: ${scoringTime}ms, Total: ${totalResponseTime}ms`);
       }
-      
+
       // Store performance event in database for monitoring
       try {
         await storage.logPerformanceEvent({
@@ -443,26 +444,19 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         console.warn('⚠️ Failed to log performance event to database:', perfLogError);
         // Don't throw - this shouldn't break the auto-scoring process
       }
-      
+
       // Log detailed metrics in development
       if (process.env.NODE_ENV === 'development') {
         console.log(`🔬 DETAILED METRICS:`, JSON.stringify(performanceMetrics, null, 2));
       }
-      
+
       console.log(`🚀 AUTO-SCORING COMPLETE - Student should see instant results!`);
 
-    } catch (resultError) {
-      // Enhanced error handling with timing
+    } catch (error) {
       const totalErrorTime = Date.now() - startTime;
-      console.error(`❌ CRITICAL: Auto-scoring failed after ${totalErrorTime}ms:`, resultError);
-      console.error('❌ Result data that failed:', JSON.stringify(resultData, null, 2));
-      if (resultError instanceof Error) {
-        console.error('❌ Error details:', resultError.message);
-        console.error('❌ Error stack:', resultError.stack);
-      }
-      throw resultError;
+      console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
+      throw error;
     }
-
   } catch (error) {
     const totalErrorTime = Date.now() - startTime;
     console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
@@ -476,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       console.log('Admin password reset requested by:', req.user?.email);
-      
+
       // Get all users to check for weak passwords
       const allRoles = await storage.getRoles();
       let allUsers: any[] = [];
@@ -484,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const roleUsers = await storage.getUsersByRole(role.id);
         allUsers.push(...roleUsers);
       }
-      
+
       // Check users who might have the weak default password by attempting to verify against 'password123'
       const usersToUpdate = [];
       for (const user of allUsers) {
@@ -500,29 +494,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
+
       console.log(`Found ${usersToUpdate.length} users with weak passwords`);
-      
+
       if (usersToUpdate.length === 0) {
         return res.json({
           message: "No users found with weak passwords",
           updatedCount: 0
         });
       }
-      
+
       // Generate strong unique passwords and update users
       const passwordUpdates = [];
       let updateCount = 0;
-      
+
       for (const user of usersToUpdate) {
         try {
           // Generate a strong random password
           const strongPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12).toUpperCase() + Math.floor(Math.random() * 100);
           const hashedPassword = await bcrypt.hash(strongPassword, BCRYPT_ROUNDS);
-          
+
           // Update user with new password
           const updatedUser = await storage.updateUser(user.id, { passwordHash: hashedPassword });
-          
+
           if (updatedUser) {
             passwordUpdates.push({
               email: user.email,
@@ -536,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`❌ Failed to update password for ${user.email}:`, error);
         }
       }
-      
+
       // Return results - Note: In production, consider more secure ways to communicate new passwords
       res.json({
         message: `Successfully updated ${updateCount} user passwords`,
@@ -544,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         warning: "Please securely communicate new passwords to users",
         passwordUpdates: passwordUpdates
       });
-      
+
     } catch (error) {
       console.error('Password reset error:', error);
       res.status(500).json({ 
@@ -558,29 +552,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
     const filePath = path.resolve('uploads', filename);
-    
+
     // Security: Prevent path traversal attacks
     if (!filePath.startsWith(path.resolve('uploads'))) {
       return res.status(403).json({ message: "Access denied" });
     }
-    
+
     res.sendFile(filePath, (err) => {
       if (err) {
         res.status(404).json({ message: "File not found" });
       }
     });
   });
-  
+
   // Setup/Demo data route (for development) - Admin only for security
   app.post("/api/setup-demo", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       console.log('Setting up demo data...');
-      
+
       // First check if roles exist, if not this will tell us about database structure
       try {
         const existingRoles = await storage.getRoles();
         console.log('Existing roles:', existingRoles.length);
-        
+
         // If no roles, we can't proceed without proper role creation method
         // For now, let's just log what we found and return a helpful message
         if (existingRoles.length === 0) {
@@ -660,19 +654,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       console.log('Login attempt for email:', req.body.email || 'unknown');
-      
+
       // Rate limiting to prevent brute force attacks
       const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
       const attemptKey = `${clientIp}:${req.body.email || 'no-email'}`;
       const now = Date.now();
-      
+
       // Clean up old attempts
       for (const [key, data] of Array.from(loginAttempts.entries())) {
         if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
           loginAttempts.delete(key);
         }
       }
-      
+
       // Check rate limit
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
@@ -681,38 +675,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Too many login attempts. Please try again in 15 minutes." 
         });
       }
-      
+
       // Validate input - note: role is now derived from database, not from client
       const { email, password } = loginSchema.parse(req.body);
-      
+
       // Increment attempt counter
       loginAttempts.set(attemptKey, {
         count: attempts.count + 1,
         lastAttempt: now
       });
-      
+
       const user = await storage.getUserByEmail(email);
       if (!user) {
         console.log(`Login failed: User not found for email ${email}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
+
       // CRITICAL: Verify password hash with bcrypt
       if (!user.passwordHash) {
         console.error(`SECURITY WARNING: User ${email} has no password hash set`);
         return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
       }
-      
+
       // Compare provided password with stored hash
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for email ${email}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
+
       // Password verification successful - reset rate limit
       loginAttempts.delete(attemptKey);
-      
+
       // Generate JWT token with user claims - ensure UUID is string
       const userId = typeof user.id === 'string' ? user.id : String(user.id);
       const tokenPayload = {
@@ -721,11 +715,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         roleId: user.roleId,
         iat: Math.floor(Date.now() / 1000),
       };
-      
+
       const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-      
+
       console.log(`Login successful for ${email} with roleId: ${user.roleId}`);
-      
+
       res.json({ 
         token,
         user: { 
@@ -750,7 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contact", async (req, res) => {
     try {
       const data = contactSchema.parse(req.body);
-      
+
       // Save to Supabase database permanently
       const contactMessageData = insertContactMessageSchema.parse({
         name: data.name,
@@ -759,10 +753,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject: null, // Can be extended later if needed
         isRead: false
       });
-      
+
       const savedMessage = await storage.createContactMessage(contactMessageData);
       console.log("✅ Contact form saved to database:", { id: savedMessage.id, email: data.email });
-      
+
       res.json({ 
         message: "Message sent successfully! We'll get back to you soon.",
         id: savedMessage.id 
@@ -781,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { role } = req.query;
       let users: any[] = [];
-      
+
       if (role && typeof role === 'string') {
         const userRole = await storage.getRoleByName(role);
         if (userRole) {
@@ -798,7 +792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           users.push(...roleUsers);
         }
       }
-      
+
       // Remove sensitive data from response
       const sanitizedUsers = users.map(user => {
         const { passwordHash, ...safeUser } = user;
@@ -814,22 +808,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Extract password from request and hash it before storage
       const { password, ...otherUserData } = req.body;
-      
+
       if (!password || typeof password !== 'string' || password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
       }
-      
+
       // Hash password with bcrypt
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-      
+
       // Prepare user data with hashed password
       const userData = insertUserSchema.parse({
         ...otherUserData,
         passwordHash
       });
-      
+
       const user = await storage.createUser(userData);
-      
+
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
@@ -850,14 +844,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       // Extract password if provided for separate handling
       const { password, passwordHash, ...otherUserData } = req.body;
-      
+
       // Prevent direct passwordHash manipulation
       if (passwordHash) {
         return res.status(400).json({ message: "Direct password hash modification not allowed" });
       }
-      
+
       let updateData = otherUserData;
-      
+
       // If password provided, hash it properly
       if (password) {
         if (typeof password !== 'string' || password.length < 6) {
@@ -866,14 +860,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
         updateData = { ...otherUserData, passwordHash: hashedPassword };
       }
-      
+
       const userData = insertUserSchema.partial().parse(updateData);
       const user = await storage.updateUser(id, userData);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
@@ -886,11 +880,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteUser(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({ message: "User deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete user" });
@@ -902,14 +896,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { classId } = req.query;
       let students: any[] = [];
-      
+
       if (classId && typeof classId === 'string') {
         students = await storage.getStudentsByClass(parseInt(classId));
       } else {
         // Get all students including inactive ones so blocked students can be unblocked
         students = await storage.getAllStudents(true);
       }
-      
+
       res.json(students);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -920,17 +914,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       console.log('Creating student for email:', req.body.email); // Log context without sensitive data
-      
+
       // Simple date validation function that doesn't use Date constructor
       const isValidDate = (dateString: string): boolean => {
         const regex = /^\d{4}-\d{2}-\d{2}$/;
         if (!regex.test(dateString)) return false;
-        
+
         const [year, month, day] = dateString.split('-').map(Number);
         if (year < 1900 || year > 2100) return false;
         if (month < 1 || month > 12) return false;
         if (day < 1 || day > 31) return false;
-        
+
         // Check for invalid dates like Feb 30
         if (month === 2) {
           const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
@@ -938,7 +932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if ([4, 6, 9, 11].includes(month) && day > 30) {
           return false;
         }
-        
+
         return true;
       };
 
@@ -957,7 +951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = sharedCreateStudentSchema.parse(req.body);
-      
+
       // Check if user with this email already exists
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
@@ -1023,17 +1017,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (rollbackError) {
           console.error('Rollback failed:', rollbackError);
         }
-        
+
         if ((studentError as any).code === '23505') {
           return res.status(409).json({ message: "Admission number already exists" });
         }
-        
+
         throw studentError;
       }
 
     } catch (error) {
       console.error('Error creating student:', error);
-      
+
       // Handle validation errors with detailed information
       if ((error as any)?.name === 'ZodError' || ((error as any)?.issues && Array.isArray((error as any).issues))) {
         const validationErrors = (error as any).issues || [];
@@ -1048,7 +1042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           details: validationErrors // Include full details for debugging
         });
       }
-      
+
       // Handle specific database errors
       if ((error as any)?.code) {
         switch ((error as any).code) {
@@ -1074,7 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('Database error:', (error as any).code, (error as any).message);
         }
       }
-      
+
       res.status(500).json({ message: "Failed to create student" });
     }
   });
@@ -1084,10 +1078,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       console.log(`Updating student ${id}`);
-      
+
       // Separate user and student data
       const { password, email, firstName, lastName, phone, address, dateOfBirth, gender, profileImageUrl, ...studentData } = req.body;
-      
+
       // Prepare user patch data
       let userPatch: any = {};
       if (email !== undefined) userPatch.email = email;
@@ -1098,13 +1092,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (dateOfBirth !== undefined) userPatch.dateOfBirth = dateOfBirth;
       if (gender !== undefined) userPatch.gender = gender;
       if (profileImageUrl !== undefined) userPatch.profileImageUrl = profileImageUrl;
-      
+
       // Handle password separately if provided
       if (password && password.length >= 6) {
         const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         userPatch.passwordHash = passwordHash;
       }
-      
+
       // Prepare student patch data
       let studentPatch: any = {};
       if (studentData.admissionNumber !== undefined) studentPatch.admissionNumber = studentData.admissionNumber;
@@ -1113,7 +1107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (studentData.admissionDate !== undefined) studentPatch.admissionDate = studentData.admissionDate;
       if (studentData.emergencyContact !== undefined) studentPatch.emergencyContact = studentData.emergencyContact;
       if (studentData.medicalInfo !== undefined) studentPatch.medicalInfo = studentData.medicalInfo;
-      
+
       // Check for existing email if email is being updated
       if (email) {
         const existingUser = await storage.getUserByEmail(email);
@@ -1121,7 +1115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(409).json({ message: "Email address already exists" });
         }
       }
-      
+
       // Check for existing admission number if admission number is being updated
       if (studentPatch.admissionNumber) {
         const existingStudent = await storage.getStudentByAdmissionNumber(studentPatch.admissionNumber);
@@ -1129,29 +1123,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(409).json({ message: "Admission number already exists" });
         }
       }
-      
+
       // Update student using transactional method
       const result = await storage.updateStudent(id, { 
         userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
         studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : undefined
       });
-      
+
       if (!result) {
         return res.status(404).json({ message: "Student not found" });
       }
-      
+
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = result.user;
-      
+
       res.json({
         message: "Student updated successfully",
         user: userResponse,
         student: result.student
       });
-      
+
     } catch (error) {
       console.error('Error updating student:', error);
-      
+
       // Handle specific database errors
       if ((error as any)?.code) {
         switch ((error as any).code) {
@@ -1173,7 +1167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('Database error:', (error as any).code, (error as any).message);
         }
       }
-      
+
       res.status(500).json({ message: "Failed to update student" });
     }
   });
@@ -1183,24 +1177,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { isActive } = req.body;
-      
+
       if (typeof isActive !== 'boolean') {
         return res.status(400).json({ message: "isActive must be a boolean value" });
       }
-      
+
       console.log(`${isActive ? 'Unblocking' : 'Blocking'} student ${id}`);
-      
+
       const result = await storage.setUserActive(id, isActive);
-      
+
       if (!result) {
         return res.status(404).json({ message: "Student not found" });
       }
-      
+
       res.json({
         message: `Student ${isActive ? 'unblocked' : 'blocked'} successfully`,
         user: { id: result.id, isActive: result.isActive }
       });
-      
+
     } catch (error) {
       console.error('Error blocking/unblocking student:', error);
       res.status(500).json({ message: "Failed to update student status" });
@@ -1212,18 +1206,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       console.log(`Hard deleting student ${id}`);
-      
+
       const success = await storage.hardDeleteStudent(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Student not found" });
       }
-      
+
       res.json({ 
         message: "Student deleted successfully",
         status: "deleted"
       });
-      
+
     } catch (error) {
       console.error('Error deleting student:', error);
       res.status(500).json({ message: "Failed to delete student" });
@@ -1265,11 +1259,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         capacity: req.body.capacity,
       };
       const classObj = await storage.updateClass(parseInt(id), classData);
-      
+
       if (!classObj) {
         return res.status(404).json({ message: "Class not found" });
       }
-      
+
       res.json(classObj);
     } catch (error) {
       res.status(400).json({ message: "Invalid class data" });
@@ -1280,11 +1274,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteClass(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ message: "Class not found" });
       }
-      
+
       res.json({ message: "Class deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete class" });
@@ -1324,11 +1318,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: req.body.description,
       };
       const subject = await storage.updateSubject(parseInt(id), subjectData);
-      
+
       if (!subject) {
         return res.status(404).json({ message: "Subject not found" });
       }
-      
+
       res.json(subject);
     } catch (error) {
       res.status(400).json({ message: "Invalid subject data" });
@@ -1339,11 +1333,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteSubject(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ message: "Subject not found" });
       }
-      
+
       res.json({ message: "Subject deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete subject" });
@@ -1365,12 +1359,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId } = req.params;
       const { date } = req.query;
-      
+
       const attendance = await storage.getAttendanceByStudent(
         studentId, 
         typeof date === 'string' ? date : undefined
       );
-      
+
       res.json(attendance);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch attendance" });
@@ -1381,11 +1375,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { classId } = req.params;
       const { date } = req.query;
-      
+
       if (!date || typeof date !== 'string') {
         return res.status(400).json({ message: "Date parameter is required" });
       }
-      
+
       const attendance = await storage.getAttendanceByClass(parseInt(classId), date);
       res.json(attendance);
     } catch (error) {
@@ -1398,27 +1392,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       console.log('Exam creation request body:', JSON.stringify(req.body, null, 2));
-      
+
       // Sanitize request body before parsing - convert empty strings to undefined for optional fields
       const sanitizedBody = { ...req.body };
       const optionalNumericFields = ['timeLimit', 'passingScore'];
       const optionalDateFields = ['startTime', 'endTime'];
       const optionalTextFields = ['instructions'];
-      
+
       [...optionalNumericFields, ...optionalDateFields, ...optionalTextFields].forEach(field => {
         if (sanitizedBody[field] === '') {
           sanitizedBody[field] = undefined;
         }
       });
-      
+
       // Ensure numeric IDs are properly converted
       if (sanitizedBody.classId) sanitizedBody.classId = Number(sanitizedBody.classId);
       if (sanitizedBody.subjectId) sanitizedBody.subjectId = Number(sanitizedBody.subjectId);
       if (sanitizedBody.termId) sanitizedBody.termId = Number(sanitizedBody.termId);
       if (sanitizedBody.totalMarks) sanitizedBody.totalMarks = Number(sanitizedBody.totalMarks);
-      
+
       console.log('Sanitized exam data:', JSON.stringify(sanitizedBody, null, 2));
-      
+
       const examData = insertExamSchema.omit({ createdBy: true }).parse(sanitizedBody);
       console.log('Parsed exam data:', JSON.stringify(examData, null, 2));
       const examWithCreator = { ...examData, createdBy: (req as any).user.id };
@@ -1431,7 +1425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Provide more specific error messages for common validation issues
         let message = "Invalid exam data";
         let details = error.message;
-        
+
         if (error.message.includes('positive')) {
           message = "Please check required fields: class, subject, term, and total marks must be selected/filled";
         } else if (error.message.includes('date')) {
@@ -1439,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (error.message.includes('foreign key')) {
           message = "Invalid reference data - please ensure valid class, subject, and term are selected";
         }
-        
+
         res.status(400).json({ message, details });
       } else {
         res.status(400).json({ message: "Invalid exam data" });
@@ -1458,11 +1452,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For students: only show published exams for their class
         const student = await storage.getStudent(user.id);
         console.log(`Student data:`, student);
-        
+
         if (student && student.classId) {
           const classExams = await storage.getExamsByClass(student.classId);
           console.log(`Found ${classExams.length} exams for class ${student.classId}`);
-          
+
           // Filter to only published exams
           exams = classExams.filter(exam => exam.isPublished);
           console.log(`Filtered to ${exams.length} published exams for student`);
@@ -1516,19 +1510,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // First get the existing exam to check ownership
       const existingExam = await storage.getExamById(parseInt(id));
       if (!existingExam) {
         return res.status(404).json({ message: "Exam not found" });
       }
-      
+
       // Ownership check: Teachers can only modify their own exams
       // Admins can modify any exam
       if ((req as any).user.roleId === ROLES.TEACHER && existingExam.createdBy !== (req as any).user.id) {
         return res.status(403).json({ message: "You can only modify exams you created" });
       }
-      
+
       const examData = insertExamSchema.partial().parse(req.body);
       const exam = await storage.updateExam(parseInt(id), examData);
       if (!exam) {
@@ -1543,19 +1537,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // First get the existing exam to check ownership
       const existingExam = await storage.getExamById(parseInt(id));
       if (!existingExam) {
         return res.status(404).json({ message: "Exam not found" });
       }
-      
+
       // Ownership check: Teachers can only delete their own exams
       // Admins can delete any exam
       if ((req as any).user.roleId === ROLES.TEACHER && existingExam.createdBy !== (req as any).user.id) {
         return res.status(403).json({ message: "You can only delete exams you created" });
       }
-      
+
       const success = await storage.deleteExam(parseInt(id));
       if (!success) {
         return res.status(404).json({ message: "Exam not found" });
@@ -1571,26 +1565,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { options, ...questionData } = req.body;
-      
+
       // Normalize questionType to canonical value
       if (questionData.questionType) {
         questionData.questionType = String(questionData.questionType).toLowerCase().replace(/[-\s]/g, '_');
       }
-      
+
       const validatedQuestion = insertExamQuestionSchema.parse(questionData);
-      
+
       // Validate options using the creation-specific schema (without questionId)
       let validatedOptions: any[] = [];
       if (validatedQuestion.questionType === 'multiple_choice') {
         if (!options || !Array.isArray(options) || options.length < 2) {
           return res.status(400).json({ message: "Multiple choice questions require at least 2 options" });
         }
-        
+
         const hasCorrectAnswer = options.some(option => option.isCorrect === true);
         if (!hasCorrectAnswer) {
           return res.status(400).json({ message: "Multiple choice questions require at least one correct answer" });
         }
-        
+
         // Validate each option using the creation schema
         try {
           validatedOptions = options.map(option => createQuestionOptionSchema.parse(option));
@@ -1601,7 +1595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       // Create question with options atomically (compensation-based)
       const question = await storage.createExamQuestionWithOptions(validatedQuestion, validatedOptions);
       res.json(question);
@@ -1609,10 +1603,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Question creation error:', error);
       let message = "Invalid question data";
       let details = "";
-      
+
       if (error instanceof Error) {
         details = error.message;
-        
+
         if (error.message.includes('options')) {
           message = "Invalid question options - multiple choice questions need at least 2 options with one marked as correct";
         } else if (error.message.includes('questionText')) {
@@ -1623,7 +1617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message = "Invalid exam reference - please ensure the exam exists and you have permission to add questions";
         }
       }
-      
+
       res.status(400).json({ message, details });
     }
   });
@@ -1632,14 +1626,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = (req as any).user;
       const { examId } = req.params;
-      
+
       // For students: require active exam session to prevent question leakage
       if (user.roleId === ROLES.STUDENT) {
         const activeSession = await storage.getActiveExamSession(parseInt(examId), user.id);
         if (!activeSession) {
           return res.status(403).json({ message: "No active exam session. Start the exam first." });
         }
-        
+
         // Verify session is still valid (not completed)
         if (activeSession.isCompleted) {
           return res.status(403).json({ message: "Exam session has been completed" });
@@ -1654,9 +1648,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Admins can view all questions
       }
-      
+
       const questions = await storage.getExamQuestions(parseInt(examId));
-      
+
       // Students see questions without correct answer indicators, teachers/admins see all
       if (user.roleId === ROLES.STUDENT) {
         // Remove sensitive data for students during exam
@@ -1707,24 +1701,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/exams/question-counts", authenticateUser, async (req, res) => {
     try {
       const raw = req.query.examIds;
-      
+
       if (!raw) {
         return res.status(400).json({ message: "examIds parameter is required" });
       }
-      
+
       // Robust parsing: handle array, comma-separated string, or single value
       const ids = (Array.isArray(raw) ? raw : (typeof raw === 'string' ? raw.split(',') : []))
         .map(x => parseInt(String(x), 10))
         .filter(Number.isFinite);
-      
+
       if (ids.length === 0) {
         return res.status(400).json({ message: "No valid exam IDs provided" });
       }
-      
+
       console.log('Fetching question counts for exam IDs:', ids);
       const questionCounts = await storage.getExamQuestionCounts(ids);
       console.log('Question counts result:', questionCounts);
-      
+
       res.json(questionCounts);
     } catch (error) {
       console.error('Error fetching question counts:', error);
@@ -1822,13 +1816,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least 2 options`);
               continue;
             }
-            
+
             const hasCorrectAnswer = questionData.options.some((option: any) => option.isCorrect === true);
             if (!hasCorrectAnswer) {
               validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least one correct answer`);
               continue;
             }
-            
+
             // Validate each option using the creation schema (without questionId)
             try {
               questionData.options = questionData.options.map((option: any) => createQuestionOptionSchema.parse(option));
@@ -1906,33 +1900,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = (req as any).user;
       const { questionIds } = req.query;
-      
+
       if (!questionIds) {
         return res.status(400).json({ message: "questionIds parameter is required" });
       }
-      
+
       const questionIdArray = (questionIds as string).split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-      
+
       if (questionIdArray.length === 0) {
         return res.status(400).json({ message: "Valid questionIds are required" });
       }
-      
+
       // For students: verify they have an active exam session
       if (user.roleId === ROLES.STUDENT) {
         const allActiveSession = await storage.getExamSessionsByStudent(user.id);
         const hasActiveSession = allActiveSession.some(session => !session.isCompleted);
-        
+
         if (!hasActiveSession) {
           return res.status(403).json({ message: "No active exam session. Start an exam first." });
         }
       }
-      
+
       // PERFORMANCE: Fetch all options in a single database query
       const allOptions = await storage.getQuestionOptionsBulk(questionIdArray);
-      
+
       // Hide answer keys from students (roleId 3+ are students/parents)
       const isStudentOrParent = user.roleId >= 3;
-      
+
       if (isStudentOrParent) {
         // Remove the isCorrect field from options for students
         const sanitizedOptions = allOptions.map((option: any) => {
@@ -1954,18 +1948,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = (req as any).user;
       const { questionId } = req.params;
-      
+
       // For students: verify they have an active exam session for questions they're trying to access
       if (user.roleId === ROLES.STUDENT) {
         // First get the question to find the exam
         const questions = await storage.getExamQuestions(0); // This is inefficient, need to get by question ID
         // TODO: Add getQuestionById method to storage for efficiency
         // For now, we'll check if any active session exists for the user
-        
+
         // This is a temporary solution - ideally we'd have storage.getQuestionById()
         const allActiveSession = await storage.getExamSessionsByStudent(user.id);
         const hasActiveSession = allActiveSession.some(session => !session.isCompleted);
-        
+
         if (!hasActiveSession) {
           return res.status(403).json({ message: "No active exam session. Start an exam first." });
         }
@@ -1977,13 +1971,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Admins can see all
       }
-      
+
       const options = await storage.getQuestionOptions(parseInt(questionId));
-      
+
       // Hide answer keys from students (roleId 3+ are students/parents)
       // Only admin (roleId 1) and teachers (roleId 2) can see correct answers
       const isStudentOrParent = user.roleId >= 3;
-      
+
       if (isStudentOrParent) {
         // Remove the isCorrect field from options for students
         const sanitizedOptions = options.map(option => {
@@ -2001,1426 +1995,758 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Result Compilation Routes
-  app.get("/api/results/compile/:studentId/:subjectId/:termId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  // Result compilation endpoint for Test(40%) + Exam(60%) calculation
+  app.post("/api/results/compile", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      const { studentId, subjectId, termId } = req.params;
-      const compilation = await storage.compileStudentResults(studentId, parseInt(subjectId), parseInt(termId));
-      res.json(compilation);
+      const { studentId, subjectId, termId } = req.body;
+
+      if (!studentId || !subjectId || !termId) {
+        return res.status(400).json({ message: "Student ID, Subject ID, and Term ID are required" });
+      }
+
+      // Get all exam results for this student, subject, and term
+      const examResults = await storage.getExamResultsByStudent(studentId);
+      const relevantResults = examResults.filter((result: any) => {
+        // Need to check if exam belongs to the subject and term
+        // Fetching exam details to get subjectId and termId
+        return result.examId && parseInt(subjectId) && parseInt(termId);
+      });
+
+      // Enrich relevantResults with exam details to filter by subjectId and termId
+      const enrichedResults = [];
+      for (const result of relevantResults) {
+        try {
+          const exam = await storage.getExamById(result.examId);
+          if (exam && exam.subjectId === parseInt(subjectId) && exam.termId === parseInt(termId)) {
+            enrichedResults.push({ ...result, examType: exam.examType }); // Add examType for filtering
+          }
+        } catch (examError) {
+          console.warn(`Could not fetch exam details for examId ${result.examId}:`, examError);
+          // Continue processing other results
+        }
+      }
+
+      // Separate test and exam results
+      const testResults = enrichedResults.filter((r: any) => r.examType === 'test');
+      const examResultsFiltered = enrichedResults.filter((r: any) => r.examType === 'exam');
+
+      // Calculate weighted scores
+      let testWeightedScore = 0;
+      let examWeightedScore = 0;
+      let hasTest = false;
+      let hasExam = false;
+
+      if (testResults.length > 0) {
+        // Use the highest test score or average - configurable
+        const testScore = Math.max(...testResults.map((r: any) => (r.score / r.maxScore) * 100));
+        testWeightedScore = (testScore * 40) / 100; // 40% weight
+        hasTest = true;
+      }
+
+      if (examResultsFiltered.length > 0) {
+        // Use the highest exam score or average - configurable  
+        const examScore = Math.max(...examResultsFiltered.map((r: any) => (r.score / r.maxScore) * 100));
+        examWeightedScore = (examScore * 60) / 100; // 60% weight
+        hasExam = true;
+      }
+
+      const totalScore = testWeightedScore + examWeightedScore;
+      let grade = 'F';
+
+      if (totalScore >= 90) grade = 'A+';
+      else if (totalScore >= 80) grade = 'A';
+      else if (totalScore >= 70) grade = 'B+';
+      else if (totalScore >= 60) grade = 'B';
+      else if (totalScore >= 50) grade = 'C';
+
+      const compiledResult = {
+        studentId,
+        subjectId: parseInt(subjectId),
+        termId: parseInt(termId),
+        testScore: hasTest ? testWeightedScore : null,
+        examScore: hasExam ? examWeightedScore : null,
+        totalScore: totalScore,
+        grade: grade,
+        hasTest,
+        hasExam,
+        isComplete: hasTest && hasExam
+      };
+
+      res.json(compiledResult);
     } catch (error) {
-      console.error('Error compiling student results:', error);
-      res.status(500).json({ message: "Failed to compile student results" });
+      console.error('Result compilation error:', error);
+      res.status(500).json({ message: "Failed to compile results" });
     }
   });
 
-  app.get("/api/results/report-card/:classId/:termId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  // Generate student report card
+  app.get("/api/report-card/:studentId/:termId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.STUDENT, ROLES.PARENT), async (req, res) => {
     try {
-      const { classId, termId } = req.params;
-      const reportCard = await storage.generateClassReportCard(parseInt(classId), parseInt(termId));
+      const { studentId, termId } = req.params;
+
+      // Authorization check
+      if (req.user.roleId === ROLES.STUDENT && req.user.id !== studentId) {
+        return res.status(403).json({ message: "Students can only view their own report cards" });
+      }
+
+      // Get student info
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Get all subjects for the student's class
+      const subjects = await storage.getSubjects();
+
+      // Generate report for each subject
+      const reportItems = [];
+      let totalPoints = 0;
+      let totalMaxPoints = 0;
+
+      for (const subject of subjects) {
+        // Get compiled results for this subject
+        const compilationResponse = await apiRequest('POST', '/api/results/compile', {
+          studentId,
+          subjectId: subject.id,
+          termId: parseInt(termId)
+        });
+
+        if (compilationResponse.ok) {
+          const compiled = await compilationResponse.json();
+
+          reportItems.push({
+            subjectName: subject.name,
+            testScore: compiled.testScore ? Math.round(compiled.testScore) : '-',
+            examScore: compiled.examScore ? Math.round(compiled.examScore) : '-',
+            totalScore: Math.round(compiled.totalScore),
+            grade: compiled.grade,
+            remarks: compiled.isComplete ? 'Complete' : 'Pending'
+          });
+
+          totalPoints += compiled.totalScore;
+          totalMaxPoints += 100;
+        }
+      }
+
+      const overallPercentage = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
+      let overallGrade = 'F';
+      if (overallPercentage >= 90) overallGrade = 'A+';
+      else if (overallPercentage >= 80) overallGrade = 'A';
+      else if (overallPercentage >= 70) overallGrade = 'B+';
+      else if (overallPercentage >= 60) overallGrade = 'B';
+      else if (overallPercentage >= 50) overallGrade = 'C';
+
+      const reportCard = {
+        studentInfo: {
+          id: student.id,
+          admissionNumber: student.admissionNumber,
+          name: `${req.user.firstName} ${req.user.lastName}`,
+          class: student.classId
+        },
+        termId: parseInt(termId),
+        subjects: reportItems,
+        summary: {
+          totalSubjects: subjects.length,
+          averagePercentage: overallPercentage,
+          overallGrade: overallGrade,
+          totalPoints: Math.round(totalPoints),
+          maxPoints: totalMaxPoints
+        },
+        generatedAt: new Date().toISOString()
+      };
+
       res.json(reportCard);
     } catch (error) {
-      console.error('Error generating report card:', error);
+      console.error('Report card generation error:', error);
       res.status(500).json({ message: "Failed to generate report card" });
     }
   });
 
-  // Exam results
-  app.post("/api/exam-results", authenticateUser, async (req, res) => {
+  // Study resources routes
+  app.get("/api/study-resources", authenticateUser, async (req, res) => {
     try {
-      const resultData = insertExamResultSchema.parse(req.body);
-      
-      // Security validation: Only teachers (roleId 2) and admins (roleId 1) can record results
-      // Students cannot submit their own scores to prevent tampering
-      if ((req as any).user.roleId >= 3) {
-        return res.status(403).json({ message: "Students cannot submit exam results directly" });
-      }
-      
-      // Set recordedBy to the authenticated user
-      const secureResultData = {
-        ...resultData,
-        recordedBy: (req as any).user.id
-      };
-      
-      const result = await storage.recordExamResult(secureResultData);
-      res.json(result);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid exam result data" });
-    }
-  });
-
-  // Add dedicated auto-scoring status endpoint for better polling
-  app.get("/api/exam-sessions/:sessionId/scoring-status", authenticateUser, async (req, res) => {
-    try {
-      const { sessionId } = req.params;
+      const { classId, subjectId, termId, resourceType } = req.query;
       const user = (req as any).user;
-      
-      // Get the session to verify ownership
-      const session = await storage.getExamSessionById(parseInt(sessionId));
-      if (!session) {
-        return res.status(404).json({ 
-          status: 'error',
-          message: "Exam session not found",
-          result: null 
-        });
-      }
-      
-      // Security: Students can only check their own sessions
-      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
-        return res.status(403).json({ 
-          status: 'error',
-          message: "Access denied",
-          result: null 
-        });
-      }
-      
-      // ENHANCED LOGIC: Check if auto-scoring result exists
-      console.log(`Checking auto-scoring status for session ${sessionId}, student ${session.studentId}, exam ${session.examId}`);
-      
-      try {
-        const results = await storage.getExamResultsByStudent(session.studentId);
-        console.log(`📊 Found ${results.length} total results for student ${session.studentId}`);
-        
-        const autoScoredResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
-        
-        if (autoScoredResult) {
-          console.log(`✅ Auto-scoring result found for session ${sessionId}:`, autoScoredResult.score, '/', autoScoredResult.maxScore);
-          res.json({ 
-            status: 'completed', 
-            result: autoScoredResult,
-            message: 'Auto-scoring completed successfully'
-          });
-        } else if (session.isCompleted) {
-          // SAFETY CHECK: If session completed more than 30 seconds ago and no result, something went wrong
-          const completedAt = session.submittedAt || session.createdAt;
-          const now = new Date();
-          const timeSinceCompletion = completedAt ? (now.getTime() - new Date(completedAt).getTime()) / 1000 : 0;
-          
-          if (timeSinceCompletion > 30) {
-            console.warn(`⚠️ Session ${sessionId} completed ${timeSinceCompletion}s ago but no auto-scored result found - possible scoring failure`);
-            
-            // Check if there are any exam questions at all
-            const examQuestions = await storage.getExamQuestions(session.examId);
-            const hasAutoScorableQuestions = examQuestions.some((q: any) => q.questionType === 'multiple_choice');
-            
-            if (!hasAutoScorableQuestions) {
-              console.log(`📝 No auto-scorable questions found for exam ${session.examId} - manual grading required`);
-              res.json({ 
-                status: 'manual_grading_required', 
-                result: null,
-                message: 'This exam requires manual grading by your instructor'
-              });
-            } else {
-              console.error(`❌ TIMEOUT: Auto-scoring failed for session ${sessionId} after ${timeSinceCompletion}s`);
-              res.json({ 
-                status: 'timeout', 
-                result: null,
-                message: 'Auto-scoring timed out. Your instructor will grade manually and results will be available soon.'
-              });
-            }
-          } else {
-            console.log(`⏳ Session ${sessionId} is completed but no auto-scored result yet (${timeSinceCompletion}s ago)`);
-            res.json({ 
-              status: 'processing', 
-              result: null,
-              message: 'Auto-scoring in progress'
-            });
-          }
-        } else {
-          console.log(`📝 Session ${sessionId} is still in progress`);
-          res.json({ 
-            status: 'in_progress', 
-            result: null,
-            message: 'Exam session still in progress'
-          });
-        }
-      } catch (dbError) {
-        console.error('❌ Database error while checking scoring status:', dbError);
-        res.status(500).json({ 
-          status: 'error', 
-          result: null,
-          message: "Database error while checking results",
-          error: dbError instanceof Error ? dbError.message : 'Database error'
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error checking auto-scoring status:', error);
-      res.status(500).json({ 
-        status: 'error', 
-        result: null,
-        message: "Failed to check auto-scoring status",
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
 
-  app.get("/api/exam-results/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const user = (req as any).user;
-      
-      // Security: Students can only view their own results, teachers and admins can view any
-      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
-        return res.status(403).json({ message: "Students can only view their own exam results" });
-      }
-      
-      console.log(`Fetching exam results for student: ${studentId}`);
-      const results = await storage.getExamResultsByStudent(studentId);
-      console.log(`Found ${results.length} exam results for student ${studentId}`);
-      
-      // Add debug logging for auto-scored results
-      const autoScoredCount = results.filter((r: any) => r.autoScored === true).length;
-      console.log(`   - ${autoScoredCount} auto-scored results found`);
-      
-      // Return empty array if no results found (this is normal)
-      res.json(results || []);
-    } catch (error) {
-      console.error('Error fetching exam results:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ 
-        message: "Failed to fetch exam results", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
-    }
-  });
-
-  app.get("/api/exam-results/exam/:examId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { examId } = req.params;
-      const results = await storage.getExamResultsByExam(parseInt(examId));
-      res.json(results);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exam results" });
-    }
-  });
-
-  // Teacher-specific result views
-  app.get("/api/teachers/results/by-class/:classId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { classId } = req.params;
-      const user = (req as any).user;
-      
-      console.log(`Teacher ${user.email} fetching results for class ${classId}`);
-      
-      // For teachers, ensure they have access to this class (they created exams for it or are class teacher)
-      if (user.roleId === ROLES.TEACHER) {
-        // Check if teacher has created any exams for this class or is the class teacher
-        const classExams = await storage.getExamsByClass(parseInt(classId));
-        const teacherExams = classExams.filter((exam: any) => exam.createdBy === user.id);
-        
-        // Also check if they are the class teacher
-        const classInfo = await storage.getClass(parseInt(classId));
-        const isClassTeacher = classInfo && classInfo.classTeacherId === user.id;
-        
-        if (teacherExams.length === 0 && !isClassTeacher) {
-          return res.status(403).json({ 
-            message: "Access denied. You can only view results for classes where you've created exams or are the class teacher." 
-          });
-        }
-      }
-      
-      const results = await storage.getExamResultsByClass(parseInt(classId));
-      
-      // Enhance results with additional information (exam names, student names, subjects)
-      const enhancedResults = await Promise.all(results.map(async (result: any) => {
-        try {
-          // Get exam information
-          const exam = await storage.getExamById(result.examId);
-          
-          // Get student information
-          const student = await storage.getStudent(result.studentId);
-          let studentName = 'Unknown Student';
-          if (student) {
-            const user = await storage.getUser(student.id);
-            if (user) {
-              studentName = `${user.firstName} ${user.lastName}`;
-            }
-          }
-          
-          // Get subject information
-          let subjectName = 'Unknown Subject';
-          if (exam) {
-            const subject = await storage.getSubject(exam.subjectId);
-            if (subject) {
-              subjectName = subject.name;
-            }
-          }
-          
-          return {
-            ...result,
-            examName: exam ? exam.name : 'Unknown Exam',
-            studentName,
-            subjectName,
-            examDate: exam ? exam.date : null,
-            totalMarks: exam ? exam.totalMarks : null
-          };
-        } catch (error) {
-          console.error('Error enhancing result:', error);
-          return result;
-        }
-      }));
-      
-      console.log(`Found ${enhancedResults.length} results for class ${classId}`);
-      res.json(enhancedResults);
-    } catch (error) {
-      console.error('Error fetching class results:', error);
-      res.status(500).json({ message: "Failed to fetch class results" });
-    }
-  });
-
-  app.get("/api/teachers/results/by-exam/:examId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { examId } = req.params;
-      const user = (req as any).user;
-      
-      console.log(`Teacher ${user.email} fetching results for exam ${examId}`);
-      
-      // For teachers, ensure they created this exam
-      if (user.roleId === ROLES.TEACHER) {
-        const exam = await storage.getExamById(parseInt(examId));
-        if (!exam || exam.createdBy !== user.id) {
-          return res.status(403).json({ 
-            message: "Access denied. You can only view results for exams you created." 
-          });
-        }
-      }
-      
-      const results = await storage.getExamResultsByExam(parseInt(examId));
-      
-      // Enhance results with additional information (student names, class information)
-      const enhancedResults = await Promise.all(results.map(async (result: any) => {
-        try {
-          // Get student information
-          const student = await storage.getStudent(result.studentId);
-          let studentName = 'Unknown Student';
-          let className = 'Unknown Class';
-          
-          if (student) {
-            const user = await storage.getUser(student.id);
-            if (user) {
-              studentName = `${user.firstName} ${user.lastName}`;
-            }
-            
-            // Get class information
-            if (student.classId) {
-              const classInfo = await storage.getClass(student.classId);
-              if (classInfo) {
-                className = classInfo.name;
-              }
-            }
-          }
-          
-          return {
-            ...result,
-            studentName,
-            className,
-            admissionNumber: student ? student.admissionNumber : null
-          };
-        } catch (error) {
-          console.error('Error enhancing result:', error);
-          return result;
-        }
-      }));
-      
-      console.log(`Found ${enhancedResults.length} results for exam ${examId}`);
-      res.json(enhancedResults);
-    } catch (error) {
-      console.error('Error fetching exam results:', error);
-      res.status(500).json({ message: "Failed to fetch exam results" });
-    }
-  });
-
-  // Exam Sessions - for managing student exam taking sessions
-  app.post("/api/exam-sessions", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      
-      // Check if user is a student
-      if (user.roleId !== ROLES.STUDENT) {
-        return res.status(403).json({ message: "Only students can start exam sessions" });
-      }
-      
-      // Check if user has a corresponding student record
-      const student = await storage.getStudent(user.id);
-      if (!student) {
-        return res.status(403).json({ message: "Student profile not found. Please contact your administrator." });
-      }
-      
-      // Client-facing schema - only require examId
-      const createExamSessionBody = z.object({
-        examId: z.number()
-      });
-      
-      const { examId } = createExamSessionBody.parse(req.body);
-      
-      // Verify exam exists and is accessible
-      const exam = await storage.getExamById(examId);
-      if (!exam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      
-      // Check if exam is published and available
-      if (!exam.isPublished) {
-        return res.status(403).json({ message: "Exam is not published" });
-      }
-      
-      // SECURITY: Check if student belongs to exam's class
-      if (student.classId !== exam.classId) {
-        return res.status(403).json({ message: "You are not authorized to take this exam" });
-      }
-      
-      // Check exam time window (startTime/endTime)
-      const now = new Date();
-      if (exam.startTime && now < new Date(exam.startTime)) {
-        return res.status(403).json({ message: "Exam has not started yet" });
-      }
-      if (exam.endTime && now > new Date(exam.endTime)) {
-        return res.status(403).json({ message: "Exam has ended" });
-      }
-
-      // Check retakes policy: if retakes not allowed, check for completed sessions
-      if (!exam.allowRetakes) {
-        const allStudentSessions = await storage.getExamSessionsByStudent(user.id);
-        const completedSession = allStudentSessions.find(s => 
-          s.examId === examId && s.isCompleted
-        );
-        if (completedSession) {
-          return res.status(403).json({ message: "Retakes are not allowed for this exam" });
-        }
-      }
-
-      // IDEMPOTENT SESSION CREATION: Get existing active session or create new one atomically
-      const sessionData = {
-        examId,
-        studentId: user.id,
-        timeRemaining: exam.timeLimit ? exam.timeLimit * 60 : null, // convert minutes to seconds
-        startedAt: now,
-        // SERVER-SIDE TIMEOUT PROTECTION: Calculate absolute timeout for fail-safe cleanup
-        serverTimeoutAt: exam.timeLimit ? new Date(now.getTime() + (exam.timeLimit * 60 * 1000) + 30000) : null, // +30s grace period
-        lastActivityAt: now
-      };
-      
-      const session = await storage.createOrGetActiveExamSession(examId, user.id, sessionData);
-      console.log(`${session.wasCreated ? 'Created' : 'Retrieved existing'} exam session ${session.id} for student ${user.id} with ${exam.timeLimit || 'unlimited'} minutes`);
-      res.json(session);
-    } catch (error) {
-      console.error('Error creating exam session:', error);
-      
-      // Improved error handling with proper instance checks
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid request data format" });
-      }
-      
-      if (error instanceof Error) {
-        // Check for specific PostgreSQL error codes if available
-        const pgError = error as any;
-        if (pgError.code === '23503') { // Foreign key violation
-          return res.status(400).json({ message: "Student profile not found. Please contact your administrator." });
-        }
-        if (pgError.code === '42703') { // Undefined column
-          return res.status(500).json({ message: "Database schema error. Please contact your administrator." });
-        }
-        
-        // Fallback to message checking for other database errors
-        if (error.message.includes('foreign key')) {
-          return res.status(400).json({ message: "Student profile not found. Please contact your administrator." });
-        }
-      }
-      
-      // Default to 500 for unexpected server errors
-      res.status(500).json({ message: "An unexpected error occurred. Please try again." });
-    }
-  });
-
-  app.get("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { id } = req.params;
-      const session = await storage.getExamSessionById(parseInt(id));
-      if (!session) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      
-      // Security: Students can only access their own sessions
-      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      res.json(session);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exam session" });
-    }
-  });
-
-  app.get("/api/exam-sessions/exam/:examId", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { examId } = req.params;
-      
-      // Security: Students cannot list sessions for any exam (privacy breach)
+      // For students, filter by their class
+      let filters: any = {};
       if (user.roleId === ROLES.STUDENT) {
-        return res.status(403).json({ message: "Students cannot view exam session lists" });
-      }
-      
-      // For teachers: verify they created this exam
-      if (user.roleId === ROLES.TEACHER) {
-        const exam = await storage.getExamById(parseInt(examId));
-        if (!exam || exam.createdBy !== user.id) {
-          return res.status(403).json({ message: "Teachers can only view sessions for their own exams" });
-        }
-      }
-      
-      // Admins (roleId 1) can view all sessions
-      const sessions = await storage.getExamSessionsByExam(parseInt(examId));
-      res.json(sessions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exam sessions" });
-    }
-  });
-
-  app.get("/api/exam-sessions/student/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { studentId } = req.params;
-      
-      // Fix type comparison bug: ensure proper number comparison
-      const numericStudentId = studentId;
-      const numericUserId = user.id;
-      
-      // Security: Students can only access their own sessions
-      if (user.roleId === ROLES.STUDENT && numericStudentId !== numericUserId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // For teachers: verify they have access to this student's exams
-      if (user.roleId === ROLES.TEACHER) {
-        // Teachers should only see sessions for exams they created
-        const allSessions = await storage.getExamSessionsByStudent(studentId);
-        const teacherSessions = [];
-        
-        for (const session of allSessions) {
-          const exam = await storage.getExamById(session.examId);
-          if (exam && exam.createdBy === user.id) {
-            teacherSessions.push(session);
-          }
-        }
-        
-        return res.json(teacherSessions);
-      }
-      
-      // Admins and students (own data) can see all sessions
-      const sessions = await storage.getExamSessionsByStudent(studentId);
-      res.json(sessions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch student exam sessions" });
-    }
-  });
-
-  app.get("/api/exam-sessions/active/:examId/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { examId, studentId } = req.params;
-      
-      // Security: Students can only access their own sessions
-      if (user.roleId === ROLES.STUDENT && studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const session = await storage.getActiveExamSession(parseInt(examId), studentId);
-      res.json(session || null);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch active exam session" });
-    }
-  });
-
-  app.put("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { id } = req.params;
-      
-      // Get existing session to check ownership
-      const existingSession = await storage.getExamSessionById(parseInt(id));
-      if (!existingSession) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      
-      // Security: Students can only update their own sessions
-      if (user.roleId === ROLES.STUDENT && existingSession.studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const sessionData = updateExamSessionSchema.parse(req.body);
-      
-      // SECURITY: Double-check that only safe fields are being updated by students
-      // This provides defense in depth even if schema validation were bypassed
-      const allowedFields = ['isCompleted', 'submittedAt', 'timeRemaining', 'status'] as const;
-      const allowedUpdates = Object.fromEntries(
-        Object.entries(sessionData).filter(([key]) => allowedFields.includes(key as any))
-      );
-      
-      // Additional validation: ensure status transitions are valid for students
-      if (allowedUpdates.status && allowedUpdates.status !== 'submitted') {
-        return res.status(400).json({ message: "Students can only set status to 'submitted'" });
-      }
-      
-      // Time limit validation on session completion
-      if (allowedUpdates.isCompleted === true && existingSession.timeRemaining && existingSession.startedAt) {
-        const now = new Date();
-        const timeElapsedInSeconds = (now.getTime() - new Date(existingSession.startedAt).getTime()) / 1000;
-        
-        if (timeElapsedInSeconds > existingSession.timeRemaining) {
-          console.log(`Session ${id} completion after time limit: ${(timeElapsedInSeconds/60).toFixed(1)} > ${(existingSession.timeRemaining/60).toFixed(1)} minutes`);
-          // Allow completion even if time exceeded - they're being honest about submitting
-        }
-      }
-
-      // Auto-scoring logic: If session is being marked as completed, calculate scores
-      // CRITICAL FIX: Complete auto-scoring BEFORE updating session to prevent race conditions
-      if (allowedUpdates.isCompleted === true && !existingSession.isCompleted) {
-        try {
-          console.log('🎯 Triggering auto-scoring for session:', id);
-          console.log('   - Student ID:', existingSession.studentId);
-          console.log('   - Exam ID:', existingSession.examId);
-          
-          // SYNCHRONOUS auto-scoring - must complete before session update
-          await autoScoreExamSession(parseInt(id), storage);
-          console.log('✅ Auto-scoring completed successfully for session:', id);
-          
-          // Only update session after auto-scoring succeeds
-          const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
-          if (!session) {
-            return res.status(404).json({ message: "Exam session not found" });
-          }
-          
-          // Verify auto-scoring result exists before responding
-          const results = await storage.getExamResultsByStudent(existingSession.studentId);
-          const autoScoredResult = results.find((r: any) => r.examId === existingSession.examId && r.autoScored === true);
-          
-          if (autoScoredResult) {
-            console.log('🎉 Confirmed auto-scored result exists:', autoScoredResult.score, '/', autoScoredResult.maxScore);
-          } else {
-            console.warn('⚠️ Session updated but no auto-scored result found - this may cause client polling issues');
-          }
-          
-          res.json(session);
-        } catch (error) {
-          console.error('❌ CRITICAL: Auto-scoring failed for session:', id);
-          console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
-          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack available');
-          
-          // IMPORTANT: Still update session but with a flag indicating manual grading needed
-          const sessionWithFallback = await storage.updateExamSession(parseInt(id), {
-            ...allowedUpdates,
-            // Add a custom field or note about scoring failure if your schema supports it
-          });
-          
-          if (!sessionWithFallback) {
-            return res.status(404).json({ message: "Exam session not found" });
-          }
-          
-          // Return session with warning that manual grading is needed
-          res.json({
-            ...sessionWithFallback,
-            scoringStatus: 'failed',
-            scoringError: 'Auto-scoring failed, manual grading required'
-          });
+        const student = await storage.getStudent(user.id);
+        if (student?.classId) {
+          filters.classId = student.classId;
         }
       } else {
-        // Normal session update without auto-scoring
-        const session = await storage.updateExamSession(parseInt(id), allowedUpdates);
-        if (!session) {
-          return res.status(404).json({ message: "Exam session not found" });
-        }
-        res.json(session);
+        // For teachers and admins, allow filtering by all parameters
+        if (classId) filters.classId = parseInt(classId as string);
       }
+
+      if (subjectId) filters.subjectId = parseInt(subjectId as string);
+      if (termId) filters.termId = parseInt(termId as string);
+      if (resourceType) filters.resourceType = resourceType as string;
+
+      const resources = await storage.getStudyResources(filters);
+      res.json(resources);
     } catch (error) {
-      console.error('Error updating exam session:', error);
-      res.status(400).json({ message: "Invalid exam session data" });
+      console.error('Study resources fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch study resources" });
     }
   });
 
-  app.delete("/api/exam-sessions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  app.get("/api/study-resources/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteExamSession(parseInt(id));
-      if (!success) {
-        return res.status(404).json({ message: "Exam session not found" });
+      const resource = await storage.getStudyResourceById(parseInt(id));
+
+      if (!resource) {
+        return res.status(404).json({ message: "Study resource not found" });
       }
-      res.json({ message: "Exam session deleted successfully" });
+
+      res.json(resource);
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete exam session" });
+      console.error('Study resource fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch study resource" });
     }
   });
 
-  // MILESTONE 1: Synchronous Exam Submit API - POST /api/exams/:examId/submit
-  // Provides instant feedback without polling for maximum user experience
-  app.post("/api/exams/:examId/submit", authenticateUser, async (req, res) => {
-    const submissionStartTime = Date.now(); // Track total submission time
-    let sessionId: number | null = null;
-    const { examId } = req.params; // Move outside try block for error handling scope
-    
+  app.get("/api/study-resources/:id/download", authenticateUser, async (req, res) => {
     try {
-      const user = (req as any).user;
-      
-      console.log(`🚀 SYNCHRONOUS SUBMIT: User ${user.id} submitting exam ${examId}`);
-      
-      // Security: Only students can submit exams
-      if (user.roleId !== ROLES.STUDENT) {
-        return res.status(403).json({ 
-          message: "Only students can submit exams",
-          submitted: false 
-        });
+      const { id } = req.params;
+      const resource = await storage.getStudyResourceById(parseInt(id));
+
+      if (!resource) {
+        return res.status(404).json({ message: "Study resource not found" });
       }
-      
-      // Find the active exam session for this student and exam
-      const activeSession = await storage.getActiveExamSession(parseInt(examId), user.id);
-      if (!activeSession) {
-        return res.status(404).json({ 
-          message: "No active exam session found. Please start the exam first.",
-          submitted: false 
-        });
+
+      // Increment download count
+      await storage.incrementStudyResourceDownloads(parseInt(id));
+
+      // Serve the file
+      const filePath = path.join(process.cwd(), resource.fileUrl);
+      res.download(filePath, resource.fileName);
+    } catch (error) {
+      console.error('Study resource download error:', error);
+      res.status(500).json({ message: "Failed to download study resource" });
+    }
+  });
+
+  app.delete("/api/study-resources/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get resource first to find the file path
+      const resource = await storage.getStudyResourceById(parseInt(id));
+      if (!resource) {
+        return res.status(404).json({ message: "Study resource not found" });
       }
-      
-      sessionId = activeSession.id; // Track for performance logging
-      console.log(`📋 Found active session ${activeSession.id} for exam ${examId}`);
-      
-      // IDEMPOTENCY GUARD: Check if already submitted
-      if (activeSession.isCompleted) {
-        console.log(`⚠️ IDEMPOTENCY: Session ${activeSession.id} already completed, returning existing result`);
-        
-        // Log this as a duplicate submission attempt
-        const duplicateSubmissionDuration = Date.now() - submissionStartTime;
-        try {
-          await storage.logPerformanceEvent({
-            sessionId: activeSession.id,
-            eventType: 'duplicate_submission_attempt',
-            duration: duplicateSubmissionDuration,
-            goalAchieved: true, // Always fast since it's just a lookup
-            metadata: JSON.stringify({
-              examId: parseInt(examId),
-              studentId: user.id,
-              originalSubmittedAt: activeSession.submittedAt
-            }),
-            userId: user.id,
-            clientSide: false
-          });
-        } catch (perfError) {
-          console.warn('⚠️ Failed to log duplicate submission performance:', perfError);
+
+      // Delete the file from filesystem
+      const filePath = path.join(process.cwd(), resource.fileUrl);
+      try {
+        await fs.unlink(filePath);
+      } catch (fileError) {
+        console.error('File deletion error:', fileError);
+        // Continue with database deletion even if file deletion fails
+      }
+
+      // Delete the record from storage
+      const success = await storage.deleteStudyResource(parseInt(id));
+      if (!success) {
+        return res.status(404).json({ message: "Failed to delete study resource record" });
+      }
+
+      res.json({ message: "Study resource deleted successfully" });
+    } catch (error) {
+      console.error('Study resource deletion error:', error);
+      res.status(500).json({ message: "Failed to delete study resource" });
+    }
+  });
+
+  // Home page content management routes (Admin only)
+  app.get("/api/homepage-content", async (req, res) => {
+    try {
+      const { contentType } = req.query;
+
+      // Handle multiple contentType parameters (array support)
+      let contentTypes: string[] = [];
+      if (contentType) {
+        if (Array.isArray(contentType)) {
+          contentTypes = contentType as string[];
+        } else {
+          contentTypes = [contentType as string];
         }
-        
-        // Get existing result if available
-        const existingResults = await storage.getExamResultsByStudent(user.id);
-        const existingResult = existingResults.find((r: any) => r.examId === parseInt(examId));
-        
-        if (existingResult) {
+      }
+
+      // If no contentType specified, get all content
+      if (contentTypes.length === 0) {
+        const content = await storage.getHomePageContent();
+        return res.json(content);
+      }
+
+      // Fetch content for each contentType and combine results
+      const allContent = [];
+      for (const type of contentTypes) {
+        const content = await storage.getHomePageContent(type);
+        if (content && Array.isArray(content)) {
+          allContent.push(...content);
+        }
+      }
+
+      // Remove duplicates based on id
+      const uniqueContent = allContent.filter((item, index, self) => 
+        index === self.findIndex((t) => t.id === item.id)
+      );
+
+      res.json(uniqueContent);
+    } catch (error) {
+      console.error('Home page content fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch home page content" });
+    }
+  });
+
+  app.post("/api/homepage-content", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const contentData = insertHomePageContentSchema.parse(req.body);
+      const content = await storage.createHomePageContent(contentData);
+      res.json(content);
+    } catch (error) {
+      console.error('Home page content creation error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid content data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to create home page content" });
+    }
+  });
+
+  app.put("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const contentData = insertHomePageContentSchema.partial().parse(req.body);
+      const content = await storage.updateHomePageContent(parseInt(id), contentData);
+
+      if (!content) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+
+      res.json(content);
+    } catch (error) {
+      console.error('Home page content update error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid content data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to update home page content" });
+    }
+  });
+
+  app.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // First get the content to retrieve file information before deletion
+      const content = await storage.getHomePageContentById(parseInt(id));
+
+      if (!content) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+
+      // Delete from database first
+      const deleted = await storage.deleteHomePageContent(parseInt(id));
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+
+      // If there's an associated image file, remove it from disk
+      if (content.imageUrl) {
+        try {
+          // Remove leading slash and construct full file path
+          const filePath = content.imageUrl.startsWith('/') 
+            ? content.imageUrl.substring(1) 
+            : content.imageUrl;
+
+          const fullPath = path.resolve(filePath);
+
+          // Check if file exists and delete it
+          try {
+            await fs.access(fullPath);
+            await fs.unlink(fullPath);
+            console.log(`Successfully deleted file: ${fullPath}`);
+          } catch (fileError: any) {
+            if (fileError.code === 'ENOENT') {
+              console.warn(`File not found (already deleted?): ${fullPath}`);
+            } else {
+              console.error(`Failed to delete file ${fullPath}:`, fileError);
+            }
+          }
+        } catch (pathError) {
+          console.error('Error processing file path for deletion:', pathError);
+        }
+      }
+
+      res.json({ message: "Home page content deleted successfully" });
+    } catch (error) {
+      console.error('Home page content delete error:', error);
+      res.status(500).json({ message: "Failed to delete home page content" });
+    }
+  });
+
+  // Special endpoint for uploading home page images (Admin only)
+  app.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { contentType, altText, caption, displayOrder } = req.body;
+      if (!contentType) {
+        return res.status(400).json({ message: "Content type is required" });
+      }
+
+      const imageUrl = `/uploads/homepage/${req.file.filename}`;
+
+      const homePageContent = await storage.createHomePageContent({
+        contentType,
+        imageUrl,
+        altText: altText || null,
+        caption: caption || null,
+        displayOrder: displayOrder ? parseInt(displayOrder) : 0,
+        isActive: true,
+        uploadedBy: (req as any).user.id
+      });
+
+      res.json({ 
+        message: "Home page image uploaded successfully", 
+        content: homePageContent 
+      });
+    } catch (error) {
+      console.error('Home page upload error:', error);
+      res.status(500).json({ message: "Failed to upload home page image" });
+    }
+  });
+
+  // Debug endpoint to list all users with their roles (Admin only)
+  app.get("/api/debug/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+
+    try {
+      const allRoles = await storage.getRoles();
+      const allUsers = [];
+      for (const role of allRoles) {
+        const users = await storage.getUsersByRole(role.id);
+        for (const user of users) {
+          allUsers.push({
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            roleId: user.roleId,
+            roleName: role.name
+          });
+        }
+      }
+      res.json(allUsers);
+    } catch (error) {
+      console.error('Debug users error:', error);
+      res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // Admin endpoint to update user roles (for fixing role issues)
+  app.patch("/api/users/:id/role", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+
+    try {
+      const { id } = req.params;
+      const { roleId } = req.body;
+
+      // Validate roleId
+      if (!roleId || ![ROLES.STUDENT, ROLES.TEACHER, ROLES.PARENT, ROLES.ADMIN].includes(roleId)) {
+        return res.status(400).json({ message: "Invalid role ID" });
+      }
+
+      const updatedUser = await storage.updateUser(id, { roleId });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log(`Admin ${(req as any).user.email} updated user ${id} roleId to ${roleId}`);
+      res.json({ message: "User role updated successfully", user: updatedUser });
+    } catch (error) {
+      console.error('User role update error:', error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // PERFORMANCE MONITORING API ENDPOINT
+  // Real-time performance metrics for admin monitoring (using real database data)
+  app.get("/api/admin/performance-metrics", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { hours = 24 } = req.query;
+      const hoursNumber = parseInt(hours as string);
+
+      // Get real performance data from database
+      const metrics = await storage.getPerformanceMetrics(hoursNumber);
+      const recentAlerts = await storage.getRecentPerformanceAlerts(hoursNumber);
+
+      // Determine system status based on real metrics
+      let currentStatus = "optimal";
+      let recommendations = ["System performing optimally"];
+
+      if (metrics.goalAchievementRate < 80) {
+        currentStatus = "critical";
+        recommendations = [
+          "Performance below acceptable threshold",
+          "Consider database optimization",
+          "Review exam submission timeouts"
+        ];
+      } else if (metrics.goalAchievementRate < 95) {
+        currentStatus = "warning";
+        recommendations = [
+          "Performance needs attention",
+          "Monitor slow submissions",
+          "Background cleanup active"
+        ];
+      }
+
+      const performanceStatus = {
+        timestamp: new Date().toISOString(),
+        submissionGoal: 2000, // 2 seconds in milliseconds
+        currentStatus,
+        systemHealth: {
+          database: "connected",
+          backgroundCleanup: "running",
+          averageSubmissionTime: `${metrics.averageDuration}ms`,
+        },
+        metrics: {
+          totalSubmissionsToday: metrics.totalEvents,
+          goalAchievementRate: `${metrics.goalAchievementRate}%`,
+          averageQueryTime: `${metrics.averageDuration}ms`,
+          slowSubmissions: metrics.slowSubmissions,
+          eventsByType: metrics.eventsByType
+        },
+        recentPerformanceAlerts: recentAlerts,
+        recommendations
+      };
+
+      res.json(performanceStatus);
+    } catch (error) {
+      console.error('Performance metrics error:', error);
+      res.status(500).json({ message: "Failed to retrieve performance metrics" });
+    }
+  });
+
+  // Performance alerts endpoint for admin monitoring
+  app.get("/api/admin/performance-alerts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { hours = 24 } = req.query;
+      const hoursNumber = parseInt(hours as string);
+
+      const alerts = await storage.getRecentPerformanceAlerts(hoursNumber);
+
+      res.json({
+        alerts,
+        summary: {
+          totalAlerts: alerts.length,
+          timeframe: `${hoursNumber} hours`,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Performance alerts error:', error);
+      res.status(500).json({ message: "Failed to retrieve performance alerts" });
+    }
+  });
+
+  // TEST AUTO-SCORING ENDPOINT - Admin only, for debugging auto-scoring issues
+  app.post("/api/test-auto-scoring", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+
+      console.log(`🧪 ADMIN TEST: Testing auto-scoring for session ${sessionId}`);
+
+      // Get session details for logging
+      const session = await storage.getExamSessionById(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: `Exam session ${sessionId} not found` });
+      }
+
+      console.log(`📊 Testing session: ${session.id}, Student: ${session.studentId}, Exam: ${session.examId}, Completed: ${session.isCompleted}`);
+
+      const startTime = Date.now();
+
+      try {
+        // Test the auto-scoring function directly
+        await autoScoreExamSession(sessionId, storage);
+
+        const totalTime = Date.now() - startTime;
+        console.log(`✅ AUTO-SCORING TEST SUCCESS: Completed in ${totalTime}ms`);
+
+        // Get the results to verify success
+        const results = await storage.getExamResultsByStudent(session.studentId);
+        const testResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
+
+        if (testResult) {
+          console.log(`🎉 VERIFIED: Auto-scored result found - ${testResult.score}/${testResult.maxScore}`);
           return res.json({
-            message: "Exam already submitted",
-            submitted: true,
-            alreadySubmitted: true,
-            result: {
-              score: existingResult.score,
-              maxScore: existingResult.maxScore,
-              percentage: (existingResult.maxScore ?? 0) > 0 
-                ? Math.round(((existingResult.score ?? 0) / (existingResult.maxScore ?? 0)) * 100)
-                : 0,
-              autoScored: existingResult.autoScored,
-              submittedAt: activeSession.submittedAt
+            success: true,
+            message: "Auto-scoring test completed successfully",
+            testDetails: {
+              sessionId: sessionId,
+              studentId: session.studentId,
+              examId: session.examId,
+              duration: totalTime,
+              result: {
+                score: testResult.score,
+                maxScore: testResult.maxScore,
+                autoScored: testResult.autoScored,
+                resultId: testResult.id
+              }
             }
           });
         } else {
+          console.warn(`⚠️ AUTO-SCORING COMPLETED but no auto-scored result found`);
           return res.json({
-            message: "Exam already submitted, results pending",
-            submitted: true,
-            alreadySubmitted: true,
-            result: null
-          });
-        }
-      }
-      
-      // SERVER-SIDE TIMEOUT ENFORCEMENT WITH GRACE PERIOD
-      const exam = await storage.getExamById(parseInt(examId));
-      let isLateSubmission = false;
-      const GRACE_PERIOD_SECONDS = 10; // Allow 10 seconds grace for pending saves
-      
-      if (exam?.timeLimit && activeSession.startedAt) {
-        const now = new Date();
-        const timeElapsedInMinutes = (now.getTime() - new Date(activeSession.startedAt).getTime()) / (1000 * 60);
-        const gracePeriodMinutes = GRACE_PERIOD_SECONDS / 60;
-        
-        if (timeElapsedInMinutes > (exam.timeLimit + gracePeriodMinutes)) {
-          isLateSubmission = true;
-          console.log(`⏰ LATE SUBMISSION: Session ${activeSession.id} exceeded ${exam.timeLimit} minutes + ${GRACE_PERIOD_SECONDS}s grace (elapsed: ${timeElapsedInMinutes.toFixed(1)})`);
-          // Continue with submission but mark as timed out - don't reject!
-        } else if (timeElapsedInMinutes > exam.timeLimit) {
-          isLateSubmission = true;
-          console.log(`⏰ LATE SUBMISSION (within grace): Session ${activeSession.id} exceeded ${exam.timeLimit} minutes but within grace period (elapsed: ${timeElapsedInMinutes.toFixed(1)})`);
-        }
-      }
-      
-      // STEP 1: Run instant auto-scoring BEFORE marking as completed (for robustness)
-      console.log(`🎯 STEP 1: Running instant auto-scoring for session ${activeSession.id}`);
-      let scoringResult = null;
-      let scoringError = null;
-      
-      try {
-        // Run auto-scoring synchronously
-        await autoScoreExamSession(activeSession.id, storage);
-        console.log(`✅ Auto-scoring completed successfully for session ${activeSession.id}`);
-        
-        // Get the results immediately after scoring
-        console.log(`📊 Fetching auto-scoring results for student ${user.id}, exam ${examId}`);
-        const results = await storage.getExamResultsByStudent(user.id);
-        console.log(`🔍 Looking for exam result with examId: ${examId}, autoScored: true`);
-        console.log(`📋 Available results:`, results.map(r => ({ 
-          id: r.id, 
-          examId: r.examId, 
-          examIdType: typeof r.examId, 
-          autoScored: r.autoScored, 
-          autoScoredType: typeof r.autoScored,
-          score: r.score,
-          maxScore: r.maxScore
-        })));
-        const examResult = results.find((r: any) => 
-          String(r.examId) === String(examId) && 
-          r.autoScored === true
-        );
-        
-        if (examResult) {
-          const score = examResult.score ?? 0;
-          const maxScore = examResult.maxScore ?? 0;
-          const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-          
-          console.log(`🎉 INSTANT FEEDBACK: Score ${score}/${maxScore} (${percentage}%) for exam ${examId}`);
-          
-          // Get question breakdown for detailed feedback
-          const examQuestions = await storage.getExamQuestions(parseInt(examId));
-          const studentAnswers = await storage.getStudentAnswers(activeSession.id);
-          const mcQuestions = examQuestions.filter((q: any) => q.questionType === 'multiple_choice');
-          const essayQuestions = examQuestions.filter((q: any) => q.questionType !== 'multiple_choice');
-          
-          scoringResult = {
-            score,
-            maxScore,
-            percentage,
-            autoScored: true,
-            breakdown: {
-              totalQuestions: examQuestions.length,
-              multipleChoiceQuestions: mcQuestions.length,
-              essayQuestions: essayQuestions.length,
-              answeredQuestions: studentAnswers.length,
-              autoScoredQuestions: mcQuestions.length,
-              pendingManualReview: essayQuestions.length
+            success: false,
+            message: "Auto-scoring completed but no auto-scored result was found",
+            testDetails: {
+              sessionId: sessionId,
+              duration: totalTime,
+              allResults: results.filter((r: any) => r.examId === session.examId)
             }
-          };
-        }
-        
-      } catch (error) {
-        console.error(`❌ Auto-scoring failed for session ${activeSession.id}:`, error);
-        scoringError = error instanceof Error ? error.message : 'Auto-scoring failed';
-        // Continue with submission even if scoring fails
-      }
-      
-      // STEP 2: Mark session as completed (only after scoring attempt)
-      console.log(`✅ STEP 2: Marking session ${activeSession.id} as completed`);
-      const completedSession = await storage.updateExamSession(activeSession.id, {
-        isCompleted: true,
-        submittedAt: new Date(),
-        status: 'submitted'
-      });
-      
-      if (!completedSession) {
-        throw new Error('Failed to complete exam session');
-      }
-      
-      // STEP 3: Return standardized response
-      const baseMessage = isLateSubmission 
-        ? "Exam submitted (after time limit). Results available below."
-        : "Exam submitted successfully! 🎉";
-      
-      // Log performance event for exam submission
-      const submissionDuration = Date.now() - submissionStartTime;
-      if (sessionId) {
-        try {
-          await storage.logPerformanceEvent({
-            sessionId,
-            eventType: 'exam_submission',
-            duration: submissionDuration,
-            goalAchieved: submissionDuration <= 2000,
-            metadata: JSON.stringify({
-              examId: parseInt(examId),
-              studentId: user.id,
-              isLateSubmission,
-              autoScoringSuccess: !!scoringResult,
-              scoringError: scoringError || null
-            }),
-            userId: user.id,
-            clientSide: false
           });
-          console.log(`📊 Exam submission performance logged: ${submissionDuration}ms`);
-        } catch (perfError) {
-          console.warn('⚠️ Failed to log submission performance:', perfError);
         }
-      }
+      } catch (scoringError) {
+        const totalTime = Date.now() - startTime;
+        console.error(`❌ AUTO-SCORING TEST FAILED after ${totalTime}ms:`, scoringError);
 
-      if (scoringResult) {
-        // Enhanced response for professional two-phase results display
-        // Get detailed scoring data for breakdown
-        try {
-          const detailedScoringData = await storage.getExamScoringData(activeSession.id);
-          const { scoringData } = detailedScoringData;
-          
-          // Separate auto-scored questions from manual review questions
-          const autoScoredQuestions = scoringData.filter((q: any) => 
-            q.autoGradable === true
-          );
-          const manualReviewQuestions = scoringData.filter((q: any) => 
-            q.autoGradable !== true
-          );
-          
-          // Calculate auto-scored points
-          const autoScoredPoints = autoScoredQuestions.reduce((total: number, q: any) => 
-            total + (q.isCorrect ? q.points : 0), 0
-          );
-          const autoScoredMaxPoints = autoScoredQuestions.reduce((total: number, q: any) => 
-            total + q.points, 0
-          );
-          
-          return res.json({
-            message: baseMessage,
-            submitted: true,
-            alreadySubmitted: false,
-            timedOut: isLateSubmission,
-            result: {
-              // Overall summary
-              score: scoringResult.score,        // ✅ FIXED: Frontend expects 'score'
-              totalScore: scoringResult.score,   // Keep for backward compatibility
-              maxScore: scoringResult.maxScore,
-              totalQuestions: scoringResult.breakdown.totalQuestions,
-              percentage: scoringResult.percentage,
-              
-              // Two-phase breakdown
-              immediateResults: {
-                questions: autoScoredQuestions.map((q: any) => ({
-                  questionId: q.questionId,
-                  questionType: q.questionType,
-                  points: q.points,
-                  isCorrect: q.isCorrect,
-                  studentAnswer: q.questionType === 'multiple_choice' ? 
-                    q.studentSelectedOptionId : q.textAnswer
-                })),
-                score: autoScoredPoints,
-                maxScore: autoScoredMaxPoints,
-                count: autoScoredQuestions.length,
-                percentage: autoScoredMaxPoints > 0 ? Math.round((autoScoredPoints / autoScoredMaxPoints) * 100) : 0
-              },
-              
-              pendingReview: {
-                questions: manualReviewQuestions.map((q: any) => ({
-                  questionId: q.questionId,
-                  questionType: q.questionType,
-                  points: q.points,
-                  textAnswer: q.textAnswer
-                })),
-                count: manualReviewQuestions.length,
-                maxScore: manualReviewQuestions.reduce((total: number, q: any) => total + q.points, 0)
-              },
-              
-              // Legacy fields for compatibility
-              autoScored: scoringResult.autoScored,
-              submittedAt: completedSession.submittedAt,
-              timedOut: isLateSubmission
-            }
-          });
-        } catch (detailedDataError) {
-          console.warn('Failed to get detailed scoring data, falling back to basic response:', detailedDataError);
-          // Fallback to basic response if detailed data fails
-          return res.json({
-            message: baseMessage,
-            submitted: true,
-            alreadySubmitted: false,
-            timedOut: isLateSubmission,
-            result: {
-              score: scoringResult.score,                    // ✅ CONSISTENT: Always use 'score'
-              totalScore: scoringResult.score,               // Keep for backward compatibility
-              maxScore: scoringResult.maxScore,
-              percentage: scoringResult.percentage,
-              autoScored: scoringResult.autoScored,
-              submittedAt: completedSession.submittedAt,
-              timedOut: isLateSubmission
-            }
-          });
-        }
-      } else {
-        // Scoring failed or no result found - ENHANCED RECOVERY LOGIC!
-        console.log(`🔄 Auto-scoring failed/incomplete for student ${user.id}, exam ${examId}. Attempting enhanced recovery...`);
-        console.log(`📊 Original scoring error:`, scoringError || 'Unknown error');
-        
-        // STEP 1: Check if this is a database constraint violation that we can handle
-        const errorMessage = (scoringError && typeof scoringError === 'object' && 'message' in scoringError) 
-          ? (scoringError as Error).message 
-          : String(scoringError || '');
-        const isConstraintViolation = errorMessage && (
-          errorMessage.includes('NOT NULL constraint') ||
-          errorMessage.includes('marks_obtained') ||
-          errorMessage.includes('violates not-null constraint') ||
-          errorMessage.includes('null value in column')
-        );
-        
-        if (isConstraintViolation) {
-          console.log(`🩹 CONSTRAINT VIOLATION DETECTED: Attempting repair with retry...`);
-          
-          try {
-            // Retry auto-scoring once more - the marksObtained fix should resolve this
-            console.log(`🔄 RETRY ATTEMPT: Re-running auto-scoring with enhanced error handling...`);
-            await autoScoreExamSession(activeSession.id, storage);
-            
-            // If retry succeeds, get the results
-            const retryResults = await storage.getExamResultsByStudent(user.id);
-            const retryResult = retryResults.find((r: any) => 
-              String(r.examId) === String(examId) && r.autoScored === true
-            );
-            
-            if (retryResult) {
-              console.log(`✅ RETRY SUCCESS: Auto-scoring worked on second attempt!`);
-              console.log(`🎉 RECOVERED SCORE: ${retryResult.score}/${retryResult.maxScore}`);
-              
-              const score = retryResult.score ?? 0;
-              const maxScore = retryResult.maxScore ?? 0;
-              const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-              
-              return res.json({
-                message: isLateSubmission 
-                  ? "Exam submitted (after time limit). Your results are shown below."
-                  : "Exam submitted successfully! Your results are shown below.",
-                submitted: true,
-                alreadySubmitted: false,
-                timedOut: isLateSubmission,
-                result: {
-                  score: score,
-                  totalScore: score,
-                  maxScore: maxScore,
-                  percentage: percentage,
-                  autoScored: retryResult.autoScored,
-                  submittedAt: completedSession.submittedAt,
-                  timedOut: isLateSubmission,
-                  immediateResults: {
-                    score: score,
-                    maxScore: maxScore,
-                    percentage: percentage,
-                    count: 1
-                  }
-                },
-                recoveredViaRetry: true // Flag for debugging
-              });
-            } else {
-              console.warn(`⚠️ RETRY COMPLETED but no auto-scored result found`);
-            }
-          } catch (retryError) {
-            console.error(`❌ RETRY FAILED:`, retryError);
+        return res.status(500).json({
+          success: false,
+          message: "Auto-scoring test failed",
+          error: scoringError instanceof Error ? scoringError.message : String(scoringError),
+          testDetails: {
+            sessionId: sessionId,
+            duration: totalTime,
+            errorType: scoringError instanceof Error ? scoringError.constructor.name : 'UnknownError'
           }
-        }
-        
-        // STEP 2: Check database for any existing results (original logic, enhanced)
-        try {
-          console.log(`🔍 FALLBACK: Checking database for existing results...`);
-          const existingResults = await storage.getExamResultsByStudent(user.id);
-          const existingResult = existingResults.find((r: any) => String(r.examId) === String(examId));
-          
-          if (existingResult && existingResult.autoScored) {
-            console.log(`🎉 RESCUE SUCCESS: Found existing auto-scored result despite failure!`);
-            console.log(`📊 Rescued Score: ${existingResult.score}/${existingResult.maxScore}`);
-            
-            const score = existingResult.score ?? 0;
-            const maxScore = existingResult.maxScore ?? 0;
-            const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-            
-            return res.json({
-              message: isLateSubmission 
-                ? "Exam submitted (after time limit). Your results are shown below."
-                : "Exam submitted successfully! Your results are shown below.",
-              submitted: true,
-              alreadySubmitted: false,
-              timedOut: isLateSubmission,
-              result: {
-                score: score,
-                totalScore: score,
-                maxScore: maxScore,
-                percentage: percentage,
-                autoScored: existingResult.autoScored,
-                submittedAt: completedSession.submittedAt,
-                timedOut: isLateSubmission,
-                immediateResults: {
-                  score: score,
-                  maxScore: maxScore,
-                  percentage: percentage,
-                  count: 1
-                }
-              },
-              rescuedFromDatabase: true
-            });
-          } else if (existingResult && !existingResult.autoScored) {
-            console.log(`📋 Found existing manual result for exam ${examId}, but student needs to see immediate feedback for auto-gradable questions`);
-            
-            // Even if there's a manual result, we should try to provide immediate feedback
-            // for any auto-gradable questions that can be scored
-            try {
-              // Get question breakdown to see if there are any auto-gradable questions
-              const examQuestions = await storage.getExamQuestions(parseInt(examId));
-              const autoGradableQuestions = examQuestions.filter((q: any) => q.autoGradable === true);
-              
-              if (autoGradableQuestions.length > 0) {
-                console.log(`🔍 HYBRID APPROACH: Found ${autoGradableQuestions.length} auto-gradable questions, attempting partial auto-scoring...`);
-                
-                // Try to at least score the auto-gradable questions for immediate feedback
-                const studentAnswers = await storage.getStudentAnswers(activeSession.id);
-                let autoScoredPoints = 0;
-                let autoScoredMaxPoints = 0;
-                
-                for (const question of autoGradableQuestions) {
-                  const answer = studentAnswers.find((a: any) => a.questionId === question.id);
-                  const questionPoints = question.points || 0; // ✅ Fix null points issue
-                  autoScoredMaxPoints += questionPoints;
-                  
-                  if (answer && question.questionType === 'multiple_choice') {
-                    const questionOptions = await storage.getQuestionOptions(question.id);
-                    const correctOption = questionOptions.find((opt: any) => opt.isCorrect);
-                    
-                    if (correctOption && answer.selectedOptionId === correctOption.id) {
-                      autoScoredPoints += questionPoints;
-                    }
-                  }
-                }
-                
-                if (autoScoredMaxPoints > 0) {
-                  const autoPercentage = Math.round((autoScoredPoints / autoScoredMaxPoints) * 100);
-                  console.log(`📊 HYBRID RESULTS: Auto-scored ${autoScoredPoints}/${autoScoredMaxPoints} (${autoPercentage}%) from immediate questions`);
-                  
-                  return res.json({
-                    message: isLateSubmission 
-                      ? "Exam submitted (after time limit). Partial results shown below, full results pending."
-                      : "Exam submitted successfully! Partial results shown below, full results pending.",
-                    submitted: true,
-                    alreadySubmitted: false,
-                    timedOut: isLateSubmission,
-                    result: {
-                      score: autoScoredPoints, // Only auto-scored portion
-                      maxScore: autoScoredMaxPoints, // Only auto-scored portion
-                      percentage: autoPercentage,
-                      autoScored: false, // Mixed scoring
-                      submittedAt: completedSession.submittedAt,
-                      timedOut: isLateSubmission,
-                      immediateResults: {
-                        score: autoScoredPoints,
-                        maxScore: autoScoredMaxPoints,
-                        percentage: autoPercentage,
-                        count: autoGradableQuestions.length
-                      },
-                      pendingReview: {
-                        count: examQuestions.length - autoGradableQuestions.length,
-                        maxScore: examQuestions.reduce((sum: number, q: any) => sum + q.points, 0) - autoScoredMaxPoints
-                      }
-                    },
-                    hybridScoring: true // Flag for debugging
-                  });
-                }
-              }
-            } catch (hybridError) {
-              console.error(`❌ Hybrid scoring attempt failed:`, hybridError);
-            }
-          } else {
-            console.log(`📝 No results found in database for exam ${examId}`);
-          }
-        } catch (dbError) {
-          console.error(`❌ Database check failed:`, dbError);
-        }
-        
-        // Original fallback logic when no results are truly found
-        const fallbackMessage = isLateSubmission
-          ? "Exam submitted (after time limit). Manual grading will be performed by your instructor."
-          : scoringError 
-            ? "Exam submitted successfully. Manual grading will be performed by your instructor."
-            : "Exam submitted successfully. Results are being processed.";
-            
-        return res.json({
-          message: fallbackMessage,
-          submitted: true,
-          alreadySubmitted: false,
-          timedOut: isLateSubmission,
-          result: null,
-          scoringError: scoringError || undefined
         });
       }
-      
     } catch (error) {
-      console.error('❌ SYNCHRONOUS SUBMIT ERROR:', error);
-      
-      // Log submission error performance event
-      const errorDuration = Date.now() - submissionStartTime;
-      if (sessionId) {
-        try {
-          await storage.logPerformanceEvent({
-            sessionId,
-            eventType: 'exam_submission_error',
-            duration: errorDuration,
-            goalAchieved: false, // Errors always fail the goal
-            metadata: JSON.stringify({
-              examId: parseInt(examId),
-              studentId: (req as any).user?.id,
-              errorMessage: error instanceof Error ? error.message : 'Unknown error',
-              errorType: error instanceof Error ? error.constructor.name : 'UnknownError'
-            }),
-            userId: (req as any).user?.id || null,
-            clientSide: false,
-          });
-          console.log(`📊 Submission error performance logged: ${errorDuration}ms`);
-        } catch (perfError) {
-          console.warn('⚠️ Failed to log error performance:', perfError);
-        }
-      }
-      
-      // Determine error type for better user experience
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      
-      // Don't expose internal errors to students
-      const isInternalError = errorMessage.includes('database') || 
-                            errorMessage.includes('storage') || 
-                            errorMessage.includes('SQL');
-      
-      const userMessage = isInternalError 
-        ? "A technical error occurred. Please try again or contact your instructor."
-        : errorMessage;
-      
+      console.error('Test auto-scoring endpoint error:', error);
       res.status(500).json({ 
-        message: userMessage,
-        submitted: false,
-        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        success: false,
+        message: "Failed to run auto-scoring test",
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
 
-  // Student Answers - for managing student responses during exams
-  app.post("/api/student-answers", authenticateUser, async (req, res) => {
+  // ENHANCED PERFORMANCE TRACKING ENDPOINT
+  // Log performance events to database for real monitoring (client-side telemetry)
+  app.post("/api/performance-events", authenticateUser, async (req, res) => {
     try {
+      const { sessionId, eventType, duration, metadata } = req.body;
+
       const user = (req as any).user;
-      const answerData = insertStudentAnswerSchema.parse(req.body);
-      
-      // Verify session exists and belongs to the user
-      const session = await storage.getExamSessionById(answerData.sessionId);
-      if (!session) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      
-      // Security: Students can only submit answers for their own sessions
-      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // Check if session is still active (not completed)
-      if (session.isCompleted) {
-        return res.status(409).json({ message: "Cannot submit answers to completed exam" });
+
+      // Validate and sanitize the event data
+      if (!eventType || typeof duration !== 'number') {
+        return res.status(400).json({ message: "eventType and duration are required" });
       }
 
-      // Server-side time limit enforcement
-      if (session.timeRemaining && session.startedAt) {
-        const now = new Date();
-        const timeElapsedInMinutes = (now.getTime() - new Date(session.startedAt).getTime()) / (1000 * 60);
-        
-        if (timeElapsedInMinutes > session.timeRemaining) {
-          // Time limit exceeded - automatically complete the session
-          console.log(`Time limit exceeded for session ${session.id}: ${timeElapsedInMinutes.toFixed(1)} > ${session.timeRemaining} minutes`);
-          await storage.updateExamSession(session.id, { isCompleted: true });
-          
-          // Trigger auto-scoring for completed session
-          try {
-            await autoScoreExamSession(session.id, storage);
-          } catch (error) {
-            console.error('Auto-scoring failed after time limit:', error);
-          }
-          
-          return res.status(403).json({ message: "Time limit exceeded. Exam has been automatically submitted." });
+      // Limit metadata size to prevent abuse
+      const sanitizedMetadata = metadata ? JSON.stringify(metadata).substring(0, 2000) : null;
+
+      // Create performance event for database storage with user context
+      const performanceEvent = {
+        sessionId: sessionId || null,
+        eventType: eventType,
+        duration: Math.max(0, duration), // Ensure positive duration
+        goalAchieved: duration <= 2000,
+        metadata: sanitizedMetadata,
+        userId: user.id, // Track which user generated the event
+        clientSide: true, // Flag this as client-side telemetry
+        createdAt: new Date()
+      };
+
+      // Store in database
+      const savedEvent = await storage.logPerformanceEvent(performanceEvent);
+
+      // In development, log detailed performance data
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📊 PERFORMANCE EVENT STORED:', JSON.stringify(savedEvent, null, 2));
+      }
+
+      // Alert if performance goal exceeded
+      if (duration > 2000) {
+        console.warn(`🚨 PERFORMANCE ALERT: ${eventType} took ${duration}ms (exceeded 2-second goal)`);
+        if (metadata) {
+          console.warn(`🔍 METADATA:`, JSON.stringify(metadata, null, 2));
         }
       }
-      
-      // Check if answer already exists and update instead of create
-      const existingAnswers = await storage.getStudentAnswers(answerData.sessionId);
-      const existingAnswer = existingAnswers.find(a => a.questionId === answerData.questionId);
-      
-      if (existingAnswer) {
-        // Update existing answer
-        const answer = await storage.updateStudentAnswer(existingAnswer.id, answerData);
-        res.json(answer);
-      } else {
-        // Create new answer
-        const answer = await storage.createStudentAnswer(answerData);
-        res.json(answer);
-      }
+
+      res.status(204).send(); // No content response for telemetry
     } catch (error) {
-      console.error('Error creating/updating student answer:', error);
-      
-      // Handle Zod validation errors specifically
-      if ((error as any)?.name === 'ZodError' || ((error as any)?.issues && Array.isArray((error as any).issues))) {
-        const validationErrors = (error as any).issues || [];
-        return res.status(400).json({
-          message: "Answer validation failed",
-          type: "validation_error", 
-          errors: validationErrors.map((issue: any) => ({
-            field: issue.path?.join('.') || 'unknown',
-            message: issue.message,
-            code: issue.code
-          }))
-        });
-      }
-      
-      // Handle other structured errors
-      if (error instanceof Error) {
-        // Handle database constraint errors
-        if (error.message.includes('foreign key constraint')) {
-          return res.status(400).json({ 
-            message: "Invalid question or session reference",
-            type: "reference_error"
-          });
-        }
-        
-        // Handle unique constraint violations  
-        if (error.message.includes('unique constraint')) {
-          return res.status(409).json({
-            message: "Answer already exists for this question",
-            type: "duplicate_error"
-          });
-        }
-        
-        // Handle database connection issues
-        if (error.message.includes('ECONNREFUSED') || error.message.includes('connection')) {
-          return res.status(503).json({
-            message: "Database temporarily unavailable. Please try again.",
-            type: "connection_error"
-          });
-        }
-      }
-      
-      // Generic error fallback
-      res.status(500).json({ 
-        message: "Failed to save answer. Please try again.",
-        type: "server_error",
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      console.error('Performance event logging error:', error);
+      res.status(500).json({ message: "Failed to log performance event" });
     }
   });
 
-  app.get("/api/student-answers/session/:sessionId", authenticateUser, async (req, res) => {
+  // Contact messages management - Admin only
+  app.get("/api/contact-messages", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const user = (req as any).user;
-      const { sessionId } = req.params;
-      
-      // Verify session exists and check ownership
-      const session = await storage.getExamSessionById(parseInt(sessionId));
-      if (!session) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      
-      // Security: Students can only view answers for their own sessions
-      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const answers = await storage.getStudentAnswers(parseInt(sessionId));
-      res.json(answers);
+      const { read } = req.query;
+      const isRead = read === 'true' ? true : read === 'false' ? false : undefined;
+      const messages = await storage.getContactMessages(isRead);
+      res.json(messages);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch student answers" });
+      console.error('Error fetching contact messages:', error);
+      res.status(500).json({ message: "Failed to fetch contact messages" });
     }
   });
 
-  app.put("/api/student-answers/:id", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { id } = req.params;
-      
-      // Get existing answer to check ownership
-      const existingAnswers = await storage.getStudentAnswers(parseInt(id)); // This needs sessionId, let me get the answer first
-      // Actually, we need to get answer by ID, but our storage doesn't have that method
-      // For now, let's add security through session verification
-      
-      const answerData = insertStudentAnswerSchema.partial().parse(req.body);
-      
-      // If sessionId is being updated, verify the session belongs to user
-      if (answerData.sessionId) {
-        const session = await storage.getExamSessionById(answerData.sessionId);
-        if (!session) {
-          return res.status(404).json({ message: "Exam session not found" });
-        }
-        
-        // Security: Students can only update answers for their own sessions
-        if (user.roleId >= 3 && session.studentId !== user.id) {
-          return res.status(403).json({ message: "Access denied" });
-        }
-        
-        // Check if session is still active
-        if (session.isCompleted) {
-          return res.status(409).json({ message: "Cannot update answers for completed exam" });
-        }
-      }
-      
-      const answer = await storage.updateStudentAnswer(parseInt(id), answerData);
-      if (!answer) {
-        return res.status(404).json({ message: "Student answer not found" });
-      }
-      res.json(answer);
-    } catch (error) {
-      console.error('Error updating student answer:', error);
-      res.status(400).json({ message: "Invalid student answer data" });
-    }
-  });
-
-  // Announcements
-  app.get("/api/announcements", async (req, res) => {
-    try {
-      const { role } = req.query;
-      const announcements = await storage.getAnnouncements(
-        typeof role === 'string' ? role : undefined
-      );
-      res.json(announcements);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
-
-  app.post("/api/announcements", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const announcementData = insertAnnouncementSchema.parse(req.body);
-      const announcement = await storage.createAnnouncement(announcementData);
-      res.json(announcement);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid announcement data" });
-    }
-  });
-
-  app.put("/api/announcements/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Mark contact message as read/unread
+  app.patch("/api/contact-messages/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      const announcementData = insertAnnouncementSchema.partial().parse(req.body);
-      const announcement = await storage.updateAnnouncement(parseInt(id), announcementData);
-      
-      if (!announcement) {
-        return res.status(404).json({ message: "Announcement not found" });
+      const { isRead } = req.body;
+
+      if (typeof isRead !== 'boolean') {
+        return res.status(400).json({ message: "isRead must be a boolean" });
       }
-      
-      res.json(announcement);
+
+      const updatedMessage = await storage.updateContactMessage(parseInt(id), { isRead });
+      if (!updatedMessage) {
+        return res.status(404).json({ message: "Contact message not found" });
+      }
+
+      res.json({ message: "Contact message status updated", message: updatedMessage });
     } catch (error) {
-      res.status(400).json({ message: "Invalid announcement data" });
+      console.error('Error updating contact message:', error);
+      res.status(500).json({ message: "Failed to update contact message" });
     }
   });
 
-  app.delete("/api/announcements/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Delete contact message
+  app.delete("/api/contact-messages/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteAnnouncement(parseInt(id));
-      
+      const success = await storage.deleteContactMessage(parseInt(id));
+
       if (!success) {
-        return res.status(404).json({ message: "Announcement not found" });
+        return res.status(404).json({ message: "Contact message not found" });
       }
-      
-      res.json({ message: "Announcement deleted successfully" });
+
+      res.json({ message: "Contact message deleted successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete announcement" });
+      console.error('Error deleting contact message:', error);
+      res.status(500).json({ message: "Failed to delete contact message" });
     }
   });
 
@@ -3553,10 +2879,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const imageUrl = `/uploads/profiles/${req.file.filename}`;
-      
+
       // Update user profile with new image URL
       const updatedUser = await storage.updateUser(userId, { profileImageUrl: imageUrl });
-      
+
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -3580,7 +2906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { caption, categoryId, uploadedBy } = req.body;
       const imageUrl = `/uploads/gallery/${req.file.filename}`;
-      
+
       const galleryImage = await storage.uploadGalleryImage({
         imageUrl,
         caption: caption || null,
@@ -3604,26 +2930,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prevent directory traversal attacks
       const requestedPath = req.path;
       const normalizedPath = path.normalize(requestedPath);
-      
+
       // Ensure the path is within the uploads directory
       if (!normalizedPath.startsWith('/uploads/')) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // Check if file type is in allowed directories
       const pathParts = normalizedPath.split('/');
       if (pathParts.length < 3 || !['profiles', 'gallery', 'study-resources'].includes(pathParts[2])) {
         return res.status(403).json({ message: "Invalid file path" });
       }
-      
+
       const safePath = path.join(process.cwd(), normalizedPath);
       const uploadsDir = path.join(process.cwd(), 'uploads');
-      
+
       // Double check the resolved path is within uploads directory
       if (!safePath.startsWith(uploadsDir)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // Check if file exists before serving
       try {
         await fs.access(safePath);
@@ -3641,13 +2967,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/gallery/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Get image record first to find the file path
       const image = await storage.getGalleryImageById(id);
       if (!image) {
         return res.status(404).json({ message: "Image not found" });
       }
-      
+
       // Delete the file from filesystem
       const filePath = path.join(process.cwd(), image.imageUrl);
       try {
@@ -3656,31 +2982,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('File deletion error:', fileError);
         // Continue with database deletion even if file deletion fails
       }
-      
+
       // Delete the record from storage
       const success = await storage.deleteGalleryImage(id);
       if (!success) {
         return res.status(404).json({ message: "Failed to delete image record" });
       }
-      
+
       res.json({ message: "Image deleted successfully" });
     } catch (error) {
       console.error('Image deletion error:', error);
       res.status(500).json({ message: "Failed to delete image" });
     }
   });
-  
+
   // Delete profile image (updates user record)
   app.delete("/api/users/:userId/profile-image", authenticateUser, async (req, res) => {
     try {
       const { userId } = req.params;
-      
+
       // Get user record to find current profile image
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       if (user.profileImageUrl) {
         // Delete the file from filesystem
         const filePath = path.join(process.cwd(), user.profileImageUrl);
@@ -3691,13 +3017,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue with database update even if file deletion fails
         }
       }
-      
+
       // Update user record to remove profile image URL
       const updatedUser = await storage.updateUser(userId, { profileImageUrl: null });
       if (!updatedUser) {
         return res.status(404).json({ message: "Failed to update user record" });
       }
-      
+
       res.json({ message: "Profile image deleted successfully", user: updatedUser });
     } catch (error) {
       console.error('Profile image deletion error:', error);
@@ -3720,11 +3046,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const image = await storage.getGalleryImageById(id);
-      
+
       if (!image) {
         return res.status(404).json({ message: "Image not found" });
       }
-      
+
       res.json(image);
     } catch (error) {
       console.error('Gallery image fetch error:', error);
@@ -3736,11 +3062,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteGalleryImage(id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Image not found" });
       }
-      
+
       res.json({ message: "Gallery image deleted successfully" });
     } catch (error) {
       console.error('Gallery delete error:', error);
@@ -3757,13 +3083,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { title, description, resourceType, subjectId, classId, termId } = req.body;
       const user = (req as any).user;
-      
+
       if (!title || !resourceType) {
         return res.status(400).json({ message: "Title and resource type are required" });
       }
 
       const fileUrl = `/uploads/study-resources/${req.file.filename}`;
-      
+
       const studyResource = await storage.createStudyResource({
         title,
         description: description || null,
@@ -3804,7 +3130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For teachers and admins, allow filtering by all parameters
         if (classId) filters.classId = parseInt(classId as string);
       }
-      
+
       if (subjectId) filters.subjectId = parseInt(subjectId as string);
       if (termId) filters.termId = parseInt(termId as string);
       if (resourceType) filters.resourceType = resourceType as string;
@@ -3821,11 +3147,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const resource = await storage.getStudyResourceById(parseInt(id));
-      
+
       if (!resource) {
         return res.status(404).json({ message: "Study resource not found" });
       }
-      
+
       res.json(resource);
     } catch (error) {
       console.error('Study resource fetch error:', error);
@@ -3837,14 +3163,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const resource = await storage.getStudyResourceById(parseInt(id));
-      
+
       if (!resource) {
         return res.status(404).json({ message: "Study resource not found" });
       }
 
       // Increment download count
       await storage.incrementStudyResourceDownloads(parseInt(id));
-      
+
       // Serve the file
       const filePath = path.join(process.cwd(), resource.fileUrl);
       res.download(filePath, resource.fileName);
@@ -3857,13 +3183,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/study-resources/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Get resource first to find the file path
       const resource = await storage.getStudyResourceById(parseInt(id));
       if (!resource) {
         return res.status(404).json({ message: "Study resource not found" });
       }
-      
+
       // Delete the file from filesystem
       const filePath = path.join(process.cwd(), resource.fileUrl);
       try {
@@ -3872,13 +3198,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('File deletion error:', fileError);
         // Continue with database deletion even if file deletion fails
       }
-      
+
       // Delete the record from storage
       const success = await storage.deleteStudyResource(parseInt(id));
       if (!success) {
         return res.status(404).json({ message: "Failed to delete study resource record" });
       }
-      
+
       res.json({ message: "Study resource deleted successfully" });
     } catch (error) {
       console.error('Study resource deletion error:', error);
@@ -3890,7 +3216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/homepage-content", async (req, res) => {
     try {
       const { contentType } = req.query;
-      
+
       // Handle multiple contentType parameters (array support)
       let contentTypes: string[] = [];
       if (contentType) {
@@ -3900,13 +3226,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           contentTypes = [contentType as string];
         }
       }
-      
+
       // If no contentType specified, get all content
       if (contentTypes.length === 0) {
         const content = await storage.getHomePageContent();
         return res.json(content);
       }
-      
+
       // Fetch content for each contentType and combine results
       const allContent = [];
       for (const type of contentTypes) {
@@ -3915,12 +3241,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           allContent.push(...content);
         }
       }
-      
+
       // Remove duplicates based on id
       const uniqueContent = allContent.filter((item, index, self) => 
         index === self.findIndex((t) => t.id === item.id)
       );
-      
+
       res.json(uniqueContent);
     } catch (error) {
       console.error('Home page content fetch error:', error);
@@ -3950,11 +3276,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const contentData = insertHomePageContentSchema.partial().parse(req.body);
       const content = await storage.updateHomePageContent(parseInt(id), contentData);
-      
+
       if (!content) {
         return res.status(404).json({ message: "Content not found" });
       }
-      
+
       res.json(content);
     } catch (error) {
       console.error('Home page content update error:', error);
@@ -3971,21 +3297,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // First get the content to retrieve file information before deletion
       const content = await storage.getHomePageContentById(parseInt(id));
-      
+
       if (!content) {
         return res.status(404).json({ message: "Content not found" });
       }
-      
+
       // Delete from database first
       const deleted = await storage.deleteHomePageContent(parseInt(id));
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Content not found" });
       }
-      
+
       // If there's an associated image file, remove it from disk
       if (content.imageUrl) {
         try {
@@ -3993,9 +3319,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const filePath = content.imageUrl.startsWith('/') 
             ? content.imageUrl.substring(1) 
             : content.imageUrl;
-          
+
           const fullPath = path.resolve(filePath);
-          
+
           // Check if file exists and delete it
           try {
             await fs.access(fullPath);
@@ -4012,7 +3338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error processing file path for deletion:', pathError);
         }
       }
-      
+
       res.json({ message: "Home page content deleted successfully" });
     } catch (error) {
       console.error('Home page content delete error:', error);
@@ -4033,7 +3359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const imageUrl = `/uploads/homepage/${req.file.filename}`;
-      
+
       const homePageContent = await storage.createHomePageContent({
         contentType,
         imageUrl,
@@ -4056,7 +3382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Debug endpoint to list all users with their roles (Admin only)
   app.get("/api/debug/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    
+
     try {
       const allRoles = await storage.getRoles();
       const allUsers = [];
@@ -4082,21 +3408,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin endpoint to update user roles (for fixing role issues)
   app.patch("/api/users/:id/role", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    
+
     try {
       const { id } = req.params;
       const { roleId } = req.body;
-      
+
       // Validate roleId
       if (!roleId || ![ROLES.STUDENT, ROLES.TEACHER, ROLES.PARENT, ROLES.ADMIN].includes(roleId)) {
         return res.status(400).json({ message: "Invalid role ID" });
       }
-      
+
       const updatedUser = await storage.updateUser(id, { roleId });
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       console.log(`Admin ${(req as any).user.email} updated user ${id} roleId to ${roleId}`);
       res.json({ message: "User role updated successfully", user: updatedUser });
     } catch (error) {
@@ -4111,15 +3437,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { hours = 24 } = req.query;
       const hoursNumber = parseInt(hours as string);
-      
+
       // Get real performance data from database
       const metrics = await storage.getPerformanceMetrics(hoursNumber);
       const recentAlerts = await storage.getRecentPerformanceAlerts(hoursNumber);
-      
+
       // Determine system status based on real metrics
       let currentStatus = "optimal";
       let recommendations = ["System performing optimally"];
-      
+
       if (metrics.goalAchievementRate < 80) {
         currentStatus = "critical";
         recommendations = [
@@ -4135,7 +3461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Background cleanup active"
         ];
       }
-      
+
       const performanceStatus = {
         timestamp: new Date().toISOString(),
         submissionGoal: 2000, // 2 seconds in milliseconds
@@ -4168,9 +3494,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { hours = 24 } = req.query;
       const hoursNumber = parseInt(hours as string);
-      
+
       const alerts = await storage.getRecentPerformanceAlerts(hoursNumber);
-      
+
       res.json({
         alerts,
         summary: {
@@ -4189,34 +3515,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/test-auto-scoring", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { sessionId } = req.body;
-      
+
       if (!sessionId) {
         return res.status(400).json({ message: "sessionId is required" });
       }
-      
+
       console.log(`🧪 ADMIN TEST: Testing auto-scoring for session ${sessionId}`);
-      
+
       // Get session details for logging
       const session = await storage.getExamSessionById(sessionId);
       if (!session) {
         return res.status(404).json({ message: `Exam session ${sessionId} not found` });
       }
-      
+
       console.log(`📊 Testing session: ${session.id}, Student: ${session.studentId}, Exam: ${session.examId}, Completed: ${session.isCompleted}`);
-      
+
       const startTime = Date.now();
-      
+
       try {
         // Test the auto-scoring function directly
         await autoScoreExamSession(sessionId, storage);
-        
+
         const totalTime = Date.now() - startTime;
         console.log(`✅ AUTO-SCORING TEST SUCCESS: Completed in ${totalTime}ms`);
-        
+
         // Get the results to verify success
         const results = await storage.getExamResultsByStudent(session.studentId);
         const testResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
-        
+
         if (testResult) {
           console.log(`🎉 VERIFIED: Auto-scored result found - ${testResult.score}/${testResult.maxScore}`);
           return res.json({
@@ -4250,7 +3576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (scoringError) {
         const totalTime = Date.now() - startTime;
         console.error(`❌ AUTO-SCORING TEST FAILED after ${totalTime}ms:`, scoringError);
-        
+
         return res.status(500).json({
           success: false,
           message: "Auto-scoring test failed",
@@ -4277,17 +3603,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/performance-events", authenticateUser, async (req, res) => {
     try {
       const { sessionId, eventType, duration, metadata } = req.body;
-      
+
       const user = (req as any).user;
-      
+
       // Validate and sanitize the event data
       if (!eventType || typeof duration !== 'number') {
         return res.status(400).json({ message: "eventType and duration are required" });
       }
-      
+
       // Limit metadata size to prevent abuse
       const sanitizedMetadata = metadata ? JSON.stringify(metadata).substring(0, 2000) : null;
-      
+
       // Create performance event for database storage with user context
       const performanceEvent = {
         sessionId: sessionId || null,

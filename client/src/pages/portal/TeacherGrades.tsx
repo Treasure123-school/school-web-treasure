@@ -145,16 +145,22 @@ export default function TeacherGrades() {
 
   // Fetch essay submissions needing review
   const { data: essaySubmissions = [] } = useQuery({
-    queryKey: ['/api/exam-sessions/exam', selectedExam?.id],
+    queryKey: ['/api/essay-submissions', selectedExam?.id],
     queryFn: async () => {
       if (!selectedExam?.id) return [];
-      const response = await apiRequest('GET', `/api/exam-sessions/exam/${selectedExam.id}`);
-      const sessions = await response.json();
-      
-      // Filter for completed sessions that need essay review
-      return sessions.filter((session: any) => 
-        session.isCompleted && !session.fullyGraded
-      );
+      const response = await apiRequest('GET', `/api/essay-submissions/${selectedExam.id}`);
+      return await response.json();
+    },
+    enabled: !!selectedExam?.id,
+  });
+
+  // Fetch student answers that need manual grading
+  const { data: pendingAnswers = [] } = useQuery({
+    queryKey: ['/api/student-answers/pending-review', selectedExam?.id],
+    queryFn: async () => {
+      if (!selectedExam?.id) return [];
+      const response = await apiRequest('GET', `/api/student-answers/pending-review/${selectedExam.id}`);
+      return await response.json();
     },
     enabled: !!selectedExam?.id,
   });
@@ -303,6 +309,10 @@ export default function TeacherGrades() {
             <TabsTrigger value="grading" data-testid="tab-grading" disabled={!selectedExam}>
               <GraduationCap className="w-4 h-4 mr-2" />
               Grade Students
+            </TabsTrigger>
+            <TabsTrigger value="essay-review" data-testid="tab-essay-review">
+              <FileText className="w-4 h-4 mr-2" />
+              Essay Review
             </TabsTrigger>
             <TabsTrigger value="analytics" data-testid="tab-analytics">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -468,6 +478,85 @@ export default function TeacherGrades() {
                   <h3 className="text-lg font-medium mb-2">Select an Exam to Grade</h3>
                   <p className="text-muted-foreground">
                     Go to the "My Exams" tab and click the grade button on an exam to start grading students.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="essay-review" className="space-y-4">
+            {selectedExam ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center">
+                      <FileText className="w-5 h-5 mr-2" />
+                      Essay Review - {selectedExam.name}
+                    </span>
+                    <Badge variant="secondary">
+                      {pendingAnswers.filter((a: any) => a.questionType === 'essay').length} essays pending
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {pendingAnswers.filter((a: any) => a.questionType === 'essay').length > 0 ? (
+                    <div className="space-y-4">
+                      {pendingAnswers.filter((a: any) => a.questionType === 'essay').map((answer: any) => (
+                        <Card key={answer.id} className="border-l-4 border-l-orange-500">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-medium">{answer.studentName}</h4>
+                                <p className="text-sm text-muted-foreground">Question {answer.questionNumber}</p>
+                              </div>
+                              <Badge variant="outline">{answer.points} points</Badge>
+                            </div>
+                            <div className="mb-3">
+                              <p className="font-medium text-sm mb-2">Question:</p>
+                              <p className="text-sm bg-muted p-2 rounded">{answer.questionText}</p>
+                            </div>
+                            <div className="mb-4">
+                              <p className="font-medium text-sm mb-2">Student Answer:</p>
+                              <div className="bg-gray-50 p-3 rounded border">
+                                <p className="whitespace-pre-wrap">{answer.textAnswer || 'No answer provided'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Input 
+                                type="number" 
+                                placeholder="Points earned" 
+                                className="w-32"
+                                min="0"
+                                max={answer.points}
+                              />
+                              <Input 
+                                placeholder="Feedback (optional)" 
+                                className="flex-1"
+                              />
+                              <Button size="sm">Save Grade</Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No Essays to Review</h3>
+                      <p className="text-muted-foreground">
+                        All essay questions for this exam have been graded.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Select an Exam to Review Essays</h3>
+                  <p className="text-muted-foreground">
+                    Choose an exam from the "My Exams" tab to review essay submissions.
                   </p>
                 </CardContent>
               </Card>
