@@ -8,7 +8,6 @@ import path from "path";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { apiRequest } from './utils/apiRequest'; // Assuming this utility exists for making internal API requests
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -2104,27 +2103,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalMaxPoints = 0;
 
       for (const subject of subjects) {
-        // Get compiled results for this subject
-        const compilationResponse = await apiRequest('POST', '/api/results/compile', {
-          studentId,
-          subjectId: subject.id,
-          termId: parseInt(termId)
-        });
+        // Get compiled results for this subject - inline logic instead of internal API call
+        try {
+          const examResults = await storage.getExamResultsByStudent(studentId);
+          const relevantResults = examResults.filter((result: any) => {
+            return result.examId && parseInt(subject.id) && parseInt(termId);
+          });
 
-        if (compilationResponse.ok) {
-          const compiled = await compilationResponse.json();
+          // Enrich relevantResults with exam details to filter by subjectId and termId
+          const enrichedResults = [];
+          for (const result of relevantResults) {
+            try {
+              const exam = await storage.getExamById(result.examId);
+              if (exam && exam.subjectId === parseInt(subject.id) && exam.termId === parseInt(termId)) {
+                enrichedResults.push({ ...result, examType: exam.examType });
+              }
+            } catch (examError) {
+              console.warn(`Could not fetch exam details for examId ${result.examId}:`, examError);
+            }
+          }
+
+          // Separate test and exam results
+          const testResults = enrichedResults.filter((r: any) => r.examType === 'test');
+          const examResultsFiltered = enrichedResults.filter((r: any) => r.examType === 'exam');
+
+          // Calculate weighted scores
+          let testWeightedScore = 0;
+          let examWeightedScore = 0;
+          let hasTest = false;
+          let hasExam = false;
+
+          if (testResults.length > 0) {
+            const testScore = Math.max(...testResults.map((r: any) => (r.score / r.maxScore) * 100));
+            testWeightedScore = (testScore * 40) / 100;
+            hasTest = true;
+          }
+
+          if (examResultsFiltered.length > 0) {
+            const examScore = Math.max(...examResultsFiltered.map((r: any) => (r.score / r.maxScore) * 100));
+            examWeightedScore = (examScore * 60) / 100;
+            hasExam = true;
+          }
+
+          const totalScore = testWeightedScore + examWeightedScore;
+          let grade = 'F';
+
+          if (totalScore >= 90) grade = 'A+';
+          else if (totalScore >= 80) grade = 'A';
+          else if (totalScore >= 70) grade = 'B+';
+          else if (totalScore >= 60) grade = 'B';
+          else if (totalScore >= 50) grade = 'C';
 
           reportItems.push({
             subjectName: subject.name,
-            testScore: compiled.testScore ? Math.round(compiled.testScore) : '-',
-            examScore: compiled.examScore ? Math.round(compiled.examScore) : '-',
-            totalScore: Math.round(compiled.totalScore),
-            grade: compiled.grade,
-            remarks: compiled.isComplete ? 'Complete' : 'Pending'
+            testScore: hasTest ? Math.round(testWeightedScore) : '-',
+            examScore: hasExam ? Math.round(examWeightedScore) : '-',
+            totalScore: Math.round(totalScore),
+            grade: grade,
+            remarks: hasTest && hasExam ? 'Complete' : 'Pending'
           });
 
-          totalPoints += compiled.totalScore;
+          totalPoints += totalScore;
           totalMaxPoints += 100;
+        } catch (error) {
+          console.warn(`Failed to compile results for subject ${subject.id}:`, error);
+          // Add placeholder entry for failed compilation
+          reportItems.push({
+            subjectName: subject.name,
+            testScore: '-',
+            examScore: '-',
+            totalScore: 0,
+            grade: 'N/A',
+            remarks: 'Error'
+          });
         }
       }
 
