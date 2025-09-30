@@ -564,7 +564,7 @@ export default function TeacherGrades() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -580,8 +580,8 @@ export default function TeacherGrades() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Classes Taught</p>
-                      <p className="text-2xl font-bold">{classes.length}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Total Submissions</p>
+                      <p className="text-2xl font-bold">{examResults.length}</p>
                     </div>
                     <Users className="h-8 w-8 text-secondary" />
                   </div>
@@ -591,30 +591,188 @@ export default function TeacherGrades() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Subjects</p>
-                      <p className="text-2xl font-bold">{subjects.length}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Avg Score</p>
+                      <p className="text-2xl font-bold">
+                        {examResults.length > 0 
+                          ? Math.round(examResults.reduce((sum: number, r: any) => sum + (r.score || r.marksObtained || 0), 0) / examResults.length)
+                          : 0}%
+                      </p>
                     </div>
-                    <FileText className="h-8 w-8 text-green-600" />
+                    <TrendingUp className="h-8 w-8 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Pass Rate</p>
+                      <p className="text-2xl font-bold">
+                        {examResults.length > 0 
+                          ? Math.round((examResults.filter((r: any) => (r.score || r.marksObtained || 0) >= 50).length / examResults.length) * 100)
+                          : 0}%
+                      </p>
+                    </div>
+                    <FileText className="h-8 w-8 text-blue-600" />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Real-time Submission Tracking */}
+            {selectedExam && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center">
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Live Exam Results - {selectedExam.name}
+                    </span>
+                    <Badge variant="outline">
+                      {examResults.length} / {enrichedStudents.length} submitted
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Grade Distribution */}
+                    <div>
+                      <h4 className="font-medium mb-2">Grade Distribution</h4>
+                      <div className="grid grid-cols-5 gap-2 text-sm">
+                        {['A+', 'A', 'B', 'C', 'F'].map(grade => {
+                          const count = examResults.filter((r: any) => {
+                            const score = (r.score || r.marksObtained || 0);
+                            const percentage = (score / selectedExam.totalMarks) * 100;
+                            if (grade === 'A+') return percentage >= 90;
+                            if (grade === 'A') return percentage >= 80 && percentage < 90;
+                            if (grade === 'B') return percentage >= 60 && percentage < 80;
+                            if (grade === 'C') return percentage >= 50 && percentage < 60;
+                            return percentage < 50;
+                          }).length;
+                          return (
+                            <div key={grade} className="text-center p-2 bg-muted rounded">
+                              <div className="font-bold">{grade}</div>
+                              <div className="text-xs text-muted-foreground">{count}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Recent Submissions */}
+                    <div>
+                      <h4 className="font-medium mb-2">Recent Submissions</h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {examResults
+                          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                          .slice(0, 5)
+                          .map((result: any) => {
+                            const student = enrichedStudents.find((s: any) => s.id === result.studentId);
+                            const score = result.score || result.marksObtained || 0;
+                            const percentage = Math.round((score / selectedExam.totalMarks) * 100);
+                            return (
+                              <div key={result.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                                <span className="text-sm">
+                                  {student?.user?.firstName} {student?.user?.lastName}
+                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm font-medium">
+                                    {score}/{selectedExam.totalMarks}
+                                  </span>
+                                  <Badge 
+                                    variant={percentage >= 70 ? "default" : percentage >= 50 ? "secondary" : "destructive"}
+                                    className="text-xs"
+                                  >
+                                    {percentage}%
+                                  </Badge>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Performance Insights */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <TrendingUp className="w-5 h-5 mr-2" />
-                  Exam Performance Overview
+                  Performance Insights
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <BarChart3 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Analytics Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    Detailed performance analytics and charts will be available once you have exam results.
-                  </p>
-                </div>
+                {examResults.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-medium mb-2">Top Performers</h4>
+                      <div className="space-y-2">
+                        {examResults
+                          .map((result: any) => {
+                            const student = users.find((u: any) => u.id === result.studentId);
+                            return {
+                              ...result,
+                              studentName: student ? `${student.firstName} ${student.lastName}` : 'Unknown',
+                              percentage: Math.round(((result.score || result.marksObtained || 0) / (result.maxScore || 100)) * 100)
+                            };
+                          })
+                          .sort((a: any, b: any) => b.percentage - a.percentage)
+                          .slice(0, 3)
+                          .map((result: any, index: number) => (
+                            <div key={result.id} className="flex items-center justify-between p-2 bg-green-50 rounded">
+                              <div className="flex items-center space-x-2">
+                                <span className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">
+                                  {index + 1}
+                                </span>
+                                <span className="text-sm font-medium">{result.studentName}</span>
+                              </div>
+                              <span className="text-sm font-bold text-green-600">{result.percentage}%</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-medium mb-2">Students Needing Support</h4>
+                      <div className="space-y-2">
+                        {examResults
+                          .map((result: any) => {
+                            const student = users.find((u: any) => u.id === result.studentId);
+                            return {
+                              ...result,
+                              studentName: student ? `${student.firstName} ${student.lastName}` : 'Unknown',
+                              percentage: Math.round(((result.score || result.marksObtained || 0) / (result.maxScore || 100)) * 100)
+                            };
+                          })
+                          .filter((result: any) => result.percentage < 60)
+                          .sort((a: any, b: any) => a.percentage - b.percentage)
+                          .slice(0, 3)
+                          .map((result: any) => (
+                            <div key={result.id} className="flex items-center justify-between p-2 bg-red-50 rounded">
+                              <span className="text-sm font-medium">{result.studentName}</span>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-bold text-red-600">{result.percentage}%</span>
+                                <Button size="sm" variant="outline" className="text-xs">
+                                  Support Plan
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <BarChart3 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Exam Results Yet</h3>
+                    <p className="text-muted-foreground">
+                      Performance insights will appear once students submit their exams.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
