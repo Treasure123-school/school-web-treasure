@@ -41,6 +41,11 @@ export default function StudentExams() {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
   const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Network status monitoring
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [networkIssues, setNetworkIssues] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
   // Fetch available exams
   const { data: exams = [], isLoading: loadingExams, error: examsError } = useQuery<Exam[]>({
@@ -263,6 +268,48 @@ export default function StudentExams() {
     }
   }, [timeRemaining, activeSession]);
 
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setNetworkIssues(false);
+      toast({
+        title: "Connection Restored",
+        description: "Your internet connection has been restored. Retrying failed saves...",
+        variant: "default",
+      });
+      
+      // Retry any failed saves
+      Object.keys(answers).forEach(questionId => {
+        const qId = parseInt(questionId);
+        if (questionSaveStatus[qId] === 'failed') {
+          const question = examQuestions.find(q => q.id === qId);
+          if (question) {
+            handleRetryAnswer(qId, question.questionType);
+          }
+        }
+      });
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setNetworkIssues(true);
+      toast({
+        title: "Connection Lost",
+        description: "Your internet connection was lost. Answers will be saved when connection is restored.",
+        variant: "destructive",
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [answers, questionSaveStatus, examQuestions]);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -275,34 +322,47 @@ export default function StudentExams() {
   useEffect(() => {
     if (!activeSession || activeSession.isCompleted) return;
 
+    let tabSwitchTimer: NodeJS.Timeout | null = null;
+    
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Student switched away from the tab
-        setTabSwitchCount(prev => {
-          const newCount = prev + 1;
-          
-          // Show warning on first 3 switches
-          if (newCount <= 3) {
-            setShowTabSwitchWarning(true);
-            
-            // Auto-hide warning after 5 seconds
-            if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
-            tabSwitchTimeoutRef.current = setTimeout(() => {
-              setShowTabSwitchWarning(false);
-            }, 5000);
-            
-            toast({
-              title: "⚠️ Tab Switch Detected",
-              description: `Warning ${newCount}/3: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
-              variant: "destructive",
+        // Delay the warning to avoid false positives from quick system notifications
+        tabSwitchTimer = setTimeout(() => {
+          if (document.hidden) {
+            // Student switched away from the tab
+            setTabSwitchCount(prev => {
+              const newCount = prev + 1;
+              
+              // Show warning on first 3 switches
+              if (newCount <= 3) {
+                setShowTabSwitchWarning(true);
+                
+                // Auto-hide warning after 5 seconds
+                if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
+                tabSwitchTimeoutRef.current = setTimeout(() => {
+                  setShowTabSwitchWarning(false);
+                }, 5000);
+                
+                toast({
+                  title: "⚠️ Tab Switch Detected",
+                  description: `Warning ${newCount}/3: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
+                  variant: "destructive",
+                });
+              } else {
+                // After 3 warnings, just log silently
+                console.warn(`Tab switch detected: ${newCount} times`);
+              }
+              
+              return newCount;
             });
-          } else {
-            // After 3 warnings, just log silently
-            console.warn(`Tab switch detected: ${newCount} times`);
           }
-          
-          return newCount;
-        });
+        }, 1000); // 1 second delay to avoid false positives
+      } else {
+        // Tab became visible again, cancel any pending warnings
+        if (tabSwitchTimer) {
+          clearTimeout(tabSwitchTimer);
+          tabSwitchTimer = null;
+        }
       }
     };
 
@@ -1263,6 +1323,23 @@ export default function StudentExams() {
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
         <div className={`${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : ''}`}>
+          {/* Network Status Warning Banner */}
+          {!isOnline && (
+            <div className="bg-orange-100 dark:bg-orange-900/30 border-l-4 border-orange-500 p-4 mb-4" data-testid="alert-network-offline">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                    No Internet Connection
+                  </p>
+                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                    Your answers are being saved locally and will sync when connection is restored.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tab Switch Warning Banner */}
           {showTabSwitchWarning && (
             <div className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 p-4 mb-4" data-testid="alert-tab-switch">
@@ -1313,7 +1390,15 @@ export default function StudentExams() {
                     <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Time Remaining</span>
-                        <Timer className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <div className="flex items-center space-x-2">
+                          <Timer className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          {!isOnline && (
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" title="Offline - answers saved locally" />
+                          )}
+                          {isOnline && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full" title="Online - answers syncing" />
+                          )}
+                        </div>
                       </div>
                       <div className={`text-2xl font-mono font-bold ${getTimerColor(timeRemaining)}`}>
                         {formatTime(timeRemaining)}
@@ -1322,6 +1407,11 @@ export default function StudentExams() {
                       {timeRemaining < 300 && (
                         <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">
                           ⚠️ Less than 5 minutes left!
+                        </p>
+                      )}
+                      {!isOnline && (
+                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 font-medium">
+                          📡 Offline mode - answers will sync when online
                         </p>
                       )}
                     </div>
