@@ -43,9 +43,27 @@ export default function StudentExams() {
   const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch available exams
-  const { data: exams = [], isLoading: loadingExams } = useQuery<Exam[]>({
+  const { data: exams = [], isLoading: loadingExams, error: examsError } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
     enabled: !!user,
+    queryFn: async () => {
+      console.log('🔍 Fetching exams for student:', user?.id);
+      const response = await apiRequest('GET', '/api/exams');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch exams:', response.status, errorText);
+        throw new Error(`Failed to fetch exams: ${response.status}`);
+      }
+      
+      const examsData = await response.json();
+      console.log('📚 Fetched exams:', examsData.length, 'exams');
+      console.log('📋 Published exams:', examsData.filter((e: Exam) => e.isPublished).length);
+      
+      return examsData;
+    },
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // Fetch exam questions for active session
@@ -360,36 +378,86 @@ export default function StudentExams() {
   // Start exam mutation
   const startExamMutation = useMutation({
     mutationFn: async (examId: number) => {
-      const response = await apiRequest('POST', '/api/exam-sessions', {
-        examId,
-        studentId: user?.id,
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to start exam');
+      if (!user?.id) {
+        throw new Error('User not authenticated');
       }
-      return response.json();
+
+      console.log('🎯 Starting exam with ID:', examId, 'for student:', user.id);
+      
+      const response = await apiRequest('POST', '/api/exam-sessions', {
+        examId: examId,
+        studentId: user.id,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Exam start failed with status:', response.status, 'Response:', errorText);
+        
+        let errorMessage = 'Failed to start exam';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const sessionData = await response.json();
+      console.log('✅ Exam session response:', sessionData);
+      return sessionData;
     },
     onSuccess: (session: ExamSession) => {
       console.log('✅ Exam session created successfully:', session);
+      
+      if (!session || !session.id) {
+        console.error('❌ Invalid session data received:', session);
+        toast({
+          title: "Error",
+          description: "Invalid session data received. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setActiveSession(session);
       setCurrentQuestionIndex(0);
+      setAnswers({}); // Clear any previous answers
+      setTabSwitchCount(0); // Reset tab switch counter
+      
       // Set timer if exam has time limit
       const exam = exams.find(e => e.id === session.examId);
       if (exam?.timeLimit) {
-        setTimeRemaining(exam.timeLimit * 60); // Convert minutes to seconds
-        console.log(`⏰ Timer set to ${exam.timeLimit} minutes (${exam.timeLimit * 60} seconds)`);
+        const timeInSeconds = exam.timeLimit * 60;
+        setTimeRemaining(timeInSeconds);
+        console.log(`⏰ Timer set to ${exam.timeLimit} minutes (${timeInSeconds} seconds)`);
+      } else {
+        setTimeRemaining(null);
       }
+      
       toast({
-        title: "Exam Started",
-        description: "Good luck with your exam!",
+        title: "Exam Started Successfully!",
+        description: "Good luck with your exam! Stay on this page during the exam.",
       });
     },
     onError: (error: Error) => {
       console.error('❌ Failed to start exam:', error);
+      
+      let errorMessage = error.message || "Unable to start exam. Please try again.";
+      
+      // Handle specific error cases
+      if (error.message.includes('already has an active session')) {
+        errorMessage = "You already have an active exam session. Please contact your instructor if you believe this is an error.";
+      } else if (error.message.includes('not published')) {
+        errorMessage = "This exam is not yet available. Please check with your instructor.";
+      } else if (error.message.includes('not authenticated')) {
+        errorMessage = "Please log in again to start the exam.";
+      }
+      
       toast({
-        title: "Error Starting Exam",
-        description: error.message || "Unable to start exam. Please try again.",
+        title: "Unable to Start Exam",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -672,8 +740,9 @@ export default function StudentExams() {
   const handleStartExam = (exam: Exam) => {
     console.log('🎯 Starting exam:', exam.name, 'ID:', exam.id);
     
-    // Validation checks
+    // Comprehensive validation checks
     if (!exam.id) {
+      console.error('❌ Invalid exam - missing ID:', exam);
       toast({
         title: "Error",
         description: "Invalid exam selected. Please refresh and try again.",
@@ -683,14 +752,37 @@ export default function StudentExams() {
     }
 
     if (!user?.id) {
+      console.error('❌ User not authenticated:', user);
       toast({
-        title: "Error", 
-        description: "User session invalid. Please log in again.",
+        title: "Authentication Required", 
+        description: "Please log in again to start the exam.",
         variant: "destructive",
       });
       return;
     }
 
+    if (!exam.isPublished) {
+      console.error('❌ Exam not published:', exam);
+      toast({
+        title: "Exam Not Available",
+        description: "This exam is not yet published. Please check with your instructor.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if already has an active session
+    if (activeSession && !activeSession.isCompleted) {
+      console.warn('⚠️ Student already has active session:', activeSession);
+      toast({
+        title: "Active Session Detected",
+        description: "You already have an active exam session. Complete it first before starting a new exam.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('✅ All validation checks passed, starting exam...');
     setSelectedExam(exam);
     startExamMutation.mutate(exam.id);
   };
@@ -1382,10 +1474,35 @@ export default function StudentExams() {
           {/* Available Exams */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loadingExams ? (
-              <div className="col-span-full text-center py-8">Loading exams...</div>
+              <div className="col-span-full text-center py-8">
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span>Loading exams...</span>
+                </div>
+              </div>
+            ) : examsError ? (
+              <div className="col-span-full text-center py-8">
+                <div className="text-red-600 mb-2">Failed to load exams</div>
+                <div className="text-sm text-muted-foreground">
+                  {examsError instanceof Error ? examsError.message : 'Unknown error occurred'}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => window.location.reload()}
+                >
+                  Reload Page
+                </Button>
+              </div>
             ) : exams.filter(exam => exam.isPublished).length === 0 ? (
               <div className="col-span-full text-center py-8 text-muted-foreground">
-                No exams available at the moment.
+                <div className="mb-2">No exams available at the moment.</div>
+                {exams.length > 0 && (
+                  <div className="text-sm text-yellow-600">
+                    {exams.length} exam(s) found but not yet published
+                  </div>
+                )}
               </div>
             ) : (
               exams
@@ -1428,12 +1545,26 @@ export default function StudentExams() {
                       <div className="flex space-x-2">
                         <Button
                           onClick={() => handleStartExam(exam)}
-                          disabled={startExamMutation.isPending}
+                          disabled={startExamMutation.isPending || !exam.isPublished}
                           className="flex-1"
                           data-testid={`button-start-exam-${exam.id}`}
                         >
-                          <Play className="w-4 h-4 mr-2" />
-                          {startExamMutation.isPending ? 'Starting...' : 'Start Exam'}
+                          {startExamMutation.isPending ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Starting...
+                            </>
+                          ) : !exam.isPublished ? (
+                            <>
+                              <Clock className="w-4 h-4 mr-2" />
+                              Not Available
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 mr-2" />
+                              Start Exam
+                            </>
+                          )}
                         </Button>
                         <Button
                           variant="outline"

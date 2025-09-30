@@ -1821,7 +1821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               continue;
             }
 
-            // Validate each option using the creation schema (without questionId)
+            // Validate each option using the creation schema
             try {
               questionData.options = questionData.options.map((option: any) => createQuestionOptionSchema.parse(option));
             } catch (optionError) {
@@ -3815,6 +3815,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching finalized reports:', error);
       res.status(500).json({ message: "Failed to fetch finalized reports" });
+    }
+  });
+
+  // Exam Sessions - Student exam taking
+  app.post("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const { examId, studentId } = req.body;
+      const user = (req as any).user;
+
+      console.log('📝 Creating exam session:', { examId, studentId, userFromToken: user.id });
+
+      // Validate required fields
+      if (!examId || !studentId) {
+        return res.status(400).json({ message: "examId and studentId are required" });
+      }
+
+      // Ensure student can only create sessions for themselves
+      if (studentId !== user.id) {
+        console.error('❌ Authorization failure: Student trying to create session for another student:', { requestedStudentId: studentId, authenticatedUserId: user.id });
+        return res.status(403).json({ message: "Students can only create exam sessions for themselves" });
+      }
+
+      // Check if exam exists and is published
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        console.error('❌ Exam not found:', examId);
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      console.log('📋 Exam details:', { id: exam.id, name: exam.name, isPublished: exam.isPublished, timeLimit: exam.timeLimit });
+
+      if (!exam.isPublished) {
+        console.error('❌ Exam not published:', examId);
+        return res.status(403).json({ message: "Exam is not published" });
+      }
+
+      // Check if student already has an active session for this exam
+      const existingSession = await storage.getActiveExamSession(examId, studentId);
+      if (existingSession && !existingSession.isCompleted) {
+        console.error('❌ Student already has active session:', { sessionId: existingSession.id, examId, studentId });
+        return res.status(409).json({ 
+          message: "You already have an active session for this exam",
+          sessionId: existingSession.id 
+        });
+      }
+
+      // Create new exam session
+      const sessionData = {
+        examId: parseInt(examId),
+        studentId: studentId,
+        startedAt: new Date(),
+        isCompleted: false,
+        status: 'active',
+        timeRemaining: exam.timeLimit ? exam.timeLimit * 60 : null // Convert minutes to seconds
+      };
+
+      console.log('💾 Creating session with data:', sessionData);
+
+      const session = await storage.createExamSession(sessionData);
+
+      if (!session) {
+        console.error('❌ Failed to create session - storage returned null');
+        return res.status(500).json({ message: "Failed to create exam session" });
+      }
+
+      console.log('✅ Exam session created successfully:', { sessionId: session.id, examId, studentId });
+      res.json(session);
+
+    } catch (error) {
+      console.error('❌ Exam session creation error:', error);
+
+      if (error instanceof z.ZodError) {
+        console.error('❌ Validation error:', error.errors);
+        return res.status(400).json({ 
+          message: "Invalid session data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+
+      // Handle database errors
+      if ((error as any)?.code) {
+        const dbError = error as any;
+        console.error('❌ Database error:', { code: dbError.code, message: dbError.message });
+
+        if (dbError.code === '23503') { // Foreign key violation
+          return res.status(400).json({ message: "Invalid exam or student reference" });
+        }
+        if (dbError.code === '23505') { // Unique violation
+          return res.status(409).json({ message: "Session already exists for this exam" });
+        }
+      }
+
+      res.status(500).json({ 
+        message: "Failed to create exam session",
+        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      });
+    }
+  });
+
+  // Get active exam sessions for a student
+  app.get("/api/exam-sessions/student/:studentId", authenticateUser, async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      // Students can only view their own sessions, teachers/admins can view any
+      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
+        return res.status(403).json({ message: "Students can only view their own exam sessions" });
+      }
+
+      const sessions = await storage.getExamSessionsByStudent(studentId);
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error fetching exam sessions:', error);
+      res.status(500).json({ message: "Failed to fetch exam sessions" });
+    }
+  });
+
+  // Get specific exam session by ID
+  app.get("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+
+      const session = await storage.getExamSessionById(parseInt(id));
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+
+      // Students can only view their own sessions
+      if (user.roleId === ROLES.STUDENT && user.id !== session.studentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error('Error fetching exam session:', error);
+      res.status(500).json({ message: "Failed to fetch exam session" });
+    }
+  });
+
+  // Update exam session (for timer recovery and status updates)
+  app.patch("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const updateData = req.body;
+
+      const session = await storage.getExamSessionById(parseInt(id));
+      if (!session) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+
+      // Students can only update their own sessions
+      if (user.roleId === ROLES.STUDENT && user.id !== session.studentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Validate update data
+      const validatedData = updateExamSessionSchema.parse(updateData);
+      const updatedSession = await storage.updateExamSession(parseInt(id), validatedData);
+
+      if (!updatedSession) {
+        return res.status(404).json({ message: "Failed to update exam session" });
+      }
+
+      res.json(updatedSession);
+    } catch (error) {
+      console.error('Error updating exam session:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid update data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to update exam session" });
     }
   });
 
