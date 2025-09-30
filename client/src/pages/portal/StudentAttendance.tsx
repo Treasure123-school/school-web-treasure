@@ -17,10 +17,14 @@ export default function StudentAttendance() {
   }
 
   const { data: attendance, isLoading } = useQuery({
-    queryKey: ['attendance', user.id, selectedMonth, selectedYear],
+    queryKey: ['/api/student/attendance', selectedMonth, selectedYear],
     queryFn: async () => {
-      const response = await fetch(`/api/attendance/${user.id}?month=${selectedMonth}&year=${selectedYear}`, {
-        credentials: 'include'
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/student/attendance?month=${selectedMonth}&year=${selectedYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       if (!response.ok) throw new Error('Failed to fetch attendance');
       return response.json();

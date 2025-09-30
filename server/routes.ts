@@ -1386,6 +1386,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Student-accessible attendance endpoint - students can only view their own attendance
+  app.get("/api/student/attendance", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const studentId = req.user.id;
+      const { month, year } = req.query;
+      
+      const attendance = await storage.getAttendanceByStudent(studentId, undefined);
+      
+      // Filter by month and year if provided
+      let filteredAttendance = attendance;
+      if (month !== undefined && year !== undefined) {
+        filteredAttendance = attendance.filter((record: any) => {
+          const recordDate = new Date(record.date);
+          return recordDate.getMonth() === parseInt(month as string) && 
+                 recordDate.getFullYear() === parseInt(year as string);
+        });
+      }
+
+      res.json(filteredAttendance);
+    } catch (error) {
+      console.error('Error fetching student attendance:', error);
+      res.status(500).json({ message: "Failed to fetch attendance" });
+    }
+  });
+
   // Exams
   app.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
