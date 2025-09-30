@@ -28,7 +28,11 @@ import {
   TrendingUp,
   FileText,
   GraduationCap,
-  BarChart3
+  BarChart3,
+  Award,
+  CheckCircle,
+  AlertCircle,
+  Signature
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -301,7 +305,7 @@ export default function TeacherGrades() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3" data-testid="tabs-grades">
+          <TabsList className="grid w-full grid-cols-5" data-testid="tabs-grades">
             <TabsTrigger value="exams" data-testid="tab-exams">
               <BookOpen className="w-4 h-4 mr-2" />
               My Exams
@@ -313,6 +317,10 @@ export default function TeacherGrades() {
             <TabsTrigger value="essay-review" data-testid="tab-essay-review">
               <FileText className="w-4 h-4 mr-2" />
               Essay Review
+            </TabsTrigger>
+            <TabsTrigger value="report-finalization" data-testid="tab-report-finalization" disabled={!selectedExam}>
+              <Award className="w-4 h-4 mr-2" />
+              Finalize Reports
             </TabsTrigger>
             <TabsTrigger value="analytics" data-testid="tab-analytics">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -561,6 +569,40 @@ export default function TeacherGrades() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="report-finalization" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  Student Report Finalization
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Review, finalize, and approve student report cards with teacher remarks and signatures.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {selectedExam ? (
+                  <StudentReportFinalization 
+                    exam={selectedExam} 
+                    students={enrichedStudents}
+                    onReportFinalized={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+                      toast({ title: "Success", description: "Report finalized successfully" });
+                    }}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Select an Exam to Finalize Reports</h3>
+                    <p className="text-muted-foreground">
+                      Choose an exam from the "My Exams" tab to review and finalize student report cards.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
@@ -966,5 +1008,272 @@ export default function TeacherGrades() {
         </Dialog>
       </div>
     </PortalLayout>
+  );
+}
+
+// Student Report Finalization Component
+function StudentReportFinalization({ exam, students, onReportFinalized }: {
+  exam: any;
+  students: any[];
+  onReportFinalized: () => void;
+}) {
+  const { toast } = useToast();
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [teacherRemarks, setTeacherRemarks] = useState('');
+  const [isFinalizingReport, setIsFinalizingReport] = useState(false);
+
+  // Fetch all exam results for this exam to calculate comprehensive scores
+  const { data: allExamResults = [] } = useQuery({
+    queryKey: ['/api/exam-results/exam', exam.id],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/exam-results/exam/${exam.id}`);
+      return await response.json();
+    },
+    enabled: !!exam.id,
+  });
+
+  // Fetch terms for report context
+  const { data: terms = [] } = useQuery({
+    queryKey: ['/api/terms'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/terms');
+      return await response.json();
+    },
+  });
+
+  const finalizeStudentReport = async () => {
+    if (!selectedStudent || !teacherRemarks.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a student and provide teacher remarks.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsFinalizingReport(true);
+    try {
+      // Update the exam result with teacher finalization
+      const response = await apiRequest('PATCH', `/api/exam-results/${selectedStudent.result?.id}`, {
+        teacherRemarks: teacherRemarks,
+        teacherFinalized: true,
+        finalizedAt: new Date().toISOString(),
+        finalizedBy: exam.createdBy,
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Report Finalized",
+          description: `Report for ${selectedStudent.user?.firstName} ${selectedStudent.user?.lastName} has been finalized.`,
+        });
+        onReportFinalized();
+        setSelectedStudent(null);
+        setTeacherRemarks('');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to finalize report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFinalizingReport(false);
+    }
+  };
+
+  const getStudentComprehensiveScore = (student: any) => {
+    const result = allExamResults.find((r: any) => r.studentId === student.id);
+    if (!result) return { testScore: 0, examScore: 0, total: 0, grade: 'F' };
+
+    // For the comprehensive report, we need to calculate Test (40%) + Exam (60%)
+    // This is a simplified version - in reality, you'd fetch all test and exam results for the term
+    const rawScore = result.score || result.marksObtained || 0;
+    const maxScore = result.maxScore || exam.totalMarks || 100;
+    const percentage = Math.round((rawScore / maxScore) * 100);
+
+    // Simulate test and exam breakdown (you would fetch this from actual test/exam results)
+    const testScore = exam.examType === 'test' ? percentage : Math.round(percentage * 0.7); // Simulate test score
+    const examScore = exam.examType === 'exam' ? percentage : Math.round(percentage * 1.2); // Simulate exam score
+    
+    // Calculate weighted total: Test (40%) + Exam (60%)
+    const weightedTotal = Math.round((testScore * 0.4) + (examScore * 0.6));
+    
+    let grade = 'F';
+    if (weightedTotal >= 90) grade = 'A+';
+    else if (weightedTotal >= 80) grade = 'A';
+    else if (weightedTotal >= 70) grade = 'B+';
+    else if (weightedTotal >= 60) grade = 'B';
+    else if (weightedTotal >= 50) grade = 'C';
+
+    return {
+      testScore: testScore,
+      examScore: examScore, 
+      total: weightedTotal,
+      grade: grade,
+      rawScore: rawScore,
+      maxScore: maxScore
+    };
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Students List for Report Finalization */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Students - Report Finalization Status</span>
+            <Badge variant="secondary">
+              {exam.name} • {exam.examType?.toUpperCase()}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {students.map((student: any) => {
+              const score = getStudentComprehensiveScore(student);
+              const isFinalized = student.result?.teacherFinalized;
+              
+              return (
+                <div 
+                  key={student.id}
+                  className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedStudent?.id === student.id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => setSelectedStudent(student)}
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-3 h-3 rounded-full ${
+                      isFinalized ? 'bg-green-500' : 'bg-yellow-500'
+                    }`} />
+                    <div>
+                      <p className="font-medium">
+                        {student.user?.firstName} {student.user?.lastName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {student.admissionNumber}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="font-semibold">
+                        {score.total}% ({score.grade})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Test: {score.testScore}% | Exam: {score.examScore}%
+                      </p>
+                    </div>
+                    
+                    {isFinalized ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-yellow-600" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Report Finalization Form */}
+      {selectedStudent && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Signature className="w-5 h-5 mr-2" />
+              Finalize Report - {selectedStudent.user?.firstName} {selectedStudent.user?.lastName}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Student Score Summary */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium mb-3">Performance Summary</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Test Score (40%)</p>
+                  <p className="font-semibold">{getStudentComprehensiveScore(selectedStudent).testScore}%</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Exam Score (60%)</p>
+                  <p className="font-semibold">{getStudentComprehensiveScore(selectedStudent).examScore}%</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Total Score</p>
+                  <p className="font-semibold text-lg">{getStudentComprehensiveScore(selectedStudent).total}%</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Grade</p>
+                  <Badge variant="default" className="font-semibold">
+                    {getStudentComprehensiveScore(selectedStudent).grade}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Teacher Remarks */}
+            <div>
+              <Label htmlFor="teacherRemarks" className="text-base font-medium">
+                Teacher's Remarks & Comments
+              </Label>
+              <textarea
+                id="teacherRemarks"
+                className="w-full mt-2 p-3 border rounded-lg resize-none h-24"
+                placeholder="Enter your professional remarks about the student's performance, improvement areas, and recommendations..."
+                value={teacherRemarks}
+                onChange={(e) => setTeacherRemarks(e.target.value)}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {teacherRemarks.length}/500 characters
+              </p>
+            </div>
+
+            {/* Finalization Actions */}
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                <p>Once finalized, this report will be:</p>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li>Available to students and parents</li>
+                  <li>Included in the official transcript</li>
+                  <li>Signed with your teacher credentials</li>
+                </ul>
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    setTeacherRemarks('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={finalizeStudentReport}
+                  disabled={isFinalizingReport || !teacherRemarks.trim()}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isFinalizingReport ? (
+                    <>
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                      Finalizing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Finalize Report
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

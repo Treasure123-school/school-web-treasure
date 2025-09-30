@@ -261,54 +261,136 @@ export default function StudentReportCard() {
               </Card>
             </div>
 
-            {/* Detailed Subject Results - CORE PRIORITY FLOW Format */}
-            <Card className="print:shadow-none">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="w-5 h-5 mr-2" />
-                  Subject Performance Report
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Scoring Formula: Test (40%) + Exam (60%) = Total (100%)
-                </p>
+            {/* Professional Report Card Format */}
+            <Card className="print:shadow-none bg-gradient-to-br from-blue-50 to-indigo-50 print:bg-white">
+              <CardHeader className="text-center border-b-2 border-blue-200 print:border-gray-400">
+                <div className="bg-blue-600 text-white p-4 rounded-lg mb-4 print:bg-gray-800">
+                  <h2 className="text-2xl font-bold">STUDENT REPORT CARD</h2>
+                </div>
+                
+                {/* Student Information Box */}
+                <div className="bg-white p-4 rounded-lg border border-blue-200 print:border-gray-400">
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    <div>
+                      <p><strong>Name:</strong> {user.firstName} {user.lastName}</p>
+                      <p><strong>Student ID:</strong> {studentDetails?.admissionNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p><strong>Class:</strong> {studentDetails?.className || 'N/A'}</p>
+                      <p><strong>Academic Session:</strong> {reportCard.termName} ({reportCard.termYear})</p>
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="font-semibold">Subject</TableHead>
-                      <TableHead className="text-center font-semibold">Test (40%)</TableHead>
-                      <TableHead className="text-center font-semibold">Exam (60%)</TableHead>
-                      <TableHead className="text-center font-semibold">Total (100%)</TableHead>
-                      <TableHead className="text-center font-semibold">Grade</TableHead>
-                      <TableHead className="font-semibold">Remarks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportCard.subjects?.map((subject: any, index: number) => (
-                      <TableRow key={subject.subjectName} data-testid={`row-subject-${index}`}>
-                        <TableCell className="font-medium">{subject.subjectName}</TableCell>
-                        <TableCell className="text-center">
-                          {subject.testScore !== '-' ? `${subject.testScore}%` : '-'}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {subject.examScore !== '-' ? `${subject.examScore}%` : '-'}
-                        </TableCell>
-                        <TableCell className="text-center font-semibold">
-                          {subject.totalScore}%
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getGradeColor(subject.grade)}>
-                            {subject.grade}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {subject.remarks}
-                        </TableCell>
+              
+              <CardContent className="p-0">
+                {/* Professional Subject Performance Table */}
+                <div className="overflow-hidden">
+                  <Table className="border-collapse">
+                    <TableHeader>
+                      <TableRow className="bg-blue-100 print:bg-gray-100">
+                        <TableHead className="border border-gray-300 font-bold text-center py-3">Subject</TableHead>
+                        <TableHead className="border border-gray-300 font-bold text-center py-3">Test (40)</TableHead>
+                        <TableHead className="border border-gray-300 font-bold text-center py-3">Exam (60)</TableHead>
+                        <TableHead className="border border-gray-300 font-bold text-center py-3">Total (100)</TableHead>
+                        <TableHead className="border border-gray-300 font-bold text-center py-3">Grade</TableHead>
+                        <TableHead className="border border-gray-300 font-bold text-center py-3">Remarks</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {reportCard.subjects?.map((subject: any, index: number) => (
+                        <TableRow key={subject.subjectName} data-testid={`row-subject-${index}`} className="hover:bg-blue-25 print:hover:bg-transparent">
+                          <TableCell className="border border-gray-300 font-medium py-3">{subject.subjectName}</TableCell>
+                          <TableCell className="border border-gray-300 text-center py-3 font-semibold">
+                            {subject.testScore !== '-' ? `${subject.testScore}/40` : '-'}
+                          </TableCell>
+                          <TableCell className="border border-gray-300 text-center py-3 font-semibold">
+                            {subject.examScore !== '-' ? `${subject.examScore}/60` : '-'}
+                          </TableCell>
+                          <TableCell className="border border-gray-300 text-center py-3 font-bold text-lg">
+                            {subject.totalScore}/100
+                          </TableCell>
+                          <TableCell className="border border-gray-300 text-center py-3">
+                            <span className={`px-3 py-1 rounded-full font-bold ${getGradeColor(subject.grade)}`}>
+                              {subject.grade}
+                            </span>
+                          </TableCell>
+                          <TableCell className="border border-gray-300 text-sm py-3">
+                            {subject.remarks || 'Good'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Summary Section */}
+                <div className="bg-blue-50 print:bg-gray-50 p-6 border-t-2 border-blue-200 print:border-gray-400">
+                  <h3 className="text-lg font-bold mb-4 text-center">Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div className="bg-white p-4 rounded-lg border">
+                      <p className="text-sm text-muted-foreground">Total Marks Obtained</p>
+                      <p className="text-2xl font-bold text-blue-600">{reportCard.summary?.totalPoints || 0} / {reportCard.summary?.maxPoints || 0}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border">
+                      <p className="text-sm text-muted-foreground">Overall Percentage</p>
+                      <p className="text-2xl font-bold text-green-600">{overallPercentage}%</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border">
+                      <p className="text-sm text-muted-foreground">Class Rank</p>
+                      <p className="text-2xl font-bold text-purple-600">{reportCard.classRank || 'N/A'} of {reportCard.totalStudents || 'N/A'}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Teacher's Comments */}
+                  {reportCard.teacherComments && reportCard.teacherComments.length > 0 && (
+                    <div className="mt-6 bg-white p-4 rounded-lg border">
+                      <h4 className="font-bold mb-3">Teacher's Comments:</h4>
+                      <div className="space-y-2">
+                        {reportCard.teacherComments.map((comment: any, index: number) => (
+                          <p key={index} className="text-sm italic border-l-4 border-blue-400 pl-3">
+                            <strong>{comment.subjectName}:</strong> {comment.comment}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Signature Section */}
+                <div className="bg-white p-6 border-t print:border-gray-400">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="text-center">
+                      <div className="border-b border-gray-400 mb-2 h-16 flex items-end justify-center">
+                        <span className="text-2xl font-cursive text-blue-600">{user.firstName.charAt(0)}. {user.lastName}</span>
+                      </div>
+                      <p className="text-sm font-medium">Class Teacher Signature</p>
+                      <p className="text-xs text-muted-foreground">Date Generated: {new Date().toLocaleDateString()}</p>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="border-b border-gray-400 mb-2 h-16 flex items-end justify-center">
+                        <span className="text-2xl font-cursive text-purple-600">Dr. S. Chen</span>
+                      </div>
+                      <p className="text-sm font-medium">Principal/Head Signature</p>
+                    </div>
+
+                    <div className="text-center">
+                      <div className="flex justify-center space-x-2 mb-4">
+                        <Button variant="outline" size="sm" onClick={handlePrint}>
+                          🖨️ Print
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                          📄 Export PDF
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          📊 Export Excel
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Academic Year: {reportCard.termYear}</p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

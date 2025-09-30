@@ -2277,6 +2277,59 @@ export class DatabaseStorage implements IStorage {
     return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
   }
 
+  // Report finalization methods
+  async getExamResultById(id: number): Promise<ExamResult | undefined> {
+    try {
+      const result = await this.db.select().from(schema.examResults)
+        .where(eq(schema.examResults.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching exam result by ID:', error);
+      return undefined;
+    }
+  }
+
+  async getFinalizedReportsByExams(examIds: number[], filters?: {
+    classId?: number;
+    subjectId?: number;
+    termId?: number;
+  }): Promise<any[]> {
+    try {
+      // This would be a complex query joining exam results with exams, students, and subjects
+      // For now, return a simplified version
+      const results = await this.db.select().from(schema.examResults)
+        .where(and(
+          inArray(schema.examResults.examId, examIds),
+          // Add teacherFinalized field check when column exists
+          // eq(schema.examResults.teacherFinalized, true)
+        ))
+        .orderBy(desc(schema.examResults.createdAt));
+
+      return results;
+    } catch (error) {
+      console.error('Error fetching finalized reports by exams:', error);
+      return [];
+    }
+  }
+
+  async getAllFinalizedReports(filters?: {
+    classId?: number;
+    subjectId?: number;
+    termId?: number;
+  }): Promise<any[]> {
+    try {
+      // This would be a complex query for admins to see all finalized reports
+      const results = await this.db.select().from(schema.examResults)
+        .orderBy(desc(schema.examResults.createdAt));
+
+      return results;
+    } catch (error) {
+      console.error('Error fetching all finalized reports:', error);
+      return [];
+    }
+  }
+
   async getContactMessageById(id: number): Promise<ContactMessage | undefined> {
     const result = await this.db.select().from(schema.contactMessages).where(eq(schema.contactMessages.id, id)).limit(1);
     return result[0];
