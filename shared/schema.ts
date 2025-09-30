@@ -7,6 +7,7 @@ import { z } from "zod";
 export const genderEnum = pgEnum('gender', ['Male', 'Female', 'Other']);
 export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Late', 'Excused']);
 export const reportCardStatusEnum = pgEnum('report_card_status', ['draft', 'finalized', 'published']);
+export const examTypeEnum = pgEnum('exam_type', ['test', 'exam']);
 
 // Roles table
 export const roles = pgTable("roles", {
@@ -101,6 +102,8 @@ export const exams = pgTable("exams", {
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  // Exam type: 'test' (40 marks) or 'exam' (60 marks)
+  examType: examTypeEnum("exam_type").notNull().default('exam'),
   // Enhanced exam delivery fields
   timeLimit: integer("time_limit"), // in minutes
   startTime: timestamp("start_time"),
@@ -315,8 +318,18 @@ export const reportCardItems = pgTable("report_card_items", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   reportCardId: integer("report_card_id").references(() => reportCards.id).notNull(),
   subjectId: integer("subject_id").references(() => subjects.id).notNull(),
-  totalMarks: integer("total_marks").notNull(),
-  obtainedMarks: integer("obtained_marks").notNull(),
+  // Test and Exam scores with their respective exam IDs for reference
+  testExamId: bigint("test_exam_id", { mode: "number" }).references(() => exams.id),
+  testScore: integer("test_score"), // Score obtained in test (out of testMaxScore)
+  testMaxScore: integer("test_max_score"), // Maximum marks for test
+  testWeightedScore: integer("test_weighted_score"), // Normalized to 40
+  examExamId: bigint("exam_exam_id", { mode: "number" }).references(() => exams.id),
+  examScore: integer("exam_score"), // Score obtained in exam (out of examMaxScore)
+  examMaxScore: integer("exam_max_score"), // Maximum marks for exam
+  examWeightedScore: integer("exam_weighted_score"), // Normalized to 60
+  // Combined scores
+  totalMarks: integer("total_marks").notNull().default(100), // Always 100 for the weighted system
+  obtainedMarks: integer("obtained_marks").notNull(), // testWeightedScore + examWeightedScore
   percentage: integer("percentage").notNull(),
   grade: varchar("grade", { length: 5 }), // A+, A, B+, etc.
   teacherRemarks: text("teacher_remarks"),

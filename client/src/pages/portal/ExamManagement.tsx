@@ -114,6 +114,7 @@ export default function ExamManagement() {
   const { register: registerExam, handleSubmit: handleExamSubmit, formState: { errors: examErrors }, control: examControl, setValue: setExamValue, reset: resetExam } = useForm<ExamForm>({
     resolver: zodResolver(examFormSchema),
     defaultValues: {
+      examType: 'exam',
       timeLimit: 60,
       isPublished: false,
       allowRetakes: false,
@@ -1035,7 +1036,29 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="examType">Assessment Type</Label>
+                    <Controller
+                      name="examType"
+                      control={examControl}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger data-testid="select-exam-type">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="test">Test (40 marks weight)</SelectItem>
+                            <SelectItem value="exam">Exam (60 marks weight)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {examErrors.examType && <p className="text-sm text-red-500">{examErrors.examType.message}</p>}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Final grades are calculated as: Test (40%) + Exam (60%) = Total (100%)
+                    </p>
+                  </div>
                   <div>
                     <Label htmlFor="term">Academic Term</Label>
                     <Controller
@@ -1058,6 +1081,9 @@ export default function ExamManagement() {
                     />
                     {examErrors.termId && <p className="text-sm text-red-500">{examErrors.termId.message}</p>}
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="totalMarks">Total Marks</Label>
                     <Input 
