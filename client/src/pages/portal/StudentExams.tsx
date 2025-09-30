@@ -410,54 +410,56 @@ export default function StudentExams() {
     return pendingSaves.size > 0;
   };
 
-  // OPTIMIZED Auto-submit with minimal delay for <2s performance goal
+  // Auto-submit with safe wait time for data integrity
   const handleAutoSubmitOnTimeout = async () => {
     const startTime = Date.now();
     
     if (hasPendingSaves()) {
-      // PERFORMANCE OPTIMIZATION: Reduced wait time from 5000ms to 600ms
-      // This eliminates the major 5-second bottleneck while allowing time for network jitter
+      // INCREASED TIMEOUT FOR DATA SAFETY: Wait up to 3000ms (3s) to ensure answers are saved
+      // This prevents data loss on moderate/slow networks (200-500ms latency)
       toast({
         title: "Time's Up!",
-        description: "Finalizing answers before submitting...",
+        description: "Saving your final answers before submitting...",
       });
       
-      // OPTIMIZED: Wait up to 600ms max for saves to complete (down from 5000ms!)
-      // This allows time for network jitter while still achieving <2s total submission time
-      const maxWaitTime = 600; // Reduced from 5000ms - MAJOR PERFORMANCE IMPROVEMENT
-      const checkInterval = 50; // Faster checks (down from 500ms)
+      // Safe timeout: 3 seconds allows for network latency and prevents data loss
+      const maxWaitTime = 3000; // Increased from unsafe 600ms - CRITICAL FOR DATA INTEGRITY
+      const checkInterval = 100; // Check every 100ms
       let waitTime = 0;
       
       const checkSaves = () => {
         if (!hasPendingSaves()) {
           // All saves completed, now submit
           const totalWaitTime = Date.now() - startTime;
-          console.log(`⚡ OPTIMIZED: Pending saves completed in ${totalWaitTime}ms (was up to 5000ms before)`);
+          console.log(`✅ All pending saves completed in ${totalWaitTime}ms, submitting exam`);
           toast({
             title: "Submitting Exam",
-            description: "Submitting exam...",
+            description: "All answers saved successfully. Submitting exam...",
           });
           forceSubmitExam();
         } else if (waitTime >= maxWaitTime) {
-          // Force submit after minimal wait
+          // Force submit after safe wait period
           const totalWaitTime = Date.now() - startTime;
-          console.log(`⚡ OPTIMIZED: Force submit after ${totalWaitTime}ms wait (was 5000ms before)`);
+          console.warn(`⚠️ Force submit after ${totalWaitTime}ms wait - some answers may still be saving`);
           toast({
             title: "Submitting Exam",
-            description: "Submitting exam...",
-            variant: "default", // Changed from destructive - minimal delay is normal
+            description: "Submitting exam now. Please ensure stable internet connection.",
+            variant: "default",
           });
           forceSubmitExam();
         } else {
-          // Keep waiting (but much shorter intervals)
+          // Keep waiting with status update
           waitTime += checkInterval;
+          if (waitTime % 500 === 0) {
+            console.log(`Waiting for ${pendingSaves.size} answer(s) to save... (${waitTime}ms elapsed)`);
+          }
           setTimeout(checkSaves, checkInterval);
         }
       };
       
       checkSaves();
     } else {
-      console.log(`⚡ OPTIMIZED: No pending saves, immediate submit`);
+      console.log(`✅ No pending saves, immediate submit`);
       toast({
         title: "Submitting Exam",
         description: "Time limit reached. Submitting exam...",

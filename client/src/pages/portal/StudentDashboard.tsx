@@ -38,10 +38,14 @@ export default function StudentDashboard() {
   });
 
   const { data: attendance, isLoading: isLoadingAttendance } = useQuery({
-    queryKey: ['attendance', user.id],
+    queryKey: ['/api/student/attendance'],
     queryFn: async () => {
-      const response = await fetch(`/api/attendance/${user.id}`, {
-        credentials: 'include'
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/student/attendance', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       if (!response.ok) throw new Error('Failed to fetch attendance');
       return response.json();
