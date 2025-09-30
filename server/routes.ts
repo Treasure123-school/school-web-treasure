@@ -3994,6 +3994,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get student's current active session status
+  app.get("/api/exam-sessions/student/:studentId/active", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { studentId } = req.params;
+
+      // Security: Students can only check their own sessions
+      if (user.roleId === ROLES.STUDENT && studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get the most recent active session for this student
+      const sessions = await storage.getExamSessionsByStudent(studentId);
+      const activeSession = sessions.find(session => !session.isCompleted);
+
+      if (activeSession) {
+        // Include exam details for proper session recovery
+        const exam = await storage.getExamById(activeSession.examId);
+        res.json({
+          ...activeSession,
+          examName: exam?.name,
+          examTimeLimit: exam?.timeLimit,
+          examQuestionCount: await storage.getExamQuestionCount(activeSession.examId)
+        });
+      } else {
+        res.json(null);
+      }
+    } catch (error) {
+      console.error('Error checking active session:', error);
+      res.status(500).json({ message: "Failed to check active session" });
+    }
+  });
+
+  // Update session progress (for better session recovery)
+  app.patch("/api/exam-sessions/:id/progress", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { currentQuestionIndex, timeRemaining } = req.body;
+
+      // Get session to verify ownership
+      const session = await storage.getExamSessionById(parseInt(id));
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Security: Students can only update their own sessions
+      if (user.roleId === ROLES.STUDENT && session.studentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Update session with progress data
+      const updates: any = {};
+      if (typeof timeRemaining === 'number') updates.timeRemaining = timeRemaining;
+      if (typeof currentQuestionIndex === 'number') {
+        // Store current question index in session for recovery
+        updates.metadata = JSON.stringify({ currentQuestionIndex });
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await storage.updateExamSession(parseInt(id), updates);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating session progress:', error);
+      res.status(500).json({ message: "Failed to update session progress" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

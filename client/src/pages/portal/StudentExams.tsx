@@ -185,6 +185,34 @@ export default function StudentExams() {
     }
   }, [answerMap]);
 
+  // Check for existing active session on component mount
+  useEffect(() => {
+    if (user?.id && !activeSession) {
+      apiRequest('GET', `/api/exam-sessions/student/${user.id}/active`)
+        .then(response => response.json())
+        .then(session => {
+          if (session) {
+            console.log('🔄 Found existing active session, resuming...', session);
+            setActiveSession(session);
+            setSelectedExam({ id: session.examId, name: session.examName });
+            
+            // Restore session state
+            try {
+              const metadata = session.metadata ? JSON.parse(session.metadata) : {};
+              if (metadata.currentQuestionIndex) {
+                setCurrentQuestionIndex(metadata.currentQuestionIndex);
+              }
+            } catch (e) {
+              console.warn('Could not parse session metadata:', e);
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error checking for active session:', error);
+        });
+    }
+  }, [user?.id]);
+
   // SESSION RECOVERY: Resume active session with timer recovery
   useEffect(() => {
     if (activeSession && !activeSession.isCompleted) {
@@ -790,12 +818,37 @@ export default function StudentExams() {
   const handleAnswerChange = (questionId: number, answer: any, questionType: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
     
-    // Only submit if answer is meaningful (not empty)
+    // Only submit if answer is meaningful (not empty) and different from previous
     const validation = validateAnswer(questionType, answer);
     if (validation.isValid) {
-      submitAnswerMutation.mutate({ questionId, answer, questionType });
+      // Check if this is actually a new/changed answer to avoid duplicate submissions
+      const existingAnswer = existingAnswers.find(a => a.questionId === questionId);
+      const isNewAnswer = !existingAnswer || 
+        (questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== answer : existingAnswer.textAnswer !== answer);
+      
+      if (isNewAnswer) {
+        submitAnswerMutation.mutate({ questionId, answer, questionType });
+      }
     }
   };
+
+  // Save session progress periodically
+  useEffect(() => {
+    if (activeSession && timeRemaining !== null) {
+      const interval = setInterval(() => {
+        if (activeSession.id) {
+          apiRequest('PATCH', `/api/exam-sessions/${activeSession.id}/progress`, {
+            currentQuestionIndex,
+            timeRemaining
+          }).catch(error => {
+            console.warn('Failed to save session progress:', error);
+          });
+        }
+      }, 30000); // Save every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeSession, currentQuestionIndex, timeRemaining]);
 
   const handleRetryAnswer = (questionId: number, questionType: string) => {
     const answer = answers[questionId];
@@ -1331,7 +1384,16 @@ export default function StudentExams() {
 
                   {/* Submit Button in Sidebar */}
                   <Button
-                    onClick={handleSubmitExam}
+                    onClick={() => {
+                      const unanswered = examQuestions.length - Object.keys(answers).length;
+                      if (unanswered > 0) {
+                        const confirmed = window.confirm(
+                          `You have ${unanswered} unanswered questions. Are you sure you want to submit your exam?`
+                        );
+                        if (!confirmed) return;
+                      }
+                      handleSubmitExam();
+                    }}
                     disabled={isSubmitting || hasPendingSaves() || isScoring}
                     className="w-full"
                     size="lg"
@@ -1441,14 +1503,59 @@ export default function StudentExams() {
                 <div className="flex justify-between pt-4">
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                    onClick={() => {
+                      // Save current answer before navigating
+                      const currentAnswer = answers[currentQuestion.id];
+                      if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                        const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                        const isNewAnswer = !existingAnswer || 
+                          (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                        
+                        if (isNewAnswer) {
+                          submitAnswerMutation.mutate({ 
+                            questionId: currentQuestion.id, 
+                            answer: currentAnswer, 
+                            questionType: currentQuestion.questionType 
+                          });
+                        }
+                      }
+                      setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+                    }}
                     disabled={currentQuestionIndex === 0}
                     data-testid="button-previous"
                   >
                     Previous
                   </Button>
+                  
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <span>{currentQuestionIndex + 1} of {examQuestions.length}</span>
+                    {hasPendingSaves() && (
+                      <div className="flex items-center space-x-1 text-blue-500">
+                        <Loader className="w-3 h-3 animate-spin" />
+                        <span>Saving...</span>
+                      </div>
+                    )}
+                  </div>
+                  
                   <Button
-                    onClick={() => setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1))}
+                    onClick={() => {
+                      // Save current answer before navigating
+                      const currentAnswer = answers[currentQuestion.id];
+                      if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                        const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                        const isNewAnswer = !existingAnswer || 
+                          (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                        
+                        if (isNewAnswer) {
+                          submitAnswerMutation.mutate({ 
+                            questionId: currentQuestion.id, 
+                            answer: currentAnswer, 
+                            questionType: currentQuestion.questionType 
+                          });
+                        }
+                      }
+                      setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
+                    }}
                     disabled={currentQuestionIndex === examQuestions.length - 1}
                     data-testid="button-next"
                   >

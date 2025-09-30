@@ -1471,6 +1471,46 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Enhanced session management for students
+  async getStudentActiveSession(studentId: string): Promise<ExamSession | undefined> {
+    const result = await this.db.select({
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt
+    }).from(schema.examSessions)
+      .where(and(
+        eq(schema.examSessions.studentId, studentId),
+        eq(schema.examSessions.isCompleted, false)
+      ))
+      .orderBy(desc(schema.examSessions.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateSessionProgress(sessionId: number, progress: { currentQuestionIndex?: number; timeRemaining?: number }): Promise<void> {
+    const updates: any = {};
+    if (typeof progress.timeRemaining === 'number') {
+      updates.timeRemaining = progress.timeRemaining;
+    }
+    if (typeof progress.currentQuestionIndex === 'number') {
+      updates.metadata = JSON.stringify({ currentQuestionIndex: progress.currentQuestionIndex });
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await this.db.update(schema.examSessions)
+        .set(updates)
+        .where(eq(schema.examSessions.id, sessionId));
+    }
+  }
+
   // Student answers management
   async createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer> {
     const result = await db.insert(schema.studentAnswers).values(answer).returning();
