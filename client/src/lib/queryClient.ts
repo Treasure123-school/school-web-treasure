@@ -191,6 +191,8 @@ export async function apiRequest(
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
     },
+    // Add timeout to prevent hanging requests
+    signal: AbortSignal.timeout(30000), // 30 second timeout
   };
 
   if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
@@ -200,14 +202,25 @@ export async function apiRequest(
   try {
     const response = await fetch(url, config);
 
-    // Check if response is HTML (error page) when we expect JSON
+    // For successful responses, return as-is
+    if (response.ok) {
+      return response;
+    }
+
+    // For error responses, check if we got JSON or HTML
     const contentType = response.headers.get('content-type');
-    if (!response.ok && contentType?.includes('text/html')) {
-      // Create a new response object with a JSON error message
+    
+    if (contentType?.includes('application/json')) {
+      // Server returned JSON error - return as-is for proper error handling
+      return response;
+    } else if (contentType?.includes('text/html')) {
+      // Server returned HTML error page - convert to JSON
       const errorResponse = new Response(
         JSON.stringify({ 
           message: response.status === 401 
             ? 'Your session has expired. Please refresh the page and log in again.'
+            : response.status === 500
+            ? 'Internal server error. Please try again in a moment.'
             : `Server error (${response.status}). Please try again.`
         }),
         {
@@ -217,18 +230,40 @@ export async function apiRequest(
         }
       );
       return errorResponse;
+    } else {
+      // Unknown response type
+      const errorResponse = new Response(
+        JSON.stringify({ 
+          message: `Unexpected server response (${response.status}). Please try again.`
+        }),
+        {
+          status: response.status,
+          statusText: response.statusText,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+      return errorResponse;
+    }
+  } catch (error: any) {
+    console.error('API Request failed:', error);
+    
+    // Handle specific error types
+    let errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+    let statusCode = 0;
+    
+    if (error.name === 'AbortError') {
+      errorMessage = 'Request timeout. Please try again.';
+      statusCode = 408;
+    } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      errorMessage = 'Unable to connect to server. Please check your internet connection.';
+      statusCode = 0;
     }
 
-    return response;
-  } catch (error) {
-    // Network errors - create a JSON error response
     const networkErrorResponse = new Response(
-      JSON.stringify({ 
-        message: 'Network connection failed. Please check your internet connection and try again.'
-      }),
+      JSON.stringify({ message: errorMessage }),
       {
-        status: 0,
-        statusText: 'Network Error',
+        status: statusCode,
+        statusText: error.name || 'Network Error',
         headers: { 'content-type': 'application/json' }
       }
     );

@@ -593,12 +593,14 @@ export default function StudentExams() {
         ? { sessionId: activeSession!.id, questionId, selectedOptionId: answer }
         : { sessionId: activeSession!.id, questionId, textAnswer: answer };
 
+      console.log(`📝 Submitting answer for question ${questionId}:`, answerData);
+
       const response = await apiRequest('POST', '/api/student-answers', answerData);
+      
       if (!response.ok) {
         let errorMessage = `Failed to submit answer (${response.status})`;
         
         try {
-          // Try to parse as JSON first
           const errorData = await response.json();
           if (errorData?.message) {
             errorMessage = errorData.message;
@@ -608,20 +610,23 @@ export default function StudentExams() {
               ? errorData.errors.map((e: any) => e.message).join(', ')
               : 'Validation failed';
           }
+          console.error(`❌ Answer submission failed for question ${questionId}:`, errorData);
         } catch (parseError) {
-          // If JSON parsing fails, check if it's an HTML error page
-          const responseText = await response.text().catch(() => '');
-          if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
-            // This is an HTML error page, likely authentication issue
-            if (response.status === 401) {
-              errorMessage = 'Your session has expired. Please refresh the page and log in again.';
-            } else if (response.status >= 500) {
-              errorMessage = 'Server error occurred. Please try again in a moment.';
-            } else {
-              errorMessage = `Server returned an error page (${response.status}). Please try again.`;
-            }
+          console.error(`❌ Failed to parse error response for question ${questionId}:`, parseError);
+          
+          // Provide more specific error messages based on status code
+          if (response.status === 401) {
+            errorMessage = 'Your session has expired. Please refresh the page and log in again.';
+          } else if (response.status === 403) {
+            errorMessage = 'Permission denied. Please contact your instructor.';
+          } else if (response.status === 408) {
+            errorMessage = 'Request timeout. Please check your connection and try again.';
+          } else if (response.status >= 500) {
+            errorMessage = 'Server error occurred. Please try again in a moment.';
+          } else if (response.status === 0) {
+            errorMessage = 'Unable to connect to server. Please check your internet connection.';
           } else {
-            errorMessage = `Network error (${response.status}). Please check your connection and try again.`;
+            errorMessage = `Server error (${response.status}). Please try again.`;
           }
         }
         
@@ -629,8 +634,11 @@ export default function StudentExams() {
       }
       
       try {
-        return await response.json();
+        const result = await response.json();
+        console.log(`✅ Answer submitted successfully for question ${questionId}:`, result);
+        return result;
       } catch (parseError) {
+        console.error(`❌ Failed to parse success response for question ${questionId}:`, parseError);
         throw new Error('Invalid response from server. Please try again.');
       }
     },
@@ -679,25 +687,28 @@ export default function StudentExams() {
       let shouldShowToast = true;
       let shouldAutoRetry = false;
       
+      console.error(`❌ Answer save failed for question ${variables.questionId}:`, error.message);
+      
       // Handle specific error types
       if (error.message.includes('Please select') || error.message.includes('Please enter')) {
         // Validation errors - don't show toast, user can see status indicator
         shouldShowToast = false;
-      } else if (error.message.includes('session has expired') || error.message.includes('Session expired')) {
+      } else if (error.message.includes('session has expired') || error.message.includes('Session expired') || error.message.includes('Authentication') || error.message.includes('401')) {
         userFriendlyMessage = "Your session has expired. Please refresh the page and log in again.";
         // Don't auto-retry for authentication issues
-      } else if (error.message.includes('Network') || error.message.includes('fetch') || error.message.includes('connection')) {
-        userFriendlyMessage = "Network connection issue. Your answer will be retried automatically.";
+      } else if (error.message.includes('Unable to connect') || error.message.includes('Network connection failed') || error.message.includes('internet connection')) {
+        userFriendlyMessage = "Network connection issue. Your answer will be retried automatically when connection is restored.";
         shouldAutoRetry = true;
-      } else if (error.message.includes('500') || error.message.includes('Server error')) {
-        userFriendlyMessage = "Server error. Please try saving your answer again.";
+      } else if (error.message.includes('timeout') || error.message.includes('Request timeout')) {
+        userFriendlyMessage = "Request timeout. Your answer will be retried automatically.";
         shouldAutoRetry = true;
-      } else if (error.message.includes('401') || error.message.includes('Authentication')) {
-        userFriendlyMessage = "Session expired. Please refresh the page and log in again.";
-      } else if (error.message.includes('403')) {
+      } else if (error.message.includes('Server error') || error.message.includes('500')) {
+        userFriendlyMessage = "Server error. Your answer will be retried automatically.";
+        shouldAutoRetry = true;
+      } else if (error.message.includes('403') || error.message.includes('Permission denied')) {
         userFriendlyMessage = "Permission denied. Please contact your instructor.";
-      } else if (error.message.includes('Invalid response')) {
-        userFriendlyMessage = "Server communication error. Please try again.";
+      } else if (error.message.includes('Invalid response') || error.message.includes('Server communication error')) {
+        userFriendlyMessage = "Server communication error. Your answer will be retried automatically.";
         shouldAutoRetry = true;
       }
 
@@ -709,11 +720,16 @@ export default function StudentExams() {
         });
       }
 
-      // Auto-retry for recoverable errors
-      if (shouldAutoRetry && answers[variables.questionId]) {
+      // Auto-retry for recoverable errors with exponential backoff
+      if (shouldAutoRetry && answers[variables.questionId] && isOnline) {
+        const retryDelay = Math.min(2000 * Math.pow(2, (questionSaveStatus[variables.questionId] === 'failed' ? 1 : 0)), 10000);
+        console.log(`🔄 Auto-retrying question ${variables.questionId} in ${retryDelay}ms`);
+        
         setTimeout(() => {
-          handleRetryAnswer(variables.questionId, variables.questionType);
-        }, 2000);
+          if (isOnline) {
+            handleRetryAnswer(variables.questionId, variables.questionType);
+          }
+        }, retryDelay);
       }
 
       // Log performance data for failed saves
