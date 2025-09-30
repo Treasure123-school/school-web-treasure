@@ -1122,19 +1122,57 @@ export class DatabaseStorage implements IStorage {
 
       const questionCounts: Record<number, number> = {};
 
-      // Count questions for each exam
-      for (const examId of examIds) {
-        const questions = await this.db.select({ count: dsql`count(*)` })
+      // PERFORMANCE OPTIMIZATION: Use single query with inArray instead of loop
+      try {
+        const results = await this.db.select({
+          examId: schema.examQuestions.examId,
+          count: dsql`count(*)`.as('count')
+        })
           .from(schema.examQuestions)
-          .where(eq(schema.examQuestions.examId, examId));
-        questionCounts[examId] = Number(questions[0]?.count || 0);
-      }
+          .where(inArray(schema.examQuestions.examId, examIds))
+          .groupBy(schema.examQuestions.examId);
 
-      console.log('📊 Question counts result:', questionCounts);
-      return questionCounts;
+        // Initialize all exam IDs with 0 count
+        examIds.forEach(id => {
+          questionCounts[id] = 0;
+        });
+
+        // Update with actual counts
+        results.forEach(result => {
+          const examId = Number(result.examId);
+          const count = Number(result.count);
+          questionCounts[examId] = count;
+        });
+
+        console.log('📊 Question counts result:', questionCounts);
+        return questionCounts;
+      } catch (queryError) {
+        console.warn('⚠️ Group query failed, falling back to individual queries:', queryError);
+
+        // Fallback to individual queries if group query fails
+        for (const examId of examIds) {
+          try {
+            const questions = await this.db.select({ count: dsql`count(*)` })
+              .from(schema.examQuestions)
+              .where(eq(schema.examQuestions.examId, examId));
+            questionCounts[examId] = Number(questions[0]?.count || 0);
+          } catch (individualError) {
+            console.warn(`Failed to count questions for exam ${examId}:`, individualError);
+            questionCounts[examId] = 0;
+          }
+        }
+
+        console.log('📊 Question counts result (fallback):', questionCounts);
+        return questionCounts;
+      }
     } catch (error) {
       console.error('❌ Error in getExamQuestionCounts:', error);
-      throw error;
+      // Return empty counts instead of throwing to prevent UI crashes
+      const questionCounts: Record<number, number> = {};
+      examIds.forEach(id => {
+        questionCounts[id] = 0;
+      });
+      return questionCounts;
     }
   }
 

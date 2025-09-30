@@ -371,12 +371,14 @@ export default function StudentExams() {
       return response.json();
     },
     onSuccess: (session: ExamSession) => {
+      console.log('✅ Exam session created successfully:', session);
       setActiveSession(session);
       setCurrentQuestionIndex(0);
       // Set timer if exam has time limit
       const exam = exams.find(e => e.id === session.examId);
       if (exam?.timeLimit) {
         setTimeRemaining(exam.timeLimit * 60); // Convert minutes to seconds
+        console.log(`⏰ Timer set to ${exam.timeLimit} minutes (${exam.timeLimit * 60} seconds)`);
       }
       toast({
         title: "Exam Started",
@@ -384,9 +386,10 @@ export default function StudentExams() {
       });
     },
     onError: (error: Error) => {
+      console.error('❌ Failed to start exam:', error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error Starting Exam",
+        description: error.message || "Unable to start exam. Please try again.",
         variant: "destructive",
       });
     },
@@ -667,6 +670,27 @@ export default function StudentExams() {
   });
 
   const handleStartExam = (exam: Exam) => {
+    console.log('🎯 Starting exam:', exam.name, 'ID:', exam.id);
+    
+    // Validation checks
+    if (!exam.id) {
+      toast({
+        title: "Error",
+        description: "Invalid exam selected. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user?.id) {
+      toast({
+        title: "Error", 
+        description: "User session invalid. Please log in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedExam(exam);
     startExamMutation.mutate(exam.id);
   };
