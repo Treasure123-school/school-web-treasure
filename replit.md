@@ -8,6 +8,38 @@ The application follows a modern monorepo architecture with shared schema defini
 
 ## Recent Changes
 
+### September 30, 2025 - Phase 2.3 Advanced Security Features Completed
+- ✅ **Tab Switch Detection System** - Enhanced exam security:
+  - Real-time monitoring of student tab/window switching during exams
+  - Visual warning banner with 3 escalating warnings
+  - Toast notifications alerting students to stay on exam page
+  - Auto-hide warning after 5 seconds
+  - Silent logging after 3 warnings for potential instructor review
+- ✅ **Enhanced Session Recovery** - Seamless exam resumption:
+  - Automatic timer recovery from stored session.timeRemaining
+  - Fallback calculation from startedAt timestamp if needed
+  - "Session Resumed" notification showing time remaining
+  - Preserves all existing student answers on page refresh
+  - Handles unexpected interruptions gracefully
+- ✅ **Question & Option Randomization** - Anti-cheating measures:
+  - Fisher-Yates shuffle algorithm with seeded random (LCG)
+  - Questions shuffled using sessionId as seed for consistency
+  - Options shuffled using (sessionId + questionId) for per-question stability
+  - Stable ordering across page reloads for same session
+  - Only active when exam.shuffleQuestions is enabled
+  - Preserves original order for completed exams
+- ✅ **Time-Based Auto-Submit** - Grace period handling:
+  - Automatic submission when timer reaches 0
+  - 600ms grace period for pending answer saves
+  - Network issue resilience with retry logic
+  - Prevents lost answers during submission
+- ✅ **Architect Reviewed** - All features verified:
+  - Implementation correct and functionally complete
+  - Seeded randomization working properly
+  - Session recovery robust on refresh
+  - Tab detection working as specified
+  - Ready for production use
+
 ### September 30, 2025 - Fresh GitHub Clone Import Successfully Configured
 - ✅ Successfully imported and configured fresh GitHub clone in Replit environment
 - ✅ Verified all existing project configurations are Replit-compatible:
