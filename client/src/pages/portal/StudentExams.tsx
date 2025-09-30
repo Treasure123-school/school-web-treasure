@@ -87,10 +87,39 @@ export default function StudentExams() {
   const currentQuestion = useMemo(() => examQuestions[currentQuestionIndex], [examQuestions, currentQuestionIndex]);
   
   // Fetch question options for current question
-  const { data: questionOptions = [] } = useQuery<QuestionOption[]>({
+  const { data: questionOptionsRaw = [] } = useQuery<QuestionOption[]>({
     queryKey: ['/api/question-options', currentQuestion?.id],
     enabled: !!currentQuestion?.id && currentQuestion?.questionType === 'multiple_choice',
   });
+
+  // OPTION RANDOMIZATION: Shuffle options if exam has shuffleQuestions enabled
+  const questionOptions = useMemo(() => {
+    if (!questionOptionsRaw.length || !currentQuestion) return [];
+    
+    const exam = exams.find(e => e.id === activeSession?.examId);
+    
+    // If shuffleQuestions is enabled, shuffle the options
+    if (exam?.shuffleQuestions && !activeSession?.isCompleted && activeSession?.id) {
+      // Use seeded random based on session ID + question ID for consistent shuffling
+      const seed = activeSession.id + currentQuestion.id;
+      let seedValue = seed;
+      const seededRandom = () => {
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
+      };
+      
+      // Use Fisher-Yates shuffle algorithm with seeded random
+      const shuffled = [...questionOptionsRaw];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+    
+    // Otherwise return in original order
+    return questionOptionsRaw;
+  }, [questionOptionsRaw, currentQuestion, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
 
   // PERFORMANCE FIX: Use bulk endpoint to fetch all question options in single request
   const { data: allQuestionOptions = [] } = useQuery<QuestionOption[]>({
