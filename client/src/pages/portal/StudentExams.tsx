@@ -194,7 +194,10 @@ export default function StudentExams() {
           if (session) {
             console.log('🔄 Found existing active session, resuming...', session);
             setActiveSession(session);
-            setSelectedExam({ id: session.examId, name: session.examName });
+            const exam = exams.find(e => e.id === session.examId);
+            if (exam) {
+              setSelectedExam(exam);
+            }
             
             // Restore session state
             try {
@@ -211,7 +214,7 @@ export default function StudentExams() {
           console.error('Error checking for active session:', error);
         });
     }
-  }, [user?.id]);
+  }, [user?.id, exams]);
 
   // SESSION RECOVERY: Resume active session with timer recovery
   useEffect(() => {
