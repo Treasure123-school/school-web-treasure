@@ -2103,7 +2103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalMaxPoints = 0;
 
       for (const subject of subjects) {
-        // Get compiled results for this subject - inline logic instead of internal API call
+        // Get compiled results for this subject with proper Test (40%) + Exam (60%) weighting
         try {
           const examResults = await storage.getExamResultsByStudent(studentId);
           const relevantResults = examResults.filter((result: any) => {
@@ -2116,7 +2116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const exam = await storage.getExamById(result.examId);
               if (exam && exam.subjectId === parseInt(subject.id) && exam.termId === parseInt(termId)) {
-                enrichedResults.push({ ...result, examType: exam.examType });
+                enrichedResults.push({ 
+                  ...result, 
+                  examType: exam.examType,
+                  totalMarks: exam.totalMarks 
+                });
               }
             } catch (examError) {
               console.warn(`Could not fetch exam details for examId ${result.examId}:`, examError);
@@ -2127,40 +2131,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const testResults = enrichedResults.filter((r: any) => r.examType === 'test');
           const examResultsFiltered = enrichedResults.filter((r: any) => r.examType === 'exam');
 
-          // Calculate weighted scores
+          // Calculate weighted scores using the CORE PRIORITY FLOW formula
           let testWeightedScore = 0;
           let examWeightedScore = 0;
           let hasTest = false;
           let hasExam = false;
+          let testRawScore = 0;
+          let examRawScore = 0;
 
+          // Test contributes 40% to final grade
           if (testResults.length > 0) {
-            const testScore = Math.max(...testResults.map((r: any) => (r.score / r.maxScore) * 100));
-            testWeightedScore = (testScore * 40) / 100;
+            // Use best test score if multiple tests
+            const bestTest = testResults.reduce((best: any, current: any) => {
+              const currentPercentage = (current.marksObtained / current.totalMarks) * 100;
+              const bestPercentage = (best.marksObtained / best.totalMarks) * 100;
+              return currentPercentage > bestPercentage ? current : best;
+            });
+            
+            testRawScore = (bestTest.marksObtained / bestTest.totalMarks) * 100;
+            testWeightedScore = testRawScore * 0.4; // 40% weight
             hasTest = true;
           }
 
+          // Exam contributes 60% to final grade
           if (examResultsFiltered.length > 0) {
-            const examScore = Math.max(...examResultsFiltered.map((r: any) => (r.score / r.maxScore) * 100));
-            examWeightedScore = (examScore * 60) / 100;
+            // Use best exam score if multiple exams
+            const bestExam = examResultsFiltered.reduce((best: any, current: any) => {
+              const currentPercentage = (current.marksObtained / current.totalMarks) * 100;
+              const bestPercentage = (best.marksObtained / best.totalMarks) * 100;
+              return currentPercentage > bestPercentage ? current : best;
+            });
+            
+            examRawScore = (bestExam.marksObtained / bestExam.totalMarks) * 100;
+            examWeightedScore = examRawScore * 0.6; // 60% weight
             hasExam = true;
           }
 
+          // Final Total = Test (40%) + Exam (60%) = Total (100%)
           const totalScore = testWeightedScore + examWeightedScore;
+          
+          // Grade calculation based on total weighted score
           let grade = 'F';
-
           if (totalScore >= 90) grade = 'A+';
           else if (totalScore >= 80) grade = 'A';
           else if (totalScore >= 70) grade = 'B+';
           else if (totalScore >= 60) grade = 'B';
           else if (totalScore >= 50) grade = 'C';
 
+          // Generate remarks based on completion status
+          let remarks = 'Incomplete';
+          if (hasTest && hasExam) {
+            remarks = 'Complete';
+          } else if (hasTest && !hasExam) {
+            remarks = 'Test completed, exam pending';
+          } else if (!hasTest && hasExam) {
+            remarks = 'Exam completed, test pending';
+          }
+
           reportItems.push({
             subjectName: subject.name,
-            testScore: hasTest ? Math.round(testWeightedScore) : '-',
-            examScore: hasExam ? Math.round(examWeightedScore) : '-',
+            testScore: hasTest ? Math.round(testRawScore) : '-',
+            examScore: hasExam ? Math.round(examRawScore) : '-',
+            testWeighted: hasTest ? Math.round(testWeightedScore) : '-',
+            examWeighted: hasExam ? Math.round(examWeightedScore) : '-',
             totalScore: Math.round(totalScore),
             grade: grade,
-            remarks: hasTest && hasExam ? 'Complete' : 'Pending'
+            remarks: remarks
           });
 
           totalPoints += totalScore;
