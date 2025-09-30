@@ -268,7 +268,7 @@ export default function StudentExams() {
     }
   }, [timeRemaining, activeSession]);
 
-  // Network status monitoring
+  // Network status monitoring and session health check
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -309,6 +309,30 @@ export default function StudentExams() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [answers, questionSaveStatus, examQuestions]);
+
+  // Session health monitoring - check every 5 minutes during active exam
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    const healthCheck = async () => {
+      try {
+        const response = await apiRequest('GET', `/api/exam-sessions/${activeSession.id}`);
+        if (!response.ok && response.status === 401) {
+          toast({
+            title: "Session Expired",
+            description: "Your exam session has expired. Please refresh the page and log in again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        // Silent fail - network issues will be handled by other mechanisms
+        console.warn('Session health check failed:', error);
+      }
+    };
+
+    const interval = setInterval(healthCheck, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [activeSession]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -571,22 +595,44 @@ export default function StudentExams() {
 
       const response = await apiRequest('POST', '/api/student-answers', answerData);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         let errorMessage = `Failed to submit answer (${response.status})`;
         
-        // Parse structured error responses
-        if (errorData?.message) {
-          errorMessage = errorData.message;
-        } else if (errorData?.errors) {
-          // Handle Zod validation errors
-          errorMessage = Array.isArray(errorData.errors) 
-            ? errorData.errors.map((e: any) => e.message).join(', ')
-            : 'Validation failed';
+        try {
+          // Try to parse as JSON first
+          const errorData = await response.json();
+          if (errorData?.message) {
+            errorMessage = errorData.message;
+          } else if (errorData?.errors) {
+            // Handle Zod validation errors
+            errorMessage = Array.isArray(errorData.errors) 
+              ? errorData.errors.map((e: any) => e.message).join(', ')
+              : 'Validation failed';
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, check if it's an HTML error page
+          const responseText = await response.text().catch(() => '');
+          if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
+            // This is an HTML error page, likely authentication issue
+            if (response.status === 401) {
+              errorMessage = 'Your session has expired. Please refresh the page and log in again.';
+            } else if (response.status >= 500) {
+              errorMessage = 'Server error occurred. Please try again in a moment.';
+            } else {
+              errorMessage = `Server returned an error page (${response.status}). Please try again.`;
+            }
+          } else {
+            errorMessage = `Network error (${response.status}). Please check your connection and try again.`;
+          }
         }
         
         throw new Error(errorMessage);
       }
-      return response.json();
+      
+      try {
+        return await response.json();
+      } catch (parseError) {
+        throw new Error('Invalid response from server. Please try again.');
+      }
     },
     onMutate: (variables) => {
       // Set status to saving and track pending save
@@ -631,25 +677,28 @@ export default function StudentExams() {
       // Enhanced error handling with specific user-friendly messages
       let userFriendlyMessage = error.message;
       let shouldShowToast = true;
+      let shouldAutoRetry = false;
       
       // Handle specific error types
       if (error.message.includes('Please select') || error.message.includes('Please enter')) {
         // Validation errors - don't show toast, user can see status indicator
         shouldShowToast = false;
-      } else if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+      } else if (error.message.includes('session has expired') || error.message.includes('Session expired')) {
+        userFriendlyMessage = "Your session has expired. Please refresh the page and log in again.";
+        // Don't auto-retry for authentication issues
+      } else if (error.message.includes('Network') || error.message.includes('fetch') || error.message.includes('connection')) {
         userFriendlyMessage = "Network connection issue. Your answer will be retried automatically.";
-        // Auto-retry after 2 seconds for network errors
-        setTimeout(() => {
-          if (answers[variables.questionId]) {
-            handleRetryAnswer(variables.questionId, variables.questionType);
-          }
-        }, 2000);
-      } else if (error.message.includes('500')) {
+        shouldAutoRetry = true;
+      } else if (error.message.includes('500') || error.message.includes('Server error')) {
         userFriendlyMessage = "Server error. Please try saving your answer again.";
+        shouldAutoRetry = true;
       } else if (error.message.includes('401') || error.message.includes('Authentication')) {
         userFriendlyMessage = "Session expired. Please refresh the page and log in again.";
       } else if (error.message.includes('403')) {
         userFriendlyMessage = "Permission denied. Please contact your instructor.";
+      } else if (error.message.includes('Invalid response')) {
+        userFriendlyMessage = "Server communication error. Please try again.";
+        shouldAutoRetry = true;
       }
 
       if (shouldShowToast) {
@@ -658,6 +707,13 @@ export default function StudentExams() {
           description: `Question ${variables.questionId}: ${userFriendlyMessage}`,
           variant: "destructive",
         });
+      }
+
+      // Auto-retry for recoverable errors
+      if (shouldAutoRetry && answers[variables.questionId]) {
+        setTimeout(() => {
+          handleRetryAnswer(variables.questionId, variables.questionType);
+        }, 2000);
       }
 
       // Log performance data for failed saves

@@ -37,7 +37,7 @@ class CircuitBreaker {
     if (error.errorType === 'client' || error.errorType === 'auth') {
       return false;
     }
-    
+
     // Count network, timeout, and server errors
     return (
       error.errorType === 'network' ||
@@ -58,7 +58,7 @@ class CircuitBreaker {
   private onFailure() {
     this.failures++;
     this.lastFailureTime = Date.now();
-    
+
     if (this.failures >= this.failureThreshold) {
       this.state = 'OPEN';
     }
@@ -109,12 +109,12 @@ async function makeRequest(
   return apiCircuitBreaker.execute(async () => {
     const token = localStorage.getItem('token');
     const headers: Record<string, string> = {};
-    
+
     // Handle different data types appropriately
     if (data && !(data instanceof FormData)) {
       headers["Content-Type"] = "application/json";
     }
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -133,12 +133,12 @@ async function makeRequest(
       });
 
       clearTimeout(timeoutId);
-      
+
       // Check for HTTP errors and classify them properly
       if (!res.ok) {
         const text = (await res.text()) || res.statusText;
         const error = new Error(`${res.status}: ${text}`) as ClassifiedError;
-        
+
         // Classify the error type based on HTTP status
         if (res.status === 401 || res.status === 403) {
           error.errorType = 'auth';
@@ -147,22 +147,22 @@ async function makeRequest(
         } else if (res.status >= 500 || res.status === 429) {
           error.errorType = 'server';
         }
-        
+
         // Add specific properties for easier identification
         error.status = res.status;
         error.statusText = res.statusText;
-        
+
         throw error;
       }
-      
+
       return res;
     } catch (error: any) {
       clearTimeout(timeoutId);
-      
+
       // Preserve original error properties while adding classification
       const classifiedError = error as ClassifiedError;
       classifiedError.originalError = error;
-      
+
       // Classify network/timeout errors properly
       if (error.name === 'AbortError') {
         classifiedError.errorType = 'timeout';
@@ -172,7 +172,7 @@ async function makeRequest(
         classifiedError.errorType = 'network';
         classifiedError.message = 'Network connection failed - please check your internet connection';
       }
-      
+
       throw classifiedError;
     }
   });
@@ -183,7 +183,57 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  return makeRequest(method, url, data);
+  const token = localStorage.getItem('token');
+
+  const config: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  };
+
+  if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    config.body = JSON.stringify(data);
+  }
+
+  try {
+    const response = await fetch(url, config);
+
+    // Check if response is HTML (error page) when we expect JSON
+    const contentType = response.headers.get('content-type');
+    if (!response.ok && contentType?.includes('text/html')) {
+      // Create a new response object with a JSON error message
+      const errorResponse = new Response(
+        JSON.stringify({ 
+          message: response.status === 401 
+            ? 'Your session has expired. Please refresh the page and log in again.'
+            : `Server error (${response.status}). Please try again.`
+        }),
+        {
+          status: response.status,
+          statusText: response.statusText,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+      return errorResponse;
+    }
+
+    return response;
+  } catch (error) {
+    // Network errors - create a JSON error response
+    const networkErrorResponse = new Response(
+      JSON.stringify({ 
+        message: 'Network connection failed. Please check your internet connection and try again.'
+      }),
+      {
+        status: 0,
+        statusText: 'Network Error',
+        headers: { 'content-type': 'application/json' }
+      }
+    );
+    return networkErrorResponse;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -202,7 +252,7 @@ export const getQueryFn: <T>(options: {
           (error.errorType === 'auth' || error?.message?.includes('401'))) {
         return null;
       }
-      
+
       throw error;
     }
   };
@@ -221,12 +271,12 @@ const intelligentRetryFn = (failureCount: number, error: ClassifiedError) => {
   if (error.errorType === 'auth' || error?.message?.includes('401') || error?.message?.includes('403')) {
     return false;
   }
-  
+
   // Don't retry on client-side validation errors
   if (error.errorType === 'client' || error?.message?.match(/^(400|404|409|422):/)) {
     return false;
   }
-  
+
   // Retry on network errors, timeouts, server errors (5xx), and rate limiting (429)
   if (
     error.errorType === 'network' ||
@@ -243,7 +293,7 @@ const intelligentRetryFn = (failureCount: number, error: ClassifiedError) => {
     // Maximum 3 retries for critical operations
     return failureCount < 3;
   }
-  
+
   // Default: no retry for other errors
   return false;
 };
@@ -254,7 +304,7 @@ const retryDelay = (attemptIndex: number) => {
   const baseDelay = 500;
   const exponentialDelay = baseDelay * Math.pow(2, attemptIndex);
   const jitter = Math.random() * 200; // Add 0-200ms random jitter
-  
+
   // Cap at 10 seconds maximum
   return Math.min(exponentialDelay + jitter, 10000);
 };
