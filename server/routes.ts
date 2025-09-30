@@ -2000,6 +2000,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Result Compilation Routes
+  app.get("/api/results/compile/:studentId/:subjectId/:termId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { studentId, subjectId, termId } = req.params;
+      const compilation = await storage.compileStudentResults(studentId, parseInt(subjectId), parseInt(termId));
+      res.json(compilation);
+    } catch (error) {
+      console.error('Error compiling student results:', error);
+      res.status(500).json({ message: "Failed to compile student results" });
+    }
+  });
+
+  app.get("/api/results/report-card/:classId/:termId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { classId, termId } = req.params;
+      const reportCard = await storage.generateClassReportCard(parseInt(classId), parseInt(termId));
+      res.json(reportCard);
+    } catch (error) {
+      console.error('Error generating report card:', error);
+      res.status(500).json({ message: "Failed to generate report card" });
+    }
+  });
+
   // Exam results
   app.post("/api/exam-results", authenticateUser, async (req, res) => {
     try {

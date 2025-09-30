@@ -16,11 +16,23 @@ export default function StudentGrades() {
   const { data: examResults, isLoading, error } = useQuery({
     queryKey: ['examResults', user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/exam-results/${user.id}`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch exam results');
-      return response.json();
+      try {
+        const response = await fetch(`/api/exam-results/${user.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Authentication required');
+          }
+          throw new Error('Failed to fetch exam results');
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Error fetching exam results:', error);
+        throw error;
+      }
     }
   });
 

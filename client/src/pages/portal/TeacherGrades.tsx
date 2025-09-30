@@ -143,6 +143,22 @@ export default function TeacherGrades() {
     enabled: !!selectedExam?.id,
   });
 
+  // Fetch essay submissions needing review
+  const { data: essaySubmissions = [] } = useQuery({
+    queryKey: ['/api/exam-sessions/exam', selectedExam?.id],
+    queryFn: async () => {
+      if (!selectedExam?.id) return [];
+      const response = await apiRequest('GET', `/api/exam-sessions/exam/${selectedExam.id}`);
+      const sessions = await response.json();
+      
+      // Filter for completed sessions that need essay review
+      return sessions.filter((session: any) => 
+        session.isCompleted && !session.fullyGraded
+      );
+    },
+    enabled: !!selectedExam?.id,
+  });
+
   // Create exam mutation
   const createExamMutation = useMutation({
     mutationFn: async (data: ExamFormData) => {
