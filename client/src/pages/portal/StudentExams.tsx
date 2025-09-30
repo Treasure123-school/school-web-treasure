@@ -36,6 +36,11 @@ export default function StudentExams() {
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
   const [pendingSaves, setPendingSaves] = useState<Set<number>>(new Set());
   const saveTimeoutsRef = useRef<Record<number, NodeJS.Timeout>>({});
+  
+  // Tab switch detection state
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
+  const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch available exams
   const { data: exams = [], isLoading: loadingExams } = useQuery<Exam[]>({
@@ -44,10 +49,39 @@ export default function StudentExams() {
   });
 
   // Fetch exam questions for active session
-  const { data: examQuestions = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
+  const { data: examQuestionsRaw = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', activeSession?.examId],
     enabled: !!activeSession?.examId,
   });
+
+  // QUESTION RANDOMIZATION: Shuffle questions if exam has shuffleQuestions enabled
+  const examQuestions = useMemo(() => {
+    if (!examQuestionsRaw.length) return [];
+    
+    const exam = exams.find(e => e.id === activeSession?.examId);
+    
+    // If shuffleQuestions is enabled, shuffle the questions
+    if (exam?.shuffleQuestions && !activeSession?.isCompleted && activeSession?.id) {
+      // Seeded random function based on session ID for consistent shuffling
+      const seed = activeSession.id;
+      let seedValue = seed;
+      const seededRandom = () => {
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
+      };
+      
+      // Use Fisher-Yates shuffle algorithm with seeded random
+      const shuffled = [...examQuestionsRaw];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+    
+    // Otherwise return in original order
+    return examQuestionsRaw;
+  }, [examQuestionsRaw, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
 
   // PERFORMANCE: Memoize current question to prevent unnecessary re-renders
   const currentQuestion = useMemo(() => examQuestions[currentQuestionIndex], [examQuestions, currentQuestionIndex]);
@@ -104,6 +138,35 @@ export default function StudentExams() {
     }
   }, [answerMap]);
 
+  // SESSION RECOVERY: Resume active session with timer recovery
+  useEffect(() => {
+    if (activeSession && !activeSession.isCompleted) {
+      const exam = exams.find(e => e.id === activeSession.examId);
+      
+      // Recover timer from session if available
+      if (activeSession.timeRemaining !== null && activeSession.timeRemaining !== undefined) {
+        setTimeRemaining(activeSession.timeRemaining);
+        toast({
+          title: "Session Resumed",
+          description: `Exam resumed with ${Math.floor(activeSession.timeRemaining / 60)} minutes remaining`,
+        });
+      } else if (exam?.timeLimit && activeSession.startedAt) {
+        // Calculate remaining time based on start time
+        const elapsedSeconds = Math.floor((Date.now() - new Date(activeSession.startedAt).getTime()) / 1000);
+        const totalSeconds = exam.timeLimit * 60;
+        const remaining = Math.max(0, totalSeconds - elapsedSeconds);
+        setTimeRemaining(remaining);
+        
+        if (remaining > 0) {
+          toast({
+            title: "Session Resumed",
+            description: `Exam resumed with ${Math.floor(remaining / 60)} minutes remaining`,
+          });
+        }
+      }
+    }
+  }, [activeSession, exams]);
+
   // Timer countdown with race condition protection
   useEffect(() => {
     if (timeRemaining !== null && timeRemaining > 0 && activeSession && !activeSession.isCompleted) {
@@ -126,8 +189,61 @@ export default function StudentExams() {
   useEffect(() => {
     return () => {
       Object.values(saveTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
+      if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
     };
   }, []);
+
+  // TAB SWITCH DETECTION - Security Feature to detect when students leave exam page
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Student switched away from the tab
+        setTabSwitchCount(prev => {
+          const newCount = prev + 1;
+          
+          // Show warning on first 3 switches
+          if (newCount <= 3) {
+            setShowTabSwitchWarning(true);
+            
+            // Auto-hide warning after 5 seconds
+            if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
+            tabSwitchTimeoutRef.current = setTimeout(() => {
+              setShowTabSwitchWarning(false);
+            }, 5000);
+            
+            toast({
+              title: "⚠️ Tab Switch Detected",
+              description: `Warning ${newCount}/3: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
+              variant: "destructive",
+            });
+          } else {
+            // After 3 warnings, just log silently
+            console.warn(`Tab switch detected: ${newCount} times`);
+          }
+          
+          return newCount;
+        });
+      }
+    };
+
+    const handleBlur = () => {
+      // Window lost focus (less strict than tab switch)
+      if (!document.hidden) {
+        console.log('Window lost focus (may be normal user behavior)');
+      }
+    };
+
+    // Listen for visibility changes (tab switches)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [activeSession]);
 
   // Client-side answer validation
   const validateAnswer = (questionType: string, answer: any): { isValid: boolean; error?: string } => {
@@ -946,6 +1062,22 @@ export default function StudentExams() {
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
         <div className={`${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : ''}`}>
+          {/* Tab Switch Warning Banner */}
+          {showTabSwitchWarning && (
+            <div className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 p-4 mb-4" data-testid="alert-tab-switch">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                    Tab Switch Detected ({tabSwitchCount}/3 warnings)
+                  </p>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                    Please remain on the exam page. Multiple tab switches may be flagged for review.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className={`${isFullScreen ? 'max-w-7xl mx-auto p-6' : 'flex gap-6'}`}>
             {/* Question Navigation Sidebar */}
             <div className={`${isFullScreen ? 'mb-6' : 'w-64 flex-shrink-0'}`}>
