@@ -122,6 +122,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
         return [
           ...baseNav,
           { name: 'My Children', href: `/portal/${userRole}/children`, icon: Users },
+          { name: 'Report Cards', href: `/portal/${userRole}/reports`, icon: FileText },
           { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
           { name: 'Grades', href: `/portal/${userRole}/grades`, icon: BookOpen },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },

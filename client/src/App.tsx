@@ -46,6 +46,7 @@ import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
 // New Exam System Components
 import ExamSessions from "@/pages/portal/ExamSessions";
 import ExamReports from "@/pages/portal/ExamReports";
+import ParentReportCards from "@/pages/portal/ParentReportCards";
 
 import NotFound from "@/pages/not-found";
 
@@ -194,6 +195,11 @@ function Router() {
       <Route path="/portal/parent">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
           <ParentDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/parent/reports">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
+          <ParentReportCards />
         </ProtectedRoute>
       </Route>
 

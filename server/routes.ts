@@ -3930,6 +3930,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Parent API Endpoints
+  // Get parent's children
+  app.get("/api/parent/:parentId/children", authenticateUser, authorizeRoles(ROLES.PARENT), async (req, res) => {
+    try {
+      const parentId = req.params.parentId;
+      const user = req.user!;
+      
+      // Parent can only view their own children
+      if (user.id !== parentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const children = await storage.getStudentsByParentId(parentId);
+      
+      const childrenData = await Promise.all(children.map(async (student: any) => {
+        const user = await storage.getUser(student.id);
+        const classInfo = student.classId ? await storage.getClass(student.classId) : null;
+        
+        return {
+          id: student.id,
+          name: `${user?.firstName} ${user?.lastName}`,
+          admissionNumber: student.admissionNumber,
+          className: classInfo?.name || 'Not assigned',
+        };
+      }));
+      
+      res.json(childrenData);
+    } catch (error) {
+      console.error('Error fetching parent children:', error);
+      res.status(500).json({ message: "Failed to fetch children" });
+    }
+  });
+
+  // Get child's report cards for parent
+  app.get("/api/parent/child-reports/:studentId", authenticateUser, authorizeRoles(ROLES.PARENT), async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      const user = req.user!;
+      
+      // Verify parent owns this child
+      const student = await storage.getStudent(studentId);
+      if (!student || student.parentId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const reportCards = await storage.getReportCardsByStudentId(studentId);
+      
+      const reportCardsData = await Promise.all(reportCards.map(async (report: any) => {
+        const term = await storage.getAcademicTerm(report.termId);
+        const classInfo = await storage.getClass(report.classId);
+        const studentUser = await storage.getUser(studentId);
+        const items = await storage.getReportCardItems(report.id);
+        
+        const itemsData = await Promise.all(items.map(async (item: any) => {
+          const subject = await storage.getSubject(item.subjectId);
+          return {
+            subjectName: subject?.name || 'Unknown',
+            testScore: item.testScore,
+            testMaxScore: item.testMaxScore,
+            testWeightedScore: item.testWeightedScore,
+            examScore: item.examScore,
+            examMaxScore: item.examMaxScore,
+            examWeightedScore: item.examWeightedScore,
+            obtainedMarks: item.obtainedMarks,
+            percentage: item.percentage,
+            grade: item.grade,
+            teacherRemarks: item.teacherRemarks,
+          };
+        }));
+        
+        return {
+          id: report.id,
+          studentId: studentId,
+          studentName: `${studentUser?.firstName} ${studentUser?.lastName}`,
+          className: classInfo?.name || 'Unknown',
+          termName: term?.name || 'Unknown',
+          termYear: term?.year || '',
+          averagePercentage: report.averagePercentage,
+          overallGrade: report.overallGrade,
+          teacherRemarks: report.teacherRemarks,
+          status: report.status,
+          generatedAt: report.generatedAt,
+          items: itemsData,
+        };
+      }));
+      
+      res.json(reportCardsData);
+    } catch (error) {
+      console.error('Error fetching child report cards:', error);
+      res.status(500).json({ message: "Failed to fetch report cards" });
+    }
+  });
+
+  // Generate PDF for report card
+  app.get("/api/report-cards/:reportId/pdf", authenticateUser, async (req, res) => {
+    try {
+      const reportId = parseInt(req.params.reportId);
+      const user = req.user!;
+      
+      const report = await storage.getReportCard(reportId);
+      if (!report) {
+        return res.status(404).json({ message: "Report card not found" });
+      }
+      
+      // Check authorization
+      if (user.roleId === ROLES.PARENT) {
+        const student = await storage.getStudent(report.studentId);
+        if (!student || student.parentId !== user.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (user.roleId === ROLES.STUDENT && user.id !== report.studentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For now, return HTML that can be printed to PDF by browser
+      // In production, use PDFKit or similar library to generate actual PDF
+      const term = await storage.getAcademicTerm(report.termId);
+      const classInfo = await storage.getClass(report.classId);
+      const studentUser = await storage.getUser(report.studentId);
+      const items = await storage.getReportCardItems(report.id);
+      
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Report Card - ${studentUser?.firstName} ${studentUser?.lastName}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .info { margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .grade-a { background-color: #d4edda; }
+    .grade-b { background-color: #d1ecf1; }
+    .grade-c { background-color: #fff3cd; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Treasure-Home School</h1>
+    <h2>Report Card</h2>
+  </div>
+  <div class="info">
+    <p><strong>Student:</strong> ${studentUser?.firstName} ${studentUser?.lastName}</p>
+    <p><strong>Class:</strong> ${classInfo?.name}</p>
+    <p><strong>Term:</strong> ${term?.name} ${term?.year}</p>
+    <p><strong>Overall Grade:</strong> ${report.overallGrade} (${report.averagePercentage}%)</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>Test (40)</th>
+        <th>Exam (60)</th>
+        <th>Total (100)</th>
+        <th>Grade</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${items.map((item: any) => `
+        <tr class="${item.grade.startsWith('A') ? 'grade-a' : item.grade.startsWith('B') ? 'grade-b' : item.grade.startsWith('C') ? 'grade-c' : ''}">
+          <td>${item.subjectName || 'Unknown'}</td>
+          <td>${item.testWeightedScore}/40</td>
+          <td>${item.examWeightedScore}/60</td>
+          <td>${item.obtainedMarks}/100</td>
+          <td>${item.grade}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  ${report.teacherRemarks ? `<div class="info"><p><strong>Teacher's Remarks:</strong> ${report.teacherRemarks}</p></div>` : ''}
+</body>
+</html>
+      `;
+      
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      res.status(500).json({ message: "Failed to generate PDF" });
+    }
+  });
+
   // Audit Logs
   app.get("/api/audit-logs", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {

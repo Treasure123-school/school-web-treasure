@@ -267,6 +267,13 @@ export interface IStorage {
   getComprehensiveGradesByStudent(studentId: string, termId?: number): Promise<any[]>;
   getComprehensiveGradesByClass(classId: number, termId?: number): Promise<any[]>;
   createReportCard(reportCardData: any, grades: any[]): Promise<any>;
+  
+  // Report card retrieval methods
+  getReportCard(id: number): Promise<ReportCard | undefined>;
+  getReportCardsByStudentId(studentId: string): Promise<ReportCard[]>;
+  getReportCardItems(reportCardId: number): Promise<ReportCardItem[]>;
+  getStudentsByParentId(parentId: string): Promise<Student[]>;
+  getAcademicTerm(id: number): Promise<AcademicTerm | undefined>;
 
   // Report finalization methods
   getExamResultById(id: number): Promise<ExamResult | undefined>;
@@ -2442,6 +2449,66 @@ export class DatabaseStorage implements IStorage {
         throw error;
       }
     });
+  }
+
+  async getReportCard(id: number): Promise<ReportCard | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching report card:', error);
+      return undefined;
+    }
+  }
+
+  async getReportCardsByStudentId(studentId: string): Promise<ReportCard[]> {
+    try {
+      return await db.select()
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.studentId, studentId))
+        .orderBy(desc(schema.reportCards.generatedAt));
+    } catch (error) {
+      console.error('Error fetching student report cards:', error);
+      return [];
+    }
+  }
+
+  async getReportCardItems(reportCardId: number): Promise<ReportCardItem[]> {
+    try {
+      return await db.select()
+        .from(schema.reportCardItems)
+        .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+    } catch (error) {
+      console.error('Error fetching report card items:', error);
+      return [];
+    }
+  }
+
+  async getStudentsByParentId(parentId: string): Promise<Student[]> {
+    try {
+      return await db.select()
+        .from(schema.students)
+        .where(eq(schema.students.parentId, parentId));
+    } catch (error) {
+      console.error('Error fetching students by parent:', error);
+      return [];
+    }
+  }
+
+  async getAcademicTerm(id: number): Promise<AcademicTerm | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.academicTerms)
+        .where(eq(schema.academicTerms.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching academic term:', error);
+      return undefined;
+    }
   }
 
   // Analytics and Reports
