@@ -4080,71 +4080,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // For now, return HTML that can be printed to PDF by browser
-      // In production, use PDFKit or similar library to generate actual PDF
+      // Generate actual PDF using PDFKit
       const term = await storage.getAcademicTerm(report.termId);
       const classInfo = await storage.getClass(report.classId);
       const studentUser = await storage.getUser(report.studentId);
       const items = await storage.getReportCardItems(report.id);
       
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Report Card - ${studentUser?.firstName} ${studentUser?.lastName}</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .info { margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    .grade-a { background-color: #d4edda; }
-    .grade-b { background-color: #d1ecf1; }
-    .grade-c { background-color: #fff3cd; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Treasure-Home School</h1>
-    <h2>Report Card</h2>
-  </div>
-  <div class="info">
-    <p><strong>Student:</strong> ${studentUser?.firstName} ${studentUser?.lastName}</p>
-    <p><strong>Class:</strong> ${classInfo?.name}</p>
-    <p><strong>Term:</strong> ${term?.name} ${term?.year}</p>
-    <p><strong>Overall Grade:</strong> ${report.overallGrade} (${report.averagePercentage}%)</p>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Subject</th>
-        <th>Test (40)</th>
-        <th>Exam (60)</th>
-        <th>Total (100)</th>
-        <th>Grade</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${items.map((item: any) => `
-        <tr class="${item.grade.startsWith('A') ? 'grade-a' : item.grade.startsWith('B') ? 'grade-b' : item.grade.startsWith('C') ? 'grade-c' : ''}">
-          <td>${item.subjectName || 'Unknown'}</td>
-          <td>${item.testWeightedScore}/40</td>
-          <td>${item.examWeightedScore}/60</td>
-          <td>${item.obtainedMarks}/100</td>
-          <td>${item.grade}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
-  ${report.teacherRemarks ? `<div class="info"><p><strong>Teacher's Remarks:</strong> ${report.teacherRemarks}</p></div>` : ''}
-</body>
-</html>
-      `;
+      // Get subject names for items
+      const itemsWithSubjects = await Promise.all(items.map(async (item: any) => {
+        const subject = await storage.getSubject(item.subjectId);
+        return {
+          ...item,
+          subjectName: subject?.name || 'Unknown'
+        };
+      }));
+
+      // Create PDF document
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: { top: 50, bottom: 50, left: 50, right: 50 }
+      });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="report-card-${studentUser?.firstName}-${studentUser?.lastName}-${term?.name}-${term?.year}.pdf"`);
+
+      // Pipe PDF to response
+      doc.pipe(res);
+
+      // Header - School Name
+      doc.fontSize(24)
+        .font('Helvetica-Bold')
+        .fillColor('#1e40af')
+        .text('Treasure-Home School', { align: 'center' });
       
-      res.setHeader('Content-Type', 'text/html');
-      res.send(html);
+      doc.fontSize(16)
+        .fillColor('#666666')
+        .text('Seriki-Soyinka Ifo, Ogun State, Nigeria', { align: 'center' });
+      
+      doc.moveDown(0.5);
+      doc.fontSize(20)
+        .fillColor('#1e40af')
+        .text('Student Report Card', { align: 'center' });
+      
+      doc.moveDown(1.5);
+
+      // Student Information Box
+      const infoBoxY = doc.y;
+      doc.fontSize(11)
+        .font('Helvetica')
+        .fillColor('#000000');
+      
+      // Left column
+      doc.text(`Student: ${studentUser?.firstName} ${studentUser?.lastName}`, 50, infoBoxY);
+      doc.text(`Class: ${classInfo?.name || 'N/A'}`, 50, infoBoxY + 20);
+      
+      // Right column
+      doc.text(`Term: ${term?.name || 'N/A'} ${term?.year || ''}`, 350, infoBoxY);
+      doc.text(`Date Generated: ${new Date().toLocaleDateString()}`, 350, infoBoxY + 20);
+      
+      doc.moveDown(2);
+
+      // Overall Performance Summary Box
+      const summaryBoxY = doc.y;
+      doc.roundedRect(50, summaryBoxY, 495, 60, 5)
+        .fillAndStroke('#f0f9ff', '#3b82f6');
+      
+      doc.fontSize(12)
+        .font('Helvetica-Bold')
+        .fillColor('#1e40af')
+        .text('Overall Performance', 60, summaryBoxY + 10);
+      
+      doc.fontSize(11)
+        .font('Helvetica')
+        .fillColor('#000000');
+      
+      doc.text(`Average: ${report.averagePercentage || 0}%`, 60, summaryBoxY + 30);
+      doc.text(`Grade: ${report.overallGrade || 'N/A'}`, 250, summaryBoxY + 30);
+      doc.text(`Status: ${report.status}`, 400, summaryBoxY + 30);
+      
+      doc.moveDown(3);
+
+      // Subject Performance Table
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fillColor('#1e40af')
+        .text('Subject Performance', 50, doc.y);
+      
+      doc.moveDown(0.5);
+      
+      // Table headers
+      const tableTop = doc.y;
+      const colWidths = [180, 70, 70, 70, 80];
+      const colPositions = [50, 230, 300, 370, 440];
+      
+      doc.fontSize(10)
+        .font('Helvetica-Bold')
+        .fillColor('#ffffff');
+      
+      // Header background
+      doc.rect(50, tableTop, 495, 25)
+        .fill('#3b82f6');
+      
+      doc.text('Subject', colPositions[0] + 5, tableTop + 8);
+      doc.text('Test (40)', colPositions[1] + 5, tableTop + 8);
+      doc.text('Exam (60)', colPositions[2] + 5, tableTop + 8);
+      doc.text('Total (100)', colPositions[3] + 5, tableTop + 8);
+      doc.text('Grade', colPositions[4] + 5, tableTop + 8);
+      
+      // Table rows
+      let rowY = tableTop + 30;
+      doc.fontSize(10)
+        .font('Helvetica')
+        .fillColor('#000000');
+      
+      itemsWithSubjects.forEach((item: any, index: number) => {
+        // Alternate row colors
+        if (index % 2 === 0) {
+          doc.rect(50, rowY - 5, 495, 25).fill('#f8fafc');
+        }
+        
+        doc.fillColor('#000000');
+        doc.text(item.subjectName, colPositions[0] + 5, rowY, { width: colWidths[0] - 10, lineBreak: false, ellipsis: true });
+        doc.text(`${item.testWeightedScore || 0}/40`, colPositions[1] + 5, rowY);
+        doc.text(`${item.examWeightedScore || 0}/60`, colPositions[2] + 5, rowY);
+        doc.text(`${item.obtainedMarks || 0}/100`, colPositions[3] + 5, rowY);
+        doc.text(item.grade || 'N/A', colPositions[4] + 5, rowY);
+        
+        rowY += 25;
+      });
+      
+      // Table border
+      doc.rect(50, tableTop, 495, rowY - tableTop)
+        .stroke('#cbd5e1');
+
+      // Teacher's Remarks
+      if (report.teacherRemarks) {
+        doc.moveDown(2);
+        doc.fontSize(12)
+          .font('Helvetica-Bold')
+          .fillColor('#1e40af')
+          .text('Teacher\'s Remarks', 50, doc.y);
+        
+        doc.fontSize(10)
+          .font('Helvetica')
+          .fillColor('#000000');
+        
+        const remarksBoxY = doc.y + 10;
+        doc.roundedRect(50, remarksBoxY, 495, 60, 5)
+          .stroke('#cbd5e1');
+        
+        doc.text(report.teacherRemarks, 60, remarksBoxY + 10, {
+          width: 475,
+          align: 'left'
+        });
+      }
+
+      // Footer
+      doc.fontSize(8)
+        .fillColor('#666666')
+        .text(
+          '© 2024 Treasure-Home School | "Honesty and Success" | treasurehomeschool@gmail.com',
+          50,
+          doc.page.height - 30,
+          { align: 'center', width: 495 }
+        );
+
+      // Finalize PDF
+      doc.end();
     } catch (error) {
       console.error('Error generating PDF:', error);
       res.status(500).json({ message: "Failed to generate PDF" });
