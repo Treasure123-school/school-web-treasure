@@ -258,6 +258,19 @@ export interface IStorage {
     eventsByType: Record<string, number>;
   }>;
   getRecentPerformanceAlerts(hours?: number): Promise<PerformanceEvent[]>;
+
+  // Report finalization methods
+  getExamResultById(id: number): Promise<ExamResult | undefined>;
+  getFinalizedReportsByExams(examIds: number[], filters?: {
+    classId?: number;
+    subjectId?: number;
+    termId?: number;
+  }): Promise<any[]>;
+  getAllFinalizedReports(filters?: {
+    classId?: number;
+    subjectId?: number;
+    termId?: number;
+  }): Promise<any[]>;
 }
 
 // Helper to normalize UUIDs from various formats

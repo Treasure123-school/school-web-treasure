@@ -2112,7 +2112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { studentId, termId } = req.params;
 
       // Authorization check
-      if (req.user.roleId === ROLES.STUDENT && req.user.id !== studentId) {
+      if (req.user!.roleId === ROLES.STUDENT && req.user!.id !== studentId) {
         return res.status(403).json({ message: "Students can only view their own report cards" });
       }
 
@@ -2135,7 +2135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const examResults = await storage.getExamResultsByStudent(studentId);
           const relevantResults = examResults.filter((result: any) => {
-            return result.examId && parseInt(subject.id) && parseInt(termId);
+            return result.examId && subject.id && termId;
           });
 
           // Enrich relevantResults with exam details to filter by subjectId and termId
@@ -2143,7 +2143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const result of relevantResults) {
             try {
               const exam = await storage.getExamById(result.examId);
-              if (exam && exam.subjectId === parseInt(subject.id) && exam.termId === parseInt(termId)) {
+              if (exam && exam.subjectId === subject.id && exam.termId === parseInt(termId)) {
                 enrichedResults.push({ 
                   ...result, 
                   examType: exam.examType,
@@ -2171,12 +2171,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (testResults.length > 0) {
             // Use best test score if multiple tests
             const bestTest = testResults.reduce((best: any, current: any) => {
-              const currentPercentage = (current.marksObtained / current.totalMarks) * 100;
-              const bestPercentage = (best.marksObtained / best.totalMarks) * 100;
+              const currentMarks = current.marksObtained || 0;
+              const bestMarks = best.marksObtained || 0;
+              const currentPercentage = (currentMarks / current.totalMarks) * 100;
+              const bestPercentage = (bestMarks / best.totalMarks) * 100;
               return currentPercentage > bestPercentage ? current : best;
             });
 
-            testRawScore = (bestTest.marksObtained / bestTest.totalMarks) * 100;
+            const bestTestMarks = bestTest.marksObtained || 0;
+            testRawScore = (bestTestMarks / bestTest.totalMarks) * 100;
             testWeightedScore = testRawScore * 0.4; // 40% weight
             hasTest = true;
           }
@@ -2185,12 +2188,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (examResultsFiltered.length > 0) {
             // Use best exam score if multiple exams
             const bestExam = examResultsFiltered.reduce((best: any, current: any) => {
-              const currentPercentage = (current.marksObtained / current.totalMarks) * 100;
-              const bestPercentage = (best.marksObtained / best.totalMarks) * 100;
+              const currentMarks = current.marksObtained || 0;
+              const bestMarks = best.marksObtained || 0;
+              const currentPercentage = (currentMarks / current.totalMarks) * 100;
+              const bestPercentage = (bestMarks / best.totalMarks) * 100;
               return currentPercentage > bestPercentage ? current : best;
             });
 
-            examRawScore = (bestExam.marksObtained / bestExam.totalMarks) * 100;
+            const bestExamMarks = bestExam.marksObtained || 0;
+            examRawScore = (bestExamMarks / bestExam.totalMarks) * 100;
             examWeightedScore = examRawScore * 0.6; // 60% weight
             hasExam = true;
           }
@@ -2255,7 +2261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentInfo: {
           id: student.id,
           admissionNumber: student.admissionNumber,
-          name: `${req.user.firstName} ${req.user.lastName}`,
+          name: `${req.user!.firstName} ${req.user!.lastName}`,
           class: student.classId
         },
         termId: parseInt(termId),
@@ -2837,10 +2843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updateData = {
-        teacherRemarks,
-        teacherFinalized: teacherFinalized || true,
-        finalizedAt: finalizedAt || new Date().toISOString(),
-        finalizedBy: finalizedBy || (req as any).user.id,
+        remarks: teacherRemarks || existingResult.remarks,
       };
 
       const updatedResult = await storage.updateExamResult(parseInt(id), updateData);
@@ -3248,14 +3251,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const examResult = existingResults.find(r => r.examId === examIdNum);
 
         if (examResult) {
+          const maxScore = examResult.maxScore || 100;
+          const score = examResult.score || examResult.marksObtained || 0;
           return res.json({
             submitted: true,
             alreadySubmitted: true,
             message: "Exam already submitted",
             result: {
-              score: examResult.score || examResult.marksObtained || 0,
-              maxScore: examResult.maxScore || 100,
-              percentage: examResult.maxScore > 0 ? Math.round(((examResult.score || examResult.marksObtained || 0) / examResult.maxScore) * 100) : 0,
+              score: score,
+              maxScore: maxScore,
+              percentage: maxScore > 0 ? Math.round((score / maxScore) * 100) : 0,
               autoScored: examResult.autoScored || false
             }
           });
@@ -3288,14 +3293,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const examResult = results.find(r => r.examId === examIdNum);
 
       if (examResult) {
-        const percentage = examResult.maxScore > 0 ? Math.round(((examResult.score || examResult.marksObtained || 0) / examResult.maxScore) * 100) : 0;
+        const maxScore = examResult.maxScore || 100;
+        const score = examResult.score || examResult.marksObtained || 0;
+        const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
         res.json({
           submitted: true,
           message: "Exam submitted successfully",
           result: {
-            score: examResult.score || examResult.marksObtained || 0,
-            maxScore: examResult.maxScore || 100,
+            score: score,
+            maxScore: maxScore,
             percentage: percentage,
             autoScored: examResult.autoScored || false,
             submittedAt: now
