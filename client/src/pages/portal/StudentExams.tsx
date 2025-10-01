@@ -438,22 +438,20 @@ export default function StudentExams() {
   const handleAutoSubmitOnTimeout = async () => {
     const startTime = Date.now();
     
+    console.log(`⏰ AUTO-SUBMIT TRIGGERED: Time limit reached for exam ${activeSession?.examId}`);
+    
     if (hasPendingSaves()) {
-      // INCREASED TIMEOUT FOR DATA SAFETY: Wait up to 3000ms (3s) to ensure answers are saved
-      // This prevents data loss on moderate/slow networks (200-500ms latency)
       toast({
         title: "Time's Up!",
         description: "Saving your final answers before submitting...",
       });
       
-      // Safe timeout: 3 seconds allows for network latency and prevents data loss
-      const maxWaitTime = 3000; // Increased from unsafe 600ms - CRITICAL FOR DATA INTEGRITY
-      const checkInterval = 100; // Check every 100ms
+      const maxWaitTime = 3000;
+      const checkInterval = 100;
       let waitTime = 0;
       
       const checkSaves = () => {
         if (!hasPendingSaves()) {
-          // All saves completed, now submit
           const totalWaitTime = Date.now() - startTime;
           console.log(`✅ All pending saves completed in ${totalWaitTime}ms, submitting exam`);
           toast({
@@ -462,17 +460,15 @@ export default function StudentExams() {
           });
           forceSubmitExam();
         } else if (waitTime >= maxWaitTime) {
-          // Force submit after safe wait period
           const totalWaitTime = Date.now() - startTime;
           console.warn(`⚠️ Force submit after ${totalWaitTime}ms wait - some answers may still be saving`);
           toast({
             title: "Submitting Exam",
-            description: "Submitting exam now. Please ensure stable internet connection.",
-            variant: "default",
+            description: "Time limit exceeded. Submitting exam now...",
+            variant: "destructive",
           });
           forceSubmitExam();
         } else {
-          // Keep waiting with status update
           waitTime += checkInterval;
           if (waitTime % 500 === 0) {
             console.log(`Waiting for ${pendingSaves.size} answer(s) to save... (${waitTime}ms elapsed)`);
@@ -485,8 +481,9 @@ export default function StudentExams() {
     } else {
       console.log(`✅ No pending saves, immediate submit`);
       toast({
-        title: "Submitting Exam",
+        title: "Time's Up!",
         description: "Time limit reached. Submitting exam...",
+        variant: "destructive",
       });
       forceSubmitExam();
     }
@@ -942,32 +939,51 @@ export default function StudentExams() {
       // Handle specific error types for better user experience
       let errorTitle = "Submission Error";
       let errorDescription = error.message;
+      let shouldResetSession = false;
       
       // Check for specific error types that can happen with synchronous submission
-      if (error.message.includes('already submitted')) {
+      if (error.message.includes('already submitted') || error.message.includes('Exam already submitted')) {
         errorTitle = "Already Submitted";
-        errorDescription = "This exam has already been submitted. Please check your results or contact your instructor.";
-      } else if (error.message.includes('Time limit exceeded')) {
-        errorTitle = "Time Limit Exceeded";
-        errorDescription = "The time limit for this exam has been exceeded. Please start over or contact your instructor if you believe this is an error.";
-      } else if (error.message.includes('time limit') || error.message.includes('expired')) {
-        errorTitle = "Time Limit Exceeded";
-        errorDescription = "The time limit for this exam has been exceeded. Your exam may have been automatically submitted.";
-      } else if (error.message.includes('No active exam session')) {
-        errorTitle = "Session Not Found";
-        errorDescription = "No active exam session found. Please start the exam first or contact your instructor if you believe this is an error.";
-      } else if (error.message.includes('Auto-scoring failed')) {
-        errorTitle = "Submission Successful";
-        errorDescription = "Your exam was submitted successfully, but automatic scoring is not available. Your instructor will manually grade your exam.";
-      } else if (error.message.includes('technical error') || error.message.includes('database')) {
-        errorTitle = "Technical Error";
-        errorDescription = "A technical error occurred during submission. Please try again or contact your instructor for assistance.";
+        errorDescription = "This exam has already been submitted. Redirecting to results...";
+        shouldResetSession = true;
+        
+        // Try to get existing results
+        setTimeout(() => {
+          setActiveSession(null);
+          setAnswers({});
+          setTimeRemaining(null);
+          setCurrentQuestionIndex(0);
+          setSelectedExam(null);
+        }, 2000);
+        
+      } else if (error.message.includes('No active exam session') || error.message.includes('Session not found')) {
+        errorTitle = "Session Expired";
+        errorDescription = "Your exam session has expired. Please start the exam again.";
+        shouldResetSession = true;
+        
+        setTimeout(() => {
+          setActiveSession(null);
+          setAnswers({});
+          setTimeRemaining(null);
+          setCurrentQuestionIndex(0);
+          setSelectedExam(null);
+        }, 2000);
+        
+      } else if (error.message.includes('Server error') || error.message.includes('Failed to submit exam')) {
+        errorTitle = "Server Error";
+        errorDescription = "A server error occurred. Your answers are saved. Please try submitting again.";
+      } else if (error.message.includes('Network') || error.message.includes('fetch')) {
+        errorTitle = "Connection Error";
+        errorDescription = "Network connection failed. Please check your internet connection and try again.";
+      } else if (error.message.includes('timeout')) {
+        errorTitle = "Request Timeout";
+        errorDescription = "The submission request timed out. Your answers are saved. Please try again.";
       }
       
       toast({
         title: errorTitle,
         description: errorDescription,
-        variant: errorTitle === "Submission Successful" ? "default" : "destructive",
+        variant: shouldResetSession ? "default" : "destructive",
       });
     },
   });
@@ -1077,9 +1093,24 @@ export default function StudentExams() {
 
   // Force submit without checking pending saves (used for auto-submit)
   const forceSubmitExam = async () => {
+    if (isSubmitting || isScoring) {
+      console.log('🔄 Submit already in progress, skipping duplicate submission');
+      return;
+    }
+
+    console.log('🚀 FORCE SUBMIT: Starting exam submission...');
     setIsSubmitting(true);
+    
     try {
       await submitExamMutation.mutateAsync();
+      console.log('✅ FORCE SUBMIT: Exam submitted successfully');
+    } catch (error) {
+      console.error('❌ FORCE SUBMIT: Failed to submit exam:', error);
+      toast({
+        title: "Submission Error",
+        description: "Failed to submit exam. Please try again or contact your instructor.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

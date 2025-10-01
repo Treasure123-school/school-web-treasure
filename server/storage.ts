@@ -726,89 +726,72 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     try {
-      // ENHANCED FIX: Use SQL COALESCE to always return correct autoScored boolean directly from database
-      // This prevents race conditions and ensures consistent results
       console.log(`🔍 Fetching exam results for student: ${studentId}`);
 
       const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
 
-      const results = await this.db.select({
-        id: schema.examResults.id,
-        examId: schema.examResults.examId,
-        studentId: schema.examResults.studentId,
-        score: schema.examResults.marksObtained, // Map legacy field to score
-        maxScore: schema.exams.totalMarks, // CRITICAL: Get proper maxScore from exam
-        marksObtained: schema.examResults.marksObtained,
-        grade: schema.examResults.grade,
-        remarks: schema.examResults.remarks,
-        recordedBy: schema.examResults.recordedBy,
-        createdAt: schema.examResults.createdAt,
-        // ARCHITECT RECOMMENDED FIX: Use SQL COALESCE for reliable autoScored boolean
-        // This handles both cases: when auto_scored column exists and when it doesn't
-        autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
-      }).from(schema.examResults)
-        .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
-        .where(eq(schema.examResults.studentId, studentId))
-        .orderBy(desc(schema.examResults.createdAt));
+      // Try main query first
+      try {
+        const results = await this.db.select({
+          id: schema.examResults.id,
+          examId: schema.examResults.examId,
+          studentId: schema.examResults.studentId,
+          score: schema.examResults.marksObtained,
+          maxScore: schema.exams.totalMarks,
+          marksObtained: schema.examResults.marksObtained,
+          grade: schema.examResults.grade,
+          remarks: schema.examResults.remarks,
+          recordedBy: schema.examResults.recordedBy,
+          createdAt: schema.examResults.createdAt,
+          autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
+        }).from(schema.examResults)
+          .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+          .where(eq(schema.examResults.studentId, studentId))
+          .orderBy(desc(schema.examResults.createdAt));
 
-      console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
+        console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
+        return results;
+      } catch (mainError: any) {
+        console.warn('Main query failed, trying fallback:', mainError);
 
-      // Log detailed results for debugging in development
-      if (process.env.NODE_ENV === 'development' && results.length > 0) {
-        results.forEach((result: any, index: number) => {
-          console.log(`   Result ${index + 1}: Score ${result.score}/${result.maxScore}, Auto-scored: ${result.autoScored} (type: ${typeof result.autoScored}), recordedBy: ${result.recordedBy}`);
-        });
+        // Fallback query without autoScored column reference
+        const fallbackResults = await this.db.select({
+          id: schema.examResults.id,
+          examId: schema.examResults.examId,
+          studentId: schema.examResults.studentId,
+          marksObtained: schema.examResults.marksObtained,
+          grade: schema.examResults.grade,
+          remarks: schema.examResults.remarks,
+          recordedBy: schema.examResults.recordedBy,
+          createdAt: schema.examResults.createdAt,
+          score: schema.examResults.marksObtained,
+          maxScore: sql<number>`100`.as('maxScore'), // Default to 100 if join fails
+          autoScored: sql<boolean>`(${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
+        }).from(schema.examResults)
+          .where(eq(schema.examResults.studentId, studentId))
+          .orderBy(desc(schema.examResults.createdAt));
+
+        // Try to get exam details separately for maxScore
+        for (const result of fallbackResults) {
+          try {
+            const exam = await this.db.select({ totalMarks: schema.exams.totalMarks })
+              .from(schema.exams)
+              .where(eq(schema.exams.id, result.examId))
+              .limit(1);
+            if (exam[0]?.totalMarks) {
+              result.maxScore = exam[0].totalMarks;
+            }
+          } catch (examError) {
+            console.warn(`Failed to get exam details for examId ${result.examId}:`, examError);
+          }
+        }
+
+        console.log(`✅ Fallback query successful, found ${fallbackResults.length} results`);
+        return fallbackResults;
       }
-
-      return results;
     } catch (error: any) {
       console.error(`❌ Error fetching exam results for student ${studentId}:`, error);
-
-      // Enhanced fallback with better error handling using COALESCE approach
-      if (error?.cause?.code === '42703') {
-        console.log('⚠️ Database schema mismatch detected, using fallback query with SQL COALESCE');
-        try {
-          // Fallback query with COALESCE approach for autoScored
-          const fallbackResults = await this.db.select({
-            id: schema.examResults.id,
-            examId: schema.examResults.examId,
-            studentId: schema.examResults.studentId,
-            marksObtained: schema.examResults.marksObtained,
-            grade: schema.examResults.grade,
-            remarks: schema.examResults.remarks,
-            recordedBy: schema.examResults.recordedBy,
-            createdAt: schema.examResults.createdAt,
-            // Map marksObtained to score for compatibility
-            score: schema.examResults.marksObtained,
-            // Try to get maxScore from a separate query if JOIN fails
-            maxScore: schema.exams.totalMarks,
-            // ENHANCED FALLBACK: Use SQL to determine autoScored consistently
-            autoScored: sql<boolean>`(${schema.examResults.recordedBy} = ${'00000000-0000-0000-0000-000000000001'}::uuid)`.as('autoScored')
-          }).from(schema.examResults)
-            .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
-            .where(eq(schema.examResults.studentId, studentId))
-            .orderBy(desc(schema.examResults.createdAt));
-
-          console.log(`✅ Fallback query successful, found ${fallbackResults.length} results`);
-
-          // Log detailed fallback results for debugging in development
-          if (process.env.NODE_ENV === 'development' && fallbackResults.length > 0) {
-            fallbackResults.forEach((result: any, index: number) => {
-              console.log(`   Fallback Result ${index + 1}: Score ${result.score}/${result.maxScore}, Auto-scored: ${result.autoScored} (type: ${typeof result.autoScored}), recordedBy: ${result.recordedBy}`);
-            });
-          }
-
-          return fallbackResults;
-        } catch (fallbackError) {
-          console.error('❌ Fallback query also failed:', fallbackError);
-          console.log('🆘 Returning empty array to prevent application crash');
-          return [];
-        }
-      }
-
-      // For other errors, log and re-throw
-      console.error('❌ Non-schema error occurred:', error);
-      throw error;
+      return [];
     }
   }
 

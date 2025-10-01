@@ -3220,6 +3220,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Submit Exam Route - Synchronous submission with proper error handling
+  app.post("/api/exams/:examId/submit", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const user = req.user!;
+      const { examId } = req.params;
+      const examIdNum = parseInt(examId);
+
+      console.log(`🚀 EXAM SUBMISSION: Student ${user.id} submitting exam ${examIdNum}`);
+
+      if (isNaN(examIdNum)) {
+        return res.status(400).json({ message: "Invalid exam ID" });
+      }
+
+      // Get the active session for this student and exam
+      const activeSession = await storage.getActiveExamSession(examIdNum, user.id);
+      if (!activeSession) {
+        console.log(`❌ No active session found for student ${user.id} exam ${examIdNum}`);
+        return res.status(404).json({ message: "No active exam session found" });
+      }
+
+      if (activeSession.isCompleted) {
+        console.log(`⚠️ Session ${activeSession.id} already completed`);
+
+        // Return existing results if available
+        const existingResults = await storage.getExamResultsByStudent(user.id);
+        const examResult = existingResults.find(r => r.examId === examIdNum);
+
+        if (examResult) {
+          return res.json({
+            submitted: true,
+            alreadySubmitted: true,
+            message: "Exam already submitted",
+            result: {
+              score: examResult.score || examResult.marksObtained || 0,
+              maxScore: examResult.maxScore || 100,
+              percentage: examResult.maxScore > 0 ? Math.round(((examResult.score || examResult.marksObtained || 0) / examResult.maxScore) * 100) : 0,
+              autoScored: examResult.autoScored || false
+            }
+          });
+        }
+
+        return res.status(409).json({ message: "Exam session already completed" });
+      }
+
+      // Mark session as completed
+      const now = new Date();
+      await storage.updateExamSession(activeSession.id, {
+        isCompleted: true,
+        submittedAt: now,
+        status: 'submitted'
+      });
+
+      console.log(`✅ Session ${activeSession.id} marked as completed`);
+
+      // Auto-score the exam
+      try {
+        await autoScoreExamSession(activeSession.id, storage);
+        console.log(`✅ Auto-scoring completed for session ${activeSession.id}`);
+      } catch (scoringError) {
+        console.error(`❌ Auto-scoring failed for session ${activeSession.id}:`, scoringError);
+        // Don't fail the submission if scoring fails
+      }
+
+      // Get the results
+      const results = await storage.getExamResultsByStudent(user.id);
+      const examResult = results.find(r => r.examId === examIdNum);
+
+      if (examResult) {
+        const percentage = examResult.maxScore > 0 ? Math.round(((examResult.score || examResult.marksObtained || 0) / examResult.maxScore) * 100) : 0;
+
+        res.json({
+          submitted: true,
+          message: "Exam submitted successfully",
+          result: {
+            score: examResult.score || examResult.marksObtained || 0,
+            maxScore: examResult.maxScore || 100,
+            percentage: percentage,
+            autoScored: examResult.autoScored || false,
+            submittedAt: now
+          }
+        });
+      } else {
+        res.json({
+          submitted: true,
+          message: "Exam submitted successfully. Results pending manual grading."
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Exam submission error:', error);
+      res.status(500).json({ 
+        message: "Failed to submit exam",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // MILESTONE 1: Synchronous Submit Exam Mutation - No Polling, Instant Feedback! 🚀
+  const submitExamMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSession) throw new Error('No active session');
+
+      const startTime = Date.now();
+      console.log('🚀 MILESTONE 1: Synchronous submission for exam:', activeSession.examId);
+
+      // Use the new synchronous submit endpoint - no polling needed!
+      const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to submit exam';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          if (response.status === 500) {
+            errorMessage = 'Server error occurred during submission';
+          } else if (response.status === 404) {
+            errorMessage = 'No active exam session found';
+          } else if (response.status === 409) {
+            errorMessage = 'Exam already submitted';
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const submissionData = await response.json();
+      const totalTime = Date.now() - startTime;
+
+      // Log client-side performance metrics
+      console.log(`📊 CLIENT PERFORMANCE: Exam submission took ${totalTime}ms`);
+
+      // Send performance metrics to server (fire and forget)
+      try {
+        await apiRequest('POST', '/api/performance-events', {
+          sessionId: activeSession.id,
+          eventType: 'submission',
+          duration: totalTime,
+          metadata: {
+            examId: activeSession.examId,
+            clientSide: true,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (perfError) {
+        console.warn('Failed to log performance metrics:', perfError);
+      }
+
+      console.log('✅ INSTANT FEEDBACK received:', submissionData);
+
+      return { ...submissionData, clientPerformance: { totalTime } };
+    },
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
