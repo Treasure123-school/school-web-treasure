@@ -3969,9 +3969,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const studentId = req.params.studentId;
       const user = req.user!;
       
-      // Verify parent owns this child
+      // Verify parent owns this child - CRITICAL SECURITY CHECK
       const student = await storage.getStudent(studentId);
-      if (!student || student.parentId !== user.id) {
+      if (!student) {
+        console.warn(`🔒 Security: Parent ${user.id} attempted to access non-existent student ${studentId}`);
+        return res.status(404).json({ message: "Student not found" });
+      }
+      if (student.parentId !== user.id) {
+        console.warn(`🔒 Security Alert: Parent ${user.id} attempted unauthorized access to student ${studentId} (belongs to ${student.parentId})`);
+        await storage.createAuditLog({
+          userId: user.id,
+          action: 'unauthorized_access_attempt',
+          entityType: 'student_report_cards',
+          entityId: 0,
+          newValue: `Attempted to access student ${studentId}`,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent')
+        });
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -4029,18 +4043,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const reportId = parseInt(req.params.reportId);
       const user = req.user!;
       
+      // Fetch report card
       const report = await storage.getReportCard(reportId);
       if (!report) {
         return res.status(404).json({ message: "Report card not found" });
       }
       
-      // Check authorization
+      // Check authorization BEFORE fetching any additional data
       if (user.roleId === ROLES.PARENT) {
+        // Verify parent owns this student - CRITICAL SECURITY CHECK
         const student = await storage.getStudent(report.studentId);
-        if (!student || student.parentId !== user.id) {
+        if (!student) {
+          console.warn(`🔒 Security: Parent ${user.id} attempted to access PDF for non-existent student ${report.studentId}`);
+          return res.status(404).json({ message: "Student not found" });
+        }
+        if (student.parentId !== user.id) {
+          console.warn(`🔒 Security Alert: Parent ${user.id} attempted unauthorized PDF access to report ${reportId} for student ${report.studentId} (belongs to ${student.parentId})`);
+          await storage.createAuditLog({
+            userId: user.id,
+            action: 'unauthorized_pdf_access_attempt',
+            entityType: 'report_card',
+            entityId: reportId,
+            newValue: `Attempted to access student ${report.studentId}`,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent')
+          });
           return res.status(403).json({ message: "Access denied" });
         }
-      } else if (user.roleId === ROLES.STUDENT && user.id !== report.studentId) {
+      } else if (user.roleId === ROLES.STUDENT) {
+        // Student can only view their own report card
+        if (user.id !== report.studentId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (user.roleId !== ROLES.ADMIN && user.roleId !== ROLES.TEACHER) {
+        // Only admin, teacher, parent, or student can access report cards
         return res.status(403).json({ message: "Access denied" });
       }
       

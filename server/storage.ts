@@ -11,7 +11,7 @@ import type {
   Role, AcademicTerm, ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
   StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent,
-  TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem, ManualScore, InsertManualScore
+  TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
