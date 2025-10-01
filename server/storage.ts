@@ -852,7 +852,7 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByClass(classId: number): Promise<any[]> {
     try {
-      // Join examResults with exams to filter by class
+      // Join all needed tables to get complete data
       const results = await db.select({
         id: schema.examResults.id,
         examId: schema.examResults.examId,
@@ -865,30 +865,26 @@ export class DatabaseStorage implements IStorage {
         recordedBy: schema.examResults.recordedBy,
         autoScored: schema.examResults.autoScored,
         createdAt: schema.examResults.createdAt,
+        examName: schema.exams.name,
+        examType: schema.exams.examType,
+        examDate: schema.exams.date,
+        totalMarks: schema.exams.totalMarks,
+        admissionNumber: schema.students.admissionNumber,
+        studentName: sql<string>`${schema.users.firstName} || ' ' || ${schema.users.lastName}`.as('studentName'),
+        className: schema.classes.name,
+        subjectName: schema.subjects.name,
       })
         .from(schema.examResults)
         .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .innerJoin(schema.students, eq(schema.examResults.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
         .where(eq(schema.exams.classId, classId))
         .orderBy(desc(schema.examResults.createdAt));
 
-      // Enhance results with exam and student info
-      return results.map(result => {
-        const exam = this.exams.find(e => e.id === result.examId);
-        const student = this.students.find(s => s.id === result.studentId);
-        const user = student ? this.users.find(u => u.id === student.id) : null;
-
-        return {
-          ...result,
-          examName: exam?.name || 'Unknown Exam',
-          examType: exam?.examType || 'test',
-          studentName: user ? `${user.firstName} ${user.lastName}` : 'Unknown Student',
-          admissionNumber: student?.admissionNumber || 'N/A',
-          className: exam ? this.getClassName(exam.classId) : 'Unknown Class',
-          subjectName: exam ? this.getSubjectName(exam.subjectId) : 'Unknown Subject',
-          examDate: exam?.date || null,
-          totalMarks: exam?.totalMarks || result.maxScore || 100
-        };
-      });
+      // Results already contain all needed data from joins
+      return results;
     } catch (error: any) {
       console.error('Error in getExamResultsByClass:', error);
 
@@ -917,24 +913,8 @@ export class DatabaseStorage implements IStorage {
             .where(eq(schema.exams.classId, classId))
             .orderBy(desc(schema.examResults.createdAt));
 
-          // Enhance results with exam and student info
-          return results.map(result => {
-            const exam = this.exams.find(e => e.id === result.examId);
-            const student = this.students.find(s => s.id === result.studentId);
-            const user = student ? this.users.find(u => u.id === student.id) : null;
-
-            return {
-              ...result,
-              examName: exam?.name || 'Unknown Exam',
-              examType: exam?.examType || 'test',
-              studentName: user ? `${user.firstName} ${user.lastName}` : 'Unknown Student',
-              admissionNumber: student?.admissionNumber || 'N/A',
-              className: exam ? this.getClassName(exam.classId) : 'Unknown Class',
-              subjectName: exam ? this.getSubjectName(exam.subjectId) : 'Unknown Subject',
-              examDate: exam?.date || null,
-              totalMarks: exam?.totalMarks || result.maxScore || 100
-            };
-          });
+          // Return fallback results as-is
+          return results;
         } catch (fallbackError) {
           console.error('❌ Fallback query also failed for getExamResultsByClass:', fallbackError);
           return [];
@@ -944,15 +924,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private getClassName(classId: number): string {
-    const classItem = this.classes.find(c => c.id === classId);
-    return classItem?.name || 'Unknown Class';
-  }
-
-  private getSubjectName(subjectId: number): string {
-    const subject = this.subjects.find(s => s.id === subjectId);
-    return subject?.name || 'Unknown Subject';
-  }
 
   // Exam questions management
   async createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion> {
@@ -1140,7 +1111,7 @@ export class DatabaseStorage implements IStorage {
         });
 
         // Update with actual counts
-        results.forEach(result => {
+        results.forEach((result: any) => {
           const examId = Number(result.examId);
           const count = Number(result.count);
           questionCounts[examId] = count;
@@ -2034,7 +2005,7 @@ export class DatabaseStorage implements IStorage {
         LIMIT $2
       `;
       
-      const result = await this.db.execute(sql.raw(query, [teacherId, limit]));
+      const result = await db.execute(sql.raw(query.replace('$1', `'${teacherId}'`).replace('$2', `${limit}`)));
       return result.rows || [];
     } catch (error) {
       console.error('Error fetching grading tasks:', error);
@@ -2065,7 +2036,7 @@ export class DatabaseStorage implements IStorage {
         ORDER BY eq.order_number
       `;
       
-      const result = await this.db.execute(sql.raw(query, [sessionId, teacherId]));
+      const result = await db.execute(sql.raw(query.replace('$1', `${sessionId}`).replace('$2', `'${teacherId}'`)));
       return result.rows || [];
     } catch (error) {
       console.error('Error fetching manual grading answers:', error);
@@ -2123,7 +2094,7 @@ export class DatabaseStorage implements IStorage {
           AND sa.points_earned IS NULL
       `;
       
-      const result = await this.db.execute(sql.raw(query, [sessionId]));
+      const result = await db.execute(sql.raw(query.replace('$1', `${sessionId}`)));
       return parseInt(result.rows?.[0]?.remaining || '0');
     } catch (error) {
       console.error('Error checking remaining manual tasks:', error);
@@ -2214,7 +2185,7 @@ export class DatabaseStorage implements IStorage {
           AND es.is_completed = true
       `;
       
-      const result = await this.db.execute(sql.raw(query, [teacherId]));
+      const result = await db.execute(sql.raw(query.replace('$1', `'${teacherId}'`)));
       return result.rows?.[0] || { pending_tasks: 0, completed_tasks: 0, total_tasks: 0, avg_score_given: 0 };
     } catch (error) {
       console.error('Error fetching grading stats:', error);
@@ -2256,7 +2227,7 @@ export class DatabaseStorage implements IStorage {
         ORDER BY s.name, e.exam_type, e.date
       `;
       
-      const results = await this.db.execute(sql.raw(query, [studentId, termId]));
+      const results = await db.execute(sql.raw(query.replace('$1', `'${studentId}'`).replace('$2', `${termId}`)));
       const examResults = results.rows || [];
 
       // Group by subject and calculate Test (40%) + Exam (60%) = Total (100%)
@@ -2305,10 +2276,21 @@ export class DatabaseStorage implements IStorage {
       const percentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0;
       const overallGrade = this.calculateGrade(percentage);
 
+      // Get student user info for name
+      const studentUser = await db.select({
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+      })
+        .from(schema.users)
+        .where(eq(schema.users.id, studentId))
+        .limit(1);
+      
+      const userName = studentUser[0] ? `${studentUser[0].firstName} ${studentUser[0].lastName}` : 'Unknown Student';
+
       const report = {
         student: {
           id: student.id,
-          name: `${student.firstName} ${student.lastName}`,
+          name: userName,
           admission_number: student.admissionNumber,
           class: student.classId
         },
@@ -2408,7 +2390,12 @@ export class DatabaseStorage implements IStorage {
         ORDER BY generated_at DESC
       `;
       
-      const result = await this.db.execute(sql.raw(query, params));
+      let finalQuery = query;
+      params.forEach((param: any, index: number) => {
+        const value = typeof param === 'string' ? `'${param}'` : `${param}`;
+        finalQuery = finalQuery.replace(`$${index + 1}`, value);
+      });
+      const result = await db.execute(sql.raw(finalQuery));
       return result.rows || [];
     } catch (error) {
       console.error('Error fetching student reports:', error);
@@ -2478,42 +2465,65 @@ export class DatabaseStorage implements IStorage {
   // Comprehensive grade management
   async recordComprehensiveGrade(gradeData: any): Promise<any> {
     try {
-      // Check if grade already exists for this student/subject/term
-      const existingGrade = await this.db.select()
+      // First ensure we have a report card for this student/term
+      let reportCard = await db.select()
+        .from(schema.reportCards)
+        .where(and(
+          eq(schema.reportCards.studentId, gradeData.studentId),
+          eq(schema.reportCards.termId, gradeData.termId)
+        ))
+        .limit(1);
+
+      let reportCardId: number;
+      if (reportCard.length === 0) {
+        // Create new report card
+        const newReportCard = await db.insert(schema.reportCards)
+          .values({
+            studentId: gradeData.studentId,
+            classId: gradeData.classId || 1, // Should be provided
+            termId: gradeData.termId,
+            status: 'draft',
+          })
+          .returning();
+        reportCardId = newReportCard[0].id;
+      } else {
+        reportCardId = reportCard[0].id;
+      }
+
+      // Check if item already exists for this report card/subject
+      const existingItem = await db.select()
         .from(schema.reportCardItems)
         .where(and(
-          eq(schema.reportCardItems.studentId, gradeData.studentId),
-          eq(schema.reportCardItems.subjectId, gradeData.subjectId),
-          eq(schema.reportCardItems.termId, gradeData.termId)
+          eq(schema.reportCardItems.reportCardId, reportCardId),
+          eq(schema.reportCardItems.subjectId, gradeData.subjectId)
         ))
         .limit(1);
 
       const comprehensiveGradeData = {
-        studentId: gradeData.studentId,
+        reportCardId: reportCardId,
         subjectId: gradeData.subjectId,
-        termId: gradeData.termId,
         testScore: gradeData.testScore,
         testMaxScore: gradeData.testMaxScore,
+        testWeightedScore: gradeData.testWeightedScore || Math.round((gradeData.testScore / gradeData.testMaxScore) * 40),
         examScore: gradeData.examScore,
         examMaxScore: gradeData.examMaxScore,
-        totalScore: gradeData.totalScore,
-        percentage: Math.round((gradeData.totalScore / 100) * 100),
+        examWeightedScore: gradeData.examWeightedScore || Math.round((gradeData.examScore / gradeData.examMaxScore) * 60),
+        obtainedMarks: gradeData.testWeightedScore + gradeData.examWeightedScore || Math.round(((gradeData.testScore / gradeData.testMaxScore) * 40) + ((gradeData.examScore / gradeData.examMaxScore) * 60)),
+        percentage: gradeData.percentage || Math.round(((gradeData.testScore / gradeData.testMaxScore) * 40) + ((gradeData.examScore / gradeData.examMaxScore) * 60)),
         grade: gradeData.grade,
         teacherRemarks: gradeData.teacherRemarks,
-        recordedBy: gradeData.recordedBy,
-        isFinalized: true
       };
 
-      if (existingGrade.length > 0) {
-        // Update existing grade
-        const result = await this.db.update(schema.reportCardItems)
+      if (existingItem.length > 0) {
+        // Update existing item
+        const result = await db.update(schema.reportCardItems)
           .set(comprehensiveGradeData)
-          .where(eq(schema.reportCardItems.id, existingGrade[0].id))
+          .where(eq(schema.reportCardItems.id, existingItem[0].id))
           .returning();
         return result[0];
       } else {
-        // Create new grade record
-        const result = await this.db.insert(schema.reportCardItems)
+        // Create new item
+        const result = await db.insert(schema.reportCardItems)
           .values(comprehensiveGradeData)
           .returning();
         return result[0];
@@ -2526,29 +2536,32 @@ export class DatabaseStorage implements IStorage {
 
   async getComprehensiveGradesByStudent(studentId: string, termId?: number): Promise<any[]> {
     try {
-      let query = this.db.select({
+      let query = db.select({
         id: schema.reportCardItems.id,
         subjectId: schema.reportCardItems.subjectId,
         subjectName: schema.subjects.name,
         testScore: schema.reportCardItems.testScore,
         testMaxScore: schema.reportCardItems.testMaxScore,
+        testWeightedScore: schema.reportCardItems.testWeightedScore,
         examScore: schema.reportCardItems.examScore,
         examMaxScore: schema.reportCardItems.examMaxScore,
-        totalScore: schema.reportCardItems.totalScore,
+        examWeightedScore: schema.reportCardItems.examWeightedScore,
+        obtainedMarks: schema.reportCardItems.obtainedMarks,
         percentage: schema.reportCardItems.percentage,
         grade: schema.reportCardItems.grade,
         teacherRemarks: schema.reportCardItems.teacherRemarks,
-        termId: schema.reportCardItems.termId,
+        termId: schema.reportCards.termId,
         createdAt: schema.reportCardItems.createdAt
       })
         .from(schema.reportCardItems)
+        .innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id))
         .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
-        .where(eq(schema.reportCardItems.studentId, studentId));
+        .where(eq(schema.reportCards.studentId, studentId));
 
       if (termId) {
         query = query.where(and(
-          eq(schema.reportCardItems.studentId, studentId),
-          eq(schema.reportCardItems.termId, termId)
+          eq(schema.reportCards.studentId, studentId),
+          eq(schema.reportCards.termId, termId)
         ));
       }
 
@@ -2561,19 +2574,20 @@ export class DatabaseStorage implements IStorage {
 
   async getComprehensiveGradesByClass(classId: number, termId?: number): Promise<any[]> {
     try {
-      let query = this.db.select({
-        studentId: schema.reportCardItems.studentId,
+      let query = db.select({
+        studentId: schema.reportCards.studentId,
         studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
         admissionNumber: schema.students.admissionNumber,
         subjectName: schema.subjects.name,
         testScore: schema.reportCardItems.testScore,
         examScore: schema.reportCardItems.examScore,
-        totalScore: schema.reportCardItems.totalScore,
+        obtainedMarks: schema.reportCardItems.obtainedMarks,
         grade: schema.reportCardItems.grade,
         teacherRemarks: schema.reportCardItems.teacherRemarks
       })
         .from(schema.reportCardItems)
-        .innerJoin(schema.students, eq(schema.reportCardItems.studentId, schema.students.id))
+        .innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id))
+        .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
         .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
         .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
         .where(eq(schema.students.classId, classId));
@@ -2581,7 +2595,7 @@ export class DatabaseStorage implements IStorage {
       if (termId) {
         query = query.where(and(
           eq(schema.students.classId, classId),
-          eq(schema.reportCardItems.termId, termId)
+          eq(schema.reportCards.termId, termId)
         ));
       }
 

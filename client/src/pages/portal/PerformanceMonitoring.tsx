@@ -19,12 +19,12 @@ import {
   Zap,
   Database,
   Server,
-  UserCheck, // For teachers active
-   hourglass // For average turnaround
+  UserCheck,
+  Hourglass
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
-import apiRequest from '@/lib/api'; // Assuming apiRequest is defined here
+import { apiRequest } from '@/lib/queryClient';
 
 interface PerformanceMetrics {
   totalEvents: number;
