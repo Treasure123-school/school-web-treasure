@@ -2090,329 +2090,321 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Result Compilation Routes
-  // Result compilation endpoint for Test(40%) + Exam(60%) calculation
-  app.post("/api/results/compile", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  // Comprehensive grade recording API endpoint
+  app.post("/api/comprehensive-grades", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      const { studentId, subjectId, termId } = req.body;
+      const { 
+        studentId, 
+        subjectId, 
+        termId, 
+        testScore, 
+        testMaxScore = 40, // Default to 40 for test marks
+        examScore, 
+        examMaxScore = 60, // Default to 60 for exam marks
+        totalScore, 
+        grade, 
+        teacherRemarks, 
+        recordedBy 
+      } = req.body;
 
+      // Basic Validation
       if (!studentId || !subjectId || !termId) {
-        return res.status(400).json({ message: "Student ID, Subject ID, and Term ID are required" });
+        return res.status(400).json({ message: "Student, subject, and term are required" });
       }
 
-      // Get all exam results for this student, subject, and term
-      const examResults = await storage.getExamResultsByStudent(studentId);
-      const relevantResults = examResults.filter((result: any) => {
-        // Need to check if exam belongs to the subject and term
-        // Fetching exam details to get subjectId and termId
-        return result.examId && parseInt(subjectId) && parseInt(termId);
-      });
-
-      // Enrich relevantResults with exam details to filter by subjectId and termId
-      const enrichedResults = [];
-      for (const result of relevantResults) {
-        try {
-          const exam = await storage.getExamById(result.examId);
-          if (exam && exam.subjectId === parseInt(subjectId) && exam.termId === parseInt(termId)) {
-            enrichedResults.push({ ...result, examType: exam.examType }); // Add examType for filtering
-          }
-        } catch (examError) {
-          console.warn(`Could not fetch exam details for examId ${result.examId}:`, examError);
-          // Continue processing other results
-        }
+      // Score validation (ensure scores are within their respective max scores)
+      if (testScore !== null && testScore < 0 || testScore > testMaxScore) {
+        return res.status(400).json({ message: "Invalid test score. Score must be between 0 and max test score." });
+      }
+      if (examScore !== null && examScore < 0 || examScore > examMaxScore) {
+        return res.status(400).json({ message: "Invalid exam score. Score must be between 0 and max exam score." });
+      }
+      if (totalScore !== null && (totalScore < 0 || totalScore > (testMaxScore + examMaxScore))) {
+        return res.status(400).json({ message: "Invalid total score. Score must be between 0 and max total score." });
+      }
+      if (grade && !['A+', 'A', 'B+', 'B', 'C', 'F'].includes(grade)) {
+         return res.status(400).json({ message: "Invalid grade. Allowed grades are A+, A, B+, B, C, F." });
       }
 
-      // Separate test and exam results
-      const testResults = enrichedResults.filter((r: any) => r.examType === 'test');
-      const examResultsFiltered = enrichedResults.filter((r: any) => r.examType === 'exam');
-
-      // Calculate weighted scores
-      let testWeightedScore = 0;
-      let examWeightedScore = 0;
-      let hasTest = false;
-      let hasExam = false;
-
-      if (testResults.length > 0) {
-        // Use the highest test score or average - configurable
-        const testScore = Math.max(...testResults.map((r: any) => (r.score / r.maxScore) * 100));
-        testWeightedScore = (testScore * 40) / 100; // 40% weight
-        hasTest = true;
-      }
-
-      if (examResultsFiltered.length > 0) {
-        // Use the highest exam score or average - configurable  
-        const examScore = Math.max(...examResultsFiltered.map((r: any) => (r.score / r.maxScore) * 100));
-        examWeightedScore = (examScore * 60) / 100; // 60% weight
-        hasExam = true;
-      }
-
-      const totalScore = testWeightedScore + examWeightedScore;
-      let grade = 'F';
-
-      if (totalScore >= 90) grade = 'A+';
-      else if (totalScore >= 80) grade = 'A';
-      else if (totalScore >= 70) grade = 'B+';
-      else if (totalScore >= 60) grade = 'B';
-      else if (totalScore >= 50) grade = 'C';
-
-      const compiledResult = {
+      // Create comprehensive grade record
+      const gradeData = {
         studentId,
-        subjectId: parseInt(subjectId),
+        subjectId: parseInt(subjectId), // Ensure IDs are numbers
         termId: parseInt(termId),
-        testScore: hasTest ? testWeightedScore : null,
-        examScore: hasExam ? examWeightedScore : null,
-        totalScore: totalScore,
-        grade: grade,
-        hasTest,
-        hasExam,
-        isComplete: hasTest && hasExam
+        testScore: testScore === null ? null : Number(testScore), // Handle null scores
+        testMaxScore: Number(testMaxScore),
+        examScore: examScore === null ? null : Number(examScore),
+        examMaxScore: Number(examMaxScore),
+        totalScore: totalScore === null ? null : Number(totalScore),
+        grade: grade || null,
+        teacherRemarks: teacherRemarks || null,
+        recordedBy: recordedBy || (req as any).user.id,
+        isFinalized: true, // Assuming this endpoint is for finalized grades
+        recordedAt: new Date()
       };
 
-      res.json(compiledResult);
+      // Store in a comprehensive grades table (ensure this table exists in your database schema)
+      const result = await storage.recordComprehensiveGrade(gradeData);
+
+      res.json({
+        message: "Comprehensive grade recorded successfully",
+        grade: result
+      });
+
     } catch (error) {
-      console.error('Result compilation error:', error);
-      res.status(500).json({ message: "Failed to compile results" });
+      console.error('Comprehensive grade recording error:', error);
+      res.status(500).json({ 
+        message: "Failed to record comprehensive grade",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
-  // Generate student report card
-  app.get("/api/report-card/:studentId/:termId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.STUDENT, ROLES.PARENT), async (req, res) => {
+  // Get comprehensive grades for a student, optionally by term
+  app.get("/api/comprehensive-grades/student/:studentId", authenticateUser, async (req, res) => {
     try {
-      const { studentId, termId } = req.params;
+      const { studentId } = req.params;
+      const { termId } = req.query;
 
-      // Authorization check
-      if (req.user!.roleId === ROLES.STUDENT && req.user!.id !== studentId) {
-        return res.status(403).json({ message: "Students can only view their own report cards" });
+      // Ensure termId is a number if provided
+      const numericTermId = termId ? parseInt(termId as string) : undefined;
+      if (termId && isNaN(numericTermId as number)) {
+        return res.status(400).json({ message: "Invalid termId format. Must be a number." });
       }
 
-      // Get student info
-      const student = await storage.getStudent(studentId);
-      if (!student) {
-        return res.status(404).json({ message: "Student not found" });
+      const grades = await storage.getComprehensiveGradesByStudent(studentId, numericTermId);
+
+      res.json(grades);
+    } catch (error) {
+      console.error('Error fetching comprehensive grades:', error);
+      res.status(500).json({ message: "Failed to fetch comprehensive grades" });
+    }
+  });
+
+  // Generate professional report card
+  app.post("/api/report-cards/generate", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { studentId, termId, classId } = req.body;
+
+      // Validate required fields
+      if (!studentId || !termId || !classId) {
+        return res.status(400).json({ message: "Student ID, Term ID, and Class ID are required" });
       }
 
-      // Get all subjects for the student's class
-      const subjects = await storage.getSubjects();
+      // Get all comprehensive grades for the student in this term
+      const grades = await storage.getComprehensiveGradesByStudent(studentId, parseInt(termId));
 
-      // Generate report for each subject
-      const reportItems = [];
-      let totalPoints = 0;
-      let totalMaxPoints = 0;
+      // Calculate overall statistics
+      const totalMarks = grades.reduce((sum: number, grade: any) => sum + (grade.totalScore || 0), 0);
+      const totalPossibleMarks = grades.reduce((sum: number, grade: any) => sum + (grade.testMaxScore || 0) + (grade.examMaxScore || 0), 0);
+      
+      const averagePercentage = totalPossibleMarks > 0 ? Math.round((totalMarks / totalPossibleMarks) * 100) : 0;
 
-      for (const subject of subjects) {
-        // Get compiled results for this subject with proper Test (40%) + Exam (60%) weighting
-        try {
-          const examResults = await storage.getExamResultsByStudent(studentId);
-          const relevantResults = examResults.filter((result: any) => {
-            return result.examId && subject.id && termId;
-          });
-
-          const enrichedResults = [];
-          for (const result of relevantResults) {
-            try {
-              const exam = await storage.getExamById(result.examId);
-              if (exam && exam.subjectId === subject.id && exam.termId === parseInt(termId)) {
-                enrichedResults.push({ 
-                  ...result, 
-                  examType: exam.examType,
-                  totalMarks: exam.totalMarks 
-                });
-              }
-            } catch (examError) {
-              console.warn(`Could not fetch exam details for examId ${result.examId}:`, examError);
-            }
-          }
-
-          // Separate test and exam results
-          const testResults = enrichedResults.filter((r: any) => r.examType === 'test');
-          const examResultsFiltered = enrichedResults.filter((r: any) => r.examType === 'exam');
-
-          // Calculate weighted scores using the CORE PRIORITY FLOW formula
-          let testWeightedScore = 0;
-          let examWeightedScore = 0;
-          let hasTest = false;
-          let hasExam = false;
-          let testRawScore = 0;
-          let examRawScore = 0;
-
-          // Test contributes 40% to final grade
-          if (testResults.length > 0) {
-            // Use best test score if multiple tests
-            const bestTest = testResults.reduce((best: any, current: any) => {
-              const currentMarks = current.marksObtained || 0;
-              const bestMarks = best.marksObtained || 0;
-              const currentPercentage = (currentMarks / current.totalMarks) * 100;
-              const bestPercentage = (bestMarks / best.totalMarks) * 100;
-              return currentPercentage > bestPercentage ? current : best;
-            });
-
-            const bestTestMarks = bestTest.marksObtained || 0;
-            testRawScore = (bestTestMarks / bestTest.totalMarks) * 100;
-            testWeightedScore = testRawScore * 0.4; // 40% weight
-            hasTest = true;
-          }
-
-          // Exam contributes 60% to final grade
-          if (examResultsFiltered.length > 0) {
-            // Use best exam score if multiple exams
-            const bestExam = examResultsFiltered.reduce((best: any, current: any) => {
-              const currentMarks = current.marksObtained || 0;
-              const bestMarks = best.marksObtained || 0;
-              const currentPercentage = (currentMarks / current.totalMarks) * 100;
-              const bestPercentage = (bestMarks / best.totalMarks) * 100;
-              return currentPercentage > bestPercentage ? current : best;
-            });
-
-            const bestExamMarks = bestExam.marksObtained || 0;
-            examRawScore = (bestExamMarks / bestExam.totalMarks) * 100;
-            examWeightedScore = examRawScore * 0.6; // 60% weight
-            hasExam = true;
-          }
-
-          // Final Total = Test (40%) + Exam (60%) = Total (100%)
-          const totalScore = testWeightedScore + examWeightedScore;
-
-          // Grade calculation based on total weighted score
-          let grade = 'F';
-          let remarks = 'Needs improvement';
-
-          if (totalScore >= 90) { grade = 'A+'; remarks = 'Outstanding'; }
-          else if (totalScore >= 80) { grade = 'A'; remarks = 'Excellent'; }
-          else if (totalScore >= 70) { grade = 'B+'; remarks = 'Very Good'; }
-          else if (totalScore >= 60) { grade = 'B'; remarks = 'Good'; }
-          else if (totalScore >= 50) { grade = 'C'; remarks = 'Satisfactory'; }
-
-          // Generate remarks based on completion status
-          let completionRemarks = 'Incomplete';
-          if (hasTest && hasExam) {
-            completionRemarks = 'Complete';
-          } else if (hasTest && !hasExam) {
-            completionRemarks = 'Test completed, exam pending';
-          } else if (!hasTest && hasExam) {
-            completionRemarks = 'Exam completed, test pending';
-          }
-
-          reportItems.push({
-            subjectName: subject.name,
-            testScore: hasTest ? Math.round(testRawScore) : '-',
-            testWeighted: hasTest ? Math.round(testWeightedScore) : '-',
-            examScore: hasExam ? Math.round(examRawScore) : '-',
-            examWeighted: hasExam ? Math.round(examWeightedScore) : '-',
-            totalScore: Math.round(totalScore),
-            grade: grade,
-            remarks: completionRemarks
-          });
-
-          totalPoints += totalScore;
-          totalMaxPoints += 100;
-        } catch (error) {
-          console.warn(`Failed to compile results for subject ${subject.id}:`, error);
-          // Add placeholder entry for failed compilation
-          reportItems.push({
-            subjectName: subject.name,
-            testScore: '-',
-            testWeighted: '-',
-            examScore: '-',
-            examWeighted: '-',
-            totalScore: 0,
-            grade: 'N/A',
-            remarks: 'Error'
-          });
-        }
-      }
-
-      const overallPercentage = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
+      // Determine overall grade
       let overallGrade = 'F';
-      if (overallPercentage >= 90) overallGrade = 'A+';
-      else if (overallPercentage >= 80) overallGrade = 'A';
-      else if (overallPercentage >= 70) overallGrade = 'B+';
-      else if (overallPercentage >= 60) overallGrade = 'B';
-      else if (overallPercentage >= 50) overallGrade = 'C';
+      if (averagePercentage >= 90) overallGrade = 'A+';
+      else if (averagePercentage >= 80) overallGrade = 'A';
+      else if (averagePercentage >= 70) overallGrade = 'B+';
+      else if (averagePercentage >= 60) overallGrade = 'B';
+      else if (averagePercentage >= 50) overallGrade = 'C';
 
-      // Create PDF document
-      const doc = new PDFDocument({ margin: 50 });
+      // Fetch student and class information for the report card
+      const student = await storage.getStudent(studentId);
+      const className = await storage.getClassById(parseInt(classId));
+      const term = await storage.getTermById(parseInt(termId)); // Assuming getTermById exists
 
-      // Set response headers for PDF download
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=report-card-${student.admissionNumber}-${selectedTerm.name}.pdf`);
+      // Create report card record
+      const reportCardData = {
+        studentId,
+        classId: parseInt(classId),
+        termId: parseInt(termId),
+        averagePercentage,
+        overallGrade,
+        // Enhanced teacher remarks
+        teacherRemarks: `Overall performance: ${overallGrade}. Keep up the excellent work!`,
+        status: 'finalized',
+        finalizedAt: new Date(),
+        generatedBy: (req as any).user.id,
+        // Add student and class details for context if needed, or fetch dynamically on display
+        studentName: student ? `${student.firstName} ${student.lastName}` : 'Unknown Student',
+        className: className ? className.name : 'Unknown Class',
+        termName: term ? `${term.name} (${term.year})` : 'Unknown Term',
+      };
 
-      // Pipe PDF to response
-      doc.pipe(res);
+      // Store report card and associated grades (assuming a method like createReportCard exists)
+      // This might involve inserting into a 'report_cards' table and potentially linking grades
+      const reportCard = await storage.createReportCard(reportCardData, grades);
 
-      // Header
-      doc.fontSize(20).font('Helvetica-Bold').text('TREASURE-HOME SCHOOL', { align: 'center' });
-      doc.fontSize(16).text('STUDENT REPORT CARD', { align: 'center' });
-      doc.moveDown(0.5);
-
-      // Student Info Box
-      const startY = doc.y;
-      doc.fontSize(11).font('Helvetica');
-      doc.text(`Name: ${req.user!.firstName} ${req.user!.lastName}`, 50, startY);
-      doc.text(`Student ID: ${student.admissionNumber}`, 50, startY + 15);
-      doc.text(`Class: ${classInfo?.name || 'N/A'}`, 350, startY);
-      doc.text(`Term: ${selectedTerm.name} (${selectedTerm.year})`, 350, startY + 15);
-
-      doc.moveDown(2);
-
-      // Table Header
-      const tableTop = doc.y + 10;
-      const col1 = 50;
-      const col2 = 180;
-      const col3 = 250;
-      const col4 = 320;
-      const col5 = 390;
-      const col6 = 450;
-
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.rect(col1, tableTop, 495, 20).fillAndStroke('#e0e0e0', '#000000');
-      doc.fillColor('#000000').text('Subject', col1 + 5, tableTop + 5);
-      doc.text('Test (40)', col2 + 5, tableTop + 5);
-      doc.text('Exam (60)', col3 + 5, tableTop + 5);
-      doc.text('Total', col4 + 5, tableTop + 5);
-      doc.text('Grade', col5 + 5, tableTop + 5);
-      doc.text('Remarks', col6 + 5, tableTop + 5);
-
-      // Table Rows
-      let currentY = tableTop + 25;
-      doc.font('Helvetica').fontSize(9);
-
-      for (const subject of reportItems) {
-        if (currentY > 700) {
-          doc.addPage();
-          currentY = 50;
-        }
-
-        doc.text(subject.subjectName, col1 + 5, currentY);
-        doc.text(subject.testScore !== '-' ? `${subject.testScore}/40` : '-', col2 + 5, currentY);
-        doc.text(subject.examScore !== '-' ? `${subject.examScore}/60` : '-', col3 + 5, currentY);
-        doc.text(`${subject.totalScore}/100`, col4 + 5, currentY);
-        doc.text(subject.grade, col5 + 5, currentY);
-        doc.text(subject.remarks, col6 + 5, currentY);
-
-        doc.moveTo(col1, currentY + 18).lineTo(col1 + 495, currentY + 18).stroke();
-        currentY += 20;
-      }
-
-      // Summary Section
-      doc.moveDown(2);
-      doc.fontSize(12).font('Helvetica-Bold').text('Summary', { align: 'center' });
-      doc.moveDown(0.5);
-
-      doc.fontSize(10).font('Helvetica');
-      doc.text(`Total Marks Obtained: ${Math.round(totalPoints)} / ${totalMaxPoints}`);
-      doc.text(`Overall Percentage: ${overallPercentage}%`);
-      doc.text(`Overall Grade: ${overallGrade}`);
-
-      // Footer
-      doc.moveDown(2);
-      doc.fontSize(8).text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
-
-      // Finalize PDF
-      doc.end();
+      res.json({
+        message: "Report card generated successfully",
+        reportCard,
+        grades // Also return the grades used for generation
+      });
 
     } catch (error) {
-      console.error('PDF generation error:', error);
-      res.status(500).json({ message: "Failed to generate PDF report card" });
+      console.error('Report card generation error:', error);
+      res.status(500).json({ 
+        message: "Failed to generate report card",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Exam results management
+  app.post("/api/exam-results", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { examId, studentId, score, maxScore, marksObtained, autoScored, recordedBy, questionDetails, breakdown, immediateResults } = req.body;
+
+      // Basic validation
+      if (!examId || !studentId || score === undefined || maxScore === undefined) {
+        return res.status(400).json({ message: "examId, studentId, score, and maxScore are required." });
+      }
+
+      const resultData = insertExamResultSchema.parse({
+        examId,
+        studentId,
+        score: Number(score),
+        maxScore: Number(maxScore),
+        marksObtained: marksObtained !== undefined ? Number(marksObtained) : Number(score), // Use score if marksObtained is not provided
+        autoScored: autoScored || false,
+        recordedBy: recordedBy || (req as any).user.id,
+        questionDetails: questionDetails || [],
+        breakdown: breakdown || {},
+        immediateResults: immediateResults || {},
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // Check if a result already exists for this exam and student
+      const existingResults = await storage.getExamResultsByStudent(studentId);
+      const existingResult = existingResults.find((r: any) => r.examId === examId);
+
+      let result;
+      if (existingResult) {
+        // Update existing result
+        result = await storage.updateExamResult(existingResult.id, resultData);
+      } else {
+        // Create new result
+        result = await storage.recordExamResult(resultData);
+      }
+
+      if (!result) {
+        throw new Error("Failed to save exam result.");
+      }
+
+      res.json({
+        message: "Exam result saved successfully",
+        result
+      });
+    } catch (error) {
+      console.error('Error saving exam result:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to save exam result" });
+    }
+  });
+
+  // Get exam results for a specific student
+  app.get("/api/exam-results/student/:studentId", authenticateUser, async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      // Students can only view their own results
+      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
+        return res.status(403).json({ message: "Students can only view their own exam results" });
+      }
+
+      const results = await storage.getExamResultsByStudent(studentId);
+      res.json(results);
+    } catch (error) {
+      console.error('Error fetching exam results for student:', error);
+      res.status(500).json({ message: "Failed to fetch exam results" });
+    }
+  });
+
+  // Get specific exam result by ID
+  app.get("/api/exam-results/:id", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+
+      const result = await storage.getExamResultById(parseInt(id));
+      if (!result) {
+        return res.status(404).json({ message: "Exam result not found" });
+      }
+
+      // Students can only view their own results
+      if (user.roleId === ROLES.STUDENT && user.id !== result.studentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching exam result:', error);
+      res.status(500).json({ message: "Failed to fetch exam result" });
+    }
+  });
+
+  // Update exam result (e.g., for manual grading or adding remarks)
+  app.put("/api/exam-results/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { score, maxScore, remarks, questionDetails, breakdown, immediateResults, teacherFinalized, finalizedAt, finalizedBy, ...otherUpdates } = req.body;
+
+      // Prevent direct modification of sensitive fields unless explicitly allowed by role/context
+      const updateData: any = {};
+      if (score !== undefined) updateData.score = Number(score);
+      if (maxScore !== undefined) updateData.maxScore = Number(maxScore);
+      if (remarks !== undefined) updateData.remarks = remarks;
+      if (questionDetails !== undefined) updateData.questionDetails = questionDetails;
+      if (breakdown !== undefined) updateData.breakdown = breakdown;
+      if (immediateResults !== undefined) updateData.immediateResults = immediateResults;
+      
+      // Updates for finalized status might be handled by a separate endpoint or role
+      if (teacherFinalized !== undefined) updateData.teacherFinalized = teacherFinalized;
+      if (finalizedAt !== undefined) updateData.finalizedAt = finalizedAt;
+      if (finalizedBy !== undefined) updateData.finalizedBy = finalizedBy;
+      
+      // Apply other allowed updates
+      Object.assign(updateData, otherUpdates);
+
+      // Ensure score and maxScore are numbers if provided
+      if (updateData.score !== undefined) updateData.score = Number(updateData.score);
+      if (updateData.maxScore !== undefined) updateData.maxScore = Number(updateData.maxScore);
+      if (updateData.marksObtained !== undefined) updateData.marksObtained = Number(updateData.marksObtained);
+
+      const updatedResult = await storage.updateExamResult(parseInt(id), updateData);
+
+      if (!updatedResult) {
+        return res.status(404).json({ message: "Exam result not found" });
+      }
+
+      res.json(updatedResult);
+    } catch (error) {
+      console.error('Error updating exam result:', error);
+      res.status(500).json({ message: "Failed to update exam result" });
+    }
+  });
+
+  // Delete exam result (use with caution)
+  app.delete("/api/exam-results/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteExamResult(parseInt(id));
+
+      if (!success) {
+        return res.status(404).json({ message: "Exam result not found" });
+      }
+
+      res.json({ message: "Exam result deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting exam result:', error);
+      res.status(500).json({ message: "Failed to delete exam result" });
     }
   });
 

@@ -259,6 +259,12 @@ export interface IStorage {
   }>;
   getRecentPerformanceAlerts(hours?: number): Promise<PerformanceEvent[]>;
 
+  // Comprehensive grade management
+  recordComprehensiveGrade(gradeData: any): Promise<any>;
+  getComprehensiveGradesByStudent(studentId: string, termId?: number): Promise<any[]>;
+  getComprehensiveGradesByClass(classId: number, termId?: number): Promise<any[]>;
+  createReportCard(reportCardData: any, grades: any[]): Promise<any>;
+
   // Report finalization methods
   getExamResultById(id: number): Promise<ExamResult | undefined>;
   getFinalizedReportsByExams(examIds: number[], filters?: {
@@ -2022,6 +2028,153 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.homePageContent.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // Comprehensive grade management
+  async recordComprehensiveGrade(gradeData: any): Promise<any> {
+    try {
+      // Check if grade already exists for this student/subject/term
+      const existingGrade = await this.db.select()
+        .from(schema.reportCardItems)
+        .where(and(
+          eq(schema.reportCardItems.studentId, gradeData.studentId),
+          eq(schema.reportCardItems.subjectId, gradeData.subjectId),
+          eq(schema.reportCardItems.termId, gradeData.termId)
+        ))
+        .limit(1);
+
+      const comprehensiveGradeData = {
+        studentId: gradeData.studentId,
+        subjectId: gradeData.subjectId,
+        termId: gradeData.termId,
+        testScore: gradeData.testScore,
+        testMaxScore: gradeData.testMaxScore,
+        examScore: gradeData.examScore,
+        examMaxScore: gradeData.examMaxScore,
+        totalScore: gradeData.totalScore,
+        percentage: Math.round((gradeData.totalScore / 100) * 100),
+        grade: gradeData.grade,
+        teacherRemarks: gradeData.teacherRemarks,
+        recordedBy: gradeData.recordedBy,
+        isFinalized: true
+      };
+
+      if (existingGrade.length > 0) {
+        // Update existing grade
+        const result = await this.db.update(schema.reportCardItems)
+          .set(comprehensiveGradeData)
+          .where(eq(schema.reportCardItems.id, existingGrade[0].id))
+          .returning();
+        return result[0];
+      } else {
+        // Create new grade record
+        const result = await this.db.insert(schema.reportCardItems)
+          .values(comprehensiveGradeData)
+          .returning();
+        return result[0];
+      }
+    } catch (error) {
+      console.error('Error recording comprehensive grade:', error);
+      throw error;
+    }
+  }
+
+  async getComprehensiveGradesByStudent(studentId: string, termId?: number): Promise<any[]> {
+    try {
+      let query = this.db.select({
+        id: schema.reportCardItems.id,
+        subjectId: schema.reportCardItems.subjectId,
+        subjectName: schema.subjects.name,
+        testScore: schema.reportCardItems.testScore,
+        testMaxScore: schema.reportCardItems.testMaxScore,
+        examScore: schema.reportCardItems.examScore,
+        examMaxScore: schema.reportCardItems.examMaxScore,
+        totalScore: schema.reportCardItems.totalScore,
+        percentage: schema.reportCardItems.percentage,
+        grade: schema.reportCardItems.grade,
+        teacherRemarks: schema.reportCardItems.teacherRemarks,
+        termId: schema.reportCardItems.termId,
+        createdAt: schema.reportCardItems.createdAt
+      })
+        .from(schema.reportCardItems)
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .where(eq(schema.reportCardItems.studentId, studentId));
+
+      if (termId) {
+        query = query.where(and(
+          eq(schema.reportCardItems.studentId, studentId),
+          eq(schema.reportCardItems.termId, termId)
+        ));
+      }
+
+      return await query.orderBy(schema.subjects.name);
+    } catch (error) {
+      console.error('Error fetching comprehensive grades by student:', error);
+      return [];
+    }
+  }
+
+  async getComprehensiveGradesByClass(classId: number, termId?: number): Promise<any[]> {
+    try {
+      let query = this.db.select({
+        studentId: schema.reportCardItems.studentId,
+        studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        admissionNumber: schema.students.admissionNumber,
+        subjectName: schema.subjects.name,
+        testScore: schema.reportCardItems.testScore,
+        examScore: schema.reportCardItems.examScore,
+        totalScore: schema.reportCardItems.totalScore,
+        grade: schema.reportCardItems.grade,
+        teacherRemarks: schema.reportCardItems.teacherRemarks
+      })
+        .from(schema.reportCardItems)
+        .innerJoin(schema.students, eq(schema.reportCardItems.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .where(eq(schema.students.classId, classId));
+
+      if (termId) {
+        query = query.where(and(
+          eq(schema.students.classId, classId),
+          eq(schema.reportCardItems.termId, termId)
+        ));
+      }
+
+      return await query.orderBy(schema.users.firstName, schema.users.lastName, schema.subjects.name);
+    } catch (error) {
+      console.error('Error fetching comprehensive grades by class:', error);
+      return [];
+    }
+  }
+
+  async createReportCard(reportCardData: any, grades: any[]): Promise<any> {
+    return await this.db.transaction(async (tx: any) => {
+      try {
+        // Create main report card record
+        const reportCard = await tx.insert(schema.reportCards)
+          .values(reportCardData)
+          .returning();
+
+        // Link all grade items to this report card
+        if (grades.length > 0) {
+          const gradeUpdates = grades.map((grade: any) => 
+            tx.update(schema.reportCardItems)
+              .set({ reportCardId: reportCard[0].id })
+              .where(eq(schema.reportCardItems.id, grade.id))
+          );
+
+          await Promise.all(gradeUpdates);
+        }
+
+        return {
+          reportCard: reportCard[0],
+          grades: grades
+        };
+      } catch (error) {
+        console.error('Error creating report card:', error);
+        throw error;
+      }
+    });
   }
 
   // Analytics and Reports

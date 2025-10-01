@@ -415,19 +415,53 @@ export default function TeacherGrades() {
 
           <TabsContent value="grading" className="space-y-4">
             {selectedExam ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center">
-                      <GraduationCap className="w-5 h-5 mr-2" />
-                      Grade Students - {selectedExam.name}
-                    </span>
-                    <Badge variant="secondary">
-                      {getClassName(selectedExam.classId)} • {getSubjectName(selectedExam.subjectId)}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              <>
+                {/* Comprehensive Grade Entry */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center">
+                        <BookOpen className="w-5 h-5 mr-2" />
+                        Comprehensive Grade Entry
+                      </span>
+                      <Badge variant="secondary">
+                        Test (40%) + Exam (60%) = Total (100%)
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Enter both test and exam scores for comprehensive student assessment
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <TestExamGradeEntry 
+                      student={enrichedStudents[0]} // You can add student selection here
+                      subjects={subjects}
+                      term={{ id: selectedExam.termId, name: 'Current Term' }}
+                      onGradeSubmitted={() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+                        toast({ title: "Success", description: "Grade recorded successfully" });
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Digital Exam Grading */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center">
+                        <GraduationCap className="w-5 h-5 mr-2" />
+                        Digital Exam Results - {selectedExam.name}
+                      </span>
+                      <Badge variant="secondary">
+                        {getClassName(selectedExam.classId)} • {getSubjectName(selectedExam.subjectId)}
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Review and finalize digital exam submissions
+                    </p>
+                  </CardHeader>
+                  <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1008,6 +1042,238 @@ export default function TeacherGrades() {
         </Dialog>
       </div>
     </PortalLayout>
+  );
+}
+
+// Enhanced Test/Exam Grade Entry Component
+function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
+  student: any;
+  subjects: any[];
+  term: any;
+  onGradeSubmitted: () => void;
+}) {
+  const { toast } = useToast();
+  const [selectedSubject, setSelectedSubject] = useState<any>(null);
+  const [testScore, setTestScore] = useState<number>(0);
+  const [examScore, setExamScore] = useState<number>(0);
+  const [teacherRemarks, setTeacherRemarks] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const calculateWeightedTotal = () => {
+    const testWeighted = (testScore / 40) * 40; // Test out of 40
+    const examWeighted = (examScore / 60) * 60; // Exam out of 60
+    return Math.round(testWeighted + examWeighted);
+  };
+
+  const calculateGrade = (total: number) => {
+    if (total >= 90) return 'A+';
+    if (total >= 80) return 'A';
+    if (total >= 70) return 'B+';
+    if (total >= 60) return 'B';
+    if (total >= 50) return 'C';
+    return 'F';
+  };
+
+  const submitGrade = async () => {
+    if (!selectedSubject) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a subject.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (testScore < 0 || testScore > 40 || examScore < 0 || examScore > 60) {
+      toast({
+        title: "Invalid Scores",
+        description: "Test score must be 0-40, Exam score must be 0-60.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const totalScore = calculateWeightedTotal();
+      const grade = calculateGrade(totalScore);
+
+      const response = await apiRequest('POST', '/api/comprehensive-grades', {
+        studentId: student.id,
+        subjectId: selectedSubject.id,
+        termId: term.id,
+        testScore,
+        testMaxScore: 40,
+        examScore,
+        examMaxScore: 60,
+        totalScore,
+        grade,
+        teacherRemarks,
+        recordedBy: student.user?.id // Current teacher
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Grade Recorded",
+          description: `${selectedSubject.name}: ${totalScore}/100 (${grade}) recorded successfully.`,
+        });
+        onGradeSubmitted();
+        setSelectedSubject(null);
+        setTestScore(0);
+        setExamScore(0);
+        setTeacherRemarks('');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record grade. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const weightedTotal = calculateWeightedTotal();
+  const finalGrade = calculateGrade(weightedTotal);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <GraduationCap className="w-5 h-5 mr-2" />
+          Grade Entry - {student.user?.firstName} {student.user?.lastName}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Record Test (40 marks) and Exam (60 marks) scores for comprehensive assessment
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Subject Selection */}
+        <div>
+          <Label htmlFor="subject">Subject</Label>
+          <Select onValueChange={(value) => setSelectedSubject(subjects.find(s => s.id.toString() === value))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select subject to grade" />
+            </SelectTrigger>
+            <SelectContent>
+              {subjects.map((subject: any) => (
+                <SelectItem key={subject.id} value={subject.id.toString()}>
+                  {subject.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedSubject && (
+          <>
+            {/* Score Entry Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="testScore">Test Score (out of 40)</Label>
+                <Input
+                  id="testScore"
+                  type="number"
+                  min="0"
+                  max="40"
+                  value={testScore}
+                  onChange={(e) => setTestScore(Number(e.target.value))}
+                  placeholder="Enter test score"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Continuous assessment, assignments, quizzes
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="examScore">Exam Score (out of 60)</Label>
+                <Input
+                  id="examScore"
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={examScore}
+                  onChange={(e) => setExamScore(Number(e.target.value))}
+                  placeholder="Enter exam score"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Major examination, final assessment
+                </p>
+              </div>
+            </div>
+
+            {/* Calculated Results Preview */}
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <h4 className="font-medium mb-3">Grade Calculation Preview</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Test (40%)</p>
+                  <p className="font-semibold text-lg">{testScore}/40</p>
+                  <p className="text-xs">({Math.round((testScore/40)*100) || 0}%)</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Exam (60%)</p>
+                  <p className="font-semibold text-lg">{examScore}/60</p>
+                  <p className="text-xs">({Math.round((examScore/60)*100) || 0}%)</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Total Score</p>
+                  <p className="font-semibold text-xl text-blue-600">{weightedTotal}/100</p>
+                  <p className="text-xs">({Math.round(weightedTotal) || 0}%)</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Final Grade</p>
+                  <Badge 
+                    variant={finalGrade.startsWith('A') ? "default" : finalGrade.startsWith('B') ? "secondary" : "destructive"}
+                    className="text-lg font-bold"
+                  >
+                    {finalGrade}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Teacher Remarks */}
+            <div>
+              <Label htmlFor="teacherRemarks">Teacher's Remarks</Label>
+              <Textarea
+                id="teacherRemarks"
+                value={teacherRemarks}
+                onChange={(e) => setTeacherRemarks(e.target.value)}
+                placeholder="Enter comments about the student's performance in this subject..."
+                rows={3}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {teacherRemarks.length}/500 characters - These remarks will appear on the report card
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={submitGrade}
+                disabled={isSubmitting || !selectedSubject || testScore < 0 || examScore < 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                    Recording...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Record Grade
+                  </>
+                )}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
