@@ -6,71 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
 import { Link } from 'wouter';
-
-// Helper function to simulate API requests
-async function apiRequest(method: string, url: string, body?: any) {
-  // In a real app, this would be your actual API call logic
-  console.log(`Simulating API Request: ${method} ${url}`);
-  // Mock responses based on URL for demonstration
-  if (url === '/api/classes') return { json: async () => mockClasses };
-  if (url === '/api/students') return { json: async () => mockStudents };
-  if (url === '/api/exams') return { json: async () => mockExams };
-  if (url === '/api/teacher/grades') return { json: async () => mockGrades };
-  if (url.startsWith('/api/grading/tasks')) return { json: async () => mockGradingTasks };
-  if (url.startsWith('/api/teachers/results/by-class')) return { json: async () => mockClassResults };
-  if (url.startsWith('/api/teachers/results/by-exam')) return { json: async () => mockExamResults };
-
-  // Fallback for unknown URLs
-  return { json: async () => [] };
-}
-
-// Mock data for demonstration
-const mockClasses = [
-  { id: 'c1', name: 'Primary 5A', classTeacherId: 't1' },
-  { id: 'c2', name: 'Primary 5B', classTeacherId: 't2' },
-  { id: 'c3', name: 'Grade 10X', classTeacherId: 't1' },
-];
-
-const mockStudents = [
-  { id: 's1', firstName: 'Alice', lastName: 'Smith', classId: 'c1' },
-  { id: 's2', firstName: 'Bob', lastName: 'Johnson', classId: 'c1' },
-  { id: 's3', firstName: 'Charlie', lastName: 'Brown', classId: 'c2' },
-];
-
-const mockExams = [
-  { id: 'e1', name: 'Mid-term Math', subjectId: 's1', classId: 'c1', createdBy: 't1', createdAt: '2023-10-01T10:00:00Z', date: '2023-11-15' },
-  { id: 'e2', name: 'End-term Science', subjectId: 's2', classId: 'c1', createdBy: 't1', createdAt: '2023-11-01T10:00:00Z', date: '2023-12-10' },
-  { id: 'e3', name: 'Quarterly English', subjectId: 's3', classId: 'c2', createdBy: 't2', createdAt: '2023-09-15T10:00:00Z', date: '2023-10-20' },
-];
-
-const mockGrades = [
-  { id: 'g1', studentId: 's1', examId: 'e1', score: 85, marksObtained: 85, createdAt: '2023-11-16T10:00:00Z' },
-  { id: 'g2', studentId: 's2', examId: 'e1', score: 92, marksObtained: 92, createdAt: '2023-11-16T10:05:00Z' },
-  { id: 'g3', studentId: 's3', examId: 'e3', score: 78, marksObtained: 78, createdAt: '2023-10-21T10:00:00Z' },
-];
-
-const mockGradingTasks = [
-  { id: 'gt1', student_name: 'Alice Smith', exam_title: 'Mid-term Math', question_type: 'Essay', max_marks: 20, status: 'pending', teacher_id: 't1' },
-  { id: 'gt2', student_name: 'Bob Johnson', exam_title: 'Mid-term Math', question_type: 'Short Answer', max_marks: 10, status: 'pending', teacher_id: 't1' },
-];
-
-const mockClassResults = [
-  { id: 'r1', studentId: 's1', examId: 'e1', score: 85, createdAt: '2023-11-16T10:00:00Z' },
-  { id: 'r2', studentId: 's2', examId: 'e1', score: 92, createdAt: '2023-11-16T10:05:00Z' },
-];
-
-const mockExamResults = [
-  { id: 'er1', studentId: 's1', examId: 'e1', score: 85, createdAt: '2023-11-16T10:00:00Z' },
-  { id: 'er2', studentId: 's2', examId: 'e1', score: 92, createdAt: '2023-11-16T10:05:00Z' },
-];
 
 // Component for displaying results by class card
 function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
   const { data: classResults = [], isLoading } = useQuery({
-    queryKey: ['/api/teachers/results/by-class', cls.id],
-    queryFn: async () => apiRequest('GET', `/api/teachers/results/by-class?classId=${cls.id}`),
+    queryKey: [`/api/exam-results/class/${cls.id}`],
     enabled: !!cls.id,
   });
 
@@ -146,8 +88,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
 // Component for displaying recent exam result card
 function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   const { data: examResults = [], isLoading } = useQuery({
-    queryKey: ['/api/teachers/results/by-exam', exam.id],
-    queryFn: async () => apiRequest('GET', `/api/teachers/results/by-exam?examId=${exam.id}`),
+    queryKey: [`/api/exam-results/exam/${exam.id}`],
     enabled: !!exam.id,
   });
 
@@ -217,125 +158,45 @@ export default function TeacherDashboard() {
     return <div>Please log in to access the teacher portal.</div>;
   }
 
-  // Fetch dashboard data
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['/api/teacher/dashboard', user?.id],
-    queryFn: async () => {
-      const [classesRes, studentsRes, examsRes, gradesRes, gradingTasksRes] = await Promise.all([
-        apiRequest('GET', '/api/classes'),
-        apiRequest('GET', `/api/students`),
-        apiRequest('GET', '/api/exams'),
-        apiRequest('GET', `/api/teacher/grades`),
-        apiRequest('GET', `/api/grading/tasks?teacher_id=${user?.id}&status=pending`)
-      ]);
-
-      return {
-        classes: await classesRes.json(),
-        students: await studentsRes.json(),
-        exams: await examsRes.json(),
-        grades: await gradesRes.json(),
-        pendingGradingTasks: await gradingTasksRes.json()
-      };
-    },
+  // Fetch dashboard data from real API endpoints
+  const { data: classes = [], isLoading: classesLoading } = useQuery({
+    queryKey: ['/api/classes'],
     enabled: !!user,
   });
 
+  const { data: students = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ['/api/students'],
+    enabled: !!user,
+  });
+
+  const { data: exams = [], isLoading: examsLoading } = useQuery({
+    queryKey: ['/api/exams'],
+    enabled: !!user,
+  });
+
+  const { data: pendingGradingTasks = [], isLoading: gradingTasksLoading } = useQuery({
+    queryKey: ['/api/grading-tasks'],
+    enabled: !!user,
+  });
+
+  const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
+
   // Get teacher's classes for results (limit to first 3 for dashboard)
-  const teacherClasses = (dashboardData?.classes || []).filter((cls: any) => 
+  const teacherClasses = (classes as any[]).filter((cls: any) => 
     cls.classTeacherId === user.id || 
-    (dashboardData?.exams || []).some((exam: any) => exam.createdBy === user.id && exam.classId === cls.id)
+    (exams as any[]).some((exam: any) => exam.createdBy === user.id && exam.classId === cls.id)
   ).slice(0, 3);
 
   // Get recent exams created by this teacher (limit to 5 for dashboard)
-  const recentExams = (dashboardData?.exams || [])
+  const recentExams = (exams as any[])
     .filter((exam: any) => exam.createdBy === user.id)
     .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
-  // Mock data for demo - in real app this would come from API
-  const mockSchedule = [
-    {
-      subject: 'Mathematics',
-      class: 'Primary 5A',
-      room: 'Room 204',
-      students: 30,
-      time: '8:00 - 9:00 AM',
-      status: 'upcoming',
-      color: 'border-primary'
-    },
-    {
-      subject: 'Mathematics',
-      class: 'Primary 5B',
-      room: 'Room 204',
-      students: 28,
-      time: '10:30 - 11:30 AM',
-      status: 'completed',
-      color: 'border-green-500'
-    },
-    {
-      subject: 'Free Period',
-      class: 'Staff lounge',
-      room: '',
-      students: 0,
-      time: '12:00 - 1:00 PM',
-      status: 'upcoming',
-      color: 'border-gray-300'
-    }
-  ];
-
-  const mockActivities = [
-    {
-      icon: 'fas fa-check',
-      title: 'Attendance recorded for Primary 5A',
-      description: '28/30 students present • 2 hours ago',
-      color: 'bg-green-100 text-green-600'
-    },
-    {
-      icon: 'fas fa-edit',
-      title: 'Math quiz grades updated',
-      description: 'Primary 5B Mathematics • 1 day ago',
-      color: 'bg-blue-100 text-blue-600'
-    },
-    {
-      icon: 'fas fa-bullhorn',
-      title: 'Sent homework reminder',
-      description: 'To Primary 5 parents • 2 days ago',
-      color: 'bg-yellow-100 text-yellow-600'
-    }
-  ];
-
-  const quickActions = [
-    {
-      title: 'Take Attendance',
-      icon: 'fas fa-calendar-check',
-      color: 'bg-primary/10 hover:bg-primary/20 text-primary',
-      href: '/portal/teacher/attendance'
-    },
-    {
-      title: 'Record Grades',
-      icon: 'fas fa-edit',
-      color: 'bg-secondary/10 hover:bg-secondary/20 text-secondary',
-      href: '/portal/teacher/grades'
-    },
-    {
-      title: 'Manage Exams',
-      icon: 'fas fa-file-alt',
-      color: 'bg-purple-100 hover:bg-purple-200 text-purple-600',
-      href: '/portal/teacher/exams'
-    },
-    {
-      title: 'Send Announcement',
-      icon: 'fas fa-bullhorn',
-      color: 'bg-green-100 hover:bg-green-200 text-green-600',
-      href: '/portal/teacher/announcements'
-    },
-    {
-      title: 'View Reports',
-      icon: 'fas fa-chart-bar',
-      color: 'bg-blue-100 hover:bg-blue-200 text-blue-600',
-      href: '/portal/teacher/reports'
-    }
-  ];
+  // Calculate real statistics from fetched data
+  const totalStudents = (students as any[]).length;
+  const totalClasses = teacherClasses.length;
+  const pendingGradesCount = (pendingGradingTasks as any[]).length;
 
   return (
     <PortalLayout 
@@ -357,99 +218,48 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <StatsCard
           title="Total Students"
-          value="120"
+          value={isLoading ? "..." : totalStudents.toString()}
           icon={Users}
           color="primary"
         />
         <StatsCard
           title="Classes"
-          value="4"
+          value={isLoading ? "..." : totalClasses.toString()}
           icon={BookOpen}
           color="secondary"
         />
         <StatsCard
-          title="Avg. Attendance"
-          value="92%"
-          icon={Calendar}
+          title="Total Exams"
+          value={isLoading ? "..." : (exams as any[]).filter((e: any) => e.createdBy === user.id).length.toString()}
+          icon={ClipboardList}
           color="green"
-          change="↗ +3% this week"
-          changeType="positive"
         />
         <StatsCard
           title="Pending Grades"
-          value="8"
+          value={isLoading ? "..." : pendingGradesCount.toString()}
           icon={MessageSquare}
           color="orange"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Schedule */}
-        <div className="lg:col-span-2">
-          <Card className="shadow-sm border border-border" data-testid="card-schedule">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Today's Schedule</span>
-                </CardTitle>
-                <span className="text-sm text-muted-foreground">Monday, Dec 11</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockSchedule.map((schedule, index) => (
-                  <div 
-                    key={index}
-                    className={`flex items-center justify-between p-4 bg-muted/50 rounded-lg border-l-4 ${schedule.color}`}
-                    data-testid={`schedule-item-${index}`}
-                  >
-                    <div>
-                      <h3 className="font-medium" data-testid={`text-schedule-subject-${index}`}>
-                        {schedule.subject} - {schedule.class}
-                      </h3>
-                      <p className="text-sm text-muted-foreground" data-testid={`text-schedule-details-${index}`}>
-                        {schedule.room} {schedule.students > 0 && `• ${schedule.students} students`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium" data-testid={`text-schedule-time-${index}`}>
-                        {schedule.time}
-                      </p>
-                      {schedule.status === 'completed' ? (
-                        <span className="text-green-600 text-sm" data-testid={`text-schedule-status-${index}`}>
-                          ✓ Completed
-                        </span>
-                      ) : (
-                        <Button variant="outline" size="sm" data-testid={`button-schedule-action-${index}`}>
-                          {schedule.subject === 'Free Period' ? 'Free' : 'Take Attendance'}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Grading Queue */}
-        <Card>
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
                 <CheckSquare className="w-5 h-5 mr-2" />
                 Grading Queue
               </div>
-              {dashboardData?.pendingGradingTasks?.length > 0 && (
+              {(pendingGradingTasks as any[]).length > 0 && (
                 <Badge variant="destructive" className="text-xs">
-                  {dashboardData.pendingGradingTasks.length} pending
+                  {(pendingGradingTasks as any[]).length} pending
                 </Badge>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!dashboardData?.pendingGradingTasks || dashboardData.pendingGradingTasks.length === 0 ? (
+            {(pendingGradingTasks as any[]).length === 0 ? (
               <div className="text-center py-6 text-muted-foreground">
                 <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">No pending grading tasks</p>
@@ -457,7 +267,7 @@ export default function TeacherDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {dashboardData.pendingGradingTasks.slice(0, 3).map((task: any) => (
+                {(pendingGradingTasks as any[]).slice(0, 3).map((task: any) => (
                   <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50">
                     <div>
                       <h4 className="font-medium text-sm">{task.student_name}</h4>
@@ -475,7 +285,7 @@ export default function TeacherDashboard() {
                 <Link to="/portal/teacher/grading-queue">
                   <Button className="w-full">
                     <CheckSquare className="w-4 h-4 mr-2" />
-                    Grade Now ({dashboardData.pendingGradingTasks.length})
+                    Grade Now ({(pendingGradingTasks as any[]).length})
                   </Button>
                 </Link>
               </div>
@@ -557,85 +367,6 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
       )}
-
-      {/* Recent Activity */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-recent-activity">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <i className="fas fa-history"></i>
-            <span>Recent Activity</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {mockActivities.map((activity, index) => (
-              <div 
-                key={index}
-                className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg"
-                data-testid={`activity-item-${index}`}
-              >
-                <div className={`p-2 rounded-lg ${activity.color}`}>
-                  <i className={activity.icon}></i>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium" data-testid={`text-activity-title-${index}`}>
-                    {activity.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground" data-testid={`text-activity-description-${index}`}>
-                    {activity.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Class Performance Overview */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-class-performance">
-        <CardHeader>
-          <CardTitle>Class Performance Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold mb-3">Primary 5A</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Average Score</span>
-                  <span className="font-medium text-primary">85%</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Attendance Rate</span>
-                  <span className="font-medium text-green-600">93%</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Students</span>
-                  <span className="font-medium">30</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-3">Primary 5B</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Average Score</span>
-                  <span className="font-medium text-primary">82%</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Attendance Rate</span>
-                  <span className="font-medium text-green-600">91%</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Students</span>
-                  <span className="font-medium">28</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </PortalLayout>
   );
 }
