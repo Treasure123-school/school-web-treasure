@@ -3317,62 +3317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MILESTONE 1: Synchronous Submit Exam Mutation - No Polling, Instant Feedback! 🚀
-  const submitExamMutation = useMutation({
-    mutationFn: async () => {
-      if (!activeSession) throw new Error('No active session');
-
-      const startTime = Date.now();
-      console.log('🚀 MILESTONE 1: Synchronous submission for exam:', activeSession.examId);
-
-      // Use the new synchronous submit endpoint - no polling needed!
-      const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to submit exam';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError);
-          if (response.status === 500) {
-            errorMessage = 'Server error occurred during submission';
-          } else if (response.status === 404) {
-            errorMessage = 'No active exam session found';
-          } else if (response.status === 409) {
-            errorMessage = 'Exam already submitted';
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      const submissionData = await response.json();
-      const totalTime = Date.now() - startTime;
-
-      // Log client-side performance metrics
-      console.log(`📊 CLIENT PERFORMANCE: Exam submission took ${totalTime}ms`);
-
-      // Send performance metrics to server (fire and forget)
-      try {
-        await apiRequest('POST', '/api/performance-events', {
-          sessionId: activeSession.id,
-          eventType: 'submission',
-          duration: totalTime,
-          metadata: {
-            examId: activeSession.examId,
-            clientSide: true,
-            timestamp: new Date().toISOString()
-          }
-        });
-      } catch (perfError) {
-        console.warn('Failed to log performance metrics:', perfError);
-      }
-
-      console.log('✅ INSTANT FEEDBACK received:', submissionData);
-
-      return { ...submissionData, clientPerformance: { totalTime } };
-    },
-  });
+  
 
   const httpServer = createServer(app);
   return httpServer;
