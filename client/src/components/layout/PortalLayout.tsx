@@ -11,6 +11,27 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Clock, PenTool, CheckSquare, Award } from 'lucide-react';
 
 
+interface NavItem {
+  name: string;
+  href: string;
+  icon: any;
+}
+
+interface NavGroup {
+  type: 'group';
+  label: string;
+  icon: any;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  items: Array<{
+    href: string;
+    icon: any;
+    label: string;
+  }>;
+}
+
+type NavigationItem = NavItem | NavGroup;
+
 interface PortalLayoutProps {
   children: React.ReactNode;
   userRole: 'student' | 'teacher' | 'admin' | 'parent';
@@ -153,9 +174,9 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       <nav className={`p-4 space-y-2 ${collapsed ? 'px-2' : ''}`}>
         {navigation.map((item) => {
           const Icon = item.icon;
-          if (item.type === 'group') {
+          if ('type' in item && item.type === 'group') {
             return (
-              <Collapsible key={item.name} open={item.isOpen} onOpenChange={item.setIsOpen}>
+              <Collapsible key={item.label} open={item.isOpen} onOpenChange={item.setIsOpen}>
                 <CollapsibleTrigger asChild>
                   <Button
                     variant="ghost"
@@ -180,19 +201,20 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 {!collapsed && (
                   <CollapsibleContent className="space-y-1 ml-3">
                     {item.items.map((subItem) => {
-                      const isActive = isActive(subItem.href);
+                      const SubIcon = subItem.icon;
+                      const subItemActive = isActive(subItem.href);
                       return (
                         <Link
-                          key={subItem.name}
+                          key={subItem.href}
                           href={subItem.href}
                           onClick={onNavigate}
                           className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                            isActive ? 'active-nav' : 'nav-link'
+                            subItemActive ? 'active-nav' : 'nav-link'
                           }`}
                           data-testid={`nav-${subItem.label.toLowerCase().replace(/\s+/g, '-')}`}
                           title={subItem.label}
                         >
-                          <subItem.icon className="h-4 w-4 mr-3" />
+                          <SubIcon className="h-4 w-4 mr-3" />
                           {subItem.label}
                         </Link>
                       );
@@ -203,19 +225,20 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             );
           }
 
+          const navItem = item as NavItem;
           return (
             <Link
-              key={item.name}
-              href={item.href}
+              key={navItem.name}
+              href={navItem.href}
               onClick={onNavigate}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive(item.href) ? 'active-nav' : 'nav-link'
+                isActive(navItem.href) ? 'active-nav' : 'nav-link'
               }`}
-              data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
-              title={collapsed ? item.name : undefined}
+              data-testid={`nav-${navItem.name.toLowerCase().replace(/\s+/g, '-')}`}
+              title={collapsed ? navItem.name : undefined}
             >
               <Icon className="h-4 w-4" />
-              {!collapsed && <span>{item.name}</span>}
+              {!collapsed && <span>{navItem.name}</span>}
             </Link>
           );
         })}
