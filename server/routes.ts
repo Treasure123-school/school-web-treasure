@@ -251,7 +251,8 @@ async function cleanupExpiredExamSessions(): Promise<void> {
     // PERFORMANCE IMPROVEMENT: Get only expired sessions directly from database
     // instead of fetching all active sessions and filtering in memory
     const now = new Date();
-    const expiredSessions = await storage.getExpiredExamSessions(now, 50) || []; // Limit batch size to 50, default to empty array
+    const rawResult = await storage.getExpiredExamSessions(now, 50);
+    const expiredSessions = Array.isArray(rawResult) ? rawResult : []; // Ensure it's always an array
 
     console.log(`🧹 Found ${expiredSessions.length} expired sessions to cleanup`);
 

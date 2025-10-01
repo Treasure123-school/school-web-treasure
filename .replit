@@ -7,7 +7,7 @@ integrations = ["javascript_supabase:1.0.0", "javascript_database:1.0.0"]
 channel = "stable-25_05"
 
 [workflows]
-runButton = "Start Application"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -53,12 +53,12 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 33233
-externalPort = 6000
-
-[[ports]]
 localPort = 33813
 externalPort = 5000
+
+[[ports]]
+localPort = 42121
+externalPort = 6000
 
 [[ports]]
 localPort = 45005
