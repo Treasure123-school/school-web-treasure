@@ -416,7 +416,7 @@ export default function TeacherGrades() {
 
           <TabsContent value="grading" className="space-y-4">
             {selectedExam ? (
-              <>
+              <div className="space-y-4">
                 {/* Comprehensive Grade Entry */}
                 <Card>
                   <CardHeader>
@@ -514,7 +514,7 @@ export default function TeacherGrades() {
                   </Table>
                 </CardContent>
               </Card>
-            </>
+              </div>
             ) : (
               <Card>
                 <CardContent className="text-center py-12">
