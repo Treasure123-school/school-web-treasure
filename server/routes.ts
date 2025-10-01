@@ -352,8 +352,24 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       console.log(`🆕 No existing result found for exam ${session.examId} - will create new`);
     }
 
-    // Use a special UUID for system auto-scoring
-    const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
+    // Use a valid UUID for system auto-scoring - check if it exists in users table
+    let SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
+    
+    // Try to find an admin user for recordedBy, fallback to session's student
+    try {
+      const adminUsers = await storage.getUsersByRole(ROLES.ADMIN);
+      if (adminUsers && adminUsers.length > 0) {
+        SYSTEM_AUTO_SCORING_UUID = adminUsers[0].id;
+        console.log(`Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
+      } else {
+        // Use the student who took the exam as fallback
+        SYSTEM_AUTO_SCORING_UUID = session.studentId;
+        console.log(`No admin found, using student ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
+      }
+    } catch (userError) {
+      console.warn('Failed to find admin for auto-scoring, using student ID:', userError);
+      SYSTEM_AUTO_SCORING_UUID = session.studentId;
+    }
 
     const resultData = {
       examId: session.examId,
@@ -1743,9 +1759,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('Fetching question counts for exam IDs:', ids);
-      const questionCounts = await storage.getExamQuestionCounts(ids);
-      console.log('Question counts result:', questionCounts);
+      
+      // Use a safer approach - get counts individually and combine
+      const questionCounts: Record<number, number> = {};
+      
+      for (const examId of ids) {
+        try {
+          const count = await storage.getExamQuestionCount(examId);
+          questionCounts[examId] = count;
+        } catch (examError) {
+          console.warn(`Failed to get count for exam ${examId}:`, examError);
+          questionCounts[examId] = 0;
+        }
+      }
 
+      console.log('Question counts result:', questionCounts);
       res.json(questionCounts);
     } catch (error) {
       console.error('Error fetching question counts:', error);

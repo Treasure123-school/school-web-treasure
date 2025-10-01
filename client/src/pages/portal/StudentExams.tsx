@@ -1033,8 +1033,23 @@ export default function StudentExams() {
       return;
     }
 
+    // Pre-flight check: confirm exam has questions
+    toast({
+      title: "Starting Exam",
+      description: "Preparing exam session, please wait...",
+    });
+
     console.log('✅ All validation checks passed, starting exam...');
     setSelectedExam(exam);
+    
+    // Reset all state for clean start
+    setAnswers({});
+    setCurrentQuestionIndex(0);
+    setTimeRemaining(null);
+    setTabSwitchCount(0);
+    setQuestionSaveStatus({});
+    setPendingSaves(new Set());
+    
     startExamMutation.mutate(exam.id);
   };
 
@@ -1089,6 +1104,9 @@ export default function StudentExams() {
     setTimeRemaining(null);
     setCurrentQuestionIndex(0);
     setSelectedExam(null);
+    setTabSwitchCount(0);
+    setQuestionSaveStatus({});
+    setPendingSaves(new Set());
   };
 
   // Force submit without checking pending saves (used for auto-submit)
@@ -1664,13 +1682,19 @@ export default function StudentExams() {
                   {/* Submit Button in Sidebar */}
                   <Button
                     onClick={() => {
-                      const unanswered = examQuestions.length - Object.keys(answers).length;
+                      const answeredCount = Object.keys(answers).length;
+                      const unanswered = examQuestions.length - answeredCount;
+                      
+                      let confirmMessage = '';
                       if (unanswered > 0) {
-                        const confirmed = window.confirm(
-                          `You have ${unanswered} unanswered questions. Are you sure you want to submit your exam?`
-                        );
-                        if (!confirmed) return;
+                        confirmMessage = `You have answered ${answeredCount} out of ${examQuestions.length} questions. ${unanswered} questions are unanswered.\n\nAre you sure you want to submit your exam? Unanswered questions will receive zero marks.`;
+                      } else {
+                        confirmMessage = `You have answered all ${examQuestions.length} questions.\n\nAre you ready to submit your exam? You cannot change your answers after submission.`;
                       }
+                      
+                      const confirmed = window.confirm(confirmMessage);
+                      if (!confirmed) return;
+                      
                       handleSubmitExam();
                     }}
                     disabled={isSubmitting || hasPendingSaves() || isScoring}
@@ -1701,8 +1725,15 @@ export default function StudentExams() {
                     <div>
                       <CardTitle>{selectedExam?.name}</CardTitle>
                       <p className="text-muted-foreground">
-                        Question {currentQuestionIndex + 1} of {examQuestions.length}
+                        Question {currentQuestionIndex + 1} of {examQuestions.length} • Total Marks: {selectedExam?.totalMarks}
                       </p>
+                      {selectedExam?.instructions && (
+                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            <strong>Instructions:</strong> {selectedExam.instructions}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Progress value={progress} className="w-full mt-2" />

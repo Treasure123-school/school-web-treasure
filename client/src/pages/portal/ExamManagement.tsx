@@ -636,10 +636,10 @@ export default function ExamManagement() {
     const csvContent = `QuestionText,Type,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points,Instructions,SampleAnswer
 "What is 2 + 2?",multiple_choice,"2","3","4","5","C",1,"Choose the correct answer","4"
 "What is the capital of France?",multiple_choice,"London","Paris","Berlin","Madrid","B",1,"Select the correct capital city","Paris"
-"Explain the process of photosynthesis in plants.",essay,"","","","","",10,"Write a detailed explanation (minimum 200 words)","Photosynthesis is the process by which green plants..."
-"Define gravity in physics.",text,"","","","","",5,"Provide a clear definition (50-100 words)","Gravity is a fundamental force..."
-"Calculate the area of a triangle with base 10cm and height 8cm.",text,"","","","","",3,"Show your working and final answer","Area = 1/2 × base × height = 1/2 × 10 × 8 = 40 cm²"
-"Discuss the causes and effects of climate change.",essay,"","","","","",15,"Write a comprehensive essay (300-500 words)","Climate change is primarily caused by..."`;
+"Explain what a Control Account is and state five advantages.",essay,"","","","","",15,"Write a detailed explanation showing your understanding of control accounts and their benefits in accounting","A Control Account is a summary account that shows the total balance of a subsidiary ledger. Advantages include: 1) Error detection 2) Time saving 3) Fraud prevention 4) Quick trial balance 5) Management control"
+"Define Partnership Deed and explain its importance.",essay,"","","","","",10,"Provide definition and explain why it's important in partnerships","A Partnership Deed is a legal document that outlines the terms and conditions of a partnership business..."
+"What is Depreciation? Distinguish between Straight Line and Reducing Balance methods.",text,"","","","","",8,"Define depreciation and compare the two methods with examples","Depreciation is the systematic allocation of an asset's cost over its useful life. Straight line method allocates equal amounts annually while reducing balance applies a fixed percentage to the reducing book value"
+"Calculate compound interest: Principal ₦50,000, Rate 10% per annum, Time 3 years.",text,"","","","","",5,"Show your working step by step","Using A = P(1 + r)^n: A = 50,000(1 + 0.1)^3 = 50,000 × 1.331 = ₦66,550. Compound Interest = ₦66,550 - ₦50,000 = ₦16,550"`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
