@@ -35,6 +35,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Study Resources', href: `/portal/${userRole}/study-resources`, icon: FileText },
+          { name: 'Report Card', href: `/portal/${userRole}/report-card`, icon: FileText },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
           { name: 'Gallery', href: `/portal/${userRole}/gallery`, icon: ImageIcon },
           { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },

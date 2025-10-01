@@ -24,6 +24,7 @@ import StudentMessages from "@/pages/portal/StudentMessages";
 import StudentProfile from "@/pages/portal/StudentProfile";
 import StudentExams from "@/pages/portal/StudentExams";
 import StudentStudyResources from "@/pages/portal/StudentStudyResources";
+import StudentReportCard from "@/pages/portal/StudentReportCard"; // Added import
 import PortalGallery from "@/pages/portal/Gallery";
 import TeacherDashboard from "@/pages/portal/TeacherDashboard";
 import AdminDashboard from "@/pages/portal/AdminDashboard";
@@ -53,7 +54,7 @@ function Router() {
       <Route path="/gallery" component={Gallery} />
       <Route path="/admissions" component={Admissions} />
       <Route path="/login" component={Login} />
-      
+
       {/* Protected Portal pages */}
       <Route path="/portal/student">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
@@ -83,6 +84,11 @@ function Router() {
       <Route path="/portal/student/messages">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentMessages />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/report-card">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
+          <StudentReportCard />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/profile">
@@ -180,7 +186,7 @@ function Router() {
           <ParentDashboard />
         </ProtectedRoute>
       </Route>
-      
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
