@@ -277,6 +277,34 @@ export interface IStorage {
     subjectId?: number;
     termId?: number;
   }): Promise<any[]>;
+
+  // Teacher class assignments
+  createTeacherClassAssignment(assignment: InsertTeacherClassAssignment): Promise<TeacherClassAssignment>;
+  getTeacherClassAssignments(teacherId: string): Promise<TeacherClassAssignment[]>;
+  getTeachersForClassSubject(classId: number, subjectId: number): Promise<User[]>;
+  updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined>;
+  deleteTeacherClassAssignment(id: number): Promise<boolean>;
+
+  // Manual grading task queue
+  createGradingTask(task: InsertGradingTask): Promise<GradingTask>;
+  assignGradingTask(taskId: number, teacherId: string): Promise<GradingTask | undefined>;
+  getGradingTasksByTeacher(teacherId: string, status?: string): Promise<GradingTask[]>;
+  getGradingTasksBySession(sessionId: number): Promise<GradingTask[]>;
+  updateGradingTaskStatus(taskId: number, status: string, completedAt?: Date): Promise<GradingTask | undefined>;
+  completeGradingTask(taskId: number, pointsEarned: number, feedbackText?: string): Promise<{ task: GradingTask; answer: StudentAnswer } | undefined>;
+
+  // Audit logging
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: {
+    userId?: string;
+    entityType?: string;
+    entityId?: number;
+    action?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+  }): Promise<AuditLog[]>;
+  getAuditLogsByEntity(entityType: string, entityId: number): Promise<AuditLog[]>;
 }
 
 // Helper to normalize UUIDs from various formats
@@ -3098,6 +3126,207 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(schema.performanceEvents.createdAt))
       .limit(50);
+  }
+
+  // Teacher class assignments implementation
+  async createTeacherClassAssignment(assignment: InsertTeacherClassAssignment): Promise<TeacherClassAssignment> {
+    const result = await this.db.insert(schema.teacherClassAssignments).values(assignment).returning();
+    return result[0];
+  }
+
+  async getTeacherClassAssignments(teacherId: string): Promise<TeacherClassAssignment[]> {
+    return await this.db.select()
+      .from(schema.teacherClassAssignments)
+      .where(and(
+        eq(schema.teacherClassAssignments.teacherId, teacherId),
+        eq(schema.teacherClassAssignments.isActive, true)
+      ))
+      .orderBy(schema.teacherClassAssignments.createdAt);
+  }
+
+  async getTeachersForClassSubject(classId: number, subjectId: number): Promise<User[]> {
+    const assignments = await this.db.select({
+      user: schema.users
+    })
+      .from(schema.teacherClassAssignments)
+      .innerJoin(schema.users, eq(schema.teacherClassAssignments.teacherId, schema.users.id))
+      .where(and(
+        eq(schema.teacherClassAssignments.classId, classId),
+        eq(schema.teacherClassAssignments.subjectId, subjectId),
+        eq(schema.teacherClassAssignments.isActive, true)
+      ));
+    
+    return assignments.map(a => a.user);
+  }
+
+  async updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined> {
+    const result = await this.db.update(schema.teacherClassAssignments)
+      .set(assignment)
+      .where(eq(schema.teacherClassAssignments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTeacherClassAssignment(id: number): Promise<boolean> {
+    const result = await this.db.delete(schema.teacherClassAssignments)
+      .where(eq(schema.teacherClassAssignments.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Manual grading task queue implementation
+  async createGradingTask(task: InsertGradingTask): Promise<GradingTask> {
+    const result = await this.db.insert(schema.gradingTasks).values(task).returning();
+    return result[0];
+  }
+
+  async assignGradingTask(taskId: number, teacherId: string): Promise<GradingTask | undefined> {
+    const result = await this.db.update(schema.gradingTasks)
+      .set({
+        assignedTeacherId: teacherId,
+        assignedAt: new Date(),
+        status: 'in_progress'
+      })
+      .where(eq(schema.gradingTasks.id, taskId))
+      .returning();
+    return result[0];
+  }
+
+  async getGradingTasksByTeacher(teacherId: string, status?: string): Promise<GradingTask[]> {
+    const conditions = [eq(schema.gradingTasks.assignedTeacherId, teacherId)];
+    if (status) {
+      conditions.push(eq(schema.gradingTasks.status, status));
+    }
+    
+    return await this.db.select()
+      .from(schema.gradingTasks)
+      .where(and(...conditions))
+      .orderBy(desc(schema.gradingTasks.priority), schema.gradingTasks.createdAt);
+  }
+
+  async getGradingTasksBySession(sessionId: number): Promise<GradingTask[]> {
+    return await this.db.select()
+      .from(schema.gradingTasks)
+      .where(eq(schema.gradingTasks.sessionId, sessionId))
+      .orderBy(schema.gradingTasks.createdAt);
+  }
+
+  async updateGradingTaskStatus(taskId: number, status: string, completedAt?: Date): Promise<GradingTask | undefined> {
+    const updates: any = { status };
+    if (status === 'in_progress' && !completedAt) {
+      updates.startedAt = new Date();
+    }
+    if (status === 'completed' || completedAt) {
+      updates.completedAt = completedAt || new Date();
+    }
+    
+    const result = await this.db.update(schema.gradingTasks)
+      .set(updates)
+      .where(eq(schema.gradingTasks.id, taskId))
+      .returning();
+    return result[0];
+  }
+
+  async completeGradingTask(taskId: number, pointsEarned: number, feedbackText?: string): Promise<{ task: GradingTask; answer: StudentAnswer } | undefined> {
+    try {
+      // Get the grading task
+      const task = await this.db.select()
+        .from(schema.gradingTasks)
+        .where(eq(schema.gradingTasks.id, taskId))
+        .limit(1);
+      
+      if (!task || task.length === 0) return undefined;
+      
+      // Update the student answer with the grade
+      const answerResult = await this.db.update(schema.studentAnswers)
+        .set({
+          pointsEarned,
+          feedbackText,
+          manualOverride: true
+        })
+        .where(eq(schema.studentAnswers.id, task[0].answerId))
+        .returning();
+      
+      if (!answerResult || answerResult.length === 0) return undefined;
+      
+      // Update the grading task status
+      const taskResult = await this.db.update(schema.gradingTasks)
+        .set({
+          status: 'completed',
+          completedAt: new Date()
+        })
+        .where(eq(schema.gradingTasks.id, taskId))
+        .returning();
+      
+      return {
+        task: taskResult[0],
+        answer: answerResult[0]
+      };
+    } catch (error) {
+      console.error('Error completing grading task:', error);
+      throw error;
+    }
+  }
+
+  // Audit logging implementation
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const result = await this.db.insert(schema.auditLogs).values(log).returning();
+    return result[0];
+  }
+
+  async getAuditLogs(filters?: {
+    userId?: string;
+    entityType?: string;
+    entityId?: number;
+    action?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+  }): Promise<AuditLog[]> {
+    const conditions = [];
+    
+    if (filters?.userId) {
+      conditions.push(eq(schema.auditLogs.userId, filters.userId));
+    }
+    if (filters?.entityType) {
+      conditions.push(eq(schema.auditLogs.entityType, filters.entityType));
+    }
+    if (filters?.entityId) {
+      conditions.push(eq(schema.auditLogs.entityId, filters.entityId));
+    }
+    if (filters?.action) {
+      conditions.push(eq(schema.auditLogs.action, filters.action));
+    }
+    if (filters?.startDate) {
+      conditions.push(dsql`${schema.auditLogs.createdAt} >= ${filters.startDate}`);
+    }
+    if (filters?.endDate) {
+      conditions.push(dsql`${schema.auditLogs.createdAt} <= ${filters.endDate}`);
+    }
+    
+    let query = this.db.select()
+      .from(schema.auditLogs)
+      .orderBy(desc(schema.auditLogs.createdAt));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    if (filters?.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+    
+    return await query;
+  }
+
+  async getAuditLogsByEntity(entityType: string, entityId: number): Promise<AuditLog[]> {
+    return await this.db.select()
+      .from(schema.auditLogs)
+      .where(and(
+        eq(schema.auditLogs.entityType, entityType),
+        eq(schema.auditLogs.entityId, entityId)
+      ))
+      .orderBy(desc(schema.auditLogs.createdAt));
   }
 }
 

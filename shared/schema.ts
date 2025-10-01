@@ -372,6 +372,63 @@ export const performanceEvents = pgTable("performance_events", {
   performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType),
 }));
 
+// Teacher class assignments table for mapping which teachers teach which subjects in which classes
+export const teacherClassAssignments = pgTable("teacher_class_assignments", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  teacherId: uuid("teacher_id").references(() => users.id).notNull(),
+  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Performance indexes for quick teacher assignment lookups
+  teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
+  teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId),
+}));
+
+// Manual grading tasks queue table for essays and subjective questions
+export const gradingTasks = pgTable("grading_tasks", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id, { onDelete: 'cascade' }).notNull(),
+  answerId: bigint("answer_id", { mode: "number" }).references(() => studentAnswers.id, { onDelete: 'cascade' }).notNull(),
+  assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id), // Teacher assigned to grade this
+  status: varchar("status", { length: 20 }).default('pending'), // 'pending', 'in_progress', 'completed', 'skipped'
+  priority: integer("priority").default(0), // Higher number = higher priority
+  assignedAt: timestamp("assigned_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Performance indexes for grading queue management
+  gradingTasksAssignedIdx: index("grading_tasks_assigned_idx").on(table.assignedTeacherId, table.status),
+  gradingTasksStatusIdx: index("grading_tasks_status_idx").on(table.status, table.priority),
+  gradingTasksSessionIdx: index("grading_tasks_session_idx").on(table.sessionId),
+  // Unique constraint to prevent duplicate tasks for the same answer
+  gradingTasksAnswerUniqueIdx: uniqueIndex("grading_tasks_answer_unique_idx").on(table.answerId),
+}));
+
+// Audit logs table for tracking all grade changes and important actions
+export const auditLogs = pgTable("audit_logs", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(), // Who made the change
+  action: varchar("action", { length: 100 }).notNull(), // 'grade_change', 'manual_override', 'report_publish', etc.
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // 'exam_result', 'student_answer', 'report_card'
+  entityId: bigint("entity_id", { mode: "number" }).notNull(), // ID of the affected entity
+  oldValue: text("old_value"), // JSON of old values
+  newValue: text("new_value"), // JSON of new values
+  reason: text("reason"), // Why the change was made
+  ipAddress: varchar("ip_address", { length: 45 }), // IPv4 or IPv6
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Performance indexes for audit queries
+  auditLogsUserIdx: index("audit_logs_user_idx").on(table.userId),
+  auditLogsEntityIdx: index("audit_logs_entity_idx").on(table.entityType, table.entityId),
+  auditLogsDateIdx: index("audit_logs_date_idx").on(table.createdAt),
+  auditLogsActionIdx: index("audit_logs_action_idx").on(table.action),
+}));
+
 
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
@@ -419,6 +476,9 @@ export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id:
 export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
 export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
 export const insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
+export const insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
+export const insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // Shared schema for creating students - prevents drift between frontend and backend
 export const createStudentSchema = z.object({
@@ -538,6 +598,9 @@ export type ReportCard = typeof reportCards.$inferSelect;
 export type ReportCardItem = typeof reportCardItems.$inferSelect;
 export type StudyResource = typeof studyResources.$inferSelect;
 export type PerformanceEvent = typeof performanceEvents.$inferSelect;
+export type TeacherClassAssignment = typeof teacherClassAssignments.$inferSelect;
+export type GradingTask = typeof gradingTasks.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -563,6 +626,9 @@ export type InsertReportCard = z.infer<typeof insertReportCardSchema>;
 export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
 export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;
 export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema>;
+export type InsertTeacherClassAssignment = z.infer<typeof insertTeacherClassAssignmentSchema>;
+export type InsertGradingTask = z.infer<typeof insertGradingTaskSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
