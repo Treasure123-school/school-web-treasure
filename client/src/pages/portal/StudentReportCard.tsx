@@ -299,8 +299,25 @@ export default function StudentReportCard() {
             {/* Professional Report Card Format */}
             <Card className="print:shadow-none bg-gradient-to-br from-blue-50 to-indigo-50 print:bg-white">
               <CardHeader className="text-center border-b-2 border-blue-200 print:border-gray-400">
+                {/* School Letterhead */}
+                <div className="flex items-center justify-center mb-6 print:mb-4">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center space-x-4 mb-2">
+                      <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-xl">TH</span>
+                      </div>
+                      <div>
+                        <h1 className="text-2xl font-bold text-gray-800">TREASURE-HOME SCHOOL</h1>
+                        <p className="text-sm text-gray-600">Excellence in Education Since 2020</p>
+                        <p className="text-xs text-gray-500">📍 Lagos, Nigeria | 📞 +234-XXX-XXXX | 📧 info@treasurehome.edu.ng</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="bg-blue-600 text-white p-4 rounded-lg mb-4 print:bg-gray-800">
-                  <h2 className="text-2xl font-bold">STUDENT REPORT CARD</h2>
+                  <h2 className="text-2xl font-bold">OFFICIAL STUDENT REPORT CARD</h2>
+                  <p className="text-sm mt-1 text-blue-100">Academic Performance Report</p>
                 </div>
                 
                 {/* Student Information Box */}

@@ -31,17 +31,17 @@ export default function StudentExams() {
   const [showResults, setShowResults] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  
+
   // Per-question save status tracking
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
   const [pendingSaves, setPendingSaves] = useState<Set<number>>(new Set());
   const saveTimeoutsRef = useRef<Record<number, NodeJS.Timeout>>({});
-  
+
   // Tab switch detection state
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
   const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Network status monitoring
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [networkIssues, setNetworkIssues] = useState(false);
@@ -54,17 +54,17 @@ export default function StudentExams() {
     queryFn: async () => {
       console.log('🔍 Fetching exams for student:', user?.id);
       const response = await apiRequest('GET', '/api/exams');
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Failed to fetch exams:', response.status, errorText);
         throw new Error(`Failed to fetch exams: ${response.status}`);
       }
-      
+
       const examsData = await response.json();
       console.log('📚 Fetched exams:', examsData.length, 'exams');
       console.log('📋 Published exams:', examsData.filter((e: Exam) => e.isPublished).length);
-      
+
       return examsData;
     },
     retry: 3,
@@ -80,9 +80,9 @@ export default function StudentExams() {
   // QUESTION RANDOMIZATION: Shuffle questions if exam has shuffleQuestions enabled
   const examQuestions = useMemo(() => {
     if (!examQuestionsRaw.length) return [];
-    
+
     const exam = exams.find(e => e.id === activeSession?.examId);
-    
+
     // If shuffleQuestions is enabled, shuffle the questions
     if (exam?.shuffleQuestions && !activeSession?.isCompleted && activeSession?.id) {
       // Seeded random function based on session ID for consistent shuffling
@@ -92,7 +92,7 @@ export default function StudentExams() {
         seedValue = (seedValue * 9301 + 49297) % 233280;
         return seedValue / 233280;
       };
-      
+
       // Use Fisher-Yates shuffle algorithm with seeded random
       const shuffled = [...examQuestionsRaw];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -101,14 +101,14 @@ export default function StudentExams() {
       }
       return shuffled;
     }
-    
+
     // Otherwise return in original order
     return examQuestionsRaw;
   }, [examQuestionsRaw, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
 
   // PERFORMANCE: Memoize current question to prevent unnecessary re-renders
   const currentQuestion = useMemo(() => examQuestions[currentQuestionIndex], [examQuestions, currentQuestionIndex]);
-  
+
   // Fetch question options for current question
   const { data: questionOptionsRaw = [] } = useQuery<QuestionOption[]>({
     queryKey: ['/api/question-options', currentQuestion?.id],
@@ -118,9 +118,9 @@ export default function StudentExams() {
   // OPTION RANDOMIZATION: Shuffle options if exam has shuffleQuestions enabled
   const questionOptions = useMemo(() => {
     if (!questionOptionsRaw.length || !currentQuestion) return [];
-    
+
     const exam = exams.find(e => e.id === activeSession?.examId);
-    
+
     // If shuffleQuestions is enabled, shuffle the options
     if (exam?.shuffleQuestions && !activeSession?.isCompleted && activeSession?.id) {
       // Use seeded random based on session ID + question ID for consistent shuffling
@@ -130,7 +130,7 @@ export default function StudentExams() {
         seedValue = (seedValue * 9301 + 49297) % 233280;
         return seedValue / 233280;
       };
-      
+
       // Use Fisher-Yates shuffle algorithm with seeded random
       const shuffled = [...questionOptionsRaw];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -139,7 +139,7 @@ export default function StudentExams() {
       }
       return shuffled;
     }
-    
+
     // Otherwise return in original order
     return questionOptionsRaw;
   }, [questionOptionsRaw, currentQuestion, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
@@ -149,13 +149,13 @@ export default function StudentExams() {
     queryKey: ['/api/question-options/bulk', examQuestions.map(q => q.id).join(',')],
     queryFn: async () => {
       if (!examQuestions.length) return [];
-      
+
       const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice');
       if (mcQuestions.length === 0) return [];
-      
+
       const questionIds = mcQuestions.map(q => q.id).join(',');
       const response = await apiRequest('GET', `/api/question-options/bulk?questionIds=${questionIds}`);
-      
+
       if (response.ok) {
         return await response.json();
       }
@@ -203,7 +203,7 @@ export default function StudentExams() {
             if (exam) {
               setSelectedExam(exam);
             }
-            
+
             // Restore session state
             try {
               const metadata = session.metadata ? JSON.parse(session.metadata) : {};
@@ -225,7 +225,7 @@ export default function StudentExams() {
   useEffect(() => {
     if (activeSession && !activeSession.isCompleted) {
       const exam = exams.find(e => e.id === activeSession.examId);
-      
+
       // Recover timer from session if available
       if (activeSession.timeRemaining !== null && activeSession.timeRemaining !== undefined) {
         setTimeRemaining(activeSession.timeRemaining);
@@ -239,7 +239,7 @@ export default function StudentExams() {
         const totalSeconds = exam.timeLimit * 60;
         const remaining = Math.max(0, totalSeconds - elapsedSeconds);
         setTimeRemaining(remaining);
-        
+
         if (remaining > 0) {
           toast({
             title: "Session Resumed",
@@ -278,7 +278,7 @@ export default function StudentExams() {
         description: "Your internet connection has been restored. Retrying failed saves...",
         variant: "default",
       });
-      
+
       // Retry any failed saves
       Object.keys(answers).forEach(questionId => {
         const qId = parseInt(questionId);
@@ -347,7 +347,7 @@ export default function StudentExams() {
     if (!activeSession || activeSession.isCompleted) return;
 
     let tabSwitchTimer: NodeJS.Timeout | null = null;
-    
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         // Delay the warning to avoid false positives from quick system notifications
@@ -356,17 +356,17 @@ export default function StudentExams() {
             // Student switched away from the tab
             setTabSwitchCount(prev => {
               const newCount = prev + 1;
-              
+
               // Show warning on first 3 switches
               if (newCount <= 3) {
                 setShowTabSwitchWarning(true);
-                
+
                 // Auto-hide warning after 5 seconds
                 if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
                 tabSwitchTimeoutRef.current = setTimeout(() => {
                   setShowTabSwitchWarning(false);
                 }, 5000);
-                
+
                 toast({
                   title: "⚠️ Tab Switch Detected",
                   description: `Warning ${newCount}/3: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
@@ -376,7 +376,7 @@ export default function StudentExams() {
                 // After 3 warnings, just log silently
                 console.warn(`Tab switch detected: ${newCount} times`);
               }
-              
+
               return newCount;
             });
           }
@@ -415,7 +415,7 @@ export default function StudentExams() {
       }
       return { isValid: true };
     }
-    
+
     if (questionType === 'text' || questionType === 'essay') {
       if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
         return { isValid: false, error: 'Please enter an answer' };
@@ -425,7 +425,7 @@ export default function StudentExams() {
       }
       return { isValid: true };
     }
-    
+
     return { isValid: false, error: 'Unknown question type' };
   };
 
@@ -437,19 +437,19 @@ export default function StudentExams() {
   // Auto-submit with safe wait time for data integrity
   const handleAutoSubmitOnTimeout = async () => {
     const startTime = Date.now();
-    
+
     console.log(`⏰ AUTO-SUBMIT TRIGGERED: Time limit reached for exam ${activeSession?.examId}`);
-    
+
     if (hasPendingSaves()) {
       toast({
         title: "Time's Up!",
         description: "Saving your final answers before submitting...",
       });
-      
+
       const maxWaitTime = 3000;
       const checkInterval = 100;
       let waitTime = 0;
-      
+
       const checkSaves = () => {
         if (!hasPendingSaves()) {
           const totalWaitTime = Date.now() - startTime;
@@ -476,7 +476,7 @@ export default function StudentExams() {
           setTimeout(checkSaves, checkInterval);
         }
       };
-      
+
       checkSaves();
     } else {
       console.log(`✅ No pending saves, immediate submit`);
@@ -497,16 +497,16 @@ export default function StudentExams() {
       }
 
       console.log('🎯 Starting exam with ID:', examId, 'for student:', user.id);
-      
+
       const response = await apiRequest('POST', '/api/exam-sessions', {
         examId: examId,
         studentId: user.id,
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Exam start failed with status:', response.status, 'Response:', errorText);
-        
+
         let errorMessage = 'Failed to start exam';
         try {
           const errorData = JSON.parse(errorText);
@@ -514,17 +514,17 @@ export default function StudentExams() {
         } catch (e) {
           errorMessage = errorText || errorMessage;
         }
-        
+
         throw new Error(errorMessage);
       }
-      
+
       const sessionData = await response.json();
       console.log('✅ Exam session response:', sessionData);
       return sessionData;
     },
     onSuccess: (session: ExamSession) => {
       console.log('✅ Exam session created successfully:', session);
-      
+
       if (!session || !session.id) {
         console.error('❌ Invalid session data received:', session);
         toast({
@@ -534,12 +534,12 @@ export default function StudentExams() {
         });
         return;
       }
-      
+
       setActiveSession(session);
       setCurrentQuestionIndex(0);
       setAnswers({}); // Clear any previous answers
       setTabSwitchCount(0); // Reset tab switch counter
-      
+
       // Set timer if exam has time limit
       const exam = exams.find(e => e.id === session.examId);
       if (exam?.timeLimit) {
@@ -549,7 +549,7 @@ export default function StudentExams() {
       } else {
         setTimeRemaining(null);
       }
-      
+
       toast({
         title: "Exam Started Successfully!",
         description: "Good luck with your exam! Stay on this page during the exam.",
@@ -557,9 +557,9 @@ export default function StudentExams() {
     },
     onError: (error: Error) => {
       console.error('❌ Failed to start exam:', error);
-      
+
       let errorMessage = error.message || "Unable to start exam. Please try again.";
-      
+
       // Handle specific error cases
       if (error.message.includes('already has an active session')) {
         errorMessage = "You already have an active exam session. Please contact your instructor if you believe this is an error.";
@@ -568,7 +568,7 @@ export default function StudentExams() {
       } else if (error.message.includes('not authenticated')) {
         errorMessage = "Please log in again to start the exam.";
       }
-      
+
       toast({
         title: "Unable to Start Exam",
         description: errorMessage,
@@ -595,7 +595,7 @@ export default function StudentExams() {
       // Enhanced retry logic with exponential backoff
       let lastError: Error | null = null;
       const maxRetries = 3;
-      
+
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           // Add delay for retry attempts (exponential backoff)
@@ -606,11 +606,11 @@ export default function StudentExams() {
           }
 
           const response = await apiRequest('POST', '/api/student-answers', answerData);
-          
+
           if (!response.ok) {
             let errorMessage = `Failed to submit answer (${response.status})`;
             let shouldRetry = false;
-            
+
             try {
               const errorData = await response.json();
               if (errorData?.message) {
@@ -624,7 +624,7 @@ export default function StudentExams() {
               console.error(`❌ Answer submission failed for question ${questionId} (attempt ${attempt + 1}):`, errorData);
             } catch (parseError) {
               console.error(`❌ Failed to parse error response for question ${questionId}:`, parseError);
-              
+
               // Provide more specific error messages based on status code
               if (response.status === 401) {
                 errorMessage = 'Your session has expired. Please refresh the page and log in again.';
@@ -646,10 +646,10 @@ export default function StudentExams() {
                 errorMessage = `Server error (${response.status}). Please try again.`;
               }
             }
-            
+
             const error = new Error(errorMessage);
             lastError = error;
-            
+
             // Determine if we should retry based on error type
             if (response.status === 401 || response.status === 403 || response.status === 404) {
               // Don't retry auth errors or not found
@@ -663,7 +663,7 @@ export default function StudentExams() {
               throw error;
             }
           }
-          
+
           try {
             const result = await response.json();
             console.log(`✅ Answer submitted successfully for question ${questionId} (attempt ${attempt + 1}):`, result);
@@ -672,7 +672,7 @@ export default function StudentExams() {
             console.error(`❌ Failed to parse success response for question ${questionId}:`, parseError);
             const error = new Error('Invalid response from server. Please try again.');
             lastError = error;
-            
+
             if (attempt < maxRetries) {
               continue; // Retry JSON parsing errors
             }
@@ -681,7 +681,7 @@ export default function StudentExams() {
         } catch (networkError: any) {
           console.error(`❌ Network error for question ${questionId} (attempt ${attempt + 1}):`, networkError);
           lastError = networkError;
-          
+
           // Check if it's a network/timeout error that should be retried
           if ((networkError.name === 'TypeError' || 
                networkError.name === 'AbortError' || 
@@ -691,12 +691,12 @@ export default function StudentExams() {
                attempt < maxRetries) {
             continue; // Retry network errors
           }
-          
+
           // Last attempt or non-retryable error
           throw new Error('Network connection failed. Please check your internet connection and try again.');
         }
       }
-      
+
       // If we get here, all retries failed
       throw lastError || new Error('Failed to submit answer after multiple attempts');
     },
@@ -704,7 +704,7 @@ export default function StudentExams() {
       // Set status to saving and track pending save
       setQuestionSaveStatus(prev => ({ ...prev, [variables.questionId]: 'saving' }));
       setPendingSaves(prev => new Set(prev).add(variables.questionId));
-      
+
       // Clear any existing timeout for this question
       if (saveTimeoutsRef.current[variables.questionId]) {
         clearTimeout(saveTimeoutsRef.current[variables.questionId]);
@@ -718,7 +718,7 @@ export default function StudentExams() {
         newSet.delete(variables.questionId);
         return newSet;
       });
-      
+
       // Auto-clear saved status after 2 seconds
       saveTimeoutsRef.current[variables.questionId] = setTimeout(() => {
         setQuestionSaveStatus(prev => ({ ...prev, [variables.questionId]: 'idle' }));
@@ -728,7 +728,7 @@ export default function StudentExams() {
       queryClient.invalidateQueries({ 
         queryKey: ['/api/student-answers/session', activeSession?.id] 
       });
-      
+
       console.log(`Answer saved for question ${variables.questionId}:`, data);
     },
     onError: (error: Error, variables) => {
@@ -744,9 +744,9 @@ export default function StudentExams() {
       let userFriendlyMessage = error.message;
       let shouldShowToast = true;
       let shouldAutoRetry = false;
-      
+
       console.error(`❌ Answer save failed for question ${variables.questionId}:`, error.message);
-      
+
       // Handle specific error types
       if (error.message.includes('Please select') || error.message.includes('Please enter')) {
         // Validation errors - don't show toast, user can see status indicator
@@ -789,9 +789,9 @@ export default function StudentExams() {
         // Get current retry count from failed saves
         const retryCount = Object.values(questionSaveStatus).filter(status => status === 'failed').length;
         const retryDelay = Math.min(1000 * Math.pow(1.5, retryCount), 15000); // Max 15 seconds
-        
+
         console.log(`🔄 Auto-retrying question ${variables.questionId} in ${retryDelay}ms (retry count: ${retryCount})`);
-        
+
         setTimeout(() => {
           if (isOnline && answers[variables.questionId]) {
             handleRetryAnswer(variables.questionId, variables.questionType);
@@ -808,24 +808,24 @@ export default function StudentExams() {
   const submitExamMutation = useMutation({
     mutationFn: async () => {
       if (!activeSession) throw new Error('No active session');
-      
+
       const startTime = Date.now();
       console.log('🚀 MILESTONE 1: Synchronous submission for exam:', activeSession.examId);
-      
+
       // Use the new synchronous submit endpoint - no polling needed!
       const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to submit exam');
       }
-      
+
       const submissionData = await response.json();
       const totalTime = Date.now() - startTime;
-      
+
       // Log client-side performance metrics
       console.log(`📊 CLIENT PERFORMANCE: Exam submission took ${totalTime}ms`);
-      
+
       // Send performance metrics to server (fire and forget)
       try {
         await apiRequest('POST', '/api/performance-events', {
@@ -841,9 +841,9 @@ export default function StudentExams() {
       } catch (perfError) {
         console.warn('Failed to log performance metrics:', perfError);
       }
-      
+
       console.log('✅ INSTANT FEEDBACK received:', submissionData);
-      
+
       return { ...submissionData, clientPerformance: { totalTime } };
     },
     onMutate: () => {
@@ -853,12 +853,12 @@ export default function StudentExams() {
     onSuccess: (data) => {
       console.log('✅ MILESTONE 1: Instant feedback received:', data);
       setIsScoring(false);
-      
+
       // Handle the new synchronous response format
       if (data.submitted && data.result) {
         console.log('🎉 INSTANT FEEDBACK: Results available immediately!', data.result);
         setExamResults(data.result);
-        
+
         // Enhanced cache invalidation for all related data
         queryClient.invalidateQueries({ 
           queryKey: ['/api/student-answers/session', activeSession?.id] 
@@ -869,19 +869,19 @@ export default function StudentExams() {
         queryClient.invalidateQueries({ 
           queryKey: ['/api/exam-sessions', activeSession?.id] 
         });
-        
+
         setShowResults(true);
-        
+
         const score = data.result.score ?? 0;
         const maxScore = data.result.maxScore ?? 0;
         const percentage = data.result.percentage ?? 0;
-        
+
         console.log(`📊 INSTANT FEEDBACK: ${score}/${maxScore} = ${percentage}%`);
-        
+
         // Show detailed breakdown if available
         const breakdown = data.result.breakdown;
         let description = `Your Score: ${score}/${maxScore} (${percentage}%)`;
-        
+
         if (breakdown) {
           if (breakdown.autoScoredQuestions > 0 && breakdown.pendingManualReview > 0) {
             description += `. ${breakdown.autoScoredQuestions} questions auto-scored, ${breakdown.pendingManualReview} pending manual review.`;
@@ -891,7 +891,7 @@ export default function StudentExams() {
             description += `. All questions scored automatically!`;
           }
         }
-        
+
         // Handle different submission scenarios
         let toastTitle = "Exam Submitted Successfully! 🎉";
         if (data.alreadySubmitted) {
@@ -899,7 +899,7 @@ export default function StudentExams() {
         } else if (data.timedOut) {
           toastTitle = "Exam Submitted (Time Limit Exceeded)";
         }
-        
+
         toast({
           title: toastTitle,
           description,
@@ -928,25 +928,25 @@ export default function StudentExams() {
         setTimeRemaining(null);
         setCurrentQuestionIndex(0);
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
     },
     onError: (error: Error) => {
       console.error('❌ MILESTONE 1: Synchronous submission failed:', error);
       setIsScoring(false);
       setIsSubmitting(false);
-      
+
       // Handle specific error types for better user experience
       let errorTitle = "Submission Error";
       let errorDescription = error.message;
       let shouldResetSession = false;
-      
+
       // Check for specific error types that can happen with synchronous submission
       if (error.message.includes('already submitted') || error.message.includes('Exam already submitted')) {
         errorTitle = "Already Submitted";
         errorDescription = "This exam has already been submitted. Redirecting to results...";
         shouldResetSession = true;
-        
+
         // Try to get existing results
         setTimeout(() => {
           setActiveSession(null);
@@ -955,12 +955,12 @@ export default function StudentExams() {
           setCurrentQuestionIndex(0);
           setSelectedExam(null);
         }, 2000);
-        
+
       } else if (error.message.includes('No active exam session') || error.message.includes('Session not found')) {
         errorTitle = "Session Expired";
         errorDescription = "Your exam session has expired. Please start the exam again.";
         shouldResetSession = true;
-        
+
         setTimeout(() => {
           setActiveSession(null);
           setAnswers({});
@@ -968,7 +968,7 @@ export default function StudentExams() {
           setCurrentQuestionIndex(0);
           setSelectedExam(null);
         }, 2000);
-        
+
       } else if (error.message.includes('Server error') || error.message.includes('Failed to submit exam')) {
         errorTitle = "Server Error";
         errorDescription = "A server error occurred. Your answers are saved. Please try submitting again.";
@@ -979,7 +979,7 @@ export default function StudentExams() {
         errorTitle = "Request Timeout";
         errorDescription = "The submission request timed out. Your answers are saved. Please try again.";
       }
-      
+
       toast({
         title: errorTitle,
         description: errorDescription,
@@ -990,7 +990,7 @@ export default function StudentExams() {
 
   const handleStartExam = (exam: Exam) => {
     console.log('🎯 Starting exam:', exam.name, 'ID:', exam.id);
-    
+
     // Comprehensive validation checks
     if (!exam.id) {
       console.error('❌ Invalid exam - missing ID:', exam);
@@ -1040,7 +1040,7 @@ export default function StudentExams() {
 
   const handleAnswerChange = (questionId: number, answer: any, questionType: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
-    
+
     // Only submit if answer is meaningful (not empty) and different from previous
     const validation = validateAnswer(questionType, answer);
     if (validation.isValid) {
@@ -1048,7 +1048,7 @@ export default function StudentExams() {
       const existingAnswer = existingAnswers.find(a => a.questionId === questionId);
       const isNewAnswer = !existingAnswer || 
         (questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== answer : existingAnswer.textAnswer !== answer);
-      
+
       if (isNewAnswer) {
         submitAnswerMutation.mutate({ questionId, answer, questionType });
       }
@@ -1100,7 +1100,7 @@ export default function StudentExams() {
 
     console.log('🚀 FORCE SUBMIT: Starting exam submission...');
     setIsSubmitting(true);
-    
+
     try {
       await submitExamMutation.mutateAsync();
       console.log('✅ FORCE SUBMIT: Exam submitted successfully');
@@ -1135,7 +1135,7 @@ export default function StudentExams() {
   const getSaveStatusIndicator = (questionId: number) => {
     const status = questionSaveStatus[questionId] || 'idle';
     const hasAnswer = !!answers[questionId];
-    
+
     switch (status) {
       case 'saving':
         return (
@@ -1177,7 +1177,7 @@ export default function StudentExams() {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
@@ -1264,7 +1264,7 @@ export default function StudentExams() {
                 wrongAnswers: examResults.immediateResults?.questions?.filter((q: any) => !q.isCorrect).length || 0,
                 submittedAt: examResults.submittedAt
               };
-              
+
               // Safe percentage calculation with guards
               if (normalizedResults.maxScore > 0) {
                 normalizedResults.percentage = Math.round((normalizedResults.score / normalizedResults.maxScore) * 100);
@@ -1376,7 +1376,7 @@ export default function StudentExams() {
                         {/* Quick Stats */}
                         <div className="space-y-6">
                           <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Quick Stats</h3>
-                          
+
                           <div className="space-y-4">
                             {/* Correct Answers */}
                             <div className="flex items-center space-x-3" data-testid="stat-correct-answers">
@@ -1467,7 +1467,7 @@ export default function StudentExams() {
                       >
                         Back to Dashboard
                       </Button>
-                      
+
                       {examResults.pendingReview && examResults.pendingReview.count > 0 && (
                         <Button 
                           variant="outline"
@@ -1478,7 +1478,7 @@ export default function StudentExams() {
                           Full Report - Coming Soon
                         </Button>
                       )}
-                      
+
                       <Button 
                         variant="outline"
                         onClick={() => {
@@ -1554,20 +1554,26 @@ export default function StudentExams() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Progress Summary */}
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-300">Answered:</span>
-                      <span className="font-semibold text-green-600 dark:text-green-400">
-                        {Object.keys(answers).length}/{examQuestions.length}
-                      </span>
+                  {/* Professional Exam Progress Indicator */}
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
+                    <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300">
+                      <span>Progress</span>
+                      <span>{Math.round((Object.keys(answers).length / examQuestions.length) * 100)}% Complete</span>
                     </div>
-                    <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-2" />
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(Object.keys(answers).length / examQuestions.length) * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 text-center">
+                      {Object.keys(answers).length} of {examQuestions.length} questions answered
+                    </div>
                   </div>
 
                   {/* Enhanced Timer Display */}
                   {timeRemaining !== null && (
-                    <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg">
+                    <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border-l-4 border-blue-500">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Time Remaining</span>
                         <div className="flex items-center space-x-2">
@@ -1605,7 +1611,7 @@ export default function StudentExams() {
                         const isAnswered = !!answers[question.id];
                         const isCurrent = currentQuestionIndex === index;
                         const saveStatus = questionSaveStatus[question.id];
-                        
+
                         return (
                           <button
                             key={question.id}
@@ -1790,7 +1796,7 @@ export default function StudentExams() {
                         const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
                         const isNewAnswer = !existingAnswer || 
                           (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
-                        
+
                         if (isNewAnswer) {
                           submitAnswerMutation.mutate({ 
                             questionId: currentQuestion.id, 
@@ -1806,7 +1812,7 @@ export default function StudentExams() {
                   >
                     Previous
                   </Button>
-                  
+
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <span>{currentQuestionIndex + 1} of {examQuestions.length}</span>
                     {hasPendingSaves() && (
@@ -1816,7 +1822,7 @@ export default function StudentExams() {
                       </div>
                     )}
                   </div>
-                  
+
                   <Button
                     onClick={() => {
                       // Save current answer before navigating
@@ -1825,7 +1831,7 @@ export default function StudentExams() {
                         const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
                         const isNewAnswer = !existingAnswer || 
                           (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
-                        
+
                         if (isNewAnswer) {
                           submitAnswerMutation.mutate({ 
                             questionId: currentQuestion.id, 

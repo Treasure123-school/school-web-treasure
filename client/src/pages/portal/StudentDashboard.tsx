@@ -158,7 +158,23 @@ export default function StudentDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Professional Welcome Banner */}
+        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Welcome back, {user.firstName}! 🎓</h2>
+                <p className="text-blue-100">Ready to continue your learning journey?</p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">{formattedGrades.length}</div>
+                <div className="text-sm text-blue-100">Completed Assessments</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Recent Grades */}
         <Card className="shadow-sm border border-border" data-testid="card-recent-grades">
           <CardHeader>
@@ -290,6 +306,39 @@ export default function StudentDashboard() {
             <div className="flex items-center space-x-2">
               <div className="bg-yellow-500 w-3 h-3 rounded-full"></div>
               <span>Late</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Performance Analytics */}
+      <Card className="mt-6 shadow-sm border border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <TrendingUp className="h-5 w-5" />
+            <span>Academic Progress</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {formattedGrades.filter(g => g.grade === 'A' || g.grade === 'A+').length}
+              </div>
+              <div className="text-sm text-green-700">A Grades</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {formattedGrades.length > 0 ? 
+                  Math.round(formattedGrades.reduce((sum, g) => sum + parseInt(g.score.split('/')[0]), 0) / formattedGrades.length) : 0}%
+              </div>
+              <div className="text-sm text-blue-700">Average Score</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {Object.keys(formattedGrades.reduce((acc, g) => ({ ...acc, [g.subject]: true }), {})).length}
+              </div>
+              <div className="text-sm text-purple-700">Subjects</div>
             </div>
           </div>
         </CardContent>

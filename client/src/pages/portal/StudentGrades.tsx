@@ -172,15 +172,60 @@ export default function StudentGrades() {
           </Card>
         </div>
 
-        {/* Error State */}
+        {/* Professional Loading State */}
+        {isLoading && (
+          <div className="space-y-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-3 w-16 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Array.from({ length: 2 }).map((_, j) => (
+                      <div key={j} className="h-16 bg-gray-100 rounded animate-pulse"></div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Professional Error State */}
         {error && (
-          <Card>
+          <Card className="border-red-200 bg-red-50">
             <CardContent className="p-6">
               <div className="text-center py-8">
-                <h3 className="text-lg font-medium mb-2 text-destructive">Failed to load grades</h3>
-                <p className="text-muted-foreground">
-                  Unable to fetch your grades. Please try refreshing the page.
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-red-600 text-2xl">⚠️</span>
+                </div>
+                <h3 className="text-lg font-medium mb-2 text-red-800">Unable to Load Your Grades</h3>
+                <p className="text-red-600 mb-4">
+                  We encountered an issue while fetching your academic records. This might be temporary.
                 </p>
+                <div className="flex justify-center space-x-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.location.reload()}
+                    className="border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    Try Again
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.location.href = '/portal/student'}
+                    className="border-gray-300"
+                  >
+                    Back to Dashboard
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
