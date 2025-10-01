@@ -707,9 +707,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       loginAttempts.delete(attemptKey);
 
       // Generate JWT token with user claims - ensure UUID is string
-      const userId = typeof user.id === 'string' ? user.id : String(user.id);
       const tokenPayload = {
-        userId: userId,
+        userId: user.id,
         email: user.email,
         roleId: user.roleId,
         iat: Math.floor(Date.now() / 1000),
@@ -722,7 +721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         token,
         user: { 
-          id: userId, 
+          id: user.id, 
           email: user.email, 
           firstName: user.firstName, 
           lastName: user.lastName,
@@ -2309,7 +2308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get class info
       const classInfo = await storage.getClass(student.classId);
-      
+
       // Get subjects
       const subjects = await storage.getSubjects();
 
@@ -2384,7 +2383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const totalScore = testWeightedScore + examWeightedScore;
           let grade = 'F';
           let remarks = 'Needs improvement';
-          
+
           if (totalScore >= 90) { grade = 'A+'; remarks = 'Outstanding'; }
           else if (totalScore >= 80) { grade = 'A'; remarks = 'Excellent'; }
           else if (totalScore >= 70) { grade = 'B+'; remarks = 'Very Good'; }
@@ -2439,7 +2438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.text(`Student ID: ${student.admissionNumber}`, 50, startY + 15);
       doc.text(`Class: ${classInfo?.name || 'N/A'}`, 350, startY);
       doc.text(`Term: ${selectedTerm.name} (${selectedTerm.year})`, 350, startY + 15);
-      
+
       doc.moveDown(2);
 
       // Table Header
@@ -2450,7 +2449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const col4 = 320;
       const col5 = 390;
       const col6 = 450;
-      
+
       doc.fontSize(10).font('Helvetica-Bold');
       doc.rect(col1, tableTop, 495, 20).fillAndStroke('#e0e0e0', '#000000');
       doc.fillColor('#000000').text('Subject', col1 + 5, tableTop + 5);
@@ -2476,7 +2475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         doc.text(`${subject.totalScore}/100`, col4 + 5, currentY);
         doc.text(subject.grade, col5 + 5, currentY);
         doc.text(subject.remarks, col6 + 5, currentY);
-        
+
         doc.moveTo(col1, currentY + 18).lineTo(col1 + 495, currentY + 18).stroke();
         currentY += 20;
       }
@@ -2485,7 +2484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.moveDown(2);
       doc.fontSize(12).font('Helvetica-Bold').text('Summary', { align: 'center' });
       doc.moveDown(0.5);
-      
+
       doc.fontSize(10).font('Helvetica');
       doc.text(`Total Marks Obtained: ${Math.round(totalPoints)} / ${totalMaxPoints}`);
       doc.text(`Overall Percentage: ${overallPercentage}%`);
@@ -2537,7 +2536,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/study-resources/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
-      const resource = await storage.getStudyResourceById(parseInt(id));
+
+      // Validate ID parameter
+      const resourceId = parseInt(id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
+      }
+
+      const resource = await storage.getStudyResourceById(resourceId);
 
       if (!resource) {
         return res.status(404).json({ message: "Study resource not found" });
@@ -3545,7 +3551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  
+
 
   const httpServer = createServer(app);
   return httpServer;

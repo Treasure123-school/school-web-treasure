@@ -1,33 +1,40 @@
+
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/lib/auth';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Send, Inbox, Reply, Search } from 'lucide-react';
-import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/lib/auth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { MessageSquare, Send, Search, User, Calendar, Mail, ArrowLeft, Plus } from 'lucide-react';
+import { Link } from 'wouter';
 import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 export default function StudentMessages() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
-  const [isComposing, setIsComposing] = useState(false);
-  const [newMessage, setNewMessage] = useState({ subject: '', content: '', recipient: '' });
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({
+    recipientId: '',
+    subject: '',
+    content: ''
+  });
 
   if (!user) {
     return <div>Please log in to access your messages.</div>;
   }
 
-  const { data: messages, isLoading } = useQuery({
+  const { data: messages = [], isLoading, error } = useQuery({
     queryKey: ['messages', user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/messages/${user.id}`, {
+      const response = await fetch(`/api/messages/user/${user.id}`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch messages');
@@ -35,44 +42,19 @@ export default function StudentMessages() {
     }
   });
 
-  // Format messages for display
-  const formattedMessages = messages?.map((message: any) => ({
-    id: message.id,
-    subject: message.subject,
-    content: message.content,
-    sender: message.senderName || message.sender || 'School Administration',
-    sentAt: new Date(message.createdAt || message.sentAt),
-    isRead: message.isRead || false,
-    priority: message.priority || 'normal'
-  })) || [];
-
-  // Filter messages based on search term
-  const filteredMessages = formattedMessages.filter((message: any) =>
-    message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    message.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    message.sender.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Get unread count
-  const unreadCount = formattedMessages.filter((msg: any) => !msg.isRead).length;
-
-  // Get priority color
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'destructive';
-      case 'medium':
-        return 'default';
-      default:
-        return 'secondary';
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const response = await fetch('/api/users?role=Teacher', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch teachers');
+      return response.json();
     }
-  };
+  });
 
-  const handleSendMessage = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    
-    try {
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageData: any) => {
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
@@ -80,149 +62,169 @@ export default function StudentMessages() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          ...newMessage,
+          ...messageData,
           senderId: user.id
         })
       });
-      
-      if (response.ok) {
-        setNewMessage({ subject: '', content: '', recipient: '' });
-        setIsComposing(false);
-        // Refetch messages
-        queryClient.invalidateQueries({ queryKey: ['messages', user.id] });
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to send message');
-      }
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setError('Failed to send message. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      if (!response.ok) throw new Error('Failed to send message');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Message Sent",
+        description: "Your message has been sent successfully.",
+      });
+      setIsComposeOpen(false);
+      setComposeData({ recipientId: '', subject: '', content: '' });
+      queryClient.invalidateQueries({ queryKey: ['messages', user.id] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (messageId: number) => {
+      const response = await fetch(`/api/messages/${messageId}/read`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to mark as read');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', user.id] });
+    }
+  });
+
+  const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
+    const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
+      1: 'admin', 2: 'teacher', 3: 'student', 4: 'parent'
+    };
+    return roleMap[roleId] || 'student';
+  };
+
+  const filteredMessages = messages.filter((message: any) =>
+    message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    message.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const unreadCount = messages.filter((m: any) => !m.isRead).length;
+
+  const handleSendMessage = () => {
+    if (!composeData.recipientId || !composeData.subject || !composeData.content) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    sendMessageMutation.mutate(composeData);
+  };
+
+  const handleMessageClick = (message: any) => {
+    setSelectedMessage(message);
+    if (!message.isRead) {
+      markAsReadMutation.mutate(message.id);
     }
   };
 
   return (
     <PortalLayout 
-      userRole="student" 
+      userRole={getRoleName(user.roleId)}
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-            <p className="text-muted-foreground">
-              Communicate with teachers and school administration
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsComposing(true)}
-              disabled={isComposing}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Compose
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/portal/student">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Link>
             </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
+              <p className="text-muted-foreground">
+                Communicate with teachers and school administration
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Mail className="h-5 w-5 text-primary" />
+            <Badge variant="secondary">{unreadCount} unread</Badge>
+            <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Message
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Compose Message</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="recipient">To</Label>
+                    <select
+                      id="recipient"
+                      className="w-full p-2 border rounded"
+                      value={composeData.recipientId}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, recipientId: e.target.value }))}
+                    >
+                      <option value="">Select a teacher...</option>
+                      {teachers.map((teacher: any) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.firstName} {teacher.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      placeholder="Enter subject..."
+                      value={composeData.subject}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, subject: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="content">Message</Label>
+                    <Textarea
+                      id="content"
+                      placeholder="Type your message..."
+                      rows={4}
+                      value={composeData.content}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, content: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setIsComposeOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSendMessage} disabled={sendMessageMutation.isPending}>
+                      <Send className="h-4 w-4 mr-2" />
+                      {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Inbox className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Messages</p>
-                  <p className="text-2xl font-bold">{formattedMessages.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Unread</p>
-                  <p className="text-2xl font-bold">{unreadCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Read Rate</p>
-                <p className="text-2xl font-bold">
-                  {formattedMessages.length > 0 
-                    ? Math.round(((formattedMessages.length - unreadCount) / formattedMessages.length) * 100)
-                    : 0}%
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Compose Message */}
-        {isComposing && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Compose New Message</span>
-                <Button variant="outline" size="sm" onClick={() => setIsComposing(false)}>
-                  Cancel
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <p className="text-sm text-destructive">{error}</p>
-                </div>
-              )}
-              <div>
-                <label className="text-sm font-medium">Subject</label>
-                <Input
-                  value={newMessage.subject}
-                  onChange={(e) => {
-                    setNewMessage({ ...newMessage, subject: e.target.value });
-                    if (error) setError(null);
-                  }}
-                  placeholder="Enter message subject"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Message</label>
-                <Textarea
-                  value={newMessage.content}
-                  onChange={(e) => {
-                    setNewMessage({ ...newMessage, content: e.target.value });
-                    if (error) setError(null);
-                  }}
-                  placeholder="Type your message here..."
-                  rows={4}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <Button 
-                onClick={handleSendMessage} 
-                disabled={!newMessage.subject || !newMessage.content || isSubmitting}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Sending...' : 'Send Message'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="Search messages..."
             value={searchTerm}
@@ -231,92 +233,129 @@ export default function StudentMessages() {
           />
         </div>
 
-        {/* Messages List */}
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center">Loading messages...</div>
-            </CardContent>
-          </Card>
-        ) : filteredMessages.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Messages List */}
           <div className="space-y-4">
-            {filteredMessages.map((message: any) => (
-              <Card 
-                key={message.id} 
-                className={`hover:shadow-md transition-shadow cursor-pointer ${!message.isRead ? 'bg-blue-50' : ''}`}
-                onClick={() => setSelectedMessage(selectedMessage?.id === message.id ? null : message)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <CardTitle className={`text-lg ${!message.isRead ? 'font-bold' : 'font-medium'}`}>
-                          {message.subject}
-                        </CardTitle>
-                        {!message.isRead && (
-                          <Badge variant="secondary" className="text-xs">
-                            New
-                          </Badge>
-                        )}
-                        <Badge variant={getPriorityColor(message.priority)}>
-                          {message.priority}
-                        </Badge>
+            <h2 className="text-lg font-semibold">Inbox</h2>
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
+                          <div className="h-3 w-1/2 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>From: {message.sender}</span>
-                        <span>{message.sentAt.toLocaleDateString()}</span>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredMessages.length > 0 ? (
+              <div className="space-y-3">
+                {filteredMessages.map((message: any) => (
+                  <Card 
+                    key={message.id} 
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                      selectedMessage?.id === message.id ? 'border-primary' : ''
+                    } ${!message.isRead ? 'border-l-4 border-l-primary' : ''}`}
+                    onClick={() => handleMessageClick(message)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
+                            <User className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <h3 className={`font-medium ${!message.isRead ? 'font-bold' : ''}`}>
+                                {message.subject}
+                              </h3>
+                              {!message.isRead && (
+                                <Badge variant="default" className="text-xs">New</Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              From: {message.senderName || 'Teacher'}
+                            </p>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                              {message.content}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(message.createdAt).toLocaleDateString()}
+                        </div>
                       </div>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <Reply className="h-4 w-4" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No messages yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Your messages from teachers and school administration will appear here.
+                    </p>
+                    <Button variant="outline" onClick={() => setIsComposeOpen(true)}>
+                      Send your first message
                     </Button>
                   </div>
-                </CardHeader>
-                {selectedMessage?.id === message.id && (
-                  <CardContent>
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        {message.content}
-                      </p>
-                    </div>
-                  </CardContent>
-                )}
+                </CardContent>
               </Card>
-            ))}
+            )}
           </div>
-        ) : searchTerm ? (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8">
-                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No matching messages</h3>
-                <p className="text-muted-foreground mb-4">
-                  No messages found for "{searchTerm}". Try a different search term.
-                </p>
-                <Button variant="outline" onClick={() => setSearchTerm('')}>
-                  Clear search
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No messages yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Your messages from teachers and school administration will appear here.
-                </p>
-                <Button variant="outline" asChild>
-                  <Link href="/portal/student">
-                    Back to Dashboard
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
+          {/* Message Details */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Message Details</h2>
+            {selectedMessage ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>{selectedMessage.subject}</span>
+                    {!selectedMessage.isRead && (
+                      <Badge variant="default">New</Badge>
+                    )}
+                  </CardTitle>
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <User className="h-4 w-4" />
+                      <span>From: {selectedMessage.senderName || 'Teacher'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>{new Date(selectedMessage.createdAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="whitespace-pre-wrap">{selectedMessage.content}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Select a message</h3>
+                    <p className="text-muted-foreground">
+                      Choose a message from the left to view its contents.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
     </PortalLayout>
   );
