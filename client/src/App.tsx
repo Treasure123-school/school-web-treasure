@@ -38,6 +38,7 @@ import AnnouncementsManagement from "@/pages/portal/AnnouncementsManagement";
 import ReportsManagement from "@/pages/portal/ReportsManagement";
 import SettingsManagement from "@/pages/portal/SettingsManagement";
 import TeacherGrades from "@/pages/portal/TeacherGrades";
+import TeacherGradingQueue from "@/pages/portal/TeacherGradingQueue";
 import ExamManagement from "@/pages/portal/ExamManagement";
 import HomepageManagement from "@/pages/portal/HomepageManagement";
 import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
@@ -169,6 +170,11 @@ function Router() {
       <Route path="/portal/teacher/grades">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherGrades />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/grading-queue">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherGradingQueue />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/exams">

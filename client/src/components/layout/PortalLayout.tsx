@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -62,6 +62,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'My Classes', href: `/portal/${userRole}/classes`, icon: Users },
           { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
           { name: 'Grades & Exams', href: `/portal/${userRole}/grades`, icon: BookOpen },
+          { name: 'Grading Queue', href: `/portal/${userRole}/grading-queue`, icon: ClipboardCheck },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
         ];
