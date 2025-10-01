@@ -580,7 +580,7 @@ export default function StudentExams() {
     },
   });
 
-  // Enhanced submit answer mutation with status tracking and validation
+  // Enhanced submit answer mutation with robust error handling and automatic retries
   const submitAnswerMutation = useMutation({
     mutationFn: async ({ questionId, answer, questionType }: { questionId: number; answer: any; questionType: string }) => {
       // Client-side validation before submission
@@ -595,52 +595,113 @@ export default function StudentExams() {
 
       console.log(`📝 Submitting answer for question ${questionId}:`, answerData);
 
-      const response = await apiRequest('POST', '/api/student-answers', answerData);
+      // Enhanced retry logic with exponential backoff
+      let lastError: Error | null = null;
+      const maxRetries = 3;
       
-      if (!response.ok) {
-        let errorMessage = `Failed to submit answer (${response.status})`;
-        
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const errorData = await response.json();
-          if (errorData?.message) {
-            errorMessage = errorData.message;
-          } else if (errorData?.errors) {
-            // Handle Zod validation errors
-            errorMessage = Array.isArray(errorData.errors) 
-              ? errorData.errors.map((e: any) => e.message).join(', ')
-              : 'Validation failed';
+          // Add delay for retry attempts (exponential backoff)
+          if (attempt > 0) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5 seconds
+            console.log(`🔄 Retry attempt ${attempt} for question ${questionId} after ${delay}ms delay`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
-          console.error(`❌ Answer submission failed for question ${questionId}:`, errorData);
-        } catch (parseError) {
-          console.error(`❌ Failed to parse error response for question ${questionId}:`, parseError);
+
+          const response = await apiRequest('POST', '/api/student-answers', answerData);
           
-          // Provide more specific error messages based on status code
-          if (response.status === 401) {
-            errorMessage = 'Your session has expired. Please refresh the page and log in again.';
-          } else if (response.status === 403) {
-            errorMessage = 'Permission denied. Please contact your instructor.';
-          } else if (response.status === 408) {
-            errorMessage = 'Request timeout. Please check your connection and try again.';
-          } else if (response.status >= 500) {
-            errorMessage = 'Server error occurred. Please try again in a moment.';
-          } else if (response.status === 0) {
-            errorMessage = 'Unable to connect to server. Please check your internet connection.';
-          } else {
-            errorMessage = `Server error (${response.status}). Please try again.`;
+          if (!response.ok) {
+            let errorMessage = `Failed to submit answer (${response.status})`;
+            let shouldRetry = false;
+            
+            try {
+              const errorData = await response.json();
+              if (errorData?.message) {
+                errorMessage = errorData.message;
+              } else if (errorData?.errors) {
+                // Handle Zod validation errors
+                errorMessage = Array.isArray(errorData.errors) 
+                  ? errorData.errors.map((e: any) => e.message).join(', ')
+                  : 'Validation failed';
+              }
+              console.error(`❌ Answer submission failed for question ${questionId} (attempt ${attempt + 1}):`, errorData);
+            } catch (parseError) {
+              console.error(`❌ Failed to parse error response for question ${questionId}:`, parseError);
+              
+              // Provide more specific error messages based on status code
+              if (response.status === 401) {
+                errorMessage = 'Your session has expired. Please refresh the page and log in again.';
+              } else if (response.status === 403) {
+                errorMessage = 'Permission denied. Please contact your instructor.';
+              } else if (response.status === 408 || response.status === 504) {
+                errorMessage = 'Request timeout. Retrying...';
+                shouldRetry = true;
+              } else if (response.status >= 500) {
+                errorMessage = 'Server error occurred. Retrying...';
+                shouldRetry = true;
+              } else if (response.status === 429) {
+                errorMessage = 'Too many requests. Retrying...';
+                shouldRetry = true;
+              } else if (response.status === 0) {
+                errorMessage = 'Unable to connect to server. Retrying...';
+                shouldRetry = true;
+              } else {
+                errorMessage = `Server error (${response.status}). Please try again.`;
+              }
+            }
+            
+            const error = new Error(errorMessage);
+            lastError = error;
+            
+            // Determine if we should retry based on error type
+            if (response.status === 401 || response.status === 403 || response.status === 404) {
+              // Don't retry auth errors or not found
+              throw error;
+            } else if ((response.status >= 500 || response.status === 429 || response.status === 408 || response.status === 504) && attempt < maxRetries) {
+              // Retry server errors, rate limits, and timeouts
+              shouldRetry = true;
+              continue;
+            } else {
+              // Last attempt or non-retryable error
+              throw error;
+            }
           }
+          
+          try {
+            const result = await response.json();
+            console.log(`✅ Answer submitted successfully for question ${questionId} (attempt ${attempt + 1}):`, result);
+            return result;
+          } catch (parseError) {
+            console.error(`❌ Failed to parse success response for question ${questionId}:`, parseError);
+            const error = new Error('Invalid response from server. Please try again.');
+            lastError = error;
+            
+            if (attempt < maxRetries) {
+              continue; // Retry JSON parsing errors
+            }
+            throw error;
+          }
+        } catch (networkError: any) {
+          console.error(`❌ Network error for question ${questionId} (attempt ${attempt + 1}):`, networkError);
+          lastError = networkError;
+          
+          // Check if it's a network/timeout error that should be retried
+          if ((networkError.name === 'TypeError' || 
+               networkError.name === 'AbortError' || 
+               networkError.message?.includes('fetch') ||
+               networkError.message?.includes('network') ||
+               networkError.message?.includes('timeout')) && 
+               attempt < maxRetries) {
+            continue; // Retry network errors
+          }
+          
+          // Last attempt or non-retryable error
+          throw new Error('Network connection failed. Please check your internet connection and try again.');
         }
-        
-        throw new Error(errorMessage);
       }
       
-      try {
-        const result = await response.json();
-        console.log(`✅ Answer submitted successfully for question ${questionId}:`, result);
-        return result;
-      } catch (parseError) {
-        console.error(`❌ Failed to parse success response for question ${questionId}:`, parseError);
-        throw new Error('Invalid response from server. Please try again.');
-      }
+      // If we get here, all retries failed
+      throw lastError || new Error('Failed to submit answer after multiple attempts');
     },
     onMutate: (variables) => {
       // Set status to saving and track pending save
@@ -697,36 +758,45 @@ export default function StudentExams() {
         userFriendlyMessage = "Your session has expired. Please refresh the page and log in again.";
         // Don't auto-retry for authentication issues
       } else if (error.message.includes('Unable to connect') || error.message.includes('Network connection failed') || error.message.includes('internet connection')) {
-        userFriendlyMessage = "Network connection issue. Your answer will be retried automatically when connection is restored.";
+        userFriendlyMessage = "Connection lost. Answer saved locally and will sync when online.";
         shouldAutoRetry = true;
-      } else if (error.message.includes('timeout') || error.message.includes('Request timeout')) {
-        userFriendlyMessage = "Request timeout. Your answer will be retried automatically.";
+      } else if (error.message.includes('timeout') || error.message.includes('Request timeout') || error.message.includes('Retrying')) {
+        userFriendlyMessage = "Connection slow. Answer will be saved automatically.";
         shouldAutoRetry = true;
-      } else if (error.message.includes('Server error') || error.message.includes('500')) {
-        userFriendlyMessage = "Server error. Your answer will be retried automatically.";
+        shouldShowToast = false; // Don't spam with timeout messages
+      } else if (error.message.includes('Server error') || error.message.includes('500') || error.message.includes('after multiple attempts')) {
+        userFriendlyMessage = "Server issue. Click retry or answer will be saved automatically.";
         shouldAutoRetry = true;
       } else if (error.message.includes('403') || error.message.includes('Permission denied')) {
         userFriendlyMessage = "Permission denied. Please contact your instructor.";
       } else if (error.message.includes('Invalid response') || error.message.includes('Server communication error')) {
-        userFriendlyMessage = "Server communication error. Your answer will be retried automatically.";
+        userFriendlyMessage = "Connection issue. Answer will be retried automatically.";
         shouldAutoRetry = true;
+        shouldShowToast = false; // Don't spam with communication errors
+      } else if (error.message.includes('Too many requests')) {
+        userFriendlyMessage = "Server busy. Answer will be saved shortly.";
+        shouldAutoRetry = true;
+        shouldShowToast = false;
       }
 
       if (shouldShowToast) {
         toast({
-          title: "Answer Save Failed",
-          description: `Question ${variables.questionId}: ${userFriendlyMessage}`,
+          title: "Answer Save Issue",
+          description: userFriendlyMessage,
           variant: "destructive",
         });
       }
 
-      // Auto-retry for recoverable errors with exponential backoff
+      // Enhanced auto-retry for recoverable errors with better backoff
       if (shouldAutoRetry && answers[variables.questionId] && isOnline) {
-        const retryDelay = Math.min(2000 * Math.pow(2, (questionSaveStatus[variables.questionId] === 'failed' ? 1 : 0)), 10000);
-        console.log(`🔄 Auto-retrying question ${variables.questionId} in ${retryDelay}ms`);
+        // Get current retry count from failed saves
+        const retryCount = Object.values(questionSaveStatus).filter(status => status === 'failed').length;
+        const retryDelay = Math.min(1000 * Math.pow(1.5, retryCount), 15000); // Max 15 seconds
+        
+        console.log(`🔄 Auto-retrying question ${variables.questionId} in ${retryDelay}ms (retry count: ${retryCount})`);
         
         setTimeout(() => {
-          if (isOnline) {
+          if (isOnline && answers[variables.questionId]) {
             handleRetryAnswer(variables.questionId, variables.questionType);
           }
         }, retryDelay);
@@ -1047,23 +1117,28 @@ export default function StudentExams() {
         return (
           <div className="flex items-center space-x-1 text-green-500">
             <CheckCircle className="w-3 h-3" />
-            <span className="text-xs">Saved</span>
+            <span className="text-xs">Saved ✓</span>
           </div>
         );
       case 'failed':
         return (
-          <div className="flex items-center space-x-1 text-red-500">
+          <div className="flex items-center space-x-1 text-red-500 animate-pulse">
             <AlertCircle className="w-3 h-3" />
-            <span className="text-xs">Failed</span>
+            <span className="text-xs">Save Failed</span>
           </div>
         );
       default:
         return hasAnswer ? (
-          <div className="flex items-center space-x-1 text-gray-500">
-            <Save className="w-3 h-3" />
-            <span className="text-xs">Answer ready</span>
+          <div className="flex items-center space-x-1 text-amber-600">
+            <Circle className="w-3 h-3 fill-current" />
+            <span className="text-xs">Ready to save</span>
           </div>
-        ) : null;
+        ) : (
+          <div className="flex items-center space-x-1 text-gray-400">
+            <HelpCircle className="w-3 h-3" />
+            <span className="text-xs">No answer</span>
+          </div>
+        );
     }
   };
 
@@ -1617,10 +1692,17 @@ export default function StudentExams() {
                         onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
                         disabled={submitAnswerMutation.isPending}
                         data-testid="button-retry-answer"
+                        className="text-xs"
                       >
                         <RotateCcw className="w-3 h-3 mr-1" />
-                        Retry
+                        Retry Save
                       </Button>
+                    )}
+                    {!isOnline && (
+                      <div className="flex items-center space-x-1 text-orange-500 text-xs">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Offline</span>
+                      </div>
                     )}
                   </div>
                 </div>

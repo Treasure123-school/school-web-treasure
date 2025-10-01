@@ -3145,19 +3145,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit student answers
   app.post("/api/student-answers", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      console.log(`📝 Student answer submission from ${req.user?.email}:`, req.body);
+      const user = (req as any).user;
+
+      if (user.roleId !== ROLES.STUDENT) {
+        return res.status(403).json({ message: "Only students can submit answers" });
+      }
 
       const answerData = insertStudentAnswerSchema.parse(req.body);
 
-      // Verify the student is submitting for their own session
+      // Additional validation - ensure the session belongs to the student
       const session = await storage.getExamSessionById(answerData.sessionId);
       if (!session) {
         console.error(`❌ Session not found: ${answerData.sessionId}`);
         return res.status(404).json({ message: "Exam session not found" });
       }
 
-      if (session.studentId !== req.user?.id) {
-        console.error(`❌ Student ${req.user?.id} trying to submit for session ${answerData.sessionId} belonging to ${session.studentId}`);
+      if (session.studentId !== user.id) {
+        console.error(`❌ Student ${user.id} trying to submit for session ${answerData.sessionId} belonging to ${session.studentId}`);
         return res.status(403).json({ message: "You can only submit answers for your own exam session" });
       }
 
@@ -3166,36 +3170,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cannot submit answers for a completed exam" });
       }
 
-      const answer = await storage.submitStudentAnswer(answerData);
-      console.log(`✅ Answer submitted successfully for question ${answerData.questionId}`);
+      // Check for existing answer and update instead of creating duplicate
+      const existingAnswers = await storage.getStudentAnswers(answerData.sessionId);
+      const existingAnswer = existingAnswers.find(a => a.questionId === answerData.questionId);
+
+      let answer;
+      if (existingAnswer) {
+        // Update existing answer
+        console.log(`Updating existing answer for question ${answerData.questionId}`);
+        answer = await storage.updateStudentAnswer(existingAnswer.id, {
+          selectedOptionId: answerData.selectedOptionId,
+          textAnswer: answerData.textAnswer,
+          answeredAt: new Date()
+        });
+        if (!answer) {
+          throw new Error('Failed to update existing answer');
+        }
+      } else {
+        // Create new answer
+        console.log(`Creating new answer for question ${answerData.questionId}`);
+        answer = await storage.createStudentAnswer(answerData);
+      }
+
       res.json(answer);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Student answer submission error:', error);
 
       if (error instanceof z.ZodError) {
-        console.error('❌ Validation error:', error.errors);
         return res.status(400).json({ 
           message: "Invalid answer data", 
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
 
-      // Handle database errors
-      if ((error as any)?.code) {
-        const dbError = error as any;
-        console.error('❌ Database error:', { code: dbError.code, message: dbError.message });
-
-        if (dbError.code === '23503') { // Foreign key violation
-          return res.status(400).json({ message: "Invalid session or question reference" });
-        }
-        if (dbError.code === '23505') { // Unique violation
-          return res.status(409).json({ message: "Answer already submitted for this question" });
-        }
+      // Handle specific database errors
+      if (error?.code === '23503') {
+        return res.status(400).json({ message: "Invalid question or session reference" });
+      } else if (error?.code === '23505') {
+        return res.status(409).json({ message: "Answer already exists for this question" });
+      } else if (error?.code === 'ECONNRESET' || error?.code === 'ETIMEDOUT') {
+        return res.status(408).json({ message: "Database connection timeout. Please try again." });
       }
 
+      // Generic server error
       res.status(500).json({ 
         message: "Failed to submit answer. Please try again.",
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   });
