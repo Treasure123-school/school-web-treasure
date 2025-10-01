@@ -346,9 +346,9 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const breakdown = {
       totalQuestions,
       autoScoredQuestions,
-      correctAnswers: questionDetails.filter(q => q.isCorrect === true).length,
-      incorrectAnswers: questionDetails.filter(q => q.isCorrect === false).length,
-      pendingManualReview: questionDetails.filter(q => q.isCorrect === null).length,
+      correctAnswers: questionDetails.filter((q: any) => q.isCorrect === true).length,
+      incorrectAnswers: questionDetails.filter((q: any) => q.isCorrect === false).length,
+      pendingManualReview: questionDetails.filter((q: any) => q.isCorrect === null).length,
       maxScore: maxPossibleScore,
       earnedScore: totalScore
     };
@@ -2210,8 +2210,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fetch student and class information for the report card
       const student = await storage.getStudent(studentId);
-      const className = await storage.getClassById(parseInt(classId));
-      const term = await storage.getTermById(parseInt(termId)); // Assuming getTermById exists
+      const studentUser = student ? await storage.getUser(student.id) : null;
+      const classData = await storage.getClass(parseInt(classId));
+      const terms = await storage.getTerms();
+      const term = terms.find(t => t.id === parseInt(termId));
 
       // Create report card record
       const reportCardData = {
@@ -2226,8 +2228,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalizedAt: new Date(),
         generatedBy: (req as any).user.id,
         // Add student and class details for context if needed, or fetch dynamically on display
-        studentName: student ? `${student.firstName} ${student.lastName}` : 'Unknown Student',
-        className: className ? className.name : 'Unknown Class',
+        studentName: studentUser ? `${studentUser.firstName} ${studentUser.lastName}` : 'Unknown Student',
+        className: classData ? classData.name : 'Unknown Class',
         termName: term ? `${term.name} (${term.year})` : 'Unknown Term',
       };
 
@@ -2391,22 +2393,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete exam result (use with caution)
-  app.delete("/api/exam-results/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteExamResult(parseInt(id));
-
-      if (!success) {
-        return res.status(404).json({ message: "Exam result not found" });
-      }
-
-      res.json({ message: "Exam result deleted successfully" });
-    } catch (error) {
-      console.error('Error deleting exam result:', error);
-      res.status(500).json({ message: "Failed to delete exam result" });
-    }
-  });
 
   // Study resources routes
   app.get("/api/study-resources", authenticateUser, async (req, res) => {
@@ -2998,223 +2984,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { classId, subjectId, termId } = req.query;
 
-
-  // Manual Grading Queue System
-  app.get("/api/grading/tasks", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { status = 'pending', limit = 50 } = req.query;
-      
-      console.log(`📝 Fetching grading tasks for teacher ${user.id}, status: ${status}`);
-      
-      // Get pending manual grading tasks for this teacher
-      const tasks = await storage.getGradingTasks(user.id, status as string, parseInt(limit as string));
-      
-      res.json(tasks);
-    } catch (error) {
-      console.error('Error fetching grading tasks:', error);
-      res.status(500).json({ message: "Failed to fetch grading tasks" });
-    }
-  });
-
-  // Get specific answers that need manual grading
-  app.get("/api/grading/answers/:sessionId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { sessionId } = req.params;
-      
-      console.log(`📝 Fetching manual grading answers for session ${sessionId} by teacher ${user.id}`);
-      
-      const answers = await storage.getManualGradingAnswers(parseInt(sessionId), user.id);
-      
-      res.json(answers);
-    } catch (error) {
-      console.error('Error fetching manual grading answers:', error);
-      res.status(500).json({ message: "Failed to fetch answers for grading" });
-    }
-  });
-
-  // Submit manual grade for an answer
-  app.post("/api/grading/answers/:answerId/grade", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { answerId } = req.params;
-      const { pointsEarned, feedbackText, maxPoints } = req.body;
-      
-      // Validate input
-      if (typeof pointsEarned !== 'number' || pointsEarned < 0) {
-        return res.status(400).json({ message: "Points earned must be a non-negative number" });
-      }
-      
-      if (maxPoints && pointsEarned > maxPoints) {
-        return res.status(400).json({ message: "Points earned cannot exceed maximum points" });
-      }
-      
-      console.log(`✅ Teacher ${user.id} grading answer ${answerId}: ${pointsEarned} points`);
-      
-      const gradedAnswer = await storage.gradeAnswerManually(
-        parseInt(answerId), 
-        user.id, 
-        pointsEarned, 
-        feedbackText || ''
-      );
-      
-      if (!gradedAnswer) {
-        return res.status(404).json({ message: "Answer not found or not authorized to grade" });
-      }
-      
-      // Check if all manual grading for this session is complete
-      const sessionId = gradedAnswer.sessionId;
-      const remainingTasks = await storage.checkRemainingManualTasks(sessionId);
-      
-      if (remainingTasks === 0) {
-        // Trigger final score calculation and report generation
-        console.log(`🎯 All manual grading complete for session ${sessionId}, triggering final scoring`);
-        await storage.finalizeScoringAndGenerateReport(sessionId);
-      }
-      
-      res.json({
-        message: "Answer graded successfully",
-        answer: gradedAnswer,
-        remainingTasks
-      });
-      
-    } catch (error) {
-      console.error('Error grading answer:', error);
-      res.status(500).json({ message: "Failed to grade answer" });
-    }
-  });
-
-  // Bulk grade multiple answers at once
-  app.post("/api/grading/bulk-grade", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { grades } = req.body; // Array of {answerId, pointsEarned, feedbackText}
-      
-      if (!Array.isArray(grades) || grades.length === 0) {
-        return res.status(400).json({ message: "Grades array is required" });
-      }
-      
-      console.log(`📝 Bulk grading ${grades.length} answers by teacher ${user.id}`);
-      
-
-
-  // Report Generation System
-  app.post("/api/reports/generate/:studentId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const { termId, includeComments = true } = req.body;
-      
-      console.log(`📊 Generating report for student ${studentId}, term ${termId}`);
-      
-      const report = await storage.generateStudentReport(studentId, termId, includeComments);
-      
-      res.json(report);
-    } catch (error) {
-      console.error('Error generating report:', error);
-      res.status(500).json({ message: "Failed to generate report" });
-    }
-  });
-
-  // Generate class reports (for teachers)
-  app.post("/api/reports/class/:classId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { classId } = req.params;
-      const { termId, subjectId } = req.body;
-      
-      console.log(`📊 Generating class report for class ${classId} by teacher ${user.id}`);
-      
-      const classReport = await storage.generateClassReport(parseInt(classId), termId, subjectId, user.id);
-      
-      res.json(classReport);
-    } catch (error) {
-      console.error('Error generating class report:', error);
-      res.status(500).json({ message: "Failed to generate class report" });
-    }
-  });
-
-  // Get student reports (for students and parents)
-  app.get("/api/reports/student/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { studentId } = req.params;
-      const { termId } = req.query;
-      
-      // Security: Students can only access their own reports, parents can access their children's
-      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
-        return res.status(403).json({ message: "Students can only access their own reports" });
-      }
-      
-      if (user.roleId === ROLES.PARENT) {
-        const isParentOfStudent = await storage.verifyParentStudentRelation(user.id, studentId);
-        if (!isParentOfStudent) {
-          return res.status(403).json({ message: "Parents can only access their children's reports" });
-        }
-      }
-      
-      const reports = await storage.getStudentReports(studentId, termId as string);
-      
-      res.json(reports);
-    } catch (error) {
-      console.error('Error fetching student reports:', error);
-      res.status(500).json({ message: "Failed to fetch reports" });
-    }
-  });
-
-  // Download report as PDF
-  app.get("/api/reports/:reportId/pdf", authenticateUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { reportId } = req.params;
-      
-      const pdfPath = await storage.getReportPdfPath(parseInt(reportId), user.id, user.roleId);
-      
-      if (!pdfPath) {
-        return res.status(404).json({ message: "Report not found or access denied" });
-      }
-      
-      // Stream the PDF file
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="report-${reportId}.pdf"`);
-      
-      // In a real implementation, you'd stream from your file storage
-      // For now, we'll return a success response
-      res.json({ message: "PDF download ready", downloadUrl: pdfPath });
-      
-    } catch (error) {
-      console.error('Error downloading report PDF:', error);
-      res.status(500).json({ message: "Failed to download report" });
-    }
-  });
-
-      const results = await storage.bulkGradeAnswers(grades, user.id);
-      
-      res.json({
-        message: `Successfully graded ${results.successful} answers`,
-        results
-      });
-      
-    } catch (error) {
-      console.error('Error bulk grading:', error);
-      res.status(500).json({ message: "Failed to bulk grade answers" });
-    }
-  });
-
-  // Get grading statistics for teacher dashboard
-  app.get("/api/grading/stats", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = (req as any).user;
-      
-      const stats = await storage.getGradingStats(user.id);
-      
-      res.json(stats);
-    } catch (error) {
-      console.error('Error fetching grading stats:', error);
-      res.status(500).json({ message: "Failed to fetch grading statistics" });
-    }
-  });
-
       const user = (req as any).user;
 
       let results: any[] = [];
@@ -3657,14 +3426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             percentage: percentage,
             sessionId: activeSession.id,
             submittedAt: now,
-            autoScored: examResult.autoScored || false,
-            // Enhanced detailed feedback
-            breakdown: examResult.breakdown,
-            questionDetails: examResult.questionDetails,
-            immediateResults: {
-              questions: examResult.questionDetails,
-              summary: examResult.breakdown
-            }
+            autoScored: examResult.autoScored || false
           }
         };
         res.json(response);
@@ -3684,7 +3446,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Teacher Class Assignments
+  app.get("/api/teacher-assignments", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const user = req.user!;
+      const assignments = await storage.getTeacherClassAssignments(user.id);
+      res.json(assignments);
+    } catch (error) {
+      console.error('Error fetching teacher assignments:', error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
 
+  app.post("/api/teacher-assignments", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const assignment = await storage.createTeacherClassAssignment(req.body);
+      res.json(assignment);
+    } catch (error) {
+      console.error('Error creating teacher assignment:', error);
+      res.status(500).json({ message: "Failed to create assignment" });
+    }
+  });
+
+  app.delete("/api/teacher-assignments/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const success = await storage.deleteTeacherClassAssignment(parseInt(req.params.id));
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Assignment not found" });
+      }
+    } catch (error) {
+      console.error('Error deleting teacher assignment:', error);
+      res.status(500).json({ message: "Failed to delete assignment" });
+    }
+  });
+
+  // Grading Tasks
+  app.get("/api/grading-tasks", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const user = req.user!;
+      const status = req.query.status as string | undefined;
+      const tasks = await storage.getGradingTasksByTeacher(user.id, status);
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching grading tasks:', error);
+      res.status(500).json({ message: "Failed to fetch grading tasks" });
+    }
+  });
+
+  app.post("/api/grading-tasks/:taskId/assign", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      const { teacherId } = req.body;
+      const task = await storage.assignGradingTask(taskId, teacherId);
+      if (task) {
+        res.json(task);
+      } else {
+        res.status(404).json({ message: "Task not found" });
+      }
+    } catch (error) {
+      console.error('Error assigning grading task:', error);
+      res.status(500).json({ message: "Failed to assign task" });
+    }
+  });
+
+  app.patch("/api/grading-tasks/:taskId/status", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      const { status, completedAt } = req.body;
+      const task = await storage.updateGradingTaskStatus(taskId, status, completedAt);
+      if (task) {
+        res.json(task);
+      } else {
+        res.status(404).json({ message: "Task not found" });
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      res.status(500).json({ message: "Failed to update task status" });
+    }
+  });
+
+  // Manual Scoring
+  app.post("/api/grading-tasks/:taskId/complete", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      const { pointsEarned, feedbackText } = req.body;
+      const user = req.user!;
+
+      const result = await storage.completeGradingTask(taskId, pointsEarned, feedbackText);
+      
+      if (result) {
+        // Create audit log
+        await storage.createAuditLog({
+          userId: user.id,
+          entityType: 'student_answer',
+          entityId: result.answer.id,
+          action: 'manual_grade',
+          description: `Teacher manually graded question with ${pointsEarned} points`,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent')
+        });
+
+        res.json(result);
+      } else {
+        res.status(404).json({ message: "Task not found" });
+      }
+    } catch (error) {
+      console.error('Error completing grading task:', error);
+      res.status(500).json({ message: "Failed to complete grading task" });
+    }
+  });
+
+  // Score Merging - Get merged scores for a session
+  app.get("/api/exam-sessions/:sessionId/scores", authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      const scoringData = await storage.getExamScoringData(sessionId);
+      
+      res.json({
+        sessionId,
+        maxScore: scoringData.summary.maxScore,
+        studentScore: scoringData.summary.studentScore,
+        autoScoredQuestions: scoringData.summary.autoScoredQuestions,
+        totalQuestions: scoringData.summary.totalQuestions,
+        scoringData: scoringData.scoringData
+      });
+    } catch (error) {
+      console.error('Error fetching merged scores:', error);
+      res.status(500).json({ message: "Failed to fetch scores" });
+    }
+  });
+
+  // Report Generation
+  app.post("/api/report-cards/generate", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { studentId, termId, examIds } = req.body;
+      
+      // Get all exam results for the student
+      const examResults = await storage.getExamResultsByStudent(studentId);
+      
+      // Filter by termId if provided
+      let filteredResults = examResults;
+      if (termId) {
+        // Filter results by term (would need to join with exams table to get term)
+        // For now, just use all results
+      }
+      
+      // Calculate total scores using Test(40) + Exam(60) = Total(100) formula
+      const reportData = filteredResults.map(result => ({
+        ...result,
+        // This is a simplified version - actual implementation would need to:
+        // 1. Identify if it's a test or exam
+        // 2. Apply appropriate weighting
+        // 3. Merge scores across test and exam
+      }));
+      
+      res.json({
+        studentId,
+        termId,
+        reportData
+      });
+    } catch (error) {
+      console.error('Error generating report card:', error);
+      res.status(500).json({ message: "Failed to generate report card" });
+    }
+  });
+
+  // Get Report Cards for a Student
+  app.get("/api/report-cards/student/:studentId", authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      const user = req.user!;
+      
+      // Check authorization - student can only view their own, teachers/admins can view all
+      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const examResults = await storage.getExamResultsByStudent(studentId);
+      res.json(examResults);
+    } catch (error) {
+      console.error('Error fetching report cards:', error);
+      res.status(500).json({ message: "Failed to fetch report cards" });
+    }
+  });
+
+  // Audit Logs
+  app.get("/api/audit-logs", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const filters = {
+        userId: req.query.userId as string,
+        entityType: req.query.entityType as string,
+        entityId: req.query.entityId ? parseInt(req.query.entityId as string) : undefined,
+        action: req.query.action as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 100
+      };
+      
+      const logs = await storage.getAuditLogs(filters);
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.get("/api/audit-logs/:entityType/:entityId", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { entityType, entityId } = req.params;
+      const logs = await storage.getAuditLogsByEntity(entityType, parseInt(entityId));
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching entity audit logs:', error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
