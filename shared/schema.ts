@@ -387,7 +387,7 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
   subjectId: z.coerce.number().positive("Please select a valid subject"),
   termId: z.coerce.number().positive("Please select a valid term"),
   totalMarks: z.coerce.number().positive("Total marks must be a positive number"),
-  
+
   // Handle date string from frontend - keep as string for database with improved validation
   date: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
@@ -395,15 +395,15 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
       const date = new Date(dateStr);
       return !isNaN(date.getTime()) && date.toISOString().startsWith(dateStr);
     }, "Please enter a valid date"),
-  
+
   // Optional numeric fields - convert empty strings to undefined
   timeLimit: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(1, "Time limit must be at least 1 minute").optional()),
   passingScore: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()),
-  
+
   // Optional timestamp fields - convert empty strings to undefined
   startTime: z.preprocess((val) => val === '' ? undefined : val, z.coerce.date().optional()),
   endTime: z.preprocess((val) => val === '' ? undefined : val, z.coerce.date().optional()),
-  
+
   // Text fields - convert empty strings to undefined for optional fields
   instructions: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   gradingScale: z.preprocess((val) => val === '' ? 'standard' : val, z.string().default('standard')),
@@ -447,9 +447,11 @@ export type CreateStudentRequest = z.infer<typeof createStudentSchema>;
 export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
   // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
   examId: z.coerce.number().positive("Please select a valid exam"),
+  questionText: z.string().min(1, "Question text is required"),
+  questionType: z.enum(['multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'], { required_error: "Question type is required" }),
   points: z.preprocess((val) => val === '' ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
   orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-  
+
   // Handle optional text fields - convert empty strings to undefined
   imageUrl: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   expectedAnswers: z.preprocess((val) => {
@@ -461,16 +463,19 @@ export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   hintText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   partialCreditRules: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+  // Added fields for theory questions
+  instructions: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
+  sampleAnswer: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });
 
 export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
   // Coerce string IDs and numeric values to numbers
   questionId: z.coerce.number().positive("Please select a valid question"),
   orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-  
+
   // Handle optional numeric fields - convert empty strings to undefined or 0
   partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
-  
+
   // Handle optional text fields - convert empty strings to undefined
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });

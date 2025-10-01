@@ -2392,9 +2392,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           reportItems.push({
             subjectName: subject.name,
-            testScore: hasTest ? Math.round(testWeightedScore * 40 / 40) : '-',
+            testScore: hasTest ? Math.round(testRawScore) : '-',
             testWeighted: hasTest ? Math.round(testWeightedScore) : '-',
-            examScore: hasExam ? Math.round(examWeightedScore * 60 / 60) : '-',
+            examScore: hasExam ? Math.round(examWeightedScore) : '-',
             examWeighted: hasExam ? Math.round(examWeightedScore) : '-',
             totalScore: Math.round(totalScore),
             grade: grade,

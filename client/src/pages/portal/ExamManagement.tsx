@@ -33,6 +33,10 @@ const questionFormSchema = insertExamQuestionSchema
       return val;
     }, z.coerce.number().int().min(1, "Points must be at least 1").default(1)),
     
+    // Enhanced fields for theory questions
+    instructions: z.string().optional(),
+    sampleAnswer: z.string().optional(),
+    
     options: z.array(z.object({
       optionText: z.string().min(1, 'Option text is required'),
       isCorrect: z.boolean(),
@@ -55,9 +59,13 @@ const questionFormSchema = insertExamQuestionSchema
     const hasCorrectAnswer = nonEmptyOptions.some(opt => opt.isCorrect);
     return hasCorrectAnswer;
   }
+  // Enhanced validation for theory questions
+  if (data.questionType === 'essay' && data.questionText && data.questionText.length < 20) {
+    return false;
+  }
   return true;
 }, {
-  message: "Multiple choice questions require at least 2 non-empty options with one marked as correct",
+  message: "Multiple choice questions require at least 2 non-empty options with one marked as correct. Essay questions need detailed question text (20+ characters).",
   path: ["options"]
 });
 
@@ -330,6 +338,8 @@ export default function ExamManagement() {
         questionType: 'multiple_choice',
         points: 1,
         questionText: '',
+        instructions: '',
+        sampleAnswer: '',
         options: [
           { optionText: '', isCorrect: false },
           { optionText: '', isCorrect: false },
@@ -623,11 +633,13 @@ export default function ExamManagement() {
 
   // Download CSV template
   const downloadCSVTemplate = () => {
-    const csvContent = `QuestionText,Type,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points
-"What is 2 + 2?",multiple_choice,"2","3","4","5","C",1
-"What is the capital of France?",multiple_choice,"London","Paris","Berlin","Madrid","B",1
-"Explain the process of photosynthesis.",essay,"","","","","",5
-"Define gravity in physics.",text,"","","","","",3`;
+    const csvContent = `QuestionText,Type,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points,Instructions,SampleAnswer
+"What is 2 + 2?",multiple_choice,"2","3","4","5","C",1,"Choose the correct answer","4"
+"What is the capital of France?",multiple_choice,"London","Paris","Berlin","Madrid","B",1,"Select the correct capital city","Paris"
+"Explain the process of photosynthesis in plants.",essay,"","","","","",10,"Write a detailed explanation (minimum 200 words)","Photosynthesis is the process by which green plants..."
+"Define gravity in physics.",text,"","","","","",5,"Provide a clear definition (50-100 words)","Gravity is a fundamental force..."
+"Calculate the area of a triangle with base 10cm and height 8cm.",text,"","","","","",3,"Show your working and final answer","Area = 1/2 × base × height = 1/2 × 10 × 8 = 40 cm²"
+"Discuss the causes and effects of climate change.",essay,"","","","","",15,"Write a comprehensive essay (300-500 words)","Climate change is primarily caused by..."`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -640,8 +652,8 @@ export default function ExamManagement() {
     window.URL.revokeObjectURL(url);
     
     toast({
-      title: "Template Downloaded",
-      description: "CSV template has been downloaded. Fill it with your questions and upload.",
+      title: "Enhanced Template Downloaded",
+      description: "CSV template with support for multiple choice, text, and essay questions has been downloaded.",
     });
   };
 
@@ -719,7 +731,7 @@ export default function ExamManagement() {
 
   // Parse CSV content into questions array
   const parseCSV = (csvContent: string) => {
-    console.log('📊 Starting CSV parsing...');
+    console.log('📊 Starting enhanced CSV parsing...');
     const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
     
     if (lines.length < 2) {
@@ -728,19 +740,22 @@ export default function ExamManagement() {
 
     // Parse headers more carefully to handle quoted content
     const headers = parseCSVLine(lines[0]);
-    const expectedHeaders = ['QuestionText', 'Type', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Points'];
+    const requiredHeaders = ['QuestionText', 'Type', 'Points'];
+    const optionalHeaders = ['OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Instructions', 'SampleAnswer'];
+    const allExpectedHeaders = [...requiredHeaders, ...optionalHeaders];
     
     console.log('📋 CSV headers found:', headers);
-    console.log('📋 Expected headers:', expectedHeaders);
+    console.log('📋 Expected headers (required):', requiredHeaders);
+    console.log('📋 Expected headers (optional):', optionalHeaders);
     
-    // Validate headers with case-insensitive matching
+    // Validate required headers with case-insensitive matching
     const normalizedHeaders = headers.map(h => h.trim());
-    const missingHeaders = expectedHeaders.filter(expected => 
+    const missingRequiredHeaders = requiredHeaders.filter(expected => 
       !normalizedHeaders.some(found => found.toLowerCase() === expected.toLowerCase())
     );
     
-    if (missingHeaders.length > 0) {
-      throw new Error(`Missing required CSV headers: ${missingHeaders.join(', ')}.\nExpected headers: ${expectedHeaders.join(', ')}\nFound headers: ${headers.join(', ')}\n\nPlease download the template to see the correct format.`);
+    if (missingRequiredHeaders.length > 0) {
+      throw new Error(`Missing required CSV headers: ${missingRequiredHeaders.join(', ')}.\nRequired headers: ${requiredHeaders.join(', ')}\nOptional headers: ${optionalHeaders.join(', ')}\nFound headers: ${headers.join(', ')}\n\nPlease download the template to see the correct format.`);
     }
 
     const questions = [];
@@ -764,6 +779,8 @@ export default function ExamManagement() {
         const questionText = getColumnValue('QuestionText');
         const questionType = getColumnValue('Type')?.toLowerCase().replace(/[-\s]/g, '_');
         const pointsText = getColumnValue('Points');
+        const instructions = getColumnValue('Instructions');
+        const sampleAnswer = getColumnValue('SampleAnswer');
 
         // Validate required fields
         if (!questionText || questionText.length < 5) {
@@ -782,11 +799,30 @@ export default function ExamManagement() {
           continue;
         }
 
+        // Enhanced validation for theory questions
+        if (questionType === 'essay') {
+          if (questionText.length < 20) {
+            errors.push(`Row ${i + 1}: Essay questions should have detailed question text (at least 20 characters)`);
+            continue;
+          }
+          if (points < 5) {
+            console.warn(`Row ${i + 1}: Essay questions typically have 5+ points. Current: ${points}`);
+          }
+        }
+
+        if (questionType === 'text') {
+          if (points > 10) {
+            console.warn(`Row ${i + 1}: Text questions typically have 10 or fewer points. Current: ${points}`);
+          }
+        }
+
         const question: any = {
           questionText: questionText.trim(),
           questionType,
           points,
-          orderNumber: i
+          orderNumber: i,
+          instructions: instructions?.trim() || null,
+          sampleAnswer: sampleAnswer?.trim() || null
         };
 
         // Handle multiple choice questions
@@ -795,7 +831,7 @@ export default function ExamManagement() {
           const optionLetters = ['A', 'B', 'C', 'D'];
           
           if (!optionLetters.includes(correctAnswer)) {
-            errors.push(`Row ${i + 1}: Correct answer must be A, B, C, or D (found: "${correctAnswer}")`);
+            errors.push(`Row ${i + 1}: Multiple choice questions require correct answer A, B, C, or D (found: "${correctAnswer}")`);
             continue;
           }
 
@@ -820,6 +856,16 @@ export default function ExamManagement() {
             optionText: opt.optionText.trim()
             // orderNumber is automatically set by the backend
           }));
+        } else {
+          // For text and essay questions, validate that no multiple choice fields are filled
+          const hasOptions = ['A', 'B', 'C', 'D'].some(letter => {
+            const option = getColumnValue(`Option${letter}`);
+            return option && option.trim() !== '';
+          });
+          
+          if (hasOptions) {
+            console.warn(`Row ${i + 1}: ${questionType} questions don't need option columns. Options will be ignored.`);
+          }
         }
 
         questions.push(question);
@@ -1496,6 +1542,38 @@ export default function ExamManagement() {
                             {questionErrors.questionText && <p className="text-sm text-red-500">{questionErrors.questionText.message}</p>}
                           </div>
 
+                          {(questionType === 'text' || questionType === 'essay') && (
+                            <>
+                              <div>
+                                <Label htmlFor="instructions">Instructions (Optional)</Label>
+                                <Textarea 
+                                  id="instructions" 
+                                  {...registerQuestion('instructions')} 
+                                  data-testid="textarea-question-instructions"
+                                  placeholder="e.g., Write a detailed explanation (minimum 200 words), Show your working..."
+                                  rows={2}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Provide specific guidance for students on how to answer this question
+                                </p>
+                              </div>
+
+                              <div>
+                                <Label htmlFor="sampleAnswer">Sample Answer (Optional)</Label>
+                                <Textarea 
+                                  id="sampleAnswer" 
+                                  {...registerQuestion('sampleAnswer')} 
+                                  data-testid="textarea-question-sample"
+                                  placeholder="Provide a sample or model answer for grading reference..."
+                                  rows={3}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  This will help with consistent grading and is not shown to students
+                                </p>
+                              </div>
+                            </>
+                          )}
+
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="questionType">Question Type</Label>
@@ -1611,13 +1689,35 @@ export default function ExamManagement() {
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-2">
                                 <Badge variant="outline">Q{index + 1}</Badge>
-                                <Badge variant="secondary">{question.questionType.replace('_', ' ')}</Badge>
+                                <Badge variant={question.questionType === 'multiple_choice' ? 'secondary' : question.questionType === 'essay' ? 'default' : 'outline'}>
+                                  {question.questionType === 'multiple_choice' ? 'Multiple Choice' : 
+                                   question.questionType === 'essay' ? 'Essay' : 'Short Answer'}
+                                </Badge>
                                 <span className="text-sm text-muted-foreground">{question.points} points</span>
                               </div>
-                              <p className="mb-2">{question.questionText}</p>
+                              <p className="mb-2 font-medium">{question.questionText}</p>
+                              
+                              {question.instructions && (
+                                <div className="mb-2 p-2 bg-blue-50 rounded text-sm">
+                                  <span className="font-medium text-blue-800">Instructions: </span>
+                                  <span className="text-blue-700">{question.instructions}</span>
+                                </div>
+                              )}
+
                               {question.questionType === 'multiple_choice' && (
                                 <div className="ml-4 space-y-1">
                                   <QuestionOptions questionId={question.id} />
+                                </div>
+                              )}
+
+                              {(question.questionType === 'text' || question.questionType === 'essay') && (
+                                <div className="ml-4 text-sm text-muted-foreground">
+                                  <div className="flex items-center space-x-4">
+                                    <span>📝 {question.questionType === 'essay' ? 'Long answer required' : 'Short answer required'}</span>
+                                    {question.sampleAnswer && (
+                                      <span className="text-green-600">✓ Sample answer provided</span>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
