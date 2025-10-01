@@ -35,6 +35,7 @@ import {
   Signature
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
 
 const examSchema = z.object({
   name: z.string().min(1, 'Exam name is required'),
@@ -243,7 +244,7 @@ export default function TeacherGrades() {
   const enrichedStudents = students.map((student: any) => {
     const userDetails = users.find((u: any) => u.id === student.id);
     const result = examResults.find((r: any) => r.studentId === student.id);
-    
+
     return {
       ...student,
       user: userDetails,
@@ -810,7 +811,7 @@ export default function TeacherGrades() {
                           ))}
                       </div>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-medium mb-2">Students Needing Support</h4>
                       <div className="space-y-2">
@@ -1360,10 +1361,10 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
     // Simulate test and exam breakdown (you would fetch this from actual test/exam results)
     const testScore = exam.examType === 'test' ? percentage : Math.round(percentage * 0.7); // Simulate test score
     const examScore = exam.examType === 'exam' ? percentage : Math.round(percentage * 1.2); // Simulate exam score
-    
+
     // Calculate weighted total: Test (40%) + Exam (60%)
     const weightedTotal = Math.round((testScore * 0.4) + (examScore * 0.6));
-    
+
     let grade = 'F';
     if (weightedTotal >= 90) grade = 'A+';
     else if (weightedTotal >= 80) grade = 'A';
@@ -1398,7 +1399,7 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
             {students.map((student: any) => {
               const score = getStudentComprehensiveScore(student);
               const isFinalized = student.result?.teacherFinalized;
-              
+
               return (
                 <div 
                   key={student.id}
@@ -1420,7 +1421,7 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
                       <p className="font-semibold">
@@ -1430,7 +1431,7 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
                         Test: {score.testScore}% | Exam: {score.examScore}%
                       </p>
                     </div>
-                    
+
                     {isFinalized ? (
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     ) : (
@@ -1507,7 +1508,7 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
                   <li>Signed with your teacher credentials</li>
                 </ul>
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button
                   variant="outline"

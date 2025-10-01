@@ -7,7 +7,7 @@ integrations = ["javascript_supabase:1.0.0", "javascript_database:1.0.0"]
 channel = "stable-25_05"
 
 [workflows]
-runButton = "Project"
+runButton = "Start App"
 
 [[workflows.workflow]]
 name = "Project"
@@ -29,6 +29,15 @@ outputType = "webview"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Start App"
+author = 48175633
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
 
 [[ports]]
 localPort = 5000
