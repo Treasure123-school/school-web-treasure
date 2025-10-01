@@ -3556,6 +3556,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GRADING TASK CREATION - Automatically create tasks for essay/theory questions
+  async function createGradingTasksForSession(sessionId: number, examId: number, storage: any): Promise<void> {
+    try {
+      console.log(`📝 Creating grading tasks for session ${sessionId}, exam ${examId}`);
+
+      // Get exam details to find the assigned teacher
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        throw new Error(`Exam ${examId} not found`);
+      }
+
+      // Get all questions for this exam
+      const examQuestions = await storage.getExamQuestions(examId);
+      
+      // Filter for essay/theory questions (non-auto-gradable questions)
+      const manualGradingQuestions = examQuestions.filter((q: any) => {
+        return q.questionType !== 'multiple_choice' && q.questionType !== 'true_false';
+      });
+
+      if (manualGradingQuestions.length === 0) {
+        console.log(`✅ No manual grading questions found for exam ${examId}`);
+        return;
+      }
+
+      console.log(`📝 Found ${manualGradingQuestions.length} questions requiring manual grading`);
+
+      // Get student answers for this session
+      const studentAnswers = await storage.getStudentAnswers(sessionId);
+
+      // Determine the teacher to assign tasks to
+      let assignedTeacherId = exam.createdBy; // Default to exam creator
+
+      // Try to get the class-subject teacher if available
+      if (exam.classId && exam.subjectId) {
+        try {
+          const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+          if (teachers && teachers.length > 0) {
+            assignedTeacherId = teachers[0].id; // Assign to first teacher found
+            console.log(`👨‍🏫 Assigning grading tasks to class-subject teacher: ${assignedTeacherId}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not find class-subject teacher, using exam creator: ${error}`);
+        }
+      }
+
+      // Create grading tasks for each essay answer
+      let tasksCreated = 0;
+      for (const question of manualGradingQuestions) {
+        const studentAnswer = studentAnswers.find((a: any) => a.questionId === question.id);
+        
+        if (studentAnswer) {
+          // Check if task already exists to avoid duplicates
+          const existingTasks = await storage.getGradingTasksBySession(sessionId);
+          const taskExists = existingTasks.some((t: any) => t.answerId === studentAnswer.id);
+
+          if (!taskExists) {
+            await storage.createGradingTask({
+              sessionId: sessionId,
+              answerId: studentAnswer.id,
+              assignedTeacherId: assignedTeacherId,
+              status: 'pending',
+              priority: 0 // Default priority
+            });
+            tasksCreated++;
+          }
+        }
+      }
+
+      console.log(`✅ Created ${tasksCreated} grading tasks for session ${sessionId}`);
+    } catch (error) {
+      console.error(`❌ Error creating grading tasks for session ${sessionId}:`, error);
+      throw error;
+    }
+  }
+
   // Submit Exam Route - Synchronous submission with proper error handling
   app.post("/api/exams/:examId/submit", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
@@ -3619,6 +3694,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (scoringError) {
         console.error(`❌ Auto-scoring failed for session ${activeSession.id}:`, scoringError);
         // Don't fail the submission if scoring fails
+      }
+
+      // Create grading tasks for essay/theory questions
+      try {
+        await createGradingTasksForSession(activeSession.id, examIdNum, storage);
+        console.log(`✅ Grading tasks created for session ${activeSession.id}`);
+      } catch (taskError) {
+        console.error(`❌ Failed to create grading tasks for session ${activeSession.id}:`, taskError);
+        // Don't fail the submission if task creation fails
       }
 
       // Get the results
