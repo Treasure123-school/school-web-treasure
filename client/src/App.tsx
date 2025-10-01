@@ -43,6 +43,10 @@ import ExamManagement from "@/pages/portal/ExamManagement";
 import HomepageManagement from "@/pages/portal/HomepageManagement";
 import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
 
+// New Exam System Components
+import ExamSessions from "@/pages/portal/ExamSessions";
+import ExamReports from "@/pages/portal/ExamReports";
+
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -190,6 +194,28 @@ function Router() {
       <Route path="/portal/parent">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
           <ParentDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      {/* New Exam System Routes */}
+      <Route path="/portal/exam-sessions">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <ExamSessions />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/grading-queue">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <TeacherGradingQueue />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/exam-reports">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <ExamReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/exam-analytics">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <ExamReports />
         </ProtectedRoute>
       </Route>
 

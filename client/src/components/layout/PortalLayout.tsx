@@ -7,6 +7,9 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useState, useEffect } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Clock, PenTool, CheckSquare, Award } from 'lucide-react';
+
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -21,6 +24,9 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isExamMenuOpen, setIsExamMenuOpen] = useState(false);
+  const [isGradingMenuOpen, setIsGradingMenuOpen] = useState(false);
+
 
   // Load sidebar state from localStorage
   useEffect(() => {
@@ -73,6 +79,19 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
           { name: 'Classes', href: `/portal/${userRole}/classes`, icon: BookOpen },
           { name: 'Subjects', href: `/portal/${userRole}/subjects`, icon: BookOpen },
+          { 
+            type: 'group',
+            label: 'Exam System',
+            icon: ClipboardList,
+            isOpen: isExamMenuOpen,
+            setIsOpen: setIsExamMenuOpen,
+            items: [
+              { href: '/portal/exams', icon: PenTool, label: 'Exam Management' },
+              { href: '/portal/exam-sessions', icon: Clock, label: 'Active Sessions' },
+              { href: '/portal/grading-queue', icon: CheckSquare, label: 'Grading Queue' },
+              { href: '/portal/exam-reports', icon: Award, label: 'Exam Reports' },
+            ]
+          },
           { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
           { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Bell },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
@@ -130,10 +149,60 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           )}
         </div>
       </div>
-      
+
       <nav className={`p-4 space-y-2 ${collapsed ? 'px-2' : ''}`}>
         {navigation.map((item) => {
           const Icon = item.icon;
+          if (item.type === 'group') {
+            return (
+              <Collapsible key={item.name} open={item.isOpen} onOpenChange={item.setIsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start text-sm font-medium rounded-md ${
+                      collapsed ? 'px-2' : 'px-3'
+                    } text-gray-600 hover:bg-gray-50 hover:text-gray-900`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className={`h-4 w-4 ${collapsed ? '' : 'mr-3'}`} />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {item.isOpen ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </>
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                {!collapsed && (
+                  <CollapsibleContent className="space-y-1 ml-3">
+                    {item.items.map((subItem) => {
+                      const isActive = isActive(subItem.href);
+                      return (
+                        <Link
+                          key={subItem.name}
+                          href={subItem.href}
+                          onClick={onNavigate}
+                          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            isActive ? 'active-nav' : 'nav-link'
+                          }`}
+                          data-testid={`nav-${subItem.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          title={subItem.label}
+                        >
+                          <subItem.icon className="h-4 w-4 mr-3" />
+                          {subItem.label}
+                        </Link>
+                      );
+                    })}
+                  </CollapsibleContent>
+                )}
+              </Collapsible>
+            );
+          }
+
           return (
             <Link
               key={item.name}

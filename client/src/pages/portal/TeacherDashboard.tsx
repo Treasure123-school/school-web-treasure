@@ -6,13 +6,71 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Calendar, BookOpen, MessageSquare, ClipboardCheck, TrendingUp, GraduationCap } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare } from 'lucide-react';
 import { Link } from 'wouter';
+
+// Helper function to simulate API requests
+async function apiRequest(method: string, url: string, body?: any) {
+  // In a real app, this would be your actual API call logic
+  console.log(`Simulating API Request: ${method} ${url}`);
+  // Mock responses based on URL for demonstration
+  if (url === '/api/classes') return { json: async () => mockClasses };
+  if (url === '/api/students') return { json: async () => mockStudents };
+  if (url === '/api/exams') return { json: async () => mockExams };
+  if (url === '/api/teacher/grades') return { json: async () => mockGrades };
+  if (url.startsWith('/api/grading/tasks')) return { json: async () => mockGradingTasks };
+  if (url.startsWith('/api/teachers/results/by-class')) return { json: async () => mockClassResults };
+  if (url.startsWith('/api/teachers/results/by-exam')) return { json: async () => mockExamResults };
+
+  // Fallback for unknown URLs
+  return { json: async () => [] };
+}
+
+// Mock data for demonstration
+const mockClasses = [
+  { id: 'c1', name: 'Primary 5A', classTeacherId: 't1' },
+  { id: 'c2', name: 'Primary 5B', classTeacherId: 't2' },
+  { id: 'c3', name: 'Grade 10X', classTeacherId: 't1' },
+];
+
+const mockStudents = [
+  { id: 's1', firstName: 'Alice', lastName: 'Smith', classId: 'c1' },
+  { id: 's2', firstName: 'Bob', lastName: 'Johnson', classId: 'c1' },
+  { id: 's3', firstName: 'Charlie', lastName: 'Brown', classId: 'c2' },
+];
+
+const mockExams = [
+  { id: 'e1', name: 'Mid-term Math', subjectId: 's1', classId: 'c1', createdBy: 't1', createdAt: '2023-10-01T10:00:00Z', date: '2023-11-15' },
+  { id: 'e2', name: 'End-term Science', subjectId: 's2', classId: 'c1', createdBy: 't1', createdAt: '2023-11-01T10:00:00Z', date: '2023-12-10' },
+  { id: 'e3', name: 'Quarterly English', subjectId: 's3', classId: 'c2', createdBy: 't2', createdAt: '2023-09-15T10:00:00Z', date: '2023-10-20' },
+];
+
+const mockGrades = [
+  { id: 'g1', studentId: 's1', examId: 'e1', score: 85, marksObtained: 85, createdAt: '2023-11-16T10:00:00Z' },
+  { id: 'g2', studentId: 's2', examId: 'e1', score: 92, marksObtained: 92, createdAt: '2023-11-16T10:05:00Z' },
+  { id: 'g3', studentId: 's3', examId: 'e3', score: 78, marksObtained: 78, createdAt: '2023-10-21T10:00:00Z' },
+];
+
+const mockGradingTasks = [
+  { id: 'gt1', student_name: 'Alice Smith', exam_title: 'Mid-term Math', question_type: 'Essay', max_marks: 20, status: 'pending', teacher_id: 't1' },
+  { id: 'gt2', student_name: 'Bob Johnson', exam_title: 'Mid-term Math', question_type: 'Short Answer', max_marks: 10, status: 'pending', teacher_id: 't1' },
+];
+
+const mockClassResults = [
+  { id: 'r1', studentId: 's1', examId: 'e1', score: 85, createdAt: '2023-11-16T10:00:00Z' },
+  { id: 'r2', studentId: 's2', examId: 'e1', score: 92, createdAt: '2023-11-16T10:05:00Z' },
+];
+
+const mockExamResults = [
+  { id: 'er1', studentId: 's1', examId: 'e1', score: 85, createdAt: '2023-11-16T10:00:00Z' },
+  { id: 'er2', studentId: 's2', examId: 'e1', score: 92, createdAt: '2023-11-16T10:05:00Z' },
+];
 
 // Component for displaying results by class card
 function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
   const { data: classResults = [], isLoading } = useQuery({
     queryKey: ['/api/teachers/results/by-class', cls.id],
+    queryFn: async () => apiRequest('GET', `/api/teachers/results/by-class?classId=${cls.id}`),
     enabled: !!cls.id,
   });
 
@@ -21,7 +79,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
   const averageScore = totalResults > 0 
     ? Math.round((results.reduce((sum: number, r: any) => sum + (r.score || r.marksObtained || 0), 0) / totalResults))
     : 0;
-  
+
   const recentResultsCount = results.filter((r: any) => {
     const resultDate = new Date(r.createdAt);
     const weekAgo = new Date();
@@ -54,7 +112,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
           {totalResults} results
         </Badge>
       </div>
-      
+
       <div className="space-y-2">
         <div className="flex justify-between text-xs">
           <span>Average Score</span>
@@ -69,7 +127,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
           </span>
         </div>
       </div>
-      
+
       <Button 
         variant="outline" 
         size="sm" 
@@ -89,6 +147,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
 function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   const { data: examResults = [], isLoading } = useQuery({
     queryKey: ['/api/teachers/results/by-exam', exam.id],
+    queryFn: async () => apiRequest('GET', `/api/teachers/results/by-exam?examId=${exam.id}`),
     enabled: !!exam.id,
   });
 
@@ -97,7 +156,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   const averageScore = totalSubmissions > 0 
     ? Math.round((results.reduce((sum: number, r: any) => sum + (r.score || r.marksObtained || 0), 0) / totalSubmissions))
     : 0;
-    
+
   const examDate = new Date(exam.date || exam.createdAt).toLocaleDateString();
 
   if (isLoading) {
@@ -129,7 +188,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
           {exam.subjectName || 'Subject'} • {examDate}
         </p>
       </div>
-      
+
       <div className="text-right space-y-1">
         {totalSubmissions > 0 && (
           <p className="text-sm font-medium text-primary" data-testid={`text-exam-average-${index}`}>
@@ -158,26 +217,37 @@ export default function TeacherDashboard() {
     return <div>Please log in to access the teacher portal.</div>;
   }
 
-  // Fetch teacher's classes for result viewing
-  const { data: classes = [] } = useQuery({
-    queryKey: ['/api/classes'],
-    enabled: !!user,
-  });
+  // Fetch dashboard data
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ['/api/teacher/dashboard', user?.id],
+    queryFn: async () => {
+      const [classesRes, studentsRes, examsRes, gradesRes, gradingTasksRes] = await Promise.all([
+        apiRequest('GET', '/api/classes'),
+        apiRequest('GET', `/api/students`),
+        apiRequest('GET', '/api/exams'),
+        apiRequest('GET', `/api/teacher/grades`),
+        apiRequest('GET', `/api/grading/tasks?teacher_id=${user?.id}&status=pending`)
+      ]);
 
-  // Fetch teacher's exams for result viewing 
-  const { data: exams = [] } = useQuery({
-    queryKey: ['/api/exams'],
+      return {
+        classes: await classesRes.json(),
+        students: await studentsRes.json(),
+        exams: await examsRes.json(),
+        grades: await gradesRes.json(),
+        pendingGradingTasks: await gradingTasksRes.json()
+      };
+    },
     enabled: !!user,
   });
 
   // Get teacher's classes for results (limit to first 3 for dashboard)
-  const teacherClasses = (classes as any[]).filter((cls: any) => 
+  const teacherClasses = (dashboardData?.classes || []).filter((cls: any) => 
     cls.classTeacherId === user.id || 
-    (exams as any[]).some((exam: any) => exam.createdBy === user.id && exam.classId === cls.id)
+    (dashboardData?.exams || []).some((exam: any) => exam.createdBy === user.id && exam.classId === cls.id)
   ).slice(0, 3);
 
   // Get recent exams created by this teacher (limit to 5 for dashboard)
-  const recentExams = (exams as any[])
+  const recentExams = (dashboardData?.exams || [])
     .filter((exam: any) => exam.createdBy === user.id)
     .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
@@ -363,27 +433,89 @@ export default function TeacherDashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <Card className="shadow-sm border border-border" data-testid="card-quick-actions">
+        {/* Grading Queue */}
+        <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <CheckSquare className="w-5 h-5 mr-2" />
+                Grading Queue
+              </div>
+              {dashboardData?.pendingGradingTasks?.length > 0 && (
+                <Badge variant="destructive" className="text-xs">
+                  {dashboardData.pendingGradingTasks.length} pending
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {quickActions.map((action, index) => (
-                <Button 
-                  key={index}
-                  variant="ghost"
-                  className={`w-full justify-start h-auto p-3 ${action.color} transition-colors`}
-                  asChild
-                >
-                  <Link href={action.href} data-testid={`button-action-${index}`}>
-                    <i className={`${action.icon} mr-3`}></i>
-                    <span className="text-sm font-medium">{action.title}</span>
-                  </Link>
-                </Button>
-              ))}
-            </div>
+            {!dashboardData?.pendingGradingTasks || dashboardData.pendingGradingTasks.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No pending grading tasks</p>
+                <p className="text-xs">Great! All exams are graded.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {dashboardData.pendingGradingTasks.slice(0, 3).map((task: any) => (
+                  <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50">
+                    <div>
+                      <h4 className="font-medium text-sm">{task.student_name}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {task.exam_title} • {task.question_type} question
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="outline" className="text-xs">
+                        {task.max_marks} marks
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                <Link to="/portal/teacher/grading-queue">
+                  <Button className="w-full">
+                    <CheckSquare className="w-4 h-4 mr-2" />
+                    Grade Now ({dashboardData.pendingGradingTasks.length})
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BookOpen className="w-5 h-5 mr-2" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Link to="/portal/exams">
+              <Button className="w-full justify-start">
+                <ClipboardList className="w-4 h-4 mr-2" />
+                Create Exam
+              </Button>
+            </Link>
+            <Link to="/portal/teacher/attendance">
+              <Button variant="outline" className="w-full justify-start">
+                <UserCheck className="w-4 h-4 mr-2" />
+                Take Attendance
+              </Button>
+            </Link>
+            <Link to="/portal/teacher/grades">
+              <Button variant="outline" className="w-full justify-start">
+                <Star className="w-4 h-4 mr-2" />
+                Manage Grades
+              </Button>
+            </Link>
+            <Link to="/portal/announcements">
+              <Button variant="outline" className="w-full justify-start">
+                <Bell className="w-4 h-4 mr-2" />
+                Create Announcement
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -483,7 +615,7 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-3">Primary 5B</h3>
               <div className="space-y-2">

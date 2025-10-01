@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen } from 'lucide-react';
+import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function StudentDashboard() {
@@ -48,6 +48,18 @@ export default function StudentDashboard() {
         }
       });
       if (!response.ok) throw new Error('Failed to fetch attendance');
+      return response.json();
+    }
+  });
+
+  // Fetch upcoming exams
+  const { data: exams = [], isLoading: isLoadingExams } = useQuery({
+    queryKey: ['exams'],
+    queryFn: async () => {
+      const response = await fetch('/api/exams', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch exams');
       return response.json();
     }
   });
@@ -344,40 +356,90 @@ export default function StudentDashboard() {
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-quick-actions">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-              <Link href="/portal/student/grades" data-testid="button-view-grades">
-                <BookOpen className="h-6 w-6" />
-                <span className="text-sm">View Grades</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-              <Link href="/portal/student/attendance" data-testid="button-check-attendance">
-                <Calendar className="h-6 w-6" />
-                <span className="text-sm">Check Attendance</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-              <Link href="/portal/student/messages" data-testid="button-messages">
-                <MessageSquare className="h-6 w-6" />
-                <span className="text-sm">Messages</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-              <Link href="/portal/student/profile" data-testid="button-profile">
-                <i className="fas fa-user text-xl"></i>
-                <span className="text-sm">Profile</span>
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Upcoming Exams and Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-6">
+        {/* Upcoming Exams */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <ClipboardList className="w-5 h-5 mr-2" />
+              Upcoming Exams
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingExams ? (
+              <div className="text-center py-6">Loading exams...</div>
+            ) : exams.filter(exam => exam.isPublished && !exam.isCompleted).length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No upcoming exams scheduled</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {exams.filter(exam => exam.isPublished && !exam.isCompleted).slice(0, 3).map((exam: any) => (
+                  <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">{exam.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(exam.date).toLocaleDateString()} • {exam.timeLimit} minutes
+                      </p>
+                    </div>
+                    <Link to="/portal/student/exams">
+                      <Button size="sm">
+                        <Play className="w-4 h-4 mr-1" />
+                        Start
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+                {exams.filter(exam => exam.isPublished && !exam.isCompleted).length > 3 && (
+                  <Link to="/portal/student/exams">
+                    <Button variant="outline" className="w-full">
+                      View All Exams
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BookOpen className="w-5 h-5 mr-2" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Link to="/portal/student/exams">
+              <Button className="w-full justify-start">
+                <ClipboardList className="w-4 h-4 mr-2" />
+                Take Exams
+              </Button>
+            </Link>
+            <Link to="/portal/student/grades">
+              <Button variant="outline" className="w-full justify-start">
+                <Star className="w-4 h-4 mr-2" />
+                View Grades
+              </Button>
+            </Link>
+            <Link to="/portal/student/report-card">
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="w-4 h-4 mr-2" />
+                Report Card
+              </Button>
+            </Link>
+            <Link to="/portal/student/study-resources">
+              <Button variant="outline" className="w-full justify-start">
+                <BookOpen className="w-4 h-4 mr-2" />
+                Study Resources
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     </PortalLayout>
   );
 }

@@ -1851,6 +1851,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Grading Queue Management
+  app.get("/api/grading/tasks", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { teacher_id, status } = req.query;
+      
+      if (!teacher_id) {
+        return res.status(400).json({ message: "teacher_id parameter is required" });
+      }
+
+      // Get all exam sessions that need manual grading for this teacher
+      const gradingTasks = await storage.getGradingTasks(teacher_id as string, status as string);
+      res.json(gradingTasks);
+    } catch (error) {
+      console.error('Error fetching grading tasks:', error);
+      res.status(500).json({ message: "Failed to fetch grading tasks" });
+    }
+  });
+
+  app.post("/api/grading/tasks/:taskId/grade", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const { score, comment, graderId } = req.body;
+
+      if (!score && score !== 0) {
+        return res.status(400).json({ message: "Score is required" });
+      }
+
+      if (!comment || comment.trim().length < 5) {
+        return res.status(400).json({ message: "Comment must be at least 5 characters" });
+      }
+
+      const result = await storage.submitManualGrade({
+        taskId: parseInt(taskId),
+        score: parseFloat(score),
+        comment: comment.trim(),
+        graderId: graderId || req.user?.id
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error submitting grade:', error);
+      res.status(500).json({ message: "Failed to submit grade" });
+    }
+  });
+
+  // Exam Sessions Management
+  app.get("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const sessions = await storage.getAllExamSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error fetching exam sessions:', error);
+      res.status(500).json({ message: "Failed to fetch exam sessions" });
+    }
+  });
+
+  // Exam Reports and Analytics
+  app.get("/api/exam-reports", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { subject, class: classId } = req.query;
+      const reports = await storage.getExamReports({
+        subjectId: subject ? parseInt(subject as string) : undefined,
+        classId: classId ? parseInt(classId as string) : undefined
+      });
+      res.json(reports);
+    } catch (error) {
+      console.error('Error fetching exam reports:', error);
+      res.status(500).json({ message: "Failed to fetch exam reports" });
+    }
+  });
+
+  app.get("/api/exam-reports/:examId/students", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const studentReports = await storage.getExamStudentReports(parseInt(examId));
+      res.json(studentReports);
+    } catch (error) {
+      console.error('Error fetching student reports:', error);
+      res.status(500).json({ message: "Failed to fetch student reports" });
+    }
+  });
+
+  app.get("/api/exam-reports/filters", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const classes = await storage.getClasses();
+      const subjects = await storage.getSubjects();
+      res.json({ classes, subjects });
+    } catch (error) {
+      console.error('Error fetching filter options:', error);
+      res.status(500).json({ message: "Failed to fetch filter options" });
+    }
+  });
+
   // Bulk Question Upload - for CSV uploads
   app.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
