@@ -195,7 +195,7 @@ export default function StudentDashboard() {
               {isLoadingGrades ? (
                 <div className="text-center py-4">Loading grades...</div>
               ) : formattedGrades.length > 0 ? (
-                formattedGrades.map((grade, index) => (
+                formattedGrades.map((grade: any, index: number) => (
                 <div 
                   key={index} 
                   className={`flex items-center justify-between p-3 bg-muted/50 rounded-lg border-l-4 ${grade.color}`}
@@ -246,7 +246,7 @@ export default function StudentDashboard() {
               {isLoadingAnnouncements ? (
                 <div className="text-center py-4">Loading announcements...</div>
               ) : formattedAnnouncements.length > 0 ? (
-                formattedAnnouncements.map((announcement, index) => (
+                formattedAnnouncements.map((announcement: any, index: number) => (
                 <div 
                   key={announcement.id} 
                   className={`border-l-4 ${announcement.color} pl-4`}
@@ -323,20 +323,20 @@ export default function StudentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                {formattedGrades.filter(g => g.grade === 'A' || g.grade === 'A+').length}
+                {formattedGrades.filter((g: any) => g.grade === 'A' || g.grade === 'A+').length}
               </div>
               <div className="text-sm text-green-700">A Grades</div>
             </div>
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
                 {formattedGrades.length > 0 ? 
-                  Math.round(formattedGrades.reduce((sum, g) => sum + parseInt(g.score.split('/')[0]), 0) / formattedGrades.length) : 0}%
+                  Math.round(formattedGrades.reduce((sum: number, g: any) => sum + parseInt(g.score.split('/')[0]), 0) / formattedGrades.length) : 0}%
               </div>
               <div className="text-sm text-blue-700">Average Score</div>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <div className="text-2xl font-bold text-purple-600">
-                {Object.keys(formattedGrades.reduce((acc, g) => ({ ...acc, [g.subject]: true }), {})).length}
+                {Object.keys(formattedGrades.reduce((acc: any, g: any) => ({ ...acc, [g.subject]: true }), {})).length}
               </div>
               <div className="text-sm text-purple-700">Subjects</div>
             </div>

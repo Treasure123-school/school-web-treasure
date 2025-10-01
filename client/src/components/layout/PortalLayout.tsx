@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'wouter';
-import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu } from 'lucide-react';
+import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
 interface PortalLayoutProps {
@@ -20,6 +20,22 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   const { logout } = useAuth();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Load sidebar state from localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    if (savedState !== null) {
+      setSidebarCollapsed(savedState === 'true');
+    }
+  }, []);
+
+  // Save sidebar state to localStorage
+  const toggleSidebar = () => {
+    const newState = !sidebarCollapsed;
+    setSidebarCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', String(newState));
+  };
 
   const getNavigation = () => {
     const baseNav = [
@@ -94,25 +110,27 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   };
 
   // Reusable Sidebar Content Component
-  const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
+  const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => (
     <>
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center space-x-3">
+      <div className={`p-6 border-b border-border ${collapsed ? 'px-2' : ''}`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-50 to-white rounded-full p-2 shadow-lg">
             <img 
               src={schoolLogo} 
               alt="Treasure-Home School Logo" 
-              className="h-12 w-12 object-contain"
+              className={`${collapsed ? 'h-8 w-8' : 'h-12 w-12'} object-contain`}
             />
           </div>
-          <div>
-            <h1 className="font-bold text-sm">Treasure-Home</h1>
-            <p className="text-xs text-muted-foreground">{getRoleTitle()}</p>
-          </div>
+          {!collapsed && (
+            <div>
+              <h1 className="font-bold text-sm">Treasure-Home</h1>
+              <p className="text-xs text-muted-foreground">{getRoleTitle()}</p>
+            </div>
+          )}
         </div>
       </div>
       
-      <nav className="p-4 space-y-2">
+      <nav className={`p-4 space-y-2 ${collapsed ? 'px-2' : ''}`}>
         {navigation.map((item) => {
           const Icon = item.icon;
           return (
@@ -120,13 +138,14 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               key={item.name}
               href={item.href}
               onClick={onNavigate}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2 rounded-md text-sm font-medium transition-colors ${
                 isActive(item.href) ? 'active-nav' : 'nav-link'
               }`}
               data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+              title={collapsed ? item.name : undefined}
             >
               <Icon className="h-4 w-4" />
-              <span>{item.name}</span>
+              {!collapsed && <span>{item.name}</span>}
             </Link>
           );
         })}
@@ -138,8 +157,20 @@ export default function PortalLayout({ children, userRole, userName, userInitial
     <div className="min-h-screen bg-muted/30 flex">
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <div className="w-64 bg-card shadow-sm border-r border-border h-screen sticky top-0">
-          <SidebarContent />
+        <div className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-card shadow-sm border-r border-border h-screen sticky top-0 transition-all duration-300`}>
+          <SidebarContent collapsed={sidebarCollapsed} />
+          <div className={`absolute bottom-4 ${sidebarCollapsed ? 'left-1/2 -translate-x-1/2' : 'right-4'}`}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleSidebar}
+              className="rounded-full shadow-md"
+              data-testid="button-toggle-sidebar"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       )}
 
