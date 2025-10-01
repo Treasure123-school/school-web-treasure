@@ -514,6 +514,7 @@ export default function TeacherGrades() {
                   </Table>
                 </CardContent>
               </Card>
+            </>
             ) : (
               <Card>
                 <CardContent className="text-center py-12">
