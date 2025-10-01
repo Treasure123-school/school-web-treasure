@@ -1997,6 +1997,451 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+
+
+  // Manual Grading System Methods
+  async getGradingTasks(teacherId: string, status: string = 'pending', limit: number = 50): Promise<any[]> {
+    try {
+      // Get answers that need manual grading for this teacher's exams
+      const query = `
+        SELECT 
+          sa.id as answer_id,
+          sa.session_id,
+          sa.question_id,
+          sa.text_answer,
+          sa.answered_at,
+          eq.question_text,
+          eq.question_type,
+          eq.points as max_points,
+          e.name as exam_name,
+          e.subject_id,
+          s.name as subject_name,
+          u.first_name || ' ' || u.last_name as student_name,
+          es.started_at,
+          es.submitted_at
+        FROM student_answers sa
+        JOIN exam_questions eq ON sa.question_id = eq.id
+        JOIN exams e ON eq.exam_id = e.id
+        JOIN subjects s ON e.subject_id = s.id
+        JOIN exam_sessions es ON sa.session_id = es.id
+        JOIN students st ON es.student_id = st.id
+        JOIN users u ON st.id = u.id
+        WHERE e.created_by = $1
+          AND eq.question_type IN ('text', 'essay')
+          AND sa.points_earned IS NULL
+          AND es.is_completed = true
+        ORDER BY es.submitted_at ASC
+        LIMIT $2
+      `;
+      
+      const result = await this.db.execute(sql.raw(query, [teacherId, limit]));
+      return result.rows || [];
+    } catch (error) {
+      console.error('Error fetching grading tasks:', error);
+      throw error;
+    }
+  }
+
+  async getManualGradingAnswers(sessionId: number, teacherId: string): Promise<any[]> {
+    try {
+      const query = `
+        SELECT 
+          sa.id,
+          sa.text_answer,
+          sa.answered_at,
+          sa.points_earned,
+          sa.feedback_text,
+          eq.question_text,
+          eq.question_type,
+          eq.points as max_points,
+          eq.instructions,
+          eq.sample_answer
+        FROM student_answers sa
+        JOIN exam_questions eq ON sa.question_id = eq.id
+        JOIN exams e ON eq.exam_id = e.id
+        WHERE sa.session_id = $1
+          AND e.created_by = $2
+          AND eq.question_type IN ('text', 'essay')
+        ORDER BY eq.order_number
+      `;
+      
+      const result = await this.db.execute(sql.raw(query, [sessionId, teacherId]));
+      return result.rows || [];
+    } catch (error) {
+      console.error('Error fetching manual grading answers:', error);
+      throw error;
+    }
+  }
+
+  async gradeAnswerManually(answerId: number, graderId: string, pointsEarned: number, feedbackText: string): Promise<any> {
+    try {
+      // Update the answer with manual grading
+      const updateResult = await this.db
+        .update(schema.studentAnswers)
+        .set({
+          pointsEarned,
+          feedbackText,
+          autoScored: false,
+          manualOverride: true
+        })
+        .where(eq(schema.studentAnswers.id, answerId))
+        .returning();
+
+      if (updateResult.length === 0) {
+        throw new Error('Answer not found');
+      }
+
+      // Log the grading action
+      await this.logPerformanceEvent({
+        eventType: 'manual_grading',
+        duration: 0,
+        goalAchieved: true,
+        metadata: JSON.stringify({
+          answerId,
+          pointsEarned,
+          graderId
+        }),
+        userId: graderId,
+        clientSide: false
+      });
+
+      return updateResult[0];
+    } catch (error) {
+      console.error('Error grading answer manually:', error);
+      throw error;
+    }
+  }
+
+  async checkRemainingManualTasks(sessionId: number): Promise<number> {
+    try {
+      const query = `
+        SELECT COUNT(*) as remaining
+        FROM student_answers sa
+        JOIN exam_questions eq ON sa.question_id = eq.id
+        WHERE sa.session_id = $1
+          AND eq.question_type IN ('text', 'essay')
+          AND sa.points_earned IS NULL
+      `;
+      
+      const result = await this.db.execute(sql.raw(query, [sessionId]));
+      return parseInt(result.rows?.[0]?.remaining || '0');
+    } catch (error) {
+      console.error('Error checking remaining manual tasks:', error);
+      throw error;
+    }
+  }
+
+  async finalizeScoringAndGenerateReport(sessionId: number): Promise<void> {
+    try {
+      console.log(`🎯 Finalizing scoring for session ${sessionId}`);
+      
+      // Calculate final scores
+      const scoringData = await this.getExamScoringData(sessionId);
+      const { session, summary } = scoringData;
+      
+      // Update session with final scores
+      await this.db
+        .update(schema.examSessions)
+        .set({
+          score: summary.studentScore,
+          maxScore: summary.maxScore,
+          status: 'graded'
+        })
+        .where(eq(schema.examSessions.id, sessionId));
+
+      // Create or update exam result
+      const resultData = {
+        examId: session.examId,
+        studentId: session.studentId,
+        score: summary.studentScore,
+        maxScore: summary.maxScore,
+        marksObtained: summary.studentScore,
+        autoScored: false, // Has manual components
+        recordedBy: session.studentId // Will be updated with proper teacher ID
+      };
+
+      await this.recordExamResult(resultData);
+      
+      console.log(`✅ Scoring finalized for session ${sessionId}`);
+    } catch (error) {
+      console.error('Error finalizing scoring:', error);
+      throw error;
+    }
+  }
+
+  async bulkGradeAnswers(grades: any[], graderId: string): Promise<any> {
+    try {
+      let successful = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const grade of grades) {
+        try {
+          await this.gradeAnswerManually(
+            grade.answerId,
+            graderId,
+            grade.pointsEarned,
+            grade.feedbackText || ''
+          );
+          successful++;
+        } catch (error) {
+          failed++;
+          errors.push(`Answer ${grade.answerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      return { successful, failed, errors };
+    } catch (error) {
+      console.error('Error bulk grading answers:', error);
+      throw error;
+    }
+  }
+
+  async getGradingStats(teacherId: string): Promise<any> {
+    try {
+      const query = `
+        SELECT 
+          COUNT(CASE WHEN sa.points_earned IS NULL THEN 1 END) as pending_tasks,
+          COUNT(CASE WHEN sa.points_earned IS NOT NULL THEN 1 END) as completed_tasks,
+          COUNT(*) as total_tasks,
+          AVG(CASE WHEN sa.points_earned IS NOT NULL THEN sa.points_earned END) as avg_score_given
+        FROM student_answers sa
+        JOIN exam_questions eq ON sa.question_id = eq.id
+        JOIN exams e ON eq.exam_id = e.id
+        JOIN exam_sessions es ON sa.session_id = es.id
+        WHERE e.created_by = $1
+          AND eq.question_type IN ('text', 'essay')
+          AND es.is_completed = true
+      `;
+      
+      const result = await this.db.execute(sql.raw(query, [teacherId]));
+      return result.rows?.[0] || { pending_tasks: 0, completed_tasks: 0, total_tasks: 0, avg_score_given: 0 };
+    } catch (error) {
+      console.error('Error fetching grading stats:', error);
+      throw error;
+    }
+  }
+
+  // Report Generation Methods
+  async generateStudentReport(studentId: string, termId: string, includeComments: boolean = true): Promise<any> {
+    try {
+      console.log(`📊 Generating comprehensive report for student ${studentId}, term ${termId}`);
+      
+      // Get student info
+      const student = await this.getStudent(studentId);
+      if (!student) {
+        throw new Error('Student not found');
+      }
+
+      // Get all exam results for this student and term
+      const query = `
+        SELECT 
+          e.id as exam_id,
+          e.name as exam_name,
+          e.exam_type,
+          e.total_marks,
+          e.date,
+          s.name as subject_name,
+          s.code as subject_code,
+          er.score,
+          er.max_score,
+          er.grade,
+          er.remarks,
+          er.created_at as graded_at
+        FROM exam_results er
+        JOIN exams e ON er.exam_id = e.id
+        JOIN subjects s ON e.subject_id = s.id
+        WHERE er.student_id = $1 
+          AND e.term_id = $2
+        ORDER BY s.name, e.exam_type, e.date
+      `;
+      
+      const results = await this.db.execute(sql.raw(query, [studentId, termId]));
+      const examResults = results.rows || [];
+
+      // Group by subject and calculate Test (40%) + Exam (60%) = Total (100%)
+      const subjectReports: any = {};
+      
+      for (const result of examResults) {
+        const subjectKey = result.subject_code;
+        if (!subjectReports[subjectKey]) {
+          subjectReports[subjectKey] = {
+            subject_name: result.subject_name,
+            subject_code: result.subject_code,
+            test_score: 0,
+            test_max: 40,
+            exam_score: 0, 
+            exam_max: 60,
+            total_score: 0,
+            total_max: 100,
+            grade: '',
+            exams: []
+          };
+        }
+        
+        const subject = subjectReports[subjectKey];
+        subject.exams.push(result);
+        
+        // Calculate weighted scores based on exam type
+        if (result.exam_type === 'test') {
+          // Scale test score to 40 marks
+          const weightedScore = (result.score / result.max_score) * 40;
+          subject.test_score = Math.max(subject.test_score, weightedScore);
+        } else if (result.exam_type === 'exam') {
+          // Scale exam score to 60 marks  
+          const weightedScore = (result.score / result.max_score) * 60;
+          subject.exam_score = Math.max(subject.exam_score, weightedScore);
+        }
+        
+        // Calculate total and grade
+        subject.total_score = subject.test_score + subject.exam_score;
+        subject.grade = this.calculateGrade(subject.total_score);
+      }
+
+      // Calculate overall statistics
+      const subjects = Object.values(subjectReports);
+      const totalObtained = subjects.reduce((sum: number, subj: any) => sum + subj.total_score, 0);
+      const totalPossible = subjects.length * 100;
+      const percentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0;
+      const overallGrade = this.calculateGrade(percentage);
+
+      const report = {
+        student: {
+          id: student.id,
+          name: `${student.firstName} ${student.lastName}`,
+          admission_number: student.admissionNumber,
+          class: student.classId
+        },
+        term_id: termId,
+        subjects: subjects,
+        summary: {
+          total_obtained: Math.round(totalObtained),
+          total_possible: totalPossible,
+          percentage: Math.round(percentage * 100) / 100,
+          overall_grade: overallGrade,
+          subjects_count: subjects.length
+        },
+        generated_at: new Date().toISOString()
+      };
+
+      return report;
+    } catch (error) {
+      console.error('Error generating student report:', error);
+      throw error;
+    }
+  }
+
+  private calculateGrade(percentage: number): string {
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 80) return 'A';
+    if (percentage >= 70) return 'B+';
+    if (percentage >= 60) return 'B';
+    if (percentage >= 50) return 'C+';
+    if (percentage >= 40) return 'C';
+    if (percentage >= 30) return 'D';
+    return 'F';
+  }
+
+  async generateClassReport(classId: number, termId: string, subjectId?: number, teacherId?: string): Promise<any> {
+    try {
+      console.log(`📊 Generating class report for class ${classId}, term ${termId}`);
+      
+      // Get all students in the class
+      const students = await this.getStudentsByClass(classId);
+      
+      // Generate reports for each student
+      const studentReports = [];
+      for (const student of students) {
+        const report = await this.generateStudentReport(student.id, termId);
+        studentReports.push(report);
+      }
+
+      // Calculate class statistics
+      const classStats = this.calculateClassStatistics(studentReports);
+      
+      return {
+        class_id: classId,
+        term_id: termId,
+        subject_id: subjectId,
+        student_reports: studentReports,
+        class_statistics: classStats,
+        generated_at: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error generating class report:', error);
+      throw error;
+    }
+  }
+
+  private calculateClassStatistics(studentReports: any[]): any {
+    if (studentReports.length === 0) {
+      return { students_count: 0, average_percentage: 0, highest_percentage: 0, lowest_percentage: 0 };
+    }
+
+    const percentages = studentReports.map(report => report.summary.percentage);
+    const average = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+    const highest = Math.max(...percentages);
+    const lowest = Math.min(...percentages);
+
+    return {
+      students_count: studentReports.length,
+      average_percentage: Math.round(average * 100) / 100,
+      highest_percentage: highest,
+      lowest_percentage: lowest,
+      pass_rate: (percentages.filter(p => p >= 40).length / percentages.length) * 100
+    };
+  }
+
+  async getStudentReports(studentId: string, termId?: string): Promise<any[]> {
+    try {
+      let whereClause = 'WHERE student_id = $1';
+      const params = [studentId];
+      
+      if (termId) {
+        whereClause += ' AND term_id = $2';
+        params.push(termId);
+      }
+      
+      const query = `
+        SELECT * FROM reports 
+        ${whereClause}
+        ORDER BY generated_at DESC
+      `;
+      
+      const result = await this.db.execute(sql.raw(query, params));
+      return result.rows || [];
+    } catch (error) {
+      console.error('Error fetching student reports:', error);
+      throw error;
+    }
+  }
+
+  async verifyParentStudentRelation(parentId: string, studentId: string): Promise<boolean> {
+    try {
+      const result = await this.db
+        .select()
+        .from(schema.students)
+        .where(eq(schema.students.id, studentId))
+        .where(eq(schema.students.parentId, parentId));
+        
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error verifying parent-student relation:', error);
+      return false;
+    }
+  }
+
+  async getReportPdfPath(reportId: number, userId: string, userRole: number): Promise<string | null> {
+    try {
+      // In a real implementation, you'd check permissions and return the actual PDF path
+      // For now, return a placeholder path
+      return `/api/reports/${reportId}/download.pdf`;
+    } catch (error) {
+      console.error('Error getting report PDF path:', error);
+      return null;
+    }
+  }
+
   async getHomePageContent(contentType?: string): Promise<HomePageContent[]> {
     if (contentType) {
       return await db.select().from(schema.homePageContent)

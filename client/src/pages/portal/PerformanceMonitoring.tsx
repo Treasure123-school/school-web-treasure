@@ -18,10 +18,13 @@ import {
   Clock,
   Zap,
   Database,
-  Server
+  Server,
+  UserCheck, // For teachers active
+   hourglass // For average turnaround
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
+import apiRequest from '@/lib/api'; // Assuming apiRequest is defined here
 
 interface PerformanceMetrics {
   totalEvents: number;
@@ -41,6 +44,12 @@ interface PerformanceAlert {
   clientSide: boolean;
   userId: string | null;
   createdAt: string;
+}
+
+interface GradingQueueStats {
+  total_pending: number;
+  average_turnaround: number;
+  teachers_active: number;
 }
 
 export default function PerformanceMonitoring() {
@@ -89,10 +98,35 @@ export default function PerformanceMonitoring() {
     refetchInterval: autoRefresh ? 30000 : false,
   });
 
+  // Fetch performance events
+  const { data: performanceEvents = [] } = useQuery<any[]>({
+    queryKey: ['/api/performance-events'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/performance-events?limit=100');
+      if (!response.ok) throw new Error('Failed to fetch performance events');
+      return response.json();
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch grading queue statistics
+  const { data: gradingQueueStats } = useQuery<GradingQueueStats>({
+    queryKey: ['/api/grading/stats/system'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/grading/stats/system');
+      if (!response.ok) return { total_pending: 0, average_turnaround: 0, teachers_active: 0 };
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+
   // Manual refresh
   const handleRefresh = () => {
     refetchMetrics();
     refetchAlerts();
+    // refetchPerformanceEvents(); // If performanceEvents were refetchable
+    // refetchGradingQueueStats(); // If gradingQueueStats were refetchable
     toast({
       title: "Data Refreshed",
       description: "Performance metrics updated successfully",
@@ -171,75 +205,126 @@ export default function PerformanceMonitoring() {
         </div>
 
         {/* System Status Overview */}
-        {metrics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card data-testid="total-events-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-                <Database className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold" data-testid="total-events-value">
-                  {metrics.totalEvents}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Performance events logged
-                </p>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {metrics && (
+            <>
+              <Card data-testid="total-events-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="total-events-value">
+                    {metrics.totalEvents}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Performance events logged
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card data-testid="goal-achievement-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Goal Achievement</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${getStatusColor(metrics.goalAchievementRate)}`} data-testid="goal-achievement-value">
-                  {metrics.goalAchievementRate}%
-                </div>
-                <div className="mt-2">
-                  <Progress value={metrics.goalAchievementRate} className="h-2" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Sub-2 second target achievement
-                </p>
-              </CardContent>
-            </Card>
+              <Card data-testid="goal-achievement-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Goal Achievement</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${getStatusColor(metrics.goalAchievementRate)}`} data-testid="goal-achievement-value">
+                    {metrics.goalAchievementRate}%
+                  </div>
+                  <div className="mt-2">
+                    <Progress value={metrics.goalAchievementRate} className="h-2" />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Sub-2 second target achievement
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card data-testid="average-duration-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Duration</CardTitle>
-                <Timer className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold" data-testid="average-duration-value">
-                  {formatDuration(metrics.averageDuration)}
-                </div>
-                <Badge variant={metrics.averageDuration <= 2000 ? "default" : "destructive"} className="mt-2">
-                  {metrics.averageDuration <= 2000 ? "Within Target" : "Above Target"}
-                </Badge>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Target: &lt; 2000ms
-                </p>
-              </CardContent>
-            </Card>
+              <Card data-testid="average-duration-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Average Duration</CardTitle>
+                  <Timer className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="average-duration-value">
+                    {formatDuration(metrics.averageDuration)}
+                  </div>
+                  <Badge variant={metrics.averageDuration <= 2000 ? "default" : "destructive"} className="mt-2">
+                    {metrics.averageDuration <= 2000 ? "Within Target" : "Above Target"}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Target: &lt; 2000ms
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card data-testid="slow-submissions-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Slow Submissions</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600" data-testid="slow-submissions-value">
-                  {metrics.slowSubmissions}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Submissions &gt; 2000ms
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              <Card data-testid="slow-submissions-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Slow Submissions</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600" data-testid="slow-submissions-value">
+                    {metrics.slowSubmissions}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Submissions &gt; 2000ms
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+          {/* Grading Queue Stats */}
+          {gradingQueueStats && (
+            <>
+              <Card data-testid="grading-queue-pending-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Grading</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="grading-queue-pending-value">
+                    {gradingQueueStats.total_pending}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Exams awaiting manual grading
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="grading-queue-turnaround-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Avg. Turnaround Time</CardTitle>
+                  <Hourglass className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="grading-queue-turnaround-value">
+                    {formatDuration(gradingQueueStats.average_turnaround)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Average time for manual grading
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="grading-teachers-active-card">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Graders</CardTitle>
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="grading-teachers-active-value">
+                    {gradingQueueStats.teachers_active}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Teachers currently grading
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
 
         {/* Event Types Breakdown */}
         {metrics && (

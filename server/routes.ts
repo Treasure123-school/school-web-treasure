@@ -2997,6 +2997,224 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/reports/finalized", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { classId, subjectId, termId } = req.query;
+
+
+  // Manual Grading Queue System
+  app.get("/api/grading/tasks", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { status = 'pending', limit = 50 } = req.query;
+      
+      console.log(`📝 Fetching grading tasks for teacher ${user.id}, status: ${status}`);
+      
+      // Get pending manual grading tasks for this teacher
+      const tasks = await storage.getGradingTasks(user.id, status as string, parseInt(limit as string));
+      
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching grading tasks:', error);
+      res.status(500).json({ message: "Failed to fetch grading tasks" });
+    }
+  });
+
+  // Get specific answers that need manual grading
+  app.get("/api/grading/answers/:sessionId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { sessionId } = req.params;
+      
+      console.log(`📝 Fetching manual grading answers for session ${sessionId} by teacher ${user.id}`);
+      
+      const answers = await storage.getManualGradingAnswers(parseInt(sessionId), user.id);
+      
+      res.json(answers);
+    } catch (error) {
+      console.error('Error fetching manual grading answers:', error);
+      res.status(500).json({ message: "Failed to fetch answers for grading" });
+    }
+  });
+
+  // Submit manual grade for an answer
+  app.post("/api/grading/answers/:answerId/grade", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { answerId } = req.params;
+      const { pointsEarned, feedbackText, maxPoints } = req.body;
+      
+      // Validate input
+      if (typeof pointsEarned !== 'number' || pointsEarned < 0) {
+        return res.status(400).json({ message: "Points earned must be a non-negative number" });
+      }
+      
+      if (maxPoints && pointsEarned > maxPoints) {
+        return res.status(400).json({ message: "Points earned cannot exceed maximum points" });
+      }
+      
+      console.log(`✅ Teacher ${user.id} grading answer ${answerId}: ${pointsEarned} points`);
+      
+      const gradedAnswer = await storage.gradeAnswerManually(
+        parseInt(answerId), 
+        user.id, 
+        pointsEarned, 
+        feedbackText || ''
+      );
+      
+      if (!gradedAnswer) {
+        return res.status(404).json({ message: "Answer not found or not authorized to grade" });
+      }
+      
+      // Check if all manual grading for this session is complete
+      const sessionId = gradedAnswer.sessionId;
+      const remainingTasks = await storage.checkRemainingManualTasks(sessionId);
+      
+      if (remainingTasks === 0) {
+        // Trigger final score calculation and report generation
+        console.log(`🎯 All manual grading complete for session ${sessionId}, triggering final scoring`);
+        await storage.finalizeScoringAndGenerateReport(sessionId);
+      }
+      
+      res.json({
+        message: "Answer graded successfully",
+        answer: gradedAnswer,
+        remainingTasks
+      });
+      
+    } catch (error) {
+      console.error('Error grading answer:', error);
+      res.status(500).json({ message: "Failed to grade answer" });
+    }
+  });
+
+  // Bulk grade multiple answers at once
+  app.post("/api/grading/bulk-grade", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { grades } = req.body; // Array of {answerId, pointsEarned, feedbackText}
+      
+      if (!Array.isArray(grades) || grades.length === 0) {
+        return res.status(400).json({ message: "Grades array is required" });
+      }
+      
+      console.log(`📝 Bulk grading ${grades.length} answers by teacher ${user.id}`);
+      
+
+
+  // Report Generation System
+  app.post("/api/reports/generate/:studentId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const { termId, includeComments = true } = req.body;
+      
+      console.log(`📊 Generating report for student ${studentId}, term ${termId}`);
+      
+      const report = await storage.generateStudentReport(studentId, termId, includeComments);
+      
+      res.json(report);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      res.status(500).json({ message: "Failed to generate report" });
+    }
+  });
+
+  // Generate class reports (for teachers)
+  app.post("/api/reports/class/:classId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { classId } = req.params;
+      const { termId, subjectId } = req.body;
+      
+      console.log(`📊 Generating class report for class ${classId} by teacher ${user.id}`);
+      
+      const classReport = await storage.generateClassReport(parseInt(classId), termId, subjectId, user.id);
+      
+      res.json(classReport);
+    } catch (error) {
+      console.error('Error generating class report:', error);
+      res.status(500).json({ message: "Failed to generate class report" });
+    }
+  });
+
+  // Get student reports (for students and parents)
+  app.get("/api/reports/student/:studentId", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { studentId } = req.params;
+      const { termId } = req.query;
+      
+      // Security: Students can only access their own reports, parents can access their children's
+      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
+        return res.status(403).json({ message: "Students can only access their own reports" });
+      }
+      
+      if (user.roleId === ROLES.PARENT) {
+        const isParentOfStudent = await storage.verifyParentStudentRelation(user.id, studentId);
+        if (!isParentOfStudent) {
+          return res.status(403).json({ message: "Parents can only access their children's reports" });
+        }
+      }
+      
+      const reports = await storage.getStudentReports(studentId, termId as string);
+      
+      res.json(reports);
+    } catch (error) {
+      console.error('Error fetching student reports:', error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
+  // Download report as PDF
+  app.get("/api/reports/:reportId/pdf", authenticateUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { reportId } = req.params;
+      
+      const pdfPath = await storage.getReportPdfPath(parseInt(reportId), user.id, user.roleId);
+      
+      if (!pdfPath) {
+        return res.status(404).json({ message: "Report not found or access denied" });
+      }
+      
+      // Stream the PDF file
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="report-${reportId}.pdf"`);
+      
+      // In a real implementation, you'd stream from your file storage
+      // For now, we'll return a success response
+      res.json({ message: "PDF download ready", downloadUrl: pdfPath });
+      
+    } catch (error) {
+      console.error('Error downloading report PDF:', error);
+      res.status(500).json({ message: "Failed to download report" });
+    }
+  });
+
+      const results = await storage.bulkGradeAnswers(grades, user.id);
+      
+      res.json({
+        message: `Successfully graded ${results.successful} answers`,
+        results
+      });
+      
+    } catch (error) {
+      console.error('Error bulk grading:', error);
+      res.status(500).json({ message: "Failed to bulk grade answers" });
+    }
+  });
+
+  // Get grading statistics for teacher dashboard
+  app.get("/api/grading/stats", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      const stats = await storage.getGradingStats(user.id);
+      
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching grading stats:', error);
+      res.status(500).json({ message: "Failed to fetch grading statistics" });
+    }
+  });
+
       const user = (req as any).user;
 
       let results: any[] = [];

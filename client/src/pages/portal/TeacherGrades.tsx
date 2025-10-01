@@ -1,41 +1,24 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
+import { useAuth } from '@/lib/auth';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import PortalLayout from '@/components/layout/PortalLayout';
-import { useAuth } from '@/lib/auth';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  Calendar, 
-  BookOpen, 
-  Users, 
-  TrendingUp,
-  FileText,
-  GraduationCap,
-  BarChart3,
-  Award,
-  CheckCircle,
-  AlertCircle,
-  Signature
-} from 'lucide-react';
 import { format } from 'date-fns';
-import { Textarea } from '@/components/ui/textarea';
+import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star } from 'lucide-react';
 
 const examSchema = z.object({
   name: z.string().min(1, 'Exam name is required'),
@@ -58,13 +41,16 @@ type GradeFormData = z.infer<typeof gradeSchema>;
 export default function TeacherGrades() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('exams');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGradingTask, setSelectedGradingTask] = useState<any>(null);
+  const [gradingDialogOpen, setGradingDialogOpen] = useState(false);
 
   if (!user) {
     return <div>Loading...</div>;
   }
-  const [selectedExam, setSelectedExam] = useState<any>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isGradeDialogOpen, setIsGradeDialogOpen] = useState(false);
   const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<any>(null);
 
@@ -170,29 +156,60 @@ export default function TeacherGrades() {
     enabled: !!selectedExam?.id,
   });
 
+  // Fetch grading statistics
+  const { data: gradingStats } = useQuery({
+    queryKey: ['/api/grading/stats'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/grading/stats');
+      if (!response.ok) throw new Error('Failed to fetch grading stats');
+      return response.json();
+    },
+  });
+
+  // Fetch pending grading tasks
+  const { data: gradingTasks = [], isLoading: loadingTasks } = useQuery({
+    queryKey: ['/api/grading/tasks'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/grading/tasks?status=pending&limit=100');
+      if (!response.ok) throw new Error('Failed to fetch grading tasks');
+      return response.json();
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch answers for grading when task is selected
+  const { data: gradingAnswers = [] } = useQuery({
+    queryKey: ['/api/grading/answers', selectedGradingTask?.session_id],
+    queryFn: async () => {
+      if (!selectedGradingTask?.session_id) return [];
+      const response = await apiRequest('GET', `/api/grading/answers/${selectedGradingTask.session_id}`);
+      if (!response.ok) throw new Error('Failed to fetch answers');
+      return response.json();
+    },
+    enabled: !!selectedGradingTask?.session_id,
+  });
+
   // Create exam mutation
   const createExamMutation = useMutation({
-    mutationFn: async (data: ExamFormData) => {
-      const response = await apiRequest('POST', '/api/exams', {
-        ...data,
-        createdBy: user.id,
-      });
+    mutationFn: async (examData: ExamFormData) => {
+      const response = await apiRequest('POST', '/api/exams', examData);
+      if (!response.ok) throw new Error('Failed to create exam');
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: 'Success',
-        description: 'Exam created successfully',
+        title: "Success",
+        description: "Exam created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
       setIsCreateDialogOpen(false);
       examForm.reset();
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: 'Failed to create exam',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to create exam",
+        variant: "destructive",
       });
     },
   });
@@ -225,6 +242,49 @@ export default function TeacherGrades() {
         title: 'Error',
         description: 'Failed to record grade',
         variant: 'destructive',
+      });
+    },
+  });
+
+  // Grade answer mutation
+  const gradeAnswerMutation = useMutation({
+    mutationFn: async ({ answerId, pointsEarned, feedbackText, maxPoints }: {
+      answerId: number;
+      pointsEarned: number;
+      feedbackText: string;
+      maxPoints: number;
+    }) => {
+      const response = await apiRequest('POST', `/api/grading/answers/${answerId}/grade`, {
+        pointsEarned,
+        feedbackText,
+        maxPoints
+      });
+      if (!response.ok) throw new Error('Failed to grade answer');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Answer Graded",
+        description: `Successfully graded answer. ${data.remainingTasks} tasks remaining.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/grading/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/grading/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/grading/answers', selectedGradingTask?.session_id] });
+
+      if (data.remainingTasks === 0) {
+        toast({
+          title: "Session Complete!",
+          description: "All manual grading for this session is complete. Final results have been generated.",
+        });
+        setSelectedGradingTask(null); // Clear selected task when session is done
+        setGradingDialogOpen(false);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Grading Error",
+        description: error.message || "Failed to grade answer",
+        variant: "destructive",
       });
     },
   });
@@ -285,6 +345,15 @@ export default function TeacherGrades() {
     });
   };
 
+  const openGradingDialog = (task: any) => {
+    setSelectedGradingTask(task);
+    setGradingDialogOpen(true);
+  };
+
+  const handleGradeAnswer = (answerId: number, pointsEarned: number, feedbackText: string, maxPoints: number) => {
+    gradeAnswerMutation.mutate({ answerId, pointsEarned, feedbackText, maxPoints });
+  };
+
   return (
     <PortalLayout 
       userRole="teacher" 
@@ -306,28 +375,123 @@ export default function TeacherGrades() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5" data-testid="tabs-grades">
-            <TabsTrigger value="exams" data-testid="tab-exams">
-              <BookOpen className="w-4 h-4 mr-2" />
-              My Exams
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="exams">Exams</TabsTrigger>
+            <TabsTrigger value="grading">Grading</TabsTrigger>
+            <TabsTrigger value="queue">
+              Grading Queue 
+              {gradingTasks.length > 0 && (
+                <Badge variant="destructive" className="ml-2 text-xs">
+                  {gradingTasks.length}
+                </Badge>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="grading" data-testid="tab-grading" disabled={!selectedExam}>
-              <GraduationCap className="w-4 h-4 mr-2" />
-              Grade Students
-            </TabsTrigger>
-            <TabsTrigger value="essay-review" data-testid="tab-essay-review">
-              <FileText className="w-4 h-4 mr-2" />
-              Essay Review
-            </TabsTrigger>
-            <TabsTrigger value="report-finalization" data-testid="tab-report-finalization" disabled={!selectedExam}>
-              <Award className="w-4 h-4 mr-2" />
-              Finalize Reports
-            </TabsTrigger>
-            <TabsTrigger value="analytics" data-testid="tab-analytics">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Analytics
-            </TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Exams</CardTitle>
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{exams.length}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Grading Tasks</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{gradingStats?.pendingTasks || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tasks Graded Today</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{gradingStats?.gradedToday || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Avg. Time Per Task</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{gradingStats?.avgTimePerTask || 0}s</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Grading Queue Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center">
+                    <GraduationCap className="w-5 h-5 mr-2" />
+                    Manual Grading Queue
+                  </span>
+                  <Button size="sm" onClick={() => setActiveTab('queue')} variant="outline">View Queue</Button>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Tasks currently waiting for manual review and grading.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {loadingTasks ? (
+                  <div className="text-center py-8">Loading grading tasks...</div>
+                ) : gradingTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Pending Grading Tasks</h3>
+                    <p className="text-muted-foreground mb-4">
+                      All assigned grading tasks are up to date.
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Exam</TableHead>
+                        <TableHead>Question Type</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gradingTasks.slice(0, 5).map((task: any) => (
+                        <TableRow key={task.session_id} data-testid={`row-grading-task-${task.session_id}`}>
+                          <TableCell className="font-medium">
+                            {task.studentName || 'N/A'}
+                          </TableCell>
+                          <TableCell>{task.examName || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{task.questionType}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(task.submissionTime), 'MMM dd, HH:mm')}
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" onClick={() => openGradingDialog(task)}>
+                              <Edit className="w-4 h-4" /> Grade
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="exams" className="space-y-4">
             <Card>
@@ -434,15 +598,26 @@ export default function TeacherGrades() {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <TestExamGradeEntry 
-                      student={enrichedStudents[0]} // You can add student selection here
-                      subjects={subjects}
-                      term={{ id: selectedExam.termId, name: 'Current Term' }}
-                      onGradeSubmitted={() => {
-                        queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
-                        toast({ title: "Success", description: "Grade recorded successfully" });
-                      }}
-                    />
+                    {/* Placeholder for student selection or single student view */}
+                    {enrichedStudents.length > 0 ? (
+                      <TestExamGradeEntry 
+                        student={enrichedStudents[0]} // Placeholder: Implement student selection
+                        subjects={subjects}
+                        term={{ id: selectedExam.termId, name: 'Current Term' }} // Placeholder: Fetch actual term
+                        onGradeSubmitted={() => {
+                          queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+                          toast({ title: "Success", description: "Grade recorded successfully" });
+                        }}
+                      />
+                    ) : (
+                      <div className="text-center py-8">
+                        <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No Students Found</h3>
+                        <p className="text-muted-foreground">
+                          There are no students associated with this exam's class.
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -605,6 +780,80 @@ export default function TeacherGrades() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="queue" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center">
+                    <GraduationCap className="w-5 h-5 mr-2" />
+                    Manual Grading Queue
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries(['/api/grading/tasks'])}>
+                      <Reload className="w-4 h-4 mr-2" /> Refresh
+                    </Button>
+                    <Button size="sm" onClick={() => setActiveTab('overview')}>Back to Overview</Button>
+                  </div>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Review and grade pending student submissions.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {loadingTasks ? (
+                  <div className="text-center py-8">Loading grading tasks...</div>
+                ) : gradingTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Pending Grading Tasks</h3>
+                    <p className="text-muted-foreground">
+                      All assigned grading tasks are up to date.
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Exam</TableHead>
+                        <TableHead>Question Type</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gradingTasks.map((task: any) => (
+                        <TableRow key={task.session_id} data-testid={`row-grading-task-${task.session_id}`}>
+                          <TableCell className="font-medium">
+                            {task.studentName || 'N/A'}
+                          </TableCell>
+                          <TableCell>{task.examName || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{task.questionType}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(task.submissionTime), 'MMM dd, HH:mm')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={task.status === 'pending' ? 'warning' : task.status === 'graded' ? 'success' : 'secondary'}>
+                              {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" onClick={() => openGradingDialog(task)} disabled={task.status !== 'pending'}>
+                              <Edit className="w-4 h-4 mr-2" /> Grade
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="report-finalization" className="space-y-4">
@@ -1042,6 +1291,90 @@ export default function TeacherGrades() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Grading Task Dialog */}
+        <Dialog open={gradingDialogOpen} onOpenChange={setGradingDialogOpen}>
+          <DialogContent className="sm:max-w-[600px] lg:max-w-[800px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Grade Answer - {selectedGradingTask?.studentName}
+              </DialogTitle>
+              <DialogDescription>
+                Exam: {selectedGradingTask?.examName} | Question Type: {selectedGradingTask?.questionType}
+              </DialogDescription>
+            </DialogHeader>
+            {gradingAnswers.length > 0 ? (
+              gradingAnswers.map((answer: any) => (
+                <div key={answer.id} className="border-b last:border-b-0 py-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-medium">Question {answer.questionNumber}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {answer.questionText.substring(0, 100)}{answer.questionText.length > 100 ? '...' : ''}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">{answer.maxPoints} points</Badge>
+                  </div>
+                  <div className="mb-4 bg-muted p-3 rounded-md">
+                    <h5 className="font-semibold mb-2 text-sm">Student Answer:</h5>
+                    <p className="whitespace-pre-wrap text-sm">{answer.answerText || 'No answer provided'}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div className="flex items-center space-x-2">
+                      <Input 
+                        type="number" 
+                        placeholder="Points earned" 
+                        defaultValue={answer.pointsEarned ?? 0} 
+                        min="0"
+                        max={answer.maxPoints}
+                        className="w-32"
+                        id={`points-earned-${answer.id}`}
+                      />
+                      <Label htmlFor={`points-earned-${answer.id}`} className="text-sm">/ {answer.maxPoints}</Label>
+                    </div>
+                    <Textarea 
+                      placeholder="Feedback (optional)" 
+                      defaultValue={answer.feedbackText || ''}
+                      rows={2}
+                      id={`feedback-${answer.id}`}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <Button 
+                      size="sm" 
+                      onClick={() => {
+                        const pointsInput = document.getElementById(`points-earned-${answer.id}`) as HTMLInputElement;
+                        const feedbackTextarea = document.getElementById(`feedback-${answer.id}`) as HTMLTextAreaElement;
+                        handleGradeAnswer(
+                          answer.id,
+                          parseInt(pointsInput.value),
+                          feedbackTextarea.value,
+                          answer.maxPoints
+                        );
+                      }}
+                      disabled={gradeAnswerMutation.isPending}
+                    >
+                      {gradeAnswerMutation.isPending ? 'Grading...' : 'Submit Grade'}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Clock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Loading Answers...</h3>
+                <p className="text-muted-foreground">
+                  Fetching the student's answers for grading.
+                </p>
+              </div>
+            )}
+            <DialogFooter className="mt-6 pt-4 border-t">
+              <Button variant="outline" onClick={() => setGradingDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </PortalLayout>
   );
@@ -1407,7 +1740,10 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
                   className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
                     selectedStudent?.id === student.id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
                   }`}
-                  onClick={() => setSelectedStudent(student)}
+                  onClick={() => {
+                    setSelectedStudent(student);
+                    setTeacherRemarks(student.result?.teacherRemarks || ''); // Pre-fill remarks if available
+                  }}
                 >
                   <div className="flex items-center space-x-4">
                     <div className={`w-3 h-3 rounded-full ${
