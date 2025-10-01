@@ -1272,16 +1272,50 @@ export default function StudentExams() {
             </div>
 
             {examResults && (() => {
-              // Normalize data structure to handle different response formats
+              // Enhanced data structure to handle all response formats and show detailed feedback
               const normalizedResults = {
                 score: examResults.totalScore || examResults.score || 0,
                 maxScore: examResults.maxScore || 0,
                 percentage: 0,
                 pendingCount: examResults.pendingReview?.count || 0,
-                correctAnswers: examResults.immediateResults?.questions?.filter((q: any) => q.isCorrect).length || 0,
-                wrongAnswers: examResults.immediateResults?.questions?.filter((q: any) => !q.isCorrect).length || 0,
-                submittedAt: examResults.submittedAt
+                correctAnswers: 0,
+                wrongAnswers: 0,
+                totalAnswered: 0,
+                autoScoredQuestions: 0,
+                submittedAt: examResults.submittedAt,
+                breakdown: examResults.breakdown || null,
+                questionDetails: examResults.questionDetails || [],
+                hasDetailedResults: false
               };
+
+              // Enhanced result parsing for better feedback
+              if (examResults.immediateResults?.questions) {
+                const questions = examResults.immediateResults.questions;
+                normalizedResults.correctAnswers = questions.filter((q: any) => q.isCorrect === true).length;
+                normalizedResults.wrongAnswers = questions.filter((q: any) => q.isCorrect === false).length;
+                normalizedResults.totalAnswered = questions.length;
+                normalizedResults.autoScoredQuestions = questions.filter((q: any) => q.autoScored !== false).length;
+                normalizedResults.hasDetailedResults = true;
+                normalizedResults.questionDetails = questions;
+              } else if (examResults.breakdown) {
+                // Use breakdown data if available
+                normalizedResults.correctAnswers = examResults.breakdown.correctAnswers || 0;
+                normalizedResults.wrongAnswers = examResults.breakdown.incorrectAnswers || 0;
+                normalizedResults.totalAnswered = examResults.breakdown.totalQuestions || 0;
+                normalizedResults.autoScoredQuestions = examResults.breakdown.autoScoredQuestions || 0;
+                normalizedResults.hasDetailedResults = true;
+              } else {
+                // Fallback: calculate from exam questions if available
+                if (examQuestions.length > 0) {
+                  const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice');
+                  normalizedResults.autoScoredQuestions = mcQuestions.length;
+                  normalizedResults.totalAnswered = examQuestions.length;
+                  // For display purposes, show estimated breakdown
+                  const estimatedCorrect = Math.round((normalizedResults.score / normalizedResults.maxScore) * mcQuestions.length);
+                  normalizedResults.correctAnswers = estimatedCorrect;
+                  normalizedResults.wrongAnswers = mcQuestions.length - estimatedCorrect;
+                }
+              }
 
               // Safe percentage calculation with guards
               if (normalizedResults.maxScore > 0) {
@@ -1391,9 +1425,9 @@ export default function StudentExams() {
                           </div>
                         </div>
 
-                        {/* Quick Stats */}
+                        {/* Enhanced Quick Stats */}
                         <div className="space-y-6">
-                          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Quick Stats</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Detailed Results</h3>
 
                           <div className="space-y-4">
                             {/* Correct Answers */}
@@ -1401,11 +1435,16 @@ export default function StudentExams() {
                               <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                                 <CheckCircle className="w-5 h-5 text-green-600" aria-hidden="true" />
                               </div>
-                              <div>
-                                <span className="font-semibold text-green-600">Correct: </span>
-                                <span className="text-gray-900" data-testid="value-correct-count">
+                              <div className="flex-1">
+                                <span className="font-semibold text-green-600">Correct Answers: </span>
+                                <span className="text-gray-900 text-lg font-bold" data-testid="value-correct-count">
                                   {normalizedResults.correctAnswers}
                                 </span>
+                                {normalizedResults.autoScoredQuestions > 0 && (
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    (out of {normalizedResults.autoScoredQuestions} auto-scored)
+                                  </span>
+                                )}
                               </div>
                             </div>
 
@@ -1414,25 +1453,76 @@ export default function StudentExams() {
                               <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                                 <XCircle className="w-5 h-5 text-red-600" aria-hidden="true" />
                               </div>
-                              <div>
-                                <span className="font-semibold text-red-600">Wrong: </span>
-                                <span className="text-gray-900" data-testid="value-wrong-count">
+                              <div className="flex-1">
+                                <span className="font-semibold text-red-600">Incorrect Answers: </span>
+                                <span className="text-gray-900 text-lg font-bold" data-testid="value-wrong-count">
                                   {normalizedResults.wrongAnswers}
+                                </span>
+                                {normalizedResults.autoScoredQuestions > 0 && (
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    (out of {normalizedResults.autoScoredQuestions} auto-scored)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Auto-Scored Progress */}
+                            {normalizedResults.autoScoredQuestions > 0 && (
+                              <div className="flex items-center space-x-3" data-testid="stat-auto-scored">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <CheckCircle2 className="w-5 h-5 text-blue-600" aria-hidden="true" />
+                                </div>
+                                <div className="flex-1">
+                                  <span className="font-semibold text-blue-600">Auto-Scored: </span>
+                                  <span className="text-gray-900" data-testid="value-auto-scored-count">
+                                    {normalizedResults.autoScoredQuestions} / {normalizedResults.totalAnswered} questions
+                                  </span>
+                                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                    <div 
+                                      className="bg-blue-600 h-2 rounded-full" 
+                                      style={{
+                                        width: `${normalizedResults.totalAnswered > 0 ? (normalizedResults.autoScoredQuestions / normalizedResults.totalAnswered) * 100 : 0}%`
+                                      }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Performance Indicator */}
+                            <div className="flex items-center space-x-3" data-testid="stat-performance">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                normalizedResults.percentage >= 80 ? 'bg-green-100' : 
+                                normalizedResults.percentage >= 60 ? 'bg-yellow-100' : 'bg-red-100'
+                              }`}>
+                                <Trophy className={`w-5 h-5 ${
+                                  normalizedResults.percentage >= 80 ? 'text-green-600' : 
+                                  normalizedResults.percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
+                                }`} aria-hidden="true" />
+                              </div>
+                              <div>
+                                <span className="font-semibold text-gray-700">Performance: </span>
+                                <span className={`font-bold ${
+                                  normalizedResults.percentage >= 80 ? 'text-green-600' : 
+                                  normalizedResults.percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
+                                }`} data-testid="value-performance">
+                                  {normalizedResults.percentage >= 80 ? 'Excellent!' : 
+                                   normalizedResults.percentage >= 60 ? 'Good!' : 'Needs Improvement'}
                                 </span>
                               </div>
                             </div>
 
                             {/* Time (if available) */}
                             <div className="flex items-center space-x-3" data-testid="stat-completion-time">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <Clock className="w-5 h-5 text-blue-600" aria-hidden="true" />
+                              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                <Clock className="w-5 h-5 text-purple-600" aria-hidden="true" />
                               </div>
                               <div>
-                                <span className="font-semibold text-blue-600">Time: </span>
+                                <span className="font-semibold text-purple-600">Completed: </span>
                                 <span className="text-gray-900" data-testid="value-completion-time">
                                   {normalizedResults.submittedAt ? 
-                                    `Completed at ${new Date(normalizedResults.submittedAt).toLocaleTimeString()}` : 
-                                    'Completed'
+                                    new Date(normalizedResults.submittedAt).toLocaleString() : 
+                                    'Just now'
                                   }
                                 </span>
                               </div>
@@ -1440,6 +1530,112 @@ export default function StudentExams() {
                           </div>
                         </div>
                       </div>
+
+                    {/* Question-by-Question Breakdown */}
+                    {normalizedResults.hasDetailedResults && normalizedResults.questionDetails.length > 0 && (
+                      <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg" data-testid="section-question-breakdown">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900">📋 Question-by-Question Results</h3>
+                          <Badge variant="outline" className="text-xs">
+                            {normalizedResults.autoScoredQuestions} auto-scored
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid gap-3 max-h-64 overflow-y-auto">
+                          {normalizedResults.questionDetails.map((questionResult: any, index: number) => (
+                            <div 
+                              key={index} 
+                              className={`p-3 rounded-lg border-l-4 ${
+                                questionResult.isCorrect === true 
+                                  ? 'bg-green-50 border-green-400' 
+                                  : questionResult.isCorrect === false
+                                  ? 'bg-red-50 border-red-400'
+                                  : 'bg-yellow-50 border-yellow-400'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <span className="text-sm font-medium text-gray-700">
+                                      Question {index + 1}
+                                    </span>
+                                    {questionResult.isCorrect === true && (
+                                      <Badge variant="default" className="bg-green-600 text-white text-xs">
+                                        ✓ Correct
+                                      </Badge>
+                                    )}
+                                    {questionResult.isCorrect === false && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        ✗ Incorrect
+                                      </Badge>
+                                    )}
+                                    {questionResult.isCorrect === null && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        ⏳ Manual Review
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="text-xs text-gray-600 space-y-1">
+                                    <div>
+                                      <span className="font-medium">Points:</span> 
+                                      <span className="ml-1">
+                                        {questionResult.pointsEarned || 0} / {questionResult.maxPoints || questionResult.points || 1}
+                                      </span>
+                                    </div>
+                                    
+                                    {questionResult.questionType && (
+                                      <div>
+                                        <span className="font-medium">Type:</span> 
+                                        <span className="ml-1 capitalize">
+                                          {questionResult.questionType.replace('_', ' ')}
+                                        </span>
+                                      </div>
+                                    )}
+                                    
+                                    {questionResult.autoScored !== false && (
+                                      <div className="text-blue-600">
+                                        <span className="font-medium">✨ Auto-scored</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="ml-3">
+                                  {questionResult.isCorrect === true && (
+                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                  )}
+                                  {questionResult.isCorrect === false && (
+                                    <XCircle className="w-5 h-5 text-red-600" />
+                                  )}
+                                  {questionResult.isCorrect === null && (
+                                    <Clock className="w-5 h-5 text-yellow-600" />
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {questionResult.feedback && (
+                                <div className="mt-2 p-2 bg-white rounded text-xs text-gray-700">
+                                  <span className="font-medium">Feedback:</span> {questionResult.feedback}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="mt-4 pt-3 border-t border-gray-200">
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>
+                              <strong>{normalizedResults.correctAnswers}</strong> correct, 
+                              <strong className="ml-1">{normalizedResults.wrongAnswers}</strong> incorrect
+                            </span>
+                            <span>
+                              Auto-scored: <strong>{normalizedResults.autoScoredQuestions}</strong>/{normalizedResults.totalAnswered}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Pending Sections */}
                     {examResults.pendingReview && examResults.pendingReview.count > 0 && (

@@ -297,10 +297,9 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
   try {
     console.log(`🚀 OPTIMIZED AUTO-SCORING: Starting session ${sessionId} scoring...`);
 
-    // PERFORMANCE BREAKTHROUGH: Single optimized query gets ALL scoring data at once
-    // This eliminates 5-10+ sequential database queries that were causing the bottleneck
+    // Get scoring data efficiently with detailed question breakdown
     const scoringResult = await storage.getExamScoringData(sessionId);
-    const { session, summary } = scoringResult;
+    const { session, summary, scoringData } = scoringResult;
 
     const databaseQueryTime = Date.now() - startTime;
     console.log(`⚡ PERFORMANCE: Database query completed in ${databaseQueryTime}ms (was 3000-8000ms before)`);
@@ -316,20 +315,55 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     console.log(`✅ OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + ' MC' : 'no MC'}, ${hasEssayQuestions ? (totalQuestions - autoScoredQuestions) + ' Essays' : 'no Essays'})`);
 
-    // Log scoring details for debugging if needed
-    if (process.env.NODE_ENV === 'development') {
-      scoringResult.scoringData.forEach((q: any) => {
-        if (q.questionType === 'multiple_choice') {
-          console.log(`Question ${q.questionId}: ${q.isCorrect ? 'Correct! (+' + q.points + ' points)' : 'Incorrect'}`);
+    // Enhanced question-by-question breakdown for detailed feedback
+    const questionDetails = scoringData.map((q: any) => {
+      const questionDetail = {
+        questionId: q.questionId,
+        questionType: q.questionType,
+        points: q.points,
+        maxPoints: q.points,
+        pointsEarned: q.isCorrect ? q.points : 0,
+        isCorrect: q.questionType === 'multiple_choice' ? q.isCorrect : null, // null for manual review needed
+        autoScored: q.questionType === 'multiple_choice',
+        feedback: null as string | null
+      };
+
+      // Add specific feedback based on question type and result
+      if (q.questionType === 'multiple_choice') {
+        if (q.isCorrect) {
+          questionDetail.feedback = `Correct! You earned ${q.points} point${q.points !== 1 ? 's' : ''}.`;
         } else {
-          console.log(`Question ${q.questionId}: Essay type, needs manual grading`);
+          questionDetail.feedback = `Incorrect. This question was worth ${q.points} point${q.points !== 1 ? 's' : ''}.`;
         }
+      } else {
+        questionDetail.feedback = `This ${q.questionType} question will be manually reviewed by your instructor.`;
+      }
+
+      return questionDetail;
+    });
+
+    // Calculate detailed breakdown
+    const breakdown = {
+      totalQuestions,
+      autoScoredQuestions,
+      correctAnswers: questionDetails.filter(q => q.isCorrect === true).length,
+      incorrectAnswers: questionDetails.filter(q => q.isCorrect === false).length,
+      pendingManualReview: questionDetails.filter(q => q.isCorrect === null).length,
+      maxScore: maxPossibleScore,
+      earnedScore: totalScore
+    };
+
+    // Log detailed scoring for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📊 DETAILED BREAKDOWN:`, breakdown);
+      questionDetails.forEach((q: any, index: number) => {
+        console.log(`Question ${index + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? (q.isCorrect ? 'Correct!' : 'Incorrect') : 'Manual Review'} - ${q.pointsEarned}/${q.points} points`);
       });
     }
 
     // Create or update exam result - CRITICAL for instant feedback
     console.log(`🎯 Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
-    console.log(`📊 Score calculation: ${totalScore}/${maxPossibleScore} (${autoScoredQuestions} MC questions auto-scored)`);
+    console.log(`📊 Score calculation: ${totalScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
 
     // ENHANCED ERROR HANDLING: Add validation before database operations
     if (!session.studentId) {
@@ -354,7 +388,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     // Use a valid UUID for system auto-scoring - check if it exists in users table
     let SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
-    
+
     // Try to find an admin user for recordedBy, fallback to session's student
     try {
       const adminUsers = await storage.getUsersByRole(ROLES.ADMIN);
@@ -378,7 +412,14 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       maxScore: maxPossibleScore,
       marksObtained: totalScore, // ✅ CRITICAL FIX: Ensure database constraint compatibility
       autoScored: true, // Always true when auto-scoring pass completes
-      recordedBy: SYSTEM_AUTO_SCORING_UUID // Special UUID for auto-generated results
+      recordedBy: SYSTEM_AUTO_SCORING_UUID, // Special UUID for auto-generated results
+      // Include detailed feedback in the result data
+      questionDetails: questionDetails,
+      breakdown: breakdown,
+      immediateResults: {
+        questions: questionDetails,
+        summary: breakdown
+      }
     };
 
     console.log('💾 Result data to save:', JSON.stringify(resultData, null, 2));
@@ -1759,10 +1800,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('Fetching question counts for exam IDs:', ids);
-      
+
       // Use a safer approach - get counts individually and combine
       const questionCounts: Record<number, number> = {};
-      
+
       for (const examId of ids) {
         try {
           const count = await storage.getExamQuestionCount(examId);
@@ -2166,7 +2207,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return result.examId && subject.id && termId;
           });
 
-          // Enrich relevantResults with exam details to filter by subjectId and termId
           const enrichedResults = [];
           for (const result of relevantResults) {
             try {
@@ -2234,31 +2274,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Grade calculation based on total weighted score
           let grade = 'F';
-          if (totalScore >= 90) grade = 'A+';
-          else if (totalScore >= 80) grade = 'A';
-          else if (totalScore >= 70) grade = 'B+';
-          else if (totalScore >= 60) grade = 'B';
-          else if (totalScore >= 50) grade = 'C';
+          let remarks = 'Needs improvement';
+
+          if (totalScore >= 90) { grade = 'A+'; remarks = 'Outstanding'; }
+          else if (totalScore >= 80) { grade = 'A'; remarks = 'Excellent'; }
+          else if (totalScore >= 70) { grade = 'B+'; remarks = 'Very Good'; }
+          else if (totalScore >= 60) { grade = 'B'; remarks = 'Good'; }
+          else if (totalScore >= 50) { grade = 'C'; remarks = 'Satisfactory'; }
 
           // Generate remarks based on completion status
-          let remarks = 'Incomplete';
+          let completionRemarks = 'Incomplete';
           if (hasTest && hasExam) {
-            remarks = 'Complete';
+            completionRemarks = 'Complete';
           } else if (hasTest && !hasExam) {
-            remarks = 'Test completed, exam pending';
+            completionRemarks = 'Test completed, exam pending';
           } else if (!hasTest && hasExam) {
-            remarks = 'Exam completed, test pending';
+            completionRemarks = 'Exam completed, test pending';
           }
 
           reportItems.push({
             subjectName: subject.name,
             testScore: hasTest ? Math.round(testRawScore) : '-',
-            examScore: hasExam ? Math.round(examRawScore) : '-',
             testWeighted: hasTest ? Math.round(testWeightedScore) : '-',
+            examScore: hasExam ? Math.round(examRawScore) : '-',
             examWeighted: hasExam ? Math.round(examWeightedScore) : '-',
             totalScore: Math.round(totalScore),
             grade: grade,
-            remarks: remarks
+            remarks: completionRemarks
           });
 
           totalPoints += totalScore;
@@ -2269,170 +2311,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reportItems.push({
             subjectName: subject.name,
             testScore: '-',
+            testWeighted: '-',
             examScore: '-',
+            examWeighted: '-',
             totalScore: 0,
             grade: 'N/A',
             remarks: 'Error'
           });
-        }
-      }
-
-      const overallPercentage = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
-      let overallGrade = 'F';
-      if (overallPercentage >= 90) overallGrade = 'A+';
-      else if (overallPercentage >= 80) overallGrade = 'A';
-      else if (overallPercentage >= 70) overallGrade = 'B+';
-      else if (overallPercentage >= 60) overallGrade = 'B';
-      else if (overallPercentage >= 50) overallGrade = 'C';
-
-      const reportCard = {
-        studentInfo: {
-          id: student.id,
-          admissionNumber: student.admissionNumber,
-          name: `${req.user!.firstName} ${req.user!.lastName}`,
-          class: student.classId
-        },
-        termId: parseInt(termId),
-        subjects: reportItems,
-        summary: {
-          totalSubjects: subjects.length,
-          averagePercentage: overallPercentage,
-          overallGrade: overallGrade,
-          totalPoints: Math.round(totalPoints),
-          maxPoints: totalMaxPoints
-        },
-        generatedAt: new Date().toISOString()
-      };
-
-      res.json(reportCard);
-    } catch (error) {
-      console.error('Report card generation error:', error);
-      res.status(500).json({ message: "Failed to generate report card" });
-    }
-  });
-
-  // Generate PDF report card
-  app.get("/api/report-card/:studentId/:termId/pdf", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.STUDENT, ROLES.PARENT), async (req, res) => {
-    try {
-      const { studentId, termId } = req.params;
-
-      // Authorization check
-      if (req.user!.roleId === ROLES.STUDENT && req.user!.id !== studentId) {
-        return res.status(403).json({ message: "Students can only view their own report cards" });
-      }
-
-      // Get student info
-      const student = await storage.getStudent(studentId);
-      if (!student) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-
-      // Get term info
-      const term = await storage.getTerms();
-      const selectedTerm = term.find(t => t.id === parseInt(termId));
-      if (!selectedTerm) {
-        return res.status(404).json({ message: "Term not found" });
-      }
-
-      // Get class info
-      const classInfo = await storage.getClass(student.classId);
-
-      // Get subjects
-      const subjects = await storage.getSubjects();
-
-      // Compile report data (similar to the report card route)
-      const reportItems: any[] = [];
-      let totalPoints = 0;
-      let totalMaxPoints = 0;
-
-      for (const subject of subjects) {
-        try {
-          const examResults = await storage.getExamResultsByStudent(studentId);
-          const relevantResults = examResults.filter((result: any) => {
-            return result.examId && subject.id && termId;
-          });
-
-          const enrichedResults = [];
-          for (const result of relevantResults) {
-            try {
-              const exam = await storage.getExamById(result.examId);
-              if (exam && exam.subjectId === subject.id && exam.termId === parseInt(termId)) {
-                enrichedResults.push({ 
-                  ...result, 
-                  examType: exam.examType,
-                  totalMarks: exam.totalMarks 
-                });
-              }
-            } catch (e) {
-              console.error(`Failed to enrich result ${result.id}:`, e);
-            }
-          }
-
-          const testResults = enrichedResults.filter((r: any) => r.examType?.toLowerCase() === 'test');
-          const examResultsFiltered = enrichedResults.filter((r: any) => r.examType?.toLowerCase() === 'exam');
-
-          let testWeightedScore = 0;
-          let examWeightedScore = 0;
-          let hasTest = false;
-          let hasExam = false;
-          let testRawScore = 0;
-          let examRawScore = 0;
-
-          if (testResults.length > 0) {
-            const bestTest = testResults.reduce((best: any, current: any) => {
-              const currentMarks = current.marksObtained || 0;
-              const bestMarks = best.marksObtained || 0;
-              const currentPercentage = (currentMarks / current.totalMarks) * 100;
-              const bestPercentage = (bestMarks / best.totalMarks) * 100;
-              return currentPercentage > bestPercentage ? current : best;
-            });
-
-            const bestTestMarks = bestTest.marksObtained || 0;
-            testRawScore = (bestTestMarks / bestTest.totalMarks) * 100;
-            testWeightedScore = testRawScore * 0.4;
-            hasTest = true;
-          }
-
-          if (examResultsFiltered.length > 0) {
-            const bestExam = examResultsFiltered.reduce((best: any, current: any) => {
-              const currentMarks = current.marksObtained || 0;
-              const bestMarks = best.marksObtained || 0;
-              const currentPercentage = (currentMarks / current.totalMarks) * 100;
-              const bestPercentage = (bestMarks / best.totalMarks) * 100;
-              return currentPercentage > bestPercentage ? current : best;
-            });
-
-            const bestExamMarks = bestExam.marksObtained || 0;
-            examRawScore = (bestExamMarks / bestExam.totalMarks) * 100;
-            examWeightedScore = examRawScore * 0.6;
-            hasExam = true;
-          }
-
-          const totalScore = testWeightedScore + examWeightedScore;
-          let grade = 'F';
-          let remarks = 'Needs improvement';
-
-          if (totalScore >= 90) { grade = 'A+'; remarks = 'Outstanding'; }
-          else if (totalScore >= 80) { grade = 'A'; remarks = 'Excellent'; }
-          else if (totalScore >= 70) { grade = 'B+'; remarks = 'Very Good'; }
-          else if (totalScore >= 60) { grade = 'B'; remarks = 'Good'; }
-          else if (totalScore >= 50) { grade = 'C'; remarks = 'Satisfactory'; }
-
-          reportItems.push({
-            subjectName: subject.name,
-            testScore: hasTest ? Math.round(testRawScore) : '-',
-            testWeighted: hasTest ? Math.round(testWeightedScore) : '-',
-            examScore: hasExam ? Math.round(examWeightedScore) : '-',
-            examWeighted: hasExam ? Math.round(examWeightedScore) : '-',
-            totalScore: Math.round(totalScore),
-            grade: grade,
-            remarks: remarks
-          });
-
-          totalPoints += totalScore;
-          totalMaxPoints += 100;
-        } catch (error) {
-          console.warn(`Failed to compile results for subject ${subject.id}:`, error);
         }
       }
 
@@ -3403,7 +3288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit student answers
   app.post("/api/student-answers", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.roleId !== ROLES.STUDENT) {
         return res.status(403).json({ message: "Only students can submit answers" });
@@ -3478,7 +3363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced Submit Exam Route - Synchronous submission with proper error handling
+  // Submit Exam Route - Synchronous submission with proper error handling
   app.post("/api/exams/:examId/submit", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const user = req.user!;
@@ -3552,17 +3437,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const score = examResult.score || examResult.marksObtained || 0;
         const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
-        res.json({
+        // SUCCESS RESPONSE with detailed breakdown and question feedback
+        const response = {
           submitted: true,
-          message: "Exam submitted successfully",
           result: {
             score: score,
+            totalScore: score, // Dual field for compatibility
             maxScore: maxScore,
             percentage: percentage,
+            sessionId: activeSession.id,
+            submittedAt: now,
             autoScored: examResult.autoScored || false,
-            submittedAt: now
+            // Enhanced detailed feedback
+            breakdown: examResult.breakdown,
+            questionDetails: examResult.questionDetails,
+            immediateResults: {
+              questions: examResult.questionDetails,
+              summary: examResult.breakdown
+            }
           }
-        });
+        };
+        res.json(response);
       } else {
         res.json({
           submitted: true,
