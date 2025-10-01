@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
 integrations = ["javascript_supabase:1.0.0", "javascript_database:1.0.0"]
@@ -7,7 +7,7 @@ integrations = ["javascript_supabase:1.0.0", "javascript_database:1.0.0"]
 channel = "stable-25_05"
 
 [workflows]
-runButton = "Start App"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -44,7 +44,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 33165
+localPort = 36835
 externalPort = 5000
 
 [[ports]]
