@@ -57,19 +57,54 @@ export default function StudentReportCard() {
     enabled: !!user?.id,
   });
 
-  const handleExportPDF = () => {
-    toast({
-      title: "Export Started",
-      description: "Generating PDF report card...",
-    });
-    
-    // In a real implementation, this would call a PDF generation API
-    setTimeout(() => {
+  const handleExportPDF = async () => {
+    if (!user?.id || !selectedTerm) {
+      toast({
+        title: "Error",
+        description: "Please select a term first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Export Started",
+        description: "Generating PDF report card...",
+      });
+
+      const response = await fetch(`/api/report-card/${user.id}/${selectedTerm}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report-card-${user.firstName}-${user.lastName}-${selectedTerm}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
       toast({
         title: "Export Complete",
-        description: "Report card PDF has been generated and downloaded.",
+        description: "Report card PDF has been downloaded.",
       });
-    }, 2000);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate PDF report card",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePrint = () => {
@@ -334,7 +369,7 @@ export default function StudentReportCard() {
                     </div>
                     <div className="bg-white p-4 rounded-lg border">
                       <p className="text-sm text-muted-foreground">Overall Percentage</p>
-                      <p className="text-2xl font-bold text-green-600">{overallPercentage}%</p>
+                      <p className="text-2xl font-bold text-green-600">{reportCard.summary?.averagePercentage || 0}%</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg border">
                       <p className="text-sm text-muted-foreground">Class Rank</p>

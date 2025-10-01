@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import PDFDocument from "pdfkit";
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -2280,6 +2281,226 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Report card generation error:', error);
       res.status(500).json({ message: "Failed to generate report card" });
+    }
+  });
+
+  // Generate PDF report card
+  app.get("/api/report-card/:studentId/:termId/pdf", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.STUDENT, ROLES.PARENT), async (req, res) => {
+    try {
+      const { studentId, termId } = req.params;
+
+      // Authorization check
+      if (req.user!.roleId === ROLES.STUDENT && req.user!.id !== studentId) {
+        return res.status(403).json({ message: "Students can only view their own report cards" });
+      }
+
+      // Get student info
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Get term info
+      const term = await storage.getTerms();
+      const selectedTerm = term.find(t => t.id === parseInt(termId));
+      if (!selectedTerm) {
+        return res.status(404).json({ message: "Term not found" });
+      }
+
+      // Get class info
+      const classInfo = await storage.getClass(student.classId);
+      
+      // Get subjects
+      const subjects = await storage.getSubjects();
+
+      // Compile report data (similar to the report card route)
+      const reportItems: any[] = [];
+      let totalPoints = 0;
+      let totalMaxPoints = 0;
+
+      for (const subject of subjects) {
+        try {
+          const examResults = await storage.getExamResultsByStudent(studentId);
+          const relevantResults = examResults.filter((result: any) => {
+            return result.examId && subject.id && termId;
+          });
+
+          const enrichedResults = [];
+          for (const result of relevantResults) {
+            try {
+              const exam = await storage.getExamById(result.examId);
+              if (exam && exam.subjectId === subject.id && exam.termId === parseInt(termId)) {
+                enrichedResults.push({ 
+                  ...result, 
+                  examType: exam.examType,
+                  totalMarks: exam.totalMarks 
+                });
+              }
+            } catch (e) {
+              console.error(`Failed to enrich result ${result.id}:`, e);
+            }
+          }
+
+          const testResults = enrichedResults.filter((r: any) => r.examType?.toLowerCase() === 'test');
+          const examResultsFiltered = enrichedResults.filter((r: any) => r.examType?.toLowerCase() === 'exam');
+
+          let testWeightedScore = 0;
+          let examWeightedScore = 0;
+          let hasTest = false;
+          let hasExam = false;
+          let testRawScore = 0;
+          let examRawScore = 0;
+
+          if (testResults.length > 0) {
+            const bestTest = testResults.reduce((best: any, current: any) => {
+              const currentMarks = current.marksObtained || 0;
+              const bestMarks = best.marksObtained || 0;
+              const currentPercentage = (currentMarks / current.totalMarks) * 100;
+              const bestPercentage = (bestMarks / best.totalMarks) * 100;
+              return currentPercentage > bestPercentage ? current : best;
+            });
+
+            const bestTestMarks = bestTest.marksObtained || 0;
+            testRawScore = (bestTestMarks / bestTest.totalMarks) * 100;
+            testWeightedScore = testRawScore * 0.4;
+            hasTest = true;
+          }
+
+          if (examResultsFiltered.length > 0) {
+            const bestExam = examResultsFiltered.reduce((best: any, current: any) => {
+              const currentMarks = current.marksObtained || 0;
+              const bestMarks = best.marksObtained || 0;
+              const currentPercentage = (currentMarks / current.totalMarks) * 100;
+              const bestPercentage = (bestMarks / best.totalMarks) * 100;
+              return currentPercentage > bestPercentage ? current : best;
+            });
+
+            const bestExamMarks = bestExam.marksObtained || 0;
+            examRawScore = (bestExamMarks / bestExam.totalMarks) * 100;
+            examWeightedScore = examRawScore * 0.6;
+            hasExam = true;
+          }
+
+          const totalScore = testWeightedScore + examWeightedScore;
+          let grade = 'F';
+          let remarks = 'Needs improvement';
+          
+          if (totalScore >= 90) { grade = 'A+'; remarks = 'Outstanding'; }
+          else if (totalScore >= 80) { grade = 'A'; remarks = 'Excellent'; }
+          else if (totalScore >= 70) { grade = 'B+'; remarks = 'Very Good'; }
+          else if (totalScore >= 60) { grade = 'B'; remarks = 'Good'; }
+          else if (totalScore >= 50) { grade = 'C'; remarks = 'Satisfactory'; }
+
+          reportItems.push({
+            subjectName: subject.name,
+            testScore: hasTest ? Math.round(testWeightedScore * 40 / 40) : '-',
+            testWeighted: hasTest ? Math.round(testWeightedScore) : '-',
+            examScore: hasExam ? Math.round(examWeightedScore * 60 / 60) : '-',
+            examWeighted: hasExam ? Math.round(examWeightedScore) : '-',
+            totalScore: Math.round(totalScore),
+            grade: grade,
+            remarks: remarks
+          });
+
+          totalPoints += totalScore;
+          totalMaxPoints += 100;
+        } catch (error) {
+          console.warn(`Failed to compile results for subject ${subject.id}:`, error);
+        }
+      }
+
+      const overallPercentage = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
+      let overallGrade = 'F';
+      if (overallPercentage >= 90) overallGrade = 'A+';
+      else if (overallPercentage >= 80) overallGrade = 'A';
+      else if (overallPercentage >= 70) overallGrade = 'B+';
+      else if (overallPercentage >= 60) overallGrade = 'B';
+      else if (overallPercentage >= 50) overallGrade = 'C';
+
+      // Create PDF document
+      const doc = new PDFDocument({ margin: 50 });
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=report-card-${student.admissionNumber}-${selectedTerm.name}.pdf`);
+
+      // Pipe PDF to response
+      doc.pipe(res);
+
+      // Header
+      doc.fontSize(20).font('Helvetica-Bold').text('TREASURE-HOME SCHOOL', { align: 'center' });
+      doc.fontSize(16).text('STUDENT REPORT CARD', { align: 'center' });
+      doc.moveDown(0.5);
+
+      // Student Info Box
+      const startY = doc.y;
+      doc.fontSize(11).font('Helvetica');
+      doc.text(`Name: ${req.user!.firstName} ${req.user!.lastName}`, 50, startY);
+      doc.text(`Student ID: ${student.admissionNumber}`, 50, startY + 15);
+      doc.text(`Class: ${classInfo?.name || 'N/A'}`, 350, startY);
+      doc.text(`Term: ${selectedTerm.name} (${selectedTerm.year})`, 350, startY + 15);
+      
+      doc.moveDown(2);
+
+      // Table Header
+      const tableTop = doc.y + 10;
+      const col1 = 50;
+      const col2 = 180;
+      const col3 = 250;
+      const col4 = 320;
+      const col5 = 390;
+      const col6 = 450;
+      
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.rect(col1, tableTop, 495, 20).fillAndStroke('#e0e0e0', '#000000');
+      doc.fillColor('#000000').text('Subject', col1 + 5, tableTop + 5);
+      doc.text('Test (40)', col2 + 5, tableTop + 5);
+      doc.text('Exam (60)', col3 + 5, tableTop + 5);
+      doc.text('Total', col4 + 5, tableTop + 5);
+      doc.text('Grade', col5 + 5, tableTop + 5);
+      doc.text('Remarks', col6 + 5, tableTop + 5);
+
+      // Table Rows
+      let currentY = tableTop + 25;
+      doc.font('Helvetica').fontSize(9);
+
+      for (const subject of reportItems) {
+        if (currentY > 700) {
+          doc.addPage();
+          currentY = 50;
+        }
+
+        doc.text(subject.subjectName, col1 + 5, currentY);
+        doc.text(subject.testScore !== '-' ? `${subject.testScore}/40` : '-', col2 + 5, currentY);
+        doc.text(subject.examScore !== '-' ? `${subject.examScore}/60` : '-', col3 + 5, currentY);
+        doc.text(`${subject.totalScore}/100`, col4 + 5, currentY);
+        doc.text(subject.grade, col5 + 5, currentY);
+        doc.text(subject.remarks, col6 + 5, currentY);
+        
+        doc.moveTo(col1, currentY + 18).lineTo(col1 + 495, currentY + 18).stroke();
+        currentY += 20;
+      }
+
+      // Summary Section
+      doc.moveDown(2);
+      doc.fontSize(12).font('Helvetica-Bold').text('Summary', { align: 'center' });
+      doc.moveDown(0.5);
+      
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Total Marks Obtained: ${Math.round(totalPoints)} / ${totalMaxPoints}`);
+      doc.text(`Overall Percentage: ${overallPercentage}%`);
+      doc.text(`Overall Grade: ${overallGrade}`);
+
+      // Footer
+      doc.moveDown(2);
+      doc.fontSize(8).text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
+
+      // Finalize PDF
+      doc.end();
+
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ message: "Failed to generate PDF report card" });
     }
   });
 
