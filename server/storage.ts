@@ -144,6 +144,7 @@ export interface IStorage {
   getExamResultsByStudent(studentId: string): Promise<ExamResult[]>;
   getExamResultsByExam(examId: number): Promise<ExamResult[]>;
   getExamResultsByClass(classId: number): Promise<any[]>;
+  getExamResultByExamAndStudent(examId: number, studentId: string): Promise<ExamResult | undefined>;
 
   // Exam questions management
   createExamQuestion(question: InsertExamQuestion): Promise<ExamQuestion>;
@@ -175,6 +176,7 @@ export interface IStorage {
   // Student answers management
   createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
   getStudentAnswers(sessionId: number): Promise<StudentAnswer[]>;
+  getStudentAnswerById(id: number): Promise<StudentAnswer | undefined>;
   updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined>;
 
   // Performance optimization - single query exam scoring
@@ -888,6 +890,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getExamResultByExamAndStudent(examId: number, studentId: string): Promise<ExamResult | undefined> {
+    const result = await db.select().from(schema.examResults)
+      .where(
+        sql`${schema.examResults.examId} = ${examId} AND ${schema.examResults.studentId} = ${studentId}`
+      )
+      .limit(1);
+    return result[0];
+  }
+
   async getExamResultsByClass(classId: number): Promise<any[]> {
     try {
       // Join all needed tables to get complete data
@@ -1484,6 +1495,13 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.studentAnswers)
       .where(eq(schema.studentAnswers.sessionId, sessionId))
       .orderBy(asc(schema.studentAnswers.answeredAt));
+  }
+
+  async getStudentAnswerById(id: number): Promise<StudentAnswer | undefined> {
+    const result = await db.select().from(schema.studentAnswers)
+      .where(eq(schema.studentAnswers.id, id))
+      .limit(1);
+    return result[0];
   }
 
   async updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined> {
@@ -2211,10 +2229,10 @@ export class DatabaseStorage implements IStorage {
         AND EXTRACT(EPOCH FROM (NOW() - es.started_at)) / 60 > e.time_limit
         LIMIT ${limit}
       `;
-      return result;
+      return result || [];
     } catch (error) {
       console.error('Error fetching expired exam sessions:', error);
-      throw error;
+      return []; // Return empty array instead of throwing to prevent cleanup service crashes
     }
   }
 

@@ -342,6 +342,28 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       return questionDetail;
     });
 
+    // CRITICAL FIX: Persist MCQ points to student_answers for accurate score merging
+    console.log('💾 Persisting MCQ scores to student_answers for score merging...');
+    const studentAnswers = await storage.getStudentAnswers(sessionId);
+    for (const detail of questionDetails) {
+      if (detail.autoScored && detail.questionId) {
+        // Find the student answer for this question
+        const studentAnswer = studentAnswers.find(sa => sa.questionId === detail.questionId);
+        if (studentAnswer) {
+          try {
+            await storage.updateStudentAnswer(studentAnswer.id, {
+              pointsEarned: detail.pointsEarned,
+              isCorrect: detail.isCorrect,
+              autoScored: true
+            });
+            console.log(`✅ Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points`);
+          } catch (updateError) {
+            console.error(`❌ Failed to update answer ${studentAnswer.id}:`, updateError);
+          }
+        }
+      }
+    }
+
     // Calculate detailed breakdown
     const breakdown = {
       totalQuestions,
@@ -517,6 +539,97 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const totalErrorTime = Date.now() - startTime;
     console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
     throw error;
+  }
+}
+
+// Score Merging Function: Combine auto-scored + manually graded results
+async function mergeExamScores(answerId: number, storage: any): Promise<void> {
+  try {
+    console.log(`🔄 SCORE MERGE: Starting merge for answer ${answerId}...`);
+
+    // Get the answer details to find session and exam info
+    const answer = await storage.getStudentAnswerById(answerId);
+    if (!answer) {
+      console.error(`❌ SCORE MERGE: Answer ${answerId} not found`);
+      return;
+    }
+
+    const sessionId = answer.sessionId;
+    console.log(`📝 SCORE MERGE: Processing session ${sessionId}`);
+
+    // Get all answers and questions for this session
+    const allAnswers = await storage.getStudentAnswers(sessionId);
+    const session = await storage.getExamSessionById(sessionId);
+    const examQuestions = await storage.getExamQuestions(session.examId);
+
+    // Check if all essay questions are graded
+    const essayQuestions = examQuestions.filter((q: any) => 
+      q.questionType === 'text' || q.questionType === 'essay'
+    );
+    
+    const gradedEssayAnswers = allAnswers.filter((a: any) => {
+      const question = examQuestions.find((q: any) => q.id === a.questionId);
+      const isEssay = question?.questionType === 'text' || question?.questionType === 'essay';
+      return isEssay && a.pointsEarned !== null && a.pointsEarned !== undefined;
+    });
+
+    const allEssaysGraded = essayQuestions.length === gradedEssayAnswers.length;
+
+    if (!allEssaysGraded) {
+      console.log(`⏳ SCORE MERGE: Not all essays graded yet (${gradedEssayAnswers.length}/${essayQuestions.length}). Skipping merge.`);
+      return;
+    }
+
+    console.log(`✅ SCORE MERGE: All essays graded! Calculating final score...`);
+
+    // Calculate total score by summing all points earned
+    let totalScore = 0;
+    let maxScore = 0;
+
+    for (const question of examQuestions) {
+      maxScore += question.points || 0;
+      
+      const studentAnswer = allAnswers.find((a: any) => a.questionId === question.id);
+      if (studentAnswer) {
+        // Treat undefined/null as 0 to be safe
+        totalScore += studentAnswer.pointsEarned || 0;
+      }
+    }
+
+    console.log(`📊 SCORE MERGE: Final score = ${totalScore}/${maxScore}`);
+
+    // Update or create the exam result with merged score
+    const existingResult = await storage.getExamResultByExamAndStudent(session.examId, session.studentId);
+
+    if (existingResult) {
+      // Update existing result
+      await storage.updateExamResult(existingResult.id, {
+        score: totalScore,
+        maxScore: maxScore,
+        marksObtained: totalScore,
+        autoScored: false, // Now includes manual scores
+      });
+      console.log(`✅ SCORE MERGE: Updated exam result ${existingResult.id} with merged score`);
+    } else {
+      // Create new result (shouldn't happen, but handle it)
+      await storage.recordExamResult({
+        examId: session.examId,
+        studentId: session.studentId,
+        score: totalScore,
+        maxScore: maxScore,
+        marksObtained: totalScore,
+        autoScored: false,
+        recordedBy: session.studentId, // System recorded
+      });
+      console.log(`✅ SCORE MERGE: Created new exam result with merged score`);
+    }
+
+    console.log(`🎉 SCORE MERGE: Complete! Final score saved.`);
+
+  } catch (error) {
+    console.error(`❌ SCORE MERGE ERROR:`, error);
+    // Don't throw - log and return so grading flow isn't blocked
+    // The merge can be retried later or triggered manually
   }
 }
 
@@ -1887,6 +2000,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         score: parseFloat(score),
         comment: comment.trim(),
         graderId: graderId || req.user?.id
+      });
+
+      // Trigger score merging after manual grade submission (non-blocking)
+      console.log('🔄 SCORE MERGE: Manual grade submitted for answer', taskId);
+      mergeExamScores(parseInt(taskId), storage).catch(error => {
+        console.error('❌ SCORE MERGE: Failed to merge scores (non-blocking):', error);
+        // Don't fail the grading request - merge can be retried later
       });
 
       res.json(result);
