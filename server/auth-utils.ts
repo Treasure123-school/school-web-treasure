@@ -18,13 +18,16 @@ const ROLE_CODES = {
 } as const;
 
 /**
- * Generate a random alphanumeric string for passwords
+ * Generate a cryptographically strong random string for passwords
+ * Uses crypto.randomBytes for security
  */
 function generateRandomString(length: number): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude similar looking characters
+  const crypto = require('crypto');
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*';
+  const bytes = crypto.randomBytes(length);
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars[bytes[i] % chars.length];
   }
   return result;
 }
@@ -53,14 +56,16 @@ export function generateUsername(
 }
 
 /**
- * Generate THS-branded password
+ * Generate THS-branded password with strong cryptographic randomness
  * Format: THS@<YEAR>#<RANDOM>
- * Example: THS@2025#9X3M
+ * Example: THS@2025#aB3k9Mx2Pq7R
  * @param year - Academic year (e.g., '2025')
- * @returns THS-branded password
+ * @returns THS-branded password (16+ characters total, cryptographically secure)
  */
 export function generatePassword(year: string): string {
-  const randomPart = generateRandomString(4);
+  // Generate 12 character cryptographically secure random string
+  // This gives us 62^12 ≈ 3.2×10^21 possible combinations
+  const randomPart = generateRandomString(12);
   return `THS@${year}#${randomPart}`;
 }
 
@@ -140,13 +145,29 @@ export function getNextUserNumber(
 }
 
 /**
- * Validate THS username format
+ * Validate THS username format with strict validation
+ * Checks for proper format, valid role code, and numeric suffix
  * @param username - Username to validate
- * @returns true if valid THS format
+ * @returns true if valid THS format with all requirements met
  */
 export function isValidThsUsername(username: string): boolean {
   const parsed = parseUsername(username);
-  return parsed !== null;
+  if (!parsed) return false;
+  
+  // Validate role code
+  const validRoleCodes = ['ADM', 'TCH', 'STU', 'PAR'];
+  if (!validRoleCodes.includes(parsed.roleCode)) return false;
+  
+  // Validate year format (4 digits)
+  if (!/^\d{4}$/.test(parsed.year)) return false;
+  
+  // Validate number suffix (3 digits)
+  if (!/^\d{3}$/.test(parsed.number)) return false;
+  
+  // If optional field exists, validate it (3-4 alphanumeric chars)
+  if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
+  
+  return true;
 }
 
 /**
