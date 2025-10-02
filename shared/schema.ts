@@ -37,6 +37,19 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Password reset tokens table
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
+  passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token),
+}));
+
 // Academic terms table
 export const academicTerms = pgTable("academic_terms", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -435,6 +448,7 @@ export const auditLogs = pgTable("audit_logs", {
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
 export const insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
 export const insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
@@ -583,6 +597,7 @@ export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit
 // Types
 export type Role = typeof roles.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type Student = typeof students.$inferSelect;
 export type Class = typeof classes.$inferSelect;
 export type Subject = typeof subjects.$inferSelect;
@@ -612,6 +627,7 @@ export type StudentAnswer = typeof studentAnswers.$inferSelect;
 
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type InsertClass = z.infer<typeof insertClassSchema>;
 export type InsertSubject = z.infer<typeof insertSubjectSchema>;
