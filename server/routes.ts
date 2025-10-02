@@ -9,6 +9,7 @@ import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import PDFDocument from "pdfkit";
+import { generateUsername, generatePassword, getNextUserNumber } from "./auth-utils";
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -1114,6 +1115,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "User deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Generate printable login slips (PDF)
+  app.post("/api/users/generate-login-slips", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { users } = req.body;
+      
+      if (!Array.isArray(users) || users.length === 0) {
+        return res.status(400).json({ message: "Users array is required and must not be empty" });
+      }
+
+      // Create PDF document
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="THS-Login-Slips-${new Date().toISOString().split('T')[0]}.pdf"`);
+      
+      // Pipe PDF to response
+      doc.pipe(res);
+
+      // Add header
+      doc.fontSize(20).font('Helvetica-Bold').text('Treasure-Home School', { align: 'center' });
+      doc.fontSize(12).font('Helvetica').text('Login Credentials', { align: 'center' });
+      doc.moveDown(2);
+
+      // Generate login slips for each user
+      users.forEach((user: any, index: number) => {
+        if (index > 0) {
+          doc.addPage();
+        }
+
+        // Draw a border
+        doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60).stroke();
+
+        // Title
+        doc.fontSize(18).font('Helvetica-Bold').text('Login Information', 50, 60, { align: 'center' });
+        doc.moveDown(1.5);
+
+        // User details
+        const startY = 120;
+        doc.fontSize(14).font('Helvetica-Bold');
+        doc.text('Name:', 70, startY);
+        doc.font('Helvetica').text(`${user.firstName} ${user.lastName}`, 200, startY);
+
+        doc.font('Helvetica-Bold').text('Role:', 70, startY + 30);
+        const roleNames = { 1: 'Admin', 2: 'Teacher', 3: 'Student', 4: 'Parent' };
+        doc.font('Helvetica').text(roleNames[user.roleId as keyof typeof roleNames] || 'Unknown', 200, startY + 30);
+
+        doc.font('Helvetica-Bold').text('Username:', 70, startY + 60);
+        doc.font('Helvetica-Bold').fontSize(16).text(user.username, 200, startY + 60);
+
+        doc.fontSize(14).font('Helvetica-Bold').text('Password:', 70, startY + 90);
+        doc.font('Helvetica-Bold').fontSize(16).text(user.password, 200, startY + 90);
+
+        // Important notice
+        doc.fontSize(12).font('Helvetica-Oblique').text('⚠️ Please change your password immediately after first login', 70, startY + 140, { 
+          width: doc.page.width - 140,
+          align: 'center'
+        });
+
+        // Instructions
+        doc.fontSize(11).font('Helvetica').text('Login Instructions:', 70, startY + 180);
+        doc.fontSize(10).text('1. Go to the school portal login page', 90, startY + 200);
+        doc.text('2. Enter your username and password exactly as shown above', 90, startY + 220);
+        doc.text('3. You will be prompted to create a new secure password', 90, startY + 240);
+        doc.text('4. Keep your new password safe and do not share it with anyone', 90, startY + 260);
+
+        // Footer
+        doc.fontSize(9).font('Helvetica-Oblique').text(
+          `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+          50,
+          doc.page.height - 80,
+          { align: 'center' }
+        );
+
+        doc.fontSize(10).font('Helvetica-Bold').text(
+          'For assistance, contact the school administrator',
+          50,
+          doc.page.height - 60,
+          { align: 'center' }
+        );
+      });
+
+      // Finalize PDF
+      doc.end();
+
+    } catch (error) {
+      console.error('Login slip generation error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to generate login slips" });
+      }
+    }
+  });
+
+  // CSV bulk user provisioning endpoint
+  app.post("/api/users/bulk-import", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { users, year } = req.body;
+      
+      if (!Array.isArray(users) || users.length === 0) {
+        return res.status(400).json({ message: "Users array is required and must not be empty" });
+      }
+
+      if (!year || typeof year !== 'string') {
+        return res.status(400).json({ message: "Year is required (e.g., '2025')" });
+      }
+
+      // Get all existing usernames to generate unique ones
+      const existingUsernames = await storage.getAllUsernames();
+      
+      const results = [];
+      const errors = [];
+
+      for (const userData of users) {
+        try {
+          const { roleId, firstName, lastName, email, phone, address, dateOfBirth, gender, classLevel, subject, parentId } = userData;
+
+          // Validate required fields
+          if (!roleId || !firstName || !lastName) {
+            errors.push({ 
+              user: `${firstName} ${lastName}`, 
+              error: 'Missing required fields (roleId, firstName, lastName)' 
+            });
+            continue;
+          }
+
+          // Generate username
+          const optional = roleId === ROLES.STUDENT ? classLevel || '' : roleId === ROLES.TEACHER ? subject || '' : '';
+          const nextNumber = getNextUserNumber(existingUsernames, roleId, year, optional);
+          const username = generateUsername(roleId, year, optional, nextNumber);
+          
+          // Generate password
+          const password = generatePassword(year);
+          const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+          // Create user
+          const newUser = await storage.createUser({
+            username,
+            email: email || `${username.toLowerCase()}@ths.edu`,
+            passwordHash,
+            mustChangePassword: true,
+            roleId,
+            firstName,
+            lastName,
+            phone: phone || null,
+            address: address || null,
+            dateOfBirth: dateOfBirth || null,
+            gender: gender || null,
+            isActive: true
+          });
+
+          // Add username to existing list for next iteration
+          existingUsernames.push(username);
+
+          // If this is a student, create student record
+          if (roleId === ROLES.STUDENT) {
+            const admissionNumber = username; // Use username as admission number
+            await storage.createStudent({
+              id: newUser.id,
+              admissionNumber,
+              classId: userData.classId || null,
+              parentId: parentId || null,
+              emergencyContact: phone || null,
+              medicalInfo: null
+            });
+          }
+
+          results.push({
+            userId: newUser.id,
+            username,
+            password, // Return plain password for login slip generation
+            firstName,
+            lastName,
+            roleId,
+            email: newUser.email
+          });
+
+        } catch (error) {
+          errors.push({ 
+            user: `${userData.firstName} ${userData.lastName}`, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+        }
+      }
+
+      res.json({ 
+        message: `Provisioned ${results.length} users successfully`,
+        results,
+        errors: errors.length > 0 ? errors : undefined
+      });
+
+    } catch (error) {
+      console.error('Bulk import error:', error);
+      res.status(500).json({ message: "Bulk import failed. Please try again." });
     }
   });
 
