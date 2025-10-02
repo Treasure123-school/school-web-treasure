@@ -6,17 +6,24 @@ Treasure-Home School Management System is a comprehensive full-stack web applica
 ## Recent Changes
 - **October 2, 2025**: Completed Chapter 1 - Foundation Authentication System with THS-Branded Credentials
   - ✅ Database schema updated: added `username` (unique varchar 50) and `must_change_password` (boolean) columns to users table
+  - ✅ Password reset tokens table: Added with expiry tracking (15-minute timeout) and one-time use validation
   - ✅ THS-branded username generation: Formats like THS-STU-2025-001, THS-TCH-2025-PR3-042, THS-PAR-2025-010
   - ✅ Strict username validation: Enforces numeric suffixes, valid role codes (ADM/TCH/STU/PAR), 4-digit years
   - ✅ Cryptographically secure password generation: 12 characters using crypto.randomBytes (~3.2×10²¹ combinations)
   - ✅ Password format: THS@2025#aB3k9Mx2Pq7R (16+ total characters with upper/lower/digits/special chars)
   - ✅ First-login password change enforcement with frontend dialog
   - ✅ Login system supports both username and email authentication
-  - ✅ CSV bulk import endpoint for provisioning students, teachers, and parents with auto-generated credentials
+  - ✅ Password reset flow: Request reset token (POST /api/auth/forgot-password), verify and reset (POST /api/auth/reset-password)
+  - ✅ Admin emergency password reset: POST /api/admin/reset-user-password for immediate password resets
+  - ✅ CSV bulk provisioning: Upload CSV to create multiple students and parents with automatic THS-branded username generation
+  - ✅ Parent-child linking: Automatically established during CSV upload using parentId foreign key
+  - ✅ Username uniqueness tracking: Prevents duplicate THS-prefixed usernames within batch uploads
+  - ✅ Multer configuration: Separate uploadCSV instance for CSV file uploads (2MB limit)
   - ✅ PDF login slips generation for printable credential distribution
   - ✅ Password change endpoint with proper validation and security
   - ✅ Parent multi-child access support via existing API endpoint
   - ✅ Rate limiting implemented (in-memory, documented for future Redis/Supabase migration)
+  - All data stored in Supabase PostgreSQL database
   - All security issues identified and fixed, architect-approved
 
 - **October 1, 2025**: Completed comprehensive online exam system implementation
