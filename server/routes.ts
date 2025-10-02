@@ -719,14 +719,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/auth/google/callback',
     (req, res, next) => {
+      console.log('📧 Google OAuth callback received:', {
+        query: req.query,
+        hasCode: !!req.query.code,
+        hasError: !!req.query.error
+      });
+      
       passport.authenticate('google', (err: any, user: any, info: any) => {
         if (err) {
-          console.error('Google OAuth error:', err);
+          console.error('❌ Google OAuth error:', err);
+          console.error('Error details:', { message: err.message, stack: err.stack });
           return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Authentication failed. Please try again.'));
         }
         
         if (!user) {
           const message = info?.message || 'Authentication failed';
+          console.error('❌ Google OAuth: No user returned. Info:', info);
           return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent(message));
         }
 
