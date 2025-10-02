@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,66 @@ export default function Login() {
   const [, navigate] = useLocation();
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
+  const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<number | null>(null);
+  
+  // Check for OAuth callback parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const provider = params.get('provider');
+    const oauthParam = params.get('oauth');
+    const step = params.get('step');
+    const error = params.get('error');
+
+    if (error === 'google_auth_failed') {
+      const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
+      toast({
+        title: 'Google Sign-In Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      window.history.replaceState({}, '', '/login');
+    }
+
+    if (token && provider === 'google') {
+      handleGoogleLogin(token);
+    }
+
+    if (oauthParam === 'google' && step === 'role_selection') {
+      setShowRoleSelection(true);
+    }
+  }, [toast, login, navigate]);
+
+  const handleGoogleLogin = async (token: string) => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        login(userData, token);
+        const userRole = getRoleNameById(userData.roleId);
+        const targetPath = getPortalByRoleId(userData.roleId);
+        navigate(targetPath);
+        
+        toast({
+          title: 'Login Successful',
+          description: `Welcome to your ${userRole} portal!`,
+        });
+        window.history.replaceState({}, '', '/login');
+      }
+    } catch (error) {
+      toast({
+        title: 'Login Failed',
+        description: 'Unable to complete Google sign-in. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   const {
     register,
@@ -144,6 +204,34 @@ export default function Login() {
     },
   });
 
+  const roleSelectionMutation = useMutation({
+    mutationFn: async (roleId: number) => {
+      const response = await apiRequest('POST', '/api/auth/google/complete-signup', { roleId });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      login(data.user, data.token);
+      const userRole = getRoleNameById(data.user.roleId);
+      const targetPath = getPortalByRoleId(data.user.roleId);
+      
+      setShowRoleSelection(false);
+      navigate(targetPath);
+      
+      toast({
+        title: 'Account Created Successfully',
+        description: `Welcome to your ${userRole} portal!`,
+      });
+      window.history.replaceState({}, '', '/login');
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Signup Failed',
+        description: error.message || 'Failed to complete signup. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const onSubmit = (data: LoginForm) => {
     loginMutation.mutate(data);
   };
@@ -231,6 +319,43 @@ export default function Login() {
                 {loginMutation.isPending ? 'Signing In...' : 'Login to Portal'}
               </Button>
             </form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            <Button 
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => window.location.href = '/api/auth/google'}
+              data-testid="button-google-login"
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              Sign in with Google (Admin/Teacher)
+            </Button>
 
             <div className="text-center mt-6">
               <Link 
@@ -358,6 +483,58 @@ export default function Login() {
               {changePasswordMutation.isPending ? 'Changing Password...' : 'Change Password'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Role Selection Dialog for Google OAuth */}
+      <Dialog open={showRoleSelection} onOpenChange={setShowRoleSelection}>
+        <DialogContent className="sm:max-w-[425px]" data-testid="dialog-role-selection">
+          <DialogHeader>
+            <DialogTitle>Select Your Role</DialogTitle>
+            <DialogDescription>
+              Choose your role to complete your account setup. Google Sign-In is only available for Admin and Teacher roles.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant={selectedRole === 1 ? "default" : "outline"}
+                className="w-full justify-start"
+                onClick={() => setSelectedRole(1)}
+                data-testid="button-role-admin"
+              >
+                <div className="text-left">
+                  <div className="font-semibold">Administrator</div>
+                  <div className="text-xs text-muted-foreground">Manage school operations and settings</div>
+                </div>
+              </Button>
+
+              <Button
+                type="button"
+                variant={selectedRole === 2 ? "default" : "outline"}
+                className="w-full justify-start"
+                onClick={() => setSelectedRole(2)}
+                data-testid="button-role-teacher"
+              >
+                <div className="text-left">
+                  <div className="font-semibold">Teacher</div>
+                  <div className="text-xs text-muted-foreground">Create exams, grade assignments, manage classes</div>
+                </div>
+              </Button>
+            </div>
+
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!selectedRole || roleSelectionMutation.isPending}
+              onClick={() => selectedRole && roleSelectionMutation.mutate(selectedRole)}
+              data-testid="button-complete-signup"
+            >
+              {roleSelectionMutation.isPending ? 'Creating Account...' : 'Complete Sign Up'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

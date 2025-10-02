@@ -28,7 +28,7 @@ export function setupGoogleAuth() {
           const profileImageUrl = profile.photos?.[0]?.value;
 
           if (!email) {
-            return done(new Error("No email found in Google profile"));
+            return done(null, false, { message: "No email found in Google profile" });
           }
 
           const existingUser = await storage.getUserByGoogleId(googleId);
@@ -40,7 +40,7 @@ export function setupGoogleAuth() {
           const existingEmailUser = await storage.getUserByEmail(email);
           if (existingEmailUser) {
             if (existingEmailUser.authProvider === 'local') {
-              return done(new Error("Email already registered with password login. Please use password login."));
+              return done(null, false, { message: "This email is already registered with a password. Please use password login instead." });
             }
             return done(null, existingEmailUser);
           }

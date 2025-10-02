@@ -10,6 +10,9 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import PDFDocument from "pdfkit";
 import { generateUsername, generatePassword, getNextUserNumber } from "./auth-utils";
+import passport from "passport";
+import session from "express-session";
+import { setupGoogleAuth } from "./google-auth";
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -26,6 +29,21 @@ declare global {
     interface Request {
       user?: AuthenticatedUser;
     }
+    interface User extends AuthenticatedUser {}
+  }
+}
+
+// Extend express-session to include our custom session data
+declare module 'express-session' {
+  interface SessionData {
+    pendingUser?: {
+      googleId: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      profileImageUrl?: string;
+      isNewUser: boolean;
+    };
   }
 }
 
@@ -670,6 +688,108 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  // Initialize session middleware (required for Passport OAuth)
+  app.use(session({
+    secret: process.env.JWT_SECRET || SECRET_KEY,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
+  // Initialize Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Setup Google OAuth (will only activate if credentials are provided)
+  const googleOAuthEnabled = setupGoogleAuth();
+  if (googleOAuthEnabled) {
+    console.log('✅ Google OAuth authentication enabled');
+  } else {
+    console.log('⚠️  Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)');
+  }
+
+  // Google OAuth routes
+  app.get('/api/auth/google', passport.authenticate('google', {
+    scope: ['profile', 'email']
+  }));
+
+  app.get('/api/auth/google/callback',
+    (req, res, next) => {
+      passport.authenticate('google', (err: any, user: any, info: any) => {
+        if (err) {
+          console.error('Google OAuth error:', err);
+          return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Authentication failed. Please try again.'));
+        }
+        
+        if (!user) {
+          const message = info?.message || 'Authentication failed';
+          return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent(message));
+        }
+
+        if (user.isNewUser) {
+          req.session.pendingUser = user;
+          return res.redirect('/login?oauth=google&step=role_selection');
+        }
+
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            console.error('Login error:', loginErr);
+            return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to complete login'));
+          }
+
+          const token = jwt.sign({ userId: user.id, roleId: user.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
+          res.redirect(`/login?token=${token}&provider=google`);
+        });
+      })(req, res, next);
+    }
+  );
+
+  app.post('/api/auth/google/complete-signup', async (req, res) => {
+    try {
+      const { roleId } = req.body;
+      const pendingUser = (req.session as any).pendingUser;
+
+      if (!pendingUser) {
+        return res.status(400).json({ message: 'No pending signup found' });
+      }
+
+      if (roleId !== ROLES.ADMIN && roleId !== ROLES.TEACHER) {
+        return res.status(400).json({ message: 'Google OAuth is only available for Admin and Teacher roles' });
+      }
+
+      const currentYear = new Date().getFullYear().toString();
+      const existingUsers = await storage.getUsersByRole(roleId);
+      const existingUsernames = existingUsers.map((u: any) => u.username).filter(Boolean);
+      const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
+      const username = generateUsername(roleId, currentYear, '', nextNumber);
+
+      const newUser = await storage.createUser({
+        email: pendingUser.email,
+        firstName: pendingUser.firstName,
+        lastName: pendingUser.lastName,
+        username,
+        roleId,
+        authProvider: 'google',
+        googleId: pendingUser.googleId,
+        profileImageUrl: pendingUser.profileImageUrl,
+        mustChangePassword: false,
+        passwordHash: null,
+        isActive: true,
+      });
+
+      delete (req.session as any).pendingUser;
+
+      const token = jwt.sign({ userId: newUser.id, roleId: newUser.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
+      res.json({ token, user: newUser, message: 'Account created successfully' });
+    } catch (error) {
+      console.error('Error completing Google signup:', error);
+      res.status(500).json({ message: 'Failed to complete signup' });
+    }
+  });
 
   // Secure admin-only route to reset weak passwords
   app.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
