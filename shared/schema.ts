@@ -33,6 +33,8 @@ export const users = pgTable("users", {
   gender: genderEnum("gender"),
   profileImageUrl: text("profile_image_url"),
   isActive: boolean("is_active").default(true),
+  authProvider: varchar("auth_provider", { length: 20 }).default('local'),
+  googleId: varchar("google_id", { length: 255 }).unique(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
