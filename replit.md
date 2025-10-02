@@ -4,6 +4,21 @@
 Treasure-Home School Management System is a comprehensive full-stack web application designed for K-12 schools. It provides role-based dashboards for students, teachers, administrators, and parents, alongside a public-facing website. The system manages core school operations such as student enrollment, attendance tracking, grade management, announcements, and communication. It features a modern monorepo architecture with shared schema definitions and a complete authentication system with role-based access control, ensuring distinct permissions and tailored interfaces for various user types. The system includes a robust exam management system with creation, delivery, auto-scoring, manual grading, and secure features like tab-switching detection and question randomization.
 
 ## Recent Changes
+- **October 2, 2025**: Completed Google OAuth Integration for Admin/Teacher Login
+  - ✅ Hybrid authentication system: THS-branded credentials for students/parents, Google OAuth for admin/teacher
+  - ✅ Database schema extended: Added `authProvider` (varchar) and `googleId` (varchar) columns to users table
+  - ✅ Google OAuth strategy implemented using Passport.js with passport-google-oauth20
+  - ✅ OAuth routes configured: `/api/auth/google` (initiate) and `/api/auth/google/callback` (handle response)
+  - ✅ Role selection dialog for new OAuth users to choose Admin or Teacher role
+  - ✅ THS-branded username auto-generation for OAuth users (e.g., THS-ADM-2025-001, THS-TCH-2025-042)
+  - ✅ Error handling for email conflicts: Prevents OAuth login if email already exists with password authentication
+  - ✅ Storage methods added: `getUserByGoogleId`, `createUserWithGoogle`, `updateUserGoogleId`
+  - ✅ Login page updated with "Sign in with Google (Admin/Teacher)" button
+  - ✅ Session-based pendingUser flow for OAuth signup completion
+  - ✅ Graceful error messages displayed to users for all OAuth failure scenarios
+  - ✅ Architect-approved implementation with proper security and error handling
+  - Note: Requires Google OAuth credentials (CLIENT_ID, CLIENT_SECRET) to be configured in environment variables
+
 - **October 2, 2025**: GitHub project successfully imported and configured for Replit environment
   - ✅ Verified all dependencies installed (Node.js 20, all npm packages)
   - ✅ Confirmed Vite configuration with Replit-specific settings (host: 0.0.0.0, port: 5000, allowedHosts: true)
@@ -89,7 +104,7 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API endpoints with structured error handling.
 - **Session Management**: Express sessions with PostgreSQL session store.
 - **Database ORM**: Drizzle ORM for type-safe operations.
-- **Authentication**: Custom email/password with server-side sessions and PostgreSQL storage.
+- **Authentication**: Hybrid system - THS-branded username/password for students/parents, Google OAuth for admin/teacher, with server-side sessions and PostgreSQL storage.
 - **Authorization**: Role-Based Access Control (RBAC) for student, teacher, admin, and parent roles.
 - **Exam Security**: Tab switch detection, enhanced session recovery, question and option randomization, and time-based auto-submit.
 
