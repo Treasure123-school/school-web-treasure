@@ -89,10 +89,17 @@ export interface IStorage {
   // User management
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   getUsersByRole(roleId: number): Promise<User[]>;
+
+  // Password reset management
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<any>;
+  getPasswordResetToken(token: string): Promise<any | undefined>;
+  markPasswordResetTokenAsUsed(token: string): Promise<boolean>;
+  deleteExpiredPasswordResetTokens(): Promise<boolean>;
 
   // Role management
   getRoles(): Promise<Role[]>;
@@ -410,44 +417,109 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getAllUsernames(): Promise<string[]> {
-    const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql`${schema.users.username} IS NOT NULL`);
-    return result.map(r => r.username).filter((u): u is string => u !== null);
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<any> {
+    const result = await this.db.insert(schema.passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+    }).returning();
+    return result[0];
+  }
+
+  async getPasswordResetToken(token: string): Promise<any | undefined> {
+    const result = await this.db.select()
+      .from(schema.passwordResetTokens)
+      .where(and(
+        eq(schema.passwordResetTokens.token, token),
+        dsql`${schema.passwordResetTokens.expiresAt} > NOW()`,
+        dsql`${schema.passwordResetTokens.usedAt} IS NULL`
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async markPasswordResetTokenAsUsed(token: string): Promise<boolean> {
+    const result = await this.db.update(schema.passwordResetTokens)
+      .set({ usedAt: dsql`NOW()` })
+      .where(eq(schema.passwordResetTokens.token, token))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteExpiredPasswordResetTokens(): Promise<boolean> {
+    await this.db.delete(schema.passwordResetTokens)
+      .where(dsql`${schema.passwordResetTokens.expiresAt} < NOW()`);
+    return true;
   }
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await this.db.insert(schema.users).values(user).returning();
-    return result[0];
+    const createdUser = result[0];
+    if (createdUser && createdUser.id) {
+      const normalizedId = normalizeUuid(createdUser.id);
+      if (normalizedId) {
+        createdUser.id = normalizedId;
+      }
+    }
+    return createdUser;
   }
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
     const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
-    return result[0];
-  }
-
-  async getUsersByRole(roleId: number): Promise<User[]> {
-    return await db.select().from(schema.users).where(eq(schema.users.roleId, roleId));
+    const updatedUser = result[0];
+    if (updatedUser && updatedUser.id) {
+      const normalizedId = normalizeUuid(updatedUser.id);
+      if (normalizedId) {
+        updatedUser.id = normalizedId;
+      }
+    }
+    return updatedUser;
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const result = await db.delete(schema.users).where(eq(schema.users.id, id));
+    const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getUsersByRole(roleId: number): Promise<User[]> {
+    const result = await this.db.select().from(schema.users).where(eq(schema.users.roleId, roleId));
+    return result.map((user: User) => {
+      if (user && user.id) {
+        const normalizedId = normalizeUuid(user.id);
+        if (normalizedId) {
+          user.id = normalizedId;
+        }
+      }
+      return user;
+    });
   }
 
   // Role management
   async getRoles(): Promise<Role[]> {
-    return await db.select().from(schema.roles).orderBy(asc(schema.roles.name));
+    return await this.db.select().from(schema.roles);
   }
 
   async getRoleByName(name: string): Promise<Role | undefined> {
-    const result = await db.select().from(schema.roles).where(eq(schema.roles.name, name)).limit(1);
+    const result = await this.db.select().from(schema.roles).where(eq(schema.roles.name, name)).limit(1);
     return result[0];
   }
 
   // Student management
   async getStudent(id: string): Promise<Student | undefined> {
-    const result = await db.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
-    return result[0];
+    const result = await this.db.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
+    const student = result[0];
+    if (student && student.id) {
+      const normalizedId = normalizeUuid(student.id);
+      if (normalizedId) {
+        student.id = normalizedId;
+      }
+    }
+    return student;
+  }
+
+  async getAllUsernames(): Promise<string[]> {
+    const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql`${schema.users.username} IS NOT NULL`);
+    return result.map((r: { username: string | null }) => r.username).filter((u: string | null): u is string => u !== null);
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
