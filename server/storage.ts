@@ -398,6 +398,23 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await this.db.select().from(schema.users).where(eq(schema.users.username, username)).limit(1);
+    const user = result[0];
+    if (user && user.id) {
+      const normalizedId = normalizeUuid(user.id);
+      if (normalizedId) {
+        user.id = normalizedId;
+      }
+    }
+    return user;
+  }
+
+  async getAllUsernames(): Promise<string[]> {
+    const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql`${schema.users.username} IS NOT NULL`);
+    return result.map(r => r.username).filter((u): u is string => u !== null);
+  }
+
   async createUser(user: InsertUser): Promise<User> {
     const result = await this.db.insert(schema.users).values(user).returning();
     return result[0];

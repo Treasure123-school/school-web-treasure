@@ -29,8 +29,13 @@ declare global {
 }
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
+  identifier: z.string().min(1), // Can be username or email
+  password: z.string().min(1)
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6).max(100),
 });
 
 const contactSchema = z.object({
@@ -823,11 +828,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log('Login attempt for email:', req.body.email || 'unknown');
+      const { identifier, password } = loginSchema.parse(req.body);
+      console.log('Login attempt for:', identifier || 'unknown');
 
       // Rate limiting to prevent brute force attacks
       const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-      const attemptKey = `${clientIp}:${req.body.email || 'no-email'}`;
+      const attemptKey = `${clientIp}:${identifier || 'no-identifier'}`;
       const now = Date.now();
 
       // Clean up old attempts
@@ -846,31 +852,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Validate input - note: role is now derived from database, not from client
-      const { email, password } = loginSchema.parse(req.body);
-
       // Increment attempt counter
       loginAttempts.set(attemptKey, {
         count: attempts.count + 1,
         lastAttempt: now
       });
 
-      const user = await storage.getUserByEmail(email);
+      // Try to find user by username or email
+      let user;
+      if (identifier.includes('@')) {
+        // Looks like an email
+        user = await storage.getUserByEmail(identifier);
+      } else {
+        // Try username first
+        user = await storage.getUserByUsername(identifier);
+        // Fallback to email if username not found
+        if (!user) {
+          user = await storage.getUserByEmail(identifier);
+        }
+      }
+
       if (!user) {
-        console.log(`Login failed: User not found for email ${email}`);
+        console.log(`Login failed: User not found for identifier ${identifier}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // CRITICAL: Verify password hash with bcrypt
       if (!user.passwordHash) {
-        console.error(`SECURITY WARNING: User ${email} has no password hash set`);
+        console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
         return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
       }
 
       // Compare provided password with stored hash
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
-        console.log(`Login failed: Invalid password for email ${email}`);
+        console.log(`Login failed: Invalid password for identifier ${identifier}`);
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
@@ -887,24 +903,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
 
-      console.log(`Login successful for ${email} with roleId: ${user.roleId}`);
+      console.log(`Login successful for ${identifier} with roleId: ${user.roleId}`);
 
       res.json({ 
         token,
         user: { 
           id: user.id, 
+          username: user.username,
           email: user.email, 
           firstName: user.firstName, 
           lastName: user.lastName,
-          roleId: user.roleId 
+          roleId: user.roleId,
+          mustChangePassword: user.mustChangePassword || false
         } 
       });
     } catch (error) {
       console.error('Login error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid email or password format" });
+        return res.status(400).json({ message: "Invalid identifier or password format" });
       }
       res.status(500).json({ message: "Login failed. Please try again." });
+    }
+  });
+
+  // Password change endpoint
+  app.post("/api/auth/change-password", authenticateUser, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+      const userId = req.user!.id;
+
+      // Get user from database
+      const user = await storage.getUser(userId);
+      if (!user || !user.passwordHash) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isCurrentPasswordValid) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+      // Update password and clear mustChangePassword flag
+      await storage.updateUser(userId, {
+        passwordHash: newPasswordHash,
+        mustChangePassword: false
+      });
+
+      console.log(`Password changed successfully for user ${userId}`);
+      
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error('Password change error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid password format" });
+      }
+      res.status(500).json({ message: "Password change failed. Please try again." });
     }
   });
 
