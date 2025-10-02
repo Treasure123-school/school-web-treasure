@@ -966,6 +966,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Forgot password - Request reset token
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { identifier } = z.object({ identifier: z.string().min(1) }).parse(req.body);
+      
+      // Find user by email or username
+      let user = await storage.getUserByEmail(identifier);
+      if (!user) {
+        user = await storage.getUserByUsername(identifier);
+      }
+      
+      // Don't reveal if user exists or not (security best practice)
+      if (!user) {
+        return res.json({ message: "If an account exists with that email/username, a password reset link will be sent." });
+      }
+
+      // Generate secure random token
+      const crypto = require('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      
+      // Token expires in 15 minutes
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      
+      // Save token to database
+      await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
+      
+      // In production, send email with reset link
+      // For development, return the token (REMOVE THIS IN PRODUCTION!)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Password reset token for ${identifier}: ${resetToken}`);
+        return res.json({ 
+          message: "Password reset token generated",
+          token: resetToken,
+          developmentOnly: true
+        });
+      }
+      
+      res.json({ message: "If an account exists with that email/username, a password reset link will be sent." });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Reset password with token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = z.object({
+        token: z.string().min(1),
+        newPassword: z.string().min(6).max(100)
+      }).parse(req.body);
+      
+      // Verify token exists and is valid
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+      
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      
+      // Update user password
+      await storage.updateUser(resetToken.userId, {
+        passwordHash: newPasswordHash,
+        mustChangePassword: false
+      });
+      
+      // Mark token as used
+      await storage.markPasswordResetTokenAsUsed(token);
+      
+      console.log(`Password reset successfully for user ${resetToken.userId}`);
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request format" });
+      }
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Admin emergency password reset
+  app.post("/api/admin/reset-user-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId, newPassword } = z.object({
+        userId: z.string().uuid(),
+        newPassword: z.string().min(6).max(100).optional()
+      }).parse(req.body);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Generate new password if not provided
+      const { generatePassword } = await import('./auth-utils');
+      const currentYear = new Date().getFullYear().toString();
+      const password = newPassword || generatePassword(currentYear);
+      
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      
+      // Update user password and force password change on next login
+      await storage.updateUser(userId, {
+        passwordHash,
+        mustChangePassword: true
+      });
+      
+      console.log(`Admin ${req.user?.email} reset password for user ${userId}`);
+      
+      res.json({ 
+        message: "Password reset successfully",
+        tempPassword: password,
+        username: user.username || user.email
+      });
+    } catch (error) {
+      console.error('Admin password reset error:', error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
 
   // Public contact form with 100% Supabase persistence
   app.post("/api/contact", async (req, res) => {
