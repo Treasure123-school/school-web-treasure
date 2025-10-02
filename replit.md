@@ -4,6 +4,21 @@
 Treasure-Home School Management System is a comprehensive full-stack web application designed for K-12 schools. It provides role-based dashboards for students, teachers, administrators, and parents, alongside a public-facing website. The system manages core school operations such as student enrollment, attendance tracking, grade management, announcements, and communication. It features a modern monorepo architecture with shared schema definitions and a complete authentication system with role-based access control, ensuring distinct permissions and tailored interfaces for various user types. The system includes a robust exam management system with creation, delivery, auto-scoring, manual grading, and secure features like tab-switching detection and question randomization.
 
 ## Recent Changes
+- **October 2, 2025**: Completed Chapter 1 - Foundation Authentication System with THS-Branded Credentials
+  - ✅ Database schema updated: added `username` (unique varchar 50) and `must_change_password` (boolean) columns to users table
+  - ✅ THS-branded username generation: Formats like THS-STU-2025-001, THS-TCH-2025-PR3-042, THS-PAR-2025-010
+  - ✅ Strict username validation: Enforces numeric suffixes, valid role codes (ADM/TCH/STU/PAR), 4-digit years
+  - ✅ Cryptographically secure password generation: 12 characters using crypto.randomBytes (~3.2×10²¹ combinations)
+  - ✅ Password format: THS@2025#aB3k9Mx2Pq7R (16+ total characters with upper/lower/digits/special chars)
+  - ✅ First-login password change enforcement with frontend dialog
+  - ✅ Login system supports both username and email authentication
+  - ✅ CSV bulk import endpoint for provisioning students, teachers, and parents with auto-generated credentials
+  - ✅ PDF login slips generation for printable credential distribution
+  - ✅ Password change endpoint with proper validation and security
+  - ✅ Parent multi-child access support via existing API endpoint
+  - ✅ Rate limiting implemented (in-memory, documented for future Redis/Supabase migration)
+  - All security issues identified and fixed, architect-approved
+
 - **October 1, 2025**: Completed comprehensive online exam system implementation
   - ✅ Mobile-responsive navigation with hamburger menu across all pages
   - ✅ Teacher/Admin exam creation UI (ExamManagement.tsx) with MCQ, essay, and short answer support
