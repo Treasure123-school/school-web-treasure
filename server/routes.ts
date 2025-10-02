@@ -249,6 +249,35 @@ const uploadDocument = multer({
   }
 });
 
+// CSV upload configuration for bulk user provisioning
+const csvDir = 'uploads/csv';
+fs.mkdir(csvDir, { recursive: true }).catch(() => {});
+
+const uploadCSV = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, csvDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, 'users-' + uniqueSuffix + '.csv');
+    }
+  }),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB limit for CSV
+  },
+  fileFilter: (req, file, cb) => {
+    const isCSV = /csv|txt/.test(path.extname(file.originalname).toLowerCase());
+    const mimeOk = /text\/(csv|plain)|application\/(vnd\.ms-excel|csv)/.test(file.mimetype);
+    
+    if (isCSV || mimeOk) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed!'));
+    }
+  }
+});
+
 // BACKGROUND TIMEOUT CLEANUP SERVICE - Prevents infinite waiting
 async function cleanupExpiredExamSessions(): Promise<void> {
   try {
@@ -1236,6 +1265,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "User deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // CSV Upload for bulk user provisioning
+  app.post("/api/admin/upload-users-csv", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('csvFile'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "CSV file is required" });
+      }
+
+      // Read and parse CSV file
+      const csvContent = await fs.readFile(req.file.path, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ message: "CSV file must contain header and at least one row" });
+      }
+
+      // Parse header
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      // Expected columns: studentName, class, rollNo, parentName, parentEmail
+      const requiredColumns = ['studentname', 'class', 'parentname', 'parentemail'];
+      const hasRequiredColumns = requiredColumns.every(col => headers.includes(col));
+      
+      if (!hasRequiredColumns) {
+        return res.status(400).json({ 
+          message: "CSV must contain columns: studentName, class, parentName, parentEmail" 
+        });
+      }
+
+      const currentYear = new Date().getFullYear().toString();
+      const { generateUsername, generatePassword } = await import('./auth-utils');
+      
+      // Get all existing usernames to ensure uniqueness
+      const existingUsernames = await storage.getAllUsernames();
+      const createdUsers: any[] = [];
+      const errors: string[] = [];
+
+      // Get roles
+      const studentRole = await storage.getRoleByName('Student');
+      const parentRole = await storage.getRoleByName('Parent');
+      
+      if (!studentRole || !parentRole) {
+        return res.status(500).json({ message: "Required roles not found in database" });
+      }
+
+      // Parse each row
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row: Record<string, string> = {};
+        
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+
+        try {
+          // Extract data
+          const studentName = row['studentname'];
+          const className = row['class'];
+          const rollNo = row['rollno'] || String(i);
+          const parentName = row['parentname'];
+          const parentEmail = row['parentemail'];
+
+          if (!studentName || !className || !parentName || !parentEmail) {
+            errors.push(`Row ${i + 1}: Missing required fields`);
+            continue;
+          }
+
+          // Split student name
+          const [studentFirstName, ...studentLastParts] = studentName.split(' ');
+          const studentLastName = studentLastParts.join(' ') || studentFirstName;
+
+          // Split parent name
+          const [parentFirstName, ...parentLastParts] = parentName.split(' ');
+          const parentLastName = parentLastParts.join(' ') || parentFirstName;
+
+          // Check if parent already exists
+          let parent = await storage.getUserByEmail(parentEmail);
+          let parentId: string;
+          let parentCredentials = null;
+
+          if (!parent) {
+            // Create parent account - calculate correct sequence number
+            const parentCount = existingUsernames.filter(u => u.startsWith(`THS-PAR-${currentYear}-`)).length + 1;
+            const parentUsername = generateUsername(parentRole.id, currentYear, '', parentCount);
+            const parentPassword = generatePassword(currentYear);
+            const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
+
+            parent = await storage.createUser({
+              username: parentUsername,
+              email: parentEmail,
+              passwordHash: parentPasswordHash,
+              roleId: parentRole.id,
+              firstName: parentFirstName,
+              lastName: parentLastName,
+              mustChangePassword: true
+            });
+
+            // CRITICAL: Track newly created username to prevent duplicates in same batch
+            existingUsernames.push(parentUsername);
+            parentCredentials = { username: parentUsername, password: parentPassword };
+            parentId = parent.id;
+          } else {
+            parentId = parent.id;
+          }
+
+          // Get class
+          const classObj = await storage.getClasses();
+          const studentClass = classObj.find(c => c.name.toLowerCase() === className.toLowerCase());
+          
+          if (!studentClass) {
+            errors.push(`Row ${i + 1}: Class "${className}" not found`);
+            continue;
+          }
+
+          // Create student account - calculate correct sequence number
+          const classPrefix = `THS-STU-${currentYear}-${className.toUpperCase()}-`;
+          const studentCount = existingUsernames.filter(u => u.startsWith(classPrefix)).length + 1;
+          const studentUsername = generateUsername(studentRole.id, currentYear, className.toUpperCase(), studentCount);
+          const studentPassword = generatePassword(currentYear);
+          const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
+
+          const studentUser = await storage.createUser({
+            username: studentUsername,
+            email: `${studentUsername.toLowerCase()}@ths.edu`,
+            passwordHash: studentPasswordHash,
+            roleId: studentRole.id,
+            firstName: studentFirstName,
+            lastName: studentLastName,
+            mustChangePassword: true
+          });
+
+          // CRITICAL: Track newly created username to prevent duplicates in same batch
+          existingUsernames.push(studentUsername);
+
+          // Create student record
+          const admissionNumber = studentUsername;
+          await storage.createStudent({
+            id: studentUser.id,
+            admissionNumber,
+            classId: studentClass.id,
+            parentId: parentId
+          });
+
+          createdUsers.push({
+            type: 'student',
+            name: studentName,
+            username: studentUsername,
+            password: studentPassword,
+            class: className,
+            parent: {
+              name: parentName,
+              email: parentEmail,
+              credentials: parentCredentials
+            }
+          });
+
+        } catch (error) {
+          console.error(`Error processing row ${i + 1}:`, error);
+          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      // Clean up uploaded file
+      await fs.unlink(req.file.path);
+
+      res.json({
+        message: `Successfully created ${createdUsers.length} users`,
+        users: createdUsers,
+        errors: errors.length > 0 ? errors : undefined
+      });
+
+    } catch (error) {
+      console.error('CSV upload error:', error);
+      // Clean up file if it exists
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch {}
+      }
+      res.status(500).json({ message: "Failed to process CSV file" });
     }
   });
 
