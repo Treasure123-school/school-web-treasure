@@ -4,6 +4,31 @@
 Treasure-Home School Management System is a comprehensive full-stack web application designed for K-12 schools. It provides role-based dashboards for students, teachers, administrators, and parents, alongside a public-facing website. The system manages core school operations such as student enrollment, attendance tracking, grade management, announcements, and communication. It features a modern monorepo architecture with shared schema definitions and a complete authentication system with role-based access control, ensuring distinct permissions and tailored interfaces for various user types. The system includes a robust exam management system with creation, delivery, auto-scoring, manual grading, and secure features like tab-switching detection and question randomization.
 
 ## Recent Changes
+- **October 3, 2025**: Chapter One Authentication System - Completed with Invites System & Enhanced Account Lockout
+  - ✅ **Invites System for Staff Onboarding**:
+    - Admin-only endpoints to create, list, and delete invites
+    - Accept invite endpoint validates token and creates account with invite-specified role
+    - Database schema: invites table with token (UUID), email, roleId, expiresAt (7 days), and createdBy tracking
+    - Storage methods: createInvite, getInviteByToken, getInvitesByRole, deleteInvite, markInviteAsUsed
+    - API endpoints: POST /api/invites, GET /api/invites, GET /api/invites/:role, DELETE /api/invites/:id, POST /api/invites/accept
+  - ✅ **Enhanced Account Lockout Mechanism**:
+    - Timestamp-based violation tracking with 1-hour rolling window
+    - Account suspended after 3 rate limit violations within 1 hour
+    - Violations automatically expire after 1 hour (prevents DoS against legitimate users)
+    - Violations cleared on successful login
+    - Periodic cleanup (every 5 minutes) prevents memory growth
+    - Suspended accounts cannot login until admin unlocks them
+  - ✅ **Admin Account Management Endpoints**:
+    - GET /api/admin/suspended-accounts - List all suspended accounts
+    - POST /api/admin/unlock-account/:userId - Unlock suspended accounts with audit trail
+    - Admin unlock clears both database status and in-memory violation counters
+  - ✅ **Security Improvements**:
+    - Account lockout prevents indefinite violation accumulation (DoS prevention)
+    - Clear error messages distinguish between suspended vs rate-limited accounts
+    - All security events logged with admin attribution
+  - ✅ **Architect Approved**: All implementations reviewed and verified secure
+  - Note: Database migration required - run `npm run db:push` to create invites and audit_logs tables
+
 - **October 3, 2025**: Fresh GitHub Import Successfully Configured for Replit Environment
   - ✅ Verified existing Vite configuration optimized for Replit:
     - Host: 0.0.0.0 (required for Replit proxy)
