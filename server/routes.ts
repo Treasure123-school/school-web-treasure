@@ -817,6 +817,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userAgent: req.headers['user-agent']
             });
             
+            // Notify all admins about the new pending user
+            try {
+              const adminRole = await storage.getRoleByName('Admin');
+              if (adminRole) {
+                const admins = await storage.getUsersByRole(adminRole.id);
+                const roleName = await storage.getRole(roleId);
+                
+                for (const admin of admins) {
+                  await storage.createNotification({
+                    userId: admin.id,
+                    type: 'pending_user',
+                    title: 'New User Pending Approval',
+                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up as ${roleName?.name || 'staff'} and is awaiting approval.`,
+                    relatedEntityType: 'user',
+                    relatedEntityId: newUser.id,
+                    isRead: false
+                  });
+                }
+                console.log(`📬 Notified ${admins.length} admin(s) about pending user: ${newUser.email}`);
+              }
+            } catch (notifError) {
+              console.error('Failed to create admin notifications:', notifError);
+              // Don't fail the user creation if notification fails
+            }
+            
             // DENY LOGIN - redirect with message about pending approval
             return res.redirect('/login?oauth_status=pending_approval&message=' + encodeURIComponent('Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified.'));
           } catch (error) {
@@ -855,6 +880,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error in /api/auth/me:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Notification API endpoints
+  app.get('/api/notifications', authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const notifications = await storage.getNotificationsByUserId(user.id);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+  });
+
+  app.get('/api/notifications/unread-count', authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const count = await storage.getUnreadNotificationCount(user.id);
+      res.json({ count });
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      res.status(500).json({ message: 'Failed to fetch unread count' });
+    }
+  });
+
+  app.put('/api/notifications/:id/read', authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      const notificationId = parseInt(req.params.id);
+
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      // Verify the notification belongs to the user
+      const notifications = await storage.getNotificationsByUserId(user.id);
+      const notification = notifications.find(n => n.id === notificationId);
+
+      if (!notification) {
+        return res.status(404).json({ message: 'Notification not found' });
+      }
+
+      const updated = await storage.markNotificationAsRead(notificationId);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Failed to update notification' });
+    }
+  });
+
+  app.put('/api/notifications/mark-all-read', authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      await storage.markAllNotificationsAsRead(user.id);
+      res.json({ message: 'All notifications marked as read' });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({ message: 'Failed to update notifications' });
     }
   });
 
