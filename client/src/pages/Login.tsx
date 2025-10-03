@@ -49,6 +49,18 @@ export default function Login() {
     const oauthParam = params.get('oauth');
     const step = params.get('step');
     const error = params.get('error');
+    const oauthStatus = params.get('oauth_status');
+
+    // Handle pending approval status
+    if (oauthStatus === 'pending_approval') {
+      const message = params.get('message') || 'Your account has been created and is awaiting admin approval.';
+      toast({
+        title: 'Account Pending Approval',
+        description: message,
+        variant: 'default',
+      });
+      window.history.replaceState({}, '', '/login');
+    }
 
     if (error === 'google_auth_failed') {
       const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
@@ -119,7 +131,14 @@ export default function Login() {
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
       const response = await apiRequest('POST', '/api/auth/login', data);
-      return await response.json();
+      const result = await response.json();
+      
+      // If response is not ok, throw error with the backend message
+      if (!response.ok) {
+        throw new Error(result.message || 'Login failed');
+      }
+      
+      return result;
     },
     onSuccess: (userData) => {
       // Validate roleId from backend
@@ -161,10 +180,13 @@ export default function Login() {
         description: `Welcome to your ${userRole} portal!`,
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      // Extract the specific error message from the backend
+      const errorMessage = error?.message || 'Invalid credentials. Please try again.';
+      
       toast({
         title: 'Login Failed',
-        description: 'Invalid credentials. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
@@ -172,11 +194,25 @@ export default function Login() {
 
   const changePasswordMutation = useMutation({
     mutationFn: async (data: ChangePasswordForm) => {
-      const response = await apiRequest('POST', '/api/auth/change-password', {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      }, tempUserData.token);
-      return await response.json();
+      // Temporarily store token for authentication during password change
+      const previousToken = localStorage.getItem('token');
+      localStorage.setItem('token', tempUserData.token);
+      
+      try {
+        const response = await apiRequest('POST', '/api/auth/change-password', {
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        });
+        return await response.json();
+      } catch (error) {
+        // Restore previous token if request failed
+        if (previousToken) {
+          localStorage.setItem('token', previousToken);
+        } else {
+          localStorage.removeItem('token');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       // Password changed successfully, now complete login
@@ -303,10 +339,10 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Info about role-based access */}
+              {/* Info box for Students/Parents */}
               <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Automatic Portal Assignment:</strong> You'll be redirected to the appropriate dashboard based on your account type.
+                  <strong>For Students & Parents:</strong> Use your THS username and password to login. You'll be automatically redirected to your dashboard.
                 </p>
               </div>
 
@@ -325,14 +361,21 @@ export default function Login() {
                 <div className="w-full border-t border-border"></div>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
+                <span className="bg-card px-2 text-muted-foreground">Admin/Teacher Only</span>
               </div>
+            </div>
+
+            {/* Google OAuth for Admin/Teacher only */}
+            <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800 mb-3">
+              <p className="text-xs text-orange-800 dark:text-orange-200">
+                <strong>Admins & Teachers:</strong> Use Google Sign-In with your authorized email. Students and parents cannot use this option.
+              </p>
             </div>
 
             <Button 
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full border-primary/30 hover:border-primary hover:bg-primary/5"
               onClick={() => window.location.href = '/api/auth/google'}
               data-testid="button-google-login"
             >
@@ -354,7 +397,7 @@ export default function Login() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Sign in with Google (Admin/Teacher)
+              Sign in with Google (Admin/Teacher Only)
             </Button>
 
             <div className="text-center mt-6">

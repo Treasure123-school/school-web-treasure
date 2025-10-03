@@ -1069,8 +1069,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
+      // SECURITY: Get user role to enforce authentication method separation
+      const userRole = await storage.getRole(user.roleId);
+      const roleName = userRole?.name?.toLowerCase();
+
+      // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login
+      if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
+        console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
+        return res.status(401).json({ 
+          message: "Admins and teachers must use Google Sign-In. Please use the 'Sign in with Google' button below." 
+        });
+      }
+
       // CRITICAL: Verify password hash with bcrypt
       if (!user.passwordHash) {
+        // If user is admin/teacher without password but with Google, direct them to Google login
+        if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
+          return res.status(401).json({ message: "Please use Google Sign-In for admin/teacher accounts." });
+        }
         console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
         return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
       }
