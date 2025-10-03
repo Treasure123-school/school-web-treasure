@@ -94,13 +94,17 @@ export default function Login() {
         login(userData, token);
         const userRole = getRoleNameById(userData.roleId);
         const targetPath = getPortalByRoleId(userData.roleId);
-        navigate(targetPath);
         
+        // Clean up URL query parameters before navigating
+        window.history.replaceState({}, '', '/login');
+        
+        // Show success message and navigate
         toast({
           title: 'Login Successful',
           description: `Welcome to your ${userRole} portal!`,
         });
-        window.history.replaceState({}, '', '/login');
+        
+        navigate(targetPath);
       }
     } catch (error) {
       toast({
