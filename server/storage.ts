@@ -2309,41 +2309,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async logPerformanceEvent(event: any): Promise<any> {
-    try {
-      const result = await sql`
-        INSERT INTO performance_events (
-          session_id, event_type, duration, metadata, user_id, client_side, created_at
-        ) VALUES (
-          ${event.sessionId}, ${event.eventType}, ${event.duration}, 
-          ${JSON.stringify(event.metadata)}, ${event.userId}, ${event.clientSide}, NOW()
-        ) RETURNING *
-      `;
-      return result[0];
-    } catch (error) {
-      console.error('Error logging performance event:', error);
-      throw error;
-    }
-  }
-
-  async getExpiredExamSessions(cutoffTime: Date, limit: number): Promise<any[]> {
-    try {
-      const result = await sql`
-        SELECT es.*, e.time_limit
-        FROM exam_sessions es
-        JOIN exams e ON es.exam_id = e.id
-        WHERE es.is_completed = false 
-        AND es.started_at < ${cutoffTime.toISOString()}
-        AND e.time_limit IS NOT NULL
-        AND EXTRACT(EPOCH FROM (NOW() - es.started_at)) / 60 > e.time_limit
-        LIMIT ${limit}
-      `;
-      return result || [];
-    } catch (error) {
-      console.error('Error fetching expired exam sessions:', error);
-      return []; // Return empty array instead of throwing to prevent cleanup service crashes
-    }
-  }
 
   // Home page content management
   async getHomePageContent(contentType?: string): Promise<HomePageContent[]> {
