@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Clock, PenTool, CheckSquare, Award } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
 
 
 interface NavItem {
@@ -298,9 +299,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               </div>
             </div>
             <div className="flex items-center space-x-2 md:space-x-4">
-              <Button variant="ghost" size="icon" data-testid="button-notifications">
-                <Bell className="h-5 w-5" />
-              </Button>
+              <NotificationBell />
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
