@@ -75,3 +75,47 @@ Preferred communication style: Simple, everyday language.
 ### Development Tools
 - **Linting**: ESLint.
 - **CSS Processing**: PostCSS with Autoprefixer.
+
+## Replit Environment Setup
+
+### Project Status (Latest Update: October 3, 2025)
+✅ **Fully Configured and Running** - The application has been successfully set up in the Replit environment.
+
+### Environment Configuration
+- **Node.js Version**: 20.x (via nodejs-20 module)
+- **Database**: PostgreSQL (Supabase) - Connected and operational
+- **Database URL**: Configured via environment variable `DATABASE_URL`
+- **Port**: 5000 (configured for Replit proxy compatibility)
+
+### Development Workflow
+- **Start Command**: `npm run dev` - Starts both Express backend and Vite frontend
+- **Build Command**: `npm run build` - Builds production assets
+- **Production Command**: `npm run start` - Runs production server
+- **Database Push**: `npm run db:push` - Syncs schema changes to database
+
+### Replit-Specific Configurations
+1. **Vite Server Settings** (vite.config.ts):
+   - `host: "0.0.0.0"` - Listens on all network interfaces
+   - `allowedHosts: true` - Allows Replit's iframe proxy
+   - `port: 5000` - Only non-firewalled port in Replit
+
+2. **Express Server Settings** (server/index.ts):
+   - Serves on port 5000 (from `process.env.PORT` or default)
+   - `host: "0.0.0.0"` - Required for Replit accessibility
+   - `reusePort: true` - Enables zero-downtime restarts
+
+3. **Deployment Configuration** (.replit):
+   - **Target**: Autoscale deployment
+   - **Build**: `npm run build`
+   - **Run**: `npm run start`
+   - **Workflow**: "Start application" configured with webview output
+
+### Database Migrations
+- Migrations are applied automatically on server startup
+- Migration folder: `./migrations`
+- Migrations use Drizzle ORM migrator
+- Idempotent design - safe to run multiple times
+
+### Active Integrations
+- `javascript_supabase:1.0.0` - Supabase PostgreSQL integration
+- `javascript_database:1.0.0` - Database management integration
