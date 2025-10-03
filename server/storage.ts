@@ -11,7 +11,8 @@ import type {
   Role, AcademicTerm, ExamQuestion, InsertExamQuestion, QuestionOption, InsertQuestionOption,
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
   StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent,
-  TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem
+  TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem,
+  Notification, InsertNotification
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
@@ -121,6 +122,13 @@ export interface IStorage {
   deleteInvite(inviteId: number): Promise<boolean>;
   deleteExpiredInvites(): Promise<boolean>;
   createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog>;
+
+  // Notification management
+  createNotification(notification: schema.InsertNotification): Promise<schema.Notification>;
+  getNotificationsByUserId(userId: string): Promise<schema.Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  markNotificationAsRead(notificationId: number): Promise<schema.Notification | undefined>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
 
   // Student management
   getStudent(id: string): Promise<Student | undefined>;
@@ -3390,6 +3398,46 @@ export class DatabaseStorage implements IStorage {
         eq(schema.auditLogs.entityId, entityId)
       ))
       .orderBy(desc(schema.auditLogs.createdAt));
+  }
+
+  // Notification management implementation
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const result = await this.db.insert(schema.notifications).values(notification).returning();
+    return result[0];
+  }
+
+  async getNotificationsByUserId(userId: string): Promise<Notification[]> {
+    return await this.db.select()
+      .from(schema.notifications)
+      .where(eq(schema.notifications.userId, userId))
+      .orderBy(desc(schema.notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await this.db.select({ count: dsql<number>`count(*)::int` })
+      .from(schema.notifications)
+      .where(and(
+        eq(schema.notifications.userId, userId),
+        eq(schema.notifications.isRead, false)
+      ));
+    return result[0]?.count || 0;
+  }
+
+  async markNotificationAsRead(notificationId: number): Promise<Notification | undefined> {
+    const result = await this.db.update(schema.notifications)
+      .set({ isRead: true })
+      .where(eq(schema.notifications.id, notificationId))
+      .returning();
+    return result[0];
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await this.db.update(schema.notifications)
+      .set({ isRead: true })
+      .where(and(
+        eq(schema.notifications.userId, userId),
+        eq(schema.notifications.isRead, false)
+      ));
   }
 }
 

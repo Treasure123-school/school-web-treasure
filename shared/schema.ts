@@ -86,6 +86,22 @@ export const invites = pgTable("invites", {
   invitesEmailIdx: index("invites_email_idx").on(table.email),
 }));
 
+// Notifications table for admin alerts
+export const notifications = pgTable("notifications", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(), // Admin receiving the notification
+  type: varchar("type", { length: 50 }).notNull(), // 'pending_user', 'approval_request', etc.
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  relatedEntityType: varchar("related_entity_type", { length: 50 }), // 'user', 'student', etc.
+  relatedEntityId: varchar("related_entity_id", { length: 255 }), // ID of the related entity
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  notificationsUserIdIdx: index("notifications_user_id_idx").on(table.userId),
+  notificationsIsReadIdx: index("notifications_is_read_idx").on(table.isRead),
+}));
+
 // Academic terms table
 export const academicTerms = pgTable("academic_terms", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -631,6 +647,8 @@ export const updateExamSessionSchema = z.object({
 }).strict(); // .strict() prevents any additional fields from being accepted
 export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+
 // Types
 export type Role = typeof roles.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -656,6 +674,7 @@ export type PerformanceEvent = typeof performanceEvents.$inferSelect;
 export type TeacherClassAssignment = typeof teacherClassAssignments.$inferSelect;
 export type GradingTask = typeof gradingTasks.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -686,6 +705,7 @@ export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema
 export type InsertTeacherClassAssignment = z.infer<typeof insertTeacherClassAssignmentSchema>;
 export type InsertGradingTask = z.infer<typeof insertGradingTaskSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
