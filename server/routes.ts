@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema } from "@shared/schema";
+import * as schema from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
@@ -13,6 +14,7 @@ import { generateUsername, generatePassword, getNextUserNumber } from "./auth-ut
 import passport from "passport";
 import session from "express-session";
 import { setupGoogleAuth } from "./google-auth";
+import { and, eq, sql } from "drizzle-orm";
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -725,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasError: !!req.query.error
       });
       
-      passport.authenticate('google', (err: any, user: any, info: any) => {
+      passport.authenticate('google', async (err: any, user: any, info: any) => {
         if (err) {
           console.error('❌ Google OAuth error:', err);
           console.error('Error details:', { message: err.message, stack: err.stack });
@@ -738,11 +740,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent(message));
         }
 
-        if (user.isNewUser) {
-          req.session.pendingUser = user;
-          return res.redirect('/login?oauth=google&step=role_selection');
+        // Handle new user requiring approval
+        if (user.isNewUser && user.requiresApproval) {
+          console.log('📝 Creating pending staff account for:', user.email);
+          
+          try {
+            // Check if an invite exists for this email
+            const invite = await storage.getPendingInviteByEmail(user.email);
+            const roleId = invite ? invite.roleId : ROLES.TEACHER; // Default to teacher if no invite
+            
+            // Generate THS username
+            const currentYear = new Date().getFullYear().toString();
+            const existingUsers = await storage.getUsersByRole(roleId);
+            const existingUsernames = existingUsers.map((u: any) => u.username).filter(Boolean);
+            const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
+            const username = generateUsername(roleId, currentYear, '', nextNumber);
+            
+            // Create PENDING account
+            const newUser = await storage.createUser({
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              username,
+              roleId,
+              authProvider: 'google',
+              googleId: user.googleId,
+              profileImageUrl: user.profileImageUrl,
+              mustChangePassword: false,
+              passwordHash: null,
+              status: 'pending', // Requires approval
+              createdVia: invite ? 'invite' : 'google',
+              isActive: true,
+            });
+            
+            // If invite exists, mark it as accepted
+            if (invite) {
+              await storage.markInviteAsAccepted(invite.id, newUser.id);
+            }
+            
+            console.log('✅ Created pending account for:', user.email);
+            
+            // Log audit event
+            await storage.createAuditLog({
+              userId: newUser.id,
+              action: 'account_created_pending_approval',
+              entityType: 'user',
+              entityId: BigInt(1),
+              newValue: JSON.stringify({ email: user.email, googleId: user.googleId }),
+              reason: invite ? 'OAuth signup via invite' : 'OAuth signup without invite',
+              ipAddress: req.ip,
+              userAgent: req.headers['user-agent']
+            });
+            
+            // DENY LOGIN - redirect with message about pending approval
+            return res.redirect('/login?oauth_status=pending_approval&message=' + encodeURIComponent('Your account has been created and is awaiting admin approval. You will be notified once approved.'));
+          } catch (error) {
+            console.error('❌ Error creating pending account:', error);
+            return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to create account'));
+          }
         }
 
+        // Existing active user - allow login
         req.logIn(user, (loginErr) => {
           if (loginErr) {
             console.error('Login error:', loginErr);
@@ -755,49 +813,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })(req, res, next);
     }
   );
-
-  app.post('/api/auth/google/complete-signup', async (req, res) => {
-    try {
-      const { roleId } = req.body;
-      const pendingUser = (req.session as any).pendingUser;
-
-      if (!pendingUser) {
-        return res.status(400).json({ message: 'No pending signup found' });
-      }
-
-      if (roleId !== ROLES.ADMIN && roleId !== ROLES.TEACHER) {
-        return res.status(400).json({ message: 'Google OAuth is only available for Admin and Teacher roles' });
-      }
-
-      const currentYear = new Date().getFullYear().toString();
-      const existingUsers = await storage.getUsersByRole(roleId);
-      const existingUsernames = existingUsers.map((u: any) => u.username).filter(Boolean);
-      const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
-      const username = generateUsername(roleId, currentYear, '', nextNumber);
-
-      const newUser = await storage.createUser({
-        email: pendingUser.email,
-        firstName: pendingUser.firstName,
-        lastName: pendingUser.lastName,
-        username,
-        roleId,
-        authProvider: 'google',
-        googleId: pendingUser.googleId,
-        profileImageUrl: pendingUser.profileImageUrl,
-        mustChangePassword: false,
-        passwordHash: null,
-        isActive: true,
-      });
-
-      delete (req.session as any).pendingUser;
-
-      const token = jwt.sign({ userId: newUser.id, roleId: newUser.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-      res.json({ token, user: newUser, message: 'Account created successfully' });
-    } catch (error) {
-      console.error('Error completing Google signup:', error);
-      res.status(500).json({ message: 'Failed to complete signup' });
-    }
-  });
 
   app.get('/api/auth/me', authenticateUser, async (req, res) => {
     try {

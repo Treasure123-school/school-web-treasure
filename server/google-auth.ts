@@ -34,27 +34,68 @@ export function setupGoogleAuth() {
             return done(null, false, { message: "No email found in Google profile" });
           }
 
-          const existingUser = await storage.getUserByGoogleId(googleId);
-
-          if (existingUser) {
-            return done(null, existingUser);
+          // Step 1: Check if user exists by google_id
+          let user = await storage.getUserByGoogleId(googleId);
+          
+          // Step 2: If not found by google_id, check by email
+          if (!user) {
+            user = await storage.getUserByEmail(email);
           }
 
-          const existingEmailUser = await storage.getUserByEmail(email);
-          if (existingEmailUser) {
-            if (existingEmailUser.authProvider === 'local') {
-              return done(null, false, { message: "This email is already registered with a password. Please use password login instead." });
+          // Step 3: If user exists, validate their authorization
+          if (user) {
+            // Get role name for validation
+            const role = await storage.getRole(user.roleId);
+            const roleName = role?.name?.toLowerCase();
+            
+            // Check if user is staff (teacher/admin)
+            if (roleName === 'teacher' || roleName === 'admin') {
+              // Check account status
+              if (user.status === 'active') {
+                // Update google_id if not set
+                if (!user.googleId) {
+                  await storage.updateUserGoogleId(user.id, googleId);
+                  user.googleId = googleId;
+                }
+                // ALLOW LOGIN - Active staff member
+                return done(null, user);
+              } else if (user.status === 'pending') {
+                // DENY - Account pending approval
+                return done(null, false, { 
+                  message: "Your account is awaiting admin approval. Contact admin@treasurehomeschool.edu.ng to request approval." 
+                });
+              } else if (user.status === 'suspended' || user.status === 'disabled') {
+                // DENY - Account suspended/disabled
+                return done(null, false, { 
+                  message: "Your account has been suspended. Please contact the administrator." 
+                });
+              }
             }
-            return done(null, existingEmailUser);
+            
+            // If student/parent trying to use Google login
+            if (roleName === 'student' || roleName === 'parent') {
+              return done(null, false, { 
+                message: "Students and parents must use THS username and password to login. Contact your teacher if you forgot your credentials." 
+              });
+            }
+            
+            // Unknown role or local auth provider conflict
+            if (user.authProvider === 'local') {
+              return done(null, false, { 
+                message: "This email is registered with a password. Please use password login instead." 
+              });
+            }
           }
 
+          // Step 4: No existing user found - mark as new user needing approval
           return done(null, { 
             googleId, 
             email, 
             firstName, 
             lastName, 
             profileImageUrl,
-            isNewUser: true 
+            isNewUser: true,
+            requiresApproval: true
           } as any);
         } catch (error) {
           return done(error);

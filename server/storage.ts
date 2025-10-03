@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@shared/schema";
-import { eq, and, desc, asc, sql, sql as dsql, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull } from "drizzle-orm";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -93,6 +93,7 @@ export interface IStorage {
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
+  updateUserGoogleId(userId: string, googleId: string): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   getUsersByRole(roleId: number): Promise<User[]>;
 
@@ -105,6 +106,12 @@ export interface IStorage {
   // Role management
   getRoles(): Promise<Role[]>;
   getRoleByName(name: string): Promise<Role | undefined>;
+  getRole(roleId: number): Promise<Role | undefined>;
+  
+  // Invite management
+  getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined>;
+  markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void>;
+  createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog>;
 
   // Student management
   getStudent(id: string): Promise<Student | undefined>;
@@ -489,6 +496,10 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
+  async updateUserGoogleId(userId: string, googleId: string): Promise<User | undefined> {
+    return await this.updateUser(userId, { googleId });
+  }
+
   async deleteUser(id: string): Promise<boolean> {
     const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
     return result.length > 0;
@@ -514,6 +525,33 @@ export class DatabaseStorage implements IStorage {
 
   async getRoleByName(name: string): Promise<Role | undefined> {
     const result = await this.db.select().from(schema.roles).where(eq(schema.roles.name, name)).limit(1);
+    return result[0];
+  }
+
+  async getRole(roleId: number): Promise<Role | undefined> {
+    const result = await this.db.select().from(schema.roles).where(eq(schema.roles.id, roleId)).limit(1);
+    return result[0];
+  }
+
+  // Invite management
+  async getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined> {
+    const result = await this.db.select().from(schema.invites)
+      .where(and(
+        eq(schema.invites.email, email),
+        isNull(schema.invites.acceptedAt)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void> {
+    await this.db.update(schema.invites)
+      .set({ acceptedAt: new Date(), acceptedBy })
+      .where(eq(schema.invites.id, inviteId));
+  }
+
+  async createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog> {
+    const result = await this.db.insert(schema.auditLogs).values(log).returning();
     return result[0];
   }
 
