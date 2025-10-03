@@ -8,6 +8,8 @@ export const genderEnum = pgEnum('gender', ['Male', 'Female', 'Other']);
 export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Late', 'Excused']);
 export const reportCardStatusEnum = pgEnum('report_card_status', ['draft', 'finalized', 'published']);
 export const examTypeEnum = pgEnum('exam_type', ['test', 'exam']);
+export const userStatusEnum = pgEnum('user_status', ['pending', 'active', 'suspended', 'disabled']);
+export const createdViaEnum = pgEnum('created_via', ['bulk', 'invite', 'self', 'google', 'admin']);
 
 // Roles table
 export const roles = pgTable("roles", {
@@ -35,9 +37,25 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").default(true),
   authProvider: varchar("auth_provider", { length: 20 }).default('local'),
   googleId: varchar("google_id", { length: 255 }).unique(),
+  
+  // Security & audit fields
+  status: userStatusEnum("status").default('pending'), // New accounts require approval
+  createdVia: createdViaEnum("created_via").default('admin'),
+  createdBy: uuid("created_by"),
+  approvedBy: uuid("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  lastLoginAt: timestamp("last_login_at"),
+  lastLoginIp: varchar("last_login_ip", { length: 45 }),
+  mfaEnabled: boolean("mfa_enabled").default(false),
+  mfaSecret: text("mfa_secret"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  usersEmailIdx: index("users_email_idx").on(table.email),
+  usersStatusIdx: index("users_status_idx").on(table.status),
+  usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId),
+}));
 
 // Password reset tokens table
 export const passwordResetTokens = pgTable("password_reset_tokens", {
@@ -50,6 +68,22 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 }, (table) => ({
   passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
   passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token),
+}));
+
+// Invites table for staff onboarding
+export const invites = pgTable("invites", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull(),
+  roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  acceptedBy: uuid("accepted_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  invitesTokenIdx: index("invites_token_idx").on(table.token),
+  invitesEmailIdx: index("invites_email_idx").on(table.email),
 }));
 
 // Academic terms table
@@ -451,6 +485,7 @@ export const auditLogs = pgTable("audit_logs", {
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+export const insertInviteSchema = createInsertSchema(invites).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
 export const insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
 export const insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
@@ -600,6 +635,7 @@ export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit
 export type Role = typeof roles.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type Invite = typeof invites.$inferSelect;
 export type Student = typeof students.$inferSelect;
 export type Class = typeof classes.$inferSelect;
 export type Subject = typeof subjects.$inferSelect;
