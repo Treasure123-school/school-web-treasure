@@ -34,13 +34,22 @@ type ChangePasswordForm = z.infer<typeof changePasswordSchema>;
 
 export default function Login() {
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [, navigate] = useLocation();
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [selectedRole, setSelectedRole] = useState<number | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   
+  // Handle navigation after auth state updates
+  useEffect(() => {
+    if (user && pendingNavigation) {
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
+  }, [user, pendingNavigation, navigate]);
+
   // Check for OAuth callback parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -91,23 +100,21 @@ export default function Login() {
       
       if (response.ok) {
         const userData = await response.json();
-        login(userData, token);
+        
         const userRole = getRoleNameById(userData.roleId);
         const targetPath = getPortalByRoleId(userData.roleId);
         
-        // Clean up URL query parameters before navigating
+        // Clean up OAuth query parameters
         window.history.replaceState({}, '', '/login');
         
-        // Show success message and navigate
         toast({
           title: 'Login Successful',
           description: `Welcome to your ${userRole} portal!`,
         });
         
-        // Delay navigation to allow auth state to update
-        setTimeout(() => {
-          navigate(targetPath);
-        }, 100);
+        // Store auth data and set pending navigation
+        login(userData, token);
+        setPendingNavigation(targetPath);
       }
     } catch (error) {
       toast({
@@ -177,7 +184,6 @@ export default function Login() {
       }
 
       // Normal login flow
-      login(userData.user, userData.token);
       const userRole = getRoleNameById(userData.user.roleId);
       const targetPath = getPortalByRoleId(userData.user.roleId);
       
@@ -186,10 +192,9 @@ export default function Login() {
         description: `Welcome to your ${userRole} portal!`,
       });
       
-      // Delay navigation to allow auth state to update
-      setTimeout(() => {
-        navigate(targetPath);
-      }, 100);
+      // Store auth data and set pending navigation (useEffect will handle redirect)
+      login(userData.user, userData.token);
+      setPendingNavigation(targetPath);
     },
     onError: (error: any) => {
       // Extract the specific error message from the backend
@@ -240,10 +245,8 @@ export default function Login() {
         description: `Welcome to your ${userRole} portal!`,
       });
       
-      // Delay navigation to allow auth state to update
-      setTimeout(() => {
-        navigate(targetPath);
-      }, 100);
+      // Set pending navigation (useEffect will handle redirect after auth state updates)
+      setPendingNavigation(targetPath);
     },
     onError: (error: any) => {
       toast({
@@ -270,12 +273,12 @@ export default function Login() {
         title: 'Account Created Successfully',
         description: `Welcome to your ${userRole} portal!`,
       });
+      
+      // Clean up OAuth query parameters
       window.history.replaceState({}, '', '/login');
       
-      // Delay navigation to allow auth state to update
-      setTimeout(() => {
-        navigate(targetPath);
-      }, 100);
+      // Set pending navigation (useEffect will handle redirect after auth state updates)
+      setPendingNavigation(targetPath);
     },
     onError: (error: any) => {
       toast({
