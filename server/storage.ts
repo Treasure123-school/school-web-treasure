@@ -528,7 +528,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersByStatus(status: string): Promise<User[]> {
-    const result = await this.db.select().from(schema.users).where(eq(schema.users.status, status));
+    const result = await this.db.select().from(schema.users).where(sql`${schema.users.status} = ${status}`);
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);
@@ -659,11 +659,6 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return result.length > 0;
-  }
-
-  async createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog> {
-    const result = await this.db.insert(schema.auditLogs).values(log).returning();
-    return result[0];
   }
 
   // Student management
@@ -2270,6 +2265,7 @@ export class DatabaseStorage implements IStorage {
         AND es.is_completed = true
       `;
 
+      const pgClient = await initializeDatabase().pg;
       const params = [teacherId];
 
       if (status && status !== 'all') {
@@ -2282,8 +2278,8 @@ export class DatabaseStorage implements IStorage {
 
       query += ' ORDER BY es.submitted_at DESC';
 
-      const result = await sql.unsafe(query, params);
-      return result;
+      const result = await pgClient.unsafe(query, params);
+      return result as any[];
     } catch (error) {
       console.error('Error fetching grading tasks:', error);
       throw error;
@@ -2295,7 +2291,8 @@ export class DatabaseStorage implements IStorage {
       const { taskId, score, comment, graderId } = gradeData;
 
       // Insert or update manual score
-      const result = await sql`
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient`
         INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
         VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
         ON CONFLICT (answer_id) 
@@ -2308,13 +2305,13 @@ export class DatabaseStorage implements IStorage {
       `;
 
       // Update the student answer with the manual score
-      await sql`
+      await pgClient`
         UPDATE student_answers 
         SET points_earned = ${score}
         WHERE id = ${taskId}
       `;
 
-      return result[0];
+      return result[0] as any;
     } catch (error) {
       console.error('Error submitting manual grade:', error);
       throw error;
@@ -2323,7 +2320,8 @@ export class DatabaseStorage implements IStorage {
 
   async getAllExamSessions(): Promise<any[]> {
     try {
-      const result = await sql`
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient`
         SELECT 
           es.*,
           e.name as exam_title,
@@ -2345,7 +2343,7 @@ export class DatabaseStorage implements IStorage {
         ORDER BY es.started_at DESC
       `;
 
-      return result;
+      return result as any[];
     } catch (error) {
       console.error('Error fetching exam sessions:', error);
       throw error;
@@ -2409,8 +2407,9 @@ export class DatabaseStorage implements IStorage {
         ORDER BY e.date DESC
       `;
 
-      const result = await sql.unsafe(query, params);
-      return result;
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient.unsafe(query, params);
+      return result as any[];
     } catch (error) {
       console.error('Error fetching exam reports:', error);
       throw error;
@@ -2419,7 +2418,8 @@ export class DatabaseStorage implements IStorage {
 
   async getExamStudentReports(examId: number): Promise<any[]> {
     try {
-      const result = await sql`
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient`
         SELECT 
           u.id as student_id,
           u.first_name || ' ' || u.last_name as student_name,
@@ -2451,7 +2451,7 @@ export class DatabaseStorage implements IStorage {
         ORDER BY er.marks_obtained DESC
       `;
 
-      return result;
+      return result as any[];
     } catch (error) {
       console.error('Error fetching student reports:', error);
       throw error;
@@ -3219,7 +3219,7 @@ export class DatabaseStorage implements IStorage {
         eq(schema.teacherClassAssignments.isActive, true)
       ));
 
-    return assignments.map(a => a.user);
+    return assignments.map((a: any) => a.user);
   }
 
   async updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined> {
