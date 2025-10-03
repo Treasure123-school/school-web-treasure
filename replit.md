@@ -4,6 +4,21 @@
 Treasure-Home School Management System is a comprehensive full-stack web application designed for K-12 schools. It provides role-based dashboards for students, teachers, administrators, and parents, alongside a public-facing website. The system manages core school operations such as student enrollment, attendance tracking, grade management, announcements, and communication. It features a modern monorepo architecture with shared schema definitions and a complete authentication system with role-based access control, ensuring distinct permissions and tailored interfaces for various user types. The system includes a robust exam management system with creation, delivery, auto-scoring, manual grading, and secure features like tab-switching detection and question randomization.
 
 ## Recent Changes
+- **October 3, 2025**: Chapter One Authentication System - Enhanced with Strict Role-Based Access Control
+  - ✅ **Strict Login Separation**: Students/Parents ONLY use THS username/password, Admin/Teacher ONLY use Google OAuth (or password if authProvider='local')
+  - ✅ **Backend Validation**: Server validates authProvider field - Admin/Teacher with authProvider='google' cannot use password login endpoint
+  - ✅ **Google OAuth Restrictions**: Google auth strategy only allows Admin/Teacher roles, rejects students/parents with clear error messages
+  - ✅ **Enhanced UI Clarity**: Login page visually separates authentication methods:
+    - Top section: Blue info box for Students & Parents (THS credentials)
+    - Clear "ADMIN/TEACHER ONLY" divider
+    - Bottom section: Orange warning box for Admin/Teacher (Google Sign-In)
+  - ✅ **Error Message Propagation**: Frontend properly displays backend error messages to guide users to correct login method
+  - ✅ **Single-Attempt Login**: Authentication flow redirects immediately to correct dashboard without requiring multiple attempts
+  - ✅ **Security Enforcement**: Rate limiting (5 attempts/15 min), JWT tokens (24hr expiry), bcrypt password hashing (12 rounds)
+  - ✅ **First-Login Password Change**: Password change flow fixed with proper temporary token handling
+  - ✅ **Architect Approved**: All Chapter One requirements met and verified
+  - Note: Google OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables (system works for students/parents without it)
+
 - **October 3, 2025**: GitHub Import Successfully Completed and Verified for Replit Environment
   - ✅ Verified Node.js 20 module installed
   - ✅ Confirmed all npm dependencies installed (Express, Vite, React, Drizzle ORM, etc.)
@@ -129,7 +144,13 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API endpoints with structured error handling.
 - **Session Management**: Express sessions with PostgreSQL session store.
 - **Database ORM**: Drizzle ORM for type-safe operations.
-- **Authentication**: Hybrid system - THS-branded username/password for students/parents, Google OAuth for admin/teacher, with server-side sessions and PostgreSQL storage.
+- **Authentication**: Strict role-based hybrid system:
+  - Students/Parents: THS-branded username/password ONLY
+  - Admin/Teacher: Google OAuth (or password if authProvider='local') ONLY
+  - Backend enforces authProvider validation to prevent cross-role login methods
+  - Clear error messages guide users to correct authentication method
+  - JWT tokens (24hr expiry), bcrypt password hashing (12 rounds), rate limiting (5 attempts/15 min)
+  - First-login password change enforcement with dialog-based UI flow
 - **Authorization**: Role-Based Access Control (RBAC) for student, teacher, admin, and parent roles.
 - **Exam Security**: Tab switch detection, enhanced session recovery, question and option randomization, and time-based auto-submit.
 
