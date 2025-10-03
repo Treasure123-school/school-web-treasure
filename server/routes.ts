@@ -818,7 +818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             // DENY LOGIN - redirect with message about pending approval
-            return res.redirect('/login?oauth_status=pending_approval&message=' + encodeURIComponent('Your account has been created and is awaiting admin approval. You will be notified once approved.'));
+            return res.redirect('/login?oauth_status=pending_approval&message=' + encodeURIComponent('Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified.'));
           } catch (error) {
             console.error('❌ Error creating pending account:', error);
             return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to create account'));
@@ -1091,8 +1091,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
                 lockoutViolations.delete(identifier); // Clear violations after suspension
                 
+                // Get user role to provide appropriate message
+                const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
+                const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
+                const isStaffForSuspension = roleNameForSuspension === 'admin' || roleNameForSuspension === 'teacher';
+                
                 return res.status(403).json({
-                  message: "Your account has been suspended due to multiple failed login attempts. Please contact an administrator to unlock your account."
+                  message: isStaffForSuspension
+                    ? "Access denied: Your account is suspended by THS Admin."
+                    : "Your account is currently suspended. Please contact your class teacher or admin."
                 });
               }
             } catch (err) {
@@ -1128,14 +1135,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         console.log(`Login failed: User not found for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid login. Please check your details and try again." });
       }
 
       // SECURITY CHECK: Block suspended accounts
       if (user.status === 'suspended') {
         console.warn(`Login blocked: Account ${identifier} is suspended`);
+        // Get user role to provide appropriate message
+        const userRole = await storage.getRole(user.roleId);
+        const roleName = userRole?.name?.toLowerCase();
+        const isStaffAccount = roleName === 'admin' || roleName === 'teacher';
+        
         return res.status(403).json({ 
-          message: "Your account has been suspended due to multiple failed login attempts. Please contact an administrator to unlock your account." 
+          message: isStaffAccount 
+            ? "Access denied: Your account is suspended by THS Admin."
+            : "Your account is currently suspended. Please contact your class teacher or admin."
         });
       }
 
@@ -1165,7 +1179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid login. Please check your details and try again." });
       }
 
       // Password verification successful - reset rate limit and clear lockout violations

@@ -62,12 +62,12 @@ export function setupGoogleAuth() {
               } else if (user.status === 'pending') {
                 // DENY - Account pending approval
                 return done(null, false, { 
-                  message: "Your account is awaiting admin approval. Contact admin@treasurehomeschool.edu.ng to request approval." 
+                  message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified." 
                 });
               } else if (user.status === 'suspended' || user.status === 'disabled') {
                 // DENY - Account suspended/disabled
                 return done(null, false, { 
-                  message: "Your account has been suspended. Please contact the administrator." 
+                  message: "Access denied: Your account is suspended by THS Admin." 
                 });
               }
             }
