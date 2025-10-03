@@ -112,8 +112,14 @@ export interface IStorage {
   getRole(roleId: number): Promise<Role | undefined>;
   
   // Invite management
+  createInvite(invite: schema.InsertInvite): Promise<schema.Invite>;
+  getInviteByToken(token: string): Promise<schema.Invite | undefined>;
   getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined>;
+  getAllInvites(): Promise<schema.Invite[]>;
+  getPendingInvites(): Promise<schema.Invite[]>;
   markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void>;
+  deleteInvite(inviteId: number): Promise<boolean>;
+  deleteExpiredInvites(): Promise<boolean>;
   createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog>;
 
   // Student management
@@ -595,6 +601,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Invite management
+  async createInvite(invite: schema.InsertInvite): Promise<schema.Invite> {
+    const result = await this.db.insert(schema.invites).values(invite).returning();
+    return result[0];
+  }
+
+  async getInviteByToken(token: string): Promise<schema.Invite | undefined> {
+    const result = await this.db.select().from(schema.invites)
+      .where(and(
+        eq(schema.invites.token, token),
+        isNull(schema.invites.acceptedAt),
+        dsql`${schema.invites.expiresAt} > NOW()`
+      ))
+      .limit(1);
+    return result[0];
+  }
+
   async getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined> {
     const result = await this.db.select().from(schema.invites)
       .where(and(
@@ -605,10 +627,38 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getAllInvites(): Promise<schema.Invite[]> {
+    return await this.db.select().from(schema.invites)
+      .orderBy(desc(schema.invites.createdAt));
+  }
+
+  async getPendingInvites(): Promise<schema.Invite[]> {
+    return await this.db.select().from(schema.invites)
+      .where(isNull(schema.invites.acceptedAt))
+      .orderBy(desc(schema.invites.createdAt));
+  }
+
   async markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void> {
     await this.db.update(schema.invites)
       .set({ acceptedAt: new Date(), acceptedBy })
       .where(eq(schema.invites.id, inviteId));
+  }
+
+  async deleteInvite(inviteId: number): Promise<boolean> {
+    const result = await this.db.delete(schema.invites)
+      .where(eq(schema.invites.id, inviteId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteExpiredInvites(): Promise<boolean> {
+    const result = await this.db.delete(schema.invites)
+      .where(and(
+        dsql`${schema.invites.expiresAt} < NOW()`,
+        isNull(schema.invites.acceptedAt)
+      ))
+      .returning();
+    return result.length > 0;
   }
 
   async createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog> {

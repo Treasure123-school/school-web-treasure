@@ -122,9 +122,34 @@ const ROLES = {
 
 // Rate limiting for login attempts (simple in-memory store)
 const loginAttempts = new Map();
+const lockoutViolations = new Map(); // Track rate limit violations per user with timestamp
 const MAX_LOGIN_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const LOCKOUT_VIOLATION_WINDOW = 60 * 60 * 1000; // 1 hour window for tracking violations
+const MAX_RATE_LIMIT_VIOLATIONS = 3; // Suspend account after 3 rate limit hits within window
 const BCRYPT_ROUNDS = 12;
+
+// Periodic cleanup of expired violations and login attempts
+setInterval(() => {
+  const now = Date.now();
+  
+  // Clean up old login attempts
+  for (const [key, data] of loginAttempts.entries()) {
+    if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
+      loginAttempts.delete(key);
+    }
+  }
+  
+  // Clean up old lockout violations
+  for (const [identifier, data] of lockoutViolations.entries()) {
+    const recentViolations = data.timestamps.filter((ts: number) => now - ts < LOCKOUT_VIOLATION_WINDOW);
+    if (recentViolations.length === 0) {
+      lockoutViolations.delete(identifier);
+    } else if (recentViolations.length !== data.timestamps.length) {
+      lockoutViolations.set(identifier, { count: recentViolations.length, timestamps: recentViolations });
+    }
+  }
+}, 5 * 60 * 1000); // Run cleanup every 5 minutes
 
 // Secure JWT authentication middleware
 const authenticateUser = async (req: any, res: any, next: any) => {
@@ -1039,6 +1064,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
         console.warn(`Rate limit exceeded for ${attemptKey}`);
+        
+        // Track violation for account lockout with timestamp
+        if (identifier) {
+          // Clean up expired violations
+          const violationData = lockoutViolations.get(identifier) || { count: 0, timestamps: [] };
+          const recentViolations = violationData.timestamps.filter((ts: number) => now - ts < LOCKOUT_VIOLATION_WINDOW);
+          
+          // Add current violation
+          recentViolations.push(now);
+          lockoutViolations.set(identifier, { count: recentViolations.length, timestamps: recentViolations });
+          
+          // Suspend account after threshold violations within the window
+          if (recentViolations.length >= MAX_RATE_LIMIT_VIOLATIONS) {
+            try {
+              // Find and suspend the user
+              let userToSuspend;
+              if (identifier.includes('@')) {
+                userToSuspend = await storage.getUserByEmail(identifier);
+              } else {
+                userToSuspend = await storage.getUserByUsername(identifier);
+              }
+              
+              if (userToSuspend && userToSuspend.status !== 'suspended') {
+                await storage.updateUserStatus(userToSuspend.id, 'suspended', 'system', `Automatic suspension due to ${recentViolations.length} rate limit violations within 1 hour`);
+                console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
+                lockoutViolations.delete(identifier); // Clear violations after suspension
+                
+                return res.status(403).json({
+                  message: "Your account has been suspended due to multiple failed login attempts. Please contact an administrator to unlock your account."
+                });
+              }
+            } catch (err) {
+              console.error('Failed to suspend account:', err);
+            }
+          }
+        }
+        
         return res.status(429).json({ 
           message: "Too many login attempts. Please try again in 15 minutes." 
         });
@@ -1067,6 +1129,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         console.log(`Login failed: User not found for identifier ${identifier}`);
         return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // SECURITY CHECK: Block suspended accounts
+      if (user.status === 'suspended') {
+        console.warn(`Login blocked: Account ${identifier} is suspended`);
+        return res.status(403).json({ 
+          message: "Your account has been suspended due to multiple failed login attempts. Please contact an administrator to unlock your account." 
+        });
       }
 
       // SECURITY: Get user role to enforce authentication method separation
@@ -1098,8 +1168,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Password verification successful - reset rate limit
+      // Password verification successful - reset rate limit and clear lockout violations
       loginAttempts.delete(attemptKey);
+      if (identifier) {
+        lockoutViolations.delete(identifier);
+      }
 
       // Generate JWT token with user claims - ensure UUID is string
       const tokenPayload = {
@@ -1294,6 +1367,298 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================
+  // ACCOUNT LOCKOUT MANAGEMENT ENDPOINTS
+  // ============================================================
+
+  // Get all suspended accounts (Admin only)
+  app.get("/api/admin/suspended-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const suspendedUsers = await storage.getUsersByStatus('suspended');
+      
+      // Remove sensitive data
+      const sanitizedUsers = suspendedUsers.map(user => {
+        const { passwordHash, ...safeUser } = user;
+        return safeUser;
+      });
+      
+      res.json(sanitizedUsers);
+    } catch (error) {
+      console.error('Failed to fetch suspended accounts:', error);
+      res.status(500).json({ message: "Failed to fetch suspended accounts" });
+    }
+  });
+
+  // Unlock/unsuspend account (Admin only)
+  app.post("/api/admin/unlock-account/:userId", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { reason } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.status !== 'suspended') {
+        return res.status(400).json({ message: "Account is not suspended" });
+      }
+
+      // Unlock account by changing status to active
+      const updatedUser = await storage.updateUserStatus(
+        userId, 
+        'active', 
+        req.user!.id, 
+        reason || `Account unlocked by admin ${req.user!.email}`
+      );
+
+      // Clear any lockout violations for this user
+      if (user.email) lockoutViolations.delete(user.email);
+      if (user.username) lockoutViolations.delete(user.username);
+
+      console.log(`Admin ${req.user!.email} unlocked account ${user.email || user.username}`);
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+      
+      res.json({
+        message: "Account unlocked successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Failed to unlock account:', error);
+      res.status(500).json({ message: "Failed to unlock account" });
+    }
+  });
+
+  // ============================================================
+  // INVITE SYSTEM ENDPOINTS
+  // ============================================================
+
+  // Create invite (Admin only)
+  app.post("/api/invites", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { email, roleId } = z.object({
+        email: z.string().email(),
+        roleId: z.number()
+      }).parse(req.body);
+
+      // Validate role exists and is either Admin or Teacher
+      const role = await storage.getRole(roleId);
+      if (!role) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      if (roleId !== ROLES.ADMIN && roleId !== ROLES.TEACHER) {
+        return res.status(400).json({ message: "Invites can only be sent for Admin or Teacher roles" });
+      }
+
+      // Check if user already exists with this email
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+
+      // Check for pending invite
+      const existingInvite = await storage.getPendingInviteByEmail(email);
+      if (existingInvite) {
+        return res.status(400).json({ message: "Pending invite already exists for this email" });
+      }
+
+      // Generate secure token
+      const crypto = require('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      
+      // Set expiry to 7 days from now
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      // Create invite
+      const invite = await storage.createInvite({
+        email,
+        roleId,
+        token,
+        createdBy: req.user!.id,
+        expiresAt
+      });
+
+      // In production, send email with invite link
+      // For development, return the token
+      const inviteLink = `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/invite/${token}`;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Invite created for ${email}: ${inviteLink}`);
+        return res.json({
+          message: "Invite created successfully",
+          invite: {
+            id: invite.id,
+            email: invite.email,
+            roleId: invite.roleId,
+            token: invite.token,
+            inviteLink,
+            expiresAt: invite.expiresAt
+          },
+          developmentOnly: true
+        });
+      }
+
+      res.json({ 
+        message: "Invite sent successfully",
+        invite: {
+          id: invite.id,
+          email: invite.email,
+          roleId: invite.roleId,
+          expiresAt: invite.expiresAt
+        }
+      });
+    } catch (error) {
+      console.error('Create invite error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request format" });
+      }
+      res.status(500).json({ message: "Failed to create invite" });
+    }
+  });
+
+  // List all invites (Admin only)
+  app.get("/api/invites", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const invites = await storage.getAllInvites();
+      res.json(invites);
+    } catch (error) {
+      console.error('List invites error:', error);
+      res.status(500).json({ message: "Failed to list invites" });
+    }
+  });
+
+  // List pending invites (Admin only)
+  app.get("/api/invites/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const invites = await storage.getPendingInvites();
+      res.json(invites);
+    } catch (error) {
+      console.error('List pending invites error:', error);
+      res.status(500).json({ message: "Failed to list pending invites" });
+    }
+  });
+
+  // Get invite by token (public - for verification)
+  app.get("/api/invites/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const invite = await storage.getInviteByToken(token);
+      if (!invite) {
+        return res.status(404).json({ message: "Invalid or expired invite" });
+      }
+
+      // Return invite info without sensitive data
+      res.json({
+        email: invite.email,
+        roleId: invite.roleId,
+        expiresAt: invite.expiresAt
+      });
+    } catch (error) {
+      console.error('Get invite error:', error);
+      res.status(500).json({ message: "Failed to get invite" });
+    }
+  });
+
+  // Accept invite (public)
+  app.post("/api/invites/:token/accept", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { firstName, lastName, password } = z.object({
+        firstName: z.string().min(1),
+        lastName: z.string().min(1),
+        password: z.string().min(6).max(100)
+      }).parse(req.body);
+
+      // Verify invite exists and is valid
+      const invite = await storage.getInviteByToken(token);
+      if (!invite) {
+        return res.status(400).json({ message: "Invalid or expired invite" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(invite.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      // Generate THS username for the new staff member
+      const { generateUsername } = await import('./auth-utils');
+      const currentYear = new Date().getFullYear().toString();
+      const existingUsernames = await storage.getAllUsernames();
+      const { getNextUserNumber } = await import('./auth-utils');
+      const nextNumber = getNextUserNumber(existingUsernames, invite.roleId, currentYear);
+      const username = generateUsername(invite.roleId, currentYear, '', nextNumber);
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+      // Create user account
+      const user = await storage.createUser({
+        email: invite.email,
+        username,
+        firstName,
+        lastName,
+        roleId: invite.roleId,
+        passwordHash,
+        authProvider: 'local',
+        status: 'active',
+        createdVia: 'invite',
+        mustChangePassword: false
+      });
+
+      // Mark invite as accepted
+      await storage.markInviteAsAccepted(invite.id, user.id);
+
+      // Generate JWT token
+      const token_jwt = jwt.sign(
+        { userId: user.id, roleId: user.roleId },
+        SECRET_KEY,
+        { expiresIn: '24h' }
+      );
+
+      console.log(`Invite accepted by ${user.email} (${username})`);
+
+      res.json({
+        message: "Account created successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          roleId: user.roleId
+        },
+        token: token_jwt
+      });
+    } catch (error) {
+      console.error('Accept invite error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request format" });
+      }
+      res.status(500).json({ message: "Failed to accept invite" });
+    }
+  });
+
+  // Cancel/Delete invite (Admin only)
+  app.delete("/api/invites/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const inviteId = parseInt(req.params.id);
+      
+      const deleted = await storage.deleteInvite(inviteId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invite not found" });
+      }
+
+      res.json({ message: "Invite deleted successfully" });
+    } catch (error) {
+      console.error('Delete invite error:', error);
+      res.status(500).json({ message: "Failed to delete invite" });
+    }
+  });
 
   // Public contact form with 100% Supabase persistence
   app.post("/api/contact", async (req, res) => {

@@ -666,6 +666,7 @@ export type StudentAnswer = typeof studentAnswers.$inferSelect;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type InsertInvite = z.infer<typeof insertInviteSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type InsertClass = z.infer<typeof insertClassSchema>;
 export type InsertSubject = z.infer<typeof insertSubjectSchema>;
