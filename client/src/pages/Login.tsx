@@ -104,7 +104,10 @@ export default function Login() {
           description: `Welcome to your ${userRole} portal!`,
         });
         
-        navigate(targetPath);
+        // Delay navigation to allow auth state to update
+        setTimeout(() => {
+          navigate(targetPath);
+        }, 100);
       }
     } catch (error) {
       toast({
@@ -177,12 +180,16 @@ export default function Login() {
       login(userData.user, userData.token);
       const userRole = getRoleNameById(userData.user.roleId);
       const targetPath = getPortalByRoleId(userData.user.roleId);
-      navigate(targetPath);
       
       toast({
         title: 'Login Successful',
         description: `Welcome to your ${userRole} portal!`,
       });
+      
+      // Delay navigation to allow auth state to update
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 100);
     },
     onError: (error: any) => {
       // Extract the specific error message from the backend
@@ -228,12 +235,15 @@ export default function Login() {
       setTempUserData(null);
       resetPasswordForm();
       
-      navigate(targetPath);
-      
       toast({
         title: 'Password Changed Successfully',
         description: `Welcome to your ${userRole} portal!`,
       });
+      
+      // Delay navigation to allow auth state to update
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -255,13 +265,17 @@ export default function Login() {
       const targetPath = getPortalByRoleId(data.user.roleId);
       
       setShowRoleSelection(false);
-      navigate(targetPath);
       
       toast({
         title: 'Account Created Successfully',
         description: `Welcome to your ${userRole} portal!`,
       });
       window.history.replaceState({}, '', '/login');
+      
+      // Delay navigation to allow auth state to update
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 100);
     },
     onError: (error: any) => {
       toast({
