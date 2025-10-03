@@ -1343,6 +1343,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pending users (for admin approval)
+  app.get("/api/users/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const pendingUsers = await storage.getUsersByStatus('pending');
+      
+      // Remove sensitive data and enrich with role information
+      const enrichedUsers = await Promise.all(pendingUsers.map(async (user) => {
+        const { passwordHash, ...safeUser } = user;
+        const role = await storage.getRole(user.roleId);
+        return {
+          ...safeUser,
+          roleName: role?.name || 'Unknown'
+        };
+      }));
+      
+      res.json(enrichedUsers);
+    } catch (error) {
+      console.error('Error fetching pending users:', error);
+      res.status(500).json({ message: "Failed to fetch pending users" });
+    }
+  });
+
+  // Approve a pending user
+  app.post("/api/users/:id/approve", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists and is pending
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.status !== 'pending') {
+        return res.status(400).json({ message: `Cannot approve user with status: ${user.status}` });
+      }
+
+      // Approve the user
+      const approvedUser = await storage.approveUser(id, adminUser.id);
+      
+      // Log audit event (store user UUID in oldValue/newValue since entityId requires numeric ID)
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_approved',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: 'pending' }),
+        newValue: JSON.stringify({ userId: user.id, status: 'active' }),
+        reason: `Admin ${adminUser.email} approved user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = approvedUser;
+      
+      res.json({
+        message: "User approved successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error approving user:', error);
+      res.status(500).json({ message: "Failed to approve user" });
+    }
+  });
+
+  // Update user status (reject, suspend, disable)
+  app.post("/api/users/:id/status", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, reason } = req.body;
+      const adminUser = req.user;
+      
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Validate status
+      const validStatuses = ['pending', 'active', 'suspended', 'disabled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const oldStatus = user.status;
+      
+      // Update the user status
+      const updatedUser = await storage.updateUserStatus(id, status, adminUser.id, reason);
+      
+      // Log audit event (store user UUID in oldValue/newValue since entityId requires numeric ID)
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_status_changed',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status }),
+        reason: reason || `Admin ${adminUser.email} changed status of user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+      
+      res.json({
+        message: `User status updated to ${status}`,
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
   app.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       // Extract password from request and hash it before storage

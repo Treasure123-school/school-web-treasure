@@ -96,6 +96,9 @@ export interface IStorage {
   updateUserGoogleId(userId: string, googleId: string): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   getUsersByRole(roleId: number): Promise<User[]>;
+  getUsersByStatus(status: string): Promise<User[]>;
+  approveUser(userId: string, approvedBy: string): Promise<User>;
+  updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User>;
 
   // Password reset management
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<any>;
@@ -516,6 +519,64 @@ export class DatabaseStorage implements IStorage {
       }
       return user;
     });
+  }
+
+  async getUsersByStatus(status: string): Promise<User[]> {
+    const result = await this.db.select().from(schema.users).where(eq(schema.users.status, status));
+    return result.map((user: User) => {
+      if (user && user.id) {
+        const normalizedId = normalizeUuid(user.id);
+        if (normalizedId) {
+          user.id = normalizedId;
+        }
+      }
+      return user;
+    });
+  }
+
+  async approveUser(userId: string, approvedBy: string): Promise<User> {
+    const result = await this.db.update(schema.users)
+      .set({
+        status: 'active',
+        approvedBy,
+        approvedAt: new Date()
+      })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    
+    const user = result[0];
+    if (user && user.id) {
+      const normalizedId = normalizeUuid(user.id);
+      if (normalizedId) {
+        user.id = normalizedId;
+      }
+    }
+    return user;
+  }
+
+  async updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User> {
+    // Only set approvedBy/approvedAt for actual approvals (status='active')
+    // For other status changes (reject/suspend/disable), only update status
+    const updates: any = { status };
+    
+    if (status === 'active') {
+      updates.approvedBy = updatedBy;
+      updates.approvedAt = new Date();
+    }
+    
+    const result = await this.db.update(schema.users)
+      .set(updates)
+      .where(eq(schema.users.id, userId))
+      .returning();
+    
+    const user = result[0];
+    if (user && user.id) {
+      const normalizedId = normalizeUuid(user.id);
+      if (normalizedId) {
+        user.id = normalizedId;
+      }
+    }
+    return user;
   }
 
   // Role management

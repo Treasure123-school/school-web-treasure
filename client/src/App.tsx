@@ -48,6 +48,9 @@ import ExamSessions from "@/pages/portal/ExamSessions";
 import ExamReports from "@/pages/portal/ExamReports";
 import ParentReportCards from "@/pages/portal/ParentReportCards";
 
+// Admin Approval System
+import PendingApprovals from "@/pages/portal/PendingApprovals";
+
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -120,6 +123,11 @@ function Router() {
       <Route path="/portal/admin">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/pending-approvals">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <PendingApprovals />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/students">

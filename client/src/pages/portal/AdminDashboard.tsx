@@ -2,13 +2,22 @@ import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+
+  // Fetch pending users count
+  const { data: pendingUsers = [] } = useQuery<any[]>({
+    queryKey: ['/api/users/pending'],
+    enabled: !!user,
+  });
+
+  const pendingCount = pendingUsers.length;
 
   if (!user) {
     return <div>Please log in to access the admin portal.</div>;
@@ -73,6 +82,13 @@ export default function AdminDashboard() {
   ];
 
   const quickActions = [
+    {
+      title: 'Pending Approvals',
+      icon: UserCheck,
+      color: 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700',
+      href: '/portal/admin/pending-approvals',
+      badge: pendingCount > 0 ? pendingCount : undefined
+    },
     {
       title: 'Manage Students',
       icon: UserPlus,
@@ -255,7 +271,12 @@ export default function AdminDashboard() {
                   >
                     <Link href={action.href} data-testid={`button-action-${index}`}>
                       <Icon className="h-4 w-4 mr-3" />
-                      <span className="text-sm font-medium">{action.title}</span>
+                      <span className="text-sm font-medium flex-1">{action.title}</span>
+                      {action.badge !== undefined && (
+                        <Badge variant="destructive" className="ml-2" data-testid={`badge-count-${index}`}>
+                          {action.badge}
+                        </Badge>
+                      )}
                     </Link>
                   </Button>
                 );
