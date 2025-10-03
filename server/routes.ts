@@ -799,6 +799,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/auth/me', authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+
+      if (!user.isActive) {
+        return res.status(403).json({ message: 'Account is inactive' });
+      }
+
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error in /api/auth/me:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Secure admin-only route to reset weak passwords
   app.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
