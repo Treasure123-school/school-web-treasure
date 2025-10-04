@@ -67,13 +67,14 @@ export default function Login() {
         title: (
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-orange-500" />
-            <span>Account Pending Approval</span>
+            <span>Account Created - Pending Approval</span>
           </div>
         ),
         description: (
           <div className="text-sm">
-            <p className="mb-2">{message}</p>
-            <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
+            <p className="mb-2">Welcome to THS Portal! Your account has been created successfully.</p>
+            <p className="mb-2">Your account is awaiting admin approval. You will receive an email notification once approved.</p>
+            <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
           </div>
         ),
         className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
@@ -82,15 +83,32 @@ export default function Login() {
     }
 
     if (error === 'google_auth_failed') {
-      const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
+      const errorMessage = params.get('message') || 'Unable to complete Google Sign-In. Please try again.';
+      
+      // Determine specific error scenario
+      let title = 'Sign-In Error';
+      let description = errorMessage;
+      
+      // Check if this is an account creation failure
+      if (errorMessage.includes('Failed to create account')) {
+        title = 'Account Creation Failed';
+        description = 'Failed to create your account. Please try again or contact the school administrator.';
+      } else if (errorMessage.includes('Failed to complete login')) {
+        title = 'Sign-In Error';
+        description = 'Unable to complete sign-in. Please try again or contact support if the problem persists.';
+      } else if (errorMessage.includes('Authentication failed')) {
+        title = 'Sign-In Error';
+        description = 'Unable to complete Google Sign-In. Please try again or contact support if the problem persists.';
+      }
+      
       toast({
         title: (
           <div className="flex items-center gap-2">
             <XCircle className="h-4 w-4 text-red-500" />
-            <span>Google Sign-In Failed</span>
+            <span>{title}</span>
           </div>
         ),
-        description: errorMessage,
+        description: description,
         variant: 'destructive',
       });
       window.history.replaceState({}, '', '/login');
@@ -233,27 +251,16 @@ export default function Login() {
       let title = 'Login Failed';
       let description: string | JSX.Element = errorMessage;
       
-      // Pending approval - Admin/Teacher (Google OAuth)
-      if (errorMessage.includes('awaiting Admin approval') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher'))) {
-        icon = <Clock className="h-4 w-4 text-orange-500" />;
-        className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
-        title = 'Account Pending Approval';
-        description = (
-          <div className="text-sm">
-            <p className="mb-2">Your account has been created and is awaiting admin approval.</p>
-            <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
-          </div>
-        );
-      }
-      // Pending approval - Admin/Teacher (Standard Login)
-      else if (errorMessage.includes('pending') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher'))) {
+      // Pending approval - Admin/Teacher (Google OAuth or Standard)
+      if (errorMessage.includes('awaiting Admin approval') || 
+          (errorMessage.includes('pending') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher')))) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Pending Approval';
         description = (
           <div className="text-sm">
             <p className="mb-2">Your Admin/Teacher account is awaiting approval by the school administrator.</p>
-            <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
+            <p className="text-muted-foreground">You will receive a notification once your account is approved. Contact your school administrator for assistance.</p>
           </div>
         );
       }
@@ -274,24 +281,34 @@ export default function Login() {
         icon = <Ban className="h-4 w-4 text-red-500" />;
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
         title = 'Account Suspended';
-        description = 'Your account has been suspended. Please contact the school administrator for more information.';
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">Your account has been suspended.</p>
+            <p className="text-muted-foreground">Please contact the school administrator for more information.</p>
+          </div>
+        );
       }
       // Account disabled
       else if (errorMessage.includes('disabled')) {
         icon = <Ban className="h-4 w-4 text-red-500" />;
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
         title = 'Account Disabled';
-        description = 'Your account has been disabled. Please contact the school administrator for assistance.';
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">Your account has been disabled.</p>
+            <p className="text-muted-foreground">Please contact the school administrator for assistance.</p>
+          </div>
+        );
       }
       // Account locked due to too many attempts
       else if (errorMessage.includes('Too many login attempts') || errorMessage.includes('locked')) {
         icon = <Ban className="h-4 w-4 text-orange-500" />;
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
-        title = 'Account Locked';
+        title = 'Account Temporarily Locked';
         description = (
           <div className="text-sm">
             <p className="mb-2">Too many failed login attempts. Your account has been temporarily locked for security.</p>
-            <p className="text-muted-foreground">If this continues, please contact the administrator.</p>
+            <p className="text-muted-foreground">Please wait a few minutes before trying again, or contact the administrator for assistance.</p>
           </div>
         );
       }
@@ -300,13 +317,23 @@ export default function Login() {
         icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
         className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
         title = 'Google Sign-In Required';
-        description = 'Admin and Teacher accounts must use Google Sign-In. Please use the "Sign in with Google" button below.';
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">Admin and Teacher accounts must use Google Sign-In.</p>
+            <p className="text-muted-foreground">Please use the "Sign in with Google" button below to access your account.</p>
+          </div>
+        );
       }
       // Invalid credentials (default)
       else {
         icon = <XCircle className="h-4 w-4 text-red-500" />;
         title = 'Login Failed';
-        description = errorMessage;
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">{errorMessage}</p>
+            <p className="text-muted-foreground text-xs">Make sure you're using the correct username and password.</p>
+          </div>
+        );
       }
       
       toast({
