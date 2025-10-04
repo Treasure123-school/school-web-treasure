@@ -2082,7 +2082,7 @@ Treasure-Home School Administration
     }
   });
 
-  // User management - Admin only
+  // User management - Admin only - OPTIMIZED for speed
   app.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { role } = req.query;
@@ -2096,40 +2096,49 @@ Treasure-Home School Administration
           users = [];
         }
       } else {
-        // Get all users - in a real app you'd need proper pagination
+        // PERFORMANCE: Get all users in parallel instead of sequential
         const allRoles = await storage.getRoles();
-        users = [];
-        for (const userRole of allRoles) {
-          const roleUsers = await storage.getUsersByRole(userRole.id);
-          users.push(...roleUsers);
-        }
+        const userPromises = allRoles.map(userRole => storage.getUsersByRole(userRole.id));
+        const userArrays = await Promise.all(userPromises);
+        users = userArrays.flat();
       }
 
-      // Remove sensitive data from response
+      // PERFORMANCE: Fetch roles once for enrichment
+      const allRoles = await storage.getRoles();
+      const roleMap = new Map(allRoles.map(r => [r.id, r.name]));
+
+      // Remove sensitive data and add role names
       const sanitizedUsers = users.map(user => {
         const { passwordHash, ...safeUser } = user;
-        return safeUser;
+        return {
+          ...safeUser,
+          roleName: roleMap.get(user.roleId) || 'Unknown'
+        };
       });
       res.json(sanitizedUsers);
     } catch (error) {
+      console.error('Error fetching users:', error);
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
-  // Get pending users (for admin approval)
+  // Get pending users (for admin approval) - OPTIMIZED with batch role lookup
   app.get("/api/users/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const pendingUsers = await storage.getUsersByStatus('pending');
       
+      // PERFORMANCE: Fetch all roles once instead of per-user
+      const allRoles = await storage.getRoles();
+      const roleMap = new Map(allRoles.map(r => [r.id, r.name]));
+      
       // Remove sensitive data and enrich with role information
-      const enrichedUsers = await Promise.all(pendingUsers.map(async (user) => {
+      const enrichedUsers = pendingUsers.map((user) => {
         const { passwordHash, ...safeUser } = user;
-        const role = await storage.getRole(user.roleId);
         return {
           ...safeUser,
-          roleName: role?.name || 'Unknown'
+          roleName: roleMap.get(user.roleId) || 'Unknown'
         };
-      }));
+      });
       
       res.json(enrichedUsers);
     } catch (error) {
@@ -2161,8 +2170,8 @@ Treasure-Home School Administration
       // Approve the user
       const approvedUser = await storage.approveUser(id, adminUser.id);
       
-      // Log audit event (store user UUID in oldValue/newValue since entityId requires numeric ID)
-      await storage.createAuditLog({
+      // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
+      storage.createAuditLog({
         userId: adminUser.id,
         action: 'user_approved',
         entityType: 'user',
@@ -2172,7 +2181,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} approved user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      });
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = approvedUser;
@@ -2215,8 +2224,8 @@ Treasure-Home School Administration
       // Update the user status
       const updatedUser = await storage.updateUserStatus(id, status, adminUser.id, reason);
       
-      // Log audit event (store user UUID in oldValue/newValue since entityId requires numeric ID)
-      await storage.createAuditLog({
+      // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
+      storage.createAuditLog({
         userId: adminUser.id,
         action: 'user_status_changed',
         entityType: 'user',
@@ -2226,7 +2235,7 @@ Treasure-Home School Administration
         reason: reason || `Admin ${adminUser.email} changed status of user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      });
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -2269,8 +2278,8 @@ Treasure-Home School Administration
         return res.status(500).json({ message: "Failed to delete user" });
       }
 
-      // Log audit event
-      await storage.createAuditLog({
+      // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
+      storage.createAuditLog({
         userId: adminUser.id,
         action: 'user_deleted',
         entityType: 'user',
@@ -2285,7 +2294,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      });
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       res.json({
         message: "User deleted successfully"

@@ -121,10 +121,28 @@ export default function UserManagement() {
     ? allUsers 
     : allUsers.filter(u => u.status === statusFilter);
 
-  // Approve user mutation
+  // Approve user mutation with OPTIMISTIC UPDATES for instant feedback
   const approveMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('POST', `/api/users/${userId}/approve`);
+    },
+    onMutate: async (userId: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
+
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      
+      // INSTANT FEEDBACK: Optimistically update user status
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, status: 'active' } : user
+        );
+      });
+
+      return { previousUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -142,6 +160,11 @@ export default function UserManagement() {
       setSelectedUser(null);
       setActionType(null);
     },
+    onError: (error: any, userId: string, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
     onError: (error: any) => {
       toast({
         title: (
@@ -157,13 +180,30 @@ export default function UserManagement() {
     },
   });
 
-  // Change status mutation
+  // Change status mutation with OPTIMISTIC UPDATES
   const changeStatusMutation = useMutation({
     mutationFn: async ({ userId, status, reason }: { userId: string; status: string; reason: string }) => {
       return await apiRequest('POST', `/api/users/${userId}/status`, {
         status,
         reason
       });
+    },
+    onMutate: async ({ userId, status }) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      
+      // INSTANT FEEDBACK: Optimistically update status
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, status } : user
+        );
+      });
+
+      return { previousUsers };
     },
     onSuccess: (data: any, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -182,7 +222,11 @@ export default function UserManagement() {
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -197,10 +241,25 @@ export default function UserManagement() {
     },
   });
 
-  // Delete user mutation
+  // Delete user mutation with OPTIMISTIC UPDATES
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('DELETE', `/api/users/${userId}`);
+    },
+    onMutate: async (userId: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      
+      // INSTANT FEEDBACK: Optimistically remove user
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
+
+      return { previousUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -218,7 +277,11 @@ export default function UserManagement() {
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, userId: string, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
