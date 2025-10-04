@@ -140,6 +140,7 @@ __export(schema_exports, {
   contactMessages: () => contactMessages,
   createQuestionOptionSchema: () => createQuestionOptionSchema,
   createStudentSchema: () => createStudentSchema,
+  createdViaEnum: () => createdViaEnum,
   examQuestions: () => examQuestions,
   examResults: () => examResults,
   examSessions: () => examSessions,
@@ -163,7 +164,10 @@ __export(schema_exports, {
   insertGallerySchema: () => insertGallerySchema,
   insertGradingTaskSchema: () => insertGradingTaskSchema,
   insertHomePageContentSchema: () => insertHomePageContentSchema,
+  insertInviteSchema: () => insertInviteSchema,
   insertMessageSchema: () => insertMessageSchema,
+  insertNotificationSchema: () => insertNotificationSchema,
+  insertPasswordResetAttemptSchema: () => insertPasswordResetAttemptSchema,
   insertPasswordResetTokenSchema: () => insertPasswordResetTokenSchema,
   insertPerformanceEventSchema: () => insertPerformanceEventSchema,
   insertQuestionOptionSchema: () => insertQuestionOptionSchema,
@@ -176,7 +180,10 @@ __export(schema_exports, {
   insertSubjectSchema: () => insertSubjectSchema,
   insertTeacherClassAssignmentSchema: () => insertTeacherClassAssignmentSchema,
   insertUserSchema: () => insertUserSchema,
+  invites: () => invites,
   messages: () => messages,
+  notifications: () => notifications,
+  passwordResetAttempts: () => passwordResetAttempts,
   passwordResetTokens: () => passwordResetTokens,
   performanceEvents: () => performanceEvents,
   questionOptions: () => questionOptions,
@@ -190,6 +197,7 @@ __export(schema_exports, {
   subjects: () => subjects,
   teacherClassAssignments: () => teacherClassAssignments,
   updateExamSessionSchema: () => updateExamSessionSchema,
+  userStatusEnum: () => userStatusEnum,
   users: () => users
 });
 import { sql, eq } from "drizzle-orm";
@@ -200,6 +208,8 @@ var genderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
 var attendanceStatusEnum = pgEnum("attendance_status", ["Present", "Absent", "Late", "Excused"]);
 var reportCardStatusEnum = pgEnum("report_card_status", ["draft", "finalized", "published"]);
 var examTypeEnum = pgEnum("exam_type", ["test", "exam"]);
+var userStatusEnum = pgEnum("user_status", ["pending", "active", "suspended", "disabled"]);
+var createdViaEnum = pgEnum("created_via", ["bulk", "invite", "self", "google", "admin"]);
 var roles = pgTable("roles", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   name: varchar("name", { length: 50 }).notNull().unique(),
@@ -210,6 +220,8 @@ var users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   username: varchar("username", { length: 100 }).unique(),
   email: varchar("email", { length: 255 }).notNull(),
+  recoveryEmail: varchar("recovery_email", { length: 255 }),
+  // For password recovery
   passwordHash: text("password_hash"),
   mustChangePassword: boolean("must_change_password").default(true),
   roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
@@ -223,19 +235,84 @@ var users = pgTable("users", {
   isActive: boolean("is_active").default(true),
   authProvider: varchar("auth_provider", { length: 20 }).default("local"),
   googleId: varchar("google_id", { length: 255 }).unique(),
+  // Security & audit fields
+  status: userStatusEnum("status").default("pending"),
+  // New accounts require approval
+  createdVia: createdViaEnum("created_via").default("admin"),
+  createdBy: uuid("created_by"),
+  approvedBy: uuid("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  lastLoginAt: timestamp("last_login_at"),
+  lastLoginIp: varchar("last_login_ip", { length: 45 }),
+  mfaEnabled: boolean("mfa_enabled").default(false),
+  mfaSecret: text("mfa_secret"),
+  accountLockedUntil: timestamp("account_locked_until"),
+  // For suspicious activity lock
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
-});
+}, (table) => ({
+  usersEmailIdx: index("users_email_idx").on(table.email),
+  usersStatusIdx: index("users_status_idx").on(table.status),
+  usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId)
+}));
 var passwordResetTokens = pgTable("password_reset_tokens", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   userId: uuid("user_id").references(() => users.id).notNull(),
   token: varchar("token", { length: 255 }).notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  // Track IP for security
+  resetBy: uuid("reset_by").references(() => users.id),
+  // Admin who initiated reset, null if self-service
   createdAt: timestamp("created_at").defaultNow()
 }, (table) => ({
   passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
   passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token)
+}));
+var passwordResetAttempts = pgTable("password_reset_attempts", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  identifier: varchar("identifier", { length: 255 }).notNull(),
+  // Email or username
+  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+  attemptedAt: timestamp("attempted_at").defaultNow(),
+  success: boolean("success").default(false)
+}, (table) => ({
+  passwordResetAttemptsIdentifierIdx: index("password_reset_attempts_identifier_idx").on(table.identifier),
+  passwordResetAttemptsIpIdx: index("password_reset_attempts_ip_idx").on(table.ipAddress),
+  passwordResetAttemptsTimeIdx: index("password_reset_attempts_time_idx").on(table.attemptedAt)
+}));
+var invites = pgTable("invites", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull(),
+  roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  acceptedBy: uuid("accepted_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow()
+}, (table) => ({
+  invitesTokenIdx: index("invites_token_idx").on(table.token),
+  invitesEmailIdx: index("invites_email_idx").on(table.email)
+}));
+var notifications = pgTable("notifications", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  // Admin receiving the notification
+  type: varchar("type", { length: 50 }).notNull(),
+  // 'pending_user', 'approval_request', etc.
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  relatedEntityType: varchar("related_entity_type", { length: 50 }),
+  // 'user', 'student', etc.
+  relatedEntityId: varchar("related_entity_id", { length: 255 }),
+  // ID of the related entity
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+}, (table) => ({
+  notificationsUserIdIdx: index("notifications_user_id_idx").on(table.userId),
+  notificationsIsReadIdx: index("notifications_is_read_idx").on(table.isRead)
 }));
 var academicTerms = pgTable("academic_terms", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -643,6 +720,8 @@ var auditLogs = pgTable("audit_logs", {
 var insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 var insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 var insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+var insertPasswordResetAttemptSchema = createInsertSchema(passwordResetAttempts).omit({ id: true, attemptedAt: true });
+var insertInviteSchema = createInsertSchema(invites).omit({ id: true, createdAt: true });
 var insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
 var insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
 var insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
@@ -766,9 +845,10 @@ var updateExamSessionSchema = z.object({
   autoSubmitted: z.boolean().optional()
 }).strict();
 var insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
+var insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
 // server/storage.ts
-import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray } from "drizzle-orm";
+import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
 var pg;
 var db;
 function initializeDatabase() {
@@ -908,11 +988,13 @@ var DatabaseStorage = class {
     }
     return user;
   }
-  async createPasswordResetToken(userId, token, expiresAt) {
+  async createPasswordResetToken(userId, token, expiresAt, ipAddress, resetBy) {
     const result = await this.db.insert(passwordResetTokens).values({
       userId,
       token,
-      expiresAt
+      expiresAt,
+      ipAddress,
+      resetBy
     }).returning();
     return result[0];
   }
@@ -954,6 +1036,9 @@ var DatabaseStorage = class {
     }
     return updatedUser;
   }
+  async updateUserGoogleId(userId, googleId) {
+    return await this.updateUser(userId, { googleId });
+  }
   async deleteUser(id) {
     const result = await this.db.delete(users).where(eq2(users.id, id)).returning();
     return result.length > 0;
@@ -970,6 +1055,49 @@ var DatabaseStorage = class {
       return user;
     });
   }
+  async getUsersByStatus(status) {
+    const result = await this.db.select().from(users).where(sql2`${users.status} = ${status}`);
+    return result.map((user) => {
+      if (user && user.id) {
+        const normalizedId = normalizeUuid(user.id);
+        if (normalizedId) {
+          user.id = normalizedId;
+        }
+      }
+      return user;
+    });
+  }
+  async approveUser(userId, approvedBy) {
+    const result = await this.db.update(users).set({
+      status: "active",
+      approvedBy,
+      approvedAt: /* @__PURE__ */ new Date()
+    }).where(eq2(users.id, userId)).returning();
+    const user = result[0];
+    if (user && user.id) {
+      const normalizedId = normalizeUuid(user.id);
+      if (normalizedId) {
+        user.id = normalizedId;
+      }
+    }
+    return user;
+  }
+  async updateUserStatus(userId, status, updatedBy, reason) {
+    const updates = { status };
+    if (status === "active") {
+      updates.approvedBy = updatedBy;
+      updates.approvedAt = /* @__PURE__ */ new Date();
+    }
+    const result = await this.db.update(users).set(updates).where(eq2(users.id, userId)).returning();
+    const user = result[0];
+    if (user && user.id) {
+      const normalizedId = normalizeUuid(user.id);
+      if (normalizedId) {
+        user.id = normalizedId;
+      }
+    }
+    return user;
+  }
   // Role management
   async getRoles() {
     return await this.db.select().from(roles);
@@ -977,6 +1105,50 @@ var DatabaseStorage = class {
   async getRoleByName(name) {
     const result = await this.db.select().from(roles).where(eq2(roles.name, name)).limit(1);
     return result[0];
+  }
+  async getRole(roleId) {
+    const result = await this.db.select().from(roles).where(eq2(roles.id, roleId)).limit(1);
+    return result[0];
+  }
+  // Invite management
+  async createInvite(invite) {
+    const result = await this.db.insert(invites).values(invite).returning();
+    return result[0];
+  }
+  async getInviteByToken(token) {
+    const result = await this.db.select().from(invites).where(and(
+      eq2(invites.token, token),
+      isNull(invites.acceptedAt),
+      dsql`${invites.expiresAt} > NOW()`
+    )).limit(1);
+    return result[0];
+  }
+  async getPendingInviteByEmail(email) {
+    const result = await this.db.select().from(invites).where(and(
+      eq2(invites.email, email),
+      isNull(invites.acceptedAt)
+    )).limit(1);
+    return result[0];
+  }
+  async getAllInvites() {
+    return await this.db.select().from(invites).orderBy(desc(invites.createdAt));
+  }
+  async getPendingInvites() {
+    return await this.db.select().from(invites).where(isNull(invites.acceptedAt)).orderBy(desc(invites.createdAt));
+  }
+  async markInviteAsAccepted(inviteId, acceptedBy) {
+    await this.db.update(invites).set({ acceptedAt: /* @__PURE__ */ new Date(), acceptedBy }).where(eq2(invites.id, inviteId));
+  }
+  async deleteInvite(inviteId) {
+    const result = await this.db.delete(invites).where(eq2(invites.id, inviteId)).returning();
+    return result.length > 0;
+  }
+  async deleteExpiredInvites() {
+    const result = await this.db.delete(invites).where(and(
+      dsql`${invites.expiresAt} < NOW()`,
+      isNull(invites.acceptedAt)
+    )).returning();
+    return result.length > 0;
   }
   // Student management
   async getStudent(id) {
@@ -2089,6 +2261,7 @@ var DatabaseStorage = class {
         AND eq.question_type IN ('text', 'essay')
         AND es.is_completed = true
       `;
+      const pgClient = await initializeDatabase().pg;
       const params = [teacherId];
       if (status && status !== "all") {
         if (status === "pending") {
@@ -2098,7 +2271,7 @@ var DatabaseStorage = class {
         }
       }
       query += " ORDER BY es.submitted_at DESC";
-      const result = await sql2.unsafe(query, params);
+      const result = await pgClient.unsafe(query, params);
       return result;
     } catch (error) {
       console.error("Error fetching grading tasks:", error);
@@ -2108,7 +2281,8 @@ var DatabaseStorage = class {
   async submitManualGrade(gradeData) {
     try {
       const { taskId, score, comment, graderId } = gradeData;
-      const result = await sql2`
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient`
         INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
         VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
         ON CONFLICT (answer_id) 
@@ -2119,7 +2293,7 @@ var DatabaseStorage = class {
           grader_id = EXCLUDED.grader_id
         RETURNING *
       `;
-      await sql2`
+      await pgClient`
         UPDATE student_answers 
         SET points_earned = ${score}
         WHERE id = ${taskId}
@@ -2132,7 +2306,8 @@ var DatabaseStorage = class {
   }
   async getAllExamSessions() {
     try {
-      const result = await sql2`
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient`
         SELECT 
           es.*,
           e.name as exam_title,
@@ -2211,7 +2386,8 @@ var DatabaseStorage = class {
         GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
         ORDER BY e.date DESC
       `;
-      const result = await sql2.unsafe(query, params);
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient.unsafe(query, params);
       return result;
     } catch (error) {
       console.error("Error fetching exam reports:", error);
@@ -2220,7 +2396,8 @@ var DatabaseStorage = class {
   }
   async getExamStudentReports(examId) {
     try {
-      const result = await sql2`
+      const pgClient = await initializeDatabase().pg;
+      const result = await pgClient`
         SELECT 
           u.id as student_id,
           u.first_name || ' ' || u.last_name as student_name,
@@ -2881,8 +3058,8 @@ var DatabaseStorage = class {
     }
   }
   // Audit logging implementation
-  async createAuditLog(log2) {
-    const result = await this.db.insert(auditLogs).values(log2).returning();
+  async createAuditLog(log3) {
+    const result = await this.db.insert(auditLogs).values(log3).returning();
     return result[0];
   }
   async getAuditLogs(filters) {
@@ -2919,6 +3096,107 @@ var DatabaseStorage = class {
       eq2(auditLogs.entityType, entityType),
       eq2(auditLogs.entityId, entityId)
     )).orderBy(desc(auditLogs.createdAt));
+  }
+  // Notification management implementation
+  async createNotification(notification) {
+    const result = await this.db.insert(notifications).values(notification).returning();
+    return result[0];
+  }
+  async getNotificationsByUserId(userId) {
+    return await this.db.select().from(notifications).where(eq2(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+  }
+  async getUnreadNotificationCount(userId) {
+    const result = await this.db.select({ count: dsql`count(*)::int` }).from(notifications).where(and(
+      eq2(notifications.userId, userId),
+      eq2(notifications.isRead, false)
+    ));
+    return result[0]?.count || 0;
+  }
+  async markNotificationAsRead(notificationId) {
+    const result = await this.db.update(notifications).set({ isRead: true }).where(eq2(notifications.id, notificationId)).returning();
+    return result[0];
+  }
+  async markAllNotificationsAsRead(userId) {
+    await this.db.update(notifications).set({ isRead: true }).where(and(
+      eq2(notifications.userId, userId),
+      eq2(notifications.isRead, false)
+    ));
+  }
+  // Password reset attempt tracking for rate limiting
+  async createPasswordResetAttempt(identifier, ipAddress, success) {
+    const result = await this.db.insert(passwordResetAttempts).values({
+      identifier,
+      ipAddress,
+      success
+    }).returning();
+    return result[0];
+  }
+  async getRecentPasswordResetAttempts(identifier, minutesAgo) {
+    const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1e3);
+    return await this.db.select().from(passwordResetAttempts).where(and(
+      eq2(passwordResetAttempts.identifier, identifier),
+      dsql`${passwordResetAttempts.attemptedAt} > ${cutoffTime}`
+    )).orderBy(desc(passwordResetAttempts.attemptedAt));
+  }
+  async deleteOldPasswordResetAttempts(hoursAgo) {
+    const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1e3);
+    await this.db.delete(passwordResetAttempts).where(dsql`${passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
+    return true;
+  }
+  // Account security methods
+  async lockAccount(userId, lockUntil) {
+    const result = await this.db.update(users).set({ accountLockedUntil: lockUntil }).where(eq2(users.id, userId)).returning();
+    return result.length > 0;
+  }
+  async unlockAccount(userId) {
+    const result = await this.db.update(users).set({ accountLockedUntil: null }).where(eq2(users.id, userId)).returning();
+    return result.length > 0;
+  }
+  async isAccountLocked(userId) {
+    const user = await this.db.select({ accountLockedUntil: users.accountLockedUntil }).from(users).where(eq2(users.id, userId)).limit(1);
+    if (!user[0] || !user[0].accountLockedUntil) {
+      return false;
+    }
+    return new Date(user[0].accountLockedUntil) > /* @__PURE__ */ new Date();
+  }
+  // Admin recovery powers
+  async adminResetUserPassword(userId, newPasswordHash, resetBy, forceChange) {
+    const result = await this.db.update(users).set({
+      passwordHash: newPasswordHash,
+      mustChangePassword: forceChange
+    }).where(eq2(users.id, userId)).returning();
+    if (result.length > 0) {
+      await this.createAuditLog({
+        userId: resetBy,
+        action: "admin_password_reset",
+        entityType: "user",
+        entityId: 0,
+        oldValue: null,
+        newValue: JSON.stringify({ targetUserId: userId, forceChange }),
+        reason: "Admin initiated password reset",
+        ipAddress: null,
+        userAgent: null
+      });
+    }
+    return result.length > 0;
+  }
+  async updateRecoveryEmail(userId, recoveryEmail, updatedBy) {
+    const oldUser = await this.getUser(userId);
+    const result = await this.db.update(users).set({ recoveryEmail }).where(eq2(users.id, userId)).returning();
+    if (result.length > 0) {
+      await this.createAuditLog({
+        userId: updatedBy,
+        action: "recovery_email_updated",
+        entityType: "user",
+        entityId: 0,
+        oldValue: oldUser?.recoveryEmail || null,
+        newValue: recoveryEmail,
+        reason: "Recovery email updated by admin",
+        ipAddress: null,
+        userAgent: null
+      });
+    }
+    return result.length > 0;
   }
 };
 function initializeStorageSync() {
@@ -2984,16 +3262,40 @@ function setupGoogleAuth() {
           if (!email) {
             return done(null, false, { message: "No email found in Google profile" });
           }
-          const existingUser = await storage.getUserByGoogleId(googleId);
-          if (existingUser) {
-            return done(null, existingUser);
+          let user = await storage.getUserByGoogleId(googleId);
+          if (!user) {
+            user = await storage.getUserByEmail(email);
           }
-          const existingEmailUser = await storage.getUserByEmail(email);
-          if (existingEmailUser) {
-            if (existingEmailUser.authProvider === "local") {
-              return done(null, false, { message: "This email is already registered with a password. Please use password login instead." });
+          if (user) {
+            const role = await storage.getRole(user.roleId);
+            const roleName = role?.name?.toLowerCase();
+            if (roleName === "teacher" || roleName === "admin") {
+              if (user.status === "active") {
+                if (!user.googleId) {
+                  await storage.updateUserGoogleId(user.id, googleId);
+                  user.googleId = googleId;
+                }
+                return done(null, user);
+              } else if (user.status === "pending") {
+                return done(null, false, {
+                  message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
+                });
+              } else if (user.status === "suspended" || user.status === "disabled") {
+                return done(null, false, {
+                  message: "Access denied: Your account has been suspended by THS Admin."
+                });
+              }
             }
-            return done(null, existingEmailUser);
+            if (roleName === "student" || roleName === "parent") {
+              return done(null, false, {
+                message: "Students and parents must use THS username and password to login. Contact your teacher if you forgot your credentials."
+              });
+            }
+            if (user.authProvider === "local") {
+              return done(null, false, {
+                message: "This email is registered with a password. Please use password login instead."
+              });
+            }
           }
           return done(null, {
             googleId,
@@ -3001,7 +3303,8 @@ function setupGoogleAuth() {
             firstName,
             lastName,
             profileImageUrl,
-            isNewUser: true
+            isNewUser: true,
+            requiresApproval: true
           });
         } catch (error) {
           return done(error);
@@ -3077,9 +3380,28 @@ var ROLES = {
   PARENT: 4
 };
 var loginAttempts = /* @__PURE__ */ new Map();
+var lockoutViolations = /* @__PURE__ */ new Map();
 var MAX_LOGIN_ATTEMPTS = 5;
 var RATE_LIMIT_WINDOW = 15 * 60 * 1e3;
+var LOCKOUT_VIOLATION_WINDOW = 60 * 60 * 1e3;
+var MAX_RATE_LIMIT_VIOLATIONS = 3;
 var BCRYPT_ROUNDS = 12;
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, data] of loginAttempts.entries()) {
+    if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
+      loginAttempts.delete(key);
+    }
+  }
+  for (const [identifier, data] of lockoutViolations.entries()) {
+    const recentViolations = data.timestamps.filter((ts) => now - ts < LOCKOUT_VIOLATION_WINDOW);
+    if (recentViolations.length === 0) {
+      lockoutViolations.delete(identifier);
+    } else if (recentViolations.length !== data.timestamps.length) {
+      lockoutViolations.set(identifier, { count: recentViolations.length, timestamps: recentViolations });
+    }
+  }
+}, 5 * 60 * 1e3);
 var authenticateUser = async (req, res, next) => {
   try {
     const authHeader = (req.headers.authorization || "").trim();
@@ -3554,7 +3876,7 @@ async function registerRoutes(app2) {
         hasCode: !!req.query.code,
         hasError: !!req.query.error
       });
-      passport2.authenticate("google", (err, user, info) => {
+      passport2.authenticate("google", async (err, user, info) => {
         if (err) {
           console.error("\u274C Google OAuth error:", err);
           console.error("Error details:", { message: err.message, stack: err.stack });
@@ -3565,9 +3887,72 @@ async function registerRoutes(app2) {
           console.error("\u274C Google OAuth: No user returned. Info:", info);
           return res.redirect("/login?error=google_auth_failed&message=" + encodeURIComponent(message));
         }
-        if (user.isNewUser) {
-          req.session.pendingUser = user;
-          return res.redirect("/login?oauth=google&step=role_selection");
+        if (user.isNewUser && user.requiresApproval) {
+          console.log("\u{1F4DD} Creating pending staff account for:", user.email);
+          try {
+            const invite = await storage.getPendingInviteByEmail(user.email);
+            const roleId = invite ? invite.roleId : ROLES.TEACHER;
+            const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
+            const existingUsers = await storage.getUsersByRole(roleId);
+            const existingUsernames = existingUsers.map((u) => u.username).filter(Boolean);
+            const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
+            const username = generateUsername(roleId, currentYear, "", nextNumber);
+            const newUser = await storage.createUser({
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              username,
+              roleId,
+              authProvider: "google",
+              googleId: user.googleId,
+              profileImageUrl: user.profileImageUrl,
+              mustChangePassword: false,
+              passwordHash: null,
+              status: "pending",
+              // Requires approval
+              createdVia: invite ? "invite" : "google",
+              isActive: true
+            });
+            if (invite) {
+              await storage.markInviteAsAccepted(invite.id, newUser.id);
+            }
+            console.log("\u2705 Created pending account for:", user.email);
+            await storage.createAuditLog({
+              userId: newUser.id,
+              action: "account_created_pending_approval",
+              entityType: "user",
+              entityId: BigInt(1),
+              newValue: JSON.stringify({ email: user.email, googleId: user.googleId }),
+              reason: invite ? "OAuth signup via invite" : "OAuth signup without invite",
+              ipAddress: req.ip,
+              userAgent: req.headers["user-agent"]
+            });
+            try {
+              const adminRole = await storage.getRoleByName("Admin");
+              if (adminRole) {
+                const admins = await storage.getUsersByRole(adminRole.id);
+                const roleName = await storage.getRole(roleId);
+                for (const admin of admins) {
+                  await storage.createNotification({
+                    userId: admin.id,
+                    type: "pending_user",
+                    title: "New User Pending Approval",
+                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up as ${roleName?.name || "staff"} and is awaiting approval.`,
+                    relatedEntityType: "user",
+                    relatedEntityId: newUser.id,
+                    isRead: false
+                  });
+                }
+                console.log(`\u{1F4EC} Notified ${admins.length} admin(s) about pending user: ${newUser.email}`);
+              }
+            } catch (notifError) {
+              console.error("Failed to create admin notifications:", notifError);
+            }
+            return res.redirect("/login?oauth_status=pending_approval&message=" + encodeURIComponent("Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."));
+          } catch (error) {
+            console.error("\u274C Error creating pending account:", error);
+            return res.redirect("/login?error=google_auth_failed&message=" + encodeURIComponent("Failed to create account"));
+          }
         }
         req.logIn(user, (loginErr) => {
           if (loginErr) {
@@ -3580,40 +3965,78 @@ async function registerRoutes(app2) {
       })(req, res, next);
     }
   );
-  app2.post("/api/auth/google/complete-signup", async (req, res) => {
+  app2.get("/api/auth/me", authenticateUser, async (req, res) => {
     try {
-      const { roleId } = req.body;
-      const pendingUser = req.session.pendingUser;
-      if (!pendingUser) {
-        return res.status(400).json({ message: "No pending signup found" });
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
       }
-      if (roleId !== ROLES.ADMIN && roleId !== ROLES.TEACHER) {
-        return res.status(400).json({ message: "Google OAuth is only available for Admin and Teacher roles" });
+      if (!user.isActive) {
+        return res.status(403).json({ message: "Account is inactive" });
       }
-      const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
-      const existingUsers = await storage.getUsersByRole(roleId);
-      const existingUsernames = existingUsers.map((u) => u.username).filter(Boolean);
-      const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
-      const username = generateUsername(roleId, currentYear, "", nextNumber);
-      const newUser = await storage.createUser({
-        email: pendingUser.email,
-        firstName: pendingUser.firstName,
-        lastName: pendingUser.lastName,
-        username,
-        roleId,
-        authProvider: "google",
-        googleId: pendingUser.googleId,
-        profileImageUrl: pendingUser.profileImageUrl,
-        mustChangePassword: false,
-        passwordHash: null,
-        isActive: true
-      });
-      delete req.session.pendingUser;
-      const token = jwt.sign({ userId: newUser.id, roleId: newUser.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-      res.json({ token, user: newUser, message: "Account created successfully" });
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
-      console.error("Error completing Google signup:", error);
-      res.status(500).json({ message: "Failed to complete signup" });
+      console.error("Error in /api/auth/me:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  app2.get("/api/notifications", authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const notifications2 = await storage.getNotificationsByUserId(user.id);
+      res.json(notifications2);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+  app2.get("/api/notifications/unread-count", authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const count = await storage.getUnreadNotificationCount(user.id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+  app2.put("/api/notifications/:id/read", authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      const notificationId = parseInt(req.params.id);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const notifications2 = await storage.getNotificationsByUserId(user.id);
+      const notification = notifications2.find((n) => n.id === notificationId);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      const updated = await storage.markNotificationAsRead(notificationId);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to update notification" });
+    }
+  });
+  app2.put("/api/notifications/mark-all-read", authenticateUser, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      await storage.markAllNotificationsAsRead(user.id);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to update notifications" });
     }
   });
   app2.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -3778,6 +4201,35 @@ async function registerRoutes(app2) {
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && now - attempts.lastAttempt < RATE_LIMIT_WINDOW) {
         console.warn(`Rate limit exceeded for ${attemptKey}`);
+        if (identifier) {
+          const violationData = lockoutViolations.get(identifier) || { count: 0, timestamps: [] };
+          const recentViolations = violationData.timestamps.filter((ts) => now - ts < LOCKOUT_VIOLATION_WINDOW);
+          recentViolations.push(now);
+          lockoutViolations.set(identifier, { count: recentViolations.length, timestamps: recentViolations });
+          if (recentViolations.length >= MAX_RATE_LIMIT_VIOLATIONS) {
+            try {
+              let userToSuspend;
+              if (identifier.includes("@")) {
+                userToSuspend = await storage.getUserByEmail(identifier);
+              } else {
+                userToSuspend = await storage.getUserByUsername(identifier);
+              }
+              if (userToSuspend && userToSuspend.status !== "suspended") {
+                await storage.updateUserStatus(userToSuspend.id, "suspended", "system", `Automatic suspension due to ${recentViolations.length} rate limit violations within 1 hour`);
+                console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
+                lockoutViolations.delete(identifier);
+                const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
+                const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
+                const isStaffForSuspension = roleNameForSuspension === "admin" || roleNameForSuspension === "teacher";
+                return res.status(403).json({
+                  message: isStaffForSuspension ? "Access denied: Your account has been suspended by THS Admin." : "Your account is suspended. Contact your class teacher or Admin."
+                });
+              }
+            } catch (err) {
+              console.error("Failed to suspend account:", err);
+            }
+          }
+        }
         return res.status(429).json({
           message: "Too many login attempts. Please try again in 15 minutes."
         });
@@ -3797,18 +4249,51 @@ async function registerRoutes(app2) {
       }
       if (!user) {
         console.log(`Login failed: User not found for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
+      }
+      const userRole = await storage.getRole(user.roleId);
+      const roleName = userRole?.name?.toLowerCase();
+      const isStaffAccount = roleName === "admin" || roleName === "teacher";
+      if (user.status === "pending") {
+        console.warn(`Login blocked: Account ${identifier} is pending approval`);
+        return res.status(403).json({
+          message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
+        });
+      }
+      if (user.status === "suspended") {
+        console.warn(`Login blocked: Account ${identifier} is suspended`);
+        return res.status(403).json({
+          message: isStaffAccount ? "Access denied: Your account has been suspended by THS Admin." : "Your account is suspended. Contact your class teacher or Admin."
+        });
+      }
+      if (user.status === "disabled") {
+        console.warn(`Login blocked: Account ${identifier} is disabled`);
+        return res.status(403).json({
+          message: isStaffAccount ? "Access denied: Your account has been disabled by THS Admin." : "Your account has been disabled. Please contact administrator."
+        });
+      }
+      if ((roleName === "admin" || roleName === "teacher") && user.authProvider === "google") {
+        console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
+        return res.status(401).json({
+          message: "Admins and teachers must use Google Sign-In. Please use the 'Sign in with Google' button below."
+        });
       }
       if (!user.passwordHash) {
+        if ((roleName === "admin" || roleName === "teacher") && user.authProvider === "google") {
+          return res.status(401).json({ message: "Please use Google Sign-In for admin/teacher accounts." });
+        }
         console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
         return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
       }
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
       }
       loginAttempts.delete(attemptKey);
+      if (identifier) {
+        lockoutViolations.delete(identifier);
+      }
       const tokenPayload = {
         userId: user.id,
         email: user.email,
@@ -3865,42 +4350,135 @@ async function registerRoutes(app2) {
     }
   });
   app2.post("/api/auth/forgot-password", async (req, res) => {
+    const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
     try {
       const { identifier } = z2.object({ identifier: z2.string().min(1) }).parse(req.body);
+      const recentAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
+      if (recentAttempts.length >= 3) {
+        log(`\u{1F6A8} Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
+        await storage.createPasswordResetAttempt(identifier, ipAddress, false);
+        const suspiciousAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
+        if (suspiciousAttempts.length >= 5) {
+          const user2 = await storage.getUserByEmail(identifier) || await storage.getUserByUsername(identifier);
+          if (user2) {
+            const lockUntil = new Date(Date.now() + 30 * 60 * 1e3);
+            await storage.lockAccount(user2.id, lockUntil);
+            log(`\u{1F512} Account temporarily locked due to suspicious password reset activity: ${user2.id}`);
+            await storage.createAuditLog({
+              userId: user2.id,
+              action: "account_locked_suspicious_activity",
+              entityType: "user",
+              entityId: 0,
+              oldValue: null,
+              newValue: JSON.stringify({ reason: "Excessive password reset attempts", lockUntil }),
+              reason: "Suspicious password reset activity detected",
+              ipAddress,
+              userAgent: req.headers["user-agent"] || null
+            });
+          }
+        }
+        return res.status(429).json({
+          message: "Too many password reset attempts. Please try again later."
+        });
+      }
       let user = await storage.getUserByEmail(identifier);
       if (!user) {
         user = await storage.getUserByUsername(identifier);
       }
+      await storage.createPasswordResetAttempt(identifier, ipAddress, !!user);
       if (!user) {
-        return res.json({ message: "If an account exists with that email/username, a password reset link will be sent." });
+        return res.json({
+          message: "If an account exists with that email/username, a password reset link will be sent."
+        });
+      }
+      const isLocked = await storage.isAccountLocked(user.id);
+      if (isLocked) {
+        return res.status(423).json({
+          message: "Your account is temporarily locked. Please contact the administrator or try again later."
+        });
       }
       const crypto = __require("crypto");
       const resetToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 15 * 60 * 1e3);
-      await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
+      await storage.createPasswordResetToken(user.id, resetToken, expiresAt, ipAddress);
+      const recoveryEmail = user.recoveryEmail || user.email;
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "password_reset_requested",
+        entityType: "user",
+        entityId: 0,
+        oldValue: null,
+        newValue: JSON.stringify({ requestedAt: /* @__PURE__ */ new Date(), ipAddress }),
+        reason: "User requested password reset",
+        ipAddress,
+        userAgent: req.headers["user-agent"] || null
+      });
+      const resetLink = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000"}/reset-password?token=${resetToken}`;
+      const emailSubject = "THS Portal - Password Reset Request";
+      const emailBody = `
+Hello ${user.firstName} ${user.lastName},
+
+You requested a password reset for THS Portal. Click the link below to set a new password. 
+This link expires in 15 minutes.
+
+Reset Link: ${resetLink}
+
+If you didn't request this, please ignore this email or contact the school administrator immediately.
+
+Security Note: This password reset was requested from IP address: ${ipAddress}
+
+Thank you,
+Treasure-Home School Administration
+`;
       if (process.env.NODE_ENV === "development") {
-        console.log(`Password reset token for ${identifier}: ${resetToken}`);
+        console.log(`
+\u{1F4E7} PASSWORD RESET EMAIL:`);
+        console.log(`To: ${recoveryEmail}`);
+        console.log(`Subject: ${emailSubject}`);
+        console.log(`Body:
+${emailBody}`);
+        console.log(`
+Direct reset link: ${resetLink}
+`);
         return res.json({
-          message: "Password reset token generated",
+          message: "Password reset token generated. Check server console for email content.",
           token: resetToken,
-          developmentOnly: true
+          resetLink,
+          developmentOnly: true,
+          email: recoveryEmail
         });
       }
-      res.json({ message: "If an account exists with that email/username, a password reset link will be sent." });
+      log(`\u2705 Password reset email sent to ${recoveryEmail} for user ${user.id}`);
+      res.json({
+        message: "If an account exists with that email/username, a password reset link will be sent."
+      });
     } catch (error) {
       console.error("Forgot password error:", error);
+      try {
+        const { identifier } = req.body;
+        if (identifier) {
+          await storage.createPasswordResetAttempt(identifier, ipAddress, false);
+        }
+      } catch (trackError) {
+        console.error("Failed to track attempt:", trackError);
+      }
       res.status(500).json({ message: "Failed to process password reset request" });
     }
   });
   app2.post("/api/auth/reset-password", async (req, res) => {
+    const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
     try {
       const { token, newPassword } = z2.object({
         token: z2.string().min(1),
-        newPassword: z2.string().min(6).max(100)
+        newPassword: z2.string().min(8).max(100).refine((pwd) => /[A-Z]/.test(pwd), "Must contain at least one uppercase letter").refine((pwd) => /[a-z]/.test(pwd), "Must contain at least one lowercase letter").refine((pwd) => /[0-9]/.test(pwd), "Must contain at least one number").refine((pwd) => /[!@#$%^&*]/.test(pwd), "Must contain at least one special character (!@#$%^&*)")
       }).parse(req.body);
       const resetToken = await storage.getPasswordResetToken(token);
       if (!resetToken) {
         return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+      const user = await storage.getUser(resetToken.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
       const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
       await storage.updateUser(resetToken.userId, {
@@ -3908,21 +4486,69 @@ async function registerRoutes(app2) {
         mustChangePassword: false
       });
       await storage.markPasswordResetTokenAsUsed(token);
-      console.log(`Password reset successfully for user ${resetToken.userId}`);
+      await storage.createAuditLog({
+        userId: resetToken.userId,
+        action: "password_reset_completed",
+        entityType: "user",
+        entityId: 0,
+        oldValue: null,
+        newValue: JSON.stringify({ completedAt: /* @__PURE__ */ new Date(), ipAddress }),
+        reason: "Password was successfully reset via reset token",
+        ipAddress,
+        userAgent: req.headers["user-agent"] || null
+      });
+      const recoveryEmail = user.recoveryEmail || user.email;
+      const notificationSubject = "THS Portal - Password Changed";
+      const notificationBody = `
+Hello ${user.firstName} ${user.lastName},
+
+\u26A0\uFE0F Your password was reset on THS Portal by ${resetToken.resetBy ? "Admin" : "yourself"}.
+
+Details:
+- Changed at: ${(/* @__PURE__ */ new Date()).toLocaleString()}
+- IP Address: ${ipAddress}
+- Method: ${resetToken.resetBy ? "Admin Reset" : "Self-Service Reset Link"}
+
+If this wasn't you, contact the school administration immediately at:
+Email: admin@treasurehomeschool.edu.ng
+Phone: [School Contact Number]
+
+For security:
+- Never share your password with anyone
+- Use a strong, unique password
+- Change your password if you suspect any unauthorized access
+
+Thank you,
+Treasure-Home School Administration
+`;
+      if (process.env.NODE_ENV === "development") {
+        console.log(`
+\u{1F4E7} PASSWORD CHANGE NOTIFICATION:`);
+        console.log(`To: ${recoveryEmail}`);
+        console.log(`Subject: ${notificationSubject}`);
+        console.log(`Body:
+${notificationBody}
+`);
+      }
+      log(`\u2705 Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
       console.error("Reset password error:", error);
       if (error instanceof z2.ZodError) {
-        return res.status(400).json({ message: "Invalid request format" });
+        return res.status(400).json({
+          message: "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
+        });
       }
       res.status(500).json({ message: "Failed to reset password" });
     }
   });
   app2.post("/api/admin/reset-user-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
     try {
-      const { userId, newPassword } = z2.object({
+      const { userId, newPassword, forceChange } = z2.object({
         userId: z2.string().uuid(),
-        newPassword: z2.string().min(6).max(100).optional()
+        newPassword: z2.string().min(6).max(100).optional(),
+        forceChange: z2.boolean().optional().default(true)
       }).parse(req.body);
       const user = await storage.getUser(userId);
       if (!user) {
@@ -3932,19 +4558,325 @@ async function registerRoutes(app2) {
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
       const password = newPassword || generatePassword2(currentYear);
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-      await storage.updateUser(userId, {
-        passwordHash,
-        mustChangePassword: true
-      });
-      console.log(`Admin ${req.user?.email} reset password for user ${userId}`);
+      await storage.adminResetUserPassword(userId, passwordHash, req.user.id, forceChange);
+      const recoveryEmail = user.recoveryEmail || user.email;
+      const notificationSubject = "THS Portal - Password Reset by Administrator";
+      const notificationBody = `
+Hello ${user.firstName} ${user.lastName},
+
+Your password was reset by an administrator on THS Portal.
+
+Details:
+- Reset at: ${(/* @__PURE__ */ new Date()).toLocaleString()}
+- Reset by: Admin (${req.user?.email})
+- Temporary Password: ${password}
+${forceChange ? "- You will be required to change this password at next login" : ""}
+
+Please login and ${forceChange ? "change your password immediately" : "update your password for security"}.
+
+If you did not request this password reset, please contact the school administration immediately.
+
+Thank you,
+Treasure-Home School Administration
+`;
+      if (process.env.NODE_ENV === "development") {
+        console.log(`
+\u{1F4E7} ADMIN PASSWORD RESET NOTIFICATION:`);
+        console.log(`To: ${recoveryEmail}`);
+        console.log(`Subject: ${notificationSubject}`);
+        console.log(`Body:
+${notificationBody}
+`);
+      }
+      log(`\u2705 Admin ${req.user?.email} reset password for user ${userId}`);
       res.json({
         message: "Password reset successfully",
         tempPassword: password,
-        username: user.username || user.email
+        username: user.username || user.email,
+        email: recoveryEmail
       });
     } catch (error) {
       console.error("Admin password reset error:", error);
       res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  app2.post("/api/admin/update-recovery-email", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId, recoveryEmail } = z2.object({
+        userId: z2.string().uuid(),
+        recoveryEmail: z2.string().email()
+      }).parse(req.body);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const success = await storage.updateRecoveryEmail(userId, recoveryEmail, req.user.id);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to update recovery email" });
+      }
+      log(`\u2705 Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
+      res.json({
+        message: "Recovery email updated successfully",
+        oldEmail: user.recoveryEmail || user.email,
+        newEmail: recoveryEmail
+      });
+    } catch (error) {
+      console.error("Update recovery email error:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+      res.status(500).json({ message: "Failed to update recovery email" });
+    }
+  });
+  app2.post("/api/admin/unlock-account", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId } = z2.object({
+        userId: z2.string().uuid()
+      }).parse(req.body);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const success = await storage.unlockAccount(userId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to unlock account" });
+      }
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "account_unlocked",
+        entityType: "user",
+        entityId: 0,
+        oldValue: JSON.stringify({ accountLockedUntil: user.accountLockedUntil }),
+        newValue: JSON.stringify({ accountLockedUntil: null }),
+        reason: "Account manually unlocked by admin",
+        ipAddress: req.ip || req.connection.remoteAddress || "unknown",
+        userAgent: req.headers["user-agent"] || null
+      });
+      log(`\u2705 Admin ${req.user?.email} unlocked account for user ${userId}`);
+      res.json({
+        message: "Account unlocked successfully",
+        username: user.username || user.email
+      });
+    } catch (error) {
+      console.error("Unlock account error:", error);
+      res.status(500).json({ message: "Failed to unlock account" });
+    }
+  });
+  app2.get("/api/admin/suspended-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const suspendedUsers = await storage.getUsersByStatus("suspended");
+      const sanitizedUsers = suspendedUsers.map((user) => {
+        const { passwordHash, ...safeUser } = user;
+        return safeUser;
+      });
+      res.json(sanitizedUsers);
+    } catch (error) {
+      console.error("Failed to fetch suspended accounts:", error);
+      res.status(500).json({ message: "Failed to fetch suspended accounts" });
+    }
+  });
+  app2.post("/api/admin/unlock-account/:userId", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { reason } = req.body;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (user.status !== "suspended") {
+        return res.status(400).json({ message: "Account is not suspended" });
+      }
+      const updatedUser = await storage.updateUserStatus(
+        userId,
+        "active",
+        req.user.id,
+        reason || `Account unlocked by admin ${req.user.email}`
+      );
+      if (user.email) lockoutViolations.delete(user.email);
+      if (user.username) lockoutViolations.delete(user.username);
+      console.log(`Admin ${req.user.email} unlocked account ${user.email || user.username}`);
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "Account unlocked successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Failed to unlock account:", error);
+      res.status(500).json({ message: "Failed to unlock account" });
+    }
+  });
+  app2.post("/api/invites", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { email, roleId } = z2.object({
+        email: z2.string().email(),
+        roleId: z2.number()
+      }).parse(req.body);
+      const role = await storage.getRole(roleId);
+      if (!role) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      if (roleId !== ROLES.ADMIN && roleId !== ROLES.TEACHER) {
+        return res.status(400).json({ message: "Invites can only be sent for Admin or Teacher roles" });
+      }
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+      const existingInvite = await storage.getPendingInviteByEmail(email);
+      if (existingInvite) {
+        return res.status(400).json({ message: "Pending invite already exists for this email" });
+      }
+      const crypto = __require("crypto");
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
+      const invite = await storage.createInvite({
+        email,
+        roleId,
+        token,
+        createdBy: req.user.id,
+        expiresAt
+      });
+      const inviteLink = `${process.env.REPLIT_DOMAINS || "http://localhost:5000"}/invite/${token}`;
+      if (process.env.NODE_ENV === "development") {
+        console.log(`Invite created for ${email}: ${inviteLink}`);
+        return res.json({
+          message: "Invite created successfully",
+          invite: {
+            id: invite.id,
+            email: invite.email,
+            roleId: invite.roleId,
+            token: invite.token,
+            inviteLink,
+            expiresAt: invite.expiresAt
+          },
+          developmentOnly: true
+        });
+      }
+      res.json({
+        message: "Invite sent successfully",
+        invite: {
+          id: invite.id,
+          email: invite.email,
+          roleId: invite.roleId,
+          expiresAt: invite.expiresAt
+        }
+      });
+    } catch (error) {
+      console.error("Create invite error:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({ message: "Invalid request format" });
+      }
+      res.status(500).json({ message: "Failed to create invite" });
+    }
+  });
+  app2.get("/api/invites", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const invites2 = await storage.getAllInvites();
+      res.json(invites2);
+    } catch (error) {
+      console.error("List invites error:", error);
+      res.status(500).json({ message: "Failed to list invites" });
+    }
+  });
+  app2.get("/api/invites/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const invites2 = await storage.getPendingInvites();
+      res.json(invites2);
+    } catch (error) {
+      console.error("List pending invites error:", error);
+      res.status(500).json({ message: "Failed to list pending invites" });
+    }
+  });
+  app2.get("/api/invites/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invite = await storage.getInviteByToken(token);
+      if (!invite) {
+        return res.status(404).json({ message: "Invalid or expired invite" });
+      }
+      res.json({
+        email: invite.email,
+        roleId: invite.roleId,
+        expiresAt: invite.expiresAt
+      });
+    } catch (error) {
+      console.error("Get invite error:", error);
+      res.status(500).json({ message: "Failed to get invite" });
+    }
+  });
+  app2.post("/api/invites/:token/accept", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { firstName, lastName, password } = z2.object({
+        firstName: z2.string().min(1),
+        lastName: z2.string().min(1),
+        password: z2.string().min(6).max(100)
+      }).parse(req.body);
+      const invite = await storage.getInviteByToken(token);
+      if (!invite) {
+        return res.status(400).json({ message: "Invalid or expired invite" });
+      }
+      const existingUser = await storage.getUserByEmail(invite.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+      const { generateUsername: generateUsername2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
+      const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
+      const existingUsernames = await storage.getAllUsernames();
+      const { getNextUserNumber: getNextUserNumber2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
+      const nextNumber = getNextUserNumber2(existingUsernames, invite.roleId, currentYear);
+      const username = generateUsername2(invite.roleId, currentYear, "", nextNumber);
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const user = await storage.createUser({
+        email: invite.email,
+        username,
+        firstName,
+        lastName,
+        roleId: invite.roleId,
+        passwordHash,
+        authProvider: "local",
+        status: "active",
+        createdVia: "invite",
+        mustChangePassword: false
+      });
+      await storage.markInviteAsAccepted(invite.id, user.id);
+      const token_jwt = jwt.sign(
+        { userId: user.id, roleId: user.roleId },
+        SECRET_KEY,
+        { expiresIn: "24h" }
+      );
+      console.log(`Invite accepted by ${user.email} (${username})`);
+      res.json({
+        message: "Account created successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          roleId: user.roleId
+        },
+        token: token_jwt
+      });
+    } catch (error) {
+      console.error("Accept invite error:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({ message: "Invalid request format" });
+      }
+      res.status(500).json({ message: "Failed to accept invite" });
+    }
+  });
+  app2.delete("/api/invites/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const inviteId = parseInt(req.params.id);
+      const deleted = await storage.deleteInvite(inviteId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invite not found" });
+      }
+      res.json({ message: "Invite deleted successfully" });
+    } catch (error) {
+      console.error("Delete invite error:", error);
+      res.status(500).json({ message: "Failed to delete invite" });
     }
   });
   app2.post("/api/contact", async (req, res) => {
@@ -3998,6 +4930,277 @@ async function registerRoutes(app2) {
       res.json(sanitizedUsers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  app2.get("/api/users/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const pendingUsers = await storage.getUsersByStatus("pending");
+      const enrichedUsers = await Promise.all(pendingUsers.map(async (user) => {
+        const { passwordHash, ...safeUser } = user;
+        const role = await storage.getRole(user.roleId);
+        return {
+          ...safeUser,
+          roleName: role?.name || "Unknown"
+        };
+      }));
+      res.json(enrichedUsers);
+    } catch (error) {
+      console.error("Error fetching pending users:", error);
+      res.status(500).json({ message: "Failed to fetch pending users" });
+    }
+  });
+  app2.post("/api/users/:id/approve", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (user.status !== "pending") {
+        return res.status(400).json({ message: `Cannot approve user with status: ${user.status}` });
+      }
+      const approvedUser = await storage.approveUser(id, adminUser.id);
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_approved",
+        entityType: "user",
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: "pending" }),
+        newValue: JSON.stringify({ userId: user.id, status: "active" }),
+        reason: `Admin ${adminUser.email} approved user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      });
+      const { passwordHash, ...safeUser } = approvedUser;
+      res.json({
+        message: "User approved successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error approving user:", error);
+      res.status(500).json({ message: "Failed to approve user" });
+    }
+  });
+  app2.post("/api/users/:id/status", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, reason } = req.body;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const validStatuses = ["pending", "active", "suspended", "disabled"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldStatus = user.status;
+      const updatedUser = await storage.updateUserStatus(id, status, adminUser.id, reason);
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_status_changed",
+        entityType: "user",
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status }),
+        reason: reason || `Admin ${adminUser.email} changed status of user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      });
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: `User status updated to ${status}`,
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+  app2.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (user.id === adminUser.id) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_deleted",
+        entityType: "user",
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          username: user.username,
+          roleId: user.roleId
+        }),
+        newValue: null,
+        reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      });
+      res.json({
+        message: "User deleted successfully"
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+  app2.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newPassword, forceChange } = z2.object({
+        newPassword: z2.string().min(6, "Password must be at least 6 characters"),
+        forceChange: z2.boolean().optional().default(true)
+      }).parse(req.body);
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      const updatedUser = await storage.updateUser(id, {
+        passwordHash,
+        mustChangePassword: forceChange
+      });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to reset password" });
+      }
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: "password_reset",
+        entityType: "user",
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
+        newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
+        reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? " (force change on next login)" : ""}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      });
+      const { passwordHash: _, ...safeUser } = updatedUser;
+      res.json({
+        message: `Password reset successfully${forceChange ? ". User must change password on next login." : ""}`,
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  app2.post("/api/users/:id/role", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { roleId } = z2.object({
+        roleId: z2.number().int().positive()
+      }).parse(req.body);
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const newRole = await storage.getRole(roleId);
+      if (!newRole) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      if (user.id === adminUser.id) {
+        return res.status(400).json({ message: "Cannot change your own role" });
+      }
+      const oldRole = await storage.getRole(user.roleId);
+      const updatedUser = await storage.updateUser(id, { roleId });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update user role" });
+      }
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: "role_changed",
+        entityType: "user",
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, roleId: user.roleId, roleName: oldRole?.name }),
+        newValue: JSON.stringify({ userId: user.id, roleId, roleName: newRole.name }),
+        reason: `Admin ${adminUser.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      });
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: `User role updated to ${newRole.name}`,
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error changing user role:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to change user role" });
+    }
+  });
+  app2.get("/api/audit-logs", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { limit, offset, action, entityType } = z2.object({
+        limit: z2.coerce.number().int().positive().max(1e3).optional().default(100),
+        offset: z2.coerce.number().int().nonnegative().optional().default(0),
+        action: z2.string().optional(),
+        entityType: z2.string().optional()
+      }).parse(req.query);
+      const logs = await storage.getAuditLogs({
+        limit,
+        offset,
+        action,
+        entityType
+      });
+      const enrichedLogs = await Promise.all(logs.map(async (log3) => {
+        const user = await storage.getUser(log3.userId);
+        return {
+          ...log3,
+          userEmail: user?.email,
+          userName: `${user?.firstName} ${user?.lastName}`
+        };
+      }));
+      res.json(enrichedLogs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Invalid query parameters",
+          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
   app2.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -6846,7 +8049,7 @@ var vite_config_default = defineConfig({
 // server/vite.ts
 import { nanoid } from "nanoid";
 var viteLogger = createLogger();
-function log(message, source = "express") {
+function log2(message, source = "express") {
   const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -6938,7 +8141,7 @@ app.use((req, res, next) => {
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "\u2026";
       }
-      log(logLine);
+      log2(logLine);
     }
   });
   next();
@@ -6966,32 +8169,34 @@ function sanitizeLogData(data) {
 }
 (async () => {
   try {
-    log("Applying database migrations...");
+    log2("Applying database migrations...");
     await migrate(exportDb, { migrationsFolder: "./migrations" });
-    log("\u2705 Database migrations completed successfully");
+    log2("\u2705 Database migrations completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const isIdempotencyError = errorMessage.includes("already exists") || errorMessage.includes("relation") && errorMessage.includes("already exists") || errorMessage.includes("duplicate key") || errorMessage.includes("nothing to migrate") || errorMessage.includes("PostgresError: relation") || error?.cause?.code === "42P07";
+    const errorCode = error?.cause?.code;
+    const isIdempotencyError = errorMessage.includes("already exists") || errorMessage.includes("relation") && errorMessage.includes("already exists") || errorMessage.includes("duplicate key") || errorMessage.includes("nothing to migrate") || errorMessage.includes("PostgresError: relation") || errorCode === "42P07" || // relation already exists
+    errorCode === "42710";
     if (isIdempotencyError) {
-      log(`\u2139\uFE0F Migrations already applied: ${errorMessage}`);
+      log2(`\u2139\uFE0F Migrations already applied: ${errorMessage}`);
     } else {
       console.error(`\u{1F6A8} MIGRATION ERROR: ${errorMessage}`);
       console.error(error);
-      log(`\u26A0\uFE0F Migration failed: ${errorMessage}`);
+      log2(`\u26A0\uFE0F Migration failed: ${errorMessage}`);
       if (process.env.NODE_ENV === "production") {
         console.error("Production migration failure detected. Review required.");
       }
     }
   }
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
-    log(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
+    log2(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
     res.status(410).json({ message: "Gone - Route disabled for security" });
   });
   const server = await registerRoutes(app);
   app.use((err, req, res, _next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
+    log2(`ERROR: ${req.method} ${req.path} - ${err.message}`);
     console.error(err.stack);
     if (!res.headersSent) {
       res.status(status).json({ message });
@@ -7008,6 +8213,6 @@ function sanitizeLogData(data) {
     host: "0.0.0.0",
     reusePort: true
   }, () => {
-    log(`serving on port ${port}`);
+    log2(`serving on port ${port}`);
   });
 })();
