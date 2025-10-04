@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   CheckCircle, 
   XCircle, 
@@ -15,7 +17,11 @@ import {
   ShieldAlert, 
   ShieldCheck, 
   RotateCcw,
-  Filter
+  Filter,
+  MoreVertical,
+  Trash2,
+  KeyRound,
+  UserCog
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -29,6 +35,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -54,7 +76,12 @@ interface User {
   authProvider: string;
 }
 
-type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'unverify' | 'disable';
+interface Role {
+  id: number;
+  name: string;
+}
+
+type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'unverify' | 'disable' | 'delete' | 'resetPassword' | 'changeRole';
 
 export default function UserManagement() {
   const { user } = useAuth();
@@ -62,6 +89,13 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [forceChange, setForceChange] = useState(true);
+  
+  const [changeRoleDialog, setChangeRoleDialog] = useState(false);
+  const [newRoleId, setNewRoleId] = useState<number | null>(null);
 
   // Fetch all users
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
@@ -71,6 +105,11 @@ export default function UserManagement() {
   // Fetch pending users for count
   const { data: pendingUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users/pending'],
+  });
+
+  // Fetch roles for role change dialog
+  const { data: roles = [] } = useQuery<Role[]>({
+    queryKey: ['/api/roles'],
   });
 
   // Filter users by status
@@ -137,9 +176,93 @@ export default function UserManagement() {
     },
   });
 
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest('DELETE', `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      toast({
+        title: "User Deleted",
+        description: "The user has been permanently removed from the system.",
+      });
+      setSelectedUser(null);
+      setActionType(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword, forceChange }: { userId: string; newPassword: string; forceChange: boolean }) => {
+      return await apiRequest('POST', `/api/users/${userId}/reset-password`, {
+        newPassword,
+        forceChange
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Password Reset",
+        description: "User password has been reset successfully.",
+      });
+      setResetPasswordDialog(false);
+      setNewPassword('');
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Change role mutation
+  const changeRoleMutation = useMutation({
+    mutationFn: async ({ userId, roleId }: { userId: string; roleId: number }) => {
+      return await apiRequest('POST', `/api/users/${userId}/role`, {
+        roleId
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Role Changed",
+        description: "User role has been updated successfully.",
+      });
+      setChangeRoleDialog(false);
+      setNewRoleId(null);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change user role",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAction = (user: User, action: ActionType) => {
     setSelectedUser(user);
-    setActionType(action);
+    if (action === 'resetPassword') {
+      setResetPasswordDialog(true);
+    } else if (action === 'changeRole') {
+      setNewRoleId(user.roleId);
+      setChangeRoleDialog(true);
+    } else {
+      setActionType(action);
+    }
   };
 
   const confirmAction = () => {
@@ -171,7 +294,40 @@ export default function UserManagement() {
         status: 'disabled',
         reason: 'Disabled by admin'
       });
+    } else if (actionType === 'delete') {
+      deleteUserMutation.mutate(selectedUser.id);
     }
+  };
+
+  const handleResetPassword = () => {
+    if (!selectedUser || !newPassword || newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+    resetPasswordMutation.mutate({
+      userId: selectedUser.id,
+      newPassword,
+      forceChange
+    });
+  };
+
+  const handleChangeRole = () => {
+    if (!selectedUser || !newRoleId) {
+      toast({
+        title: "Error",
+        description: "Please select a role",
+        variant: "destructive",
+      });
+      return;
+    }
+    changeRoleMutation.mutate({
+      userId: selectedUser.id,
+      roleId: newRoleId
+    });
   };
 
   if (!user) {
@@ -236,19 +392,6 @@ export default function UserManagement() {
           Suspend
         </Button>
       );
-      buttons.push(
-        <Button
-          key="unverify"
-          size="sm"
-          variant="outline"
-          onClick={() => handleAction(targetUser, 'unverify')}
-          disabled={approveMutation.isPending || changeStatusMutation.isPending}
-          data-testid={`button-unverify-${targetUser.id}`}
-        >
-          <RotateCcw className="h-4 w-4 mr-1" />
-          Unverify
-        </Button>
-      );
     }
     
     if (targetUser.status === 'suspended') {
@@ -267,21 +410,63 @@ export default function UserManagement() {
       );
     }
     
-    if (targetUser.status === 'pending' || targetUser.status === 'active') {
-      buttons.push(
-        <Button
-          key="disable"
-          size="sm"
-          variant="destructive"
-          onClick={() => handleAction(targetUser, 'disable')}
-          disabled={approveMutation.isPending || changeStatusMutation.isPending}
-          data-testid={`button-disable-${targetUser.id}`}
-        >
-          <XCircle className="h-4 w-4 mr-1" />
-          Disable
-        </Button>
-      );
-    }
+    // More Actions Dropdown
+    buttons.push(
+      <DropdownMenu key="more-actions">
+        <DropdownMenuTrigger asChild>
+          <Button 
+            size="sm" 
+            variant="ghost"
+            data-testid={`button-more-actions-${targetUser.id}`}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" data-testid={`menu-actions-${targetUser.id}`}>
+          <DropdownMenuLabel>Admin Powers</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          
+          {targetUser.authProvider !== 'google' && (
+            <DropdownMenuItem 
+              onClick={() => handleAction(targetUser, 'resetPassword')}
+              data-testid={`menu-item-reset-password-${targetUser.id}`}
+            >
+              <KeyRound className="h-4 w-4 mr-2" />
+              Reset Password
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuItem 
+            onClick={() => handleAction(targetUser, 'changeRole')}
+            data-testid={`menu-item-change-role-${targetUser.id}`}
+          >
+            <UserCog className="h-4 w-4 mr-2" />
+            Change Role
+          </DropdownMenuItem>
+          
+          {(targetUser.status === 'active' || targetUser.status === 'pending') && (
+            <DropdownMenuItem 
+              onClick={() => handleAction(targetUser, 'unverify')}
+              data-testid={`menu-item-unverify-${targetUser.id}`}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Revoke Approval
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem 
+            onClick={() => handleAction(targetUser, 'delete')}
+            className="text-destructive focus:text-destructive"
+            data-testid={`menu-item-delete-${targetUser.id}`}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Account
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
     
     return buttons;
   };
@@ -443,6 +628,7 @@ export default function UserManagement() {
               {actionType === 'unsuspend' && 'Unsuspend User?'}
               {actionType === 'unverify' && 'Unverify User?'}
               {actionType === 'disable' && 'Disable User?'}
+              {actionType === 'delete' && '⚠️ Delete Account Permanently?'}
             </AlertDialogTitle>
             <AlertDialogDescription data-testid="text-dialog-description">
               {actionType === 'approve' && (
@@ -475,13 +661,21 @@ export default function UserManagement() {
                   Their account will be permanently disabled.
                 </>
               )}
+              {actionType === 'delete' && (
+                <>
+                  <strong className="text-destructive">Warning: This action cannot be undone!</strong>
+                  <br /><br />
+                  Are you sure you want to permanently delete <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
+                  All user data, records, and history will be permanently removed from the system.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmAction}
-              className={(actionType === 'disable' || actionType === 'suspend') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+              className={(actionType === 'disable' || actionType === 'suspend' || actionType === 'delete') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
               data-testid="button-confirm"
             >
               {actionType === 'approve' && 'Approve'}
@@ -489,10 +683,124 @@ export default function UserManagement() {
               {actionType === 'unsuspend' && 'Unsuspend'}
               {actionType === 'unverify' && 'Unverify'}
               {actionType === 'disable' && 'Disable'}
+              {actionType === 'delete' && 'Delete Permanently'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialog} onOpenChange={setResetPasswordDialog}>
+        <DialogContent data-testid="dialog-reset-password">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
+                data-testid="input-new-password"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="force-change"
+                checked={forceChange}
+                onChange={(e) => setForceChange(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+                data-testid="checkbox-force-change"
+              />
+              <Label htmlFor="force-change" className="text-sm font-normal">
+                Force user to change password on next login
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setResetPasswordDialog(false);
+                setNewPassword('');
+                setSelectedUser(null);
+              }}
+              data-testid="button-cancel-reset"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleResetPassword}
+              disabled={resetPasswordMutation.isPending}
+              data-testid="button-confirm-reset"
+            >
+              {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Role Dialog */}
+      <Dialog open={changeRoleDialog} onOpenChange={setChangeRoleDialog}>
+        <DialogContent data-testid="dialog-change-role">
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Change the role for <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-role">Select New Role</Label>
+              <Select 
+                value={newRoleId?.toString()} 
+                onValueChange={(value) => setNewRoleId(parseInt(value))}
+              >
+                <SelectTrigger data-testid="select-new-role">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id.toString()} data-testid={`role-option-${role.id}`}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Current role: <strong>{selectedUser?.roleName}</strong>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setChangeRoleDialog(false);
+                setNewRoleId(null);
+                setSelectedUser(null);
+              }}
+              data-testid="button-cancel-role-change"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleChangeRole}
+              disabled={changeRoleMutation.isPending}
+              data-testid="button-confirm-role-change"
+            >
+              {changeRoleMutation.isPending ? 'Changing...' : 'Change Role'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }
