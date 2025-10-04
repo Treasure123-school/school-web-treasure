@@ -86,12 +86,14 @@ function sanitizeLogData(data: any): any {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     // Check if this is a benign idempotency case (migrations already applied)
+    const errorCode = (error as any)?.cause?.code;
     const isIdempotencyError = errorMessage.includes('already exists') || 
                               (errorMessage.includes('relation') && errorMessage.includes('already exists')) ||
                               errorMessage.includes('duplicate key') ||
                               errorMessage.includes('nothing to migrate') ||
                               errorMessage.includes('PostgresError: relation') ||
-                              (error as any)?.cause?.code === '42P07'; // PostgreSQL error code for "relation already exists"
+                              errorCode === '42P07' || // relation already exists
+                              errorCode === '42710'; // type already exists
     
     if (isIdempotencyError) {
       log(`ℹ️ Migrations already applied: ${errorMessage}`);
