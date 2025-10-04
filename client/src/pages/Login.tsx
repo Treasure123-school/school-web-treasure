@@ -281,9 +281,9 @@ export default function Login() {
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Pending Approval';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">Your Admin/Teacher account is awaiting approval by the school administrator.</p>
-            <p className="text-muted-foreground">You will receive a notification once your account is approved. Contact your school administrator for assistance.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">You will receive a notification once your account is approved. Contact your school administrator for assistance.</p>
           </div>
         );
       }
@@ -293,9 +293,9 @@ export default function Login() {
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Pending Approval';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">Your account is pending approval.</p>
-            <p className="text-muted-foreground">Please wait for administrator confirmation. You will be notified once approved.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please wait for administrator confirmation. You will be notified once approved.</p>
           </div>
         );
       }
@@ -305,9 +305,9 @@ export default function Login() {
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
         title = 'Account Suspended';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">Your account has been suspended.</p>
-            <p className="text-muted-foreground">Please contact the school administrator for more information.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please contact the school administrator for more information.</p>
           </div>
         );
       }
@@ -317,9 +317,9 @@ export default function Login() {
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
         title = 'Account Disabled';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">Your account has been disabled.</p>
-            <p className="text-muted-foreground">Please contact the school administrator for assistance.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please contact the school administrator for assistance.</p>
           </div>
         );
       }
@@ -329,9 +329,9 @@ export default function Login() {
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Temporarily Locked';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">Too many failed login attempts. Your account has been temporarily locked for security.</p>
-            <p className="text-muted-foreground">Please wait a few minutes before trying again, or contact the administrator for assistance.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please wait a few minutes before trying again, or contact the administrator for assistance.</p>
           </div>
         );
       }
@@ -341,9 +341,9 @@ export default function Login() {
         className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
         title = 'Google Sign-In Required';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">Admin and Teacher accounts must use Google Sign-In.</p>
-            <p className="text-muted-foreground">Please use the "Sign in with Google" button below to access your account.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please use the "Sign in with Google" button below to access your account.</p>
           </div>
         );
       }
@@ -352,9 +352,9 @@ export default function Login() {
         icon = <XCircle className="h-4 w-4 text-red-500" />;
         title = 'Login Failed';
         description = (
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <p className="mb-2">{errorMessage}</p>
-            <p className="text-muted-foreground text-xs">Make sure you're using the correct username and password.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Make sure you're using the correct username and password.</p>
           </div>
         );
       }
@@ -480,20 +480,20 @@ export default function Login() {
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-3 mb-6" data-testid="link-home">
-            <div className="bg-primary rounded-lg p-3">
-              <GraduationCap className="text-primary-foreground h-8 w-8" />
+        <div className="text-center mb-6 sm:mb-8">
+          <Link href="/" className="inline-flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6" data-testid="link-home">
+            <div className="bg-primary rounded-lg p-2 sm:p-3">
+              <GraduationCap className="text-primary-foreground h-6 w-6 sm:h-8 sm:w-8" />
             </div>
             <div className="text-left">
-              <h1 className="text-xl font-bold text-foreground">Treasure-Home School</h1>
-              <p className="text-sm text-muted-foreground">"Honesty and Success"</p>
+              <h1 className="text-base sm:text-xl font-bold text-foreground">Treasure-Home School</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">"Honesty and Success"</p>
             </div>
           </Link>
-          <h2 className="text-2xl font-bold text-foreground" data-testid="text-login-title">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-login-title">
             Portal Login
           </h2>
-          <p className="text-muted-foreground" data-testid="text-login-subtitle">
+          <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-login-subtitle">
             Access your school dashboard
           </p>
         </div>
@@ -540,8 +540,8 @@ export default function Login() {
               </div>
 
               {/* Message 1: Standard Login Success (Students/Parents) - Info Box */}
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
+              <div className="p-2 sm:p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
                   <strong>For Students & Parents:</strong> Use your THS username and password to login. You'll be automatically redirected to your dashboard.
                 </p>
               </div>
@@ -566,8 +566,8 @@ export default function Login() {
             </div>
 
             {/* Message 13: Google Sign-In Required (Admin/Teacher trying standard login) - Info Box */}
-            <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800 mb-3">
-              <p className="text-xs text-orange-800 dark:text-orange-200">
+            <div className="p-2 sm:p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800 mb-3">
+              <p className="text-[10px] sm:text-xs text-orange-800 dark:text-orange-200">
                 <strong>Admins & Teachers:</strong> Use Google Sign-In with your authorized email. Students and parents cannot use this option.
               </p>
             </div>
