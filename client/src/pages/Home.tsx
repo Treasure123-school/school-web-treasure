@@ -2,6 +2,7 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
@@ -9,20 +10,13 @@ import { Calendar, Clock, ChevronLeft, ChevronRight, Users, Award, GraduationCap
 import type { HomePageContent } from '@shared/schema';
 
 export default function Home() {
-  // Fetch dynamic content from database
-  const { data: heroImages = [] } = useQuery<HomePageContent[]>({
+  // Fetch dynamic content from database with optimized caching
+  const { data: heroImages = [], isLoading: heroLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api/homepage-content', 'hero_image'],
-    queryFn: async () => {
-      const res = await fetch('/api/homepage-content?contentType=hero_image');
-      if (!res.ok) {
-        return [];
-      }
-      return res.json();
-    },
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: galleryPreviewImages = [] } = useQuery<HomePageContent[]>({
+  const { data: galleryPreviewImages = [], isLoading: galleryLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api/homepage-content', 'gallery_preview'],
     queryFn: async () => {
       const res = await fetch('/api/homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3');
@@ -31,11 +25,11 @@ export default function Home() {
       }
       return res.json();
     },
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch latest published announcements for homepage preview
-  const { data: recentAnnouncements = [] } = useQuery({
+  const { data: recentAnnouncements = [], isLoading: announcementsLoading } = useQuery({
     queryKey: ['/api/announcements', 'published'],
     queryFn: async () => {
       const res = await fetch('/api/announcements');
@@ -48,7 +42,7 @@ export default function Home() {
         .sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
         .slice(0, 3);
     },
-    refetchOnWindowFocus: false,
+    staleTime: 2 * 60 * 1000, // 2 minutes for announcements
   });
 
   // Gallery carousel state
