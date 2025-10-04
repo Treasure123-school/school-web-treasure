@@ -54,7 +54,7 @@ export default function ClassesManagement() {
     },
   });
 
-  // Create class mutation
+  // Create class mutation with OPTIMISTIC UPDATES
   const createClassMutation = useMutation({
     mutationFn: async (classData: ClassForm) => {
       const payload = {
@@ -65,6 +65,22 @@ export default function ClassesManagement() {
       if (!response.ok) throw new Error('Failed to create class');
       return response.json();
     },
+    onMutate: async (newClass) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/classes'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous value
+      const previousClasses = queryClient.getQueryData(['/api/classes']);
+      
+      // INSTANT FEEDBACK: Optimistically add new class
+      queryClient.setQueryData(['/api/classes'], (old: any) => {
+        const payload = { ...newClass, capacity: parseInt(newClass.capacity, 10), id: 'temp-' + Date.now(), createdAt: new Date() };
+        if (!old) return [payload];
+        return [payload, ...old];
+      });
+      
+      return { previousClasses };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -74,7 +90,11 @@ export default function ClassesManagement() {
       setIsDialogOpen(false);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, newClass, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousClasses) {
+        queryClient.setQueryData(['/api/classes'], context.previousClasses);
+      }
       toast({
         title: "Error", 
         description: error.message || "Failed to create class",
@@ -83,7 +103,7 @@ export default function ClassesManagement() {
     },
   });
 
-  // Update class mutation
+  // Update class mutation with OPTIMISTIC UPDATES
   const updateClassMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string, data: Partial<ClassForm> }) => {
       const payload = {
@@ -93,6 +113,24 @@ export default function ClassesManagement() {
       const response = await apiRequest('PUT', `/api/classes/${id}`, payload);
       if (!response.ok) throw new Error('Failed to update class');
       return response.json();
+    },
+    onMutate: async ({ id, data }) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/classes'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous value
+      const previousClasses = queryClient.getQueryData(['/api/classes']);
+      
+      // INSTANT FEEDBACK: Optimistically update class
+      queryClient.setQueryData(['/api/classes'], (old: any) => {
+        if (!old) return old;
+        const payload = { ...data, capacity: data.capacity ? parseInt(data.capacity, 10) : undefined };
+        return old.map((classItem: any) => 
+          classItem.id === id ? { ...classItem, ...payload } : classItem
+        );
+      });
+      
+      return { previousClasses };
     },
     onSuccess: () => {
       toast({
@@ -104,7 +142,11 @@ export default function ClassesManagement() {
       setEditingClass(null);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousClasses) {
+        queryClient.setQueryData(['/api/classes'], context.previousClasses);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update class", 
@@ -113,12 +155,27 @@ export default function ClassesManagement() {
     },
   });
 
-  // Delete class mutation
+  // Delete class mutation with OPTIMISTIC UPDATES
   const deleteClassMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/classes/${id}`);
       if (!response.ok) throw new Error('Failed to delete class');
       return response.status === 204 ? null : response.json();
+    },
+    onMutate: async (id: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/classes'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous value
+      const previousClasses = queryClient.getQueryData(['/api/classes']);
+      
+      // INSTANT FEEDBACK: Optimistically remove class
+      queryClient.setQueryData(['/api/classes'], (old: any) => {
+        if (!old) return old;
+        return old.filter((classItem: any) => classItem.id !== id);
+      });
+      
+      return { previousClasses };
     },
     onSuccess: () => {
       toast({
@@ -128,7 +185,11 @@ export default function ClassesManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
       setClassToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, id: string, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousClasses) {
+        queryClient.setQueryData(['/api/classes'], context.previousClasses);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete class",

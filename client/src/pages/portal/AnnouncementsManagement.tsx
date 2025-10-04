@@ -59,12 +59,27 @@ export default function AnnouncementsManagement() {
     },
   });
 
-  // Create announcement mutation
+  // Create announcement mutation with OPTIMISTIC UPDATES
   const createAnnouncementMutation = useMutation({
     mutationFn: async (announcementData: AnnouncementForm) => {
       const response = await apiRequest('POST', '/api/announcements', announcementData);
       if (!response.ok) throw new Error('Failed to create announcement');
       return response.json();
+    },
+    onMutate: async (newAnnouncement) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous value
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements']);
+      
+      // INSTANT FEEDBACK: Optimistically add new announcement
+      queryClient.setQueryData(['/api/announcements'], (old: any) => {
+        if (!old) return [{ ...newAnnouncement, id: 'temp-' + Date.now(), createdAt: new Date() }];
+        return [{ ...newAnnouncement, id: 'temp-' + Date.now(), createdAt: new Date() }, ...old];
+      });
+      
+      return { previousAnnouncements };
     },
     onSuccess: () => {
       toast({
@@ -75,7 +90,11 @@ export default function AnnouncementsManagement() {
       setIsDialogOpen(false);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, newAnnouncement, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousAnnouncements) {
+        queryClient.setQueryData(['/api/announcements'], context.previousAnnouncements);
+      }
       toast({
         title: "Error", 
         description: error.message || "Failed to create announcement",
@@ -84,12 +103,29 @@ export default function AnnouncementsManagement() {
     },
   });
 
-  // Update announcement mutation
+  // Update announcement mutation with OPTIMISTIC UPDATES
   const updateAnnouncementMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string, data: Partial<AnnouncementForm> }) => {
       const response = await apiRequest('PUT', `/api/announcements/${id}`, data);
       if (!response.ok) throw new Error('Failed to update announcement');
       return response.json();
+    },
+    onMutate: async ({ id, data }) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous value
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements']);
+      
+      // INSTANT FEEDBACK: Optimistically update announcement
+      queryClient.setQueryData(['/api/announcements'], (old: any) => {
+        if (!old) return old;
+        return old.map((announcement: any) => 
+          announcement.id === id ? { ...announcement, ...data } : announcement
+        );
+      });
+      
+      return { previousAnnouncements };
     },
     onSuccess: () => {
       toast({
@@ -101,7 +137,11 @@ export default function AnnouncementsManagement() {
       setEditingAnnouncement(null);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousAnnouncements) {
+        queryClient.setQueryData(['/api/announcements'], context.previousAnnouncements);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update announcement", 
@@ -110,12 +150,27 @@ export default function AnnouncementsManagement() {
     },
   });
 
-  // Delete announcement mutation
+  // Delete announcement mutation with OPTIMISTIC UPDATES
   const deleteAnnouncementMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/announcements/${id}`);
       if (!response.ok) throw new Error('Failed to delete announcement');
       return response.status === 204 ? null : response.json();
+    },
+    onMutate: async (id: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous value
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements']);
+      
+      // INSTANT FEEDBACK: Optimistically remove announcement
+      queryClient.setQueryData(['/api/announcements'], (old: any) => {
+        if (!old) return old;
+        return old.filter((announcement: any) => announcement.id !== id);
+      });
+      
+      return { previousAnnouncements };
     },
     onSuccess: () => {
       toast({
@@ -125,7 +180,11 @@ export default function AnnouncementsManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
       setAnnouncementToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, id: string, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousAnnouncements) {
+        queryClient.setQueryData(['/api/announcements'], context.previousAnnouncements);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete announcement",
