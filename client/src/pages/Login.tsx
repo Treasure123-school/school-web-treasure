@@ -72,8 +72,8 @@ export default function Login() {
         ),
         description: (
           <div className="text-sm">
-            <p className="mb-2">⏳ {message}</p>
-            <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
+            <p className="mb-2">{message}</p>
+            <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
           </div>
         ),
         className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
@@ -90,7 +90,7 @@ export default function Login() {
             <span>Google Sign-In Failed</span>
           </div>
         ),
-        description: `❌ ${errorMessage}`,
+        description: errorMessage,
         variant: 'destructive',
       });
       window.history.replaceState({}, '', '/login');
@@ -129,7 +129,7 @@ export default function Login() {
               <span>Login Successful</span>
             </div>
           ),
-          description: '✅ Welcome back to THS Portal. Redirecting you to your dashboard…',
+          description: 'Welcome back to THS Portal. Redirecting you to your dashboard...',
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
         });
         
@@ -215,7 +215,7 @@ export default function Login() {
             <span>Login Successful</span>
           </div>
         ),
-        description: '✅ Welcome back to THS Portal. Redirecting you to your dashboard…',
+        description: 'Welcome back to THS Portal. Redirecting you to your dashboard...',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       
@@ -225,47 +225,72 @@ export default function Login() {
     },
     onError: (error: any) => {
       // Extract the specific error message from the backend
-      const errorMessage = error?.message || 'Invalid credentials. Please try again.';
+      const errorMessage = error?.message || 'Invalid username or password. Please check your credentials and try again.';
       
       // Determine message type and styling based on exact backend responses
       let icon = <XCircle className="h-4 w-4" />;
-      let emoji = '❌';
       let className = '';
       let title = 'Login Failed';
-      let description = errorMessage;
+      let description: string | JSX.Element = errorMessage;
       
-      // Pending approval
-      if (errorMessage.includes('awaiting Admin approval') || errorMessage.includes('pending')) {
+      // Pending approval - Admin/Teacher (Google OAuth)
+      if (errorMessage.includes('awaiting Admin approval') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher'))) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
-        emoji = '⏳';
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Pending Approval';
         description = (
           <div className="text-sm">
-            <p className="mb-2">{emoji} {errorMessage}</p>
-            {errorMessage.includes('Teacher') || errorMessage.includes('Admin') ? (
-              <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
-            ) : null}
+            <p className="mb-2">Your account has been created and is awaiting admin approval.</p>
+            <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
           </div>
         );
-      } 
-      // Suspended account
-      else if (errorMessage.includes('suspended') || errorMessage.includes('disabled')) {
+      }
+      // Pending approval - Admin/Teacher (Standard Login)
+      else if (errorMessage.includes('pending') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher'))) {
+        icon = <Clock className="h-4 w-4 text-orange-500" />;
+        className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+        title = 'Account Pending Approval';
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">Your Admin/Teacher account is awaiting approval by the school administrator.</p>
+            <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
+          </div>
+        );
+      }
+      // Pending approval - Student/Parent
+      else if (errorMessage.includes('pending') || errorMessage.includes('awaiting')) {
+        icon = <Clock className="h-4 w-4 text-orange-500" />;
+        className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+        title = 'Account Pending Approval';
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">Your account is pending approval.</p>
+            <p className="text-muted-foreground">Please wait for administrator confirmation. You will be notified once approved.</p>
+          </div>
+        );
+      }
+      // Account suspended
+      else if (errorMessage.includes('suspended')) {
         icon = <Ban className="h-4 w-4 text-red-500" />;
-        emoji = '🚫';
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
-        title = errorMessage.includes('suspended') ? 'Account Suspended' : 'Account Disabled';
-        description = `${emoji} ${errorMessage}`;
+        title = 'Account Suspended';
+        description = 'Your account has been suspended. Please contact the school administrator for more information.';
+      }
+      // Account disabled
+      else if (errorMessage.includes('disabled')) {
+        icon = <Ban className="h-4 w-4 text-red-500" />;
+        className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
+        title = 'Account Disabled';
+        description = 'Your account has been disabled. Please contact the school administrator for assistance.';
       }
       // Account locked due to too many attempts
       else if (errorMessage.includes('Too many login attempts') || errorMessage.includes('locked')) {
         icon = <Ban className="h-4 w-4 text-orange-500" />;
-        emoji = '🔒';
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Locked';
         description = (
           <div className="text-sm">
-            <p className="mb-2">{emoji} {errorMessage}</p>
+            <p className="mb-2">Too many failed login attempts. Your account has been temporarily locked for security.</p>
             <p className="text-muted-foreground">If this continues, please contact the administrator.</p>
           </div>
         );
@@ -273,17 +298,15 @@ export default function Login() {
       // Google OAuth required for admins/teachers
       else if (errorMessage.includes('must use Google Sign-In')) {
         icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
-        emoji = 'ℹ️';
         className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
         title = 'Google Sign-In Required';
-        description = `${emoji} ${errorMessage}`;
+        description = 'Admin and Teacher accounts must use Google Sign-In. Please use the "Sign in with Google" button below.';
       }
       // Invalid credentials (default)
       else {
         icon = <XCircle className="h-4 w-4" />;
-        emoji = '❌';
         title = 'Login Failed';
-        description = `${emoji} ${errorMessage}`;
+        description = errorMessage;
       }
       
       toast({
@@ -339,7 +362,7 @@ export default function Login() {
             <span>Password Changed Successfully</span>
           </div>
         ),
-        description: '✅ Welcome to THS Portal!',
+        description: 'Welcome to THS Portal! Your password has been updated.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       
@@ -374,7 +397,7 @@ export default function Login() {
             <span>Account Created Successfully</span>
           </div>
         ),
-        description: '✅ Welcome to THS Portal!',
+        description: 'Welcome to THS Portal! Your account has been set up.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       
