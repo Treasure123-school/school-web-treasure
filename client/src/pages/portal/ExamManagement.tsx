@@ -1133,6 +1133,36 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
+                {/* Exam Metadata Section */}
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium text-sm">Exam Details & Rules</h4>
+                  
+                  <div>
+                    <Label htmlFor="name">Exam Title</Label>
+                    <Input 
+                      id="name" 
+                      {...registerExam('name')} 
+                      data-testid="input-exam-name"
+                      placeholder="e.g., Mid-term Mathematics Test"
+                    />
+                    {examErrors.name && <p className="text-sm text-red-500">{examErrors.name.message}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="instructions">Instructions & Rules</Label>
+                    <Textarea 
+                      id="instructions" 
+                      {...registerExam('instructions')} 
+                      data-testid="textarea-exam-instructions"
+                      placeholder="Enter exam instructions for students..."
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      These will be shown to students before they start the exam
+                    </p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="term">Academic Term</Label>
@@ -1158,6 +1188,65 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
+                {/* Timer Mode Selection Section */}
+                <div className="space-y-4 p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Timer Mode Selection
+                  </h4>
+                  
+                  <div>
+                    <Label htmlFor="timerMode">Choose Timer Mode</Label>
+                    <Controller
+                      name="timerMode"
+                      control={examControl}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || 'individual'}>
+                          <SelectTrigger data-testid="select-timer-mode">
+                            <SelectValue placeholder="Select timer mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="individual">
+                              <div className="flex flex-col">
+                                <span className="font-medium">Individual Timer</span>
+                                <span className="text-xs text-muted-foreground">Each student starts their own countdown</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="global">
+                              <div className="flex flex-col">
+                                <span className="font-medium">Global Timer</span>
+                                <span className="text-xs text-muted-foreground">All students start and end at the same time</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+
+                  {watchExam('timerMode') === 'individual' && (
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded border">
+                      <p className="text-sm font-medium mb-2">Individual Timer Mode</p>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li>• Students can start the exam at any time within the availability window</li>
+                        <li>• Each student gets the full duration from when they click "Start"</li>
+                        <li>• Best for flexible scheduling and different time zones</li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {watchExam('timerMode') === 'global' && (
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded border">
+                      <p className="text-sm font-medium mb-2">Global Timer Mode</p>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li>• All students start the exam at the exact same date/time</li>
+                        <li>• The exam automatically ends at a fixed time for everyone</li>
+                        <li>• Best for proctored exams and uniform conditions</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="totalMarks">Total Marks</Label>
@@ -1171,31 +1260,9 @@ export default function ExamManagement() {
                     {examErrors.totalMarks && <p className="text-sm text-red-500">{examErrors.totalMarks.message}</p>}
                   </div>
                   <div>
-                    <Label htmlFor="timerMode">Timer Mode</Label>
-                    <Controller
-                      name="timerMode"
-                      control={examControl}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value || 'individual'}>
-                          <SelectTrigger data-testid="select-timer-mode">
-                            <SelectValue placeholder="Select timer mode" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="individual">Individual Timer (duration per student)</SelectItem>
-                            <SelectItem value="global">Global Timer (fixed start/end time)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Individual: Students start their own timer. Global: All start/end at same time.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
+                    <Label htmlFor="timeLimit">
+                      {watchExam('timerMode') === 'individual' ? 'Duration per Student' : 'Exam Duration'} (minutes)
+                    </Label>
                     <Input 
                       id="timeLimit" 
                       type="number" 
@@ -1205,13 +1272,24 @@ export default function ExamManagement() {
                     />
                     {examErrors.timeLimit && <p className="text-sm text-red-500">{examErrors.timeLimit.message}</p>}
                     <p className="text-xs text-muted-foreground mt-1">
-                      {watchExam('timerMode') === 'individual' ? 'Duration each student gets' : 'Duration of exam window'}
+                      {watchExam('timerMode') === 'individual' 
+                        ? 'Each student gets this many minutes from when they start' 
+                        : 'Total duration of the exam window for all students'}
                     </p>
                   </div>
-                  <div>
-                    {watchExam('timerMode') === 'global' && (
-                      <>
-                        <Label htmlFor="startTime">Start Time</Label>
+                </div>
+
+                {/* Scheduling Section for Global Timer */}
+                {watchExam('timerMode') === 'global' && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <Timer className="w-4 h-4" />
+                      Exam Scheduling (Global Timer)
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="startTime">Start Date & Time</Label>
                         <Input 
                           id="startTime" 
                           type="datetime-local"
@@ -1219,12 +1297,33 @@ export default function ExamManagement() {
                           data-testid="input-exam-start-time"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          When exam becomes available to all students
+                          When the exam automatically becomes available
                         </p>
-                      </>
-                    )}
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="endTime">End Date & Time</Label>
+                        <Input 
+                          id="endTime" 
+                          type="datetime-local"
+                          {...registerExam('endTime')} 
+                          data-testid="input-exam-end-time"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          When the exam automatically closes for all students
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded border">
+                      <p className="text-sm font-medium mb-2">📅 Auto-Publishing</p>
+                      <p className="text-xs text-muted-foreground">
+                        The system will automatically publish this exam at the scheduled start time, 
+                        and it will become available to all students in the selected class.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <Label htmlFor="instructions">Instructions</Label>
@@ -1237,35 +1336,55 @@ export default function ExamManagement() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Controller
-                      name="isPublished"
-                      control={examControl}
-                      render={({ field }) => (
-                        <Switch 
-                          checked={field.value || false} 
-                          onCheckedChange={field.onChange}
-                          data-testid="switch-exam-published"
-                        />
-                      )}
-                    />
-                    <Label>Published</Label>
+                {/* Publishing & Options Section */}
+                <div className="space-y-4 p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Play className="w-4 h-4" />
+                    Publishing & Options
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="isPublished"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-exam-published"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Publish Immediately</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {watchExam('timerMode') === 'global' 
+                            ? 'Will be published at scheduled start time' 
+                            : 'Make exam visible to students now'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="allowRetakes"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-exam-retakes"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Allow Retakes</Label>
+                        <p className="text-xs text-muted-foreground">Students can attempt multiple times</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Controller
-                      name="allowRetakes"
-                      control={examControl}
-                      render={({ field }) => (
-                        <Switch 
-                          checked={field.value || false} 
-                          onCheckedChange={field.onChange}
-                          data-testid="switch-exam-retakes"
-                        />
-                      )}
-                    />
-                    <Label>Allow Retakes</Label>
-                  </div>
+
                   <div className="flex items-center space-x-2">
                     <Controller
                       name="shuffleQuestions"
@@ -1278,8 +1397,20 @@ export default function ExamManagement() {
                         />
                       )}
                     />
-                    <Label>Shuffle Questions</Label>
+                    <div>
+                      <Label>Shuffle Questions</Label>
+                      <p className="text-xs text-muted-foreground">Randomize question order for each student</p>
+                    </div>
                   </div>
+
+                  {!watchExam('isPublished') && (
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded border">
+                      <p className="text-sm font-medium mb-1">💾 Saved as Draft</p>
+                      <p className="text-xs text-muted-foreground">
+                        This exam will be saved as a draft. You can add questions and publish it later.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Enhanced Auto-Grading Controls */}
