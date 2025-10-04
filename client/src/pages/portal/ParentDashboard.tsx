@@ -252,8 +252,8 @@ export default function ParentDashboard() {
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      {/* Stats Cards - Fully Responsive */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
         <StatsCard
           title={selectedChildId === 'all' ? "All Children" : "Selected Child"}
           value={selectedChildren.length}
@@ -349,11 +349,11 @@ export default function ParentDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Grades */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+        {/* Recent Grades - Fully Responsive */}
         <Card className="shadow-sm border border-border" data-testid="card-recent-grades">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="p-4 sm:p-5 md:p-6">
+            <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-4">
               <CardTitle className="flex items-center space-x-2">
                 <BookOpen className="h-5 w-5" />
                 <span>Recent Grades</span>

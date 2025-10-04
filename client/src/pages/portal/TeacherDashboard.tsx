@@ -214,8 +214,8 @@ export default function TeacherDashboard() {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      {/* Stats Cards - Fully Responsive */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
         <StatsCard
           title="Total Students"
           value={isLoading ? "..." : totalStudents.toString()}
@@ -242,13 +242,13 @@ export default function TeacherDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Grading Queue */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+        {/* Grading Queue - Fully Responsive */}
+        <Card className="lg:col-span-1 order-2 lg:order-1">
+          <CardHeader className="p-4 sm:p-5 md:p-6">
+            <CardTitle className="flex items-center justify-between text-sm sm:text-base">
               <div className="flex items-center">
-                <CheckSquare className="w-5 h-5 mr-2" />
+                <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Grading Queue
               </div>
               {(pendingGradingTasks as any[]).length > 0 && (
@@ -293,39 +293,41 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BookOpen className="w-5 h-5 mr-2" />
+        {/* Quick Actions - Fully Responsive */}
+        <Card className="lg:col-span-2 order-1 lg:order-2">
+          <CardHeader className="p-4 sm:p-5 md:p-6">
+            <CardTitle className="flex items-center text-sm sm:text-base">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
               Quick Actions
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
             <Link to="/portal/exams">
-              <Button className="w-full justify-start">
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Create Exam
-              </Button>
-            </Link>
-            <Link to="/portal/teacher/attendance">
-              <Button variant="outline" className="w-full justify-start">
-                <UserCheck className="w-4 h-4 mr-2" />
-                Take Attendance
-              </Button>
-            </Link>
-            <Link to="/portal/teacher/grades">
-              <Button variant="outline" className="w-full justify-start">
-                <Star className="w-4 h-4 mr-2" />
-                Manage Grades
-              </Button>
-            </Link>
-            <Link to="/portal/announcements">
-              <Button variant="outline" className="w-full justify-start">
-                <Bell className="w-4 h-4 mr-2" />
-                Create Announcement
-              </Button>
-            </Link>
+                <Button className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Create Exam
+                </Button>
+              </Link>
+              <Link to="/portal/teacher/attendance">
+                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Take Attendance
+                </Button>
+              </Link>
+              <Link to="/portal/teacher/grades">
+                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Manage Grades
+                </Button>
+              </Link>
+              <Link to="/portal/announcements">
+                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Create Announcement
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

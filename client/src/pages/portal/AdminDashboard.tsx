@@ -198,9 +198,9 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* Header Actions - Responsive */}
-      <div className="flex justify-end mb-4 sm:mb-6">
-        <Button className="bg-primary text-primary-foreground text-xs sm:text-sm w-full sm:w-auto" asChild>
+      {/* Header Actions - Fully Responsive */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end mb-4 sm:mb-6">
+        <Button className="bg-primary text-primary-foreground text-xs sm:text-sm" asChild>
           <Link href="/portal/admin/students" data-testid="button-manage-students">
             <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
             Manage Students
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Statistics Cards - Fully Responsive */}
-      <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
+      <div className="grid gap-2 xs:gap-3 sm:gap-4 md:gap-6 grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
         <StatsCard
           title="Total Students"
           value={stats?.totalStudents.toString() ?? '0'}
@@ -239,9 +239,9 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-        {/* Recent Registrations - Responsive */}
-        <div className="lg:col-span-2">
+      <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-3">
+        {/* Recent Registrations - Fully Responsive */}
+        <div className="lg:col-span-2 order-2 lg:order-1">
           <Card className="shadow-sm border border-border" data-testid="card-recent-registrations">
             <CardHeader className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -309,13 +309,13 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions - Responsive */}
-        <Card className="shadow-sm border border-border" data-testid="card-quick-actions">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
+        {/* Quick Actions - Fully Responsive */}
+        <Card className="shadow-sm border border-border order-1 lg:order-2" data-testid="card-quick-actions">
+          <CardHeader className="p-3 sm:p-4 md:p-6">
+            <CardTitle className="text-sm sm:text-base md:text-lg">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-            <div className="space-y-2 sm:space-y-3">
+          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+            <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
               {quickActions.map((action, index) => {
                 const Icon = action.icon;
                 return (

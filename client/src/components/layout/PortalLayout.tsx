@@ -274,16 +274,16 @@ export default function PortalLayout({ children, userRole, userName, userInitial
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-card border-b border-border p-4 md:p-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
+        {/* Header - Fully Responsive */}
+        <header className="bg-card border-b border-border p-3 sm:p-4 md:p-6">
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
               {/* Mobile Menu Trigger */}
               {isMobile && (
                 <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="md:hidden">
-                      <Menu className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 flex-shrink-0">
+                      <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="w-64 p-0">
@@ -291,9 +291,9 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                   </SheetContent>
                 </Sheet>
               )}
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold">Welcome back, {userName.split(' ')[0]}!</h1>
-                <p className="text-muted-foreground text-sm md:text-base">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate">Welcome back, {userName.split(' ')[0]}!</h1>
+                <p className="text-muted-foreground text-xs sm:text-sm md:text-base truncate">
                   {userRole === 'student' && "Here's what's happening with your academics today."}
                   {userRole === 'teacher' && "Ready to inspire minds today?"}
                   {userRole === 'admin' && "Manage all aspects of Treasure-Home School"}
@@ -301,15 +301,15 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-2 md:space-x-4">
+            <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4 flex-shrink-0">
               <NotificationBell />
-              <div className="flex items-center space-x-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm font-medium">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium hidden sm:inline" data-testid="text-username">{userName}</span>
+                <span className="text-xs sm:text-sm font-medium hidden md:inline truncate max-w-[100px] lg:max-w-none" data-testid="text-username">{userName}</span>
               </div>
               <Button 
                 variant="ghost" 
@@ -317,15 +317,16 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 onClick={handleLogout}
                 data-testid="button-logout"
                 title="Logout"
+                className="h-8 w-8 sm:h-9 sm:w-9"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        {/* Page Content - Fully Responsive */}
+        <main className="flex-1 p-3 xs:p-4 sm:p-5 md:p-6">{children}</main>
       </div>
     </div>
   );
