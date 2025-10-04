@@ -44,6 +44,15 @@ Preferred communication style: Simple, everyday language.
   - First-login password change enforcement with dialog-based UI flow.
   - Account lockout mechanism after 3 rate limit violations within 1 hour, with admin unlock capabilities.
   - Staff onboarding via invite system.
+  - **Chapter One - User Management & Approval System** (THS Story Plan):
+    - All new Google OAuth users (admin/teacher) start with 'pending' status
+    - Professional status-based messaging for login attempts (different messages for staff vs students/parents)
+    - Admin approval workflow with dedicated PendingApprovals page showing new signups
+    - Comprehensive UserManagement page for managing all users (pending/active/suspended/disabled)
+    - Admin actions: Approve, Suspend, Unsuspend, Unverify (move back to pending), Disable
+    - Automatic notification creation when new pending users sign up
+    - Real-time pending count badge on admin dashboard
+    - Status-based access control enforced on login
 - **Authorization**: Role-Based Access Control (RBAC) for student, teacher, admin, and parent roles.
 - **Exam Security**: Tab switch detection, enhanced session recovery, question and option randomization, and time-based auto-submit.
 - **User Provisioning**: CSV bulk provisioning for students and parents with automatic THS-branded username generation and parent-child linking. PDF login slips generation.
