@@ -57,6 +57,8 @@ export const users = pgTable("users", {
   usersEmailIdx: index("users_email_idx").on(table.email),
   usersStatusIdx: index("users_status_idx").on(table.status),
   usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId),
+  usersRoleIdIdx: index("users_role_id_idx").on(table.roleId),
+  usersUsernameIdx: index("users_username_idx").on(table.username),
 }));
 
 // Password reset tokens table

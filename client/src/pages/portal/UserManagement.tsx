@@ -101,19 +101,26 @@ export default function UserManagement() {
   const [recoveryEmailDialog, setRecoveryEmailDialog] = useState(false);
   const [newRecoveryEmail, setNewRecoveryEmail] = useState('');
 
-  // Fetch all users
+  // Fetch all users with OPTIMIZED settings for instant updates
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
+    staleTime: 30 * 1000, // 30 seconds - faster refresh for admin data
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    refetchOnWindowFocus: true, // Always get fresh data on focus
   });
 
-  // Fetch pending users for count
+  // Fetch pending users for count with OPTIMIZED settings
   const { data: pendingUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users/pending'],
+    staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
-  // Fetch roles for role change dialog
+  // Fetch roles for role change dialog with LONG cache (roles don't change often)
   const { data: roles = [] } = useQuery<Role[]>({
     queryKey: ['/api/roles'],
+    staleTime: 30 * 60 * 1000, // 30 minutes - roles change rarely
+    gcTime: 60 * 60 * 1000, // 1 hour cache
   });
 
   // Filter users by status
