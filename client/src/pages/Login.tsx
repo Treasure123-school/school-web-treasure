@@ -40,15 +40,6 @@ export default function Login() {
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [selectedRole, setSelectedRole] = useState<number | null>(null);
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-
-  // Handle navigation after auth state updates
-  useEffect(() => {
-    if (user && pendingNavigation) {
-      navigate(pendingNavigation);
-      setPendingNavigation(null);
-    }
-  }, [user, pendingNavigation, navigate]);
 
   // Check for OAuth callback parameters
   useEffect(() => {
@@ -260,9 +251,13 @@ export default function Login() {
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
 
-      // Store auth data and set pending navigation (useEffect will handle redirect)
+      // Store auth data first
       login(userData.user, userData.token);
-      setPendingNavigation(targetPath);
+      
+      // Navigate with a small delay to ensure auth state is set
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 200);
     },
     onError: (error: any) => {
       // Extract the specific error message from the backend
