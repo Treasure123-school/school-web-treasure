@@ -41,7 +41,7 @@ export default function Login() {
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [selectedRole, setSelectedRole] = useState<number | null>(null);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  
+
   // Handle navigation after auth state updates
   useEffect(() => {
     if (user && pendingNavigation) {
@@ -60,21 +60,19 @@ export default function Login() {
     const error = params.get('error');
     const oauthStatus = params.get('oauth_status');
 
-    // Handle pending approval status
+    // Message 7: Pending Approval - Admin/Teacher (Google OAuth)
     if (oauthStatus === 'pending_approval') {
-      const message = params.get('message') || 'Your account has been created and is awaiting admin approval.';
       toast({
         title: (
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-orange-500" />
-            <span>Account Created - Pending Approval</span>
+            <span>Account Pending Approval</span>
           </div>
         ),
         description: (
           <div className="text-sm">
-            <p className="mb-2">Welcome to THS Portal! Your account has been created successfully.</p>
-            <p className="mb-2">Your account is awaiting admin approval. You will receive an email notification once approved.</p>
-            <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
+            <p className="mb-2">Your account has been created and is awaiting admin approval.</p>
+            <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
           </div>
         ),
         className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
@@ -82,33 +80,18 @@ export default function Login() {
       window.history.replaceState({}, '', '/login');
     }
 
+    // Message 6: Google Sign-In Failed
     if (error === 'google_auth_failed') {
-      const errorMessage = params.get('message') || 'Unable to complete Google Sign-In. Please try again.';
-      
-      // Determine specific error scenario
-      let title = 'Sign-In Error';
-      let description = errorMessage;
-      
-      // Check if this is an account creation failure
-      if (errorMessage.includes('Failed to create account')) {
-        title = 'Account Creation Failed';
-        description = 'Failed to create your account. Please try again or contact the school administrator.';
-      } else if (errorMessage.includes('Failed to complete login')) {
-        title = 'Sign-In Error';
-        description = 'Unable to complete sign-in. Please try again or contact support if the problem persists.';
-      } else if (errorMessage.includes('Authentication failed')) {
-        title = 'Sign-In Error';
-        description = 'Unable to complete Google Sign-In. Please try again or contact support if the problem persists.';
-      }
-      
+      const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
+
       toast({
         title: (
           <div className="flex items-center gap-2">
             <XCircle className="h-4 w-4 text-red-500" />
-            <span>{title}</span>
+            <span>Google Sign-In Failed</span>
           </div>
         ),
-        description: description,
+        description: errorMessage,
         variant: 'destructive',
       });
       window.history.replaceState({}, '', '/login');
@@ -130,16 +113,17 @@ export default function Login() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
-        
+
         const userRole = getRoleNameById(userData.roleId);
         const targetPath = getPortalByRoleId(userData.roleId);
-        
+
         // Clean up OAuth query parameters
         window.history.replaceState({}, '', '/login');
-        
+
+        // Message 2: Google OAuth Success (Admin/Teacher)
         toast({
           title: (
             <div className="flex items-center gap-2">
@@ -150,7 +134,7 @@ export default function Login() {
           description: 'Welcome back to THS Portal. Redirecting you to your dashboard...',
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
         });
-        
+
         // Store auth data and set pending navigation
         login(userData, token);
         setPendingNavigation(targetPath);
@@ -163,7 +147,7 @@ export default function Login() {
       });
     }
   };
-  
+
   const {
     register,
     handleSubmit,
@@ -185,12 +169,12 @@ export default function Login() {
     mutationFn: async (data: LoginForm) => {
       const response = await apiRequest('POST', '/api/auth/login', data);
       const result = await response.json();
-      
+
       // If response is not ok, throw error with the backend message
       if (!response.ok) {
         throw new Error(result.message || 'Login failed');
       }
-      
+
       return result;
     },
     onSuccess: (userData) => {
@@ -225,7 +209,8 @@ export default function Login() {
       // Normal login flow
       const userRole = getRoleNameById(userData.user.roleId);
       const targetPath = getPortalByRoleId(userData.user.roleId);
-      
+
+      // Message 1: Standard Login Success (Students/Parents)
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -236,7 +221,7 @@ export default function Login() {
         description: 'Welcome back to THS Portal. Redirecting you to your dashboard...',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
-      
+
       // Store auth data and set pending navigation (useEffect will handle redirect)
       login(userData.user, userData.token);
       setPendingNavigation(targetPath);
@@ -244,14 +229,14 @@ export default function Login() {
     onError: (error: any) => {
       // Extract the specific error message from the backend
       const errorMessage = error?.message || 'Invalid username or password. Please check your credentials and try again.';
-      
+
       // Determine message type and styling based on exact backend responses
       let icon = <XCircle className="h-4 w-4 text-red-500" />;
       let className = '';
       let title = 'Login Failed';
       let description: string | JSX.Element = errorMessage;
-      
-      // Pending approval - Admin/Teacher (Google OAuth or Standard)
+
+      // Message 7: Pending Approval - Admin/Teacher (Google OAuth or Standard)
       if (errorMessage.includes('awaiting Admin approval') || 
           (errorMessage.includes('pending') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher')))) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
@@ -264,7 +249,7 @@ export default function Login() {
           </div>
         );
       }
-      // Pending approval - Student/Parent
+      // Message 9: Pending Approval - Student/Parent
       else if (errorMessage.includes('pending') || errorMessage.includes('awaiting')) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
@@ -276,7 +261,7 @@ export default function Login() {
           </div>
         );
       }
-      // Account suspended
+      // Message 10: Account Suspended
       else if (errorMessage.includes('suspended')) {
         icon = <Ban className="h-4 w-4 text-red-500" />;
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
@@ -288,7 +273,7 @@ export default function Login() {
           </div>
         );
       }
-      // Account disabled
+      // Message 11: Account Disabled
       else if (errorMessage.includes('disabled')) {
         icon = <Ban className="h-4 w-4 text-red-500" />;
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
@@ -300,7 +285,7 @@ export default function Login() {
           </div>
         );
       }
-      // Account locked due to too many attempts
+      // Message 12: Account Locked (Too Many Attempts)
       else if (errorMessage.includes('Too many login attempts') || errorMessage.includes('locked')) {
         icon = <Ban className="h-4 w-4 text-orange-500" />;
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
@@ -312,7 +297,7 @@ export default function Login() {
           </div>
         );
       }
-      // Google OAuth required for admins/teachers
+      // Message 13: Google Sign-In Required (Admin/Teacher trying standard login)
       else if (errorMessage.includes('must use Google Sign-In')) {
         icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
         className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
@@ -324,7 +309,7 @@ export default function Login() {
           </div>
         );
       }
-      // Invalid credentials (default)
+      // Message 5: Invalid Credentials (default)
       else {
         icon = <XCircle className="h-4 w-4 text-red-500" />;
         title = 'Login Failed';
@@ -335,7 +320,7 @@ export default function Login() {
           </div>
         );
       }
-      
+
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -355,7 +340,7 @@ export default function Login() {
       // Temporarily store token for authentication during password change
       const previousToken = localStorage.getItem('token');
       localStorage.setItem('token', tempUserData.token);
-      
+
       try {
         const response = await apiRequest('POST', '/api/auth/change-password', {
           currentPassword: data.currentPassword,
@@ -377,11 +362,12 @@ export default function Login() {
       login(tempUserData.user, tempUserData.token);
       const userRole = getRoleNameById(tempUserData.user.roleId);
       const targetPath = getPortalByRoleId(tempUserData.user.roleId);
-      
+
       setShowPasswordChange(false);
       setTempUserData(null);
       resetPasswordForm();
-      
+
+      // Message 4: Password Changed Successfully
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -392,7 +378,7 @@ export default function Login() {
         description: 'Welcome to THS Portal! Your password has been updated.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
-      
+
       // Set pending navigation (useEffect will handle redirect after auth state updates)
       setPendingNavigation(targetPath);
     },
@@ -414,9 +400,10 @@ export default function Login() {
       login(data.user, data.token);
       const userRole = getRoleNameById(data.user.roleId);
       const targetPath = getPortalByRoleId(data.user.roleId);
-      
+
       setShowRoleSelection(false);
-      
+
+      // Message 3: New Account Created via Google (Admin/Teacher)
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -427,10 +414,10 @@ export default function Login() {
         description: 'Welcome to THS Portal! Your account has been set up.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
-      
+
       // Clean up OAuth query parameters
       window.history.replaceState({}, '', '/login');
-      
+
       // Set pending navigation (useEffect will handle redirect after auth state updates)
       setPendingNavigation(targetPath);
     },
@@ -514,7 +501,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Info box for Students/Parents */}
+              {/* Message 1: Standard Login Success (Students/Parents) - Info Box */}
               <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
                   <strong>For Students & Parents:</strong> Use your THS username and password to login. You'll be automatically redirected to your dashboard.
@@ -540,7 +527,7 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Google OAuth for Admin/Teacher only */}
+            {/* Message 13: Google Sign-In Required (Admin/Teacher trying standard login) - Info Box */}
             <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800 mb-3">
               <p className="text-xs text-orange-800 dark:text-orange-200">
                 <strong>Admins & Teachers:</strong> Use Google Sign-In with your authorized email. Students and parents cannot use this option.
@@ -612,7 +599,7 @@ export default function Login() {
               For security reasons, you must change your password before accessing your account.
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handlePasswordSubmit(onPasswordChange)} className="space-y-4">
             <div>
               <Label htmlFor="currentPassword">Current Password</Label>
@@ -689,7 +676,7 @@ export default function Login() {
               Choose your role to complete your account setup. Google Sign-In is only available for Admin and Teacher roles.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Button
