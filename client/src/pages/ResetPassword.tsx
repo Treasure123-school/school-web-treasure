@@ -40,12 +40,12 @@ export default function ResetPassword() {
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 text-red-500" />
             <span>Invalid Reset Link</span>
           </div>
         ),
         description: '❌ No reset token found. Please request a new password reset link.',
-        variant: 'destructive',
+        className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
       });
     }
   }, [toast]);
@@ -91,12 +91,12 @@ export default function ResetPassword() {
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 text-red-500" />
             <span>Reset Failed</span>
           </div>
         ),
         description: `❌ ${errorMessage}`,
-        variant: 'destructive',
+        className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
       });
     },
   });

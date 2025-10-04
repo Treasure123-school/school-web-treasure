@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GraduationCap, Mail, CheckCircle, XCircle } from 'lucide-react';
+import { GraduationCap, Mail, CheckCircle, AlertCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -53,12 +53,12 @@ export default function ForgotPassword() {
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 text-red-500" />
             <span>Request Failed</span>
           </div>
         ),
         description: `❌ ${errorMessage}`,
-        variant: 'destructive',
+        className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
       });
     },
   });

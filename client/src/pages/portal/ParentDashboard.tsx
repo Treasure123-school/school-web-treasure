@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart } from 'lucide-react';
+import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function ParentDashboard() {
   const { user } = useAuth();
+  const [selectedChildId, setSelectedChildId] = useState<number | 'all'>(1);
 
   if (!user) {
     return <div>Please log in to access the parent portal.</div>;
@@ -118,9 +120,25 @@ export default function ParentDashboard() {
     }
   ];
 
-  // Calculate overall stats from children
-  const totalAttendance = mockChildren.reduce((sum, child) => sum + parseInt(child.attendance), 0) / mockChildren.length;
-  const avgGPA = mockChildren.reduce((sum, child) => sum + parseFloat(child.currentGPA), 0) / mockChildren.length;
+  // Filter data based on selected child
+  const selectedChildren = selectedChildId === 'all' 
+    ? mockChildren 
+    : mockChildren.filter(c => c.id === selectedChildId);
+  
+  const selectedChild = selectedChildId === 'all' 
+    ? null 
+    : mockChildren.find(c => c.id === selectedChildId);
+
+  // Calculate stats based on selection
+  const totalAttendance = selectedChildren.reduce((sum, child) => sum + parseInt(child.attendance), 0) / selectedChildren.length;
+  const avgGPA = selectedChildren.reduce((sum, child) => sum + parseFloat(child.currentGPA), 0) / selectedChildren.length;
+
+  // Filter recent grades based on selection
+  const filteredGrades = selectedChildId === 'all' 
+    ? mockRecentGrades 
+    : mockRecentGrades.filter(g => 
+        mockChildren.find(c => c.id === selectedChildId)?.name === g.childName
+      );
 
   return (
     <PortalLayout 
@@ -128,11 +146,93 @@ export default function ParentDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* PROMINENT CHILD SELECTOR */}
+      <Card className="shadow-lg border-2 border-primary/20 mb-6 bg-gradient-to-r from-primary/5 to-primary/10" data-testid="card-child-selector">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <UserCircle className="h-6 w-6 text-primary" />
+              <span>Select Child to View</span>
+            </CardTitle>
+            <span className="text-sm text-muted-foreground">
+              {mockChildren.length} {mockChildren.length === 1 ? 'child' : 'children'} enrolled
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* All Children Option */}
+            <button
+              onClick={() => setSelectedChildId('all')}
+              className={`p-4 rounded-lg border-2 transition-all text-left ${
+                selectedChildId === 'all'
+                  ? 'border-primary bg-primary/10 shadow-md'
+                  : 'border-border hover:border-primary/50 hover:bg-muted/50'
+              }`}
+              data-testid="button-select-all-children"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-base">All Children</h3>
+                  <p className="text-sm text-muted-foreground">Combined view</p>
+                </div>
+                {selectedChildId === 'all' && (
+                  <ChevronRight className="h-5 w-5 text-primary" />
+                )}
+              </div>
+            </button>
+
+            {/* Individual Child Options */}
+            {mockChildren.map((child, index) => (
+              <button
+                key={child.id}
+                onClick={() => setSelectedChildId(child.id)}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  selectedChildId === child.id
+                    ? 'border-primary bg-primary/10 shadow-md'
+                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                }`}
+                data-testid={`button-select-child-${child.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 ${child.color} rounded-full flex items-center justify-center`}>
+                    <span className="text-white font-semibold">{child.initials}</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-base" data-testid={`text-selector-child-name-${index}`}>
+                      {child.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground" data-testid={`text-selector-child-class-${index}`}>
+                      {child.class}
+                    </p>
+                  </div>
+                  {selectedChildId === child.id && (
+                    <ChevronRight className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {selectedChild && (
+            <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+              <p className="text-sm text-center">
+                <span className="font-medium">Currently viewing:</span>{' '}
+                <span className="text-primary font-semibold">{selectedChild.name}</span> - {selectedChild.class}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <StatsCard
-          title="My Children"
-          value={mockChildren.length}
+          title={selectedChildId === 'all' ? "All Children" : "Selected Child"}
+          value={selectedChildren.length}
           icon={Users}
           color="primary"
         />
@@ -243,7 +343,12 @@ export default function ParentDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockRecentGrades.map((grade, index) => (
+              {filteredGrades.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  No recent grades available
+                </p>
+              ) : (
+                filteredGrades.map((grade, index) => (
                 <div 
                   key={index}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
@@ -269,7 +374,8 @@ export default function ParentDashboard() {
                     </p>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </CardContent>
         </Card>
