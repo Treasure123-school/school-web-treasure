@@ -1490,20 +1490,27 @@ Thank you,
 Treasure-Home School Administration
 `;
       
-      // In development, log the email and return token
+      // In development, log the email and return token for testing
       if (process.env.NODE_ENV === 'development') {
-        console.log(`\n📧 PASSWORD RESET EMAIL:`);
-        console.log(`To: ${recoveryEmail}`);
-        console.log(`Subject: ${emailSubject}`);
-        console.log(`Body:\n${emailBody}`);
-        console.log(`\nDirect reset link: ${resetLink}\n`);
+        console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
+        console.log(`║           📧 PASSWORD RESET EMAIL (DEVELOPMENT)                ║`);
+        console.log(`╠════════════════════════════════════════════════════════════════╣`);
+        console.log(`║ To: ${recoveryEmail.padEnd(58)}║`);
+        console.log(`║ Subject: ${emailSubject.padEnd(51)}║`);
+        console.log(`╠════════════════════════════════════════════════════════════════╣`);
+        console.log(`║ RESET LINK (Click or copy):                                    ║`);
+        console.log(`║ ${resetLink.padEnd(62)}║`);
+        console.log(`╠════════════════════════════════════════════════════════════════╣`);
+        console.log(`║ ⚠️  This link expires in 15 minutes                            ║`);
+        console.log(`║ 🔒 For production, integrate with SendGrid/AWS SES            ║`);
+        console.log(`╚════════════════════════════════════════════════════════════════╝\n`);
         
         return res.json({ 
-          message: "Password reset token generated. Check server console for email content.",
-          token: resetToken,
-          resetLink,
-          developmentOnly: true,
-          email: recoveryEmail
+          message: "✅ Password reset link generated! In production, this would be sent via email. For now, check the server console for the reset link.",
+          developmentMode: true,
+          resetLink: resetLink, // Only return in development
+          email: recoveryEmail,
+          expiresIn: "15 minutes"
         });
       }
       

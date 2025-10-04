@@ -35,18 +35,49 @@ export default function ForgotPassword() {
       const response = await apiRequest('POST', '/api/auth/forgot-password', data);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setEmailSent(true);
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Reset Link Sent</span>
-          </div>
-        ),
-        description: '✅ If an account exists with that email/username, a password reset link will be sent.',
-        className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
-      });
+      
+      // In development mode, show the reset link directly
+      if (data.developmentMode && data.resetLink) {
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>Reset Link Generated (Dev Mode)</span>
+            </div>
+          ),
+          description: (
+            <div className="space-y-2">
+              <p>✅ {data.message}</p>
+              <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded border border-yellow-200">
+                <p className="text-xs font-semibold mb-1">🔧 Development Mode:</p>
+                <a 
+                  href={data.resetLink} 
+                  className="text-xs text-blue-600 hover:underline break-all"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {data.resetLink}
+                </a>
+              </div>
+            </div>
+          ),
+          className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
+          duration: 10000, // Show longer for dev mode
+        });
+      } else {
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>Reset Link Sent</span>
+            </div>
+          ),
+          description: '✅ If an account exists with that email/username, a password reset link will be sent.',
+          className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
+        });
+      }
     },
     onError: (error: any) => {
       const errorMessage = error?.message || 'Failed to send reset link. Please try again.';
@@ -112,11 +143,17 @@ export default function ForgotPassword() {
                   )}
                 </div>
 
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>Note:</strong> You will receive an email with a reset link that expires in 15 minutes. 
-                    Check your spam folder if you don't see it.
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800 space-y-2">
+                  <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
+                    📧 How Password Reset Works:
                   </p>
+                  <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                    <li>Enter your username or email address</li>
+                    <li>We'll send a reset link to your registered email</li>
+                    <li>The link expires in 15 minutes for security</li>
+                    <li>Check your spam/junk folder if you don't see it</li>
+                    <li>Contact admin if you don't receive the email</li>
+                  </ul>
                 </div>
 
                 <Button 
@@ -139,6 +176,13 @@ export default function ForgotPassword() {
                       The link expires in 15 minutes.
                     </p>
                   </div>
+                </div>
+
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-800 dark:text-blue-200">
+                    <strong>💡 Development Note:</strong> In development mode, the reset link is shown in the notification above and server console. 
+                    In production, it will be sent via email to the registered address.
+                  </p>
                 </div>
 
                 <div className="text-center">

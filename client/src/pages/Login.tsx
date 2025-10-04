@@ -606,13 +606,14 @@ export default function Login() {
               </span>
             </Button>
 
-            <div className="text-center mt-6">
+            <div className="text-center mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Having trouble signing in?</p>
               <Link 
                 href="/forgot-password" 
-                className="text-primary text-sm hover:underline"
+                className="text-primary text-sm font-semibold hover:underline inline-flex items-center gap-1"
                 data-testid="link-forgot-password"
               >
-                Forgot your password?
+                🔑 Forgot your password? Click here to reset
               </Link>
             </div>
           </CardContent>
