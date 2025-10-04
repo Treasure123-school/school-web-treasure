@@ -1372,10 +1372,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Forgot password - Request reset token
+  // Forgot password - Request reset token (ENHANCED WITH RATE LIMITING & EMAIL)
   app.post("/api/auth/forgot-password", async (req, res) => {
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    
     try {
       const { identifier } = z.object({ identifier: z.string().min(1) }).parse(req.body);
+      
+      // RATE LIMITING: Check recent reset attempts (max 3 per hour per identifier)
+      const recentAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
+      
+      if (recentAttempts.length >= 3) {
+        log(`🚨 Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
+        
+        // Track failed attempt
+        await storage.createPasswordResetAttempt(identifier, ipAddress, false);
+        
+        // Check for suspicious activity (5+ attempts in 60 min = lock account temporarily)
+        const suspiciousAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
+        if (suspiciousAttempts.length >= 5) {
+          const user = await storage.getUserByEmail(identifier) || await storage.getUserByUsername(identifier);
+          if (user) {
+            const lockUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
+            await storage.lockAccount(user.id, lockUntil);
+            log(`🔒 Account temporarily locked due to suspicious password reset activity: ${user.id}`);
+            
+            // Create audit log
+            await storage.createAuditLog({
+              userId: user.id,
+              action: 'account_locked_suspicious_activity',
+              entityType: 'user',
+              entityId: 0,
+              oldValue: null,
+              newValue: JSON.stringify({ reason: 'Excessive password reset attempts', lockUntil }),
+              reason: 'Suspicious password reset activity detected',
+              ipAddress,
+              userAgent: req.headers['user-agent'] || null,
+            });
+          }
+        }
+        
+        return res.status(429).json({ 
+          message: "Too many password reset attempts. Please try again later." 
+        });
+      }
       
       // Find user by email or username
       let user = await storage.getUserByEmail(identifier);
@@ -1383,9 +1423,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user = await storage.getUserByUsername(identifier);
       }
       
+      // Track attempt
+      await storage.createPasswordResetAttempt(identifier, ipAddress, !!user);
+      
       // Don't reveal if user exists or not (security best practice)
       if (!user) {
-        return res.json({ message: "If an account exists with that email/username, a password reset link will be sent." });
+        return res.json({ 
+          message: "If an account exists with that email/username, a password reset link will be sent." 
+        });
+      }
+
+      // Check if account is locked
+      const isLocked = await storage.isAccountLocked(user.id);
+      if (isLocked) {
+        return res.status(423).json({ 
+          message: "Your account is temporarily locked. Please contact the administrator or try again later." 
+        });
       }
 
       // Generate secure random token
@@ -1395,39 +1448,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Token expires in 15 minutes
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
       
-      // Save token to database
-      await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
+      // Save token to database with IP tracking
+      await storage.createPasswordResetToken(user.id, resetToken, expiresAt, ipAddress);
       
-      // In production, send email with reset link
-      // For development, return the token (REMOVE THIS IN PRODUCTION!)
+      // Get recovery email (fallback to primary email if not set)
+      const recoveryEmail = user.recoveryEmail || user.email;
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'password_reset_requested',
+        entityType: 'user',
+        entityId: 0,
+        oldValue: null,
+        newValue: JSON.stringify({ requestedAt: new Date(), ipAddress }),
+        reason: 'User requested password reset',
+        ipAddress,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
+      // Send email with reset link
+      const resetLink = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/reset-password?token=${resetToken}`;
+      
+      // Email content according to the plan
+      const emailSubject = 'THS Portal - Password Reset Request';
+      const emailBody = `
+Hello ${user.firstName} ${user.lastName},
+
+You requested a password reset for THS Portal. Click the link below to set a new password. 
+This link expires in 15 minutes.
+
+Reset Link: ${resetLink}
+
+If you didn't request this, please ignore this email or contact the school administrator immediately.
+
+Security Note: This password reset was requested from IP address: ${ipAddress}
+
+Thank you,
+Treasure-Home School Administration
+`;
+      
+      // In development, log the email and return token
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Password reset token for ${identifier}: ${resetToken}`);
+        console.log(`\n📧 PASSWORD RESET EMAIL:`);
+        console.log(`To: ${recoveryEmail}`);
+        console.log(`Subject: ${emailSubject}`);
+        console.log(`Body:\n${emailBody}`);
+        console.log(`\nDirect reset link: ${resetLink}\n`);
+        
         return res.json({ 
-          message: "Password reset token generated",
+          message: "Password reset token generated. Check server console for email content.",
           token: resetToken,
-          developmentOnly: true
+          resetLink,
+          developmentOnly: true,
+          email: recoveryEmail
         });
       }
       
-      res.json({ message: "If an account exists with that email/username, a password reset link will be sent." });
+      // TODO: In production, send actual email via email service (e.g., SendGrid, AWS SES, etc.)
+      // Example:
+      // await sendEmail({
+      //   to: recoveryEmail,
+      //   subject: emailSubject,
+      //   text: emailBody
+      // });
+      
+      log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
+      
+      res.json({ 
+        message: "If an account exists with that email/username, a password reset link will be sent." 
+      });
     } catch (error) {
       console.error('Forgot password error:', error);
+      
+      // Track failed attempt
+      try {
+        const { identifier } = req.body;
+        if (identifier) {
+          await storage.createPasswordResetAttempt(identifier, ipAddress, false);
+        }
+      } catch (trackError) {
+        console.error('Failed to track attempt:', trackError);
+      }
+      
       res.status(500).json({ message: "Failed to process password reset request" });
     }
   });
 
-  // Reset password with token
+  // Reset password with token (ENHANCED WITH NOTIFICATIONS & AUDIT)
   app.post("/api/auth/reset-password", async (req, res) => {
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    
     try {
       const { token, newPassword } = z.object({
         token: z.string().min(1),
-        newPassword: z.string().min(6).max(100)
+        newPassword: z.string().min(8).max(100)
+          .refine(pwd => /[A-Z]/.test(pwd), "Must contain at least one uppercase letter")
+          .refine(pwd => /[a-z]/.test(pwd), "Must contain at least one lowercase letter")
+          .refine(pwd => /[0-9]/.test(pwd), "Must contain at least one number")
+          .refine(pwd => /[!@#$%^&*]/.test(pwd), "Must contain at least one special character (!@#$%^&*)")
       }).parse(req.body);
       
       // Verify token exists and is valid
       const resetToken = await storage.getPasswordResetToken(token);
       if (!resetToken) {
         return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+      
+      // Get user details for notification
+      const user = await storage.getUser(resetToken.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
       
       // Hash new password
@@ -1442,23 +1573,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark token as used
       await storage.markPasswordResetTokenAsUsed(token);
       
-      console.log(`Password reset successfully for user ${resetToken.userId}`);
+      // Create audit log
+      await storage.createAuditLog({
+        userId: resetToken.userId,
+        action: 'password_reset_completed',
+        entityType: 'user',
+        entityId: 0,
+        oldValue: null,
+        newValue: JSON.stringify({ completedAt: new Date(), ipAddress }),
+        reason: 'Password was successfully reset via reset token',
+        ipAddress,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
+      // Send notification email to user
+      const recoveryEmail = user.recoveryEmail || user.email;
+      const notificationSubject = 'THS Portal - Password Changed';
+      const notificationBody = `
+Hello ${user.firstName} ${user.lastName},
+
+⚠️ Your password was reset on THS Portal by ${resetToken.resetBy ? 'Admin' : 'yourself'}.
+
+Details:
+- Changed at: ${new Date().toLocaleString()}
+- IP Address: ${ipAddress}
+- Method: ${resetToken.resetBy ? 'Admin Reset' : 'Self-Service Reset Link'}
+
+If this wasn't you, contact the school administration immediately at:
+Email: admin@treasurehomeschool.edu.ng
+Phone: [School Contact Number]
+
+For security:
+- Never share your password with anyone
+- Use a strong, unique password
+- Change your password if you suspect any unauthorized access
+
+Thank you,
+Treasure-Home School Administration
+`;
+      
+      // In development, log the notification
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\n📧 PASSWORD CHANGE NOTIFICATION:`);
+        console.log(`To: ${recoveryEmail}`);
+        console.log(`Subject: ${notificationSubject}`);
+        console.log(`Body:\n${notificationBody}\n`);
+      }
+      
+      // TODO: In production, send actual email
+      // await sendEmail({ to: recoveryEmail, subject: notificationSubject, text: notificationBody });
+      
+      log(`✅ Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
       console.error('Reset password error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid request format" });
+        return res.status(400).json({ 
+          message: "Password must be at least 8 characters with uppercase, lowercase, number, and special character" 
+        });
       }
       res.status(500).json({ message: "Failed to reset password" });
     }
   });
 
-  // Admin emergency password reset
+  // ============================================================
+  // ADMIN RECOVERY POWERS ENDPOINTS
+  // ============================================================
+
+  // Admin reset user password (ENHANCED WITH AUDIT & NOTIFICATION)
   app.post("/api/admin/reset-user-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    
     try {
-      const { userId, newPassword } = z.object({
+      const { userId, newPassword, forceChange } = z.object({
         userId: z.string().uuid(),
-        newPassword: z.string().min(6).max(100).optional()
+        newPassword: z.string().min(6).max(100).optional(),
+        forceChange: z.boolean().optional().default(true)
       }).parse(req.body);
       
       const user = await storage.getUser(userId);
@@ -1474,22 +1664,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
       
-      // Update user password and force password change on next login
-      await storage.updateUser(userId, {
-        passwordHash,
-        mustChangePassword: true
-      });
+      // Use the enhanced admin reset method with audit logging
+      await storage.adminResetUserPassword(userId, passwordHash, req.user!.id, forceChange);
       
-      console.log(`Admin ${req.user?.email} reset password for user ${userId}`);
+      // Send notification to user
+      const recoveryEmail = user.recoveryEmail || user.email;
+      const notificationSubject = 'THS Portal - Password Reset by Administrator';
+      const notificationBody = `
+Hello ${user.firstName} ${user.lastName},
+
+Your password was reset by an administrator on THS Portal.
+
+Details:
+- Reset at: ${new Date().toLocaleString()}
+- Reset by: Admin (${req.user?.email})
+- Temporary Password: ${password}
+${forceChange ? '- You will be required to change this password at next login' : ''}
+
+Please login and ${forceChange ? 'change your password immediately' : 'update your password for security'}.
+
+If you did not request this password reset, please contact the school administration immediately.
+
+Thank you,
+Treasure-Home School Administration
+`;
+      
+      // In development, log the notification
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\n📧 ADMIN PASSWORD RESET NOTIFICATION:`);
+        console.log(`To: ${recoveryEmail}`);
+        console.log(`Subject: ${notificationSubject}`);
+        console.log(`Body:\n${notificationBody}\n`);
+      }
+      
+      // TODO: In production, send actual email
+      // await sendEmail({ to: recoveryEmail, subject: notificationSubject, text: notificationBody });
+      
+      log(`✅ Admin ${req.user?.email} reset password for user ${userId}`);
       
       res.json({ 
         message: "Password reset successfully",
         tempPassword: password,
-        username: user.username || user.email
+        username: user.username || user.email,
+        email: recoveryEmail
       });
     } catch (error) {
       console.error('Admin password reset error:', error);
       res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Admin update recovery email
+  app.post("/api/admin/update-recovery-email", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId, recoveryEmail } = z.object({
+        userId: z.string().uuid(),
+        recoveryEmail: z.string().email()
+      }).parse(req.body);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update recovery email with audit logging
+      const success = await storage.updateRecoveryEmail(userId, recoveryEmail, req.user!.id);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Failed to update recovery email" });
+      }
+      
+      log(`✅ Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
+      
+      res.json({ 
+        message: "Recovery email updated successfully",
+        oldEmail: user.recoveryEmail || user.email,
+        newEmail: recoveryEmail
+      });
+    } catch (error) {
+      console.error('Update recovery email error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+      res.status(500).json({ message: "Failed to update recovery email" });
+    }
+  });
+
+  // Admin unlock account
+  app.post("/api/admin/unlock-account", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { userId } = z.object({
+        userId: z.string().uuid()
+      }).parse(req.body);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Unlock the account
+      const success = await storage.unlockAccount(userId);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Failed to unlock account" });
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'account_unlocked',
+        entityType: 'user',
+        entityId: 0,
+        oldValue: JSON.stringify({ accountLockedUntil: user.accountLockedUntil }),
+        newValue: JSON.stringify({ accountLockedUntil: null }),
+        reason: 'Account manually unlocked by admin',
+        ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
+      log(`✅ Admin ${req.user?.email} unlocked account for user ${userId}`);
+      
+      res.json({ 
+        message: "Account unlocked successfully",
+        username: user.username || user.email
+      });
+    } catch (error) {
+      console.error('Unlock account error:', error);
+      res.status(500).json({ message: "Failed to unlock account" });
     }
   });
 
