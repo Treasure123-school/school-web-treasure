@@ -57,16 +57,17 @@ export default function Login() {
         title: (
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-orange-500" />
-            <span>Account Pending Approval</span>
+            <span>Account Created - Pending Approval</span>
           </div>
         ),
         description: (
           <div className="text-sm">
-            <p className="mb-2">Welcome to THS Portal. Your account has been created and is awaiting admin verification.</p>
-            <p className="text-muted-foreground">You will be notified via email once approved. For urgent access, please contact the school administrator.</p>
+            <p className="mb-2">Welcome to THS Portal! Your account has been successfully created and is awaiting administrator verification.</p>
+            <p className="text-muted-foreground">You will receive an email notification once your account is approved. If you need urgent access, please contact the school administrator directly.</p>
           </div>
         ),
         className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+        duration: 8000, // Show for 8 seconds
       });
       window.history.replaceState({}, '', '/login');
     }
@@ -274,15 +275,15 @@ export default function Login() {
       let description: string | JSX.Element = errorMessage;
 
       // Message 7: Pending Approval - Admin/Teacher (Google OAuth or Standard)
-      if (errorMessage.includes('awaiting Admin approval') || 
+      if (errorMessage.includes('awaiting Admin approval') || errorMessage.includes('awaiting approval') ||
           (errorMessage.includes('pending') && (errorMessage.includes('Admin') || errorMessage.includes('Teacher')))) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Pending Approval';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Welcome to THS Portal. Your Admin/Teacher account is awaiting approval by the school administrator.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">You will be notified once your account is verified. For urgent matters, please contact the school administrator.</p>
+            <p className="mb-2">Your Admin/Teacher account has been created and is awaiting approval by the school administrator.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">You will be notified via email once your account is verified. For urgent access needs, please contact the school administrator.</p>
           </div>
         );
       }

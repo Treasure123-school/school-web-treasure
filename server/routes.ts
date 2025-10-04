@@ -811,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               action: 'account_created_pending_approval',
               entityType: 'user',
               entityId: BigInt(1),
-              newValue: JSON.stringify({ email: user.email, googleId: user.googleId }),
+              newValue: JSON.stringify({ email: user.email, googleId: user.googleId, username, roleId }),
               reason: invite ? 'OAuth signup via invite' : 'OAuth signup without invite',
               ipAddress: req.ip,
               userAgent: req.headers['user-agent']
@@ -829,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     userId: admin.id,
                     type: 'pending_user',
                     title: 'New User Pending Approval',
-                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up as ${roleName?.name || 'staff'} and is awaiting approval.`,
+                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up via Google as ${roleName?.name || 'staff'} and is awaiting approval.`,
                     relatedEntityType: 'user',
                     relatedEntityId: newUser.id,
                     isRead: false
@@ -842,11 +842,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Don't fail the user creation if notification fails
             }
             
-            // DENY LOGIN - redirect with message about pending approval
-            return res.redirect('/login?oauth_status=pending_approval&message=' + encodeURIComponent('Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified.'));
+            // DENY LOGIN - redirect with clear pending approval message
+            return res.redirect('/login?oauth_status=pending_approval');
           } catch (error) {
             console.error('❌ Error creating pending account:', error);
-            return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to create account'));
+            return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to create your account. Please try again or contact the administrator.'));
           }
         }
 

@@ -62,7 +62,7 @@ export function setupGoogleAuth() {
               } else if (user.status === 'pending') {
                 // DENY - Account pending approval
                 return done(null, false, { 
-                  message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified." 
+                  message: "Your account is awaiting Admin approval. You will be notified once verified." 
                 });
               } else if (user.status === 'suspended' || user.status === 'disabled') {
                 // DENY - Account suspended/disabled
