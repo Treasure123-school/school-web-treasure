@@ -3,10 +3,11 @@ import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key } from 'lucide-react';
-import { Link } from 'wouter';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar } from 'lucide-react';
+import { Link, navigate } from 'wouter';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -18,10 +19,6 @@ export default function AdminDashboard() {
   });
 
   const pendingCount = pendingUsers.length;
-
-  if (!user) {
-    return <div>Please log in to access the admin portal.</div>;
-  }
 
   // Mock data for demo - in real app this would come from API
   const mockRecentRegistrations = [
@@ -139,6 +136,21 @@ export default function AdminDashboard() {
     }
   ];
 
+  // Mock stats for demo - in real app this would come from API
+  const stats = {
+    totalStudents: 487,
+    studentsThisMonth: 12,
+    totalTeachers: 52,
+    teachersThisTerm: 3,
+    totalClasses: 15,
+    classesWithCapacity: 'All classes',
+    averageAttendance: 94,
+  };
+
+  if (!user) {
+    return <div>Please log in to access the admin portal.</div>;
+  }
+
   return (
     <PortalLayout 
       userRole="admin" 
@@ -196,41 +208,38 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      {/* Statistics Cards */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatsCard
           title="Total Students"
-          value="487"
+          value={stats?.totalStudents.toString() ?? '0'}
+          description={`↗ +${stats?.studentsThisMonth ?? 0} this month`}
           icon={Users}
-          color="primary"
-          change="↗ +12 this month"
-          changeType="positive"
+          trend="up"
         />
         <StatsCard
           title="Teaching Staff"
-          value="52"
+          value={stats?.totalTeachers.toString() ?? '0'}
+          description={`↗ +${stats?.teachersThisTerm ?? 0} this term`}
           icon={GraduationCap}
-          color="secondary"
-          change="↗ +3 this term"
-          changeType="positive"
+          trend="up"
         />
         <StatsCard
-          title="Active Classes"
-          value="15"
-          icon={School}
-          color="green"
+          title="Total Classes"
+          value={stats?.totalClasses.toString() ?? '0'}
+          description={stats?.classesWithCapacity ?? 'All classes'}
+          icon={BookOpen}
         />
         <StatsCard
           title="Avg. Attendance"
-          value="94%"
-          icon={TrendingUp}
-          color="blue"
-          change="↗ +2% this week"
-          changeType="positive"
+          value={`${stats?.averageAttendance ?? 0}%`}
+          description="Last 30 days"
+          icon={Calendar}
+          trend={((stats?.averageAttendance ?? 0) >= 85) ? 'up' : 'down'}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Recent Registrations */}
         <div className="lg:col-span-2">
           <Card className="shadow-sm border border-border" data-testid="card-recent-registrations">
@@ -252,17 +261,17 @@ export default function AdminDashboard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left py-2">Student Name</th>
-                      <th className="text-left py-2">Admission No.</th>
-                      <th className="text-left py-2">Class</th>
-                      <th className="text-left py-2">Date</th>
-                      <th className="text-left py-2">Status</th>
+                      <th className="text-left py-2 px-3">Student Name</th>
+                      <th className="text-left py-2 px-3">Admission No.</th>
+                      <th className="text-left py-2 px-3">Class</th>
+                      <th className="text-left py-2 px-3">Date</th>
+                      <th className="text-left py-2 px-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mockRecentRegistrations.map((student, index) => (
                       <tr key={student.id} className="border-b border-border/50" data-testid={`student-row-${index}`}>
-                        <td className="py-3">
+                        <td className="py-3 px-3">
                           <div className="flex items-center space-x-2">
                             <div className={`w-8 h-8 ${student.color} rounded-full flex items-center justify-center`}>
                               <span className="text-white text-xs font-medium">{student.initials}</span>
@@ -270,16 +279,16 @@ export default function AdminDashboard() {
                             <span data-testid={`text-student-name-${index}`}>{student.name}</span>
                           </div>
                         </td>
-                        <td className="py-3" data-testid={`text-admission-number-${index}`}>
+                        <td className="py-3 px-3" data-testid={`text-admission-number-${index}`}>
                           {student.admissionNumber}
                         </td>
-                        <td className="py-3" data-testid={`text-student-class-${index}`}>
+                        <td className="py-3 px-3" data-testid={`text-student-class-${index}`}>
                           {student.class}
                         </td>
-                        <td className="py-3" data-testid={`text-registration-date-${index}`}>
+                        <td className="py-3 px-3" data-testid={`text-registration-date-${index}`}>
                           {student.date}
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 px-3">
                           <span 
                             className={`px-2 py-1 rounded-full text-xs ${
                               student.status === 'Active' 
@@ -378,8 +387,8 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* System Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      {/* System Analytics & Upcoming Events */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
         <Card className="shadow-sm border border-border" data-testid="card-system-analytics">
           <CardHeader>
             <CardTitle>System Analytics</CardTitle>
@@ -396,7 +405,7 @@ export default function AdminDashboard() {
                   <p className="text-xs text-green-600">↗ +15%</p>
                 </div>
               </div>
-              
+
               <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                 <div>
                   <p className="font-medium">Pending Actions</p>
@@ -426,7 +435,7 @@ export default function AdminDashboard() {
                   <p className="text-xs text-muted-foreground">December 15, 2024</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
                 <div className="bg-secondary/10 p-2 rounded-lg">
                   <i className="fas fa-graduation-cap text-secondary"></i>
@@ -436,8 +445,8 @@ export default function AdminDashboard() {
                   <p className="text-xs text-muted-foreground">December 18-22, 2024</p>
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+
+              <div className="flex items-center space-x-3 p-3 bg-green-100 p-2 rounded-lg">
                 <div className="bg-green-100 p-2 rounded-lg">
                   <i className="fas fa-trophy text-green-600"></i>
                 </div>
