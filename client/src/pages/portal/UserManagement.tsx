@@ -348,15 +348,47 @@ export default function UserManagement() {
   };
 
   const getStatusBadge = (status: string) => {
-    const badges: Record<string, { variant: any; label: string }> = {
-      'pending': { variant: 'secondary', label: 'Pending' },
-      'active': { variant: 'default', label: 'Active' },
-      'suspended': { variant: 'destructive', label: 'Suspended' },
-      'disabled': { variant: 'outline', label: 'Disabled' }
+    const badgeConfigs: Record<string, { variant: any; label: string; icon: React.ReactNode }> = {
+      'pending': { 
+        variant: 'secondary', 
+        label: 'Unverified', 
+        icon: <Clock className="h-3 w-3 mr-1" />
+      },
+      'active': { 
+        variant: 'default', 
+        label: 'Verified', 
+        icon: <CheckCircle className="h-3 w-3 mr-1" />
+      },
+      'suspended': { 
+        variant: 'destructive', 
+        label: 'Suspended', 
+        icon: <ShieldAlert className="h-3 w-3 mr-1" />
+      },
+      'disabled': { 
+        variant: 'outline', 
+        label: 'Disabled', 
+        icon: <XCircle className="h-3 w-3 mr-1" />
+      }
     };
     
-    const badgeConfig = badges[status] || { variant: 'outline', label: status };
-    return <Badge variant={badgeConfig.variant as any}>{badgeConfig.label}</Badge>;
+    const badgeConfig = badgeConfigs[status] || { 
+      variant: 'outline', 
+      label: status,
+      icon: null
+    };
+    
+    return (
+      <Badge 
+        variant={badgeConfig.variant as any}
+        className="font-medium"
+        data-testid={`badge-status-${status}`}
+      >
+        <div className="flex items-center">
+          {badgeConfig.icon}
+          <span>{badgeConfig.label}</span>
+        </div>
+      </Badge>
+    );
   };
 
   const getActionButtons = (targetUser: User) => {
@@ -368,12 +400,13 @@ export default function UserManagement() {
           key="approve"
           size="sm"
           variant="default"
+          className="bg-green-600 hover:bg-green-700 text-white"
           onClick={() => handleAction(targetUser, 'approve')}
           disabled={approveMutation.isPending || changeStatusMutation.isPending}
           data-testid={`button-approve-${targetUser.id}`}
         >
           <CheckCircle className="h-4 w-4 mr-1" />
-          Approve
+          Verify & Approve
         </Button>
       );
     }
@@ -384,12 +417,13 @@ export default function UserManagement() {
           key="suspend"
           size="sm"
           variant="outline"
+          className="border-orange-500 text-orange-700 hover:bg-orange-50"
           onClick={() => handleAction(targetUser, 'suspend')}
           disabled={approveMutation.isPending || changeStatusMutation.isPending}
           data-testid={`button-suspend-${targetUser.id}`}
         >
           <ShieldAlert className="h-4 w-4 mr-1" />
-          Suspend
+          Suspend Access
         </Button>
       );
     }
@@ -400,12 +434,13 @@ export default function UserManagement() {
           key="unsuspend"
           size="sm"
           variant="default"
+          className="bg-blue-600 hover:bg-blue-700 text-white"
           onClick={() => handleAction(targetUser, 'unsuspend')}
           disabled={approveMutation.isPending || changeStatusMutation.isPending}
           data-testid={`button-unsuspend-${targetUser.id}`}
         >
           <ShieldCheck className="h-4 w-4 mr-1" />
-          Unsuspend
+          Restore Access
         </Button>
       );
     }
@@ -450,7 +485,7 @@ export default function UserManagement() {
               data-testid={`menu-item-unverify-${targetUser.id}`}
             >
               <RotateCcw className="h-4 w-4 mr-2" />
-              Revoke Approval
+              Mark as Unverified
             </DropdownMenuItem>
           )}
           
