@@ -7,6 +7,25 @@ async function fixSchema() {
   try {
     console.log('🔧 Fixing database schema by adding missing columns...');
     
+    // Create attendance_status enum if it doesn't exist
+    await sql`
+      DO $$ BEGIN
+        CREATE TYPE attendance_status AS ENUM ('Present', 'Absent', 'Late', 'Excused');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `;
+    
+    console.log('✅ attendance_status enum created/verified');
+    
+    // Add recovery_email column to users table
+    await sql`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS recovery_email varchar(255)
+    `;
+    
+    console.log('✅ users table updated with recovery_email column');
+    
     // Add missing columns to exam_questions table
     await sql`
       ALTER TABLE exam_questions 

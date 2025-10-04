@@ -74,6 +74,7 @@ interface User {
   status: 'pending' | 'active' | 'suspended' | 'disabled';
   createdAt: Date | null;
   authProvider: string;
+  recoveryEmail?: string | null;
 }
 
 interface Role {
@@ -81,7 +82,7 @@ interface Role {
   name: string;
 }
 
-type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'unverify' | 'disable' | 'delete' | 'resetPassword' | 'changeRole';
+type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'unverify' | 'disable' | 'delete' | 'resetPassword' | 'changeRole' | 'updateRecoveryEmail';
 
 export default function UserManagement() {
   const { user } = useAuth();
@@ -96,6 +97,9 @@ export default function UserManagement() {
   
   const [changeRoleDialog, setChangeRoleDialog] = useState(false);
   const [newRoleId, setNewRoleId] = useState<number | null>(null);
+  
+  const [recoveryEmailDialog, setRecoveryEmailDialog] = useState(false);
+  const [newRecoveryEmail, setNewRecoveryEmail] = useState('');
 
   // Fetch all users
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
@@ -306,6 +310,45 @@ export default function UserManagement() {
     },
   });
 
+  // Update recovery email mutation
+  const updateRecoveryEmailMutation = useMutation({
+    mutationFn: async ({ userId, recoveryEmail }: { userId: string; recoveryEmail: string }) => {
+      return await apiRequest('POST', '/api/admin/update-recovery-email', {
+        userId,
+        recoveryEmail
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-green-600" />
+            <span>Recovery Email Updated</span>
+          </div>
+        ),
+        description: data?.message || "Recovery email has been updated successfully.",
+        className: "border-green-500 bg-green-50",
+      });
+      setRecoveryEmailDialog(false);
+      setNewRecoveryEmail('');
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Update Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to update recovery email. Please try again.",
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+    },
+  });
+
   const handleAction = (user: User, action: ActionType) => {
     setSelectedUser(user);
     if (action === 'resetPassword') {
@@ -313,6 +356,9 @@ export default function UserManagement() {
     } else if (action === 'changeRole') {
       setNewRoleId(user.roleId);
       setChangeRoleDialog(true);
+    } else if (action === 'updateRecoveryEmail') {
+      setNewRecoveryEmail(user.recoveryEmail || user.email);
+      setRecoveryEmailDialog(true);
     } else {
       setActionType(action);
     }
@@ -392,6 +438,27 @@ export default function UserManagement() {
     changeRoleMutation.mutate({
       userId: selectedUser.id,
       roleId: newRoleId
+    });
+  };
+
+  const handleUpdateRecoveryEmail = () => {
+    if (!selectedUser || !newRecoveryEmail) {
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Validation Error</span>
+          </div>
+        ),
+        description: "Please enter a valid email address",
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+      return;
+    }
+    updateRecoveryEmailMutation.mutate({
+      userId: selectedUser.id,
+      recoveryEmail: newRecoveryEmail
     });
   };
 
@@ -542,6 +609,14 @@ export default function UserManagement() {
           >
             <UserCog className="h-4 w-4 mr-2" />
             Change Role
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem 
+            onClick={() => handleAction(targetUser, 'updateRecoveryEmail')}
+            data-testid={`menu-item-recovery-email-${targetUser.id}`}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Update Recovery Email
           </DropdownMenuItem>
           
           {(targetUser.status === 'active' || targetUser.status === 'pending') && (
@@ -897,6 +972,57 @@ export default function UserManagement() {
               data-testid="button-confirm-role-change"
             >
               {changeRoleMutation.isPending ? 'Changing...' : 'Change Role'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Recovery Email Dialog */}
+      <Dialog open={recoveryEmailDialog} onOpenChange={setRecoveryEmailDialog}>
+        <DialogContent data-testid="dialog-recovery-email">
+          <DialogHeader>
+            <DialogTitle>Update Recovery Email</DialogTitle>
+            <DialogDescription>
+              Set the recovery email for <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="recovery-email">Recovery Email Address</Label>
+              <Input
+                id="recovery-email"
+                type="email"
+                value={newRecoveryEmail}
+                onChange={(e) => setNewRecoveryEmail(e.target.value)}
+                placeholder="Enter recovery email address"
+                data-testid="input-recovery-email"
+              />
+              <p className="text-xs text-muted-foreground">
+                Current recovery email: <strong>{selectedUser?.recoveryEmail || selectedUser?.email || 'Not set'}</strong>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                This email will be used for password reset notifications.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setRecoveryEmailDialog(false);
+                setNewRecoveryEmail('');
+                setSelectedUser(null);
+              }}
+              data-testid="button-cancel-recovery-email"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateRecoveryEmail}
+              disabled={updateRecoveryEmailMutation.isPending}
+              data-testid="button-confirm-recovery-email"
+            >
+              {updateRecoveryEmailMutation.isPending ? 'Updating...' : 'Update Email'}
             </Button>
           </DialogFooter>
         </DialogContent>
