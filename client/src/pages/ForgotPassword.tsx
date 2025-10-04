@@ -144,10 +144,13 @@ export default function ForgotPassword() {
                 </div>
 
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800 space-y-2">
-                  <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
-                    📧 How Password Reset Works:
-                  </p>
-                  <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
+                      How Password Reset Works:
+                    </p>
+                  </div>
+                  <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-6 list-disc">
                     <li>Enter your username or email address</li>
                     <li>We'll send a reset link to your registered email</li>
                     <li>The link expires in 15 minutes for security</li>
@@ -179,10 +182,13 @@ export default function ForgotPassword() {
                 </div>
 
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-xs text-blue-800 dark:text-blue-200">
-                    <strong>💡 Development Note:</strong> In development mode, the reset link is shown in the notification above and server console. 
-                    In production, it will be sent via email to the registered address.
-                  </p>
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      <strong>Development Note:</strong> In development mode, the reset link is shown in the notification above and server console. 
+                      In production, it will be sent via email to the registered address.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="text-center">

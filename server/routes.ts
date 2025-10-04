@@ -1472,55 +1472,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send email with reset link
       const resetLink = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/reset-password?token=${resetToken}`;
       
-      // Email content according to the plan
-      const emailSubject = 'THS Portal - Password Reset Request';
-      const emailBody = `
-Hello ${user.firstName} ${user.lastName},
-
-You requested a password reset for THS Portal. Click the link below to set a new password. 
-This link expires in 15 minutes.
-
-Reset Link: ${resetLink}
-
-If you didn't request this, please ignore this email or contact the school administrator immediately.
-
-Security Note: This password reset was requested from IP address: ${ipAddress}
-
-Thank you,
-Treasure-Home School Administration
-`;
+      // Import email service
+      const { sendEmail, getPasswordResetEmailHTML } = await import('./email-service');
       
-      // In development, log the email and return token for testing
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
-        console.log(`║           📧 PASSWORD RESET EMAIL (DEVELOPMENT)                ║`);
-        console.log(`╠════════════════════════════════════════════════════════════════╣`);
-        console.log(`║ To: ${recoveryEmail.padEnd(58)}║`);
-        console.log(`║ Subject: ${emailSubject.padEnd(51)}║`);
-        console.log(`╠════════════════════════════════════════════════════════════════╣`);
-        console.log(`║ RESET LINK (Click or copy):                                    ║`);
-        console.log(`║ ${resetLink.padEnd(62)}║`);
-        console.log(`╠════════════════════════════════════════════════════════════════╣`);
-        console.log(`║ ⚠️  This link expires in 15 minutes                            ║`);
-        console.log(`║ 🔒 For production, integrate with SendGrid/AWS SES            ║`);
-        console.log(`╚════════════════════════════════════════════════════════════════╝\n`);
-        
+      // Send email with HTML template
+      const emailSent = await sendEmail({
+        to: recoveryEmail,
+        subject: 'THS Portal - Password Reset Request',
+        html: getPasswordResetEmailHTML(`${user.firstName} ${user.lastName}`, resetLink)
+      });
+      
+      if (!emailSent && process.env.NODE_ENV === 'production') {
+        log(`❌ Failed to send password reset email to ${recoveryEmail}`);
+        return res.status(500).json({ 
+          message: "Failed to send password reset email. Please try again later or contact administrator." 
+        });
+      }
+      
+      // In development without API key, return link for testing
+      if (process.env.NODE_ENV === 'development' && !process.env.RESEND_API_KEY) {
         return res.json({ 
-          message: "✅ Password reset link generated! In production, this would be sent via email. For now, check the server console for the reset link.",
+          message: "Password reset link generated (Development Mode).",
           developmentMode: true,
-          resetLink: resetLink, // Only return in development
+          resetLink: resetLink,
           email: recoveryEmail,
           expiresIn: "15 minutes"
         });
       }
-      
-      // TODO: In production, send actual email via email service (e.g., SendGrid, AWS SES, etc.)
-      // Example:
-      // await sendEmail({
-      //   to: recoveryEmail,
-      //   subject: emailSubject,
-      //   text: emailBody
-      // });
       
       log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
       
@@ -1597,40 +1575,13 @@ Treasure-Home School Administration
       
       // Send notification email to user
       const recoveryEmail = user.recoveryEmail || user.email;
-      const notificationSubject = 'THS Portal - Password Changed';
-      const notificationBody = `
-Hello ${user.firstName} ${user.lastName},
-
-⚠️ Your password was reset on THS Portal by ${resetToken.resetBy ? 'Admin' : 'yourself'}.
-
-Details:
-- Changed at: ${new Date().toLocaleString()}
-- IP Address: ${ipAddress}
-- Method: ${resetToken.resetBy ? 'Admin Reset' : 'Self-Service Reset Link'}
-
-If this wasn't you, contact the school administration immediately at:
-Email: admin@treasurehomeschool.edu.ng
-Phone: [School Contact Number]
-
-For security:
-- Never share your password with anyone
-- Use a strong, unique password
-- Change your password if you suspect any unauthorized access
-
-Thank you,
-Treasure-Home School Administration
-`;
+      const { sendEmail, getPasswordChangedEmailHTML } = await import('./email-service');
       
-      // In development, log the notification
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`\n📧 PASSWORD CHANGE NOTIFICATION:`);
-        console.log(`To: ${recoveryEmail}`);
-        console.log(`Subject: ${notificationSubject}`);
-        console.log(`Body:\n${notificationBody}\n`);
-      }
-      
-      // TODO: In production, send actual email
-      // await sendEmail({ to: recoveryEmail, subject: notificationSubject, text: notificationBody });
+      await sendEmail({
+        to: recoveryEmail,
+        subject: 'THS Portal - Password Changed',
+        html: getPasswordChangedEmailHTML(`${user.firstName} ${user.lastName}`, ipAddress)
+      });
       
       log(`✅ Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
