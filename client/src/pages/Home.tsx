@@ -11,39 +11,28 @@ import type { HomePageContent } from '@shared/schema';
 
 export default function Home() {
   // Fetch dynamic content from database with optimized caching
+  // Uses global queryFn which joins array: ['/api', 'path'] -> '/api/path'
   const { data: heroImages = [], isLoading: heroLoading } = useQuery<HomePageContent[]>({
-    queryKey: ['/api/homepage-content', 'hero_image'],
+    queryKey: ['/api', 'homepage-content', 'hero_image'],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const { data: galleryPreviewImages = [], isLoading: galleryLoading } = useQuery<HomePageContent[]>({
-    queryKey: ['/api/homepage-content', 'gallery_preview'],
-    queryFn: async () => {
-      const res = await fetch('/api/homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3');
-      if (!res.ok) {
-        return [];
-      }
-      return res.json();
-    },
+    queryKey: ['/api', 'homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3'],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch latest published announcements for homepage preview
-  const { data: recentAnnouncements = [], isLoading: announcementsLoading } = useQuery({
-    queryKey: ['/api/announcements', 'published'],
-    queryFn: async () => {
-      const res = await fetch('/api/announcements');
-      if (!res.ok) {
-        return [];
-      }
-      const announcements = await res.json();
-      return announcements
-        .filter((ann: any) => ann.isPublished && ann.publishedAt)
-        .sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-        .slice(0, 3);
-    },
-    staleTime: 2 * 60 * 1000, // 2 minutes for announcements
+  const { data: allAnnouncements = [], isLoading: announcementsLoading } = useQuery<any[]>({
+    queryKey: ['/api', 'announcements'],
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
+
+  // Filter and sort announcements client-side for better caching
+  const recentAnnouncements = allAnnouncements
+    .filter((ann: any) => ann.isPublished && ann.publishedAt)
+    .sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .slice(0, 3);
 
   // Gallery carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);

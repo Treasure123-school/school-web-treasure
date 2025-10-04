@@ -7,7 +7,7 @@ import { db } from "./storage";
 
 const app = express();
 
-// Enable gzip/brotli compression for all responses - MUST be first middleware
+// Enable gzip compression for all responses - MUST be first middleware
 app.use(compression({
   level: 6, // Compression level (0-9, 6 is balanced for speed vs compression)
   threshold: 1024, // Only compress responses larger than 1KB
