@@ -86,7 +86,7 @@ export default function Login() {
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4" />
+            <XCircle className="h-4 w-4 text-red-500" />
             <span>Google Sign-In Failed</span>
           </div>
         ),
@@ -228,7 +228,7 @@ export default function Login() {
       const errorMessage = error?.message || 'Invalid username or password. Please check your credentials and try again.';
       
       // Determine message type and styling based on exact backend responses
-      let icon = <XCircle className="h-4 w-4" />;
+      let icon = <XCircle className="h-4 w-4 text-red-500" />;
       let className = '';
       let title = 'Login Failed';
       let description: string | JSX.Element = errorMessage;
@@ -304,7 +304,7 @@ export default function Login() {
       }
       // Invalid credentials (default)
       else {
-        icon = <XCircle className="h-4 w-4" />;
+        icon = <XCircle className="h-4 w-4 text-red-500" />;
         title = 'Login Failed';
         description = errorMessage;
       }
