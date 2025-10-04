@@ -10,37 +10,44 @@ import { Link } from 'wouter';
 
 export default function ParentDashboard() {
   const { user } = useAuth();
-  const [selectedChildId, setSelectedChildId] = useState<number | 'all'>(1);
+  const [selectedChildId, setSelectedChildId] = useState<number | 'all'>('all');
+
+  // Fetch parent's children from API
+  const { data: childrenData = [], isLoading: loadingChildren } = useQuery<any[]>({
+    queryKey: ['/api/parent', user?.id, 'children'],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const response = await fetch(`/api/parent/${user.id}/children`);
+      if (!response.ok) throw new Error('Failed to fetch children');
+      return response.json();
+    },
+    enabled: !!user?.id,
+  });
 
   if (!user) {
     return <div>Please log in to access the parent portal.</div>;
   }
 
-  // Mock data for demo - in real app this would come from API
-  const mockChildren = [
-    {
-      id: 1,
-      name: 'John Smith',
-      class: 'Primary 5A',
-      admissionNumber: 'THS/2023/045',
-      currentGPA: '3.85',
-      attendance: '95%',
-      lastAttendance: 'Present',
-      initials: 'JS',
-      color: 'bg-primary'
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      class: 'JSS 2',
-      admissionNumber: 'THS/2021/032',
-      currentGPA: '3.92',
-      attendance: '97%',
-      lastAttendance: 'Present',
-      initials: 'JS',
-      color: 'bg-secondary'
-    }
-  ];
+  // Transform API data to include display properties
+  const mockChildren = childrenData.map((child, index) => {
+    const colors = ['bg-primary', 'bg-secondary', 'bg-green-500', 'bg-blue-500', 'bg-purple-500'];
+    const firstName = child.firstName || child.name?.split(' ')[0] || 'Student';
+    const lastName = child.lastName || child.name?.split(' ')[1] || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    const initials = `${firstName[0]}${lastName[0] || firstName[1] || ''}`.toUpperCase();
+    
+    return {
+      id: child.id,
+      name: fullName,
+      class: child.className || child.class || 'N/A',
+      admissionNumber: child.admissionNumber || child.studentId || `THS/${child.id}`,
+      currentGPA: child.currentGPA || '0.00',
+      attendance: child.attendanceRate ? `${child.attendanceRate}%` : '0%',
+      lastAttendance: child.lastAttendance || 'Unknown',
+      initials: initials,
+      color: colors[index % colors.length]
+    };
+  });
 
   const mockRecentGrades = [
     {
@@ -155,11 +162,23 @@ export default function ParentDashboard() {
               <span>Select Child to View</span>
             </CardTitle>
             <span className="text-sm text-muted-foreground">
-              {mockChildren.length} {mockChildren.length === 1 ? 'child' : 'children'} enrolled
+              {loadingChildren ? 'Loading...' : `${mockChildren.length} ${mockChildren.length === 1 ? 'child' : 'children'} enrolled`}
             </span>
           </div>
         </CardHeader>
         <CardContent>
+          {loadingChildren ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="mt-2 text-muted-foreground">Loading children...</p>
+            </div>
+          ) : mockChildren.length === 0 ? (
+            <div className="text-center py-8">
+              <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">No children linked to this account</p>
+              <p className="text-sm text-muted-foreground mt-1">Contact the administrator for assistance</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* All Children Option */}
             <button
@@ -216,8 +235,9 @@ export default function ParentDashboard() {
               </button>
             ))}
           </div>
+          )}
 
-          {selectedChild && (
+          {!loadingChildren && selectedChild && (
             <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
               <p className="text-sm text-center">
                 <span className="font-medium">Currently viewing:</span>{' '}
