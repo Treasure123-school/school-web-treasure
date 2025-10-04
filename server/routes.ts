@@ -1489,14 +1489,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // In development without API key, return link for testing
+      // In development without API key, show the reset code/token for testing
       if (process.env.NODE_ENV === 'development' && !process.env.RESEND_API_KEY) {
+        log(`📧 DEV MODE - Password Reset Token: ${resetToken}`);
+        log(`📧 DEV MODE - Reset Link: ${resetLink}`);
+        
         return res.json({ 
-          message: "Password reset link generated (Development Mode).",
+          message: "Password reset code generated (Development Mode).",
           developmentMode: true,
+          resetToken: resetToken, // The actual code
           resetLink: resetLink,
           email: recoveryEmail,
-          expiresIn: "15 minutes"
+          expiresIn: "15 minutes",
+          instructions: "Use the resetToken as your reset code, or click the resetLink"
         });
       }
       

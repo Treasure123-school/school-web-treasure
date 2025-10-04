@@ -41,7 +41,11 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
 }
 
 // Email templates
-export function getPasswordResetEmailHTML(userName: string, resetLink: string): string {
+export function getPasswordResetEmailHTML(userName: string, resetLink: string, resetCode?: string): string {
+  // Extract the token from the reset link if resetCode not provided
+  const token = resetCode || resetLink.split('token=')[1] || '';
+  const shortCode = token.substring(0, 8).toUpperCase(); // First 8 chars as short code
+  
   return `
 <!DOCTYPE html>
 <html>
@@ -52,6 +56,8 @@ export function getPasswordResetEmailHTML(userName: string, resetLink: string): 
     .header { background: #1e40af; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
     .content { background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
     .button { display: inline-block; background: #1e40af; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+    .code-box { background: #fff; border: 2px solid #1e40af; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; }
+    .code { font-size: 24px; font-weight: bold; color: #1e40af; letter-spacing: 2px; font-family: 'Courier New', monospace; }
     .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
     .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; }
   </style>
@@ -65,19 +71,28 @@ export function getPasswordResetEmailHTML(userName: string, resetLink: string): 
     <div class="content">
       <h2>Password Reset Request</h2>
       <p>Hello ${userName},</p>
-      <p>You requested a password reset for your THS Portal account. Click the button below to set a new password:</p>
+      <p>You requested a password reset for your THS Portal account.</p>
+      
+      <div class="code-box">
+        <p style="margin: 0 0 10px 0; color: #666;">Your Reset Code:</p>
+        <div class="code">${shortCode}</div>
+      </div>
+      
+      <p><strong>Option 1:</strong> Click the button below to reset your password:</p>
       <p style="text-align: center;">
         <a href="${resetLink}" class="button">Reset Password</a>
       </p>
-      <p>Or copy and paste this link into your browser:</p>
-      <p style="word-break: break-all; color: #1e40af;">${resetLink}</p>
+      
+      <p><strong>Option 2:</strong> Or copy and paste this link into your browser:</p>
+      <p style="word-break: break-all; color: #1e40af; font-size: 12px;">${resetLink}</p>
+      
       <div class="warning">
-        <strong>⚠️ Important:</strong> This link expires in 15 minutes for security reasons.
+        <strong>⚠️ Important:</strong> This link and code expire in 15 minutes for security reasons.
       </div>
       <p>If you didn't request this password reset, please ignore this email or contact the school administrator if you have concerns.</p>
       <p><strong>Security Reminder:</strong></p>
       <ul>
-        <li>Never share your password with anyone</li>
+        <li>Never share your password or reset code with anyone</li>
         <li>Use a strong, unique password</li>
         <li>Change your password if you suspect unauthorized access</li>
       </ul>

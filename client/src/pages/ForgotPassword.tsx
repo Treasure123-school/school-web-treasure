@@ -38,20 +38,31 @@ export default function ForgotPassword() {
     onSuccess: (data) => {
       setEmailSent(true);
       
-      // In development mode, show the reset link directly
-      if (data.developmentMode && data.resetLink) {
+      // In development mode, show the reset code and link
+      if (data.developmentMode && (data.resetToken || data.resetLink)) {
         toast({
           title: (
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Reset Link Generated (Dev Mode)</span>
+              <span>Reset Code Generated (Dev Mode)</span>
             </div>
           ),
           description: (
             <div className="space-y-2">
               <p>✅ {data.message}</p>
+              {data.resetToken && (
+                <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-300">
+                  <p className="text-xs font-semibold mb-1">🔑 Reset Code:</p>
+                  <p className="text-sm font-mono font-bold text-blue-700 dark:text-blue-300">
+                    {data.resetToken.substring(0, 8).toUpperCase()}
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    Expires in: {data.expiresIn}
+                  </p>
+                </div>
+              )}
               <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded border border-yellow-200">
-                <p className="text-xs font-semibold mb-1">🔧 Development Mode:</p>
+                <p className="text-xs font-semibold mb-1">🔗 Or use this link:</p>
                 <a 
                   href={data.resetLink} 
                   className="text-xs text-blue-600 hover:underline break-all"
@@ -61,10 +72,13 @@ export default function ForgotPassword() {
                   {data.resetLink}
                 </a>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                💡 In production, this will be sent to: {data.email}
+              </p>
             </div>
           ),
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
-          duration: 10000, // Show longer for dev mode
+          duration: 15000, // Show longer for dev mode
         });
       } else {
         toast({
