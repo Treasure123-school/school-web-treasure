@@ -537,30 +537,6 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        {/* Demo Credentials */}
-        <Card className="mt-6 shadow-sm border border-border" data-testid="card-demo-credentials">
-          <CardContent className="p-4">
-            <h3 className="font-semibold text-sm mb-3 text-center">Demo Credentials</h3>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="font-medium">Student:</span>
-                <span className="text-muted-foreground">student@demo.com / demo123</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Teacher:</span>
-                <span className="text-muted-foreground">teacher@demo.com / demo123</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Parent:</span>
-                <span className="text-muted-foreground">parent@demo.com / demo123</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Admin:</span>
-                <span className="text-muted-foreground">admin@demo.com / demo123</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Back to Website */}
         <div className="text-center mt-6">
