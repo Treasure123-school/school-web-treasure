@@ -136,9 +136,13 @@ export default function ParentDashboard() {
     ? null 
     : mockChildren.find(c => c.id === selectedChildId);
 
-  // Calculate stats based on selection
-  const totalAttendance = selectedChildren.reduce((sum, child) => sum + parseInt(child.attendance), 0) / selectedChildren.length;
-  const avgGPA = selectedChildren.reduce((sum, child) => sum + parseFloat(child.currentGPA), 0) / selectedChildren.length;
+  // Calculate stats based on selection (with zero-division guard)
+  const totalAttendance = selectedChildren.length > 0 
+    ? selectedChildren.reduce((sum, child) => sum + parseInt(child.attendance), 0) / selectedChildren.length 
+    : 0;
+  const avgGPA = selectedChildren.length > 0 
+    ? selectedChildren.reduce((sum, child) => sum + parseFloat(child.currentGPA), 0) / selectedChildren.length 
+    : 0;
 
   // Filter recent grades based on selection
   const filteredGrades = selectedChildId === 'all' 

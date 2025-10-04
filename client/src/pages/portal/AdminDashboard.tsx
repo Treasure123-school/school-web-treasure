@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function AdminDashboard() {
@@ -450,6 +450,63 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Security Alerts */}
+      <Card className="mt-6 shadow-sm border border-border" data-testid="card-security-alerts">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Shield className="h-5 w-5" />
+            <span>Security Alerts</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Failed Login Attempts */}
+            <div className="p-4 border border-border rounded-lg bg-red-50 dark:bg-red-950/20" data-testid="alert-failed-logins">
+              <div className="flex items-center justify-between mb-2">
+                <ShieldAlert className="h-5 w-5 text-red-600" />
+                <span className="text-2xl font-bold text-red-600" data-testid="text-failed-login-count">3</span>
+              </div>
+              <h4 className="font-medium text-sm text-red-900 dark:text-red-200">Failed Logins</h4>
+              <p className="text-xs text-red-700 dark:text-red-300 mt-1">Last 24 hours</p>
+            </div>
+
+            {/* Locked Accounts */}
+            <div className="p-4 border border-border rounded-lg bg-orange-50 dark:bg-orange-950/20" data-testid="alert-locked-accounts">
+              <div className="flex items-center justify-between mb-2">
+                <Lock className="h-5 w-5 text-orange-600" />
+                <span className="text-2xl font-bold text-orange-600" data-testid="text-locked-account-count">1</span>
+              </div>
+              <h4 className="font-medium text-sm text-orange-900 dark:text-orange-200">Locked Accounts</h4>
+              <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">Require admin review</p>
+            </div>
+
+            {/* MFA Enabled */}
+            <div className="p-4 border border-border rounded-lg bg-green-50 dark:bg-green-950/20" data-testid="alert-mfa-status">
+              <div className="flex items-center justify-between mb-2">
+                <Key className="h-5 w-5 text-green-600" />
+                <span className="text-2xl font-bold text-green-600" data-testid="text-mfa-percentage">68%</span>
+              </div>
+              <h4 className="font-medium text-sm text-green-900 dark:text-green-200">MFA Enabled</h4>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-1">Staff accounts</p>
+            </div>
+
+            {/* Suspended Users */}
+            <div className="p-4 border border-border rounded-lg bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-suspended-users">
+              <div className="flex items-center justify-between mb-2">
+                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                <span className="text-2xl font-bold text-yellow-600" data-testid="text-suspended-count">2</span>
+              </div>
+              <h4 className="font-medium text-sm text-yellow-900 dark:text-yellow-200">Suspended Users</h4>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                <Link href="/portal/admin/users" className="hover:underline" data-testid="link-manage-suspended">
+                  Manage →
+                </Link>
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </PortalLayout>
   );
 }
