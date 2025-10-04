@@ -2250,7 +2250,7 @@ Treasure-Home School Administration
     }
   });
 
-  // Delete user (permanent removal - Admin only)
+  // Delete user (permanent removal - Admin only) - OPTIMIZED for instant response
   app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
@@ -2271,7 +2271,7 @@ Treasure-Home School Administration
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
 
-      // Delete the user
+      // Delete the user - this will CASCADE delete related records
       const deleted = await storage.deleteUser(id);
       
       if (!deleted) {
@@ -2296,11 +2296,18 @@ Treasure-Home School Administration
         userAgent: req.headers['user-agent']
       }).catch(err => console.error('Audit log failed (non-critical):', err));
 
-      res.json({
-        message: "User deleted successfully"
-      });
-    } catch (error) {
+      res.status(204).send(); // 204 No Content for successful delete (instant response)
+    } catch (error: any) {
       console.error('Error deleting user:', error);
+      
+      // Handle foreign key constraint errors with clear message
+      if (error?.cause?.code === '23503' || error?.message?.includes('foreign key constraint')) {
+        const relatedTable = error?.cause?.table_name || 'related records';
+        return res.status(409).json({ 
+          message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead of deleting it.`
+        });
+      }
+      
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
@@ -2550,21 +2557,6 @@ Treasure-Home School Administration
       res.json(userResponse);
     } catch (error) {
       res.status(400).json({ message: "Invalid user data" });
-    }
-  });
-
-  app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteUser(id);
-
-      if (!success) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      res.json({ message: "User deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete user" });
     }
   });
 

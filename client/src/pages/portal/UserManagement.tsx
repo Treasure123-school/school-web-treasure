@@ -260,14 +260,14 @@ export default function UserManagement() {
   // Delete user mutation with OPTIMISTIC UPDATES
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await apiRequest('DELETE', `/api/users/${userId}`);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to delete user');
+      try {
+        const result = await apiRequest('DELETE', `/api/users/${userId}`);
+        return result || { message: 'User deleted successfully' };
+      } catch (error: any) {
+        // Extract error message from the error object
+        const errorMessage = error?.message || 'Failed to delete user';
+        throw new Error(errorMessage);
       }
-      // Handle empty response for 204 No Content
-      if (response.status === 204) return { message: 'User deleted successfully' };
-      return await response.json();
     },
     onMutate: async (userId: string) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
