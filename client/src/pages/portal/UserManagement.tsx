@@ -243,22 +243,36 @@ export default function UserManagement() {
   // Delete user mutation with OPTIMISTIC UPDATES
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return await apiRequest('DELETE', `/api/users/${userId}`);
+      const response = await apiRequest('DELETE', `/api/users/${userId}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete user');
+      }
+      // Handle empty response for 204 No Content
+      if (response.status === 204) return { message: 'User deleted successfully' };
+      return await response.json();
     },
     onMutate: async (userId: string) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
       
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
       
-      // INSTANT FEEDBACK: Optimistically remove user
+      // INSTANT FEEDBACK: Optimistically remove user from both lists
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
         return old.filter((user: any) => user.id !== userId);
       });
+      
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
 
-      return { previousUsers };
+      return { previousUsers, previousPendingUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -281,6 +295,9 @@ export default function UserManagement() {
       if (context?.previousUsers) {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -295,13 +312,39 @@ export default function UserManagement() {
     },
   });
 
-  // Reset password mutation
+  // Reset password mutation with OPTIMISTIC UPDATES
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ userId, newPassword, forceChange }: { userId: string; newPassword: string; forceChange: boolean }) => {
-      return await apiRequest('POST', `/api/users/${userId}/reset-password`, {
+      const response = await apiRequest('POST', `/api/users/${userId}/reset-password`, {
         newPassword,
         forceChange
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to reset password');
+      }
+      return await response.json();
+    },
+    onMutate: async ({ userId }) => {
+      // INSTANT FEEDBACK: Show immediate success message
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-blue-600" />
+            <span>Resetting Password...</span>
+          </div>
+        ),
+        description: "Password reset in progress",
+        className: "border-blue-500 bg-blue-50",
+      });
+      
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      
+      // Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      
+      return { previousUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -319,7 +362,7 @@ export default function UserManagement() {
       setNewPassword('');
       setSelectedUser(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -334,12 +377,34 @@ export default function UserManagement() {
     },
   });
 
-  // Change role mutation
+  // Change role mutation with OPTIMISTIC UPDATES
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, roleId }: { userId: string; roleId: number }) => {
-      return await apiRequest('POST', `/api/users/${userId}/role`, {
+      const response = await apiRequest('POST', `/api/users/${userId}/role`, {
         roleId
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to change role');
+      }
+      return await response.json();
+    },
+    onMutate: async ({ userId, roleId }) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      
+      // INSTANT FEEDBACK: Optimistically update role
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, roleId } : user
+        );
+      });
+
+      return { previousUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -357,7 +422,11 @@ export default function UserManagement() {
       setNewRoleId(null);
       setSelectedUser(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -372,13 +441,35 @@ export default function UserManagement() {
     },
   });
 
-  // Update recovery email mutation
+  // Update recovery email mutation with OPTIMISTIC UPDATES
   const updateRecoveryEmailMutation = useMutation({
     mutationFn: async ({ userId, recoveryEmail }: { userId: string; recoveryEmail: string }) => {
-      return await apiRequest('POST', '/api/admin/update-recovery-email', {
+      const response = await apiRequest('POST', '/api/admin/update-recovery-email', {
         userId,
         recoveryEmail
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update recovery email');
+      }
+      return await response.json();
+    },
+    onMutate: async ({ userId, recoveryEmail }) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      
+      // INSTANT FEEDBACK: Optimistically update recovery email
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, recoveryEmail } : user
+        );
+      });
+
+      return { previousUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -396,7 +487,11 @@ export default function UserManagement() {
       setNewRecoveryEmail('');
       setSelectedUser(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
