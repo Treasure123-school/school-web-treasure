@@ -15,6 +15,11 @@ import { Progress } from '@/components/ui/progress';
 import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 
+// Constants for violation tracking and penalties
+const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
+const PENALTY_PER_VIOLATION = 5;
+const MAX_PENALTY = 20; // System never reduces score below Test 40 base
+
 // Question save status type
 type QuestionSaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -41,6 +46,7 @@ export default function StudentExams() {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
   const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [violationPenalty, setViolationPenalty] = useState(0); // State for penalty calculation
 
   // Network status monitoring
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -144,7 +150,7 @@ export default function StudentExams() {
     return questionOptionsRaw;
   }, [questionOptionsRaw, currentQuestion, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
 
-  // PERFORMANCE FIX: Use bulk endpoint to fetch all question options in single request
+  // PERFORMANCE: Use bulk endpoint to fetch all question options in single request
   const { data: allQuestionOptions = [] } = useQuery<QuestionOption[]>({
     queryKey: ['/api/question-options/bulk', examQuestions.map(q => q.id).join(',')],
     queryFn: async () => {
@@ -209,6 +215,12 @@ export default function StudentExams() {
               const metadata = session.metadata ? JSON.parse(session.metadata) : {};
               if (metadata.currentQuestionIndex) {
                 setCurrentQuestionIndex(metadata.currentQuestionIndex);
+              }
+              // Restore tab switch count and penalty if they were saved in metadata
+              if (metadata.tabSwitchCount !== undefined) {
+                setTabSwitchCount(metadata.tabSwitchCount);
+                const calculatedPenalty = calculateViolationPenalty(metadata.tabSwitchCount);
+                setViolationPenalty(calculatedPenalty);
               }
             } catch (e) {
               console.warn('Could not parse session metadata:', e);
@@ -357,8 +369,11 @@ export default function StudentExams() {
             setTabSwitchCount(prev => {
               const newCount = prev + 1;
 
-              // Show warning on first 3 switches
-              if (newCount <= 3) {
+              // Update penalty based on new count
+              const calculatedPenalty = calculateViolationPenalty(newCount);
+              setViolationPenalty(calculatedPenalty);
+
+              if (newCount <= MAX_VIOLATIONS_BEFORE_PENALTY) {
                 setShowTabSwitchWarning(true);
 
                 // Auto-hide warning after 5 seconds
@@ -369,12 +384,27 @@ export default function StudentExams() {
 
                 toast({
                   title: "⚠️ Tab Switch Detected",
-                  description: `Warning ${newCount}/3: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
+                  description: `Warning ${newCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
                   variant: "destructive",
                 });
               } else {
-                // After 3 warnings, just log silently
+                // After max warnings, just log silently
                 console.warn(`Tab switch detected: ${newCount} times`);
+                // Optionally show a persistent warning if penalty is applied
+                if (calculatedPenalty > 0) {
+                  setShowTabSwitchWarning(true);
+                }
+              }
+
+              // Save tab switch count and penalty to session metadata if possible
+              if (activeSession?.id) {
+                apiRequest('PATCH', `/api/exam-sessions/${activeSession.id}/metadata`, {
+                  metadata: JSON.stringify({
+                    ...JSON.parse(activeSession.metadata || '{}'),
+                    tabSwitchCount: newCount,
+                    violationPenalty: calculatedPenalty
+                  })
+                }).catch(error => console.warn('Failed to save tab switch metadata:', error));
               }
 
               return newCount;
@@ -405,7 +435,14 @@ export default function StudentExams() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
     };
-  }, [activeSession]);
+  }, [activeSession, tabSwitchCount]); // Add tabSwitchCount to dependency array
+
+  // Function to calculate violation penalty
+  const calculateViolationPenalty = (violations: number): number => {
+    if (violations === 0) return 0;
+    const penalty = violations * PENALTY_PER_VIOLATION;
+    return Math.min(penalty, MAX_PENALTY);
+  };
 
   // Client-side answer validation
   const validateAnswer = (questionType: string, answer: any): { isValid: boolean; error?: string } => {
@@ -539,6 +576,7 @@ export default function StudentExams() {
       setCurrentQuestionIndex(0);
       setAnswers({}); // Clear any previous answers
       setTabSwitchCount(0); // Reset tab switch counter
+      setViolationPenalty(0); // Reset penalty
 
       // Set timer if exam has time limit
       const exam = exams.find(e => e.id === session.examId);
@@ -878,20 +916,6 @@ export default function StudentExams() {
 
         console.log(`📊 INSTANT FEEDBACK: ${score}/${maxScore} = ${percentage}%`);
 
-        // Show detailed breakdown if available
-        const breakdown = data.result.breakdown;
-        let description = `Your Score: ${score}/${maxScore} (${percentage}%)`;
-
-        if (breakdown) {
-          if (breakdown.autoScoredQuestions > 0 && breakdown.pendingManualReview > 0) {
-            description += `. ${breakdown.autoScoredQuestions} questions auto-scored, ${breakdown.pendingManualReview} pending manual review.`;
-          } else if (breakdown.pendingManualReview > 0) {
-            description += `. Some questions require manual grading by your instructor.`;
-          } else {
-            description += `. All questions scored automatically!`;
-          }
-        }
-
         // Handle different submission scenarios
         let toastTitle = "Exam Submitted Successfully! 🎉";
         if (data.alreadySubmitted) {
@@ -902,7 +926,7 @@ export default function StudentExams() {
 
         toast({
           title: toastTitle,
-          description,
+          description: data.message || `Your Score: ${score}/${maxScore} (${percentage}%)`,
           variant: data.timedOut ? "destructive" : "default",
         });
       } else if (data.submitted && !data.result) {
@@ -1041,15 +1065,17 @@ export default function StudentExams() {
 
     console.log('✅ All validation checks passed, starting exam...');
     setSelectedExam(exam);
-    
+
     // Reset all state for clean start
     setAnswers({});
     setCurrentQuestionIndex(0);
     setTimeRemaining(null);
-    setTabSwitchCount(0);
+    setTabSwitchCount(0); // Reset tab switch counter
+    setViolationPenalty(0); // Reset penalty
     setQuestionSaveStatus({});
     setPendingSaves(new Set());
-    
+    setShowTabSwitchWarning(false); // Hide any previous warnings
+
     startExamMutation.mutate(exam.id);
   };
 
@@ -1077,7 +1103,9 @@ export default function StudentExams() {
         if (activeSession.id) {
           apiRequest('PATCH', `/api/exam-sessions/${activeSession.id}/progress`, {
             currentQuestionIndex,
-            timeRemaining
+            timeRemaining,
+            tabSwitchCount, // Save tab switch count and penalty
+            violationPenalty
           }).catch(error => {
             console.warn('Failed to save session progress:', error);
           });
@@ -1086,7 +1114,7 @@ export default function StudentExams() {
 
       return () => clearInterval(interval);
     }
-  }, [activeSession, currentQuestionIndex, timeRemaining]);
+  }, [activeSession, currentQuestionIndex, timeRemaining, tabSwitchCount, violationPenalty]);
 
   const handleRetryAnswer = (questionId: number, questionType: string) => {
     const answer = answers[questionId];
@@ -1105,8 +1133,10 @@ export default function StudentExams() {
     setCurrentQuestionIndex(0);
     setSelectedExam(null);
     setTabSwitchCount(0);
+    setViolationPenalty(0);
     setQuestionSaveStatus({});
     setPendingSaves(new Set());
+    setShowTabSwitchWarning(false);
   };
 
   // Force submit without checking pending saves (used for auto-submit)
@@ -1540,7 +1570,7 @@ export default function StudentExams() {
                             {normalizedResults.autoScoredQuestions} auto-scored
                           </Badge>
                         </div>
-                        
+
                         <div className="grid gap-3 max-h-64 overflow-y-auto">
                           {normalizedResults.questionDetails.map((questionResult: any, index: number) => (
                             <div 
@@ -1575,7 +1605,7 @@ export default function StudentExams() {
                                       </Badge>
                                     )}
                                   </div>
-                                  
+
                                   <div className="text-xs text-gray-600 space-y-1">
                                     <div>
                                       <span className="font-medium">Points:</span> 
@@ -1583,7 +1613,7 @@ export default function StudentExams() {
                                         {questionResult.pointsEarned || 0} / {questionResult.maxPoints || questionResult.points || 1}
                                       </span>
                                     </div>
-                                    
+
                                     {questionResult.questionType && (
                                       <div>
                                         <span className="font-medium">Type:</span> 
@@ -1592,7 +1622,7 @@ export default function StudentExams() {
                                         </span>
                                       </div>
                                     )}
-                                    
+
                                     {questionResult.autoScored !== false && (
                                       <div className="text-blue-600">
                                         <span className="font-medium">✨ Auto-scored</span>
@@ -1600,7 +1630,7 @@ export default function StudentExams() {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 <div className="ml-3">
                                   {questionResult.isCorrect === true && (
                                     <CheckCircle className="w-5 h-5 text-green-600" />
@@ -1613,7 +1643,7 @@ export default function StudentExams() {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {questionResult.feedback && (
                                 <div className="mt-2 p-2 bg-white rounded text-xs text-gray-700">
                                   <span className="font-medium">Feedback:</span> {questionResult.feedback}
@@ -1622,7 +1652,7 @@ export default function StudentExams() {
                             </div>
                           ))}
                         </div>
-                        
+
                         <div className="mt-4 pt-3 border-t border-gray-200">
                           <div className="flex justify-between text-sm text-gray-600">
                             <span>
@@ -1717,35 +1747,32 @@ export default function StudentExams() {
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
         <div className={`${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : ''}`}>
-          {/* Network Status Warning Banner */}
-          {!isOnline && (
-            <div className="bg-orange-100 dark:bg-orange-900/30 border-l-4 border-orange-500 p-4 mb-4" data-testid="alert-network-offline">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mr-3" />
+          {/* Violation Warning Banner */}
+          {showTabSwitchWarning && (
+            <div className="mt-4 bg-yellow-50 border border-yellow-400 rounded-lg p-3 animate-pulse">
+              <div className="flex items-center gap-2 text-yellow-800">
+                <AlertCircle className="w-5 h-5" />
                 <div>
-                  <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                    No Internet Connection
-                  </p>
-                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                    Your answers are being saved locally and will sync when connection is restored.
+                  <p className="font-semibold">⚠️ Tab Switch Detected</p>
+                  <p className="text-sm">
+                    {tabSwitchCount <= MAX_VIOLATIONS_BEFORE_PENALTY 
+                      ? `Warning ${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}: Stay on this page. After ${MAX_VIOLATIONS_BEFORE_PENALTY} warnings, ${PENALTY_PER_VIOLATION} marks will be deducted per violation.`
+                      : `${violationPenalty} marks deducted. Maximum penalty: ${MAX_PENALTY} marks.`
+                    }
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab Switch Warning Banner */}
-          {showTabSwitchWarning && (
-            <div className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 p-4 mb-4" data-testid="alert-tab-switch">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3" />
+          {/* Network Status Warning */}
+          {!isOnline && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertCircle className="w-5 h-5" />
                 <div>
-                  <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                    Tab Switch Detected ({tabSwitchCount}/3 warnings)
-                  </p>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    Please remain on the exam page. Multiple tab switches may be flagged for review.
-                  </p>
+                  <p className="font-semibold">No Internet Connection</p>
+                  <p className="text-sm">Your answers are saved locally and will sync when connection is restored.</p>
                 </div>
               </div>
             </div>
@@ -1880,17 +1907,17 @@ export default function StudentExams() {
                     onClick={() => {
                       const answeredCount = Object.keys(answers).length;
                       const unanswered = examQuestions.length - answeredCount;
-                      
+
                       let confirmMessage = '';
                       if (unanswered > 0) {
                         confirmMessage = `You have answered ${answeredCount} out of ${examQuestions.length} questions. ${unanswered} questions are unanswered.\n\nAre you sure you want to submit your exam? Unanswered questions will receive zero marks.`;
                       } else {
                         confirmMessage = `You have answered all ${examQuestions.length} questions.\n\nAre you ready to submit your exam? You cannot change your answers after submission.`;
                       }
-                      
+
                       const confirmed = window.confirm(confirmMessage);
                       if (!confirmed) return;
-                      
+
                       handleSubmitExam();
                     }}
                     disabled={isSubmitting || hasPendingSaves() || isScoring}
@@ -1914,170 +1941,212 @@ export default function StudentExams() {
 
             {/* Main Content Area */}
             <div className="flex-1 space-y-6">
-              {/* Exam Header */}
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
+              {/* Exam Header with Timer */}
+              <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+                <div className="max-w-4xl mx-auto px-4 py-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>{selectedExam?.name}</CardTitle>
-                      <p className="text-muted-foreground">
-                        Question {currentQuestionIndex + 1} of {examQuestions.length} • Total Marks: {selectedExam?.totalMarks}
+                      <h1 className="text-2xl font-bold text-gray-900">{selectedExam?.name}</h1>
+                      <p className="text-sm text-gray-600">
+                        Question {currentQuestionIndex + 1} of {examQuestions.length}
                       </p>
-                      {selectedExam?.instructions && (
-                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                          <p className="text-sm text-blue-800 dark:text-blue-200">
-                            <strong>Instructions:</strong> {selectedExam.instructions}
-                          </p>
+                      {/* Violation Counter */}
+                      {tabSwitchCount > 0 && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <Badge variant="destructive" className="text-xs">
+                            {tabSwitchCount} Violation{tabSwitchCount !== 1 ? 's' : ''}
+                          </Badge>
+                          {violationPenalty > 0 && (
+                            <span className="text-xs text-red-600 font-semibold">
+                              -{violationPenalty} marks penalty
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {/* Fullscreen Toggle */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!document.fullscreenElement) {
+                            document.documentElement.requestFullscreen();
+                            setIsFullScreen(true);
+                          } else {
+                            document.exitFullscreen();
+                            setIsFullScreen(false);
+                          }
+                        }}
+                        title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                      >
+                        {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                      </Button>
+
+                      {/* Timer Display */}
+                      {timeRemaining !== null && (
+                        <div className="text-right">
+                          <div className={`text-3xl font-bold ${getTimerColor(timeRemaining)}`}>
+                            {formatTime(timeRemaining)}
+                          </div>
+                          <div className="w-32 bg-gray-200 rounded-full h-2 mt-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-1000 ${
+                                getTimerProgress() > 50 ? 'bg-green-500' :
+                                getTimerProgress() > 20 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${getTimerProgress()}%` }}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
-                  <Progress value={progress} className="w-full mt-2" />
-                </CardHeader>
-              </Card>
+                </div>
+              </div>
 
-          {/* Current Question */}
-          {currentQuestion && (
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg">
-                    Question {currentQuestionIndex + 1}
-                    <Badge variant="outline" className="ml-2">
-                      {currentQuestion.points} points
-                    </Badge>
-                  </CardTitle>
-                  <div className="flex items-center space-x-2">
-                    {getSaveStatusIndicator(currentQuestion.id)}
-                    {questionSaveStatus[currentQuestion.id] === 'failed' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
-                        disabled={submitAnswerMutation.isPending}
-                        data-testid="button-retry-answer"
-                        className="text-xs"
+              {/* Current Question */}
+              {currentQuestion && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg">
+                        Question {currentQuestionIndex + 1}
+                        <Badge variant="outline" className="ml-2">
+                          {currentQuestion.points} points
+                        </Badge>
+                      </CardTitle>
+                      <div className="flex items-center space-x-2">
+                        {getSaveStatusIndicator(currentQuestion.id)}
+                        {questionSaveStatus[currentQuestion.id] === 'failed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
+                            disabled={submitAnswerMutation.isPending}
+                            data-testid="button-retry-answer"
+                            className="text-xs"
+                          >
+                            <RotateCcw className="w-3 h-3 mr-1" />
+                            Retry Save
+                          </Button>
+                        )}
+                        {!isOnline && (
+                          <div className="flex items-center space-x-1 text-orange-500 text-xs">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>Offline</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-base leading-relaxed" data-testid="question-text">
+                      {currentQuestion.questionText}
+                    </p>
+
+                    {/* Multiple Choice */}
+                    {currentQuestion.questionType === 'multiple_choice' && (
+                      <RadioGroup
+                        value={answers[currentQuestion.id]?.toString() || ''}
+                        onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
+                        data-testid="question-options"
                       >
-                        <RotateCcw className="w-3 h-3 mr-1" />
-                        Retry Save
+                        {questionOptions.map((option, index) => (
+                          <div key={option.id} className="flex items-center space-x-2">
+                            <RadioGroupItem
+                              value={option.id.toString()}
+                              id={`option-${option.id}`}
+                              data-testid={`option-${index}`}
+                            />
+                            <Label
+                              htmlFor={`option-${option.id}`}
+                              className="text-base cursor-pointer flex-1"
+                            >
+                              {option.optionText}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    )}
+
+                    {/* Text/Essay Questions */}
+                    {(currentQuestion.questionType === 'text' || currentQuestion.questionType === 'essay') && (
+                      <Textarea
+                        placeholder="Enter your answer here..."
+                        value={answers[currentQuestion.id] || ''}
+                        onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
+                        rows={currentQuestion.questionType === 'essay' ? 8 : 4}
+                        data-testid="text-answer"
+                      />
+                    )}
+
+                    {/* Navigation */}
+                    <div className="flex justify-between pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          // Save current answer before navigating
+                          const currentAnswer = answers[currentQuestion.id];
+                          if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                            const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                            const isNewAnswer = !existingAnswer || 
+                              (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+
+                            if (isNewAnswer) {
+                              submitAnswerMutation.mutate({ 
+                                questionId: currentQuestion.id, 
+                                answer: currentAnswer, 
+                                questionType: currentQuestion.questionType 
+                              });
+                            }
+                          }
+                          setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+                        }}
+                        disabled={currentQuestionIndex === 0}
+                        data-testid="button-previous"
+                      >
+                        Previous
                       </Button>
-                    )}
-                    {!isOnline && (
-                      <div className="flex items-center space-x-1 text-orange-500 text-xs">
-                        <AlertCircle className="w-3 h-3" />
-                        <span>Offline</span>
+
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <span>{currentQuestionIndex + 1} of {examQuestions.length}</span>
+                        {hasPendingSaves() && (
+                          <div className="flex items-center space-x-1 text-blue-500">
+                            <Loader className="w-3 h-3 animate-spin" />
+                            <span>Saving...</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-base leading-relaxed" data-testid="question-text">
-                  {currentQuestion.questionText}
-                </p>
 
-                {/* Multiple Choice */}
-                {currentQuestion.questionType === 'multiple_choice' && (
-                  <RadioGroup
-                    value={answers[currentQuestion.id]?.toString() || ''}
-                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
-                    data-testid="question-options"
-                  >
-                    {questionOptions.map((option, index) => (
-                      <div key={option.id} className="flex items-center space-x-2">
-                        <RadioGroupItem
-                          value={option.id.toString()}
-                          id={`option-${option.id}`}
-                          data-testid={`option-${index}`}
-                        />
-                        <Label
-                          htmlFor={`option-${option.id}`}
-                          className="text-base cursor-pointer flex-1"
-                        >
-                          {option.optionText}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
+                      <Button
+                        onClick={() => {
+                          // Save current answer before navigating
+                          const currentAnswer = answers[currentQuestion.id];
+                          if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                            const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                            const isNewAnswer = !existingAnswer || 
+                              (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
 
-                {/* Text/Essay Questions */}
-                {(currentQuestion.questionType === 'text' || currentQuestion.questionType === 'essay') && (
-                  <Textarea
-                    placeholder="Enter your answer here..."
-                    value={answers[currentQuestion.id] || ''}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
-                    rows={currentQuestion.questionType === 'essay' ? 8 : 4}
-                    data-testid="text-answer"
-                  />
-                )}
-
-                {/* Navigation */}
-                <div className="flex justify-between pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      // Save current answer before navigating
-                      const currentAnswer = answers[currentQuestion.id];
-                      if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
-                        const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
-                        const isNewAnswer = !existingAnswer || 
-                          (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
-
-                        if (isNewAnswer) {
-                          submitAnswerMutation.mutate({ 
-                            questionId: currentQuestion.id, 
-                            answer: currentAnswer, 
-                            questionType: currentQuestion.questionType 
-                          });
-                        }
-                      }
-                      setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
-                    }}
-                    disabled={currentQuestionIndex === 0}
-                    data-testid="button-previous"
-                  >
-                    Previous
-                  </Button>
-
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <span>{currentQuestionIndex + 1} of {examQuestions.length}</span>
-                    {hasPendingSaves() && (
-                      <div className="flex items-center space-x-1 text-blue-500">
-                        <Loader className="w-3 h-3 animate-spin" />
-                        <span>Saving...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <Button
-                    onClick={() => {
-                      // Save current answer before navigating
-                      const currentAnswer = answers[currentQuestion.id];
-                      if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
-                        const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
-                        const isNewAnswer = !existingAnswer || 
-                          (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
-
-                        if (isNewAnswer) {
-                          submitAnswerMutation.mutate({ 
-                            questionId: currentQuestion.id, 
-                            answer: currentAnswer, 
-                            questionType: currentQuestion.questionType 
-                          });
-                        }
-                      }
-                      setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
-                    }}
-                    disabled={currentQuestionIndex === examQuestions.length - 1}
-                    data-testid="button-next"
-                  >
-                    Next
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                            if (isNewAnswer) {
+                              submitAnswerMutation.mutate({ 
+                                questionId: currentQuestion.id, 
+                                answer: currentAnswer, 
+                                questionType: currentQuestion.questionType 
+                              });
+                            }
+                          }
+                          setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
+                        }}
+                        disabled={currentQuestionIndex === examQuestions.length - 1}
+                        data-testid="button-next"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

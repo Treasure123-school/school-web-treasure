@@ -262,6 +262,7 @@ export const examSessions = pgTable("exam_sessions", {
   score: integer("score"),
   maxScore: integer("max_score"),
   status: varchar("status", { length: 20 }).default('in_progress'), // 'in_progress', 'submitted', 'graded'
+  metadata: text("metadata"), // JSON string for violation tracking, progress saving, etc.
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   // PERFORMANCE INDEX: Critical for session lookups

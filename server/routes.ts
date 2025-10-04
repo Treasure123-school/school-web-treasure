@@ -132,16 +132,16 @@ const BCRYPT_ROUNDS = 12;
 // Periodic cleanup of expired violations and login attempts
 setInterval(() => {
   const now = Date.now();
-  
+
   // Clean up old login attempts
-  for (const [key, data] of loginAttempts.entries()) {
+  for (const [key, data] of Array.from(loginAttempts.entries())) {
     if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
       loginAttempts.delete(key);
     }
   }
-  
+
   // Clean up old lockout violations
-  for (const [identifier, data] of lockoutViolations.entries()) {
+  for (const [identifier, data] of Array.from(lockoutViolations.entries())) {
     const recentViolations = data.timestamps.filter((ts: number) => now - ts < LOCKOUT_VIOLATION_WINDOW);
     if (recentViolations.length === 0) {
       lockoutViolations.delete(identifier);
@@ -314,7 +314,7 @@ const uploadCSV = multer({
   fileFilter: (req, file, cb) => {
     const isCSV = /csv|txt/.test(path.extname(file.originalname).toLowerCase());
     const mimeOk = /text\/(csv|plain)|application\/(vnd\.ms-excel|csv)/.test(file.mimetype);
-    
+
     if (isCSV || mimeOk) {
       return cb(null, true);
     } else {
@@ -333,15 +333,15 @@ async function autoPublishScheduledExams(): Promise<void> {
 
     if (scheduledExams.length > 0) {
       console.log(`📅 Found ${scheduledExams.length} exams ready to publish`);
-      
+
       for (const exam of scheduledExams) {
         try {
           console.log(`🚀 AUTO-PUBLISH: Publishing exam ${exam.id} - ${exam.name}`);
-          
+
           await storage.updateExam(exam.id, {
             isPublished: true
           });
-          
+
           console.log(`✅ Successfully published exam ${exam.id}`);
         } catch (error) {
           console.error(`❌ Failed to auto-publish exam ${exam.id}:`, error);
@@ -683,7 +683,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
     const essayQuestions = examQuestions.filter((q: any) => 
       q.questionType === 'text' || q.questionType === 'essay'
     );
-    
+
     const gradedEssayAnswers = allAnswers.filter((a: any) => {
       const question = examQuestions.find((q: any) => q.id === a.questionId);
       const isEssay = question?.questionType === 'text' || question?.questionType === 'essay';
@@ -705,7 +705,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
 
     for (const question of examQuestions) {
       maxScore += question.points || 0;
-      
+
       const studentAnswer = allAnswers.find((a: any) => a.questionId === question.id);
       if (studentAnswer) {
         // Treat undefined/null as 0 to be safe
@@ -787,14 +787,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasCode: !!req.query.code,
         hasError: !!req.query.error
       });
-      
+
       passport.authenticate('google', async (err: any, user: any, info: any) => {
         if (err) {
           console.error('❌ Google OAuth error:', err);
           console.error('Error details:', { message: err.message, stack: err.stack });
           return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Authentication failed. Please try again.'));
         }
-        
+
         if (!user) {
           const message = info?.message || 'Authentication failed';
           console.error('❌ Google OAuth: No user returned. Info:', info);
@@ -804,19 +804,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Handle new user requiring approval
         if (user.isNewUser && user.requiresApproval) {
           console.log('📝 Creating pending staff account for:', user.email);
-          
+
           try {
             // Check if an invite exists for this email
             const invite = await storage.getPendingInviteByEmail(user.email);
             const roleId = invite ? invite.roleId : ROLES.TEACHER; // Default to teacher if no invite
-            
+
             // Generate THS username
             const currentYear = new Date().getFullYear().toString();
             const existingUsers = await storage.getUsersByRole(roleId);
             const existingUsernames = existingUsers.map((u: any) => u.username).filter(Boolean);
             const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
             const username = generateUsername(roleId, currentYear, '', nextNumber);
-            
+
             // Create PENDING account
             const newUser = await storage.createUser({
               email: user.email,
@@ -833,14 +833,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdVia: invite ? 'invite' : 'google',
               isActive: true,
             });
-            
+
             // If invite exists, mark it as accepted
             if (invite) {
               await storage.markInviteAsAccepted(invite.id, newUser.id);
             }
-            
+
             console.log('✅ Created pending account for:', user.email);
-            
+
             // Log audit event
             await storage.createAuditLog({
               userId: newUser.id,
@@ -852,14 +852,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ipAddress: req.ip,
               userAgent: req.headers['user-agent']
             });
-            
+
             // Notify all admins about the new pending user
             try {
               const admins = await storage.getUsersByRole(ROLES.ADMIN);
               if (admins && admins.length > 0) {
                 const role = await storage.getRole(roleId);
                 const roleName = role?.name || (roleId === ROLES.ADMIN ? 'Admin' : 'Teacher');
-                
+
                 for (const admin of admins) {
                   await storage.createNotification({
                     userId: admin.id,
@@ -879,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.error('❌ Failed to create admin notifications:', notifError);
               // Don't fail the user creation if notification fails
             }
-            
+
             // DENY LOGIN - redirect with clear pending approval message
             return res.redirect('/login?oauth_status=pending_approval');
           } catch (error) {
@@ -1198,17 +1198,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
         console.warn(`Rate limit exceeded for ${attemptKey}`);
-        
+
         // Track violation for account lockout with timestamp
         if (identifier) {
           // Clean up expired violations
           const violationData = lockoutViolations.get(identifier) || { count: 0, timestamps: [] };
           const recentViolations = violationData.timestamps.filter((ts: number) => now - ts < LOCKOUT_VIOLATION_WINDOW);
-          
+
           // Add current violation
           recentViolations.push(now);
           lockoutViolations.set(identifier, { count: recentViolations.length, timestamps: recentViolations });
-          
+
           // Suspend account after threshold violations within the window
           if (recentViolations.length >= MAX_RATE_LIMIT_VIOLATIONS) {
             try {
@@ -1219,17 +1219,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } else {
                 userToSuspend = await storage.getUserByUsername(identifier);
               }
-              
+
               if (userToSuspend && userToSuspend.status !== 'suspended') {
                 await storage.updateUserStatus(userToSuspend.id, 'suspended', 'system', `Automatic suspension due to ${recentViolations.length} rate limit violations within 1 hour`);
                 console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
                 lockoutViolations.delete(identifier); // Clear violations after suspension
-                
+
                 // Get user role to provide appropriate message
                 const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
                 const isStaffForSuspension = roleNameForSuspension === 'admin' || roleNameForSuspension === 'teacher';
-                
+
                 return res.status(403).json({
                   message: isStaffForSuspension
                     ? "Access denied: Your account has been suspended by THS Admin."
@@ -1241,7 +1241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-        
+
         return res.status(429).json({ 
           message: "Too many login attempts. Please try again in 15 minutes." 
         });
@@ -1399,7 +1399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log(`Password changed successfully for user ${userId}`);
-      
+
       res.json({ message: "Password changed successfully" });
     } catch (error) {
       console.error('Password change error:', error);
@@ -1413,19 +1413,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Forgot password - Request reset token (ENHANCED WITH RATE LIMITING & EMAIL)
   app.post("/api/auth/forgot-password", async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
-    
+
     try {
       const { identifier } = z.object({ identifier: z.string().min(1) }).parse(req.body);
-      
+
       // RATE LIMITING: Check recent reset attempts (max 3 per hour per identifier)
       const recentAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
-      
+
       if (recentAttempts.length >= 3) {
         log(`🚨 Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
-        
+
         // Track failed attempt
         await storage.createPasswordResetAttempt(identifier, ipAddress, false);
-        
+
         // Check for suspicious activity (5+ attempts in 60 min = lock account temporarily)
         const suspiciousAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
         if (suspiciousAttempts.length >= 5) {
@@ -1434,7 +1434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const lockUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
             await storage.lockAccount(user.id, lockUntil);
             log(`🔒 Account temporarily locked due to suspicious password reset activity: ${user.id}`);
-            
+
             // Create audit log
             await storage.createAuditLog({
               userId: user.id,
@@ -1449,21 +1449,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
-        
+
         return res.status(429).json({ 
           message: "Too many password reset attempts. Please try again later." 
         });
       }
-      
+
       // Find user by email or username
       let user = await storage.getUserByEmail(identifier);
       if (!user) {
         user = await storage.getUserByUsername(identifier);
       }
-      
+
       // Track attempt
       await storage.createPasswordResetAttempt(identifier, ipAddress, !!user);
-      
+
       // Don't reveal if user exists or not (security best practice)
       if (!user) {
         return res.json({ 
@@ -1482,16 +1482,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate secure random token
       const crypto = require('crypto');
       const resetToken = crypto.randomBytes(32).toString('hex');
-      
+
       // Token expires in 15 minutes
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-      
+
       // Save token to database with IP tracking
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt, ipAddress);
-      
+
       // Get recovery email (fallback to primary email if not set)
       const recoveryEmail = user.recoveryEmail || user.email;
-      
+
       // Create audit log
       await storage.createAuditLog({
         userId: user.id,
@@ -1504,32 +1504,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress,
         userAgent: req.headers['user-agent'] || null,
       });
-      
+
       // Send email with reset link
-      const resetLink = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/reset-password?token=${resetToken}`;
-      
+      const resetLink = `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/reset-password?token=${resetToken}`;
+
       // Import email service
       const { sendEmail, getPasswordResetEmailHTML } = await import('./email-service');
-      
+
       // Send email with HTML template
       const emailSent = await sendEmail({
         to: recoveryEmail,
         subject: 'THS Portal - Password Reset Request',
         html: getPasswordResetEmailHTML(`${user.firstName} ${user.lastName}`, resetLink)
       });
-      
+
       if (!emailSent && process.env.NODE_ENV === 'production') {
         log(`❌ Failed to send password reset email to ${recoveryEmail}`);
         return res.status(500).json({ 
           message: "Failed to send password reset email. Please try again later or contact administrator." 
         });
       }
-      
+
       // In development without API key, show the reset code/token for testing
       if (process.env.NODE_ENV === 'development' && !process.env.RESEND_API_KEY) {
         log(`📧 DEV MODE - Password Reset Token: ${resetToken}`);
         log(`📧 DEV MODE - Reset Link: ${resetLink}`);
-        
+
         return res.json({ 
           message: "Password reset code generated (Development Mode).",
           developmentMode: true,
@@ -1540,15 +1540,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           instructions: "Use the resetToken as your reset code, or click the resetLink"
         });
       }
-      
+
       log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
-      
+
       res.json({ 
         message: "If an account exists with that email/username, a password reset link will be sent." 
       });
     } catch (error) {
       console.error('Forgot password error:', error);
-      
+
       // Track failed attempt
       try {
         const { identifier } = req.body;
@@ -1558,7 +1558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (trackError) {
         console.error('Failed to track attempt:', trackError);
       }
-      
+
       res.status(500).json({ message: "Failed to process password reset request" });
     }
   });
@@ -1566,7 +1566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reset password with token (ENHANCED WITH NOTIFICATIONS & AUDIT)
   app.post("/api/auth/reset-password", async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
-    
+
     try {
       const { token, newPassword } = z.object({
         token: z.string().min(1),
@@ -1576,31 +1576,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .refine(pwd => /[0-9]/.test(pwd), "Must contain at least one number")
           .refine(pwd => /[!@#$%^&*]/.test(pwd), "Must contain at least one special character (!@#$%^&*)")
       }).parse(req.body);
-      
+
       // Verify token exists and is valid
       const resetToken = await storage.getPasswordResetToken(token);
       if (!resetToken) {
         return res.status(400).json({ message: "Invalid or expired reset token" });
       }
-      
+
       // Get user details for notification
       const user = await storage.getUser(resetToken.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Hash new password
       const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-      
+
       // Update user password
       await storage.updateUser(resetToken.userId, {
         passwordHash: newPasswordHash,
         mustChangePassword: false
       });
-      
+
       // Mark token as used
       await storage.markPasswordResetTokenAsUsed(token);
-      
+
       // Create audit log
       await storage.createAuditLog({
         userId: resetToken.userId,
@@ -1613,17 +1613,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress,
         userAgent: req.headers['user-agent'] || null,
       });
-      
+
       // Send notification email to user
       const recoveryEmail = user.recoveryEmail || user.email;
       const { sendEmail, getPasswordChangedEmailHTML } = await import('./email-service');
-      
+
       await sendEmail({
         to: recoveryEmail,
         subject: 'THS Portal - Password Changed',
         html: getPasswordChangedEmailHTML(`${user.firstName} ${user.lastName}`, ipAddress)
       });
-      
+
       log(`✅ Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
@@ -1644,30 +1644,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin reset user password (ENHANCED WITH AUDIT & NOTIFICATION)
   app.post("/api/admin/reset-user-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
-    
+
     try {
       const { userId, newPassword, forceChange } = z.object({
         userId: z.string().uuid(),
         newPassword: z.string().min(6).max(100).optional(),
         forceChange: z.boolean().optional().default(true)
       }).parse(req.body);
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Generate new password if not provided
       const { generatePassword } = await import('./auth-utils');
       const currentYear = new Date().getFullYear().toString();
       const password = newPassword || generatePassword(currentYear);
-      
+
       // Hash password
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-      
+
       // Use the enhanced admin reset method with audit logging
       await storage.adminResetUserPassword(userId, passwordHash, req.user!.id, forceChange);
-      
+
       // Send notification to user
       const recoveryEmail = user.recoveryEmail || user.email;
       const notificationSubject = 'THS Portal - Password Reset by Administrator';
@@ -1689,7 +1689,7 @@ If you did not request this password reset, please contact the school administra
 Thank you,
 Treasure-Home School Administration
 `;
-      
+
       // In development, log the notification
       if (process.env.NODE_ENV === 'development') {
         console.log(`\n📧 ADMIN PASSWORD RESET NOTIFICATION:`);
@@ -1697,12 +1697,12 @@ Treasure-Home School Administration
         console.log(`Subject: ${notificationSubject}`);
         console.log(`Body:\n${notificationBody}\n`);
       }
-      
+
       // TODO: In production, send actual email
       // await sendEmail({ to: recoveryEmail, subject: notificationSubject, text: notificationBody });
-      
+
       log(`✅ Admin ${req.user?.email} reset password for user ${userId}`);
-      
+
       res.json({ 
         message: "Password reset successfully",
         tempPassword: password,
@@ -1722,21 +1722,21 @@ Treasure-Home School Administration
         userId: z.string().uuid(),
         recoveryEmail: z.string().email()
       }).parse(req.body);
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Update recovery email with audit logging
       const success = await storage.updateRecoveryEmail(userId, recoveryEmail, req.user!.id);
-      
+
       if (!success) {
         return res.status(500).json({ message: "Failed to update recovery email" });
       }
-      
+
       log(`✅ Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
-      
+
       res.json({ 
         message: "Recovery email updated successfully",
         oldEmail: user.recoveryEmail || user.email,
@@ -1757,19 +1757,19 @@ Treasure-Home School Administration
       const { userId } = z.object({
         userId: z.string().uuid()
       }).parse(req.body);
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Unlock the account
       const success = await storage.unlockAccount(userId);
-      
+
       if (!success) {
         return res.status(500).json({ message: "Failed to unlock account" });
       }
-      
+
       // Create audit log
       await storage.createAuditLog({
         userId: req.user!.id,
@@ -1782,9 +1782,9 @@ Treasure-Home School Administration
         ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
         userAgent: req.headers['user-agent'] || null,
       });
-      
+
       log(`✅ Admin ${req.user?.email} unlocked account for user ${userId}`);
-      
+
       res.json({ 
         message: "Account unlocked successfully",
         username: user.username || user.email
@@ -1803,13 +1803,13 @@ Treasure-Home School Administration
   app.get("/api/admin/suspended-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const suspendedUsers = await storage.getUsersByStatus('suspended');
-      
+
       // Remove sensitive data
       const sanitizedUsers = suspendedUsers.map(user => {
         const { passwordHash, ...safeUser } = user;
         return safeUser;
       });
-      
+
       res.json(sanitizedUsers);
     } catch (error) {
       console.error('Failed to fetch suspended accounts:', error);
@@ -1822,7 +1822,7 @@ Treasure-Home School Administration
     try {
       const { userId } = req.params;
       const { reason } = req.body;
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -1848,7 +1848,7 @@ Treasure-Home School Administration
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
-      
+
       res.json({
         message: "Account unlocked successfully",
         user: safeUser
@@ -1896,7 +1896,7 @@ Treasure-Home School Administration
       // Generate secure token
       const crypto = require('crypto');
       const token = crypto.randomBytes(32).toString('hex');
-      
+
       // Set expiry to 7 days from now
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -1912,7 +1912,7 @@ Treasure-Home School Administration
       // In production, send email with invite link
       // For development, return the token
       const inviteLink = `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/invite/${token}`;
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.log(`Invite created for ${email}: ${inviteLink}`);
         return res.json({
@@ -1973,7 +1973,7 @@ Treasure-Home School Administration
   app.get("/api/invites/:token", async (req, res) => {
     try {
       const { token } = req.params;
-      
+
       const invite = await storage.getInviteByToken(token);
       if (!invite) {
         return res.status(404).json({ message: "Invalid or expired invite" });
@@ -2075,7 +2075,7 @@ Treasure-Home School Administration
   app.delete("/api/invites/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const inviteId = parseInt(req.params.id);
-      
+
       const deleted = await storage.deleteInvite(inviteId);
       if (!deleted) {
         return res.status(404).json({ message: "Invite not found" });
@@ -2162,11 +2162,11 @@ Treasure-Home School Administration
   app.get("/api/users/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const pendingUsers = await storage.getUsersByStatus('pending');
-      
+
       // PERFORMANCE: Fetch all roles once instead of per-user
       const allRoles = await storage.getRoles();
       const roleMap = new Map(allRoles.map(r => [r.id, r.name]));
-      
+
       // Remove sensitive data and enrich with role information
       const enrichedUsers = pendingUsers.map((user) => {
         const { passwordHash, ...safeUser } = user;
@@ -2175,7 +2175,7 @@ Treasure-Home School Administration
           roleName: roleMap.get(user.roleId) || 'Unknown'
         };
       });
-      
+
       res.json(enrichedUsers);
     } catch (error) {
       console.error('Error fetching pending users:', error);
@@ -2188,7 +2188,7 @@ Treasure-Home School Administration
     try {
       const { id } = req.params;
       const adminUser = req.user;
-      
+
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -2205,7 +2205,7 @@ Treasure-Home School Administration
 
       // Approve the user
       const approvedUser = await storage.approveUser(id, adminUser.id);
-      
+
       // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
         userId: adminUser.id,
@@ -2221,7 +2221,7 @@ Treasure-Home School Administration
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = approvedUser;
-      
+
       res.json({
         message: "User approved successfully",
         user: safeUser
@@ -2238,7 +2238,7 @@ Treasure-Home School Administration
       const { id } = req.params;
       const { status, reason } = req.body;
       const adminUser = req.user;
-      
+
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -2256,10 +2256,10 @@ Treasure-Home School Administration
       }
 
       const oldStatus = user.status;
-      
+
       // Update the user status
       const updatedUser = await storage.updateUserStatus(id, status, adminUser.id, reason);
-      
+
       // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
         userId: adminUser.id,
@@ -2275,7 +2275,7 @@ Treasure-Home School Administration
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
-      
+
       res.json({
         message: `User status updated to ${status}`,
         user: safeUser
@@ -2291,7 +2291,7 @@ Treasure-Home School Administration
     try {
       const { id } = req.params;
       const adminUser = req.user;
-      
+
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -2309,7 +2309,7 @@ Treasure-Home School Administration
 
       // Delete the user - this will CASCADE delete related records
       const deleted = await storage.deleteUser(id);
-      
+
       if (!deleted) {
         return res.status(500).json({ message: "Failed to delete user" });
       }
@@ -2335,7 +2335,7 @@ Treasure-Home School Administration
       res.status(204).send(); // 204 No Content for successful delete (instant response)
     } catch (error: any) {
       console.error('Error deleting user:', error);
-      
+
       // Handle foreign key constraint errors with clear message
       if (error?.cause?.code === '23503' || error?.message?.includes('foreign key constraint')) {
         const relatedTable = error?.cause?.table_name || 'related records';
@@ -2343,7 +2343,7 @@ Treasure-Home School Administration
           message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead of deleting it.`
         });
       }
-      
+
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
@@ -2357,7 +2357,7 @@ Treasure-Home School Administration
         forceChange: z.boolean().optional().default(true)
       }).parse(req.body);
       const adminUser = req.user;
-      
+
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -2421,7 +2421,7 @@ Treasure-Home School Administration
         roleId: z.number().int().positive()
       }).parse(req.body);
       const adminUser = req.user;
-      
+
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -2606,18 +2606,18 @@ Treasure-Home School Administration
       // Read and parse CSV file
       const csvContent = await fs.readFile(req.file.path, 'utf-8');
       const lines = csvContent.trim().split('\n');
-      
+
       if (lines.length < 2) {
         return res.status(400).json({ message: "CSV file must contain header and at least one row" });
       }
 
       // Parse header
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
+
       // Expected columns: studentName, class, rollNo, parentName, parentEmail
       const requiredColumns = ['studentname', 'class', 'parentname', 'parentemail'];
       const hasRequiredColumns = requiredColumns.every(col => headers.includes(col));
-      
+
       if (!hasRequiredColumns) {
         return res.status(400).json({ 
           message: "CSV must contain columns: studentName, class, parentName, parentEmail" 
@@ -2626,7 +2626,7 @@ Treasure-Home School Administration
 
       const currentYear = new Date().getFullYear().toString();
       const { generateUsername, generatePassword } = await import('./auth-utils');
-      
+
       // Get all existing usernames to ensure uniqueness
       const existingUsernames = await storage.getAllUsernames();
       const createdUsers: any[] = [];
@@ -2635,7 +2635,7 @@ Treasure-Home School Administration
       // Get roles
       const studentRole = await storage.getRoleByName('Student');
       const parentRole = await storage.getRoleByName('Parent');
-      
+
       if (!studentRole || !parentRole) {
         return res.status(500).json({ message: "Required roles not found in database" });
       }
@@ -2644,7 +2644,7 @@ Treasure-Home School Administration
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
         const row: Record<string, string> = {};
-        
+
         headers.forEach((header, index) => {
           row[header] = values[index] || '';
         });
@@ -2703,7 +2703,7 @@ Treasure-Home School Administration
           // Get class
           const classObj = await storage.getClasses();
           const studentClass = classObj.find(c => c.name.toLowerCase() === className.toLowerCase());
-          
+
           if (!studentClass) {
             errors.push(`Row ${i + 1}: Class "${className}" not found`);
             continue;
@@ -2782,18 +2782,18 @@ Treasure-Home School Administration
   app.post("/api/users/generate-login-slips", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { users } = req.body;
-      
+
       if (!Array.isArray(users) || users.length === 0) {
         return res.status(400).json({ message: "Users array is required and must not be empty" });
       }
 
       // Create PDF document
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
-      
+
       // Set response headers for PDF download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="THS-Login-Slips-${new Date().toISOString().split('T')[0]}.pdf"`);
-      
+
       // Pipe PDF to response
       doc.pipe(res);
 
@@ -2875,7 +2875,7 @@ Treasure-Home School Administration
   app.post("/api/users/bulk-import", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { users, year } = req.body;
-      
+
       if (!Array.isArray(users) || users.length === 0) {
         return res.status(400).json({ message: "Users array is required and must not be empty" });
       }
@@ -2886,7 +2886,7 @@ Treasure-Home School Administration
 
       // Get all existing usernames to generate unique ones
       const existingUsernames = await storage.getAllUsernames();
-      
+
       const results = [];
       const errors = [];
 
@@ -2907,7 +2907,7 @@ Treasure-Home School Administration
           const optional = roleId === ROLES.STUDENT ? classLevel || '' : roleId === ROLES.TEACHER ? subject || '' : '';
           const nextNumber = getNextUserNumber(existingUsernames, roleId, year, optional);
           const username = generateUsername(roleId, year, optional, nextNumber);
-          
+
           // Generate password
           const password = generatePassword(year);
           const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -2971,6 +2971,99 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Bulk import error:', error);
       res.status(500).json({ message: "Bulk import failed. Please try again." });
+    }
+  });
+
+  // Generate printable login slips (PDF)
+  app.post("/api/users/generate-login-slips", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { users } = req.body;
+
+      if (!Array.isArray(users) || users.length === 0) {
+        return res.status(400).json({ message: "Users array is required and must not be empty" });
+      }
+
+      // Create PDF document
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="THS-Login-Slips-${new Date().toISOString().split('T')[0]}.pdf"`);
+
+      // Pipe PDF to response
+      doc.pipe(res);
+
+      // Add header
+      doc.fontSize(20).font('Helvetica-Bold').text('Treasure-Home School', { align: 'center' });
+      doc.fontSize(12).font('Helvetica').text('Login Credentials', { align: 'center' });
+      doc.moveDown(2);
+
+      // Generate login slips for each user
+      users.forEach((user: any, index: number) => {
+        if (index > 0) {
+          doc.addPage();
+        }
+
+        // Draw a border
+        doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60).stroke();
+
+        // Title
+        doc.fontSize(18).font('Helvetica-Bold').text('Login Information', 50, 60, { align: 'center' });
+        doc.moveDown(1.5);
+
+        // User details
+        const startY = 120;
+        doc.fontSize(14).font('Helvetica-Bold');
+        doc.text('Name:', 70, startY);
+        doc.font('Helvetica').text(`${user.firstName} ${user.lastName}`, 200, startY);
+
+        doc.font('Helvetica-Bold').text('Role:', 70, startY + 30);
+        const roleNames = { 1: 'Admin', 2: 'Teacher', 3: 'Student', 4: 'Parent' };
+        doc.font('Helvetica').text(roleNames[user.roleId as keyof typeof roleNames] || 'Unknown', 200, startY + 30);
+
+        doc.font('Helvetica-Bold').text('Username:', 70, startY + 60);
+        doc.font('Helvetica-Bold').fontSize(16).text(user.username, 200, startY + 60);
+
+        doc.fontSize(14).font('Helvetica-Bold').text('Password:', 70, startY + 90);
+        doc.font('Helvetica-Bold').fontSize(16).text(user.password, 200, startY + 90);
+
+        // Important notice
+        doc.fontSize(12).font('Helvetica-Oblique').text('⚠️ Please change your password immediately after first login', 70, startY + 140, { 
+          width: doc.page.width - 140,
+          align: 'center'
+        });
+
+        // Instructions
+        doc.fontSize(11).font('Helvetica').text('Login Instructions:', 70, startY + 180);
+        doc.fontSize(10).text('1. Go to the school portal login page', 90, startY + 200);
+        doc.text('2. Enter your username and password exactly as shown above', 90, startY + 220);
+        doc.text('3. You will be prompted to create a new secure password', 90, startY + 240);
+        doc.text('4. Keep your new password safe and do not share it with anyone', 90, startY + 260);
+
+        // Footer
+        doc.fontSize(9).font('Helvetica-Oblique').text(
+          `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+          50,
+          doc.page.height - 80,
+          { align: 'center' }
+        );
+
+        doc.fontSize(10).font('Helvetica-Bold').text(
+          'For assistance, contact the school administrator',
+          50,
+          doc.page.height - 60,
+          { align: 'center' }
+        );
+      });
+
+      // Finalize PDF
+      doc.end();
+
+    } catch (error) {
+      console.error('Login slip generation error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to generate login slips" });
+      }
     }
   });
 
@@ -3475,7 +3568,7 @@ Treasure-Home School Administration
   app.get("/api/student/attendance", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ message: "Authentication required" });
+        return res.status(401).json({ message: 'Unauthorized' });
       }
 
       const studentId = req.user.id;
@@ -3543,7 +3636,7 @@ Treasure-Home School Administration
         } else if (error.message.includes('date')) {
           message = "Invalid date format - please use a valid date in YYYY-MM-DD format";
         } else if (error.message.includes('foreign key')) {
-          message = "Invalid reference data - please ensure valid class, subject, and term are selected";
+          message = "Invalid exam reference - please ensure valid class, subject, and term are selected";
         }
 
         res.status(400).json({ message, details });
@@ -3883,7 +3976,7 @@ Treasure-Home School Administration
   app.get("/api/grading/tasks", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { teacher_id, status } = req.query;
-      
+
       if (!teacher_id) {
         return res.status(400).json({ message: "teacher_id parameter is required" });
       }
@@ -4325,7 +4418,7 @@ Treasure-Home School Administration
       // Calculate overall statistics
       const totalMarks = grades.reduce((sum: number, grade: any) => sum + (grade.totalScore || 0), 0);
       const totalPossibleMarks = grades.reduce((sum: number, grade: any) => sum + (grade.testMaxScore || 0) + (grade.examMaxScore || 0), 0);
-      
+
       const averagePercentage = totalPossibleMarks > 0 ? Math.round((totalMarks / totalPossibleMarks) * 100) : 0;
 
       // Determine overall grade
@@ -4494,12 +4587,12 @@ Treasure-Home School Administration
       if (questionDetails !== undefined) updateData.questionDetails = questionDetails;
       if (breakdown !== undefined) updateData.breakdown = breakdown;
       if (immediateResults !== undefined) updateData.immediateResults = immediateResults;
-      
+
       // Updates for finalized status might be handled by a separate endpoint or role
       if (teacherFinalized !== undefined) updateData.teacherFinalized = teacherFinalized;
       if (finalizedAt !== undefined) updateData.finalizedAt = finalizedAt;
       if (finalizedBy !== undefined) updateData.finalizedBy = finalizedBy;
-      
+
       // Apply other allowed updates
       Object.assign(updateData, otherUpdates);
 
@@ -5483,7 +5576,7 @@ Treasure-Home School Administration
 
       // Get all questions for this exam
       const examQuestions = await storage.getExamQuestions(examId);
-      
+
       // Filter for essay/theory questions (non-auto-gradable questions)
       const manualGradingQuestions = examQuestions.filter((q: any) => {
         return q.questionType !== 'multiple_choice' && q.questionType !== 'true_false';
@@ -5519,7 +5612,7 @@ Treasure-Home School Administration
       let tasksCreated = 0;
       for (const question of manualGradingQuestions) {
         const studentAnswer = studentAnswers.find((a: any) => a.questionId === question.id);
-        
+
         if (studentAnswer) {
           // Check if task already exists to avoid duplicates
           const existingTasks = await storage.getGradingTasksBySession(sessionId);
@@ -5747,7 +5840,7 @@ Treasure-Home School Administration
       const user = req.user!;
 
       const result = await storage.completeGradingTask(taskId, pointsEarned, feedbackText);
-      
+
       if (result) {
         // Create audit log
         await storage.createAuditLog({
@@ -5775,7 +5868,7 @@ Treasure-Home School Administration
     try {
       const sessionId = parseInt(req.params.sessionId);
       const scoringData = await storage.getExamScoringData(sessionId);
-      
+
       res.json({
         sessionId,
         maxScore: scoringData.summary.maxScore,
@@ -5794,17 +5887,17 @@ Treasure-Home School Administration
   app.post("/api/report-cards/generate", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { studentId, termId, examIds } = req.body;
-      
+
       // Get all exam results for the student
       const examResults = await storage.getExamResultsByStudent(studentId);
-      
+
       // Filter by termId if provided
       let filteredResults = examResults;
       if (termId) {
         // Filter results by term (would need to join with exams table to get term)
         // For now, just use all results
       }
-      
+
       // Calculate total scores using Test(40) + Exam(60) = Total(100) formula
       const reportData = filteredResults.map(result => ({
         ...result,
@@ -5813,7 +5906,7 @@ Treasure-Home School Administration
         // 2. Apply appropriate weighting
         // 3. Merge scores across test and exam
       }));
-      
+
       res.json({
         studentId,
         termId,
@@ -5830,12 +5923,12 @@ Treasure-Home School Administration
     try {
       const studentId = req.params.studentId;
       const user = req.user!;
-      
+
       // Check authorization - student can only view their own, teachers/admins can view all
       if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const examResults = await storage.getExamResultsByStudent(studentId);
       res.json(examResults);
     } catch (error) {
@@ -5850,18 +5943,18 @@ Treasure-Home School Administration
     try {
       const parentId = req.params.parentId;
       const user = req.user!;
-      
+
       // Parent can only view their own children
       if (user.id !== parentId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const children = await storage.getStudentsByParentId(parentId);
-      
+
       const childrenData = await Promise.all(children.map(async (student: any) => {
         const user = await storage.getUser(student.id);
         const classInfo = student.classId ? await storage.getClass(student.classId) : null;
-        
+
         return {
           id: student.id,
           name: `${user?.firstName} ${user?.lastName}`,
@@ -5869,7 +5962,7 @@ Treasure-Home School Administration
           className: classInfo?.name || 'Not assigned',
         };
       }));
-      
+
       res.json(childrenData);
     } catch (error) {
       console.error('Error fetching parent children:', error);
@@ -5882,7 +5975,7 @@ Treasure-Home School Administration
     try {
       const studentId = req.params.studentId;
       const user = req.user!;
-      
+
       // Verify parent owns this child - CRITICAL SECURITY CHECK
       const student = await storage.getStudent(studentId);
       if (!student) {
@@ -5904,15 +5997,15 @@ Treasure-Home School Administration
           message: "Access denied. You can only view records for children linked to your account." 
         });
       }
-      
+
       const reportCards = await storage.getReportCardsByStudentId(studentId);
-      
+
       const reportCardsData = await Promise.all(reportCards.map(async (report: any) => {
         const term = await storage.getAcademicTerm(report.termId);
         const classInfo = await storage.getClass(report.classId);
         const studentUser = await storage.getUser(studentId);
         const items = await storage.getReportCardItems(report.id);
-        
+
         const itemsData = await Promise.all(items.map(async (item: any) => {
           const subject = await storage.getSubject(item.subjectId);
           return {
@@ -5929,7 +6022,7 @@ Treasure-Home School Administration
             teacherRemarks: item.teacherRemarks,
           };
         }));
-        
+
         return {
           id: report.id,
           studentId: studentId,
@@ -5945,7 +6038,7 @@ Treasure-Home School Administration
           items: itemsData,
         };
       }));
-      
+
       res.json(reportCardsData);
     } catch (error) {
       console.error('Error fetching child report cards:', error);
@@ -5958,13 +6051,13 @@ Treasure-Home School Administration
     try {
       const reportId = parseInt(req.params.reportId);
       const user = req.user!;
-      
+
       // Fetch report card
       const report = await storage.getReportCard(reportId);
       if (!report) {
         return res.status(404).json({ message: "Report card not found" });
       }
-      
+
       // Check authorization BEFORE fetching any additional data
       if (user.roleId === ROLES.PARENT) {
         // Verify parent owns this student - CRITICAL SECURITY CHECK
@@ -5997,13 +6090,13 @@ Treasure-Home School Administration
         // Only admin, teacher, parent, or student can access report cards
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // Generate actual PDF using PDFKit
       const term = await storage.getAcademicTerm(report.termId);
       const classInfo = await storage.getClass(report.classId);
       const studentUser = await storage.getUser(report.studentId);
       const items = await storage.getReportCardItems(report.id);
-      
+
       // Get subject names for items
       const itemsWithSubjects = await Promise.all(items.map(async (item: any) => {
         const subject = await storage.getSubject(item.subjectId);
@@ -6031,16 +6124,16 @@ Treasure-Home School Administration
         .font('Helvetica-Bold')
         .fillColor('#1e40af')
         .text('Treasure-Home School', { align: 'center' });
-      
+
       doc.fontSize(16)
         .fillColor('#666666')
         .text('Seriki-Soyinka Ifo, Ogun State, Nigeria', { align: 'center' });
-      
+
       doc.moveDown(0.5);
       doc.fontSize(20)
         .fillColor('#1e40af')
         .text('Student Report Card', { align: 'center' });
-      
+
       doc.moveDown(1.5);
 
       // Student Information Box
@@ -6048,35 +6141,35 @@ Treasure-Home School Administration
       doc.fontSize(11)
         .font('Helvetica')
         .fillColor('#000000');
-      
+
       // Left column
       doc.text(`Student: ${studentUser?.firstName} ${studentUser?.lastName}`, 50, infoBoxY);
       doc.text(`Class: ${classInfo?.name || 'N/A'}`, 50, infoBoxY + 20);
-      
+
       // Right column
       doc.text(`Term: ${term?.name || 'N/A'} ${term?.year || ''}`, 350, infoBoxY);
       doc.text(`Date Generated: ${new Date().toLocaleDateString()}`, 350, infoBoxY + 20);
-      
+
       doc.moveDown(2);
 
       // Overall Performance Summary Box
       const summaryBoxY = doc.y;
       doc.roundedRect(50, summaryBoxY, 495, 60, 5)
         .fillAndStroke('#f0f9ff', '#3b82f6');
-      
+
       doc.fontSize(12)
         .font('Helvetica-Bold')
         .fillColor('#1e40af')
         .text('Overall Performance', 60, summaryBoxY + 10);
-      
+
       doc.fontSize(11)
         .font('Helvetica')
         .fillColor('#000000');
-      
+
       doc.text(`Average: ${report.averagePercentage || 0}%`, 60, summaryBoxY + 30);
       doc.text(`Grade: ${report.overallGrade || 'N/A'}`, 250, summaryBoxY + 30);
       doc.text(`Status: ${report.status}`, 400, summaryBoxY + 30);
-      
+
       doc.moveDown(3);
 
       // Subject Performance Table
@@ -6084,50 +6177,50 @@ Treasure-Home School Administration
         .font('Helvetica-Bold')
         .fillColor('#1e40af')
         .text('Subject Performance', 50, doc.y);
-      
+
       doc.moveDown(0.5);
-      
+
       // Table headers
       const tableTop = doc.y;
       const colWidths = [180, 70, 70, 70, 80];
       const colPositions = [50, 230, 300, 370, 440];
-      
+
       doc.fontSize(10)
         .font('Helvetica-Bold')
         .fillColor('#ffffff');
-      
+
       // Header background
       doc.rect(50, tableTop, 495, 25)
         .fill('#3b82f6');
-      
+
       doc.text('Subject', colPositions[0] + 5, tableTop + 8);
       doc.text('Test (40)', colPositions[1] + 5, tableTop + 8);
       doc.text('Exam (60)', colPositions[2] + 5, tableTop + 8);
       doc.text('Total (100)', colPositions[3] + 5, tableTop + 8);
       doc.text('Grade', colPositions[4] + 5, tableTop + 8);
-      
+
       // Table rows
       let rowY = tableTop + 30;
       doc.fontSize(10)
         .font('Helvetica')
         .fillColor('#000000');
-      
+
       itemsWithSubjects.forEach((item: any, index: number) => {
         // Alternate row colors
         if (index % 2 === 0) {
           doc.rect(50, rowY - 5, 495, 25).fill('#f8fafc');
         }
-        
+
         doc.fillColor('#000000');
         doc.text(item.subjectName, colPositions[0] + 5, rowY, { width: colWidths[0] - 10, lineBreak: false, ellipsis: true });
         doc.text(`${item.testWeightedScore || 0}/40`, colPositions[1] + 5, rowY);
         doc.text(`${item.examWeightedScore || 0}/60`, colPositions[2] + 5, rowY);
         doc.text(`${item.obtainedMarks || 0}/100`, colPositions[3] + 5, rowY);
         doc.text(item.grade || 'N/A', colPositions[4] + 5, rowY);
-        
+
         rowY += 25;
       });
-      
+
       // Table border
       doc.rect(50, tableTop, 495, rowY - tableTop)
         .stroke('#cbd5e1');
@@ -6139,15 +6232,15 @@ Treasure-Home School Administration
           .font('Helvetica-Bold')
           .fillColor('#1e40af')
           .text('Teacher\'s Remarks', 50, doc.y);
-        
+
         doc.fontSize(10)
           .font('Helvetica')
           .fillColor('#000000');
-        
+
         const remarksBoxY = doc.y + 10;
         doc.roundedRect(50, remarksBoxY, 495, 60, 5)
           .stroke('#cbd5e1');
-        
+
         doc.text(report.teacherRemarks, 60, remarksBoxY + 10, {
           width: 475,
           align: 'left'
@@ -6182,7 +6275,7 @@ Treasure-Home School Administration
         action: req.query.action as string,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 100
       };
-      
+
       const logs = await storage.getAuditLogs(filters);
       res.json(logs);
     } catch (error) {
