@@ -5898,7 +5898,9 @@ Treasure-Home School Administration
           ipAddress: req.ip,
           userAgent: req.get('user-agent')
         });
-        return res.status(403).json({ message: "Access denied" });
+        return res.status(403).json({ 
+          message: "Access denied. You can only view records for children linked to your account." 
+        });
       }
       
       const reportCards = await storage.getReportCardsByStudentId(studentId);
@@ -5980,7 +5982,9 @@ Treasure-Home School Administration
             ipAddress: req.ip,
             userAgent: req.get('user-agent')
           });
-          return res.status(403).json({ message: "Access denied" });
+          return res.status(403).json({ 
+            message: "Access denied. Parents can only view their own children's report cards." 
+          });
         }
       } else if (user.roleId === ROLES.STUDENT) {
         // Student can only view their own report card

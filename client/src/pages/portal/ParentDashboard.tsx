@@ -35,7 +35,7 @@ export default function ParentDashboard() {
     const lastName = child.lastName || child.name?.split(' ')[1] || '';
     const fullName = `${firstName} ${lastName}`.trim();
     const initials = `${firstName[0]}${lastName[0] || firstName[1] || ''}`.toUpperCase();
-    
+
     return {
       id: child.id,
       name: fullName,
@@ -131,7 +131,7 @@ export default function ParentDashboard() {
   const selectedChildren = selectedChildId === 'all' 
     ? mockChildren 
     : mockChildren.filter(c => c.id === selectedChildId);
-  
+
   const selectedChild = selectedChildId === 'all' 
     ? null 
     : mockChildren.find(c => c.id === selectedChildId);
@@ -311,7 +311,7 @@ export default function ParentDashboard() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-xs text-muted-foreground">GPA</p>
@@ -332,7 +332,7 @@ export default function ParentDashboard() {
                     </p>
                   </div>
                 </div>
-                
+
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -489,7 +489,7 @@ export default function ParentDashboard() {
                 <p className="text-xs text-muted-foreground">December 15, 2024 • Book your slot now</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
               <div className="bg-secondary/10 p-2 rounded-lg">
                 <i className="fas fa-money-bill text-secondary"></i>
@@ -499,7 +499,7 @@ export default function ParentDashboard() {
                 <p className="text-xs text-muted-foreground">January 15, 2025 • Pay online for convenience</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
               <div className="bg-green-100 p-2 rounded-lg">
                 <i className="fas fa-trophy text-green-600"></i>
