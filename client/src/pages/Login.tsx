@@ -83,7 +83,7 @@ export default function Login() {
     // Message 6: Google Sign-In Failed
     if (error === 'google_auth_failed') {
       const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
-      
+
       // Check if this is actually a pending approval message
       if (errorMessage.includes('awaiting Admin approval') || errorMessage.includes('awaiting admin approval')) {
         // Message 7: Pending Approval - Admin/Teacher (Google OAuth)
@@ -417,8 +417,10 @@ export default function Login() {
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
 
-      // Set pending navigation (useEffect will handle redirect after auth state updates)
-      setPendingNavigation(targetPath);
+      // Navigate immediately after a short delay
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -456,8 +458,10 @@ export default function Login() {
       // Clean up OAuth query parameters
       window.history.replaceState({}, '', '/login');
 
-      // Set pending navigation (useEffect will handle redirect after auth state updates)
-      setPendingNavigation(targetPath);
+      // Navigate immediately after a short delay
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 100);
     },
     onError: (error: any) => {
       toast({
