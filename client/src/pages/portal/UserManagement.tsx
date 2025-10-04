@@ -122,21 +122,33 @@ export default function UserManagement() {
     mutationFn: async (userId: string) => {
       return await apiRequest('POST', `/api/users/${userId}/approve`);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
-        title: "User Approved",
-        description: "The user has been approved and can now log in.",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>User Approved</span>
+          </div>
+        ),
+        description: data?.message || "The user has been approved and can now log in.",
+        className: "border-green-500 bg-green-50",
       });
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to approve user",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Approval Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to approve user. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
@@ -149,29 +161,34 @@ export default function UserManagement() {
         reason
       });
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data: any, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       
-      const statusMessages: Record<string, string> = {
-        'suspended': 'User has been suspended',
-        'active': 'User has been unsuspended',
-        'pending': 'User has been moved back to pending approval',
-        'disabled': 'User account has been disabled'
-      };
-      
       toast({
-        title: "Status Updated",
-        description: statusMessages[variables.status] || "User status has been updated",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>Status Updated</span>
+          </div>
+        ),
+        description: data?.message || `User status has been updated to ${variables.status}`,
+        className: "border-green-500 bg-green-50",
       });
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update user status",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Status Update Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to update user status. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
@@ -181,21 +198,33 @@ export default function UserManagement() {
     mutationFn: async (userId: string) => {
       return await apiRequest('DELETE', `/api/users/${userId}`);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
-        title: "User Deleted",
-        description: "The user has been permanently removed from the system.",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>User Deleted</span>
+          </div>
+        ),
+        description: data?.message || "The user has been permanently removed from the system.",
+        className: "border-green-500 bg-green-50",
       });
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete user",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Deletion Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to delete user. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
@@ -208,11 +237,17 @@ export default function UserManagement() {
         forceChange
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
-        title: "Password Reset",
-        description: "User password has been reset successfully.",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>Password Reset</span>
+          </div>
+        ),
+        description: data?.message || "User password has been reset successfully.",
+        className: "border-green-500 bg-green-50",
       });
       setResetPasswordDialog(false);
       setNewPassword('');
@@ -220,9 +255,15 @@ export default function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to reset password",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Password Reset Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to reset password. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
@@ -234,11 +275,17 @@ export default function UserManagement() {
         roleId
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
-        title: "Role Changed",
-        description: "User role has been updated successfully.",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>Role Changed</span>
+          </div>
+        ),
+        description: data?.message || "User role has been updated successfully.",
+        className: "border-green-500 bg-green-50",
       });
       setChangeRoleDialog(false);
       setNewRoleId(null);
@@ -246,9 +293,15 @@ export default function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to change user role",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Role Change Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to change user role. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
@@ -302,9 +355,15 @@ export default function UserManagement() {
   const handleResetPassword = () => {
     if (!selectedUser || !newPassword || newPassword.length < 6) {
       toast({
-        title: "Error",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Validation Error</span>
+          </div>
+        ),
         description: "Password must be at least 6 characters long",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
       return;
     }
@@ -318,9 +377,15 @@ export default function UserManagement() {
   const handleChangeRole = () => {
     if (!selectedUser || !newRoleId) {
       toast({
-        title: "Error",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Validation Error</span>
+          </div>
+        ),
         description: "Please select a role",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
       return;
     }

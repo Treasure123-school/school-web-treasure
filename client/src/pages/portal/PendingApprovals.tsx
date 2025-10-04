@@ -51,20 +51,32 @@ export default function PendingApprovals() {
     mutationFn: async (userId: string) => {
       return await apiRequest('POST', `/api/users/${userId}/approve`);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
-        title: "User Approved",
-        description: "The user has been approved and can now log in.",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>User Approved</span>
+          </div>
+        ),
+        description: data?.message || "The user has been approved and can now log in.",
+        className: "border-green-500 bg-green-50",
       });
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to approve user",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Approval Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to approve user. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
@@ -77,20 +89,32 @@ export default function PendingApprovals() {
         reason: 'Rejected during approval process'
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
-        title: "User Rejected",
-        description: "The user account has been rejected.",
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>User Rejected</span>
+          </div>
+        ),
+        description: data?.message || "The user account has been rejected successfully.",
+        className: "border-green-500 bg-green-50",
       });
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to reject user",
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Rejection Failed</span>
+          </div>
+        ),
+        description: error.message || "Failed to reject user. Please try again.",
         variant: "destructive",
+        className: "border-red-500 bg-red-50",
       });
     },
   });
