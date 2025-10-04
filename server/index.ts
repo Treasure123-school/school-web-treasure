@@ -1,10 +1,26 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { db } from "./storage";
 
 const app = express();
+
+// Enable gzip/brotli compression for all responses - MUST be first middleware
+app.use(compression({
+  level: 6, // Compression level (0-9, 6 is balanced for speed vs compression)
+  threshold: 1024, // Only compress responses larger than 1KB
+  filter: (req, res) => {
+    // Don't compress responses with 'x-no-compression' header
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Use compression for all other responses
+    return compression.filter(req, res);
+  }
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -13,6 +29,18 @@ app.use((req, res, next) => {
   const path = req.path;
   const isProduction = process.env.NODE_ENV === 'production';
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+  // Add cache headers for read-only API endpoints
+  if (req.method === 'GET' && path.startsWith('/api/')) {
+    // Public content can be cached longer
+    if (path.includes('/homepage-content') || path.includes('/announcements')) {
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=120'); // 1-2 minutes
+    }
+    // User-specific data should not be cached by proxies
+    else if (!path.includes('/auth')) {
+      res.setHeader('Cache-Control', 'private, max-age=30'); // 30 seconds client cache
+    }
+  }
 
   // Only capture response body in development for debugging
   if (!isProduction) {
