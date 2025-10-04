@@ -140,16 +140,23 @@ export default function UserManagement() {
 
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
       
-      // INSTANT FEEDBACK: Optimistically update user status
+      // INSTANT FEEDBACK: Optimistically update user status in main list
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) => 
           user.id === userId ? { ...user, status: 'active' } : user
         );
       });
+      
+      // INSTANT FEEDBACK: Optimistically remove from pending list
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
 
-      return { previousUsers };
+      return { previousUsers, previousPendingUsers };
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -171,6 +178,9 @@ export default function UserManagement() {
       // ROLLBACK: Restore previous state on error
       if (context?.previousUsers) {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
       toast({
         title: (
