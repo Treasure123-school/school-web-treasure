@@ -1234,14 +1234,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid login. Please check your details and try again." });
       }
 
+      // Get user role for various checks
+      const userRole = await storage.getRole(user.roleId);
+      const roleName = userRole?.name?.toLowerCase();
+      const isStaffAccount = roleName === 'admin' || roleName === 'teacher';
+
+      // SECURITY CHECK: Block pending accounts
+      if (user.status === 'pending') {
+        console.warn(`Login blocked: Account ${identifier} is pending approval`);
+        return res.status(403).json({ 
+          message: "Your email is registered but awaiting Admin approval. Contact Admin for assistance."
+        });
+      }
+
       // SECURITY CHECK: Block suspended accounts
       if (user.status === 'suspended') {
         console.warn(`Login blocked: Account ${identifier} is suspended`);
-        // Get user role to provide appropriate message
-        const userRole = await storage.getRole(user.roleId);
-        const roleName = userRole?.name?.toLowerCase();
-        const isStaffAccount = roleName === 'admin' || roleName === 'teacher';
-        
         return res.status(403).json({ 
           message: isStaffAccount 
             ? "Access denied: Your account is suspended by THS Admin."
@@ -1249,9 +1257,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // SECURITY: Get user role to enforce authentication method separation
-      const userRole = await storage.getRole(user.roleId);
-      const roleName = userRole?.name?.toLowerCase();
+      // SECURITY CHECK: Block disabled accounts
+      if (user.status === 'disabled') {
+        console.warn(`Login blocked: Account ${identifier} is disabled`);
+        return res.status(403).json({ 
+          message: isStaffAccount 
+            ? "Access denied: Your account has been disabled by THS Admin."
+            : "Your account has been disabled. Please contact administrator."
+        });
+      }
+
+      // SECURITY: User role already retrieved above for authentication method separation
 
       // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login
       if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {

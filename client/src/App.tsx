@@ -50,6 +50,7 @@ import ParentReportCards from "@/pages/portal/ParentReportCards";
 
 // Admin Approval System
 import PendingApprovals from "@/pages/portal/PendingApprovals";
+import UserManagement from "@/pages/portal/UserManagement";
 
 import NotFound from "@/pages/not-found";
 
@@ -128,6 +129,11 @@ function Router() {
       <Route path="/portal/admin/pending-approvals">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <PendingApprovals />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/users">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <UserManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/students">

@@ -90,6 +90,12 @@ export default function AdminDashboard() {
       badge: pendingCount > 0 ? pendingCount : undefined
     },
     {
+      title: 'User Management',
+      icon: Users,
+      color: 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700',
+      href: '/portal/admin/users'
+    },
+    {
       title: 'Manage Students',
       icon: UserPlus,
       color: 'bg-primary/10 hover:bg-primary/20 text-primary',
