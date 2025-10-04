@@ -83,17 +83,55 @@ export default function Login() {
     // Message 6: Google Sign-In Failed
     if (error === 'google_auth_failed') {
       const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
-
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-500" />
-            <span>Google Sign-In Failed</span>
-          </div>
-        ),
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      
+      // Check if this is actually a pending approval message
+      if (errorMessage.includes('awaiting Admin approval') || errorMessage.includes('awaiting admin approval')) {
+        // Message 7: Pending Approval - Admin/Teacher (Google OAuth)
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-orange-500" />
+              <span>Account Pending Approval</span>
+            </div>
+          ),
+          description: (
+            <div className="text-sm">
+              <p className="mb-2">Your account has been created and is awaiting admin approval.</p>
+              <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
+            </div>
+          ),
+          className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+        });
+      } else if (errorMessage.includes('suspended')) {
+        // Message 10: Account Suspended
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <Ban className="h-4 w-4 text-red-500" />
+              <span>Account Suspended</span>
+            </div>
+          ),
+          description: (
+            <div className="text-sm">
+              <p className="mb-2">Your account has been suspended.</p>
+              <p className="text-muted-foreground">Please contact the school administrator for more information.</p>
+            </div>
+          ),
+          className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
+        });
+      } else {
+        // Generic Google Sign-In Failed
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span>Google Sign-In Failed</span>
+            </div>
+          ),
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
       window.history.replaceState({}, '', '/login');
     }
 
