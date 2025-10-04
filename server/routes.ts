@@ -783,64 +783,6 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
   }
 }
 
-// AI grading routes moved inside registerRoutes
-// Get AI-suggested grading tasks for teacher review
-app.get('/api/grading/tasks/ai-suggested', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-  try {
-    const teacherId = req.user!.id;
-    const status = req.query.status as string;
-
-    // Get all exam sessions with AI-suggested answers
-    const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
-
-    res.json(tasks);
-  } catch (error) {
-    console.error('Error fetching AI-suggested tasks:', error);
-    res.status(500).json({ message: 'Failed to fetch AI-suggested tasks' });
-  }
-});
-
-// Teacher approves or overrides AI-suggested score
-app.post('/api/grading/ai-suggested/:answerId/review', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-  try {
-    const answerId = parseInt(req.params.answerId);
-    const { approved, overrideScore, comment } = req.body;
-
-    const answer = await storage.getStudentAnswerById(answerId);
-    if (!answer) {
-      return res.status(404).json({ message: 'Answer not found' });
-    }
-
-    // If approved, mark as auto-scored and keep the score
-    if (approved) {
-      await storage.updateStudentAnswer(answerId, {
-        autoScored: true,
-        manualOverride: false,
-        feedbackText: comment || answer.feedbackText
-      });
-    } else {
-      // Teacher override - use their score
-      await storage.updateStudentAnswer(answerId, {
-        pointsEarned: overrideScore,
-        autoScored: false,
-        manualOverride: true,
-        feedbackText: comment
-      });
-    }
-
-    // Trigger score merge
-    await mergeExamScores(answerId, storage);
-
-    res.json({ 
-      message: approved ? 'AI score approved' : 'Score overridden successfully',
-      answer: await storage.getStudentAnswerById(answerId)
-    });
-  } catch (error) {
-    console.error('Error reviewing AI-suggested score:', error);
-    res.status(500).json({ message: 'Failed to review AI-suggested score' });
-  }
-});
-
 // Score Merging Function: Combine auto-scored + manually graded results
 async function mergeExamScores(answerId: number, storage: any): Promise<void> {
   try {
@@ -933,6 +875,64 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  // AI-assisted grading routes
+  // Get AI-suggested grading tasks for teacher review
+  app.get('/api/grading/tasks/ai-suggested', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const status = req.query.status as string;
+
+      // Get all exam sessions with AI-suggested answers
+      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
+
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching AI-suggested tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch AI-suggested tasks' });
+    }
+  });
+
+  // Teacher approves or overrides AI-suggested score
+  app.post('/api/grading/ai-suggested/:answerId/review', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const answerId = parseInt(req.params.answerId);
+      const { approved, overrideScore, comment } = req.body;
+
+      const answer = await storage.getStudentAnswerById(answerId);
+      if (!answer) {
+        return res.status(404).json({ message: 'Answer not found' });
+      }
+
+      // If approved, mark as auto-scored and keep the score
+      if (approved) {
+        await storage.updateStudentAnswer(answerId, {
+          autoScored: true,
+          manualOverride: false,
+          feedbackText: comment || answer.feedbackText
+        });
+      } else {
+        // Teacher override - use their score
+        await storage.updateStudentAnswer(answerId, {
+          pointsEarned: overrideScore,
+          autoScored: false,
+          manualOverride: true,
+          feedbackText: comment
+        });
+      }
+
+      // Trigger score merge
+      await mergeExamScores(answerId, storage);
+
+      res.json({ 
+        message: approved ? 'AI score approved' : 'Score overridden successfully',
+        answer: await storage.getStudentAnswerById(answerId)
+      });
+    } catch (error) {
+      console.error('Error reviewing AI-suggested score:', error);
+      res.status(500).json({ message: 'Failed to review AI-suggested score' });
+    }
+  });
 
   // Initialize session middleware (required for Passport OAuth)
   app.use(session({
