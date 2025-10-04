@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GraduationCap, AlertCircle } from 'lucide-react';
+import { GraduationCap, AlertCircle, CheckCircle, Clock, Ban, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -64,9 +64,19 @@ export default function Login() {
     if (oauthStatus === 'pending_approval') {
       const message = params.get('message') || 'Your account has been created and is awaiting admin approval.';
       toast({
-        title: 'Account Pending Approval',
-        description: message,
-        variant: 'default',
+        title: (
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-orange-500" />
+            <span>Account Pending Approval</span>
+          </div>
+        ),
+        description: (
+          <div className="text-sm">
+            <p className="mb-2">⏳ {message}</p>
+            <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
+          </div>
+        ),
+        className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
       });
       window.history.replaceState({}, '', '/login');
     }
@@ -74,8 +84,13 @@ export default function Login() {
     if (error === 'google_auth_failed') {
       const errorMessage = params.get('message') || 'Unable to sign in with Google. Please try again.';
       toast({
-        title: 'Google Sign-In Failed',
-        description: errorMessage,
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Google Sign-In Failed</span>
+          </div>
+        ),
+        description: `❌ ${errorMessage}`,
         variant: 'destructive',
       });
       window.history.replaceState({}, '', '/login');
@@ -108,8 +123,14 @@ export default function Login() {
         window.history.replaceState({}, '', '/login');
         
         toast({
-          title: 'Login Successful',
-          description: `Welcome to your ${userRole} portal!`,
+          title: (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>Login Successful</span>
+            </div>
+          ),
+          description: '✅ Welcome back to THS Portal. Redirecting you to your dashboard…',
+          className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
         });
         
         // Store auth data and set pending navigation
@@ -188,8 +209,14 @@ export default function Login() {
       const targetPath = getPortalByRoleId(userData.user.roleId);
       
       toast({
-        title: 'Login Successful',
-        description: `Welcome to your ${userRole} portal!`,
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span>Login Successful</span>
+          </div>
+        ),
+        description: '✅ Welcome back to THS Portal. Redirecting you to your dashboard…',
+        className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       
       // Store auth data and set pending navigation (useEffect will handle redirect)
@@ -200,10 +227,37 @@ export default function Login() {
       // Extract the specific error message from the backend
       const errorMessage = error?.message || 'Invalid credentials. Please try again.';
       
+      // Determine message type and icon based on content
+      let icon = <XCircle className="h-4 w-4" />;
+      let emoji = '❌';
+      let className = '';
+      let title = 'Login Failed';
+      
+      if (errorMessage.includes('awaiting') || errorMessage.includes('pending')) {
+        icon = <Clock className="h-4 w-4 text-orange-500" />;
+        emoji = '⏳';
+        className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+        title = 'Account Pending Approval';
+      } else if (errorMessage.includes('suspended')) {
+        icon = <Ban className="h-4 w-4 text-red-500" />;
+        emoji = '🚫';
+        className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
+        title = 'Account Suspended';
+      } else if (errorMessage.includes('Invalid') || errorMessage.includes('incorrect')) {
+        icon = <XCircle className="h-4 w-4" />;
+        emoji = '❌';
+      }
+      
       toast({
-        title: 'Login Failed',
-        description: errorMessage,
-        variant: 'destructive',
+        title: (
+          <div className="flex items-center gap-2">
+            {icon}
+            <span>{title}</span>
+          </div>
+        ),
+        description: `${emoji} ${errorMessage}`,
+        variant: className ? undefined : 'destructive',
+        className: className || undefined,
       });
     },
   });
@@ -241,8 +295,14 @@ export default function Login() {
       resetPasswordForm();
       
       toast({
-        title: 'Password Changed Successfully',
-        description: `Welcome to your ${userRole} portal!`,
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span>Password Changed Successfully</span>
+          </div>
+        ),
+        description: '✅ Welcome to THS Portal!',
+        className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       
       // Set pending navigation (useEffect will handle redirect after auth state updates)
@@ -270,8 +330,14 @@ export default function Login() {
       setShowRoleSelection(false);
       
       toast({
-        title: 'Account Created Successfully',
-        description: `Welcome to your ${userRole} portal!`,
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span>Account Created Successfully</span>
+          </div>
+        ),
+        description: '✅ Welcome to THS Portal!',
+        className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       
       // Clean up OAuth query parameters
