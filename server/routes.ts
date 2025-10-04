@@ -1194,8 +1194,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 return res.status(403).json({
                   message: isStaffForSuspension
-                    ? "Access denied: Your account is suspended by THS Admin."
-                    : "Your account is currently suspended. Please contact your class teacher or admin."
+                    ? "Access denied: Your account has been suspended by THS Admin."
+                    : "Your account is suspended. Contact your class teacher or Admin."
                 });
               }
             } catch (err) {
@@ -1231,7 +1231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         console.log(`Login failed: User not found for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid login. Please check your details and try again." });
+        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
       }
 
       // Get user role for various checks
@@ -1243,7 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.status === 'pending') {
         console.warn(`Login blocked: Account ${identifier} is pending approval`);
         return res.status(403).json({ 
-          message: "Your email is registered but awaiting Admin approval. Contact Admin for assistance."
+          message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
         });
       }
 
@@ -1252,8 +1252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn(`Login blocked: Account ${identifier} is suspended`);
         return res.status(403).json({ 
           message: isStaffAccount 
-            ? "Access denied: Your account is suspended by THS Admin."
-            : "Your account is currently suspended. Please contact your class teacher or admin."
+            ? "Access denied: Your account has been suspended by THS Admin."
+            : "Your account is suspended. Contact your class teacher or Admin."
         });
       }
 
@@ -1291,7 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid login. Please check your details and try again." });
+        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
       }
 
       // Password verification successful - reset rate limit and clear lockout violations

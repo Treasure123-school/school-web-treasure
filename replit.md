@@ -44,15 +44,20 @@ Preferred communication style: Simple, everyday language.
   - First-login password change enforcement with dialog-based UI flow.
   - Account lockout mechanism after 3 rate limit violations within 1 hour, with admin unlock capabilities.
   - Staff onboarding via invite system.
-  - **Chapter One - User Management & Approval System** (THS Story Plan):
+  - **Chapter One - The Gatekeepers of Access** (THS Story Plan - IMPLEMENTED):
     - All new Google OAuth users (admin/teacher) start with 'pending' status
     - Professional status-based messaging for login attempts (different messages for staff vs students/parents)
+    - Clear, situation-specific error messages:
+      * Invalid credentials: "Invalid login. Please check your username or password."
+      * Pending approval: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
+      * Suspended account: "Access denied: Your account has been suspended by THS Admin." (staff) or "Your account is suspended. Contact your class teacher or Admin." (students/parents)
     - Admin approval workflow with dedicated PendingApprovals page showing new signups
     - Comprehensive UserManagement page for managing all users (pending/active/suspended/disabled)
     - Admin actions: Approve, Suspend, Unsuspend, Unverify (move back to pending), Disable
     - Automatic notification creation when new pending users sign up
     - Real-time pending count badge on admin dashboard
     - Status-based access control enforced on login
+    - Parent-child linking: Parents can select which child's records to view
 - **Authorization**: Role-Based Access Control (RBAC) for student, teacher, admin, and parent roles.
 - **Exam Security**: Tab switch detection, enhanced session recovery, question and option randomization, and time-based auto-submit.
 - **User Provisioning**: CSV bulk provisioning for students and parents with automatic THS-branded username generation and parent-child linking. PDF login slips generation.
@@ -99,6 +104,14 @@ Preferred communication style: Simple, everyday language.
 - Application server successfully started and tested
 - Homepage rendering correctly with school branding
 - Database migrations applied automatically on startup
+
+#### Chapter One Implementation (October 4, 2025)
+- Updated all authentication error messages to match THS Story Plan
+- Enhanced role-based login messaging for students, parents, teachers, and admins
+- Verified Google OAuth pending approval workflow
+- Confirmed parent-child linking functionality
+- All authentication data properly stored in Supabase PostgreSQL database
+- Admin user management endpoints verified (approve, suspend, revoke approval)
 
 ### Environment Configuration
 - **Node.js Version**: 20.x (via nodejs-20 module)

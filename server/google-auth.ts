@@ -67,7 +67,7 @@ export function setupGoogleAuth() {
               } else if (user.status === 'suspended' || user.status === 'disabled') {
                 // DENY - Account suspended/disabled
                 return done(null, false, { 
-                  message: "Access denied: Your account is suspended by THS Admin." 
+                  message: "Access denied: Your account has been suspended by THS Admin." 
                 });
               }
             }
