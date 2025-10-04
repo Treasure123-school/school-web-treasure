@@ -164,9 +164,13 @@ export default function Login() {
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
         });
 
-        // Store auth data and set pending navigation
+        // Store auth data first
         login(userData, token);
-        setPendingNavigation(targetPath);
+
+        // Navigate after a delay to ensure auth state is set
+        setTimeout(() => {
+          navigate(targetPath);
+        }, 200);
       }
     } catch (error) {
       toast({
@@ -253,7 +257,7 @@ export default function Login() {
 
       // Store auth data first
       login(userData.user, userData.token);
-      
+
       // Navigate with a small delay to ensure auth state is set
       setTimeout(() => {
         navigate(targetPath);
