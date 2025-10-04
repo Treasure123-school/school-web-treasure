@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown } from 'lucide-react';
+import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -97,6 +97,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       case 'admin':
         return [
           ...baseNav,
+          { name: 'Pending Approvals', href: `/portal/${userRole}/pending-approvals`, icon: UserCheck },
+          { name: 'User Management', href: `/portal/${userRole}/users`, icon: Users },
           { name: 'Students', href: `/portal/${userRole}/students`, icon: Users },
           { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
           { name: 'Classes', href: `/portal/${userRole}/classes`, icon: BookOpen },
@@ -117,6 +119,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
           { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Bell },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
+          { name: 'Audit Logs', href: `/portal/${userRole}/audit-logs`, icon: History },
           { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
         ];
       case 'parent':

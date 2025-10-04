@@ -113,6 +113,28 @@ Preferred communication style: Simple, everyday language.
 - All authentication data properly stored in Supabase PostgreSQL database
 - Admin user management endpoints verified (approve, suspend, revoke approval)
 
+#### Chapter One Extended - Admin Powers (October 4, 2025)
+**Backend Features:**
+- Delete User: Permanent account removal with audit logging and self-protection
+- Reset Password: Force password change with optional "must change on next login" flag
+- Change Role: Upgrade/downgrade user roles with audit trail and self-protection
+- Audit Logs API: Comprehensive tracking of all admin actions with filters
+
+**Frontend Features:**
+- Enhanced UserManagement page with "More Actions" dropdown menu
+- Delete account with permanent removal warning dialog
+- Reset password dialog with force-change option
+- Change role dialog with role selection dropdown
+- New AuditLogs page displaying admin action history
+- Added Pending Approvals, User Management, and Audit Logs links to admin sidebar
+
+**Security Measures:**
+- Prevent admins from deleting their own account
+- Prevent admins from changing their own role
+- All admin actions logged with timestamp, IP address, user agent
+- Confirmation dialogs for all destructive actions
+- Comprehensive audit trail for accountability and transparency
+
 ### Environment Configuration
 - **Node.js Version**: 20.x (via nodejs-20 module)
 - **Database**: PostgreSQL (Supabase) - Connected and operational
