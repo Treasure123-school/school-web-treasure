@@ -407,6 +407,97 @@ setTimeout(() => {
 }, jitter);
 console.log(`🧹 TIMEOUT PROTECTION: Background cleanup service started (every ${cleanupInterval/1000/60} minutes with jitter)`);
 
+// AI-assisted theory scoring helper
+async function scoreTheoryAnswer(
+  studentAnswer: string,
+  expectedAnswers: string[],
+  sampleAnswer: string | null,
+  points: number
+): Promise<{ score: number; confidence: number; feedback: string; autoScored: boolean }> {
+  // If no student answer, return 0
+  if (!studentAnswer || studentAnswer.trim().length === 0) {
+    return {
+      score: 0,
+      confidence: 1.0,
+      feedback: 'No answer provided.',
+      autoScored: true
+    };
+  }
+
+  const studentText = studentAnswer.toLowerCase().trim();
+  
+  // Keyword matching (60% weight)
+  let keywordScore = 0;
+  const matchedKeywords: string[] = [];
+  const missedKeywords: string[] = [];
+  
+  if (expectedAnswers && expectedAnswers.length > 0) {
+    expectedAnswers.forEach(keyword => {
+      const keywordLower = keyword.toLowerCase().trim();
+      if (studentText.includes(keywordLower)) {
+        matchedKeywords.push(keyword);
+      } else {
+        missedKeywords.push(keyword);
+      }
+    });
+    
+    keywordScore = matchedKeywords.length / expectedAnswers.length;
+  }
+
+  // Simple semantic similarity (40% weight) - basic word overlap
+  let semanticScore = 0;
+  if (sampleAnswer && sampleAnswer.trim().length > 0) {
+    const sampleWords = sampleAnswer.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const studentWords = studentText.split(/\s+/).filter(w => w.length > 3);
+    
+    const commonWords = studentWords.filter(word => sampleWords.includes(word));
+    semanticScore = sampleWords.length > 0 ? commonWords.length / sampleWords.length : 0;
+  } else {
+    // If no sample answer, use keyword score for both
+    semanticScore = keywordScore;
+  }
+
+  // Hybrid score calculation
+  const hybridScore = (keywordScore * 0.6) + (semanticScore * 0.4);
+  const calculatedPoints = Math.round(hybridScore * points * 100) / 100; // Round to 2 decimals
+
+  // Confidence calculation
+  const confidence = Math.min(
+    keywordScore > 0.8 ? 0.9 : keywordScore > 0.5 ? 0.7 : 0.5,
+    1.0
+  );
+
+  // Generate feedback
+  let feedback = '';
+  if (hybridScore >= 0.8) {
+    feedback = `Excellent answer! Key points identified: ${matchedKeywords.join(', ')}. `;
+  } else if (hybridScore >= 0.5) {
+    feedback = `Good effort. You covered: ${matchedKeywords.join(', ')}. `;
+    if (missedKeywords.length > 0) {
+      feedback += `Consider including: ${missedKeywords.slice(0, 3).join(', ')}. `;
+    }
+  } else {
+    feedback = `Needs improvement. `;
+    if (missedKeywords.length > 0) {
+      feedback += `Missing key points: ${missedKeywords.slice(0, 3).join(', ')}. `;
+    }
+  }
+
+  // Auto-score if confidence is high, otherwise flag for manual review
+  const shouldAutoScore = confidence >= 0.7 && hybridScore >= 0.3;
+
+  if (!shouldAutoScore) {
+    feedback += 'This answer has been flagged for teacher review.';
+  }
+
+  return {
+    score: shouldAutoScore ? calculatedPoints : 0,
+    confidence,
+    feedback,
+    autoScored: shouldAutoScore
+  };
+}
+
 // OPTIMIZED Auto-scoring function for <2 second performance goal
 async function autoScoreExamSession(sessionId: number, storage: any): Promise<void> {
   const startTime = Date.now();
@@ -423,57 +514,88 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     const { totalQuestions, maxScore, studentScore, autoScoredQuestions } = summary;
 
-    // Use the optimized results
-    const totalScore = studentScore;
-    const maxPossibleScore = maxScore;
+    // Get all student answers for theory scoring
+    const studentAnswers = await storage.getStudentAnswers(sessionId);
+    const examQuestions = await storage.getExamQuestions(session.examId);
 
+    let totalAutoScore = studentScore; // Start with MCQ scores
     const hasMultipleChoiceQuestions = autoScoredQuestions > 0;
     const hasEssayQuestions = totalQuestions > autoScoredQuestions;
 
     console.log(`✅ OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + ' MC' : 'no MC'}, ${hasEssayQuestions ? (totalQuestions - autoScoredQuestions) + ' Essays' : 'no Essays'})`);
 
     // Enhanced question-by-question breakdown for detailed feedback
-    const questionDetails = scoringData.map((q: any) => {
-      const questionDetail = {
+    const questionDetails = [];
+    
+    for (const q of scoringData) {
+      const question = examQuestions.find(eq => eq.id === q.questionId);
+      const studentAnswer = studentAnswers.find(sa => sa.questionId === q.questionId);
+      
+      let questionDetail: any = {
         questionId: q.questionId,
         questionType: q.questionType,
         points: q.points,
         maxPoints: q.points,
-        pointsEarned: q.isCorrect ? q.points : 0,
-        isCorrect: q.questionType === 'multiple_choice' ? q.isCorrect : null, // null for manual review needed
-        autoScored: q.questionType === 'multiple_choice',
-        feedback: null as string | null
+        pointsEarned: 0,
+        isCorrect: null,
+        autoScored: false,
+        feedback: null,
+        aiSuggested: false,
+        confidence: 0
       };
 
-      // Add specific feedback based on question type and result
+      // Multiple choice - already scored
       if (q.questionType === 'multiple_choice') {
-        if (q.isCorrect) {
-          questionDetail.feedback = `Correct! You earned ${q.points} point${q.points !== 1 ? 's' : ''}.`;
+        questionDetail.pointsEarned = q.isCorrect ? q.points : 0;
+        questionDetail.isCorrect = q.isCorrect;
+        questionDetail.autoScored = true;
+        questionDetail.feedback = q.isCorrect 
+          ? `Correct! You earned ${q.points} point${q.points !== 1 ? 's' : ''}.`
+          : `Incorrect. This question was worth ${q.points} point${q.points !== 1 ? 's' : ''}.`;
+      } 
+      // Theory questions - AI-assisted scoring
+      else if (q.questionType === 'text' || q.questionType === 'essay') {
+        if (studentAnswer && studentAnswer.textAnswer && question) {
+          const aiResult = await scoreTheoryAnswer(
+            studentAnswer.textAnswer,
+            question.expectedAnswers || [],
+            question.sampleAnswer || null,
+            q.points
+          );
+
+          questionDetail.pointsEarned = aiResult.score;
+          questionDetail.autoScored = aiResult.autoScored;
+          questionDetail.aiSuggested = !aiResult.autoScored; // Flag for teacher review if not auto-scored
+          questionDetail.confidence = aiResult.confidence;
+          questionDetail.feedback = aiResult.feedback;
+          
+          if (aiResult.autoScored) {
+            totalAutoScore += aiResult.score;
+            questionDetail.isCorrect = aiResult.score >= (q.points * 0.5); // 50% threshold for "correct"
+          }
         } else {
-          questionDetail.feedback = `Incorrect. This question was worth ${q.points} point${q.points !== 1 ? 's' : ''}.`;
+          questionDetail.feedback = 'This question requires manual review by your instructor.';
+          questionDetail.aiSuggested = true; // Flag for manual review
         }
-      } else {
-        questionDetail.feedback = `This ${q.questionType} question will be manually reviewed by your instructor.`;
       }
 
-      return questionDetail;
-    });
+      questionDetails.push(questionDetail);
+    }
 
-    // CRITICAL FIX: Persist MCQ points to student_answers for accurate score merging
-    console.log('💾 Persisting MCQ scores to student_answers for score merging...');
-    const studentAnswers = await storage.getStudentAnswers(sessionId);
+    // CRITICAL FIX: Persist all scores to student_answers for accurate score merging
+    console.log('💾 Persisting scores to student_answers for score merging...');
     for (const detail of questionDetails) {
-      if (detail.autoScored && detail.questionId) {
-        // Find the student answer for this question
+      if (detail.questionId) {
         const studentAnswer = studentAnswers.find(sa => sa.questionId === detail.questionId);
         if (studentAnswer) {
           try {
             await storage.updateStudentAnswer(studentAnswer.id, {
               pointsEarned: detail.pointsEarned,
               isCorrect: detail.isCorrect,
-              autoScored: true
+              autoScored: detail.autoScored,
+              feedbackText: detail.feedback
             });
-            console.log(`✅ Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points`);
+            console.log(`✅ Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points (auto: ${detail.autoScored})`);
           } catch (updateError) {
             console.error(`❌ Failed to update answer ${studentAnswer.id}:`, updateError);
           }
@@ -482,14 +604,16 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     }
 
     // Calculate detailed breakdown
+    const aiSuggestedCount = questionDetails.filter((q: any) => q.aiSuggested === true).length;
     const breakdown = {
       totalQuestions,
-      autoScoredQuestions,
+      autoScoredQuestions: questionDetails.filter((q: any) => q.autoScored === true).length,
+      aiSuggestedQuestions: aiSuggestedCount,
       correctAnswers: questionDetails.filter((q: any) => q.isCorrect === true).length,
       incorrectAnswers: questionDetails.filter((q: any) => q.isCorrect === false).length,
-      pendingManualReview: questionDetails.filter((q: any) => q.isCorrect === null).length,
+      pendingManualReview: questionDetails.filter((q: any) => q.isCorrect === null || q.aiSuggested === true).length,
       maxScore: maxPossibleScore,
-      earnedScore: totalScore
+      earnedScore: totalAutoScore
     };
 
     // Log detailed scoring for debugging
@@ -547,10 +671,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const resultData = {
       examId: session.examId,
       studentId: session.studentId,
-      score: totalScore,
+      score: totalAutoScore,
       maxScore: maxPossibleScore,
-      marksObtained: totalScore, // ✅ CRITICAL FIX: Ensure database constraint compatibility
-      autoScored: true, // Always true when auto-scoring pass completes
+      marksObtained: totalAutoScore, // ✅ CRITICAL FIX: Ensure database constraint compatibility
+      autoScored: breakdown.pendingManualReview === 0, // Only fully auto-scored if no pending reviews
       recordedBy: SYSTEM_AUTO_SCORING_UUID, // Special UUID for auto-generated results
       // Include detailed feedback in the result data
       questionDetails: questionDetails,
@@ -659,7 +783,64 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
   }
 }
 
-// Score Merging Function: Combine auto-scored + manually graded results
+// Get AI-suggested grading tasks for teacher review
+  app.get('/api/grading/tasks/ai-suggested', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const status = req.query.status as string;
+
+      // Get all exam sessions with AI-suggested answers
+      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
+
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching AI-suggested tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch AI-suggested tasks' });
+    }
+  });
+
+  // Teacher approves or overrides AI-suggested score
+  app.post('/api/grading/ai-suggested/:answerId/review', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const answerId = parseInt(req.params.answerId);
+      const { approved, overrideScore, comment } = req.body;
+
+      const answer = await storage.getStudentAnswerById(answerId);
+      if (!answer) {
+        return res.status(404).json({ message: 'Answer not found' });
+      }
+
+      // If approved, mark as auto-scored and keep the score
+      if (approved) {
+        await storage.updateStudentAnswer(answerId, {
+          autoScored: true,
+          manualOverride: false,
+          feedbackText: comment || answer.feedbackText
+        });
+      } else {
+        // Teacher override - use their score
+        await storage.updateStudentAnswer(answerId, {
+          pointsEarned: overrideScore,
+          autoScored: false,
+          manualOverride: true,
+          feedbackText: comment
+        });
+      }
+
+      // Trigger score merge
+      await mergeExamScores(answerId, storage);
+
+      res.json({ 
+        message: approved ? 'AI score approved' : 'Score overridden successfully',
+        answer: await storage.getStudentAnswerById(answerId)
+      });
+    } catch (error) {
+      console.error('Error reviewing AI-suggested score:', error);
+      res.status(500).json({ message: 'Failed to review AI-suggested score' });
+    }
+  });
+
+  // Score Merging Function: Combine auto-scored + manually graded results
 async function mergeExamScores(answerId: number, storage: any): Promise<void> {
   try {
     console.log(`🔄 SCORE MERGE: Starting merge for answer ${answerId}...`);

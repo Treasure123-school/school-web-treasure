@@ -1498,6 +1498,115 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
   }
 
+
+  // Get AI-suggested grading tasks for teacher review
+  async getAISuggestedGradingTasks(teacherId: string, status?: string): Promise<any[]> {
+    try {
+      // Get teacher's assigned classes and subjects
+      const assignments = await this.db.select()
+        .from(schema.teacherClassAssignments)
+        .where(and(
+          eq(schema.teacherClassAssignments.teacherId, teacherId),
+          eq(schema.teacherClassAssignments.isActive, true)
+        ));
+
+      if (assignments.length === 0) {
+        return [];
+      }
+
+      const classIds = assignments.map(a => a.classId);
+      const subjectIds = assignments.map(a => a.subjectId);
+
+      // Get exams for these classes/subjects
+      const exams = await this.db.select()
+        .from(schema.exams)
+        .where(and(
+          inArray(schema.exams.classId, classIds),
+          inArray(schema.exams.subjectId, subjectIds)
+        ));
+
+      const examIds = exams.map(e => e.id);
+      if (examIds.length === 0) {
+        return [];
+      }
+
+      // Get sessions for these exams
+      const sessions = await this.db.select()
+        .from(schema.examSessions)
+        .where(and(
+          inArray(schema.examSessions.examId, examIds),
+          eq(schema.examSessions.isCompleted, true)
+        ));
+
+      const sessionIds = sessions.map(s => s.id);
+      if (sessionIds.length === 0) {
+        return [];
+      }
+
+      // Get student answers that are AI-suggested (not auto-scored, has points)
+      let query = this.db.select({
+        id: schema.studentAnswers.id,
+        sessionId: schema.studentAnswers.sessionId,
+        questionId: schema.studentAnswers.questionId,
+        textAnswer: schema.studentAnswers.textAnswer,
+        pointsEarned: schema.studentAnswers.pointsEarned,
+        feedbackText: schema.studentAnswers.feedbackText,
+        autoScored: schema.studentAnswers.autoScored,
+        manualOverride: schema.studentAnswers.manualOverride,
+        answeredAt: schema.studentAnswers.answeredAt,
+        questionText: schema.examQuestions.questionText,
+        questionType: schema.examQuestions.questionType,
+        points: schema.examQuestions.points,
+        expectedAnswers: schema.examQuestions.expectedAnswers,
+        sampleAnswer: schema.examQuestions.sampleAnswer,
+        studentId: schema.examSessions.studentId,
+        examId: schema.examSessions.examId,
+        examName: schema.exams.name
+      })
+        .from(schema.studentAnswers)
+        .innerJoin(schema.examQuestions, eq(schema.studentAnswers.questionId, schema.examQuestions.id))
+        .innerJoin(schema.examSessions, eq(schema.studentAnswers.sessionId, schema.examSessions.id))
+        .innerJoin(schema.exams, eq(schema.examSessions.examId, schema.exams.id))
+        .where(and(
+          inArray(schema.studentAnswers.sessionId, sessionIds),
+          sql`(${schema.examQuestions.questionType} = 'text' OR ${schema.examQuestions.questionType} = 'essay')`,
+          sql`${schema.studentAnswers.textAnswer} IS NOT NULL`
+        ));
+
+      // Filter by status if provided
+      if (status === 'pending') {
+        query = query.where(sql`${schema.studentAnswers.autoScored} = false AND ${schema.studentAnswers.manualOverride} = false`);
+      } else if (status === 'reviewed') {
+        query = query.where(sql`(${schema.studentAnswers.autoScored} = true OR ${schema.studentAnswers.manualOverride} = true)`);
+      }
+
+      const results = await query;
+
+      // Get student names
+      const studentIds = [...new Set(results.map(r => r.studentId))];
+      const students = await this.db.select({
+        id: schema.users.id,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName
+      })
+        .from(schema.users)
+        .where(inArray(schema.users.id, studentIds));
+
+      // Enrich results with student names
+      return results.map(r => ({
+        ...r,
+        studentName: `${students.find(s => s.id === r.studentId)?.firstName} ${students.find(s => s.id === r.studentId)?.lastName}`,
+        status: r.autoScored || r.manualOverride ? 'reviewed' : 'pending',
+        aiSuggested: r.pointsEarned > 0 && !r.autoScored && !r.manualOverride
+      }));
+
+    } catch (error) {
+      console.error('Error fetching AI-suggested tasks:', error);
+      return [];
+    }
+  }
+
+
   // Exam sessions management
   async createExamSession(session: InsertExamSession): Promise<ExamSession> {
     const result = await db.insert(schema.examSessions).values(session).returning();

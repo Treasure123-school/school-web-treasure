@@ -51,7 +51,7 @@ export default function TeacherGradingQueue() {
   const [selectedTask, setSelectedTask] = useState<GradingTask | null>(null);
   const [score, setScore] = useState<string>('');
   const [comment, setComment] = useState('');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'graded'>('pending');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'graded' | 'ai-suggested'>('ai-suggested');
   const [searchTerm, setSearchTerm] = useState('');
   const [isGrading, setIsGrading] = useState(false);
 
@@ -59,7 +59,11 @@ export default function TeacherGradingQueue() {
   const { data: tasks = [], isLoading, refetch } = useQuery<GradingTask[]>({
     queryKey: ['/api/grading/tasks', user?.id, filter],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/grading/tasks?teacher_id=${user?.id}&status=${filter === 'all' ? '' : filter}`);
+      const endpoint = filter === 'ai-suggested' 
+        ? `/api/grading/tasks/ai-suggested?status=pending`
+        : `/api/grading/tasks?teacher_id=${user?.id}&status=${filter === 'all' ? '' : filter}`;
+      
+      const response = await apiRequest('GET', endpoint);
       if (!response.ok) throw new Error('Failed to fetch grading tasks');
       return response.json();
     },
@@ -189,8 +193,9 @@ export default function TeacherGradingQueue() {
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="ai-suggested">AI Suggested</SelectItem>
                     <SelectItem value="all">All Tasks</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="pending">Pending Manual</SelectItem>
                     <SelectItem value="graded">Graded</SelectItem>
                   </SelectContent>
                 </Select>
@@ -368,19 +373,86 @@ export default function TeacherGradingQueue() {
                       />
                     </div>
 
+                    {/* AI Suggestion Info */}
+                    {(selectedTask as any).aiSuggested && (selectedTask as any).pointsEarned > 0 && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <AlertCircle className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium text-blue-900">AI Suggested Score</span>
+                        </div>
+                        <p className="text-sm text-blue-800 mb-2">
+                          The system suggests <strong>{(selectedTask as any).pointsEarned}/{selectedTask.maxMarks} marks</strong>
+                          {(selectedTask as any).confidence && 
+                            ` (${Math.round((selectedTask as any).confidence * 100)}% confidence)`
+                          }
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          Review the answer and either approve the AI score or provide your own assessment.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex space-x-2">
-                      <Button
-                        onClick={handleGradeSubmit}
-                        disabled={isGrading || !score || !comment.trim()}
-                        className="flex-1"
-                      >
-                        {isGrading ? (
-                          <Loader className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Save className="w-4 h-4 mr-2" />
-                        )}
-                        {selectedTask.status === 'graded' ? 'Update Grade' : 'Submit Grade'}
-                      </Button>
+                      {(selectedTask as any).aiSuggested && (selectedTask as any).pointsEarned > 0 ? (
+                        <>
+                          <Button
+                            onClick={() => {
+                              // Approve AI score
+                              apiRequest('POST', `/api/grading/ai-suggested/${(selectedTask as any).id}/review`, {
+                                approved: true,
+                                comment: comment.trim() || (selectedTask as any).feedbackText
+                              }).then(() => {
+                                toast({
+                                  title: "AI Score Approved",
+                                  description: "The AI-suggested score has been approved.",
+                                });
+                                refetch();
+                                setSelectedTask(null);
+                              }).catch(() => {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to approve AI score",
+                                  variant: "destructive",
+                                });
+                              });
+                            }}
+                            disabled={isGrading}
+                            variant="default"
+                            className="flex-1"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Approve AI Score
+                          </Button>
+                          <Button
+                            onClick={handleGradeSubmit}
+                            disabled={isGrading || !score || !comment.trim()}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            {isGrading ? (
+                              <Loader className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4 mr-2" />
+                            )}
+                            Override with Custom Score
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={handleGradeSubmit}
+                            disabled={isGrading || !score || !comment.trim()}
+                            className="flex-1"
+                          >
+                            {isGrading ? (
+                              <Loader className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4 mr-2" />
+                            )}
+                            {selectedTask.status === 'graded' ? 'Update Grade' : 'Submit Grade'}
+                          </Button>
+                        </>
+                      )}
                       <Button
                         variant="outline"
                         onClick={() => {
