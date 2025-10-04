@@ -227,25 +227,63 @@ export default function Login() {
       // Extract the specific error message from the backend
       const errorMessage = error?.message || 'Invalid credentials. Please try again.';
       
-      // Determine message type and icon based on content
+      // Determine message type and styling based on exact backend responses
       let icon = <XCircle className="h-4 w-4" />;
       let emoji = '❌';
       let className = '';
       let title = 'Login Failed';
+      let description = errorMessage;
       
-      if (errorMessage.includes('awaiting') || errorMessage.includes('pending')) {
+      // Pending approval
+      if (errorMessage.includes('awaiting Admin approval') || errorMessage.includes('pending')) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
         emoji = '⏳';
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
         title = 'Account Pending Approval';
-      } else if (errorMessage.includes('suspended')) {
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">{emoji} {errorMessage}</p>
+            {errorMessage.includes('Teacher') || errorMessage.includes('Admin') ? (
+              <p className="text-muted-foreground">Contact your school administrator for assistance.</p>
+            ) : null}
+          </div>
+        );
+      } 
+      // Suspended account
+      else if (errorMessage.includes('suspended') || errorMessage.includes('disabled')) {
         icon = <Ban className="h-4 w-4 text-red-500" />;
         emoji = '🚫';
         className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
-        title = 'Account Suspended';
-      } else if (errorMessage.includes('Invalid') || errorMessage.includes('incorrect')) {
+        title = errorMessage.includes('suspended') ? 'Account Suspended' : 'Account Disabled';
+        description = `${emoji} ${errorMessage}`;
+      }
+      // Account locked due to too many attempts
+      else if (errorMessage.includes('Too many login attempts') || errorMessage.includes('locked')) {
+        icon = <Ban className="h-4 w-4 text-orange-500" />;
+        emoji = '🔒';
+        className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+        title = 'Account Locked';
+        description = (
+          <div className="text-sm">
+            <p className="mb-2">{emoji} {errorMessage}</p>
+            <p className="text-muted-foreground">If this continues, please contact the administrator.</p>
+          </div>
+        );
+      }
+      // Google OAuth required for admins/teachers
+      else if (errorMessage.includes('must use Google Sign-In')) {
+        icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
+        emoji = 'ℹ️';
+        className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
+        title = 'Google Sign-In Required';
+        description = `${emoji} ${errorMessage}`;
+      }
+      // Invalid credentials (default)
+      else {
         icon = <XCircle className="h-4 w-4" />;
         emoji = '❌';
+        title = 'Login Failed';
+        description = `${emoji} ${errorMessage}`;
       }
       
       toast({
@@ -255,7 +293,7 @@ export default function Login() {
             <span>{title}</span>
           </div>
         ),
-        description: `${emoji} ${errorMessage}`,
+        description: description,
         variant: className ? undefined : 'destructive',
         className: className || undefined,
       });
