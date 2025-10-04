@@ -162,18 +162,18 @@ export default function PendingApprovals() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-page-title">
               Pending Approvals
             </h1>
-            <p className="text-muted-foreground mt-1" data-testid="text-page-description">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="text-page-description">
               Review and approve new user accounts
             </p>
           </div>
-          <Badge variant="secondary" className="text-lg px-4 py-2" data-testid="badge-pending-count">
+          <Badge variant="secondary" className="text-sm sm:text-lg px-3 py-1.5 sm:px-4 sm:py-2 w-fit" data-testid="badge-pending-count">
             {pendingUsers.length} Pending
           </Badge>
         </div>
@@ -205,11 +205,11 @@ export default function PendingApprovals() {
                 {pendingUsers.map((pendingUser) => (
                   <div
                     key={pendingUser.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                     data-testid={`pending-user-${pendingUser.id}`}
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <Avatar className="h-12 w-12">
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                         {pendingUser.profileImageUrl && (
                           <AvatarImage src={pendingUser.profileImageUrl} alt={`${pendingUser.firstName} ${pendingUser.lastName}`} />
                         )}
@@ -218,23 +218,31 @@ export default function PendingApprovals() {
                         </AvatarFallback>
                       </Avatar>
                       
-                      <div className="flex-1">
-                        <h3 className="font-semibold" data-testid={`text-user-name-${pendingUser.id}`}>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm sm:text-base truncate" data-testid={`text-user-name-${pendingUser.id}`}>
                           {pendingUser.firstName} {pendingUser.lastName}
                         </h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1" data-testid={`text-user-email-${pendingUser.id}`}>
-                            <Mail className="h-3 w-3" />
-                            {pendingUser.email}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-1 gap-0.5">
+                          <span className="flex items-center gap-1 truncate" data-testid={`text-user-email-${pendingUser.id}`}>
+                            <Mail className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{pendingUser.email}</span>
                           </span>
-                          <span className="flex items-center gap-1" data-testid={`text-user-username-${pendingUser.id}`}>
-                            <User className="h-3 w-3" />
+                          <span className="flex items-center gap-1 truncate" data-testid={`text-user-username-${pendingUser.id}`}>
+                            <User className="h-3 w-3 flex-shrink-0" />
                             {pendingUser.username}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 sm:hidden">
+                          <Badge variant="outline" className="text-xs" data-testid={`badge-role-${pendingUser.id}`}>
+                            {pendingUser.roleName}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground" data-testid={`text-signup-method-${pendingUser.id}`}>
+                            {pendingUser.googleId ? 'Google' : pendingUser.createdVia || 'Direct'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-right">
+                      <div className="hidden sm:block text-right flex-shrink-0">
                         <Badge variant="outline" className="mb-2" data-testid={`badge-role-${pendingUser.id}`}>
                           {pendingUser.roleName}
                         </Badge>
@@ -247,15 +255,16 @@ export default function PendingApprovals() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2 sm:ml-4 w-full sm:w-auto">
                       <Button
                         size="sm"
                         variant="default"
                         onClick={() => handleApprove(pendingUser)}
                         disabled={approveMutation.isPending || rejectMutation.isPending}
                         data-testid={`button-approve-${pendingUser.id}`}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
-                        <CheckCircle className="h-4 w-4 mr-1" />
+                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Approve
                       </Button>
                       <Button
@@ -264,8 +273,9 @@ export default function PendingApprovals() {
                         onClick={() => handleReject(pendingUser)}
                         disabled={approveMutation.isPending || rejectMutation.isPending}
                         data-testid={`button-reject-${pendingUser.id}`}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
-                        <XCircle className="h-4 w-4 mr-1" />
+                        <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Reject
                       </Button>
                     </div>

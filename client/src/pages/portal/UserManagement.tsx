@@ -90,14 +90,14 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+
   const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [forceChange, setForceChange] = useState(true);
-  
+
   const [changeRoleDialog, setChangeRoleDialog] = useState(false);
   const [newRoleId, setNewRoleId] = useState<number | null>(null);
-  
+
   const [recoveryEmailDialog, setRecoveryEmailDialog] = useState(false);
   const [newRecoveryEmail, setNewRecoveryEmail] = useState('');
 
@@ -168,7 +168,7 @@ export default function UserManagement() {
     onSuccess: (data: any, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
-      
+
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -502,13 +502,13 @@ export default function UserManagement() {
         icon: <XCircle className="h-3 w-3 mr-1" />
       }
     };
-    
+
     const badgeConfig = badgeConfigs[status] || { 
       variant: 'outline', 
       label: status,
       icon: null
     };
-    
+
     return (
       <Badge 
         variant={badgeConfig.variant as any}
@@ -525,7 +525,7 @@ export default function UserManagement() {
 
   const getActionButtons = (targetUser: User) => {
     const buttons = [];
-    
+
     if (targetUser.status === 'pending') {
       buttons.push(
         <Button
@@ -542,7 +542,7 @@ export default function UserManagement() {
         </Button>
       );
     }
-    
+
     if (targetUser.status === 'active') {
       buttons.push(
         <Button
@@ -559,7 +559,7 @@ export default function UserManagement() {
         </Button>
       );
     }
-    
+
     if (targetUser.status === 'suspended') {
       buttons.push(
         <Button
@@ -576,7 +576,7 @@ export default function UserManagement() {
         </Button>
       );
     }
-    
+
     // More Actions Dropdown
     buttons.push(
       <DropdownMenu key="more-actions">
@@ -592,7 +592,7 @@ export default function UserManagement() {
         <DropdownMenuContent align="end" data-testid={`menu-actions-${targetUser.id}`}>
           <DropdownMenuLabel>Admin Powers</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          
+
           {targetUser.authProvider !== 'google' && (
             <DropdownMenuItem 
               onClick={() => handleAction(targetUser, 'resetPassword')}
@@ -602,7 +602,7 @@ export default function UserManagement() {
               Reset Password
             </DropdownMenuItem>
           )}
-          
+
           <DropdownMenuItem 
             onClick={() => handleAction(targetUser, 'changeRole')}
             data-testid={`menu-item-change-role-${targetUser.id}`}
@@ -610,7 +610,7 @@ export default function UserManagement() {
             <UserCog className="h-4 w-4 mr-2" />
             Change Role
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem 
             onClick={() => handleAction(targetUser, 'updateRecoveryEmail')}
             data-testid={`menu-item-recovery-email-${targetUser.id}`}
@@ -618,7 +618,7 @@ export default function UserManagement() {
             <Mail className="h-4 w-4 mr-2" />
             Update Recovery Email
           </DropdownMenuItem>
-          
+
           {(targetUser.status === 'active' || targetUser.status === 'pending') && (
             <DropdownMenuItem 
               onClick={() => handleAction(targetUser, 'unverify')}
@@ -628,9 +628,9 @@ export default function UserManagement() {
               Mark as Unverified
             </DropdownMenuItem>
           )}
-          
+
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem 
             onClick={() => handleAction(targetUser, 'delete')}
             className="text-destructive focus:text-destructive"
@@ -642,7 +642,7 @@ export default function UserManagement() {
         </DropdownMenuContent>
       </DropdownMenu>
     );
-    
+
     return buttons;
   };
 
@@ -651,10 +651,10 @@ export default function UserManagement() {
       {users.map((targetUser) => (
         <div
           key={targetUser.id}
-          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+          className="flex flex-col sm:flex-row items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
           data-testid={`user-card-${targetUser.id}`}
         >
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
             <Avatar className="h-12 w-12">
               {targetUser.profileImageUrl && (
                 <AvatarImage src={targetUser.profileImageUrl} alt={`${targetUser.firstName} ${targetUser.lastName}`} />
@@ -663,41 +663,40 @@ export default function UserManagement() {
                 {getInitials(targetUser.firstName, targetUser.lastName)}
               </AvatarFallback>
             </Avatar>
-            
-            <div className="flex-1">
-              <h3 className="font-semibold" data-testid={`text-user-name-${targetUser.id}`}>
+
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold truncate" data-testid={`text-user-name-${targetUser.id}`}>
                 {targetUser.firstName} {targetUser.lastName}
               </h3>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                <span className="flex items-center gap-1" data-testid={`text-user-email-${targetUser.id}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-muted-foreground mt-1">
+                <span className="flex items-center gap-1 truncate" data-testid={`text-user-email-${targetUser.id}`}>
                   <Mail className="h-3 w-3" />
                   {targetUser.email}
                 </span>
-                <span className="flex items-center gap-1" data-testid={`text-user-username-${targetUser.id}`}>
+                <span className="flex items-center gap-1 truncate" data-testid={`text-user-username-${targetUser.id}`}>
                   <User className="h-3 w-3" />
                   {targetUser.username}
                 </span>
               </div>
             </div>
-
-            <div className="text-right space-y-2">
-              <div className="flex items-center gap-2 justify-end">
-                <Badge variant="outline" data-testid={`badge-role-${targetUser.id}`}>
-                  {targetUser.roleName || 'Unknown'}
-                </Badge>
-                {getStatusBadge(targetUser.status)}
-              </div>
-              <div className="text-xs text-muted-foreground" data-testid={`text-auth-method-${targetUser.id}`}>
-                {targetUser.authProvider === 'google' ? 'Google Sign-in' : 'Password Login'}
-              </div>
-              <div className="text-xs text-muted-foreground" data-testid={`text-created-date-${targetUser.id}`}>
-                Joined: {formatDate(targetUser.createdAt)}
-              </div>
-            </div>
           </div>
 
-          <div className="flex gap-2 ml-4 flex-wrap justify-end max-w-xs">
-            {getActionButtons(targetUser)}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 ml-4 flex-wrap justify-end w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <Badge variant="outline" className="w-full sm:w-auto text-center" data-testid={`badge-role-${targetUser.id}`}>
+                {targetUser.roleName || 'Unknown'}
+              </Badge>
+              {getStatusBadge(targetUser.status)}
+            </div>
+            <div className="text-xs text-muted-foreground text-center sm:text-left w-full sm:w-auto" data-testid={`text-auth-method-${targetUser.id}`}>
+              {targetUser.authProvider === 'google' ? 'Google Sign-in' : 'Password Login'}
+            </div>
+            <div className="text-xs text-muted-foreground text-center sm:text-left w-full sm:w-auto" data-testid={`text-created-date-${targetUser.id}`}>
+              Joined: {formatDate(targetUser.createdAt)}
+            </div>
+            <div className="flex gap-2 justify-center sm:justify-end w-full sm:w-auto">
+              {getActionButtons(targetUser)}
+            </div>
           </div>
         </div>
       ))}
@@ -710,43 +709,49 @@ export default function UserManagement() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-page-title">
               User Management
             </h1>
-            <p className="text-muted-foreground mt-1" data-testid="text-page-description">
-              Manage user accounts, approvals, and access control
+            <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="text-page-description">
+              Manage all user accounts, roles, and permissions
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="text-base px-3 py-1" data-testid="badge-pending-count">
-              {pendingUsers.length} Pending
-            </Badge>
-            <Badge variant="outline" className="text-base px-3 py-1" data-testid="badge-total-count">
-              {allUsers.length} Total
-            </Badge>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="disabled">Disabled</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         {/* Tabs for different user status views */}
         <Tabs defaultValue="all" className="space-y-4" onValueChange={setStatusFilter}>
-          <TabsList>
-            <TabsTrigger value="all" data-testid="tab-all-users">
+          <TabsList className="flex flex-wrap justify-center sm:justify-start h-auto py-2">
+            <TabsTrigger value="all" data-testid="tab-all-users" className="px-4 py-2">
               All Users ({allUsers.length})
             </TabsTrigger>
-            <TabsTrigger value="pending" data-testid="tab-pending-users">
+            <TabsTrigger value="pending" data-testid="tab-pending-users" className="px-4 py-2">
               Pending ({allUsers.filter(u => u.status === 'pending').length})
             </TabsTrigger>
-            <TabsTrigger value="active" data-testid="tab-active-users">
+            <TabsTrigger value="active" data-testid="tab-active-users" className="px-4 py-2">
               Active ({allUsers.filter(u => u.status === 'active').length})
             </TabsTrigger>
-            <TabsTrigger value="suspended" data-testid="tab-suspended-users">
+            <TabsTrigger value="suspended" data-testid="tab-suspended-users" className="px-4 py-2">
               Suspended ({allUsers.filter(u => u.status === 'suspended').length})
             </TabsTrigger>
-            <TabsTrigger value="disabled" data-testid="tab-disabled-users">
+            <TabsTrigger value="disabled" data-testid="tab-disabled-users" className="px-4 py-2">
               Disabled ({allUsers.filter(u => u.status === 'disabled').length})
             </TabsTrigger>
           </TabsList>
@@ -754,11 +759,11 @@ export default function UserManagement() {
           <TabsContent value={statusFilter} className="space-y-4">
             <Card data-testid="card-users-list">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex flex-col sm:flex-row items-center gap-2 text-lg sm:text-xl">
                   <Filter className="h-5 w-5" />
                   {statusFilter === 'all' ? 'All Users' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Users`}
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   {statusFilter === 'pending' && 'New users awaiting admin approval'}
                   {statusFilter === 'active' && 'Users with active access to the system'}
                   {statusFilter === 'suspended' && 'Users whose access has been temporarily suspended'}

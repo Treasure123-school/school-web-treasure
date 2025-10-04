@@ -159,37 +159,37 @@ export default function AdminDashboard() {
     >
       {/* PROMINENT PENDING APPROVALS NOTIFICATION */}
       {pendingCount > 0 && (
-        <Card className="mb-6 border-2 border-orange-500 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 shadow-lg" data-testid="card-pending-approvals-alert">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Bell className="h-10 w-10 text-orange-600 animate-pulse" />
-                  <div className="absolute -top-1 -right-1 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center">
+        <Card className="mb-4 sm:mb-6 border-2 border-orange-500 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 shadow-lg" data-testid="card-pending-approvals-alert">
+          <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
+                <div className="relative flex-shrink-0">
+                  <Bell className="h-8 w-8 sm:h-10 sm:w-10 text-orange-600 animate-pulse" />
+                  <div className="absolute -top-1 -right-1 h-5 w-5 sm:h-6 sm:w-6 bg-red-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-xs font-bold" data-testid="text-pending-count">
                       {pendingCount}
                     </span>
                   </div>
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-orange-600" />
-                    <h3 className="text-lg font-bold text-orange-900 dark:text-orange-200" data-testid="text-alert-title">
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 flex-shrink-0" />
+                    <h3 className="text-base sm:text-lg font-bold text-orange-900 dark:text-orange-200 truncate" data-testid="text-alert-title">
                       Pending Approvals Require Attention
                     </h3>
                   </div>
-                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-1" data-testid="text-alert-message">
+                  <p className="text-xs sm:text-sm text-orange-700 dark:text-orange-300 mt-1" data-testid="text-alert-message">
                     {pendingCount} {pendingCount === 1 ? 'user' : 'users'} waiting for approval. Review and approve to grant portal access.
                   </p>
                 </div>
               </div>
               <Button 
-                size="lg"
-                className="bg-orange-600 hover:bg-orange-700 text-white shadow-md"
+                size="sm"
+                className="bg-orange-600 hover:bg-orange-700 text-white shadow-md w-full sm:w-auto sm:size-lg"
                 asChild
               >
                 <Link href="/portal/admin/pending-approvals" data-testid="button-review-approvals">
-                  <UserCheck className="h-5 w-5 mr-2" />
+                  <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   Review Now
                 </Link>
               </Button>

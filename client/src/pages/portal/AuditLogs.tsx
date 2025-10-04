@@ -130,19 +130,19 @@ export default function AuditLogs() {
     >
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2" data-testid="text-page-title">
-              <History className="h-8 w-8" />
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2" data-testid="text-page-title">
+              <History className="h-6 w-6 sm:h-8 sm:w-8" />
               Audit Logs
             </h1>
-            <p className="text-muted-foreground mt-1" data-testid="text-page-description">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="text-page-description">
               Track all admin actions and system changes for accountability
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
             <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="w-[200px]" data-testid="select-action-filter">
+              <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-action-filter">
                 <SelectValue placeholder="Filter by action" />
               </SelectTrigger>
               <SelectContent>
@@ -155,7 +155,7 @@ export default function AuditLogs() {
               </SelectContent>
             </Select>
             <Select value={limit.toString()} onValueChange={(val) => setLimit(parseInt(val))}>
-              <SelectTrigger className="w-[150px]" data-testid="select-limit">
+              <SelectTrigger className="w-full sm:w-[150px]" data-testid="select-limit">
                 <SelectValue placeholder="Show..." />
               </SelectTrigger>
               <SelectContent>
