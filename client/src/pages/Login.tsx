@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GraduationCap, AlertCircle, CheckCircle, Clock, Ban, XCircle } from 'lucide-react';
+import { GraduationCap, AlertCircle, CheckCircle, Key } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -613,7 +613,8 @@ export default function Login() {
                 className="text-primary text-sm font-semibold hover:underline inline-flex items-center gap-1"
                 data-testid="link-forgot-password"
               >
-                🔑 Forgot your password? Click here to reset
+                <Key className="h-3.5 w-3.5" />
+                Forgot your password? Click here to reset
               </Link>
             </div>
           </CardContent>
