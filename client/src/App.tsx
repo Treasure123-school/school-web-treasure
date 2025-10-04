@@ -14,6 +14,8 @@ import Contact from "@/pages/Contact";
 import Gallery from "@/pages/Gallery";
 import Admissions from "@/pages/Admissions";
 import Login from "@/pages/Login";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 
 // Portal pages
 import StudentDashboard from "@/pages/portal/StudentDashboard";
@@ -65,6 +67,8 @@ function Router() {
       <Route path="/gallery" component={Gallery} />
       <Route path="/admissions" component={Admissions} />
       <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       {/* Protected Portal pages */}
       <Route path="/portal/student">
