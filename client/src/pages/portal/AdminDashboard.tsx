@@ -198,18 +198,18 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* Header Actions */}
-      <div className="flex justify-end mb-6">
-        <Button className="bg-primary text-primary-foreground" asChild>
+      {/* Header Actions - Responsive */}
+      <div className="flex justify-end mb-4 sm:mb-6">
+        <Button className="bg-primary text-primary-foreground text-xs sm:text-sm w-full sm:w-auto" asChild>
           <Link href="/portal/admin/students" data-testid="button-manage-students">
-            <UserPlus className="h-4 w-4 mr-2" />
+            <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
             Manage Students
           </Link>
         </Button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      {/* Statistics Cards - Fully Responsive */}
+      <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
         <StatsCard
           title="Total Students"
           value={stats?.totalStudents.toString() ?? '0'}
@@ -240,55 +240,55 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-        {/* Recent Registrations */}
+        {/* Recent Registrations - Responsive */}
         <div className="lg:col-span-2">
           <Card className="shadow-sm border border-border" data-testid="card-recent-registrations">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Recent Student Registrations</span>
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-sm sm:text-base">Recent Student Registrations</span>
                 </CardTitle>
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm" asChild>
                   <Link href="/portal/admin/students" data-testid="link-view-all-students">
                     View All
                   </Link>
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            <CardContent className="p-0 sm:p-6 sm:pt-0">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-xs sm:text-sm min-w-[600px]">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left py-2 px-3">Student Name</th>
-                      <th className="text-left py-2 px-3">Admission No.</th>
-                      <th className="text-left py-2 px-3">Class</th>
-                      <th className="text-left py-2 px-3">Date</th>
-                      <th className="text-left py-2 px-3">Status</th>
+                      <th className="text-left py-2 px-3 sm:px-3 font-medium">Student Name</th>
+                      <th className="text-left py-2 px-3 sm:px-3 font-medium hidden sm:table-cell">Admission No.</th>
+                      <th className="text-left py-2 px-3 sm:px-3 font-medium">Class</th>
+                      <th className="text-left py-2 px-3 sm:px-3 font-medium hidden md:table-cell">Date</th>
+                      <th className="text-left py-2 px-3 sm:px-3 font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mockRecentRegistrations.map((student, index) => (
                       <tr key={student.id} className="border-b border-border/50" data-testid={`student-row-${index}`}>
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-3 sm:px-3">
                           <div className="flex items-center space-x-2">
-                            <div className={`w-8 h-8 ${student.color} rounded-full flex items-center justify-center`}>
+                            <div className={`w-7 h-7 sm:w-8 sm:h-8 ${student.color} rounded-full flex items-center justify-center flex-shrink-0`}>
                               <span className="text-white text-xs font-medium">{student.initials}</span>
                             </div>
-                            <span data-testid={`text-student-name-${index}`}>{student.name}</span>
+                            <span className="truncate max-w-[120px] sm:max-w-none" data-testid={`text-student-name-${index}`}>{student.name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-3" data-testid={`text-admission-number-${index}`}>
+                        <td className="py-3 px-3 sm:px-3 hidden sm:table-cell" data-testid={`text-admission-number-${index}`}>
                           {student.admissionNumber}
                         </td>
-                        <td className="py-3 px-3" data-testid={`text-student-class-${index}`}>
+                        <td className="py-3 px-3 sm:px-3" data-testid={`text-student-class-${index}`}>
                           {student.class}
                         </td>
-                        <td className="py-3 px-3" data-testid={`text-registration-date-${index}`}>
+                        <td className="py-3 px-3 sm:px-3 hidden md:table-cell" data-testid={`text-registration-date-${index}`}>
                           {student.date}
                         </td>
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-3 sm:px-3">
                           <span 
                             className={`px-2 py-1 rounded-full text-xs ${
                               student.status === 'Active' 
@@ -309,27 +309,27 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Responsive */}
         <Card className="shadow-sm border border-border" data-testid="card-quick-actions">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <div className="space-y-2 sm:space-y-3">
               {quickActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
                   <Button 
                     key={index}
                     variant="ghost"
-                    className={`w-full justify-start h-auto p-3 ${action.color} transition-colors`}
+                    className={`w-full justify-start h-auto p-2.5 sm:p-3 ${action.color} transition-colors text-xs sm:text-sm`}
                     asChild
                   >
                     <Link href={action.href} data-testid={`button-action-${index}`}>
-                      <Icon className="h-4 w-4 mr-3" />
-                      <span className="text-sm font-medium flex-1">{action.title}</span>
+                      <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
+                      <span className="font-medium flex-1 text-left">{action.title}</span>
                       {action.badge !== undefined && (
-                        <Badge variant="destructive" className="ml-2" data-testid={`badge-count-${index}`}>
+                        <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0.5" data-testid={`badge-count-${index}`}>
                           {action.badge}
                         </Badge>
                       )}
@@ -342,29 +342,29 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Class Overview */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-class-overview">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <School className="h-5 w-5" />
+      {/* Class Overview - Responsive */}
+      <Card className="mt-4 sm:mt-6 shadow-sm border border-border" data-testid="card-class-overview">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+            <School className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>Class Overview</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             {classOverview.map((overview, index) => (
               <div 
                 key={index}
-                className="border border-border rounded-lg p-4"
+                className="border border-border rounded-lg p-3 sm:p-4"
                 data-testid={`class-overview-${index}`}
               >
-                <h3 className={`font-medium ${overview.color} mb-2`} data-testid={`text-overview-level-${index}`}>
+                <h3 className={`font-medium text-sm sm:text-base ${overview.color} mb-2`} data-testid={`text-overview-level-${index}`}>
                   {overview.level} ({overview.classes} classes)
                 </h3>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-xs sm:text-sm">
                   <div className="flex justify-between">
                     <span>Students</span>
-                    <span className="text-muted-foreground" data-testid={`text-overview-students-${index}`}>
+                    <span className="text-muted-foreground font-medium" data-testid={`text-overview-students-${index}`}>
                       {overview.students}/{overview.capacity}
                     </span>
                   </div>
@@ -387,32 +387,32 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* System Analytics & Upcoming Events */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+      {/* System Analytics & Upcoming Events - Responsive */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
         <Card className="shadow-sm border border-border" data-testid="card-system-analytics">
-          <CardHeader>
-            <CardTitle>System Analytics</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">System Analytics</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="font-medium">Daily Active Users</p>
-                  <p className="text-sm text-muted-foreground">Portal logins today</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base truncate">Daily Active Users</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Portal logins today</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">342</p>
+                <div className="text-right ml-3">
+                  <p className="text-xl sm:text-2xl font-bold text-primary">342</p>
                   <p className="text-xs text-green-600">↗ +15%</p>
                 </div>
               </div>
 
               <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="font-medium">Pending Actions</p>
-                  <p className="text-sm text-muted-foreground">Require attention</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base truncate">Pending Actions</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Require attention</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-orange-600">7</p>
+                <div className="text-right ml-3">
+                  <p className="text-xl sm:text-2xl font-bold text-orange-600">7</p>
                   <p className="text-xs text-muted-foreground">Applications</p>
                 </div>
               </div>
@@ -421,37 +421,37 @@ export default function AdminDashboard() {
         </Card>
 
         <Card className="shadow-sm border border-border" data-testid="card-upcoming-events">
-          <CardHeader>
-            <CardTitle>Upcoming Events</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Upcoming Events</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                <div className="bg-primary/10 p-2 rounded-lg">
-                  <i className="fas fa-calendar text-primary"></i>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-center space-x-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
+                  <i className="fas fa-calendar text-primary text-sm"></i>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">Parent-Teacher Conference</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-xs sm:text-sm truncate">Parent-Teacher Conference</p>
                   <p className="text-xs text-muted-foreground">December 15, 2024</p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                <div className="bg-secondary/10 p-2 rounded-lg">
-                  <i className="fas fa-graduation-cap text-secondary"></i>
+              <div className="flex items-center space-x-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                <div className="bg-secondary/10 p-2 rounded-lg flex-shrink-0">
+                  <i className="fas fa-graduation-cap text-secondary text-sm"></i>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">End of Term Exams</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-xs sm:text-sm truncate">End of Term Exams</p>
                   <p className="text-xs text-muted-foreground">December 18-22, 2024</p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 p-3 bg-green-100 p-2 rounded-lg">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <i className="fas fa-trophy text-green-600"></i>
+              <div className="flex items-center space-x-3 p-2.5 sm:p-3 bg-green-100 rounded-lg">
+                <div className="bg-green-100 p-2 rounded-lg flex-shrink-0">
+                  <i className="fas fa-trophy text-green-600 text-sm"></i>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">Inter-House Sports</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-xs sm:text-sm truncate">Inter-House Sports</p>
                   <p className="text-xs text-muted-foreground">January 15, 2025</p>
                 </div>
               </div>
@@ -460,53 +460,53 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Security Alerts */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-security-alerts">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Shield className="h-5 w-5" />
+      {/* Security Alerts - Responsive */}
+      <Card className="mt-4 sm:mt-6 shadow-sm border border-border" data-testid="card-security-alerts">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+            <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>Security Alerts</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Failed Login Attempts */}
-            <div className="p-4 border border-border rounded-lg bg-red-50 dark:bg-red-950/20" data-testid="alert-failed-logins">
+            <div className="p-3 sm:p-4 border border-border rounded-lg bg-red-50 dark:bg-red-950/20" data-testid="alert-failed-logins">
               <div className="flex items-center justify-between mb-2">
-                <ShieldAlert className="h-5 w-5 text-red-600" />
-                <span className="text-2xl font-bold text-red-600" data-testid="text-failed-login-count">3</span>
+                <ShieldAlert className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                <span className="text-xl sm:text-2xl font-bold text-red-600" data-testid="text-failed-login-count">3</span>
               </div>
-              <h4 className="font-medium text-sm text-red-900 dark:text-red-200">Failed Logins</h4>
+              <h4 className="font-medium text-xs sm:text-sm text-red-900 dark:text-red-200">Failed Logins</h4>
               <p className="text-xs text-red-700 dark:text-red-300 mt-1">Last 24 hours</p>
             </div>
 
             {/* Locked Accounts */}
-            <div className="p-4 border border-border rounded-lg bg-orange-50 dark:bg-orange-950/20" data-testid="alert-locked-accounts">
+            <div className="p-3 sm:p-4 border border-border rounded-lg bg-orange-50 dark:bg-orange-950/20" data-testid="alert-locked-accounts">
               <div className="flex items-center justify-between mb-2">
-                <Lock className="h-5 w-5 text-orange-600" />
-                <span className="text-2xl font-bold text-orange-600" data-testid="text-locked-account-count">1</span>
+                <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                <span className="text-xl sm:text-2xl font-bold text-orange-600" data-testid="text-locked-account-count">1</span>
               </div>
-              <h4 className="font-medium text-sm text-orange-900 dark:text-orange-200">Locked Accounts</h4>
+              <h4 className="font-medium text-xs sm:text-sm text-orange-900 dark:text-orange-200">Locked Accounts</h4>
               <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">Require admin review</p>
             </div>
 
             {/* MFA Enabled */}
-            <div className="p-4 border border-border rounded-lg bg-green-50 dark:bg-green-950/20" data-testid="alert-mfa-status">
+            <div className="p-3 sm:p-4 border border-border rounded-lg bg-green-50 dark:bg-green-950/20" data-testid="alert-mfa-status">
               <div className="flex items-center justify-between mb-2">
-                <Key className="h-5 w-5 text-green-600" />
-                <span className="text-2xl font-bold text-green-600" data-testid="text-mfa-percentage">68%</span>
+                <Key className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                <span className="text-xl sm:text-2xl font-bold text-green-600" data-testid="text-mfa-percentage">68%</span>
               </div>
-              <h4 className="font-medium text-sm text-green-900 dark:text-green-200">MFA Enabled</h4>
+              <h4 className="font-medium text-xs sm:text-sm text-green-900 dark:text-green-200">MFA Enabled</h4>
               <p className="text-xs text-green-700 dark:text-green-300 mt-1">Staff accounts</p>
             </div>
 
             {/* Suspended Users */}
-            <div className="p-4 border border-border rounded-lg bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-suspended-users">
+            <div className="p-3 sm:p-4 border border-border rounded-lg bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-suspended-users">
               <div className="flex items-center justify-between mb-2">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
-                <span className="text-2xl font-bold text-yellow-600" data-testid="text-suspended-count">2</span>
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                <span className="text-xl sm:text-2xl font-bold text-yellow-600" data-testid="text-suspended-count">2</span>
               </div>
-              <h4 className="font-medium text-sm text-yellow-900 dark:text-yellow-200">Suspended Users</h4>
+              <h4 className="font-medium text-xs sm:text-sm text-yellow-900 dark:text-yellow-200">Suspended Users</h4>
               <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
                 <Link href="/portal/admin/users" className="hover:underline" data-testid="link-manage-suspended">
                   Manage →
