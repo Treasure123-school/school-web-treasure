@@ -165,7 +165,6 @@ export default function UserManagement() {
       if (context?.previousUsers) {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
-    onError: (error: any) => {
       toast({
         title: (
           <div className="flex items-center gap-2">
