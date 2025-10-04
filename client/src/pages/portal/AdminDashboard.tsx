@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function AdminDashboard() {
@@ -145,6 +145,47 @@ export default function AdminDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* PROMINENT PENDING APPROVALS NOTIFICATION */}
+      {pendingCount > 0 && (
+        <Card className="mb-6 border-2 border-orange-500 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 shadow-lg" data-testid="card-pending-approvals-alert">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Bell className="h-10 w-10 text-orange-600 animate-pulse" />
+                  <div className="absolute -top-1 -right-1 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold" data-testid="text-pending-count">
+                      {pendingCount}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-orange-600" />
+                    <h3 className="text-lg font-bold text-orange-900 dark:text-orange-200" data-testid="text-alert-title">
+                      Pending Approvals Require Attention
+                    </h3>
+                  </div>
+                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-1" data-testid="text-alert-message">
+                    {pendingCount} {pendingCount === 1 ? 'user' : 'users'} waiting for approval. Review and approve to grant portal access.
+                  </p>
+                </div>
+              </div>
+              <Button 
+                size="lg"
+                className="bg-orange-600 hover:bg-orange-700 text-white shadow-md"
+                asChild
+              >
+                <Link href="/portal/admin/pending-approvals" data-testid="button-review-approvals">
+                  <UserCheck className="h-5 w-5 mr-2" />
+                  Review Now
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header Actions */}
       <div className="flex justify-end mb-6">
         <Button className="bg-primary text-primary-foreground" asChild>
