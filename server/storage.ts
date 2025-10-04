@@ -1739,7 +1739,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(schema.examSessions.startedAt));
   }
 
-  // PERFORMANCE OPTIMIZED: Get only expired sessions directly from database
+  // PERFORMANCE: Get only expired sessions directly from database
   async getExpiredExamSessions(now: Date, limit = 100): Promise<ExamSession[]> {
     // Temporarily simplified to work with existing schema - will be enhanced after schema sync
     return await db.select({
@@ -3678,19 +3678,19 @@ export class DatabaseStorage implements IStorage {
 
   // NEW METHODS FOR EXAM PUBLISHING
   async getScheduledExamsToPublish(now: Date): Promise<Exam[]> {
-    const result = await this.db
+    // Convert Date to ISO string for PostgreSQL compatibility
+    const nowISO = now.toISOString();
+    return await this.db
       .select()
       .from(schema.exams)
       .where(
         and(
           eq(schema.exams.isPublished, false),
-          sql`${schema.exams.startTime} <= ${now}`,
+          dsql`${schema.exams.startTime} <= ${nowISO}`,
           eq(schema.exams.timerMode, 'global') // Only publish global timer exams automatically
         )
       )
       .limit(50);
-
-    return result;
   }
 
   async updateExam(examId: number, updates: Partial<InsertExam>): Promise<Exam | undefined> {
