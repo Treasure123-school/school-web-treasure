@@ -819,26 +819,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Notify all admins about the new pending user
             try {
-              const adminRole = await storage.getRoleByName('Admin');
-              if (adminRole) {
-                const admins = await storage.getUsersByRole(adminRole.id);
-                const roleName = await storage.getRole(roleId);
+              const admins = await storage.getUsersByRole(ROLES.ADMIN);
+              if (admins && admins.length > 0) {
+                const role = await storage.getRole(roleId);
+                const roleName = role?.name || (roleId === ROLES.ADMIN ? 'Admin' : 'Teacher');
                 
                 for (const admin of admins) {
                   await storage.createNotification({
                     userId: admin.id,
                     type: 'pending_user',
                     title: 'New User Pending Approval',
-                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up via Google as ${roleName?.name || 'staff'} and is awaiting approval.`,
+                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up via Google as ${roleName} and is awaiting approval.`,
                     relatedEntityType: 'user',
                     relatedEntityId: newUser.id,
                     isRead: false
                   });
                 }
                 console.log(`📬 Notified ${admins.length} admin(s) about pending user: ${newUser.email}`);
+              } else {
+                console.warn('⚠️ No admins found to notify about pending user:', newUser.email);
               }
             } catch (notifError) {
-              console.error('Failed to create admin notifications:', notifError);
+              console.error('❌ Failed to create admin notifications:', notifError);
               // Don't fail the user creation if notification fails
             }
             

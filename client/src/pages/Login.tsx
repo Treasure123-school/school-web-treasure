@@ -336,7 +336,7 @@ export default function Login() {
         );
       }
       // Message 13: Google Sign-In Required (Admin/Teacher trying standard login)
-      else if (errorMessage.includes('must use Google Sign-In')) {
+      else if (errorMessage.includes('must use Google Sign-In') || errorMessage.includes('Sign in with Google')) {
         icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
         className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
         title = 'Google Sign-In Required';
