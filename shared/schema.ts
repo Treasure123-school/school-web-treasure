@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   username: varchar("username", { length: 100 }).unique(),
   email: varchar("email", { length: 255 }).notNull(),
+  recoveryEmail: varchar("recovery_email", { length: 255 }), // For password recovery
   passwordHash: text("password_hash"),
   mustChangePassword: boolean("must_change_password").default(true),
   roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
@@ -48,6 +49,7 @@ export const users = pgTable("users", {
   lastLoginIp: varchar("last_login_ip", { length: 45 }),
   mfaEnabled: boolean("mfa_enabled").default(false),
   mfaSecret: text("mfa_secret"),
+  accountLockedUntil: timestamp("account_locked_until"), // For suspicious activity lock
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -64,10 +66,25 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   token: varchar("token", { length: 255 }).notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
+  ipAddress: varchar("ip_address", { length: 45 }), // Track IP for security
+  resetBy: uuid("reset_by").references(() => users.id), // Admin who initiated reset, null if self-service
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
   passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token),
+}));
+
+// Password reset attempts table - for rate limiting
+export const passwordResetAttempts = pgTable("password_reset_attempts", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  identifier: varchar("identifier", { length: 255 }).notNull(), // Email or username
+  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+  attemptedAt: timestamp("attempted_at").defaultNow(),
+  success: boolean("success").default(false),
+}, (table) => ({
+  passwordResetAttemptsIdentifierIdx: index("password_reset_attempts_identifier_idx").on(table.identifier),
+  passwordResetAttemptsIpIdx: index("password_reset_attempts_ip_idx").on(table.ipAddress),
+  passwordResetAttemptsTimeIdx: index("password_reset_attempts_time_idx").on(table.attemptedAt),
 }));
 
 // Invites table for staff onboarding
@@ -501,6 +518,7 @@ export const auditLogs = pgTable("audit_logs", {
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+export const insertPasswordResetAttemptSchema = createInsertSchema(passwordResetAttempts).omit({ id: true, attemptedAt: true });
 export const insertInviteSchema = createInsertSchema(invites).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
 export const insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
@@ -653,6 +671,7 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export type Role = typeof roles.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type PasswordResetAttempt = typeof passwordResetAttempts.$inferSelect;
 export type Invite = typeof invites.$inferSelect;
 export type Student = typeof students.$inferSelect;
 export type Class = typeof classes.$inferSelect;
@@ -685,6 +704,7 @@ export type StudentAnswer = typeof studentAnswers.$inferSelect;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type InsertPasswordResetAttempt = z.infer<typeof insertPasswordResetAttemptSchema>;
 export type InsertInvite = z.infer<typeof insertInviteSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type InsertClass = z.infer<typeof insertClassSchema>;

@@ -102,10 +102,24 @@ export interface IStorage {
   updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User>;
 
   // Password reset management
-  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<any>;
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date, ipAddress?: string, resetBy?: string): Promise<any>;
   getPasswordResetToken(token: string): Promise<any | undefined>;
   markPasswordResetTokenAsUsed(token: string): Promise<boolean>;
   deleteExpiredPasswordResetTokens(): Promise<boolean>;
+  
+  // Password reset attempt tracking (for rate limiting)
+  createPasswordResetAttempt(identifier: string, ipAddress: string, success: boolean): Promise<any>;
+  getRecentPasswordResetAttempts(identifier: string, minutesAgo: number): Promise<any[]>;
+  deleteOldPasswordResetAttempts(hoursAgo: number): Promise<boolean>;
+  
+  // Account security
+  lockAccount(userId: string, lockUntil: Date): Promise<boolean>;
+  unlockAccount(userId: string): Promise<boolean>;
+  isAccountLocked(userId: string): Promise<boolean>;
+  
+  // Admin recovery powers
+  adminResetUserPassword(userId: string, newPasswordHash: string, resetBy: string, forceChange: boolean): Promise<boolean>;
+  updateRecoveryEmail(userId: string, recoveryEmail: string, updatedBy: string): Promise<boolean>;
 
   // Role management
   getRoles(): Promise<Role[]>;
@@ -454,11 +468,13 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<any> {
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date, ipAddress?: string, resetBy?: string): Promise<any> {
     const result = await this.db.insert(schema.passwordResetTokens).values({
       userId,
       token,
       expiresAt,
+      ipAddress,
+      resetBy,
     }).returning();
     return result[0];
   }
@@ -3438,6 +3454,115 @@ export class DatabaseStorage implements IStorage {
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.isRead, false)
       ));
+  }
+
+  // Password reset attempt tracking for rate limiting
+  async createPasswordResetAttempt(identifier: string, ipAddress: string, success: boolean): Promise<any> {
+    const result = await this.db.insert(schema.passwordResetAttempts).values({
+      identifier,
+      ipAddress,
+      success,
+    }).returning();
+    return result[0];
+  }
+
+  async getRecentPasswordResetAttempts(identifier: string, minutesAgo: number): Promise<any[]> {
+    const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1000);
+    return await this.db.select()
+      .from(schema.passwordResetAttempts)
+      .where(and(
+        eq(schema.passwordResetAttempts.identifier, identifier),
+        dsql`${schema.passwordResetAttempts.attemptedAt} > ${cutoffTime}`
+      ))
+      .orderBy(desc(schema.passwordResetAttempts.attemptedAt));
+  }
+
+  async deleteOldPasswordResetAttempts(hoursAgo: number): Promise<boolean> {
+    const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
+    await this.db.delete(schema.passwordResetAttempts)
+      .where(dsql`${schema.passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
+    return true;
+  }
+
+  // Account security methods
+  async lockAccount(userId: string, lockUntil: Date): Promise<boolean> {
+    const result = await this.db.update(schema.users)
+      .set({ accountLockedUntil: lockUntil })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async unlockAccount(userId: string): Promise<boolean> {
+    const result = await this.db.update(schema.users)
+      .set({ accountLockedUntil: null })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async isAccountLocked(userId: string): Promise<boolean> {
+    const user = await this.db.select({ accountLockedUntil: schema.users.accountLockedUntil })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+    
+    if (!user[0] || !user[0].accountLockedUntil) {
+      return false;
+    }
+    
+    return new Date(user[0].accountLockedUntil) > new Date();
+  }
+
+  // Admin recovery powers
+  async adminResetUserPassword(userId: string, newPasswordHash: string, resetBy: string, forceChange: boolean): Promise<boolean> {
+    const result = await this.db.update(schema.users)
+      .set({ 
+        passwordHash: newPasswordHash,
+        mustChangePassword: forceChange 
+      })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    
+    if (result.length > 0) {
+      await this.createAuditLog({
+        userId: resetBy,
+        action: 'admin_password_reset',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: null,
+        newValue: JSON.stringify({ targetUserId: userId, forceChange }),
+        reason: 'Admin initiated password reset',
+        ipAddress: null,
+        userAgent: null,
+      });
+    }
+    
+    return result.length > 0;
+  }
+
+  async updateRecoveryEmail(userId: string, recoveryEmail: string, updatedBy: string): Promise<boolean> {
+    const oldUser = await this.getUser(userId);
+    const result = await this.db.update(schema.users)
+      .set({ recoveryEmail })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    
+    if (result.length > 0) {
+      await this.createAuditLog({
+        userId: updatedBy,
+        action: 'recovery_email_updated',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: oldUser?.recoveryEmail || null,
+        newValue: recoveryEmail,
+        reason: 'Recovery email updated by admin',
+        ipAddress: null,
+        userAgent: null,
+      });
+    }
+    
+    return result.length > 0;
   }
 }
 
