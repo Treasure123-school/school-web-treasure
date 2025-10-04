@@ -92,29 +92,29 @@ Preferred communication style: Simple, everyday language.
 
 ## Replit Environment Setup
 
-### Project Status (Latest Update: October 4, 2025 - 6:08 PM)
+### Project Status (Latest Update: October 4, 2025 - 8:39 PM)
 ✅ **Successfully Re-Imported and Running** - The application has been freshly cloned from GitHub and is fully operational in the Replit environment.
 
-#### Fresh Import Setup Completed (October 4, 2025 - 6:08 PM)
+#### Fresh Import Setup Completed (October 4, 2025 - 8:39 PM)
 - ✅ GitHub repository successfully cloned to Replit
 - ✅ All npm dependencies installed and up-to-date (Node.js 20.x)
 - ✅ PostgreSQL database provisioned via Replit (Supabase-backed)
 - ✅ Database schema pushed successfully (all tables created)
 - ✅ Migration error handling improved (benign "already exists" errors handled gracefully)
 - ✅ Workflow "Start application" configured with webview output on port 5000
-- ✅ Deployment configuration verified for autoscale deployment
+- ✅ Deployment configuration verified for autoscale deployment (build: npm run build, run: npm run start)
 - ✅ Application server successfully started and tested on port 5000
 - ✅ Frontend serving correctly with Vite HMR enabled
 - ✅ Homepage rendering correctly with school branding and navigation
 - ✅ Database migrations applied automatically on startup with idempotent handling
 - ✅ Vite configured with `allowedHosts: true` for Replit proxy compatibility
 - ✅ Express server configured with `host: "0.0.0.0"` and `reusePort: true`
-- ✅ tsx package installed globally to avoid interactive prompts
-- ✅ Background cleanup service running for expired exam sessions
+- ✅ Background cleanup service running for expired exam sessions (every 3 minutes with jitter)
+- ✅ Auto-publish service running for scheduled exams (every 1 minute)
 - ✅ Google OAuth authentication enabled and verified
 - ✅ Application fully functional and ready for use
-- ✅ Screenshot verified: Homepage displaying correctly with school branding, navigation, and classroom image
-- ✅ Minor 400 API errors in console (expected for unauthenticated requests to protected endpoints)
+- ✅ Screenshot verified: Homepage displaying correctly with school branding, navigation, and hero section
+- ✅ Minor 400 API errors in console (expected for missing hero image - not critical)
 
 #### Chapter One Implementation (October 4, 2025)
 - Updated all authentication error messages to match THS Story Plan
