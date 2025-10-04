@@ -62,8 +62,8 @@ export default function Login() {
         ),
         description: (
           <div className="text-sm">
-            <p className="mb-2">Your account has been created and is awaiting admin approval.</p>
-            <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
+            <p className="mb-2">Welcome to THS Portal. Your account has been created and is awaiting admin verification.</p>
+            <p className="text-muted-foreground">You will be notified via email once approved. For urgent access, please contact the school administrator.</p>
           </div>
         ),
         className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
@@ -87,8 +87,8 @@ export default function Login() {
           ),
           description: (
             <div className="text-sm">
-              <p className="mb-2">Your account has been created and is awaiting admin approval.</p>
-              <p className="text-muted-foreground">You will receive an email notification once your account is approved. Contact your school administrator for assistance.</p>
+              <p className="mb-2">Welcome to THS Portal. Your account is awaiting admin verification.</p>
+              <p className="text-muted-foreground">You will be notified via email once approved. Contact the school administrator if you need immediate assistance.</p>
             </div>
           ),
           className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
@@ -104,8 +104,8 @@ export default function Login() {
           ),
           description: (
             <div className="text-sm">
-              <p className="mb-2">Your account has been suspended.</p>
-              <p className="text-muted-foreground">Please contact the school administrator for more information.</p>
+              <p className="mb-2">Access denied. Your account has been suspended by the school administrator.</p>
+              <p className="text-muted-foreground">Please contact the school administrator to resolve this issue.</p>
             </div>
           ),
           className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
@@ -119,7 +119,7 @@ export default function Login() {
               <span>Google Sign-In Failed</span>
             </div>
           ),
-          description: errorMessage,
+          description: errorMessage || 'Unable to sign in with Google. Please try again or contact support if the problem persists.',
           variant: 'destructive',
         });
       }
@@ -281,8 +281,8 @@ export default function Login() {
         title = 'Account Pending Approval';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Your Admin/Teacher account is awaiting approval by the school administrator.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">You will receive a notification once your account is approved. Contact your school administrator for assistance.</p>
+            <p className="mb-2">Welcome to THS Portal. Your Admin/Teacher account is awaiting approval by the school administrator.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">You will be notified once your account is verified. For urgent matters, please contact the school administrator.</p>
           </div>
         );
       }
@@ -290,11 +290,11 @@ export default function Login() {
       else if (errorMessage.includes('pending') || errorMessage.includes('awaiting')) {
         icon = <Clock className="h-4 w-4 text-orange-500" />;
         className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
-        title = 'Account Pending Approval';
+        title = 'Account Pending Setup';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Your account is pending approval.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">Please wait for administrator confirmation. You will be notified once approved.</p>
+            <p className="mb-2">Your account is being set up by the school administrator.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">You will receive a notification once your account is ready. Please check back soon.</p>
           </div>
         );
       }
@@ -305,8 +305,8 @@ export default function Login() {
         title = 'Account Suspended';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Your account has been suspended.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">Please contact the school administrator for more information.</p>
+            <p className="mb-2">Access denied. Your account has been suspended by the school administrator.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please contact your class teacher or the school administrator to resolve this issue.</p>
           </div>
         );
       }
@@ -317,8 +317,8 @@ export default function Login() {
         title = 'Account Disabled';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Your account has been disabled.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">Please contact the school administrator for assistance.</p>
+            <p className="mb-2">Your account has been disabled and is no longer active.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please contact the school administrator if you believe this is an error.</p>
           </div>
         );
       }
@@ -329,8 +329,8 @@ export default function Login() {
         title = 'Account Temporarily Locked';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Too many failed login attempts. Your account has been temporarily locked for security.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">Please wait a few minutes before trying again, or contact the administrator for assistance.</p>
+            <p className="mb-2">Too many failed login attempts. Your account has been temporarily locked for security reasons.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please wait 15 minutes before trying again. If you've forgotten your password, use the "Forgot your password?" link below.</p>
           </div>
         );
       }
@@ -341,8 +341,8 @@ export default function Login() {
         title = 'Google Sign-In Required';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">Admin and Teacher accounts must use Google Sign-In.</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">Please use the "Sign in with Google" button below to access your account.</p>
+            <p className="mb-2">Admins and Teachers must sign in using their authorized Google account.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Please click the "Sign in with Google" button below to access your account.</p>
           </div>
         );
       }
@@ -352,8 +352,8 @@ export default function Login() {
         title = 'Login Failed';
         description = (
           <div className="text-xs sm:text-sm">
-            <p className="mb-2">{errorMessage}</p>
-            <p className="text-muted-foreground text-[10px] sm:text-xs">Make sure you're using the correct username and password.</p>
+            <p className="mb-2">Invalid username or password. Please check your credentials and try again.</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Make sure CAPS LOCK is off and you're using the correct username and password.</p>
           </div>
         );
       }
