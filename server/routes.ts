@@ -1975,6 +1975,237 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user (permanent removal - Admin only)
+  app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent deleting your own account
+      if (user.id === adminUser.id) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      // Delete the user
+      const deleted = await storage.deleteUser(id);
+      
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+
+      // Log audit event
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_deleted',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ 
+          userId: user.id, 
+          email: user.email, 
+          username: user.username,
+          roleId: user.roleId
+        }),
+        newValue: null,
+        reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      res.json({
+        message: "User deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Reset user password (Admin only)
+  app.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newPassword, forceChange } = z.object({
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+        forceChange: z.boolean().optional().default(true)
+      }).parse(req.body);
+      const adminUser = req.user;
+      
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Hash the new password
+      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+      // Update user with new password and force change flag
+      const updatedUser = await storage.updateUser(id, {
+        passwordHash,
+        mustChangePassword: forceChange
+      });
+
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to reset password" });
+      }
+
+      // Log audit event
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'password_reset',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
+        newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
+        reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? ' (force change on next login)' : ''}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      // Remove sensitive data
+      const { passwordHash: _, ...safeUser } = updatedUser;
+
+      res.json({
+        message: `Password reset successfully${forceChange ? '. User must change password on next login.' : ''}`,
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Change user role (Admin only)
+  app.post("/api/users/:id/role", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { roleId } = z.object({
+        roleId: z.number().int().positive()
+      }).parse(req.body);
+      const adminUser = req.user;
+      
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Validate role exists
+      const newRole = await storage.getRole(roleId);
+      if (!newRole) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      // Prevent changing your own role
+      if (user.id === adminUser.id) {
+        return res.status(400).json({ message: "Cannot change your own role" });
+      }
+
+      const oldRole = await storage.getRole(user.roleId);
+
+      // Update user role
+      const updatedUser = await storage.updateUser(id, { roleId });
+
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update user role" });
+      }
+
+      // Log audit event
+      await storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'role_changed',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, roleId: user.roleId, roleName: oldRole?.name }),
+        newValue: JSON.stringify({ userId: user.id, roleId: roleId, roleName: newRole.name }),
+        reason: `Admin ${adminUser.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: `User role updated to ${newRole.name}`,
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error changing user role:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to change user role" });
+    }
+  });
+
+  // Get audit logs (Admin only)
+  app.get("/api/audit-logs", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { limit, offset, action, entityType } = z.object({
+        limit: z.coerce.number().int().positive().max(1000).optional().default(100),
+        offset: z.coerce.number().int().nonnegative().optional().default(0),
+        action: z.string().optional(),
+        entityType: z.string().optional()
+      }).parse(req.query);
+
+      const logs = await storage.getAuditLogs({
+        limit,
+        offset,
+        action,
+        entityType
+      });
+
+      // Enrich logs with user information
+      const enrichedLogs = await Promise.all(logs.map(async (log) => {
+        const user = await storage.getUser(log.userId);
+        return {
+          ...log,
+          userEmail: user?.email,
+          userName: `${user?.firstName} ${user?.lastName}`
+        };
+      }));
+
+      res.json(enrichedLogs);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid query parameters", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
   app.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       // Extract password from request and hash it before storage
