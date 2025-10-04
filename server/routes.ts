@@ -323,6 +323,36 @@ const uploadCSV = multer({
   }
 });
 
+// BACKGROUND AUTO-PUBLISHING SERVICE - Makes scheduled exams live
+async function autoPublishScheduledExams(): Promise<void> {
+  try {
+    console.log('📅 AUTO-PUBLISH: Checking for scheduled exams...');
+
+    const now = new Date();
+    const scheduledExams = await storage.getScheduledExamsToPublish(now);
+
+    if (scheduledExams.length > 0) {
+      console.log(`📅 Found ${scheduledExams.length} exams ready to publish`);
+      
+      for (const exam of scheduledExams) {
+        try {
+          console.log(`🚀 AUTO-PUBLISH: Publishing exam ${exam.id} - ${exam.name}`);
+          
+          await storage.updateExam(exam.id, {
+            isPublished: true
+          });
+          
+          console.log(`✅ Successfully published exam ${exam.id}`);
+        } catch (error) {
+          console.error(`❌ Failed to auto-publish exam ${exam.id}:`, error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Auto-publish service error:', error);
+  }
+}
+
 // BACKGROUND TIMEOUT CLEANUP SERVICE - Prevents infinite waiting
 async function cleanupExpiredExamSessions(): Promise<void> {
   try {
@@ -361,6 +391,12 @@ async function cleanupExpiredExamSessions(): Promise<void> {
     console.error('❌ Background cleanup service error:', error);
   }
 }
+
+// Start auto-publishing service (runs every minute)
+const autoPublishInterval = 60 * 1000; // 1 minute
+setInterval(autoPublishScheduledExams, autoPublishInterval);
+autoPublishScheduledExams(); // Run immediately on startup
+console.log('📅 AUTO-PUBLISH: Background service started (runs every 1 minute)');
 
 // PERFORMANCE FIX: Reduce cleanup frequency from 30s to 3 minutes to prevent database contention
 const cleanupInterval = 3 * 60 * 1000; // 3 minutes (was 30 seconds)

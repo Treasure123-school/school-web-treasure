@@ -106,17 +106,17 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<any | undefined>;
   markPasswordResetTokenAsUsed(token: string): Promise<boolean>;
   deleteExpiredPasswordResetTokens(): Promise<boolean>;
-  
+
   // Password reset attempt tracking (for rate limiting)
   createPasswordResetAttempt(identifier: string, ipAddress: string, success: boolean): Promise<any>;
   getRecentPasswordResetAttempts(identifier: string, minutesAgo: number): Promise<any[]>;
   deleteOldPasswordResetAttempts(hoursAgo: number): Promise<boolean>;
-  
+
   // Account security
   lockAccount(userId: string, lockUntil: Date): Promise<boolean>;
   unlockAccount(userId: string): Promise<boolean>;
   isAccountLocked(userId: string): Promise<boolean>;
-  
+
   // Admin recovery powers
   adminResetUserPassword(userId: string, newPasswordHash: string, resetBy: string, forceChange: boolean): Promise<boolean>;
   updateRecoveryEmail(userId: string, recoveryEmail: string, updatedBy: string): Promise<boolean>;
@@ -125,7 +125,7 @@ export interface IStorage {
   getRoles(): Promise<Role[]>;
   getRoleByName(name: string): Promise<Role | undefined>;
   getRole(roleId: number): Promise<Role | undefined>;
-  
+
   // Invite management
   createInvite(invite: schema.InsertInvite): Promise<schema.Invite>;
   getInviteByToken(token: string): Promise<schema.Invite | undefined>;
@@ -313,7 +313,7 @@ export interface IStorage {
   getComprehensiveGradesByStudent(studentId: string, termId?: number): Promise<any[]>;
   getComprehensiveGradesByClass(classId: number, termId?: number): Promise<any[]>;
   createReportCard(reportCardData: any, grades: any[]): Promise<any>;
-  
+
   // Report card retrieval methods
   getReportCard(id: number): Promise<ReportCard | undefined>;
   getReportCardsByStudentId(studentId: string): Promise<ReportCard[]>;
@@ -370,6 +370,8 @@ export interface IStorage {
   getExamStudentReports(examId: number): Promise<any[]>;
   logPerformanceEvent(event: any): Promise<any>;
   getExpiredExamSessions(cutoffTime: Date, limit: number): Promise<any[]>;
+  getScheduledExamsToPublish(now: Date): Promise<Exam[]>; // New method
+  updateExam(examId: number, updates: any): Promise<Exam | undefined>; // Updated method
 }
 
 // Helper to normalize UUIDs from various formats
@@ -573,7 +575,7 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(schema.users.id, userId))
       .returning();
-    
+
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -588,17 +590,17 @@ export class DatabaseStorage implements IStorage {
     // Only set approvedBy/approvedAt for actual approvals (status='active')
     // For other status changes (reject/suspend/disable), only update status
     const updates: any = { status };
-    
+
     if (status === 'active') {
       updates.approvedBy = updatedBy;
       updates.approvedAt = new Date();
     }
-    
+
     const result = await this.db.update(schema.users)
       .set(updates)
       .where(eq(schema.users.id, userId))
       .returning();
-    
+
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -2671,7 +2673,7 @@ export class DatabaseStorage implements IStorage {
 
         // Link all grade items to this report card
         if (grades.length > 0) {
-          const gradeUpdates = grades.map((grade: any) => 
+          const gradeUpdates = grades.map((grade: any) =>
             tx.update(schema.reportCardItems)
               .set({ reportCardId: reportCard[0].id })
               .where(eq(schema.reportCardItems.id, grade.id))
@@ -3506,24 +3508,24 @@ export class DatabaseStorage implements IStorage {
       .from(schema.users)
       .where(eq(schema.users.id, userId))
       .limit(1);
-    
+
     if (!user[0] || !user[0].accountLockedUntil) {
       return false;
     }
-    
+
     return new Date(user[0].accountLockedUntil) > new Date();
   }
 
   // Admin recovery powers
   async adminResetUserPassword(userId: string, newPasswordHash: string, resetBy: string, forceChange: boolean): Promise<boolean> {
     const result = await this.db.update(schema.users)
-      .set({ 
+      .set({
         passwordHash: newPasswordHash,
-        mustChangePassword: forceChange 
+        mustChangePassword: forceChange
       })
       .where(eq(schema.users.id, userId))
       .returning();
-    
+
     if (result.length > 0) {
       await this.createAuditLog({
         userId: resetBy,
@@ -3537,7 +3539,7 @@ export class DatabaseStorage implements IStorage {
         userAgent: null,
       });
     }
-    
+
     return result.length > 0;
   }
 
@@ -3547,7 +3549,7 @@ export class DatabaseStorage implements IStorage {
       .set({ recoveryEmail })
       .where(eq(schema.users.id, userId))
       .returning();
-    
+
     if (result.length > 0) {
       await this.createAuditLog({
         userId: updatedBy,
@@ -3561,12 +3563,39 @@ export class DatabaseStorage implements IStorage {
         userAgent: null,
       });
     }
-    
+
     return result.length > 0;
+  }
+
+  // NEW METHODS FOR EXAM PUBLISHING
+  async getScheduledExamsToPublish(now: Date): Promise<Exam[]> {
+    const result = await this.db
+      .select()
+      .from(schema.exams)
+      .where(
+        and(
+          eq(schema.exams.isPublished, false),
+          sql`${schema.exams.startTime} <= ${now}`,
+          eq(schema.exams.timerMode, 'global') // Only publish global timer exams automatically
+        )
+      )
+      .limit(50);
+
+    return result;
+  }
+
+  async updateExam(examId: number, updates: Partial<InsertExam>): Promise<Exam | undefined> {
+    const result = await this.db
+      .update(schema.exams)
+      .set(updates)
+      .where(eq(schema.exams.id, examId))
+      .returning();
+
+    return result[0];
   }
 }
 
-// Initialize storage - SUPABASE DATABASE ONLY (no fallback)
+// Initialize storage - Supabase database only
 function initializeStorageSync(): IStorage {
   // CRITICAL: Only use Supabase database - no memory storage fallback
   if (!process.env.DATABASE_URL) {

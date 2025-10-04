@@ -187,11 +187,14 @@ export const exams = pgTable("exams", {
   date: text("date").notNull(), // Store as YYYY-MM-DD string to avoid Date object conversion
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
   createdBy: uuid("created_by").references(() => users.id).notNull(),
+  teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id), // Teacher responsible for grading
   createdAt: timestamp("created_at").defaultNow(),
   // Exam type: 'test' (40 marks) or 'exam' (60 marks)
   examType: examTypeEnum("exam_type").notNull().default('exam'),
+  // Timer mode: 'global' (fixed start/end times) or 'individual' (duration per student)
+  timerMode: varchar("timer_mode", { length: 20 }).default('individual'), // 'global' or 'individual'
   // Enhanced exam delivery fields
-  timeLimit: integer("time_limit"), // in minutes
+  timeLimit: integer("time_limit"), // in minutes (used for individual timer mode)
   startTime: timestamp("start_time"),
   endTime: timestamp("end_time"),
   instructions: text("instructions"),

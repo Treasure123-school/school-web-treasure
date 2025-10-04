@@ -119,10 +119,11 @@ export default function ExamManagement() {
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<ExamQuestion | null>(null);
 
-  const { register: registerExam, handleSubmit: handleExamSubmit, formState: { errors: examErrors }, control: examControl, setValue: setExamValue, reset: resetExam } = useForm<ExamForm>({
+  const { register: registerExam, handleSubmit: handleExamSubmit, formState: { errors: examErrors }, control: examControl, setValue: setExamValue, reset: resetExam, watch: watchExam } = useForm<ExamForm>({
     resolver: zodResolver(examFormSchema),
     defaultValues: {
       examType: 'exam',
+      timerMode: 'individual',
       timeLimit: 60,
       isPublished: false,
       allowRetakes: false,
@@ -1106,6 +1107,34 @@ export default function ExamManagement() {
                     </p>
                   </div>
                   <div>
+                    <Label htmlFor="teacherInCharge">Teacher In-Charge</Label>
+                    <Controller
+                      name="teacherInChargeId"
+                      control={examControl}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value?.toString()}>
+                          <SelectTrigger data-testid="select-teacher-in-charge">
+                            <SelectValue placeholder="Select teacher (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* Filter teachers from classes data or add separate teacher query */}
+                            {classes.filter(c => c.classTeacherId).map((classItem: any) => (
+                              <SelectItem key={classItem.classTeacherId} value={classItem.classTeacherId}>
+                                Teacher for {classItem.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Assigns grading responsibility
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
                     <Label htmlFor="term">Academic Term</Label>
                     <Controller
                       name="termId"
@@ -1142,6 +1171,30 @@ export default function ExamManagement() {
                     {examErrors.totalMarks && <p className="text-sm text-red-500">{examErrors.totalMarks.message}</p>}
                   </div>
                   <div>
+                    <Label htmlFor="timerMode">Timer Mode</Label>
+                    <Controller
+                      name="timerMode"
+                      control={examControl}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || 'individual'}>
+                          <SelectTrigger data-testid="select-timer-mode">
+                            <SelectValue placeholder="Select timer mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="individual">Individual Timer (duration per student)</SelectItem>
+                            <SelectItem value="global">Global Timer (fixed start/end time)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Individual: Students start their own timer. Global: All start/end at same time.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
                     <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
                     <Input 
                       id="timeLimit" 
@@ -1151,6 +1204,25 @@ export default function ExamManagement() {
                       placeholder="60"
                     />
                     {examErrors.timeLimit && <p className="text-sm text-red-500">{examErrors.timeLimit.message}</p>}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {watchExam('timerMode') === 'individual' ? 'Duration each student gets' : 'Duration of exam window'}
+                    </p>
+                  </div>
+                  <div>
+                    {watchExam('timerMode') === 'global' && (
+                      <>
+                        <Label htmlFor="startTime">Start Time</Label>
+                        <Input 
+                          id="startTime" 
+                          type="datetime-local"
+                          {...registerExam('startTime')} 
+                          data-testid="input-exam-start-time"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          When exam becomes available to all students
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1340,6 +1412,7 @@ export default function ExamManagement() {
                     <TableHead>Date</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Schedule</TableHead>
                     <TableHead>Questions</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -1363,6 +1436,42 @@ export default function ExamManagement() {
                         <Badge variant={exam.isPublished ? 'default' : 'secondary'}>
                           {exam.isPublished ? 'Published' : 'Draft'}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const now = new Date();
+                          const startTime = exam.startTime ? new Date(exam.startTime) : null;
+                          const endTime = exam.endTime ? new Date(exam.endTime) : null;
+                          
+                          if (exam.timerMode === 'global' && startTime && endTime) {
+                            if (now < startTime) {
+                              return (
+                                <Badge variant="outline" className="bg-yellow-50">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Scheduled
+                                </Badge>
+                              );
+                            } else if (now >= startTime && now <= endTime) {
+                              return (
+                                <Badge variant="default" className="bg-green-600">
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Live Now
+                                </Badge>
+                              );
+                            } else {
+                              return (
+                                <Badge variant="secondary">
+                                  Ended
+                                </Badge>
+                              );
+                            }
+                          }
+                          return (
+                            <span className="text-sm text-muted-foreground">
+                              Individual Timer
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
