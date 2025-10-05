@@ -1063,6 +1063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             // DENY LOGIN - redirect with clear pending approval message
+            console.log(`🔒 OAuth signup complete but login denied - user ${newUser.email} requires approval`);
             return res.redirect('/login?oauth_status=pending_approval');
           } catch (error) {
             console.error('❌ Error creating pending account:', error);

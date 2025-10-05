@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell, UserPlus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/lib/auth';
 import { ROLE_IDS } from '@/lib/roles';
 import { Link } from 'wouter';
+import { useEffect } from 'react';
 
 interface Notification {
   id: number;
@@ -31,17 +32,29 @@ export function NotificationBell() {
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds for real-time feel
     refetchIntervalInBackground: true,
+    staleTime: 5000, // Consider data stale after 5 seconds
   });
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ['/api/notifications/unread-count'],
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds
     refetchIntervalInBackground: true,
+    staleTime: 5000,
   });
 
   const unreadCount = unreadData?.count || 0;
+
+  // Play notification sound when new notifications arrive
+  useEffect(() => {
+    const previousCount = parseInt(sessionStorage.getItem('notificationCount') || '0');
+    if (unreadCount > previousCount && previousCount > 0) {
+      // Play subtle notification sound (optional - can be enabled later)
+      // new Audio('/notification.mp3').play().catch(() => {});
+    }
+    sessionStorage.setItem('notificationCount', unreadCount.toString());
+  }, [unreadCount]);
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
@@ -73,6 +86,15 @@ export function NotificationBell() {
     markAllAsReadMutation.mutate();
   };
 
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'pending_user':
+        return <UserPlus className="h-4 w-4 text-orange-600" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-blue-600" />;
+    }
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -82,10 +104,10 @@ export function NotificationBell() {
           className="relative" 
           data-testid="button-notifications"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className={`h-5 w-5 ${unreadCount > 0 ? 'animate-pulse text-orange-600' : ''}`} />
           {unreadCount > 0 && (
             <Badge 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs animate-pulse"
               variant="destructive"
               data-testid="badge-notification-count"
             >
@@ -94,15 +116,23 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Notifications</h3>
+      <PopoverContent className="w-80 sm:w-96 p-0" align="end">
+        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-orange-600" />
+            <h3 className="font-semibold">Notifications</h3>
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-1">
+                {unreadCount}
+              </Badge>
+            )}
+          </div>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMarkAllRead}
-              className="text-xs"
+              className="text-xs hover:bg-white/50"
               data-testid="button-mark-all-read"
             >
               Mark all read
@@ -113,7 +143,8 @@ export function NotificationBell() {
           {notifications.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground" data-testid="text-no-notifications">
               <Bell className="h-12 w-12 mx-auto mb-2 opacity-20" />
-              <p>No notifications yet</p>
+              <p className="font-medium">No notifications yet</p>
+              <p className="text-xs mt-1">You'll be notified of pending approvals here</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -122,11 +153,14 @@ export function NotificationBell() {
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
                   className={`w-full p-4 text-left hover:bg-muted/50 transition-colors ${
-                    !notification.isRead ? 'bg-blue-50/50' : ''
+                    !notification.isRead ? 'bg-orange-50/50 dark:bg-orange-950/30 border-l-2 border-orange-500' : ''
                   }`}
                   data-testid={`notification-${notification.id}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      {getNotificationIcon(notification.type)}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium ${!notification.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {notification.title}
@@ -134,12 +168,13 @@ export function NotificationBell() {
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <span className="inline-block">⏱</span>
                         {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                       </p>
                     </div>
                     {!notification.isRead && (
-                      <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
+                      <div className="h-2 w-2 rounded-full bg-orange-500 flex-shrink-0 mt-1 animate-pulse" />
                     )}
                   </div>
                 </button>
@@ -151,10 +186,11 @@ export function NotificationBell() {
           <Link href="/portal/admin/pending-approvals">
             <Button 
               variant="ghost" 
-              className="w-full text-sm" 
+              className="w-full text-sm hover:bg-white/50" 
               data-testid="link-view-all-notifications"
             >
-              View All Notifications
+              <UserPlus className="h-4 w-4 mr-2" />
+              View Pending Approvals
             </Button>
           </Link>
         </div>

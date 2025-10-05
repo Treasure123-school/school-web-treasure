@@ -9,17 +9,49 @@ import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar } from 'lucide-react';
 import { Link, navigate } from 'wouter';
+import { useToast } from "@/hooks/use-toast";
+import { useEffect, useRef } from "react";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
 
-  // Fetch pending users count
+  // Fetch pending users count for admin notification with real-time updates
   const { data: pendingUsers = [] } = useQuery<any[]>({
     queryKey: ['/api/users/pending'],
-    enabled: !!user,
+    enabled: user?.roleId === 1, // Only for admins
+    refetchInterval: 10000, // Sync with notification bell - every 10 seconds
+    refetchIntervalInBackground: true,
+    staleTime: 5000,
   });
 
   const pendingCount = pendingUsers.length;
+  const { toast } = useToast();
+  const previousCountRef = useRef<number>(0);
+
+  // Show toast notification when new pending users arrive
+  useEffect(() => {
+    if (previousCountRef.current > 0 && pendingCount > previousCountRef.current) {
+      const newCount = pendingCount - previousCountRef.current;
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-orange-600" />
+            <span>New Pending Approval{newCount > 1 ? 's' : ''}</span>
+          </div>
+        ),
+        description: `${newCount} new user${newCount > 1 ? 's' : ''} waiting for approval. Click to review.`,
+        action: (
+          <Link href="/portal/admin/pending-approvals">
+            <Button size="sm" variant="outline">
+              Review Now
+            </Button>
+          </Link>
+        ),
+        className: "border-orange-500 bg-orange-50",
+      });
+    }
+    previousCountRef.current = pendingCount;
+  }, [pendingCount, toast]);
 
   // Fetch real analytics overview data
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery<any>({
@@ -58,10 +90,10 @@ export default function AdminDashboard() {
       name: `${student.firstName} ${student.lastName}`,
       admissionNumber: student.username || 'N/A',
       class: student.roleName || 'Student',
-      date: new Date(student.createdAt).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      date: new Date(student.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       }),
       status: student.status === 'active' ? 'Active' : 'Pending',
       initials: `${student.firstName[0]}${student.lastName[0]}`,
@@ -166,8 +198,8 @@ export default function AdminDashboard() {
   }
 
   return (
-    <PortalLayout 
-      userRole="admin" 
+    <PortalLayout
+      userRole="admin"
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
@@ -210,7 +242,7 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               </div>
-              <Button 
+              <Button
                 size="sm"
                 className="bg-orange-600 hover:bg-orange-700 text-white shadow-md w-full sm:w-auto sm:size-lg"
                 asChild
@@ -308,8 +340,8 @@ export default function AdminDashboard() {
               {/* Mobile Card View */}
               <div className="sm:hidden space-y-3">
                 {mockRecentRegistrations.map((student, index) => (
-                  <div 
-                    key={student.id} 
+                  <div
+                    key={student.id}
                     className="border border-border rounded-lg p-3 bg-muted/30"
                     data-testid={`student-card-${index}`}
                   >
@@ -327,10 +359,10 @@ export default function AdminDashboard() {
                           </p>
                         </div>
                       </div>
-                      <span 
+                      <span
                         className={`px-2 py-1 rounded-full text-xs flex-shrink-0 ${
-                          student.status === 'Active' 
-                            ? 'bg-green-100 text-green-800' 
+                          student.status === 'Active'
+                            ? 'bg-green-100 text-green-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}
                         data-testid={`text-student-status-${index}`}
@@ -379,10 +411,10 @@ export default function AdminDashboard() {
                           {student.date}
                         </td>
                         <td className="py-3 px-3">
-                          <span 
+                          <span
                             className={`px-2 py-1 rounded-full text-xs ${
-                              student.status === 'Active' 
-                                ? 'bg-green-100 text-green-800' 
+                              student.status === 'Active'
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}
                             data-testid={`text-student-status-${index}`}
@@ -400,7 +432,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions - Fully Responsive */}
-        <Card className="shadow-sm border border-border order-1 lg:order-2" data-testid="card-quick-actions">
+        <Card className="shadow-sm border border-border order-1 lg:order-2">
           <CardHeader className="p-3 sm:p-4 md:p-6">
             <CardTitle className="text-sm sm:text-base md:text-lg">Quick Actions</CardTitle>
           </CardHeader>
@@ -409,7 +441,7 @@ export default function AdminDashboard() {
               {quickActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
-                  <Button 
+                  <Button
                     key={index}
                     variant="ghost"
                     className={`w-full justify-start h-auto p-2.5 sm:p-3 ${action.color} transition-colors text-xs sm:text-sm`}
@@ -433,7 +465,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Class Overview - Responsive */}
-      <Card className="mt-4 sm:mt-6 shadow-sm border border-border" data-testid="card-class-overview">
+      <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
             <School className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -443,7 +475,7 @@ export default function AdminDashboard() {
         <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             {classOverview.map((overview, index) => (
-              <div 
+              <div
                 key={index}
                 className="border border-border rounded-lg p-3 sm:p-4"
                 data-testid={`class-overview-${index}`}
@@ -459,7 +491,7 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className={`h-2 rounded-full ${
                         overview.level === 'Pre-School' ? 'bg-primary' :
                         overview.level === 'Primary' ? 'bg-secondary' : 'bg-green-500'
@@ -498,8 +530,8 @@ export default function AdminDashboard() {
                   </div>
                   <div className="text-left xs:text-right">
                     <p className={`text-lg sm:text-xl md:text-2xl font-bold ${
-                      (performanceMetrics?.goalAchievementRate || 0) >= 95 ? 'text-green-600' : 
-                      (performanceMetrics?.goalAchievementRate || 0) >= 80 ? 'text-yellow-600' : 
+                      (performanceMetrics?.goalAchievementRate || 0) >= 95 ? 'text-green-600' :
+                      (performanceMetrics?.goalAchievementRate || 0) >= 80 ? 'text-yellow-600' :
                       'text-red-600'
                     }`}>
                       {performanceMetrics?.goalAchievementRate || 0}%
@@ -570,7 +602,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Security Alerts - Responsive */}
-      <Card className="mt-4 sm:mt-6 shadow-sm border border-border" data-testid="card-security-alerts">
+      <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
             <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
