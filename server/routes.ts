@@ -1175,6 +1175,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete demo accounts - admin only
+  app.post("/api/admin/delete-demo-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const demoEmails = ['admin@demo.com', 'teacher@demo.com', 'admin@treasure.com'];
+      const deletedUsers = [];
+      const errors = [];
+
+      for (const email of demoEmails) {
+        try {
+          const user = await storage.getUserByEmail(email);
+          if (user) {
+            // Delete user (will cascade delete related records)
+            await storage.deleteUser(user.id);
+            deletedUsers.push(email);
+            console.log(`✅ Deleted demo account: ${email}`);
+          } else {
+            console.log(`⚠️ Demo account not found: ${email}`);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to delete ${email}:`, error);
+          errors.push(`${email}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      res.json({
+        message: `Deleted ${deletedUsers.length} demo accounts`,
+        deletedUsers,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      console.error('Delete demo accounts error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Failed to delete demo accounts" 
+      });
+    }
+  });
+
   // Secure admin-only route to reset weak passwords
   app.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {

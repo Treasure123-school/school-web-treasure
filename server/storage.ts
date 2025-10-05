@@ -618,7 +618,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersByRole(roleId: number): Promise<User[]> {
-    const result = await this.db.select().from(schema.users).where(eq(schema.users.roleId, roleId));
+    const result = await this.db.select({
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.roleId, roleId));
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);
@@ -644,7 +663,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    const result = await this.db.select().from(schema.users);
+    const result = await this.db.select({
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users);
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);
