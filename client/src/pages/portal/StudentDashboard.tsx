@@ -336,34 +336,34 @@ export default function StudentDashboard() {
         </CardContent>
       </Card>
 
-      {/* Performance Analytics */}
-      <Card className="mt-6 shadow-sm border border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5" />
+      {/* Performance Analytics - Fully Responsive */}
+      <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
+        <CardHeader className="p-3 sm:p-4 md:p-6">
+          <CardTitle className="flex items-center space-x-2 text-sm sm:text-base md:text-lg">
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>Academic Progress</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
+        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+          <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+            <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
                 {formattedGrades.filter((g: any) => g.grade === 'A' || g.grade === 'A+').length}
               </div>
-              <div className="text-sm text-green-700">A Grades</div>
+              <div className="text-xs sm:text-sm text-green-700 dark:text-green-600">A Grades</div>
             </div>
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
+            <div className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">
                 {formattedGrades.length > 0 ? 
                   Math.round(formattedGrades.reduce((sum: number, g: any) => sum + parseInt(g.score.split('/')[0]), 0) / formattedGrades.length) : 0}%
               </div>
-              <div className="text-sm text-blue-700">Average Score</div>
+              <div className="text-xs sm:text-sm text-blue-700 dark:text-blue-600">Average Score</div>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="text-center p-3 sm:p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">
                 {Object.keys(formattedGrades.reduce((acc: any, g: any) => ({ ...acc, [g.subject]: true }), {})).length}
               </div>
-              <div className="text-sm text-purple-700">Subjects</div>
+              <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-600">Subjects</div>
             </div>
           </div>
         </CardContent>

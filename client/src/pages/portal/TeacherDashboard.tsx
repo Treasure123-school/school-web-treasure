@@ -258,46 +258,46 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {/* Grading Queue - Fully Responsive */}
         <Card className="lg:col-span-1 order-2 lg:order-1">
-          <CardHeader className="p-4 sm:p-5 md:p-6">
-            <CardTitle className="flex items-center justify-between text-sm sm:text-base">
-              <div className="flex items-center">
-                <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Grading Queue
+          <CardHeader className="p-3 sm:p-4 md:p-6">
+            <CardTitle className="flex items-center justify-between text-xs sm:text-sm md:text-base">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <CheckSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                <span>Grading Queue</span>
               </div>
               {(pendingGradingTasks as any[]).length > 0 && (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
                   {(pendingGradingTasks as any[]).length} pending
                 </Badge>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
             {(pendingGradingTasks as any[]).length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No pending grading tasks</p>
-                <p className="text-xs">Great! All exams are graded.</p>
+              <div className="text-center py-4 sm:py-6 text-muted-foreground">
+                <CheckSquare className="w-8 h-8 sm:w-10 sm:w-10 md:w-12 md:h-12 mx-auto mb-2 sm:mb-3 opacity-50" />
+                <p className="text-xs sm:text-sm">No pending grading tasks</p>
+                <p className="text-[10px] sm:text-xs mt-1">Great! All exams are graded.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {(pendingGradingTasks as any[]).slice(0, 3).map((task: any) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50">
-                    <div>
-                      <h4 className="font-medium text-sm">{task.student_name}</h4>
-                      <p className="text-xs text-muted-foreground">
+                  <div key={task.id} className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 p-2 sm:p-3 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-xs sm:text-sm truncate">{task.student_name}</h4>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                         {task.exam_title} • {task.question_type} question
                       </p>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="outline" className="text-xs">
+                    <div className="text-left xs:text-right flex-shrink-0">
+                      <Badge variant="outline" className="text-[10px] sm:text-xs">
                         {task.max_marks} marks
                       </Badge>
                     </div>
                   </div>
                 ))}
                 <Link to="/portal/teacher/grading-queue">
-                  <Button className="w-full">
-                    <CheckSquare className="w-4 h-4 mr-2" />
+                  <Button className="w-full text-xs sm:text-sm h-8 sm:h-9 md:h-10">
+                    <CheckSquare className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                     Grade Now ({(pendingGradingTasks as any[]).length})
                   </Button>
                 </Link>

@@ -422,3 +422,36 @@
     padding: 0 4rem;
   }
 }
+
+/* Extra responsive helpers for very small devices */
+@media (max-width: 374px) {
+  .text-responsive-xs {
+    font-size: 0.75rem;
+  }
+  
+  .p-responsive-xs {
+    padding: 0.5rem;
+  }
+  
+  .gap-responsive-xs {
+    gap: 0.25rem;
+  }
+}
+
+/* Improved card responsiveness */
+.card-responsive {
+  @apply p-3 sm:p-4 md:p-6;
+}
+
+.heading-responsive {
+  @apply text-sm sm:text-base md:text-lg lg:text-xl;
+}
+
+.text-body-responsive {
+  @apply text-xs sm:text-sm md:text-base;
+}
+
+/* Touch-friendly button sizes */
+.btn-touch {
+  @apply min-h-[44px] min-w-[44px] touch-manipulation;
+}

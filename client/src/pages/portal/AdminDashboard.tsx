@@ -477,27 +477,27 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* System Analytics & Upcoming Events - Responsive */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
+      {/* System Analytics & Upcoming Events - Fully Responsive */}
+      <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
         <Card className="shadow-sm border border-border" data-testid="card-system-analytics">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">System Performance</CardTitle>
+          <CardHeader className="p-3 sm:p-4 md:p-6">
+            <CardTitle className="text-sm sm:text-base md:text-lg">System Performance</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
             {performanceLoading ? (
-              <div className="space-y-3 sm:space-y-4">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
+              <div className="space-y-2 sm:space-y-3 md:space-y-4">
+                <Skeleton className="h-16 sm:h-20 w-full" />
+                <Skeleton className="h-16 sm:h-20 w-full" />
               </div>
             ) : (
-              <div className="space-y-3 sm:space-y-4">
-                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+              <div className="space-y-2 sm:space-y-3 md:space-y-4">
+                <div className="flex flex-col xs:flex-row xs:justify-between xs:items-center gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm sm:text-base truncate">Goal Achievement</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Sub-2s target rate</p>
+                    <p className="font-medium text-xs sm:text-sm md:text-base truncate">Goal Achievement</p>
+                    <p className="text-xs text-muted-foreground">Sub-2s target rate</p>
                   </div>
-                  <div className="text-right ml-3">
-                    <p className={`text-xl sm:text-2xl font-bold ${
+                  <div className="text-left xs:text-right">
+                    <p className={`text-lg sm:text-xl md:text-2xl font-bold ${
                       (performanceMetrics?.goalAchievementRate || 0) >= 95 ? 'text-green-600' : 
                       (performanceMetrics?.goalAchievementRate || 0) >= 80 ? 'text-yellow-600' : 
                       'text-red-600'
@@ -510,13 +510,13 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex flex-col xs:flex-row xs:justify-between xs:items-center gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm sm:text-base truncate">Pending Grading</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Manual review needed</p>
+                    <p className="font-medium text-xs sm:text-sm md:text-base truncate">Pending Grading</p>
+                    <p className="text-xs text-muted-foreground">Manual review needed</p>
                   </div>
-                  <div className="text-right ml-3">
-                    <p className="text-xl sm:text-2xl font-bold text-orange-600">
+                  <div className="text-left xs:text-right">
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-orange-600">
                       {gradingStats?.total_pending || 0}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -530,14 +530,14 @@ export default function AdminDashboard() {
         </Card>
 
         <Card className="shadow-sm border border-border" data-testid="card-upcoming-events">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">Upcoming Events</CardTitle>
+          <CardHeader className="p-3 sm:p-4 md:p-6">
+            <CardTitle className="text-sm sm:text-base md:text-lg">Upcoming Events</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-center space-x-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
-                  <i className="fas fa-calendar text-primary text-sm"></i>
+          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 md:p-3 bg-muted/50 rounded-lg">
+                <div className="bg-primary/10 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                  <i className="fas fa-calendar text-primary text-xs sm:text-sm"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-xs sm:text-sm truncate">Parent-Teacher Conference</p>
@@ -545,9 +545,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="bg-secondary/10 p-2 rounded-lg flex-shrink-0">
-                  <i className="fas fa-graduation-cap text-secondary text-sm"></i>
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 md:p-3 bg-muted/50 rounded-lg">
+                <div className="bg-secondary/10 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                  <i className="fas fa-graduation-cap text-secondary text-xs sm:text-sm"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-xs sm:text-sm truncate">End of Term Exams</p>
@@ -555,9 +555,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 p-2.5 sm:p-3 bg-green-100 rounded-lg">
-                <div className="bg-green-100 p-2 rounded-lg flex-shrink-0">
-                  <i className="fas fa-trophy text-green-600 text-sm"></i>
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 md:p-3 bg-green-100 dark:bg-green-950/20 rounded-lg">
+                <div className="bg-green-100 dark:bg-green-950/40 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                  <i className="fas fa-trophy text-green-600 text-xs sm:text-sm"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-xs sm:text-sm truncate">Inter-House Sports</p>
