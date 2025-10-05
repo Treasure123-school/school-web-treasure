@@ -528,26 +528,93 @@ export default function UserManagement() {
     },
   });
 
-  // Placeholder mutations for verify/unverify and suspend/unsuspend to be implemented
+  // Verify/Unverify mutation with OPTIMISTIC UPDATES for instant feedback
   const verifyMutation = useMutation({
     mutationFn: async ({ userId, action }: { userId: string; action: 'verify' | 'unverify' }) => {
       return await apiRequest('POST', `/api/users/${userId}/${action}`);
     },
-    onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+    onMutate: async ({ userId, action }) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
+
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+
+      const newStatus = action === 'verify' ? 'active' : 'pending';
+
+      // INSTANT FEEDBACK: Optimistically update status in main list
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, status: newStatus } : user
+        );
+      });
+
+      // INSTANT FEEDBACK: Update pending list
+      if (action === 'verify') {
+        queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+          if (!old) return old;
+          return old.filter((user: any) => user.id !== userId);
+        });
+      } else {
+        queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+          if (!old) return old;
+          const user = (queryClient.getQueryData(['/api/users']) as any)?.find((u: any) => u.id === userId);
+          return user && !old.some((u: any) => u.id === userId) ? [...old, user] : old;
+        });
+      }
+
+      return { previousUsers, previousPendingUsers };
+    },
+    onSuccess: async (data: any, variables) => {
+      // Force immediate refetch for instant UI update
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
-        description: data?.message || `User has been ${variables.action}ed.`,
+        description: data?.message || `User has been ${variables.action === 'verify' ? 'verified' : 'unverified'}.`,
         className: "border-green-500 bg-green-50",
       });
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any, variables) => {
+    onError: (error: any, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
       toast({
         title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Update Failed</span></div>,
         description: error.message || `Failed to ${variables.action} user.`,
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+    },
+  });
+
+  // Delete demo accounts mutation
+  const deleteDemoAccountsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/admin/delete-demo-accounts');
+    },
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      toast({
+        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>Demo Accounts Deleted</span></div>,
+        description: data?.message || `Successfully deleted ${data?.deletedUsers?.length || 0} demo accounts.`,
+        className: "border-green-500 bg-green-50",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Deletion Failed</span></div>,
+        description: error.message || "Failed to delete demo accounts.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
       });
@@ -1086,6 +1153,21 @@ export default function UserManagement() {
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete demo accounts: admin@treasure.com, admin@demo.com, and teacher@demo.com? This action cannot be undone.')) {
+                  deleteDemoAccountsMutation.mutate();
+                }
+              }}
+              disabled={deleteDemoAccountsMutation.isPending}
+              data-testid="button-delete-demo-accounts"
+              className="whitespace-nowrap"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteDemoAccountsMutation.isPending ? 'Deleting...' : 'Delete Demo Accounts'}
+            </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
                 <SelectValue placeholder="Filter by status" />

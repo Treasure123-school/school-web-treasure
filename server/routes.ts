@@ -2585,6 +2585,195 @@ Treasure-Home School Administration
     }
   });
 
+  // Verify user (Admin only) - Activates user account
+  app.post("/api/users/:id/verify", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const oldStatus = user.status;
+
+      // Update the user status to active
+      const updatedUser = await storage.updateUserStatus(id, 'active', adminUser.id, 'User verified by admin');
+
+      // PERFORMANCE: Log audit event asynchronously
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_verified',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: 'active' }),
+        reason: `Admin ${adminUser.email} verified user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: "User verified and activated successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error verifying user:', error);
+      res.status(500).json({ message: "Failed to verify user" });
+    }
+  });
+
+  // Unverify user (Admin only) - Moves user back to pending status
+  app.post("/api/users/:id/unverify", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const oldStatus = user.status;
+
+      // Update the user status to pending
+      const updatedUser = await storage.updateUserStatus(id, 'pending', adminUser.id, 'User unverified by admin - awaiting approval');
+
+      // PERFORMANCE: Log audit event asynchronously
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_unverified',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: 'pending' }),
+        reason: `Admin ${adminUser.email} unverified user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: "User unverified and moved to pending status",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error unverifying user:', error);
+      res.status(500).json({ message: "Failed to unverify user" });
+    }
+  });
+
+  // Suspend user (Admin only) - Temporarily blocks access
+  app.post("/api/users/:id/suspend", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const adminUser = req.user;
+
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const oldStatus = user.status;
+
+      // Update the user status to suspended
+      const updatedUser = await storage.updateUserStatus(id, 'suspended', adminUser.id, reason || 'Account suspended by admin');
+
+      // PERFORMANCE: Log audit event asynchronously
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_suspended',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: 'suspended' }),
+        reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: "User suspended successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error suspending user:', error);
+      res.status(500).json({ message: "Failed to suspend user" });
+    }
+  });
+
+  // Unsuspend user (Admin only) - Restores access
+  app.post("/api/users/:id/unsuspend", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const oldStatus = user.status;
+
+      // Update the user status to active
+      const updatedUser = await storage.updateUserStatus(id, 'active', adminUser.id, 'Suspension lifted by admin');
+
+      // PERFORMANCE: Log audit event asynchronously
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_unsuspended',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: 'active' }),
+        reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: "User unsuspended successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error unsuspending user:', error);
+      res.status(500).json({ message: "Failed to unsuspend user" });
+    }
+  });
+
   // Update user status (reject, suspend, disable)
   app.post("/api/users/:id/status", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
