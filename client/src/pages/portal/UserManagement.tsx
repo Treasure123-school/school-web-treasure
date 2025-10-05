@@ -270,14 +270,17 @@ export default function UserManagement() {
   // Delete user mutation with OPTIMISTIC UPDATES
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      try {
-        const result = await apiRequest('DELETE', `/api/users/${userId}`);
-        return result || { message: 'User deleted successfully' };
-      } catch (error: any) {
-        // Extract error message from the error object
-        const errorMessage = error?.message || 'Failed to delete user';
-        throw new Error(errorMessage);
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete user. Please try again.');
       }
+      
+      return { message: 'User account deleted successfully. All exam data has been preserved for records.' };
     },
     onMutate: async (userId: string) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
@@ -325,16 +328,18 @@ export default function UserManagement() {
       if (context?.previousPendingUsers) {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
+      
+      // Provide specific error messages based on the error
+      let errorMessage = error.message || "Failed to delete user. Please try again.";
+      
+      if (error.message?.includes('foreign key constraint') || error.message?.includes('associated')) {
+        errorMessage = "Cannot delete user: This account has associated records (exams, grades, etc.). Please disable the account instead.";
+      }
+      
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Deletion Failed</span>
-          </div>
-        ),
-        description: error.message || "Failed to delete user. Please try again.",
+        title: "Deletion Failed",
+        description: errorMessage,
         variant: "destructive",
-        className: "border-red-500 bg-red-50",
       });
     },
   });
