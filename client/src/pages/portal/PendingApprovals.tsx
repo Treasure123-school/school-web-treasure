@@ -6,9 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Mail, User, Filter, Search, CheckSquare, UserCheck, Calendar, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +42,11 @@ export default function PendingApprovals() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'bulkApprove' | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [signupMethodFilter, setSignupMethodFilter] = useState<string>("all");
 
   // Fetch pending users
   const { data: pendingUsers = [], isLoading } = useQuery<PendingUser[]>({
@@ -119,6 +126,44 @@ export default function PendingApprovals() {
     },
   });
 
+  // Bulk approve mutation
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      const results = await Promise.all(
+        userIds.map(id => apiRequest('POST', `/api/users/${id}/approve`))
+      );
+      return results;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>Bulk Approval Complete</span>
+          </div>
+        ),
+        description: `Successfully approved ${selectedUsers.size} user(s).`,
+        className: "border-green-500 bg-green-50",
+      });
+      setSelectedUsers(new Set());
+      setActionType(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Bulk Approval Failed</span>
+          </div>
+        ),
+        description: error.message || "Some approvals may have failed. Please check and try again.",
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+    },
+  });
+
   const handleApprove = (user: PendingUser) => {
     setSelectedUser(user);
     setActionType('approve');
@@ -130,6 +175,11 @@ export default function PendingApprovals() {
   };
 
   const confirmAction = () => {
+    if (actionType === 'bulkApprove' && selectedUsers.size > 0) {
+      bulkApproveMutation.mutate(Array.from(selectedUsers));
+      return;
+    }
+
     if (!selectedUser) return;
 
     if (actionType === 'approve') {
@@ -137,6 +187,36 @@ export default function PendingApprovals() {
     } else if (actionType === 'reject') {
       rejectMutation.mutate(selectedUser.id);
     }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    const newSelection = new Set(selectedUsers);
+    if (newSelection.has(userId)) {
+      newSelection.delete(userId);
+    } else {
+      newSelection.add(userId);
+    }
+    setSelectedUsers(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+    }
+  };
+
+  const handleBulkApprove = () => {
+    if (selectedUsers.size === 0) {
+      toast({
+        title: "No users selected",
+        description: "Please select at least one user to approve.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setActionType('bulkApprove');
   };
 
   if (!user) {
@@ -156,6 +236,35 @@ export default function PendingApprovals() {
     });
   };
 
+  const getRelativeTime = (date: Date | null) => {
+    if (!date) return 'Unknown';
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(date).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  };
+
+  // Filter users based on search, role, and signup method
+  const filteredUsers = pendingUsers.filter(pendingUser => {
+    const matchesSearch = searchQuery === "" || 
+      pendingUser.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pendingUser.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pendingUser.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pendingUser.username.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole = roleFilter === "all" || pendingUser.roleName === roleFilter;
+
+    const signupMethod = pendingUser.googleId ? 'google' : (pendingUser.createdVia || 'direct');
+    const matchesSignupMethod = signupMethodFilter === "all" || signupMethod === signupMethodFilter;
+
+    return matchesSearch && matchesRole && matchesSignupMethod;
+  });
+
   return (
     <PortalLayout 
       userRole="admin" 
@@ -164,18 +273,92 @@ export default function PendingApprovals() {
     >
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-page-title">
-              Pending Approvals
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="text-page-description">
-              Review and approve new user accounts
-            </p>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2" data-testid="text-page-title">
+                <UserCheck className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+                Pending Approvals
+              </h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="text-page-description">
+                Review and approve new user registrations
+              </p>
+            </div>
+            <Badge variant="secondary" className="text-sm sm:text-lg px-3 py-1.5 sm:px-4 sm:py-2 w-fit" data-testid="badge-pending-count">
+              {pendingUsers.length} Pending
+            </Badge>
           </div>
-          <Badge variant="secondary" className="text-sm sm:text-lg px-3 py-1.5 sm:px-4 sm:py-2 w-fit" data-testid="badge-pending-count">
-            {pendingUsers.length} Pending
-          </Badge>
+
+          {/* Filters and Search */}
+          {pendingUsers.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or username..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search"
+                />
+              </div>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-role-filter">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Teacher">Teacher</SelectItem>
+                  <SelectItem value="Student">Student</SelectItem>
+                  <SelectItem value="Parent">Parent</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={signupMethodFilter} onValueChange={setSignupMethodFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-signup-filter">
+                  <SelectValue placeholder="Signup method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="google">Google Sign-in</SelectItem>
+                  <SelectItem value="invite">Via Invite</SelectItem>
+                  <SelectItem value="direct">Direct Signup</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Bulk Actions Bar */}
+          {selectedUsers.size > 0 && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="py-3 px-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5 text-primary" />
+                  <span className="font-medium">{selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    onClick={handleBulkApprove}
+                    disabled={bulkApproveMutation.isPending}
+                    data-testid="button-bulk-approve"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve Selected
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setSelectedUsers(new Set())}
+                    data-testid="button-clear-selection"
+                  >
+                    Clear Selection
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Pending Users List */}
@@ -194,63 +377,101 @@ export default function PendingApprovals() {
               <div className="text-center py-8 text-muted-foreground" data-testid="text-loading">
                 Loading pending users...
               </div>
-            ) : pendingUsers.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground" data-testid="text-no-pending">
                 <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-lg font-medium">No pending approvals</p>
-                <p className="text-sm">All accounts have been reviewed</p>
+                <p className="text-lg font-medium">
+                  {pendingUsers.length === 0 ? 'No pending approvals' : 'No matching users'}
+                </p>
+                <p className="text-sm">
+                  {pendingUsers.length === 0 ? 'All accounts have been reviewed' : 'Try adjusting your filters'}
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {pendingUsers.map((pendingUser) => (
+              <div className="space-y-3">
+                {/* Select All Option */}
+                {filteredUsers.length > 0 && (
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border">
+                    <Checkbox
+                      checked={selectedUsers.size === filteredUsers.length}
+                      onCheckedChange={toggleSelectAll}
+                      data-testid="checkbox-select-all"
+                    />
+                    <span className="text-sm font-medium">
+                      Select all {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+
+                {filteredUsers.map((pendingUser) => (
                   <div
                     key={pendingUser.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+                    className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 border rounded-lg transition-all ${
+                      selectedUsers.has(pendingUser.id) 
+                        ? 'bg-primary/5 border-primary/30' 
+                        : 'hover:bg-muted/50'
+                    }`}
                     data-testid={`pending-user-${pendingUser.id}`}
                   >
-                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedUsers.has(pendingUser.id)}
+                        onCheckedChange={() => toggleUserSelection(pendingUser.id)}
+                        data-testid={`checkbox-user-${pendingUser.id}`}
+                      />
+                      <Avatar className="h-12 w-12 flex-shrink-0">
                         {pendingUser.profileImageUrl && (
                           <AvatarImage src={pendingUser.profileImageUrl} alt={`${pendingUser.firstName} ${pendingUser.lastName}`} />
                         )}
-                        <AvatarFallback className="bg-primary text-primary-foreground">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-lg">
                           {getInitials(pendingUser.firstName, pendingUser.lastName)}
                         </AvatarFallback>
                       </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm sm:text-base truncate" data-testid={`text-user-name-${pendingUser.id}`}>
-                          {pendingUser.firstName} {pendingUser.lastName}
-                        </h3>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-1 gap-0.5">
-                          <span className="flex items-center gap-1 truncate" data-testid={`text-user-email-${pendingUser.id}`}>
-                            <Mail className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{pendingUser.email}</span>
-                          </span>
-                          <span className="flex items-center gap-1 truncate" data-testid={`text-user-username-${pendingUser.id}`}>
-                            <User className="h-3 w-3 flex-shrink-0" />
-                            {pendingUser.username}
-                          </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base truncate" data-testid={`text-user-name-${pendingUser.id}`}>
+                            {pendingUser.firstName} {pendingUser.lastName}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1 truncate" data-testid={`text-user-email-${pendingUser.id}`}>
+                              <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">{pendingUser.email}</span>
+                            </span>
+                            <span className="flex items-center gap-1" data-testid={`text-user-username-${pendingUser.id}`}>
+                              <User className="h-3.5 w-3.5 flex-shrink-0" />
+                              {pendingUser.username}
+                            </span>
+                            <span className="flex items-center gap-1" data-testid={`text-signup-time-${pendingUser.id}`}>
+                              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                              {getRelativeTime(pendingUser.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2 sm:hidden">
-                          <Badge variant="outline" className="text-xs" data-testid={`badge-role-${pendingUser.id}`}>
+
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                          <Badge 
+                            variant="outline" 
+                            className={`${
+                              pendingUser.roleName === 'Admin' ? 'border-red-500 text-red-700' :
+                              pendingUser.roleName === 'Teacher' ? 'border-blue-500 text-blue-700' :
+                              pendingUser.roleName === 'Student' ? 'border-green-500 text-green-700' :
+                              'border-purple-500 text-purple-700'
+                            }`}
+                            data-testid={`badge-role-${pendingUser.id}`}
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
                             {pendingUser.roleName}
                           </Badge>
-                          <span className="text-xs text-muted-foreground" data-testid={`text-signup-method-${pendingUser.id}`}>
-                            {pendingUser.googleId ? 'Google' : pendingUser.createdVia || 'Direct'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="hidden sm:block text-right flex-shrink-0">
-                        <Badge variant="outline" className="mb-2" data-testid={`badge-role-${pendingUser.id}`}>
-                          {pendingUser.roleName}
-                        </Badge>
-                        <div className="text-xs text-muted-foreground" data-testid={`text-signup-method-${pendingUser.id}`}>
-                          {pendingUser.googleId ? 'Google Sign-in' : pendingUser.createdVia || 'Direct'}
-                        </div>
-                        <div className="text-xs text-muted-foreground" data-testid={`text-created-date-${pendingUser.id}`}>
-                          {formatDate(pendingUser.createdAt)}
+                          <Badge 
+                            variant="secondary"
+                            className="text-xs"
+                            data-testid={`badge-signup-method-${pendingUser.id}`}
+                          >
+                            {pendingUser.googleId ? '🔐 Google' : 
+                             pendingUser.createdVia === 'invite' ? '📧 Invite' : '📝 Direct'}
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -288,7 +509,7 @@ export default function PendingApprovals() {
       </div>
 
       {/* Confirmation Dialog */}
-      <AlertDialog open={!!selectedUser && !!actionType} onOpenChange={(open) => {
+      <AlertDialog open={!!actionType && (!!selectedUser || actionType === 'bulkApprove')} onOpenChange={(open) => {
         if (!open) {
           setSelectedUser(null);
           setActionType(null);
@@ -297,10 +518,16 @@ export default function PendingApprovals() {
         <AlertDialogContent data-testid="dialog-confirm-action">
           <AlertDialogHeader>
             <AlertDialogTitle data-testid="text-dialog-title">
-              {actionType === 'approve' ? 'Approve User?' : 'Reject User?'}
+              {actionType === 'bulkApprove' ? `Approve ${selectedUsers.size} User${selectedUsers.size !== 1 ? 's' : ''}?` :
+               actionType === 'approve' ? 'Approve User?' : 'Reject User?'}
             </AlertDialogTitle>
             <AlertDialogDescription data-testid="text-dialog-description">
-              {actionType === 'approve' ? (
+              {actionType === 'bulkApprove' ? (
+                <>
+                  Are you sure you want to approve <strong>{selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''}</strong>? 
+                  They will all be able to log in immediately.
+                </>
+              ) : actionType === 'approve' ? (
                 <>
                   Are you sure you want to approve <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
                   They will be able to log in immediately.
@@ -320,7 +547,8 @@ export default function PendingApprovals() {
               className={actionType === 'reject' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
               data-testid="button-confirm"
             >
-              {actionType === 'approve' ? 'Approve' : 'Reject'}
+              {actionType === 'bulkApprove' ? `Approve ${selectedUsers.size}` :
+               actionType === 'approve' ? 'Approve' : 'Reject'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
