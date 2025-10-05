@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle } from 'lucide-react';
+import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function ParentDashboard() {
@@ -150,6 +150,45 @@ export default function ParentDashboard() {
     : mockRecentGrades.filter(g => 
         mockChildren.find(c => c.id === selectedChildId)?.name === g.childName
       );
+  
+  const parentActions = [
+    {
+      title: 'My Children',
+      value: 'View',
+      icon: Users,
+      description: 'Monitor your children',
+      href: '/portal/parent/children',
+      gradient: 'from-blue-500 to-blue-600',
+      bgGradient: 'from-blue-50 to-indigo-50',
+    },
+    {
+      title: 'Report Cards',
+      value: 'Access',
+      icon: FileText,
+      description: 'Academic performance reports',
+      href: '/portal/parent/reports',
+      gradient: 'from-green-500 to-emerald-600',
+      bgGradient: 'from-green-50 to-emerald-50',
+    },
+    {
+      title: 'Attendance',
+      value: 'Track',
+      icon: Calendar,
+      description: 'View attendance records',
+      href: '/portal/parent/attendance',
+      gradient: 'from-purple-500 to-purple-600',
+      bgGradient: 'from-purple-50 to-violet-50',
+    },
+    {
+      title: 'Messages',
+      value: 'Read',
+      icon: MessageSquare,
+      description: 'School communications',
+      href: '/portal/parent/messages',
+      gradient: 'from-orange-500 to-orange-600',
+      bgGradient: 'from-orange-50 to-amber-50',
+    }
+  ];
 
   return (
     <PortalLayout 
@@ -157,361 +196,481 @@ export default function ParentDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      {/* PROMINENT CHILD SELECTOR */}
-      <Card className="shadow-lg border-2 border-primary/20 mb-6 bg-gradient-to-r from-primary/5 to-primary/10" data-testid="card-child-selector">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <UserCircle className="h-6 w-6 text-primary" />
-              <span>Select Child to View</span>
-            </CardTitle>
-            <span className="text-sm text-muted-foreground">
-              {loadingChildren ? 'Loading...' : `${mockChildren.length} ${mockChildren.length === 1 ? 'child' : 'children'} enrolled`}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingChildren ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p className="mt-2 text-muted-foreground">Loading children...</p>
+      <div className="space-y-6 sm:space-y-8">
+        {/* Parent Header */}
+        <div className="bg-gradient-to-r from-teal-500 via-cyan-600 to-blue-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-10 text-white shadow-xl animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-2 sm:space-y-3">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Parent Dashboard</h2>
+              <p className="text-cyan-100 text-sm sm:text-base lg:text-lg max-w-2xl">
+                Welcome, {user.firstName?.split(' ')[0] || user.username}! Stay connected with your child's education.
+              </p>
             </div>
-          ) : mockChildren.length === 0 ? (
-            <div className="text-center py-8">
-              <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">No children linked to this account</p>
-              <p className="text-sm text-muted-foreground mt-1">Contact the administrator for assistance</p>
-            </div>
-          ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* All Children Option */}
-            <button
-              onClick={() => setSelectedChildId('all')}
-              className={`p-4 rounded-lg border-2 transition-all text-left ${
-                selectedChildId === 'all'
-                  ? 'border-primary bg-primary/10 shadow-md'
-                  : 'border-border hover:border-primary/50 hover:bg-muted/50'
-              }`}
-              data-testid="button-select-all-children"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-base">All Children</h3>
-                  <p className="text-sm text-muted-foreground">Combined view</p>
-                </div>
-                {selectedChildId === 'all' && (
-                  <ChevronRight className="h-5 w-5 text-primary" />
-                )}
+            <div className="flex items-center gap-2 sm:gap-3 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl px-4 sm:px-6 py-2 sm:py-3 border border-white/30">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
+              <div className="text-left">
+                <p className="text-xs sm:text-sm font-medium opacity-90">Progress</p>
+                <p className="text-lg sm:text-xl font-bold">Excellent</p>
               </div>
-            </button>
+            </div>
+          </div>
+        </div>
 
-            {/* Individual Child Options */}
-            {mockChildren.map((child, index) => (
+        {/* PROMINENT CHILD SELECTOR */}
+        <Card className="shadow-lg border-2 border-primary/20 mb-6 bg-gradient-to-r from-primary/5 to-primary/10" data-testid="card-child-selector">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <UserCircle className="h-6 w-6 text-primary" />
+                <span>Select Child to View</span>
+              </CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {loadingChildren ? 'Loading...' : `${mockChildren.length} ${mockChildren.length === 1 ? 'child' : 'children'} enrolled`}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loadingChildren ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="mt-2 text-muted-foreground">Loading children...</p>
+              </div>
+            ) : mockChildren.length === 0 ? (
+              <div className="text-center py-8">
+                <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground">No children linked to this account</p>
+                <p className="text-sm text-muted-foreground mt-1">Contact the administrator for assistance</p>
+              </div>
+            ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* All Children Option */}
               <button
-                key={child.id}
-                onClick={() => setSelectedChildId(child.id)}
+                onClick={() => setSelectedChildId('all')}
                 className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  selectedChildId === child.id
+                  selectedChildId === 'all'
                     ? 'border-primary bg-primary/10 shadow-md'
                     : 'border-border hover:border-primary/50 hover:bg-muted/50'
                 }`}
-                data-testid={`button-select-child-${child.id}`}
+                data-testid="button-select-all-children"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 ${child.color} rounded-full flex items-center justify-center`}>
-                    <span className="text-white font-semibold">{child.initials}</span>
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center">
+                    <Users className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-base" data-testid={`text-selector-child-name-${index}`}>
-                      {child.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground" data-testid={`text-selector-child-class-${index}`}>
-                      {child.class}
-                    </p>
+                    <h3 className="font-semibold text-base">All Children</h3>
+                    <p className="text-sm text-muted-foreground">Combined view</p>
                   </div>
-                  {selectedChildId === child.id && (
+                  {selectedChildId === 'all' && (
                     <ChevronRight className="h-5 w-5 text-primary" />
                   )}
                 </div>
               </button>
-            ))}
-          </div>
-          )}
 
-          {!loadingChildren && selectedChild && (
-            <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-              <p className="text-sm text-center">
-                <span className="font-medium">Currently viewing:</span>{' '}
-                <span className="text-primary font-semibold">{selectedChild.name}</span> - {selectedChild.class}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Stats Cards - Fully Responsive */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
-        <StatsCard
-          title={selectedChildId === 'all' ? "All Children" : "Selected Child"}
-          value={selectedChildren.length}
-          icon={Users}
-          color="primary"
-        />
-        <StatsCard
-          title="Avg. Attendance"
-          value={`${Math.round(totalAttendance)}%`}
-          icon={Calendar}
-          color="green"
-          change="↗ Excellent"
-          changeType="positive"
-        />
-        <StatsCard
-          title="Avg. GPA"
-          value={avgGPA.toFixed(2)}
-          icon={TrendingUp}
-          color="secondary"
-        />
-        <StatsCard
-          title="Unread Messages"
-          value="2"
-          icon={MessageSquare}
-          color="blue"
-        />
-      </div>
-
-      {/* Children Overview */}
-      <Card className="shadow-sm border border-border mb-6" data-testid="card-children-overview">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="h-5 w-5" />
-            <span>My Children</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {mockChildren.map((child, index) => (
-              <div 
-                key={child.id}
-                className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow"
-                data-testid={`child-card-${index}`}
-              >
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-12 h-12 ${child.color} rounded-full flex items-center justify-center`}>
-                    <span className="text-white font-medium">{child.initials}</span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold" data-testid={`text-child-name-${index}`}>
-                      {child.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground" data-testid={`text-child-class-${index}`}>
-                      {child.class} • {child.admissionNumber}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-xs text-muted-foreground">GPA</p>
-                    <p className="font-semibold text-primary" data-testid={`text-child-gpa-${index}`}>
-                      {child.currentGPA}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Attendance</p>
-                    <p className="font-semibold text-green-600" data-testid={`text-child-attendance-${index}`}>
-                      {child.attendance}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Today</p>
-                    <p className="font-semibold text-green-600" data-testid={`text-child-today-${index}`}>
-                      {child.lastAttendance}
-                    </p>
-                  </div>
-                </div>
-
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full mt-3"
-                  asChild
+              {/* Individual Child Options */}
+              {mockChildren.map((child, index) => (
+                <button
+                  key={child.id}
+                  onClick={() => setSelectedChildId(child.id)}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    selectedChildId === child.id
+                      ? 'border-primary bg-primary/10 shadow-md'
+                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                  }`}
+                  data-testid={`button-select-child-${child.id}`}
                 >
-                  <Link href={`/portal/parent/children/${child.id}`} data-testid={`button-view-details-${index}`}>
-                    View Details
-                  </Link>
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-        {/* Recent Grades - Fully Responsive */}
-        <Card className="shadow-sm border border-border" data-testid="card-recent-grades">
-          <CardHeader className="p-4 sm:p-5 md:p-6">
-            <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-4">
-              <CardTitle className="flex items-center space-x-2">
-                <BookOpen className="h-5 w-5" />
-                <span>Recent Grades</span>
-              </CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/portal/parent/grades" data-testid="link-view-all-grades">
-                  View All
-                </Link>
-              </Button>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 ${child.color} rounded-full flex items-center justify-center`}>
+                      <span className="text-white font-semibold">{child.initials}</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-base" data-testid={`text-selector-child-name-${index}`}>
+                        {child.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-selector-child-class-${index}`}>
+                        {child.class}
+                      </p>
+                    </div>
+                    {selectedChildId === child.id && (
+                      <ChevronRight className="h-5 w-5 text-primary" />
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredGrades.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  No recent grades available
+            )}
+
+            {!loadingChildren && selectedChild && (
+              <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-sm text-center">
+                  <span className="font-medium">Currently viewing:</span>{' '}
+                  <span className="text-primary font-semibold">{selectedChild.name}</span> - {selectedChild.class}
                 </p>
-              ) : (
-                filteredGrades.map((grade, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                  data-testid={`grade-item-${index}`}
-                >
-                  <div>
-                    <p className="font-medium text-sm" data-testid={`text-grade-child-${index}`}>
-                      {grade.childName}
-                    </p>
-                    <p className="text-sm text-muted-foreground" data-testid={`text-grade-subject-${index}`}>
-                      {grade.subject} • {grade.assessment}
-                    </p>
-                    <p className="text-xs text-muted-foreground" data-testid={`text-grade-date-${index}`}>
-                      {grade.date}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary" data-testid={`text-grade-score-${index}`}>
-                      {grade.score}
-                    </p>
-                    <p className="text-sm text-green-600" data-testid={`text-grade-letter-${index}`}>
-                      {grade.grade}
-                    </p>
-                  </div>
-                </div>
-              ))
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Announcements */}
-        <Card className="shadow-sm border border-border" data-testid="card-announcements">
+        {/* Stats Cards - Fully Responsive */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
+          <StatsCard
+            title={selectedChildId === 'all' ? "All Children" : "Selected Child"}
+            value={selectedChildren.length}
+            icon={Users}
+            color="primary"
+          />
+          <StatsCard
+            title="Avg. Attendance"
+            value={`${Math.round(totalAttendance)}%`}
+            icon={Calendar}
+            color="green"
+            change="↗ Excellent"
+            changeType="positive"
+          />
+          <StatsCard
+            title="Avg. GPA"
+            value={avgGPA.toFixed(2)}
+            icon={TrendingUp}
+            color="secondary"
+          />
+          <StatsCard
+            title="Unread Messages"
+            value="2"
+            icon={MessageSquare}
+            color="blue"
+          />
+        </div>
+
+        {/* Quick Access Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 animate-slide-up">
+          {parentActions.map((action, index) => {
+            const Icon = action.icon;
+            return (
+              <Link key={index} href={action.href}>
+                <Card className="group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 overflow-hidden h-full">
+                  <div className={`absolute inset-0 bg-gradient-to-br ${action.bgGradient} opacity-50 group-hover:opacity-100 transition-opacity`}></div>
+                  <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-3 sm:pb-4">
+                    <CardTitle className="text-sm sm:text-base font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">
+                      {action.title}
+                    </CardTitle>
+                    <div className={`p-2 sm:p-3 rounded-xl bg-gradient-to-br ${action.gradient} shadow-lg group-hover:scale-110 transition-transform`}>
+                      <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative space-y-1 sm:space-y-2">
+                    <div className={`text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent`}>
+                      {action.value}
+                    </div>
+                    <p className="text-xs sm:text-sm text-gray-600">{action.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Children Overview */}
+        <Card className="shadow-sm border border-border mb-6" data-testid="card-children-overview">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5" />
-                <span>School Announcements</span>
-              </CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/portal/parent/announcements" data-testid="link-view-all-announcements">
-                  View All
-                </Link>
-              </Button>
-            </div>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="h-5 w-5" />
+              <span>My Children</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockAnnouncements.map((announcement, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {mockChildren.map((child, index) => (
                 <div 
-                  key={announcement.id}
-                  className={`border-l-4 ${announcement.color} pl-4`}
-                  data-testid={`announcement-item-${index}`}
+                  key={child.id}
+                  className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow"
+                  data-testid={`child-card-${index}`}
                 >
-                  <h3 className="font-medium text-sm" data-testid={`text-announcement-title-${index}`}>
-                    {announcement.title}
-                  </h3>
-                  <p className="text-muted-foreground text-xs mt-1" data-testid={`text-announcement-content-${index}`}>
-                    {announcement.content}
-                  </p>
-                  <p className="text-muted-foreground text-xs mt-2" data-testid={`text-announcement-time-${index}`}>
-                    {announcement.publishedAt}
-                  </p>
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className={`w-12 h-12 ${child.color} rounded-full flex items-center justify-center`}>
+                      <span className="text-white font-medium">{child.initials}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold" data-testid={`text-child-name-${index}`}>
+                        {child.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-child-class-${index}`}>
+                        {child.class} • {child.admissionNumber}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">GPA</p>
+                      <p className="font-semibold text-primary" data-testid={`text-child-gpa-${index}`}>
+                        {child.currentGPA}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Attendance</p>
+                      <p className="font-semibold text-green-600" data-testid={`text-child-attendance-${index}`}>
+                        {child.attendance}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Today</p>
+                      <p className="font-semibold text-green-600" data-testid={`text-child-today-${index}`}>
+                        {child.lastAttendance}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-3"
+                    asChild
+                  >
+                    <Link href={`/portal/parent/children/${child.id}`} data-testid={`button-view-details-${index}`}>
+                      View Details
+                    </Link>
+                  </Button>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Quick Actions */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-quick-actions">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <Button 
-                  key={index}
-                  variant="outline" 
-                  className="h-20 flex flex-col space-y-2" 
-                  asChild
-                >
-                  <Link href={action.href} data-testid={`button-action-${index}`}>
-                    <Icon className="h-6 w-6" />
-                    <span className="text-sm">{action.title}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+          {/* Recent Grades - Fully Responsive */}
+          <Card className="shadow-sm border border-border" data-testid="card-recent-grades">
+            <CardHeader className="p-4 sm:p-5 md:p-6">
+              <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-4">
+                <CardTitle className="flex items-center space-x-2">
+                  <BookOpen className="h-5 w-5" />
+                  <span>Recent Grades</span>
+                </CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/portal/parent/grades" data-testid="link-view-all-grades">
+                    View All
                   </Link>
                 </Button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Upcoming Events */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-upcoming-events">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5" />
-            <span>Upcoming Events & Reminders</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-              <div className="bg-primary/10 p-2 rounded-lg">
-                <i className="fas fa-calendar text-primary"></i>
               </div>
-              <div>
-                <p className="font-medium text-sm">Parent-Teacher Conference</p>
-                <p className="text-xs text-muted-foreground">December 15, 2024 • Book your slot now</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {filteredGrades.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">
+                    No recent grades available
+                  </p>
+                ) : (
+                  filteredGrades.map((grade, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                    data-testid={`grade-item-${index}`}
+                  >
+                    <div>
+                      <p className="font-medium text-sm" data-testid={`text-grade-child-${index}`}>
+                        {grade.childName}
+                      </p>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-grade-subject-${index}`}>
+                        {grade.subject} • {grade.assessment}
+                      </p>
+                      <p className="text-xs text-muted-foreground" data-testid={`text-grade-date-${index}`}>
+                        {grade.date}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary" data-testid={`text-grade-score-${index}`}>
+                        {grade.score}
+                      </p>
+                      <p className="text-sm text-green-600" data-testid={`text-grade-letter-${index}`}>
+                        {grade.grade}
+                      </p>
+                    </div>
+                  </div>
+                ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Announcements */}
+          <Card className="shadow-sm border border-border" data-testid="card-announcements">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center space-x-2">
+                  <MessageSquare className="h-5 w-5" />
+                  <span>School Announcements</span>
+                </CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/portal/parent/announcements" data-testid="link-view-all-announcements">
+                    View All
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockAnnouncements.map((announcement, index) => (
+                  <div 
+                    key={announcement.id}
+                    className={`border-l-4 ${announcement.color} pl-4`}
+                    data-testid={`announcement-item-${index}`}
+                  >
+                    <h3 className="font-medium text-sm" data-testid={`text-announcement-title-${index}`}>
+                      {announcement.title}
+                    </h3>
+                    <p className="text-muted-foreground text-xs mt-1" data-testid={`text-announcement-content-${index}`}>
+                      {announcement.content}
+                    </p>
+                    <p className="text-muted-foreground text-xs mt-2" data-testid={`text-announcement-time-${index}`}>
+                      {announcement.publishedAt}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card className="mt-6 shadow-sm border border-border" data-testid="card-quick-actions">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {quickActions.map((action, index) => {
+                const Icon = action.icon;
+                return (
+                  <Button 
+                    key={index}
+                    variant="outline" 
+                    className="h-20 flex flex-col space-y-2" 
+                    asChild
+                  >
+                    <Link href={action.href} data-testid={`button-action-${index}`}>
+                      <Icon className="h-6 w-6" />
+                      <span className="text-sm">{action.title}</span>
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Events */}
+        <Card className="mt-6 shadow-sm border border-border" data-testid="card-upcoming-events">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5" />
+              <span>Upcoming Events & Reminders</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+                <div className="bg-primary/10 p-2 rounded-lg">
+                  <i className="fas fa-calendar text-primary"></i>
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Parent-Teacher Conference</p>
+                  <p className="text-xs text-muted-foreground">December 15, 2024 • Book your slot now</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+                <div className="bg-secondary/10 p-2 rounded-lg">
+                  <i className="fas fa-money-bill text-secondary"></i>
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Second Term Fees Due</p>
+                  <p className="text-xs text-muted-foreground">January 15, 2025 • Pay online for convenience</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <i className="fas fa-trophy text-green-600"></i>
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Inter-House Sports Day</p>
+                  <p className="text-xs text-muted-foreground">February 10, 2025 • Come cheer for your children!</p>
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-              <div className="bg-secondary/10 p-2 rounded-lg">
-                <i className="fas fa-money-bill text-secondary"></i>
+        {/* Child Progress Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-blue-50/30">
+            <CardHeader className="border-b border-gray-200/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+                  <Award className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">Recent Achievements</CardTitle>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Your child's accomplishments</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-sm">Second Term Fees Due</p>
-                <p className="text-xs text-muted-foreground">January 15, 2025 • Pay online for convenience</p>
+            </CardHeader>
+            <CardContent className="pt-4 sm:pt-6 space-y-3 sm:space-y-4">
+              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="p-2 rounded-lg bg-green-100">
+                  <Award className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">Excellent Math Score</p>
+                  <p className="text-xs sm:text-sm text-gray-600">95% in recent exam</p>
+                </div>
               </div>
-            </div>
+              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="p-2 rounded-lg bg-blue-100">
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">Perfect Attendance</p>
+                  <p className="text-xs sm:text-sm text-gray-600">This month</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-              <div className="bg-green-100 p-2 rounded-lg">
-                <i className="fas fa-trophy text-green-600"></i>
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-purple-50/30">
+            <CardHeader className="border-b border-gray-200/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg">
+                  <Bell className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">Important Updates</CardTitle>
+                  <p className="text-xs sm:text-sm text-muted-foreground">School notifications</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-sm">Inter-House Sports Day</p>
-                <p className="text-xs text-muted-foreground">February 10, 2025 • Come cheer for your children!</p>
+            </CardHeader>
+            <CardContent className="pt-4 sm:pt-6 space-y-3 sm:space-y-4">
+              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="p-2 rounded-lg bg-orange-100">
+                  <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">Parent-Teacher Meeting</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Scheduled for Friday, 2:00 PM</p>
+                </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="p-2 rounded-lg bg-purple-100">
+                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">Exam Schedule</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Mid-term exams next week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </PortalLayout>
   );
 }

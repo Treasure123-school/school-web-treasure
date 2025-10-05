@@ -573,7 +573,7 @@ export default function AdminDashboard() {
                 <span className="text-xl sm:text-2xl font-bold text-red-600" data-testid="text-failed-login-count">3</span>
               </div>
               <h4 className="font-medium text-xs sm:text-sm text-red-900 dark:text-red-200">Failed Logins</h4>
-              <p className="text-xs text-red-700 dark:text-red-300 mt-1">Last 24 hours</p>
+              <p className="text-xs text-red-700 dark:text-yellow-300 mt-1">Last 24 hours</p>
             </div>
 
             {/* Locked Accounts */}
