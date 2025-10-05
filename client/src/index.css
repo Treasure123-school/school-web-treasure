@@ -212,44 +212,22 @@
   font-weight: 600;
 }
 
-/* ==================== MODERN DESIGN SYSTEM ==================== */
-
-/* Enhanced professional buttons with mobile-first responsive sizing */
+/* Enhanced professional buttons */
 .btn-primary {
   @apply bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 hover:from-blue-700 hover:via-blue-800 hover:to-blue-900
-         text-white font-bold py-2 px-4 sm:py-3 sm:px-6 md:py-4 md:px-8 rounded-xl sm:rounded-2xl
-         shadow-md sm:shadow-lg hover:shadow-xl sm:hover:shadow-2xl 
-         transform transition-all duration-300 hover:scale-105 hover:-translate-y-1
-         text-sm sm:text-base md:text-lg;
+         text-white font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-2xl 
+         transform transition-all duration-300 hover:scale-105 hover:-translate-y-1;
 }
 
 .btn-secondary {
   @apply bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600
-         text-gray-900 font-bold py-2 px-4 sm:py-3 sm:px-6 md:py-4 md:px-8 rounded-xl sm:rounded-2xl
-         shadow-md sm:shadow-lg hover:shadow-xl sm:hover:shadow-2xl 
-         transform transition-all duration-300 hover:scale-105 hover:-translate-y-1
-         text-sm sm:text-base md:text-lg;
+         text-gray-900 font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-2xl 
+         transform transition-all duration-300 hover:scale-105 hover:-translate-y-1;
 }
 
 .btn-ghost {
   @apply border-2 border-blue-600 text-blue-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-blue-700 hover:text-white 
-         font-bold py-2 px-4 sm:py-3 sm:px-6 md:py-4 md:px-8 rounded-xl sm:rounded-2xl
-         transition-all duration-300 hover:shadow-lg sm:hover:shadow-xl hover:scale-105 hover:-translate-y-1
-         text-sm sm:text-base md:text-lg;
-}
-
-/* Modern card designs with responsive spacing */
-.modern-card {
-  @apply bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl
-         transition-all duration-300 p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-gray-700;
-}
-
-.modern-card-header {
-  @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6;
-}
-
-.modern-card-title {
-  @apply text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white;
+         font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-105 hover:-translate-y-1;
 }
 
 /* Enhanced educational section backgrounds */
@@ -272,235 +250,6 @@
   background: radial-gradient(circle at 30% 40%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
               radial-gradient(circle at 80% 80%, rgba(147, 197, 253, 0.08) 0%, transparent 50%);
   pointer-events: none;
-}
-
-/* Responsive grid utilities */
-.responsive-grid-2 {
-  @apply grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6;
-}
-
-.responsive-grid-3 {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6;
-}
-
-.responsive-grid-4 {
-  @apply grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6;
-}
-
-/* Modern input styles with responsive sizing */
-.modern-input {
-  @apply w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base
-         rounded-lg border-2 border-gray-300 dark:border-gray-600
-         focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900
-         transition-all duration-200 bg-white dark:bg-gray-800
-         text-gray-900 dark:text-white placeholder-gray-400;
-}
-
-.modern-input:focus {
-  @apply outline-none;
-}
-
-/* Modern form layouts */
-.modern-form-group {
-  @apply space-y-2 sm:space-y-3;
-}
-
-.modern-form-label {
-  @apply block text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2;
-}
-
-/* Modern table styles with responsive behavior */
-.modern-table-container {
-  @apply overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700;
-}
-
-.modern-table {
-  @apply w-full text-sm;
-}
-
-.modern-table-head {
-  @apply bg-gray-50 dark:bg-gray-800;
-}
-
-.modern-table-header {
-  @apply px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold
-         text-gray-700 dark:text-gray-300 uppercase tracking-wider;
-}
-
-.modern-table-body {
-  @apply divide-y divide-gray-200 dark:divide-gray-700;
-}
-
-.modern-table-row {
-  @apply hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors;
-}
-
-.modern-table-cell {
-  @apply px-3 sm:px-4 md:px-6 py-2 sm:py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100;
-}
-
-/* Modern badge styles */
-.modern-badge {
-  @apply inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full
-         text-xs sm:text-sm font-medium;
-}
-
-.modern-badge-primary {
-  @apply modern-badge bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
-}
-
-.modern-badge-success {
-  @apply modern-badge bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
-}
-
-.modern-badge-warning {
-  @apply modern-badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
-}
-
-.modern-badge-danger {
-  @apply modern-badge bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
-}
-
-/* Modern stats card */
-.modern-stats-card {
-  @apply modern-card flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4;
-}
-
-.modern-stats-icon {
-  @apply w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center;
-}
-
-.modern-stats-content {
-  @apply flex-1 min-w-0;
-}
-
-.modern-stats-label {
-  @apply text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1;
-}
-
-.modern-stats-value {
-  @apply text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white;
-}
-
-/* Modern alert styles */
-.modern-alert {
-  @apply p-3 sm:p-4 rounded-lg border-l-4 text-sm sm:text-base;
-}
-
-.modern-alert-info {
-  @apply modern-alert bg-blue-50 border-blue-500 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200;
-}
-
-.modern-alert-success {
-  @apply modern-alert bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-200;
-}
-
-.modern-alert-warning {
-  @apply modern-alert bg-yellow-50 border-yellow-500 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200;
-}
-
-.modern-alert-error {
-  @apply modern-alert bg-red-50 border-red-500 text-red-800 dark:bg-red-900/20 dark:text-red-200;
-}
-
-/* Modern page layouts */
-.modern-page-container {
-  @apply min-h-screen bg-gray-50 dark:bg-gray-900 p-3 sm:p-4 md:p-6 lg:p-8;
-}
-
-.modern-page-header {
-  @apply mb-4 sm:mb-6 md:mb-8;
-}
-
-.modern-page-title {
-  @apply text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2;
-}
-
-.modern-page-subtitle {
-  @apply text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400;
-}
-
-/* Modern section dividers */
-.modern-divider {
-  @apply border-t-2 border-gray-200 dark:border-gray-700 my-4 sm:my-6 md:my-8;
-}
-
-/* Responsive text utilities */
-.text-responsive-xs {
-  @apply text-xs sm:text-sm;
-}
-
-.text-responsive-sm {
-  @apply text-sm sm:text-base;
-}
-
-.text-responsive-base {
-  @apply text-base sm:text-lg;
-}
-
-.text-responsive-lg {
-  @apply text-lg sm:text-xl md:text-2xl;
-}
-
-.text-responsive-xl {
-  @apply text-xl sm:text-2xl md:text-3xl;
-}
-
-.text-responsive-2xl {
-  @apply text-2xl sm:text-3xl md:text-4xl;
-}
-
-/* Modern spacing utilities */
-.space-responsive-sm {
-  @apply space-y-2 sm:space-y-3 md:space-y-4;
-}
-
-.space-responsive-md {
-  @apply space-y-3 sm:space-y-4 md:space-y-6;
-}
-
-.space-responsive-lg {
-  @apply space-y-4 sm:space-y-6 md:space-y-8;
-}
-
-/* Modern animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.4s ease-out;
-}
-
-/* Modern loading states */
-.modern-skeleton {
-  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
-}
-
-.modern-spinner {
-  @apply inline-block w-5 h-5 sm:w-6 sm:h-6 border-3 border-gray-300 border-t-blue-600 rounded-full animate-spin;
 }
 
 .section-gradient-accent {
@@ -615,7 +364,7 @@
   z-index: 2;
 }
 
-/* Enhanced professional school typography with responsive sizing */
+/* Enhanced professional school typography */
 .school-title {
   font-family: var(--font-sans);
   font-weight: 800;
@@ -625,9 +374,8 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-  font-size: clamp(1.5rem, 4vw, 3rem);
 }
 
 .school-motto {
@@ -637,14 +385,13 @@
   color: hsl(45, 100%, 82%);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   letter-spacing: 0.5px;
-  font-size: clamp(0.875rem, 2vw, 1.25rem);
 }
 
 /* Mobile-first responsive utilities */
 .container-custom {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 var(--container-padding);
 }
 
 @media (min-width: 640px) {
@@ -657,44 +404,4 @@
   .container-custom {
     padding: 0 4rem;
   }
-}
-
-/* Modern glassmorphism effects */
-.glass-card {
-  @apply backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/20
-         shadow-xl rounded-2xl;
-}
-
-.glass-card-strong {
-  @apply backdrop-blur-lg bg-white/90 dark:bg-gray-800/90 border border-white/30 dark:border-gray-700/30
-         shadow-2xl rounded-2xl;
-}
-
-/* Modern hover effects */
-.hover-lift {
-  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
-}
-
-.hover-glow {
-  @apply transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20;
-}
-
-/* Responsive container with better padding */
-.responsive-container {
-  @apply max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
-}
-
-/* Modern focus styles */
-.modern-focus {
-  @apply focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-         transition-all duration-200;
-}
-
-/* Responsive flex utilities */
-.flex-responsive-row {
-  @apply flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-6;
-}
-
-.flex-responsive-col {
-  @apply flex flex-row sm:flex-col gap-3 sm:gap-4 md:gap-6;
 }
