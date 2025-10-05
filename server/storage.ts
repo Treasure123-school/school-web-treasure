@@ -437,7 +437,28 @@ export class DatabaseStorage implements IStorage {
 
   // User management
   async getUser(id: string): Promise<User | undefined> {
-    const result = await this.db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+    // Only select columns that exist in the current database schema
+    const result = await this.db.select({
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
+    
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -445,11 +466,32 @@ export class DatabaseStorage implements IStorage {
         user.id = normalizedId;
       }
     }
-    return user;
+    return user as User | undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await this.db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+    // Only select columns that exist in the current database schema
+    const result = await this.db.select({
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
+    
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -457,7 +499,7 @@ export class DatabaseStorage implements IStorage {
         user.id = normalizedId;
       }
     }
-    return user;
+    return user as User | undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -473,7 +515,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
-    const result = await this.db.select().from(schema.users).where(eq(schema.users.googleId, googleId)).limit(1);
+    // Only select columns that exist in the current database schema
+    const result = await this.db.select({
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.googleId, googleId)).limit(1);
+    
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -481,7 +544,7 @@ export class DatabaseStorage implements IStorage {
         user.id = normalizedId;
       }
     }
-    return user;
+    return user as User | undefined;
   }
 
   async createPasswordResetToken(userId: string, token: string, expiresAt: Date, ipAddress?: string, resetBy?: string): Promise<any> {
