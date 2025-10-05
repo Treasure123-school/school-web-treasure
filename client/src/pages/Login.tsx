@@ -635,10 +635,15 @@ export default function Login() {
                   <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
-                      For Students & Parents
+                      👨‍🎓 For Students & Parents
                     </p>
                     <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                      Use your THS username and password to login. Example: <span className="font-mono font-medium">THS-STU-2025-PR3-001</span>
+                      Use your THS username and password. <br className="hidden sm:block"/>
+                      Example: <span className="font-mono font-medium bg-white/50 dark:bg-gray-800/50 px-1 py-0.5 rounded">THS-STU-2025-PR3-001</span>
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                      ✓ If details are correct → Access granted<br/>
+                      ❌ If incorrect → Check your username & password
                     </p>
                   </div>
                 </div>

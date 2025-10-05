@@ -189,7 +189,7 @@ export default function ForgotPassword() {
                       <Mail className="h-3.5 w-3.5 text-white" />
                     </div>
                     <p className="text-sm text-blue-900 dark:text-blue-100 font-semibold">
-                      How Password Reset Works
+                      📧 How Password Reset Works
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -197,26 +197,34 @@ export default function ForgotPassword() {
                       <div className="mt-1 h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">1</span>
                       </div>
-                      <p className="text-xs text-blue-800 dark:text-blue-200">Enter your username or email address</p>
+                      <p className="text-xs text-blue-800 dark:text-blue-200">Enter your THS username or email address</p>
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="mt-1 h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">2</span>
                       </div>
-                      <p className="text-xs text-blue-800 dark:text-blue-200">Receive a reset code and link via email</p>
+                      <p className="text-xs text-blue-800 dark:text-blue-200">Receive a secure reset link via email (valid for 15 minutes)</p>
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="mt-1 h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">3</span>
                       </div>
-                      <p className="text-xs text-blue-800 dark:text-blue-200">Click the link or enter the code to reset (valid for 15 minutes)</p>
+                      <p className="text-xs text-blue-800 dark:text-blue-200">Click the link to create a new strong password</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                    <AlertCircle className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      Check spam/junk folder if you don't see the email
-                    </p>
+                  <div className="space-y-1 pt-2 border-t border-blue-200 dark:border-blue-700">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Check spam/junk folder if you don't see the email within 2 minutes
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        <strong>For Teachers/Admins:</strong> Use Google account recovery if you can't access your Google email
+                      </p>
+                    </div>
                   </div>
                 </div>
 

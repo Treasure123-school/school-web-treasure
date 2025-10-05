@@ -26,36 +26,23 @@ export default function ParentDashboard() {
 
   const selectedChild = linkedChildren.find((child: any) => child.id === selectedChildId);
 
-  // Fetch parent's children from API (this part is redundant with linkedChildren, will be refactored to use linkedChildren)
-  const { data: childrenData = [], isLoading: loadingChildrenOld } = useQuery<any[]>({
-    queryKey: ['/api/parent', user?.id, 'children'],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const response = await fetch(`/api/parent/${user.id}/children`);
-      if (!response.ok) throw new Error('Failed to fetch children');
-      return response.json();
-    },
-    enabled: !!user?.id,
-  });
-
   if (!user) {
     return <div>Please log in to access the parent portal.</div>;
   }
 
-  // Transform API data to include display properties
-  // This mock data transformation should use the 'linkedChildren' data instead of 'childrenData'
+  // Transform linked children data to include display properties for UI
   const mockChildren = linkedChildren.map((child, index) => {
     const colors = ['bg-primary', 'bg-secondary', 'bg-green-500', 'bg-blue-500', 'bg-purple-500'];
-    const firstName = child.firstName || child.name?.split(' ')[0] || 'Student';
-    const lastName = child.lastName || child.name?.split(' ')[1] || '';
+    const firstName = child.firstName || 'Student';
+    const lastName = child.lastName || '';
     const fullName = `${firstName} ${lastName}`.trim();
-    const initials = `${firstName[0]}${lastName[0] || firstName[1] || ''}`.toUpperCase();
+    const initials = `${firstName[0] || ''}${lastName[0] || firstName[1] || ''}`.toUpperCase();
 
     return {
       id: child.id,
       name: fullName,
-      class: child.className || child.class || 'N/A',
-      admissionNumber: child.admissionNumber || child.studentId || `THS/${child.id}`,
+      class: child.className || 'N/A',
+      admissionNumber: child.admissionNumber || `THS-${child.id}`,
       currentGPA: child.currentGPA || '0.00',
       attendance: child.attendanceRate ? `${child.attendanceRate}%` : '0%',
       lastAttendance: child.lastAttendance || 'Unknown',

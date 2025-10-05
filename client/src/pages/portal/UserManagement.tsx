@@ -713,6 +713,24 @@ export default function UserManagement() {
       });
       return;
     }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newRecoveryEmail)) {
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>Invalid Email Format</span>
+          </div>
+        ),
+        description: "Please enter a valid email address (e.g., parent@example.com)",
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+      return;
+    }
+    
     updateRecoveryEmailMutation.mutate({
       userId: selectedUser.id,
       recoveryEmail: newRecoveryEmail

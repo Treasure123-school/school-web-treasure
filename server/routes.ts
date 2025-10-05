@@ -2026,7 +2026,7 @@ Treasure-Home School Administration
         return res.status(500).json({ message: "Failed to update recovery email" });
       }
 
-      log(`✅ Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
+      console.log(`✅ Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
 
       res.json({ 
         message: "Recovery email updated successfully",
@@ -2037,6 +2037,68 @@ Treasure-Home School Administration
       console.error('Update recovery email error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid email format" });
+      }
+      res.status(500).json({ message: "Failed to update recovery email" });
+    }
+  });
+
+  // User update own recovery email endpoint
+  app.post("/api/users/:id/recovery-email", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { recoveryEmail } = z.object({
+        recoveryEmail: z.string().email()
+      }).parse(req.body);
+      const userId = req.user!.id;
+
+      // Only allow users to update their own recovery email or admins to update any
+      if (id !== userId && req.user!.roleId !== ROLES.ADMIN) {
+        return res.status(403).json({ message: "Unauthorized: You can only update your own recovery email" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Update the user with new recovery email
+      const updatedUser = await storage.updateUser(id, {
+        recoveryEmail
+      });
+
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update recovery email" });
+      }
+
+      // Log audit event
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'recovery_email_updated',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({ userId: user.id, recoveryEmail: user.recoveryEmail }),
+        newValue: JSON.stringify({ userId: user.id, recoveryEmail }),
+        reason: `User ${req.user!.email} updated recovery email`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      console.log(`✅ User ${req.user?.email} updated recovery email for account ${id}`);
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: "Recovery email updated successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error('Error updating recovery email:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
       }
       res.status(500).json({ message: "Failed to update recovery email" });
     }
