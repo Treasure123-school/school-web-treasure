@@ -476,8 +476,7 @@ export default function UserManagement() {
   // Update recovery email mutation with OPTIMISTIC UPDATES
   const updateRecoveryEmailMutation = useMutation({
     mutationFn: async ({ userId, recoveryEmail }: { userId: string; recoveryEmail: string }) => {
-      const response = await apiRequest('POST', '/api/admin/update-recovery-email', {
-        userId,
+      const response = await apiRequest('POST', `/api/users/${userId}/recovery-email`, {
         recoveryEmail
       });
       if (!response.ok) {
@@ -985,7 +984,7 @@ export default function UserManagement() {
                 data-testid={`menu-item-recovery-email-${userData.id}`}
               >
                 <Mail className="h-4 w-4 mr-2" />
-                Change Recovery Email
+                Update Recovery Email
               </DropdownMenuItem>
 
               <DropdownMenuItem 
@@ -1293,31 +1292,53 @@ export default function UserManagement() {
       </Dialog>
 
       {/* Update Recovery Email Dialog */}
-      <Dialog open={recoveryEmailDialog} onOpenChange={setRecoveryEmailDialog}>
-        <DialogContent data-testid="dialog-recovery-email">
+      <Dialog open={recoveryEmailDialog} onOpenChange={(open) => {
+        if (!open) {
+          setRecoveryEmailDialog(false);
+          setNewRecoveryEmail('');
+          setSelectedUser(null);
+        }
+      }}>
+        <DialogContent data-testid="dialog-recovery-email" className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Update Recovery Email</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-blue-600" />
+              Change Recovery Email
+            </DialogTitle>
             <DialogDescription>
-              Set the recovery email for <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>
+              Update the recovery email for <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">Current Recovery Email:</p>
+              <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                {selectedUser?.recoveryEmail || selectedUser?.email || 'Not set'}
+              </p>
+            </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="recovery-email">Recovery Email Address</Label>
+              <Label htmlFor="recovery-email" className="text-sm font-medium">New Recovery Email Address</Label>
               <Input
                 id="recovery-email"
                 type="email"
                 value={newRecoveryEmail}
                 onChange={(e) => setNewRecoveryEmail(e.target.value)}
-                placeholder="Enter recovery email address"
+                placeholder="e.g., parent@email.com or admin@ths.edu"
                 data-testid="input-recovery-email"
+                className="text-sm"
               />
-              <p className="text-xs text-muted-foreground">
-                Current recovery email: <strong>{selectedUser?.recoveryEmail || selectedUser?.email || 'Not set'}</strong>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                This email will be used for password reset notifications.
-              </p>
+              <div className="flex items-start gap-2 mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-amber-800 dark:text-amber-200">
+                  <p className="font-medium mb-1">Important:</p>
+                  <ul className="space-y-0.5 ml-3 list-disc">
+                    <li>This email will receive password reset links</li>
+                    <li>Students: Use parent/guardian email</li>
+                    <li>Teachers: Use their official Google email</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -1334,7 +1355,7 @@ export default function UserManagement() {
             </Button>
             <Button 
               onClick={handleUpdateRecoveryEmail}
-              disabled={updateRecoveryEmailMutation.isPending}
+              disabled={updateRecoveryEmailMutation.isPending || !newRecoveryEmail}
               data-testid="button-confirm-recovery-email"
             >
               {updateRecoveryEmailMutation.isPending ? 'Updating...' : 'Update Email'}

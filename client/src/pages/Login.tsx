@@ -208,8 +208,13 @@ export default function Login() {
     onSuccess: (userData) => {
       if (!isValidRoleId(userData.user.roleId)) {
         toast({
-          title: 'Authentication Error',
-          description: 'Invalid account configuration. Please contact administrator.',
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span>Authentication Error</span>
+            </div>
+          ),
+          description: 'Invalid account configuration. Please contact the school administrator.',
           variant: 'destructive',
         });
         return;
@@ -217,7 +222,12 @@ export default function Login() {
 
       if (!userData.token) {
         toast({
-          title: 'Authentication Error',
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span>Authentication Error</span>
+            </div>
+          ),
           description: 'No access token received. Please try again.',
           variant: 'destructive',
         });
@@ -237,10 +247,10 @@ export default function Login() {
         title: (
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Login Successful</span>
+            <span>Welcome Back to THS Portal</span>
           </div>
         ),
-        description: 'Welcome back to THS Portal. Redirecting you to your dashboard...',
+        description: 'Login successful. Redirecting you to your dashboard...',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
 
@@ -253,22 +263,26 @@ export default function Login() {
     onError: (error: any) => {
       // Enhanced error handling with structured backend responses
       const statusType = error?.statusType;
-      const errorMessage = error?.message || 'Login Failed';
-      const errorDescription = error?.description || error?.hint || 'Invalid username or password. Please check your credentials and try again.';
+      const errorMessage = error?.message || 'Invalid Login';
+      const errorDescription = error?.description || error?.hint || 'Please check your username or password and try again.';
 
       let icon = <XCircle className="h-4 w-4 text-red-500" />;
       let className = '';
       let title = errorMessage;
       let description: string | JSX.Element = errorDescription;
 
-      // Map backend statusType to frontend presentation
+      // Map backend statusType to frontend presentation with THS Story Plan messages
       switch (statusType) {
         case 'pending_staff':
           icon = <Clock className="h-4 w-4 text-orange-500" />;
           className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+          title = 'Account Awaiting Approval';
           description = (
             <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
+              <p className="mb-2">⏳ Your account is awaiting Admin approval. You will be notified once verified.</p>
+              <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                Please contact the school administrator if you need immediate access.
+              </p>
             </div>
           );
           break;
@@ -276,20 +290,41 @@ export default function Login() {
         case 'pending_setup':
           icon = <Clock className="h-4 w-4 text-orange-500" />;
           className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+          title = 'Account Pending Verification';
           description = (
             <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
+              <p className="mb-2">⏳ Welcome to THS Portal. Your account is awaiting Admin approval.</p>
+              <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                You will be notified via email once your account is verified.
+              </p>
             </div>
           );
           break;
 
         case 'suspended_staff':
+          icon = <Ban className="h-4 w-4 text-red-500" />;
+          className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
+          title = 'Account Suspended';
+          description = (
+            <div className="text-xs sm:text-sm">
+              <p className="mb-2">🚫 Access denied: Your account has been suspended by THS Admin.</p>
+              <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                Please contact the school administrator for assistance.
+              </p>
+            </div>
+          );
+          break;
+
         case 'suspended_student':
           icon = <Ban className="h-4 w-4 text-red-500" />;
           className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
+          title = 'Account Suspended';
           description = (
             <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
+              <p className="mb-2">🚫 Your account is suspended. Contact your class teacher or Admin.</p>
+              <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                Speak with your class teacher or visit the Admin office for support.
+              </p>
             </div>
           );
           break;
@@ -297,9 +332,10 @@ export default function Login() {
         case 'disabled':
           icon = <Ban className="h-4 w-4 text-red-500" />;
           className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
+          title = 'Account Disabled';
           description = (
             <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
+              <p className="mb-2">🚫 Your account has been disabled. Please contact the school administrator.</p>
             </div>
           );
           break;
@@ -307,6 +343,7 @@ export default function Login() {
         case 'rate_limited':
           icon = <Ban className="h-4 w-4 text-orange-500" />;
           className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
+          title = 'Too Many Attempts';
           description = (
             <div className="text-xs sm:text-sm">
               <p className="mb-2">{errorDescription}</p>
@@ -317,6 +354,7 @@ export default function Login() {
         case 'google_required':
           icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
           className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
+          title = 'Google Sign-In Required';
           description = (
             <div className="text-xs sm:text-sm">
               <p className="mb-2">{errorDescription}</p>
@@ -325,13 +363,12 @@ export default function Login() {
           break;
 
         case 'invalid_credentials':
-        case 'setup_incomplete':
         default:
           icon = <XCircle className="h-4 w-4 text-red-500" />;
-          title = errorMessage || 'Login Failed';
+          title = 'Invalid Login';
           description = (
             <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
+              <p className="mb-2">❌ Invalid login. Please check your username or password.</p>
             </div>
           );
           break;
