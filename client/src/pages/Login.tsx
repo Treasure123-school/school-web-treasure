@@ -1,4 +1,3 @@
-replit_final_file>
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -219,10 +218,7 @@ export default function Login() {
                     <XCircle className="h-4 w-4" />
                     Invalid login. Please check your username or password and try again.
                   </p>
-                  <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Make sure CAPS LOCK is off.
-                  </p>
+                  <p className="text-xs text-muted-foreground font-medium">Make sure CAPS LOCK is off.</p>
                 </div>
               ),
               className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
@@ -952,4 +948,3 @@ export default function Login() {
     </div>
   );
 }
-</replit_final_file>

@@ -37,14 +37,8 @@ export default function AdminRecoveryTools() {
     },
     onSuccess: () => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Password Reset Successful</span>
-          </div>
-        ),
+        title: '✅ Password Reset Successful',
         description: 'User password has been reset. They will receive an email notification.',
-        className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       setResetUserId('');
       setNewPassword('');
@@ -52,12 +46,7 @@ export default function AdminRecoveryTools() {
     },
     onError: (error: any) => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span>Password Reset Failed</span>
-          </div>
-        ),
+        title: '❌ Password Reset Failed',
         description: error.message || 'Failed to reset password. Please try again.',
         variant: 'destructive',
       });
@@ -80,14 +69,8 @@ export default function AdminRecoveryTools() {
     },
     onSuccess: () => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Recovery Email Updated</span>
-          </div>
-        ),
+        title: '✅ Recovery Email Updated',
         description: 'User recovery email has been updated successfully.',
-        className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
       setRecoveryUserId('');
       setRecoveryEmail('');
@@ -95,12 +78,7 @@ export default function AdminRecoveryTools() {
     },
     onError: (error: any) => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span>Update Failed</span>
-          </div>
-        ),
+        title: '❌ Update Failed',
         description: error.message || 'Failed to update recovery email.',
         variant: 'destructive',
       });
@@ -110,14 +88,9 @@ export default function AdminRecoveryTools() {
   const handleResetPassword = () => {
     if (!resetUserId || !newPassword) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-orange-500" />
-            <span>Missing Information</span>
-          </div>
-        ),
+        title: 'Missing Information',
         description: 'Please provide both user ID and new password.',
-        className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+        variant: 'destructive',
       });
       return;
     }
@@ -127,14 +100,9 @@ export default function AdminRecoveryTools() {
   const handleUpdateRecoveryEmail = () => {
     if (!recoveryUserId || !recoveryEmail) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-orange-500" />
-            <span>Missing Information</span>
-          </div>
-        ),
+        title: 'Missing Information',
         description: 'Please provide both user ID and recovery email.',
-        className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+        variant: 'destructive',
       });
       return;
     }
