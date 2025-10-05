@@ -2685,7 +2685,7 @@ Treasure-Home School Administration
         userAgent: req.headers['user-agent']
       }).catch(err => console.error('Audit log failed (non-critical):', err));
 
-      res.status(204).send(); // 204 No Content for successful delete (instant response)
+      res.json({ message: "User deleted successfully" }); // Return JSON for instant response
     } catch (error: any) {
       console.error('Error deleting user:', error);
 

@@ -271,17 +271,7 @@ export default function UserManagement() {
   // Delete user mutation with OPTIMISTIC UPDATES
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to delete user. Please try again.');
-      }
-
-      return { message: 'User account deleted successfully. All exam data has been preserved for records.' };
+      return await apiRequest('DELETE', `/api/users/${userId}`);
     },
     onMutate: async (userId: string) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
@@ -578,9 +568,10 @@ export default function UserManagement() {
       );
       return { previousUsers };
     },
-    onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+    onSuccess: async (data: any, variables) => {
+      // Force immediate refetch for instant UI update
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action}ed.`,
@@ -713,7 +704,7 @@ export default function UserManagement() {
       });
       return;
     }
-    
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newRecoveryEmail)) {
@@ -730,7 +721,7 @@ export default function UserManagement() {
       });
       return;
     }
-    
+
     updateRecoveryEmailMutation.mutate({
       userId: selectedUser.id,
       recoveryEmail: newRecoveryEmail
