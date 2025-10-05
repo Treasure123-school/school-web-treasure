@@ -999,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
             const username = generateUsername(roleId, currentYear, '', nextNumber);
 
-            // Create PENDING account
+            // Create PENDING account with only fields that exist in DB
             const newUser = await storage.createUser({
               email: user.email,
               firstName: user.firstName,
@@ -1062,12 +1062,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Don't fail the user creation if notification fails
             }
 
-            // DENY LOGIN - redirect with clear pending approval message
-            console.log(`🔒 OAuth signup complete but login denied - user ${newUser.email} requires approval`);
-            return res.redirect('/login?oauth_status=pending_approval');
+            // REDIRECT WITH FRIENDLY MESSAGE - As per Chapter 1 plan
+            console.log(`🔒 OAuth signup complete - user ${newUser.email} awaiting admin approval`);
+            const role = await storage.getRole(roleId);
+            const roleName = role?.name || 'Staff';
+            return res.redirect(`/login?status=pending_verification&role=${roleName.toLowerCase()}`);
           } catch (error) {
             console.error('❌ Error creating pending account:', error);
-            return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to create your account. Please try again or contact the administrator.'));
+            return res.redirect('/login?error=account_creation_failed&message=' + encodeURIComponent('Failed to create your account. Please contact the administrator.'));
           }
         }
 
@@ -1075,7 +1077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.logIn(user, (loginErr) => {
           if (loginErr) {
             console.error('Login error:', loginErr);
-            return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Failed to complete login'));
+            return res.redirect('/login?error=login_failed&message=' + encodeURIComponent('Failed to complete login'));
           }
 
           const token = jwt.sign({ userId: user.id, roleId: user.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });

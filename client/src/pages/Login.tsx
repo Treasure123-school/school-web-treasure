@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Link, useLocation } from 'wouter';
 import { getRoleNameById, getPortalByRoleId, isValidRoleId } from '@/lib/roles';
+import { useQueryClient } from '@tanstack/react-query';
+
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Username or email is required'),
@@ -37,6 +38,7 @@ export default function Login() {
   const { toast } = useToast();
   const { login, user } = useAuth();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient(); // Initialize useQueryClient
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
@@ -368,7 +370,7 @@ export default function Login() {
               <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800">
                 <p className="text-xs font-medium">What to do:</p>
                 <p className="text-xs">
-                  {statusType === 'suspended_staff' 
+                  {statusType === 'suspended_staff'
                     ? '• Contact the school administrator immediately'
                     : '• Speak with your class teacher or school administrator'}
                 </p>
@@ -585,9 +587,9 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full h-11 sm:h-12 text-base font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]" 
+              <Button
+                type="submit"
+                className="w-full h-11 sm:h-12 text-base font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
                 disabled={loginMutation.isPending}
                 data-testid="button-login"
               >
@@ -627,7 +629,7 @@ export default function Login() {
               </div>
             </div>
 
-            <Button 
+            <Button
               type="button"
               variant="outline"
               className="w-full h-11 sm:h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5 transition-all duration-300 hover:scale-[1.02] shadow-md hover:shadow-lg"
@@ -659,8 +661,8 @@ export default function Login() {
 
             <div className="text-center p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900 rounded-xl border border-gray-200 dark:border-gray-700">
               <p className="text-xs sm:text-sm text-muted-foreground mb-3 font-medium">Need help accessing your account?</p>
-              <Link 
-                href="/forgot-password" 
+              <Link
+                href="/forgot-password"
                 className="text-primary text-sm sm:text-base font-semibold hover:text-blue-600 transition-colors inline-flex items-center gap-2 group"
                 data-testid="link-forgot-password"
               >
@@ -673,8 +675,8 @@ export default function Login() {
 
         {/* Back to Website */}
         <div className="text-center mt-6 sm:mt-8">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="text-muted-foreground text-sm sm:text-base hover:text-foreground transition-colors inline-flex items-center gap-2 group font-medium"
             data-testid="link-back-to-website"
           >
@@ -758,9 +760,9 @@ export default function Login() {
               )}
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full h-11 sm:h-12 font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300" 
+            <Button
+              type="submit"
+              className="w-full h-11 sm:h-12 font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
               disabled={changePasswordMutation.isPending}
               data-testid="button-change-password"
             >
@@ -793,8 +795,8 @@ export default function Login() {
               type="button"
               variant={selectedRole === 1 ? "default" : "outline"}
               className={`w-full justify-start h-auto p-4 transition-all duration-200 ${
-                selectedRole === 1 
-                  ? 'bg-gradient-to-r from-primary to-blue-600 shadow-lg' 
+                selectedRole === 1
+                  ? 'bg-gradient-to-r from-primary to-blue-600 shadow-lg'
                   : 'hover:border-primary hover:bg-primary/5'
               }`}
               onClick={() => setSelectedRole(1)}
@@ -810,8 +812,8 @@ export default function Login() {
               type="button"
               variant={selectedRole === 2 ? "default" : "outline"}
               className={`w-full justify-start h-auto p-4 transition-all duration-200 ${
-                selectedRole === 2 
-                  ? 'bg-gradient-to-r from-primary to-blue-600 shadow-lg' 
+                selectedRole === 2
+                  ? 'bg-gradient-to-r from-primary to-blue-600 shadow-lg'
                   : 'hover:border-primary hover:bg-primary/5'
               }`}
               onClick={() => setSelectedRole(2)}
