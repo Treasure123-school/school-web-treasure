@@ -717,6 +717,227 @@ export default function StudentManagement() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Student Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Student</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editFirstName">First Name</Label>
+                  <Input
+                    id="editFirstName"
+                    {...registerEdit('firstName')}
+                    data-testid="input-edit-firstName"
+                  />
+                  {editErrors.firstName && (
+                    <p className="text-red-500 text-sm">{editErrors.firstName.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editLastName">Last Name</Label>
+                  <Input
+                    id="editLastName"
+                    {...registerEdit('lastName')}
+                    data-testid="input-edit-lastName"
+                  />
+                  {editErrors.lastName && (
+                    <p className="text-red-500 text-sm">{editErrors.lastName.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="editEmail">Email</Label>
+                <Input
+                  id="editEmail"
+                  type="email"
+                  {...registerEdit('email')}
+                  data-testid="input-edit-email"
+                />
+                {editErrors.email && (
+                  <p className="text-red-500 text-sm">{editErrors.email.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="editPassword">New Password (Optional)</Label>
+                <Input
+                  id="editPassword"
+                  type="password"
+                  {...registerEdit('password')}
+                  placeholder="Leave blank to keep current password"
+                  data-testid="input-edit-password"
+                />
+                {editErrors.password && (
+                  <p className="text-red-500 text-sm">{editErrors.password.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editAdmissionNumber">Admission Number</Label>
+                  <Input
+                    id="editAdmissionNumber"
+                    {...registerEdit('admissionNumber')}
+                    data-testid="input-edit-admissionNumber"
+                  />
+                  {editErrors.admissionNumber && (
+                    <p className="text-red-500 text-sm">{editErrors.admissionNumber.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editAdmissionDate">Date of Admission</Label>
+                  <Input
+                    id="editAdmissionDate"
+                    type="date"
+                    {...registerEdit('admissionDate')}
+                    data-testid="input-edit-admissionDate"
+                  />
+                  {editErrors.admissionDate && (
+                    <p className="text-red-500 text-sm">{editErrors.admissionDate.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editDateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="editDateOfBirth"
+                    type="date"
+                    {...registerEdit('dateOfBirth')}
+                    data-testid="input-edit-dateOfBirth"
+                  />
+                  {editErrors.dateOfBirth && (
+                    <p className="text-red-500 text-sm">{editErrors.dateOfBirth.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editGender">Gender</Label>
+                  <Select 
+                    value={editingStudent?.user?.gender ?? undefined} 
+                    onValueChange={(value) => setEditValue('gender', value as 'Male' | 'Female' | 'Other')}
+                  >
+                    <SelectTrigger data-testid="select-edit-gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {editErrors.gender && (
+                    <p className="text-red-500 text-sm">{editErrors.gender.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editClassId">Class</Label>
+                  <Select 
+                    value={editingStudent?.classId ? editingStudent.classId.toString() : ''} 
+                    onValueChange={(value) => setEditValue('classId', parseInt(value))}
+                  >
+                    <SelectTrigger data-testid="select-edit-class">
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id.toString()}>
+                          {cls.name} ({cls.level})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {editErrors.classId && (
+                    <p className="text-red-500 text-sm">{editErrors.classId.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="editParentId">Parent</Label>
+                  <Select 
+                    value={editingStudent?.parentId || 'none'} 
+                    onValueChange={(value) => setEditValue('parentId', value === 'none' ? undefined : value)}
+                  >
+                    <SelectTrigger data-testid="select-edit-parent">
+                      <SelectValue placeholder="Select parent" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Parent</SelectItem>
+                      {parents.map((parent: any) => (
+                        <SelectItem key={parent.id} value={parent.id}>
+                          {parent.firstName} {parent.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {editErrors.parentId && (
+                    <p className="text-red-500 text-sm">{editErrors.parentId.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="editEmergencyContact">Emergency Contact</Label>
+                <Input
+                  id="editEmergencyContact"
+                  {...registerEdit('emergencyContact')}
+                  data-testid="input-edit-emergencyContact"
+                />
+                {editErrors.emergencyContact && (
+                  <p className="text-red-500 text-sm">{editErrors.emergencyContact.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="editPhone">Phone (Optional)</Label>
+                <Input
+                  id="editPhone"
+                  {...registerEdit('phone')}
+                  data-testid="input-edit-phone"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editAddress">Address (Optional)</Label>
+                <Input
+                  id="editAddress"
+                  {...registerEdit('address')}
+                  data-testid="input-edit-address"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editMedicalInfo">Medical Information (Optional)</Label>
+                <Input
+                  id="editMedicalInfo"
+                  {...registerEdit('medicalInfo')}
+                  data-testid="input-edit-medicalInfo"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateStudentMutation.isPending}
+                  data-testid="button-update-student"
+                >
+                  {updateStudentMutation.isPending ? 'Updating...' : 'Update Student'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+        </div>
       </div>
 
       {/* Filter and Search - Fully Responsive */}
