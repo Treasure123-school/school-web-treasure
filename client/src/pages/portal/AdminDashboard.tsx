@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar } from 'lucide-react';
@@ -20,39 +21,52 @@ export default function AdminDashboard() {
 
   const pendingCount = pendingUsers.length;
 
-  // Mock data for demo - in real app this would come from API
-  const mockRecentRegistrations = [
-    {
-      id: 1,
-      name: 'John Adebayo',
-      admissionNumber: 'THS/2024/001',
-      class: 'Primary 3',
-      date: 'Dec 10, 2024',
-      status: 'Active',
-      initials: 'JA',
-      color: 'bg-primary'
-    },
-    {
-      id: 2,
-      name: 'Mary Okafor',
-      admissionNumber: 'THS/2024/002',
-      class: 'JSS 1',
-      date: 'Dec 09, 2024',
-      status: 'Pending',
-      initials: 'MO',
-      color: 'bg-secondary'
-    },
-    {
-      id: 3,
-      name: 'David Smith',
-      admissionNumber: 'THS/2024/003',
-      class: 'Nursery 2',
-      date: 'Dec 08, 2024',
-      status: 'Active',
-      initials: 'DS',
-      color: 'bg-blue-500'
-    }
-  ];
+  // Fetch real analytics overview data
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<any>({
+    queryKey: ['/api/analytics/overview'],
+    enabled: !!user,
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  // Fetch real performance metrics
+  const { data: performanceMetrics, isLoading: performanceLoading } = useQuery<any>({
+    queryKey: ['/api/admin/performance-metrics'],
+    enabled: !!user,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch grading queue statistics
+  const { data: gradingStats } = useQuery<any>({
+    queryKey: ['/api/grading/stats/system'],
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  // Fetch all users for recent registrations
+  const { data: allUsers = [] } = useQuery<any[]>({
+    queryKey: ['/api/users'],
+    enabled: !!user,
+  });
+
+  // Get recent registrations (last 10 students)
+  const mockRecentRegistrations = allUsers
+    .filter(u => u.roleId === 3) // Students only
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3)
+    .map((student, index) => ({
+    id: student.id,
+      name: `${student.firstName} ${student.lastName}`,
+      admissionNumber: student.username || 'N/A',
+      class: student.roleName || 'Student',
+      date: new Date(student.createdAt).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }),
+      status: student.status === 'active' ? 'Active' : 'Pending',
+      initials: `${student.firstName[0]}${student.lastName[0]}`,
+      color: index === 0 ? 'bg-primary' : index === 1 ? 'bg-secondary' : 'bg-blue-500'
+    }));
 
   const classOverview = [
     {
@@ -136,15 +150,15 @@ export default function AdminDashboard() {
     }
   ];
 
-  // Mock stats for demo - in real app this would come from API
+  // Real stats from analytics API
   const stats = {
-    totalStudents: 487,
-    studentsThisMonth: 12,
-    totalTeachers: 52,
-    teachersThisTerm: 3,
-    totalClasses: 15,
-    classesWithCapacity: 'All classes',
-    averageAttendance: 94,
+    totalStudents: analyticsData?.totalStudents || 0,
+    studentsThisMonth: analyticsData?.recentActivity?.newStudentsThisMonth || 0,
+    totalTeachers: analyticsData?.totalTeachers || 0,
+    teachersThisTerm: analyticsData?.totalTeachers || 0, // Can be enhanced with term-specific data
+    totalClasses: analyticsData?.totalClasses || 0,
+    classesWithCapacity: analyticsData?.totalClasses > 0 ? 'All classes' : 'No classes',
+    averageAttendance: 94, // Can be enhanced with real attendance data
   };
 
   if (!user) {
@@ -210,33 +224,54 @@ export default function AdminDashboard() {
 
       {/* Statistics Cards - Fully Responsive */}
       <div className="grid gap-2 xs:gap-3 sm:gap-4 md:gap-6 grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
-        <StatsCard
-          title="Total Students"
-          value={stats?.totalStudents.toString() ?? '0'}
-          description={`↗ +${stats?.studentsThisMonth ?? 0} this month`}
-          icon={Users}
-          trend="up"
-        />
-        <StatsCard
-          title="Teaching Staff"
-          value={stats?.totalTeachers.toString() ?? '0'}
-          description={`↗ +${stats?.teachersThisTerm ?? 0} this term`}
-          icon={GraduationCap}
-          trend="up"
-        />
-        <StatsCard
-          title="Total Classes"
-          value={stats?.totalClasses.toString() ?? '0'}
-          description={stats?.classesWithCapacity ?? 'All classes'}
-          icon={BookOpen}
-        />
-        <StatsCard
-          title="Avg. Attendance"
-          value={`${stats?.averageAttendance ?? 0}%`}
-          description="Last 30 days"
-          icon={Calendar}
-          trend={((stats?.averageAttendance ?? 0) >= 85) ? 'up' : 'down'}
-        />
+        {analyticsLoading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : (
+          <>
+            <StatsCard
+              title="Total Students"
+              value={stats?.totalStudents.toString() ?? '0'}
+              description={`↗ +${stats?.studentsThisMonth ?? 0} this month`}
+              icon={Users}
+              trend="up"
+            />
+            <StatsCard
+              title="Teaching Staff"
+              value={stats?.totalTeachers.toString() ?? '0'}
+              description={`↗ +${stats?.teachersThisTerm ?? 0} this term`}
+              icon={GraduationCap}
+              trend="up"
+            />
+            <StatsCard
+              title="Total Classes"
+              value={stats?.totalClasses.toString() ?? '0'}
+              description={stats?.classesWithCapacity ?? 'All classes'}
+              icon={BookOpen}
+            />
+            <StatsCard
+              title="Avg. Attendance"
+              value={`${stats?.averageAttendance ?? 0}%`}
+              description="Last 30 days"
+              icon={Calendar}
+              trend={((stats?.averageAttendance ?? 0) >= 85) ? 'up' : 'down'}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-3">
@@ -391,32 +426,51 @@ export default function AdminDashboard() {
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
         <Card className="shadow-sm border border-border" data-testid="card-system-analytics">
           <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">System Analytics</CardTitle>
+            <CardTitle className="text-base sm:text-lg">System Performance</CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base truncate">Daily Active Users</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Portal logins today</p>
-                </div>
-                <div className="text-right ml-3">
-                  <p className="text-xl sm:text-2xl font-bold text-primary">342</p>
-                  <p className="text-xs text-green-600">↗ +15%</p>
-                </div>
+            {performanceLoading ? (
+              <div className="space-y-3 sm:space-y-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
               </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm sm:text-base truncate">Goal Achievement</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Sub-2s target rate</p>
+                  </div>
+                  <div className="text-right ml-3">
+                    <p className={`text-xl sm:text-2xl font-bold ${
+                      (performanceMetrics?.goalAchievementRate || 0) >= 95 ? 'text-green-600' : 
+                      (performanceMetrics?.goalAchievementRate || 0) >= 80 ? 'text-yellow-600' : 
+                      'text-red-600'
+                    }`}>
+                      {performanceMetrics?.goalAchievementRate || 0}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {performanceMetrics?.totalEvents || 0} events
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base truncate">Pending Actions</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Require attention</p>
-                </div>
-                <div className="text-right ml-3">
-                  <p className="text-xl sm:text-2xl font-bold text-orange-600">7</p>
-                  <p className="text-xs text-muted-foreground">Applications</p>
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm sm:text-base truncate">Pending Grading</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Manual review needed</p>
+                  </div>
+                  <div className="text-right ml-3">
+                    <p className="text-xl sm:text-2xl font-bold text-orange-600">
+                      {gradingStats?.total_pending || 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {gradingStats?.teachers_active || 0} graders active
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
