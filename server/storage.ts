@@ -144,6 +144,19 @@ export interface IStorage {
   markNotificationAsRead(notificationId: number): Promise<schema.Notification | undefined>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
 
+  // Profile management
+  updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined>;
+  getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined>;
+  createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile>;
+  updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined>;
+  getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined>;
+  createAdminProfile(profile: schema.InsertAdminProfile): Promise<schema.AdminProfile>;
+  updateAdminProfile(userId: string, profile: Partial<schema.InsertAdminProfile>): Promise<schema.AdminProfile | undefined>;
+  getParentProfile(userId: string): Promise<schema.ParentProfile | undefined>;
+  createParentProfile(profile: schema.InsertParentProfile): Promise<schema.ParentProfile>;
+  updateParentProfile(userId: string, profile: Partial<schema.InsertParentProfile>): Promise<schema.ParentProfile | undefined>;
+  calculateProfileCompletion(userId: string, roleId: number): Promise<number>;
+
   // Student management
   getStudent(id: string): Promise<Student | undefined>;
   createStudent(student: InsertStudent): Promise<Student>;
@@ -685,6 +698,126 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return result.length > 0;
+  }
+
+  // Profile management
+  async updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined> {
+    const result = await this.db.update(schema.users)
+      .set({ ...profileData, updatedAt: new Date() })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  async getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined> {
+    const result = await this.db.select().from(schema.teacherProfiles)
+      .where(eq(schema.teacherProfiles.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
+    const result = await this.db.insert(schema.teacherProfiles)
+      .values(profile)
+      .returning();
+    return result[0];
+  }
+
+  async updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined> {
+    const result = await this.db.update(schema.teacherProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(schema.teacherProfiles.userId, userId))
+      .returning();
+    return result[0];
+  }
+
+  async getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined> {
+    const result = await this.db.select().from(schema.adminProfiles)
+      .where(eq(schema.adminProfiles.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createAdminProfile(profile: schema.InsertAdminProfile): Promise<schema.AdminProfile> {
+    const result = await this.db.insert(schema.adminProfiles)
+      .values(profile)
+      .returning();
+    return result[0];
+  }
+
+  async updateAdminProfile(userId: string, profile: Partial<schema.InsertAdminProfile>): Promise<schema.AdminProfile | undefined> {
+    const result = await this.db.update(schema.adminProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(schema.adminProfiles.userId, userId))
+      .returning();
+    return result[0];
+  }
+
+  async getParentProfile(userId: string): Promise<schema.ParentProfile | undefined> {
+    const result = await this.db.select().from(schema.parentProfiles)
+      .where(eq(schema.parentProfiles.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createParentProfile(profile: schema.InsertParentProfile): Promise<schema.ParentProfile> {
+    const result = await this.db.insert(schema.parentProfiles)
+      .values(profile)
+      .returning();
+    return result[0];
+  }
+
+  async updateParentProfile(userId: string, profile: Partial<schema.InsertParentProfile>): Promise<schema.ParentProfile | undefined> {
+    const result = await this.db.update(schema.parentProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(schema.parentProfiles.userId, userId))
+      .returning();
+    return result[0];
+  }
+
+  async calculateProfileCompletion(userId: string, roleId: number): Promise<number> {
+    const user = await this.getUser(userId);
+    if (!user) return 0;
+
+    const requiredFields = [
+      'firstName', 'lastName', 'email', 'phone', 'address', 
+      'dateOfBirth', 'gender', 'profileImageUrl', 'state', 'country',
+      'securityQuestion', 'securityAnswerHash', 'dataPolicyAgreed'
+    ];
+
+    let completedFields = 0;
+    requiredFields.forEach(field => {
+      if (user[field as keyof User]) {
+        completedFields++;
+      }
+    });
+
+    // Check role-specific profile completion
+    if (roleId === 1) { // Admin
+      const adminProfile = await this.getAdminProfile(userId);
+      if (adminProfile?.department) completedFields++;
+      if (adminProfile?.roleDescription) completedFields++;
+      if (adminProfile?.accessLevel) completedFields++;
+    } else if (roleId === 2) { // Teacher
+      const teacherProfile = await this.getTeacherProfile(userId);
+      if (teacherProfile?.subjects && teacherProfile.subjects.length > 0) completedFields++;
+      if (teacherProfile?.assignedClasses && teacherProfile.assignedClasses.length > 0) completedFields++;
+      if (teacherProfile?.qualification) completedFields++;
+      if (teacherProfile?.yearsOfExperience) completedFields++;
+    } else if (roleId === 3) { // Student
+      const student = await this.getStudent(userId);
+      if (student?.classId) completedFields++;
+      if (student?.guardianName) completedFields++;
+      if (student?.emergencyContact) completedFields++;
+    } else if (roleId === 4) { // Parent
+      const parentProfile = await this.getParentProfile(userId);
+      if (parentProfile?.occupation) completedFields++;
+      if (parentProfile?.contactPreference) completedFields++;
+      if (parentProfile?.linkedStudents && parentProfile.linkedStudents.length > 0) completedFields++;
+    }
+
+    const totalFields = requiredFields.length + 3; // 3 role-specific fields on average
+    return Math.round((completedFields / totalFields) * 100);
   }
 
   // Student management
