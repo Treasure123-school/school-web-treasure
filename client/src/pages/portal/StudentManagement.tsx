@@ -94,12 +94,12 @@ export default function StudentManagement() {
         medicalInfo: data.medicalInfo?.trim() || undefined,
         admissionDate: data.admissionDate, // Fixed field name
       });
-      
+
       if (!studentResponse.ok) {
         const errorData = await studentResponse.json();
         throw new Error(errorData.message || 'Failed to create student');
       }
-      
+
       return await studentResponse.json();
     },
     onSuccess: () => {
@@ -250,7 +250,7 @@ export default function StudentManagement() {
     const user = users.find((u: any) => u.id === student.id);
     const classInfo = classes.find((c: any) => c.id === student.classId);
     const parent = users.find((u: any) => u.id === student.parentId);
-    
+
     return {
       ...student,
       user,
@@ -265,9 +265,9 @@ export default function StudentManagement() {
       student.user?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.user?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesClass = selectedClass === 'all' || student.classId?.toString() === selectedClass;
-    
+
     return matchesSearch && matchesClass;
   });
 
@@ -287,14 +287,14 @@ export default function StudentManagement() {
               Add Student
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
             <DialogHeader>
-              <DialogTitle>Add New Student</DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl">Add New Student</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="firstName" className="text-sm">First Name</Label>
                   <Input
                     id="firstName"
                     {...register('firstName')}
@@ -305,7 +305,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="lastName" className="text-sm">Last Name</Label>
                   <Input
                     id="lastName"
                     {...register('lastName')}
@@ -318,7 +318,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-sm">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -331,7 +331,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -344,9 +344,9 @@ export default function StudentManagement() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="admissionNumber">Admission Number</Label>
+                  <Label htmlFor="admissionNumber" className="text-sm">Admission Number</Label>
                   <Input
                     id="admissionNumber"
                     {...register('admissionNumber')}
@@ -358,7 +358,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="admissionDate">Date of Admission</Label>
+                  <Label htmlFor="admissionDate" className="text-sm">Date of Admission</Label>
                   <Input
                     id="admissionDate"
                     type="date"
@@ -371,9 +371,9 @@ export default function StudentManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Label htmlFor="dateOfBirth" className="text-sm">Date of Birth</Label>
                   <Input
                     id="dateOfBirth"
                     type="date"
@@ -385,7 +385,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="gender">Gender</Label>
+                  <Label htmlFor="gender" className="text-sm">Gender</Label>
                   <Select onValueChange={(value) => setValue('gender', value as 'Male' | 'Female' | 'Other')}>
                     <SelectTrigger data-testid="select-gender">
                       <SelectValue placeholder="Select gender" />
@@ -402,9 +402,9 @@ export default function StudentManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="classId">Class</Label>
+                  <Label htmlFor="classId" className="text-sm">Class</Label>
                   <Select onValueChange={(value) => setValue('classId', parseInt(value))}>
                     <SelectTrigger data-testid="select-class">
                       <SelectValue placeholder="Select class" />
@@ -422,7 +422,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="parentId">Parent</Label>
+                  <Label htmlFor="parentId" className="text-sm">Parent</Label>
                   <Select onValueChange={(value) => setValue('parentId', value)}>
                     <SelectTrigger data-testid="select-parent">
                       <SelectValue placeholder="Select parent" />
@@ -442,7 +442,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                <Label htmlFor="emergencyContact" className="text-sm">Emergency Contact</Label>
                 <Input
                   id="emergencyContact"
                   {...register('emergencyContact')}
@@ -455,7 +455,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="phone">Phone (Optional)</Label>
+                <Label htmlFor="phone" className="text-sm">Phone (Optional)</Label>
                 <Input
                   id="phone"
                   {...register('phone')}
@@ -464,7 +464,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="address">Address (Optional)</Label>
+                <Label htmlFor="address" className="text-sm">Address (Optional)</Label>
                 <Input
                   id="address"
                   {...register('address')}
@@ -473,7 +473,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="medicalInfo">Medical Information (Optional)</Label>
+                <Label htmlFor="medicalInfo" className="text-sm">Medical Information (Optional)</Label>
                 <Input
                   id="medicalInfo"
                   {...register('medicalInfo')}
@@ -500,14 +500,14 @@ export default function StudentManagement() {
 
         {/* Edit Student Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
             <DialogHeader>
-              <DialogTitle>Edit Student</DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl">Edit Student</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="editFirstName">First Name</Label>
+                  <Label htmlFor="editFirstName" className="text-sm">First Name</Label>
                   <Input
                     id="editFirstName"
                     {...registerEdit('firstName')}
@@ -518,7 +518,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="editLastName">Last Name</Label>
+                  <Label htmlFor="editLastName" className="text-sm">Last Name</Label>
                   <Input
                     id="editLastName"
                     {...registerEdit('lastName')}
@@ -531,7 +531,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editEmail">Email</Label>
+                <Label htmlFor="editEmail" className="text-sm">Email</Label>
                 <Input
                   id="editEmail"
                   type="email"
@@ -544,7 +544,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editPassword">New Password (Optional)</Label>
+                <Label htmlFor="editPassword" className="text-sm">New Password (Optional)</Label>
                 <Input
                   id="editPassword"
                   type="password"
@@ -557,9 +557,9 @@ export default function StudentManagement() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="editAdmissionNumber">Admission Number</Label>
+                  <Label htmlFor="editAdmissionNumber" className="text-sm">Admission Number</Label>
                   <Input
                     id="editAdmissionNumber"
                     {...registerEdit('admissionNumber')}
@@ -570,7 +570,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="editAdmissionDate">Date of Admission</Label>
+                  <Label htmlFor="editAdmissionDate" className="text-sm">Date of Admission</Label>
                   <Input
                     id="editAdmissionDate"
                     type="date"
@@ -578,14 +578,14 @@ export default function StudentManagement() {
                     data-testid="input-edit-admissionDate"
                   />
                   {editErrors.admissionDate && (
-                    <p className="text-red-500 text-sm">{editErrors.admissionDate.message}</p>
+                    <p className="text-red-500 text-sm">{errors.admissionDate.message}</p>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="editDateOfBirth">Date of Birth</Label>
+                  <Label htmlFor="editDateOfBirth" className="text-sm">Date of Birth</Label>
                   <Input
                     id="editDateOfBirth"
                     type="date"
@@ -597,7 +597,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="editGender">Gender</Label>
+                  <Label htmlFor="editGender" className="text-sm">Gender</Label>
                   <Select 
                     value={editingStudent?.user?.gender ?? undefined} 
                     onValueChange={(value) => setEditValue('gender', value as 'Male' | 'Female' | 'Other')}
@@ -617,9 +617,9 @@ export default function StudentManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="editClassId">Class</Label>
+                  <Label htmlFor="editClassId" className="text-sm">Class</Label>
                   <Select 
                     value={editingStudent?.classId ? editingStudent.classId.toString() : ''} 
                     onValueChange={(value) => setEditValue('classId', parseInt(value))}
@@ -640,7 +640,7 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="editParentId">Parent</Label>
+                  <Label htmlFor="editParentId" className="text-sm">Parent</Label>
                   <Select 
                     value={editingStudent?.parentId || 'none'} 
                     onValueChange={(value) => setEditValue('parentId', value === 'none' ? undefined : value)}
@@ -664,7 +664,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editEmergencyContact">Emergency Contact</Label>
+                <Label htmlFor="editEmergencyContact" className="text-sm">Emergency Contact</Label>
                 <Input
                   id="editEmergencyContact"
                   {...registerEdit('emergencyContact')}
@@ -676,7 +676,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editPhone">Phone (Optional)</Label>
+                <Label htmlFor="editPhone" className="text-sm">Phone (Optional)</Label>
                 <Input
                   id="editPhone"
                   {...registerEdit('phone')}
@@ -685,7 +685,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editAddress">Address (Optional)</Label>
+                <Label htmlFor="editAddress" className="text-sm">Address (Optional)</Label>
                 <Input
                   id="editAddress"
                   {...registerEdit('address')}
@@ -694,227 +694,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editMedicalInfo">Medical Information (Optional)</Label>
-                <Input
-                  id="editMedicalInfo"
-                  {...registerEdit('medicalInfo')}
-                  data-testid="input-edit-medicalInfo"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={updateStudentMutation.isPending}
-                  data-testid="button-update-student"
-                >
-                  {updateStudentMutation.isPending ? 'Updating...' : 'Update Student'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Student Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Student</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="editFirstName">First Name</Label>
-                  <Input
-                    id="editFirstName"
-                    {...registerEdit('firstName')}
-                    data-testid="input-edit-firstName"
-                  />
-                  {editErrors.firstName && (
-                    <p className="text-red-500 text-sm">{editErrors.firstName.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="editLastName">Last Name</Label>
-                  <Input
-                    id="editLastName"
-                    {...registerEdit('lastName')}
-                    data-testid="input-edit-lastName"
-                  />
-                  {editErrors.lastName && (
-                    <p className="text-red-500 text-sm">{editErrors.lastName.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="editEmail">Email</Label>
-                <Input
-                  id="editEmail"
-                  type="email"
-                  {...registerEdit('email')}
-                  data-testid="input-edit-email"
-                />
-                {editErrors.email && (
-                  <p className="text-red-500 text-sm">{editErrors.email.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="editPassword">New Password (Optional)</Label>
-                <Input
-                  id="editPassword"
-                  type="password"
-                  {...registerEdit('password')}
-                  placeholder="Leave blank to keep current password"
-                  data-testid="input-edit-password"
-                />
-                {editErrors.password && (
-                  <p className="text-red-500 text-sm">{editErrors.password.message}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="editAdmissionNumber">Admission Number</Label>
-                  <Input
-                    id="editAdmissionNumber"
-                    {...registerEdit('admissionNumber')}
-                    data-testid="input-edit-admissionNumber"
-                  />
-                  {editErrors.admissionNumber && (
-                    <p className="text-red-500 text-sm">{editErrors.admissionNumber.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="editAdmissionDate">Date of Admission</Label>
-                  <Input
-                    id="editAdmissionDate"
-                    type="date"
-                    {...registerEdit('admissionDate')}
-                    data-testid="input-edit-admissionDate"
-                  />
-                  {editErrors.admissionDate && (
-                    <p className="text-red-500 text-sm">{editErrors.admissionDate.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="editDateOfBirth">Date of Birth</Label>
-                  <Input
-                    id="editDateOfBirth"
-                    type="date"
-                    {...registerEdit('dateOfBirth')}
-                    data-testid="input-edit-dateOfBirth"
-                  />
-                  {editErrors.dateOfBirth && (
-                    <p className="text-red-500 text-sm">{editErrors.dateOfBirth.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="editGender">Gender</Label>
-                  <Select 
-                    value={editingStudent?.user?.gender ?? undefined} 
-                    onValueChange={(value) => setEditValue('gender', value as 'Male' | 'Female' | 'Other')}
-                  >
-                    <SelectTrigger data-testid="select-edit-gender">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {editErrors.gender && (
-                    <p className="text-red-500 text-sm">{editErrors.gender.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="editClassId">Class</Label>
-                  <Select 
-                    value={editingStudent?.classId ? editingStudent.classId.toString() : ''} 
-                    onValueChange={(value) => setEditValue('classId', parseInt(value))}
-                  >
-                    <SelectTrigger data-testid="select-edit-class">
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id.toString()}>
-                          {cls.name} ({cls.level})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {editErrors.classId && (
-                    <p className="text-red-500 text-sm">{editErrors.classId.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="editParentId">Parent</Label>
-                  <Select 
-                    value={editingStudent?.parentId || 'none'} 
-                    onValueChange={(value) => setEditValue('parentId', value === 'none' ? undefined : value)}
-                  >
-                    <SelectTrigger data-testid="select-edit-parent">
-                      <SelectValue placeholder="Select parent" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Parent</SelectItem>
-                      {parents.map((parent: any) => (
-                        <SelectItem key={parent.id} value={parent.id}>
-                          {parent.firstName} {parent.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {editErrors.parentId && (
-                    <p className="text-red-500 text-sm">{editErrors.parentId.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="editEmergencyContact">Emergency Contact</Label>
-                <Input
-                  id="editEmergencyContact"
-                  {...registerEdit('emergencyContact')}
-                  data-testid="input-edit-emergencyContact"
-                />
-                {editErrors.emergencyContact && (
-                  <p className="text-red-500 text-sm">{editErrors.emergencyContact.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="editPhone">Phone (Optional)</Label>
-                <Input
-                  id="editPhone"
-                  {...registerEdit('phone')}
-                  data-testid="input-edit-phone"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="editAddress">Address (Optional)</Label>
-                <Input
-                  id="editAddress"
-                  {...registerEdit('address')}
-                  data-testid="input-edit-address"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="editMedicalInfo">Medical Information (Optional)</Label>
+                <Label htmlFor="editMedicalInfo" className="text-sm">Medical Information (Optional)</Label>
                 <Input
                   id="editMedicalInfo"
                   {...registerEdit('medicalInfo')}
@@ -1022,7 +802,7 @@ export default function StudentManagement() {
                           {student.user?.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="text-muted-foreground">Class:</span>
