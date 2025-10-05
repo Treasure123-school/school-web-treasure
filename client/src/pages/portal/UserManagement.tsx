@@ -21,7 +21,9 @@ import {
   MoreVertical,
   Trash2,
   KeyRound,
-  UserCog
+  UserCog,
+  Shield,
+  Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -141,7 +143,7 @@ export default function UserManagement() {
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
       const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
-      
+
       // INSTANT FEEDBACK: Optimistically update user status in main list
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
@@ -149,7 +151,7 @@ export default function UserManagement() {
           user.id === userId ? { ...user, status: 'active' } : user
         );
       });
-      
+
       // INSTANT FEEDBACK: Optimistically remove from pending list
       queryClient.setQueryData(['/api/users/pending'], (old: any) => {
         if (!old) return old;
@@ -207,10 +209,10 @@ export default function UserManagement() {
     onMutate: async ({ userId, status }) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
-      
+
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
-      
+
       // INSTANT FEEDBACK: Optimistically update status
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
@@ -273,17 +275,17 @@ export default function UserManagement() {
       // INSTANT FEEDBACK: Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
       await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
-      
+
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
       const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
-      
+
       // INSTANT FEEDBACK: Optimistically remove user from both lists
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
         return old.filter((user: any) => user.id !== userId);
       });
-      
+
       queryClient.setQueryData(['/api/users/pending'], (old: any) => {
         if (!old) return old;
         return old.filter((user: any) => user.id !== userId);
@@ -354,13 +356,13 @@ export default function UserManagement() {
         description: "Password reset in progress",
         className: "border-blue-500 bg-blue-50",
       });
-      
+
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
-      
+
       // Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
-      
+
       return { previousUsers };
     },
     onSuccess: (data: any) => {
@@ -409,10 +411,10 @@ export default function UserManagement() {
     onMutate: async ({ userId, roleId }) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
-      
+
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
-      
+
       // INSTANT FEEDBACK: Optimistically update role
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
@@ -474,10 +476,10 @@ export default function UserManagement() {
     onMutate: async ({ userId, recoveryEmail }) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
-      
+
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
-      
+
       // INSTANT FEEDBACK: Optimistically update recovery email
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
@@ -641,7 +643,7 @@ export default function UserManagement() {
   }
 
   const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };
 
   const formatDate = (date: Date | null) => {
@@ -653,7 +655,7 @@ export default function UserManagement() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, userId?: string) => {
     const badgeConfigs: Record<string, { variant: any; label: string; icon: React.ReactNode }> = {
       'pending': { 
         variant: 'secondary', 
@@ -686,8 +688,8 @@ export default function UserManagement() {
     return (
       <Badge 
         variant={badgeConfig.variant as any}
-        className="font-medium"
-        data-testid={`badge-status-${status}`}
+        className="font-medium text-xs sm:text-sm"
+        data-testid={`badge-status-${status}-${userId || ''}`}
       >
         <div className="flex items-center">
           {badgeConfig.icon}
@@ -706,12 +708,12 @@ export default function UserManagement() {
           key="approve"
           size="sm"
           variant="default"
-          className="bg-green-600 hover:bg-green-700 text-white"
+          className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
           onClick={() => handleAction(targetUser, 'approve')}
           disabled={approveMutation.isPending || changeStatusMutation.isPending}
           data-testid={`button-approve-${targetUser.id}`}
         >
-          <CheckCircle className="h-4 w-4 mr-1" />
+          <CheckCircle className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
           Verify & Approve
         </Button>
       );
@@ -723,12 +725,12 @@ export default function UserManagement() {
           key="suspend"
           size="sm"
           variant="outline"
-          className="border-orange-500 text-orange-700 hover:bg-orange-50"
+          className="border-orange-500 text-orange-700 hover:bg-orange-50 text-xs sm:text-sm"
           onClick={() => handleAction(targetUser, 'suspend')}
           disabled={approveMutation.isPending || changeStatusMutation.isPending}
           data-testid={`button-suspend-${targetUser.id}`}
         >
-          <ShieldAlert className="h-4 w-4 mr-1" />
+          <ShieldAlert className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
           Suspend Access
         </Button>
       );
@@ -740,12 +742,12 @@ export default function UserManagement() {
           key="unsuspend"
           size="sm"
           variant="default"
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
           onClick={() => handleAction(targetUser, 'unsuspend')}
           disabled={approveMutation.isPending || changeStatusMutation.isPending}
           data-testid={`button-unsuspend-${targetUser.id}`}
         >
-          <ShieldCheck className="h-4 w-4 mr-1" />
+          <ShieldCheck className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
           Restore Access
         </Button>
       );
@@ -758,6 +760,7 @@ export default function UserManagement() {
           <Button 
             size="sm" 
             variant="ghost"
+            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
             data-testid={`button-more-actions-${targetUser.id}`}
           >
             <MoreVertical className="h-4 w-4" />
@@ -821,57 +824,103 @@ export default function UserManagement() {
   };
 
   const UserList = ({ users }: { users: User[] }) => (
-    <div className="space-y-4">
-      {users.map((targetUser) => (
+    <div className="space-y-3">
+      {users.map((userData) => (
         <div
-          key={targetUser.id}
-          className="flex flex-col sm:flex-row items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
-          data-testid={`user-card-${targetUser.id}`}
+          key={userData.id}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+          data-testid={`user-card-${userData.id}`}
         >
-          <div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
-            <Avatar className="h-12 w-12">
-              {targetUser.profileImageUrl && (
-                <AvatarImage src={targetUser.profileImageUrl} alt={`${targetUser.firstName} ${targetUser.lastName}`} />
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+              {userData.profileImageUrl && (
+                <AvatarImage src={userData.profileImageUrl} alt={`${userData.firstName} ${userData.lastName}`} />
               )}
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {getInitials(targetUser.firstName, targetUser.lastName)}
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+                {getInitials(userData.firstName, userData.lastName)}
               </AvatarFallback>
             </Avatar>
-
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold truncate" data-testid={`text-user-name-${targetUser.id}`}>
-                {targetUser.firstName} {targetUser.lastName}
+              <h3 className="font-semibold text-sm sm:text-base truncate" data-testid={`text-user-name-${userData.id}`}>
+                {userData.firstName} {userData.lastName}
               </h3>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-muted-foreground mt-1">
-                <span className="flex items-center gap-1 truncate" data-testid={`text-user-email-${targetUser.id}`}>
-                  <Mail className="h-3 w-3" />
-                  {targetUser.email}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-1">
+                <span className="flex items-center gap-1 truncate" data-testid={`text-user-email-${userData.id}`}>
+                  <Mail className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{userData.email}</span>
                 </span>
-                <span className="flex items-center gap-1 truncate" data-testid={`text-user-username-${targetUser.id}`}>
-                  <User className="h-3 w-3" />
-                  {targetUser.username}
+                <span className="flex items-center gap-1 truncate" data-testid={`text-user-username-${userData.id}`}>
+                  <User className="h-3 w-3 flex-shrink-0" />
+                  {userData.username}
                 </span>
+              </div>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <Badge variant="outline" className="text-xs" data-testid={`badge-role-${userData.id}`}>
+                  {userData.roleName || 'Unknown'}
+                </Badge>
+                {getStatusBadge(userData.status, userData.id)}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 ml-4 flex-wrap justify-end w-full sm:w-auto">
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-              <Badge variant="outline" className="w-full sm:w-auto text-center" data-testid={`badge-role-${targetUser.id}`}>
-                {targetUser.roleName || 'Unknown'}
-              </Badge>
-              {getStatusBadge(targetUser.status)}
-            </div>
-            <div className="text-xs text-muted-foreground text-center sm:text-left w-full sm:w-auto" data-testid={`text-auth-method-${targetUser.id}`}>
-              {targetUser.authProvider === 'google' ? 'Google Sign-in' : 'Password Login'}
-            </div>
-            <div className="text-xs text-muted-foreground text-center sm:text-left w-full sm:w-auto" data-testid={`text-created-date-${targetUser.id}`}>
-              Joined: {formatDate(targetUser.createdAt)}
-            </div>
-            <div className="flex gap-2 justify-center sm:justify-end w-full sm:w-auto">
-              {getActionButtons(targetUser)}
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-9 p-0" data-testid={`button-actions-${userData.id}`}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" data-testid={`menu-actions-${userData.id}`}>
+              <DropdownMenuLabel>Admin Powers</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              {userData.authProvider !== 'google' && (
+                <DropdownMenuItem 
+                  onClick={() => handleAction(userData, 'resetPassword')}
+                  data-testid={`menu-item-reset-password-${userData.id}`}
+                >
+                  <KeyRound className="h-4 w-4 mr-2" />
+                  Reset Password
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuItem 
+                onClick={() => handleAction(userData, 'changeRole')}
+                data-testid={`menu-item-change-role-${userData.id}`}
+              >
+                <UserCog className="h-4 w-4 mr-2" />
+                Change Role
+              </DropdownMenuItem>
+
+              <DropdownMenuItem 
+                onClick={() => handleAction(userData, 'updateRecoveryEmail')}
+                data-testid={`menu-item-recovery-email-${userData.id}`}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Update Recovery Email
+              </DropdownMenuItem>
+
+              {(userData.status === 'active' || userData.status === 'pending') && (
+                <DropdownMenuItem 
+                  onClick={() => handleAction(userData, 'unverify')}
+                  data-testid={`menu-item-unverify-${userData.id}`}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Mark as Unverified
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem 
+                onClick={() => handleAction(userData, 'delete')}
+                className="text-destructive focus:text-destructive"
+                data-testid={`menu-item-delete-${userData.id}`}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Account
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ))}
     </div>
@@ -881,22 +930,23 @@ export default function UserManagement() {
     <PortalLayout 
       userRole="admin" 
       userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
+      userInitials={`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}
     >
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-page-title">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2" data-testid="text-page-title">
+              <Shield className="h-6 w-6 sm:h-8 sm:w-8" />
               User Management
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="text-page-description">
-              Manage all user accounts, roles, and permissions
+              Manage user accounts, permissions, and security settings
             </p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-status-filter">
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -933,11 +983,11 @@ export default function UserManagement() {
           <TabsContent value={statusFilter} className="space-y-4">
             <Card data-testid="card-users-list">
               <CardHeader>
-                <CardTitle className="flex flex-col sm:flex-row items-center gap-2 text-lg sm:text-xl">
-                  <Filter className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                   {statusFilter === 'all' ? 'All Users' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Users`}
                 </CardTitle>
-                <CardDescription className="text-sm">
+                <CardDescription className="text-xs sm:text-sm">
                   {statusFilter === 'pending' && 'New users awaiting admin approval'}
                   {statusFilter === 'active' && 'Users with active access to the system'}
                   {statusFilter === 'suspended' && 'Users whose access has been temporarily suspended'}
