@@ -219,18 +219,31 @@ export default function StudentStudyResources() {
 
         {/* Error State */}
         {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-6">
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2 text-red-800">Unable to Load Resources</h3>
-                <p className="text-red-600 mb-4">
-                  There was an issue loading the study resources. Please try again later.
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-center py-6 sm:py-8">
+                <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold mb-2 text-red-800 dark:text-red-300">
+                  Unable to Load Resources
+                </h3>
+                <p className="text-sm sm:text-base text-red-600 dark:text-red-400 mb-4 max-w-md mx-auto">
+                  We couldn't load your study materials at this time. This might be a temporary issue.
                 </p>
+                
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 mb-4 max-w-md mx-auto">
+                  <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suggested Actions:</p>
+                  <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-left space-y-1">
+                    <li>• Refresh the page to try again</li>
+                    <li>• Ensure you have a stable internet connection</li>
+                    <li>• Contact your subject teacher if resources are missing</li>
+                    <li>• Check back later if the issue continues</li>
+                  </ul>
+                </div>
+
                 <Button 
                   variant="outline" 
                   onClick={() => window.location.reload()}
-                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
                   Try Again
                 </Button>

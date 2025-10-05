@@ -102,7 +102,20 @@ export default function ForgotPassword() {
             <span>Request Failed</span>
           </div>
         ),
-        description: `❌ ${errorMessage}`,
+        description: (
+          <div className="space-y-2">
+            <p>{errorMessage}</p>
+            <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800">
+              <p className="text-xs font-medium">What to do next:</p>
+              <ul className="text-xs space-y-1 mt-1">
+                <li>• Double-check your username or email</li>
+                <li>• Ensure you're using your registered account</li>
+                <li>• Contact school administrator if you need help</li>
+                <li>• Check your email spam folder for reset links</li>
+              </ul>
+            </div>
+          </div>
+        ),
         className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
       });
     },

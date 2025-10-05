@@ -200,28 +200,40 @@ export default function StudentGrades() {
 
         {/* Professional Error State */}
         {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-6">
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-red-600 text-2xl">⚠️</span>
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-center py-6 sm:py-8">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-red-600 dark:text-red-400 text-xl sm:text-2xl">⚠️</span>
                 </div>
-                <h3 className="text-lg font-medium mb-2 text-red-800">Unable to Load Your Grades</h3>
-                <p className="text-red-600 mb-4">
-                  We encountered an issue while fetching your academic records. This might be temporary.
+                <h3 className="text-base sm:text-lg font-semibold mb-2 text-red-800 dark:text-red-300">
+                  Unable to Load Your Grades
+                </h3>
+                <p className="text-sm sm:text-base text-red-600 dark:text-red-400 mb-4 max-w-md mx-auto">
+                  We encountered an issue while fetching your academic records. This might be a temporary connection problem.
                 </p>
-                <div className="flex justify-center space-x-3">
+                
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 mb-4 max-w-md mx-auto">
+                  <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">What you can do:</p>
+                  <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-left space-y-1">
+                    <li>• Click "Try Again" to reload your grades</li>
+                    <li>• Check your internet connection</li>
+                    <li>• If problem persists, contact your class teacher</li>
+                  </ul>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
                   <Button 
                     variant="outline" 
                     onClick={() => window.location.reload()}
-                    className="border-red-300 text-red-600 hover:bg-red-50"
+                    className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                   >
                     Try Again
                   </Button>
                   <Button 
                     variant="outline"
                     onClick={() => window.location.href = '/portal/student'}
-                    className="border-gray-300"
+                    className="border-gray-300 dark:border-gray-600"
                   >
                     Back to Dashboard
                   </Button>

@@ -381,13 +381,38 @@ export default function ExamManagement() {
       } else if (error?.errorType === 'client') {
         toast({
           title: "Invalid Question Data",
-          description: error.message || "Please check your question data and try again.",
+          description: (
+            <div className="space-y-2">
+              <p>{error.message || "Please check your question data and try again."}</p>
+              <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                <p className="text-xs font-medium">Quick Checklist:</p>
+                <ul className="text-xs space-y-1 mt-1">
+                  <li>• Question text is at least 5 characters</li>
+                  <li>• Multiple choice has at least 2 options</li>
+                  <li>• One option is marked as correct</li>
+                  <li>• Point value is assigned</li>
+                </ul>
+              </div>
+            </div>
+          ),
           variant: "destructive",
         });
       } else {
         toast({
           title: "Failed to Create Question",
-          description: error.message || "Please check your question data and try again.",
+          description: (
+            <div className="space-y-2">
+              <p>{error.message || "Unable to save the question. Please review and try again."}</p>
+              <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                <p className="text-xs font-medium">Need help?</p>
+                <p className="text-xs mt-1">
+                  • Check all required fields are filled<br />
+                  • Ensure proper question format<br />
+                  • Contact admin if issue persists
+                </p>
+              </div>
+            </div>
+          ),
           variant: "destructive",
         });
       }

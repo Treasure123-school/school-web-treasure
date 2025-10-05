@@ -339,13 +339,65 @@ export default function Login() {
         title: (
           <div className="flex items-center gap-2">
             {icon}
-            <span>{title}</span>
+            <span className="text-sm sm:text-base font-semibold">{title}</span>
           </div>
         ),
-        description: description,
+        description: (
+          <div className="space-y-2">
+            {description}
+            {statusType === 'invalid_credentials' && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-muted-foreground font-medium">Need help?</p>
+                <p className="text-xs text-muted-foreground">
+                  • Check if CAPS LOCK is on<br />
+                  • Verify your username and password<br />
+                  • Use the "Forgot Password" link below if needed
+                </p>
+              </div>
+            )}
+            {(statusType === 'pending_staff' || statusType === 'pending_setup') && (
+              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                <p className="text-xs font-medium">Next Steps:</p>
+                <p className="text-xs">
+                  • Check your email for approval notification<br />
+                  • Contact the school administrator if urgent
+                </p>
+              </div>
+            )}
+            {(statusType === 'suspended_staff' || statusType === 'suspended_student') && (
+              <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800">
+                <p className="text-xs font-medium">What to do:</p>
+                <p className="text-xs">
+                  {statusType === 'suspended_staff' 
+                    ? '• Contact the school administrator immediately'
+                    : '• Speak with your class teacher or school administrator'}
+                </p>
+              </div>
+            )}
+            {statusType === 'rate_limited' && (
+              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                <p className="text-xs font-medium">What to do:</p>
+                <p className="text-xs">
+                  • Wait 15 minutes before trying again<br />
+                  • Use "Forgot Password" if you can't remember your password<br />
+                  • Contact administrator if you need immediate access
+                </p>
+              </div>
+            )}
+            {statusType === 'google_required' && (
+              <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
+                <p className="text-xs font-medium">How to login:</p>
+                <p className="text-xs">
+                  • Click the "Sign in with Google" button below<br />
+                  • Use your authorized school Google account
+                </p>
+              </div>
+            )}
+          </div>
+        ),
         variant: className ? undefined : 'destructive',
         className: className || undefined,
-        duration: 8000, // Longer duration for important messages
+        duration: 10000, // Longer duration for important messages with next steps
       });
     },
   });

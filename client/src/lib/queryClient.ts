@@ -249,13 +249,16 @@ export async function apiRequest(
     
     // Handle specific error types
     let errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+    let errorDetails = 'If you have internet access, the server might be temporarily unavailable. Please wait a moment and try again.';
     let statusCode = 0;
     
     if (error.name === 'AbortError') {
-      errorMessage = 'Request timeout. Please try again.';
+      errorMessage = 'Request Timeout';
+      errorDetails = 'The request took too long to complete. This might be due to a slow connection. Please try again with a better internet connection.';
       statusCode = 408;
     } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-      errorMessage = 'Unable to connect to server. Please check your internet connection.';
+      errorMessage = 'Connection Failed';
+      errorDetails = 'Unable to reach the server. Please check:\n• Your internet connection is active\n• You\'re not in offline mode\n• Try refreshing the page';
       statusCode = 0;
     }
 
