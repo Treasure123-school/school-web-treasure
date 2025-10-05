@@ -51,6 +51,16 @@ export const users = pgTable("users", {
   mfaSecret: text("mfa_secret"),
   accountLockedUntil: timestamp("account_locked_until"), // For suspicious activity lock
   
+  // Profile completion fields
+  profileCompleted: boolean("profile_completed").default(false),
+  profileCompletionPercentage: integer("profile_completion_percentage").default(0),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }),
+  securityQuestion: text("security_question"),
+  securityAnswerHash: text("security_answer_hash"),
+  dataPolicyAgreed: boolean("data_policy_agreed").default(false),
+  dataPolicyAgreedAt: timestamp("data_policy_agreed_at"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -162,7 +172,43 @@ export const students = pgTable("students", {
   admissionDate: date("admission_date").defaultNow(),
   emergencyContact: varchar("emergency_contact", { length: 20 }),
   medicalInfo: text("medical_info"),
+  guardianName: varchar("guardian_name", { length: 200 }),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Teacher profiles table
+export const teacherProfiles = pgTable("teacher_profiles", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  subjects: text("subjects").array(),
+  assignedClasses: integer("assigned_classes").array(),
+  qualification: text("qualification"),
+  yearsOfExperience: integer("years_of_experience"),
+  specialization: varchar("specialization", { length: 200 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admin profiles table
+export const adminProfiles = pgTable("admin_profiles", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  department: varchar("department", { length: 100 }),
+  roleDescription: text("role_description"),
+  accessLevel: varchar("access_level", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Parent profiles table
+export const parentProfiles = pgTable("parent_profiles", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  occupation: varchar("occupation", { length: 100 }),
+  contactPreference: varchar("contact_preference", { length: 50 }),
+  linkedStudents: uuid("linked_students").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Attendance table
@@ -672,6 +718,9 @@ export const updateExamSessionSchema = z.object({
 export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export const insertTeacherProfileSchema = createInsertSchema(teacherProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAdminProfileSchema = createInsertSchema(adminProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertParentProfileSchema = createInsertSchema(parentProfiles).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type Role = typeof roles.$inferSelect;
@@ -700,6 +749,9 @@ export type TeacherClassAssignment = typeof teacherClassAssignments.$inferSelect
 export type GradingTask = typeof gradingTasks.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type TeacherProfile = typeof teacherProfiles.$inferSelect;
+export type AdminProfile = typeof adminProfiles.$inferSelect;
+export type ParentProfile = typeof parentProfiles.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -732,6 +784,9 @@ export type InsertTeacherClassAssignment = z.infer<typeof insertTeacherClassAssi
 export type InsertGradingTask = z.infer<typeof insertGradingTaskSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type InsertTeacherProfile = z.infer<typeof insertTeacherProfileSchema>;
+export type InsertAdminProfile = z.infer<typeof insertAdminProfileSchema>;
+export type InsertParentProfile = z.infer<typeof insertParentProfileSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
