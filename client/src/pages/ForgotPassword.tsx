@@ -37,7 +37,7 @@ export default function ForgotPassword() {
     },
     onSuccess: (data) => {
       setEmailSent(true);
-      
+
       // In development mode, show the reset code and link
       if (data.developmentMode && (data.resetToken || data.resetLink)) {
         toast({
@@ -63,8 +63,8 @@ export default function ForgotPassword() {
               )}
               <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded border border-yellow-200">
                 <p className="text-xs font-semibold mb-1">🔗 Or use this link:</p>
-                <a 
-                  href={data.resetLink} 
+                <a
+                  href={data.resetLink}
                   className="text-xs text-blue-600 hover:underline break-all"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -210,9 +210,9 @@ export default function ForgotPassword() {
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 text-base font-medium" 
+                <Button
+                  type="submit"
+                  className="w-full h-11 text-base font-medium"
                   disabled={forgotPasswordMutation.isPending}
                   data-testid="button-submit"
                 >
@@ -231,60 +231,50 @@ export default function ForgotPassword() {
               </form>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-5 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border-2 border-green-300 dark:border-green-700">
-                  <div className="p-2 bg-green-600 rounded-full flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-sm text-green-900 dark:text-green-100">
-                    <p className="font-semibold text-base mb-2">✅ Reset Link Sent!</p>
-                    <p className="text-green-800 dark:text-green-200">
-                      If an account exists with that email/username, you'll receive a password reset email shortly.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3">
-                  <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-                    <div className="flex items-start gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
-                      <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-                        What to do next:
+                <div className="p-3 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-xl border border-green-200/50 dark:border-green-800/50">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs sm:text-sm font-semibold text-green-800 dark:text-green-200 mb-1">
+                        ✅ Reset Email Sent Successfully
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-green-700 dark:text-green-300">
+                        Check your email inbox for the password reset link. The link expires in 15 minutes for your security.
                       </p>
                     </div>
-                    <ul className="text-xs text-amber-800 dark:text-amber-200 space-y-1.5 ml-6 list-disc">
-                      <li>Check your email inbox for the reset link</li>
-                      <li>Look in spam/junk folder if not in inbox</li>
-                      <li>Click the link or copy the reset code provided</li>
-                      <li>Complete the reset within 15 minutes</li>
-                    </ul>
                   </div>
-
-                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-start gap-2">
-                      <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
-                      <div className="text-xs text-blue-800 dark:text-blue-200">
-                        <p className="font-medium mb-1">Didn't receive the email?</p>
-                        <p>Wait a few minutes and check spam. If still not there, try requesting again or contact the school administrator.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5" />
-                        <p className="text-xs text-purple-800 dark:text-purple-200">
-                          <strong>Development Mode:</strong> Reset link shown in notification above. 
-                          In production, it's sent via email.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
+                <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start gap-2">
+                    <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-[10px] sm:text-xs text-blue-800 dark:text-blue-200">
+                      <p className="font-medium mb-1.5">Didn't receive the email?</p>
+                      <ul className="space-y-1 ml-3 list-disc">
+                        <li>Wait a few minutes - delivery may take time</li>
+                        <li>Check your spam/junk folder</li>
+                        <li>Verify you entered the correct username/email</li>
+                        <li>Contact the school administrator if issue persists</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5" />
+                      <p className="text-xs text-purple-800 dark:text-purple-200">
+                        <strong>Development Mode:</strong> Reset link shown in notification above.
+                        In production, it's sent via email.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center pt-2">
-                  <Link 
-                    href="/login" 
+                  <Link
+                    href="/login"
                     className="inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline"
                     data-testid="link-back-to-login"
                   >
@@ -297,8 +287,8 @@ export default function ForgotPassword() {
 
             {!emailSent && (
               <div className="text-center mt-6">
-                <Link 
-                  href="/login" 
+                <Link
+                  href="/login"
                   className="text-primary text-sm hover:underline"
                   data-testid="link-back-to-login"
                 >

@@ -613,12 +613,12 @@ export default function Login() {
               <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200/50 dark:border-blue-800/50">
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
                       For Students & Parents
                     </p>
-                    <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-300">
-                      Use your THS credentials to login. You'll be automatically redirected to your personalized dashboard.
+                    <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                      Use your THS username and password to login. Example: <span className="font-mono font-medium">THS-STU-2025-PR3-001</span>
                     </p>
                   </div>
                 </div>
@@ -655,12 +655,12 @@ export default function Login() {
             <div className="p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 rounded-xl border border-orange-200/50 dark:border-orange-800/50">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-orange-800 dark:text-orange-200 mb-1">
                     Staff Members Only
                   </p>
-                  <p className="text-[10px] sm:text-xs text-orange-700 dark:text-orange-300">
-                    Admins & Teachers must use Google Sign-In with their authorized email. Students and parents cannot use this option.
+                  <p className="text-[10px] sm:text-xs text-orange-700 dark:text-orange-300 leading-relaxed">
+                    Teachers & Admins must use their authorized Google email. New staff accounts require Admin approval before first login.
                   </p>
                 </div>
               </div>

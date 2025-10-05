@@ -236,24 +236,26 @@ export default function ResetPassword() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-5 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 rounded-lg border-2 border-red-300 dark:border-red-700">
+                <div className="flex items-start gap-3 p-4 sm:p-5 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 rounded-lg border-2 border-red-300 dark:border-red-700">
                   <div className="p-2 bg-red-600 rounded-full flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-white" />
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </div>
-                  <div className="text-sm text-red-900 dark:text-red-100">
-                    <p className="font-semibold text-base mb-2">⚠️ Link Invalid or Expired</p>
+                  <div className="text-xs sm:text-sm text-red-900 dark:text-red-100">
+                    <p className="font-semibold text-sm sm:text-base mb-2">⚠️ Reset Link Invalid or Expired</p>
                     <p className="text-red-800 dark:text-red-200">
-                      This password reset link is no longer valid. It may have expired or already been used.
+                      This password reset link is no longer valid. Reset links expire after 15 minutes for security purposes, or the link may have already been used.
                     </p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">What to do:</p>
-                  <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1.5 ml-4 list-disc">
-                    <li>Request a new password reset link</li>
-                    <li>Check your email for the most recent reset link</li>
-                    <li>Complete the reset within 15 minutes</li>
+                <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">📋 Next Steps:</p>
+                  <ul className="text-[10px] sm:text-xs text-blue-800 dark:text-blue-200 space-y-1.5 ml-4 list-disc">
+                    <li>Return to the <strong>Forgot Password</strong> page</li>
+                    <li>Request a new password reset link with your username/email</li>
+                    <li>Check your email inbox (and spam folder)</li>
+                    <li>Complete the reset within 15 minutes of receiving the new link</li>
+                    <li>Contact your class teacher or school administrator if you need assistance</li>
                   </ul>
                 </div>
 
