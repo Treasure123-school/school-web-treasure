@@ -188,8 +188,9 @@ export default function ForgotPassword() {
                     <div className="p-1.5 bg-blue-600 rounded-full">
                       <Mail className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <p className="text-sm text-blue-900 dark:text-blue-100 font-semibold">
-                      📧 How Password Reset Works
+                    <p className="text-sm text-blue-900 dark:text-blue-100 font-semibold flex items-center gap-1">
+                      <Key className="h-4 w-4" />
+                      How Password Reset Works
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -251,7 +252,7 @@ export default function ForgotPassword() {
               <div className="space-y-4">
                 <div className="p-3 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-xl border border-green-200/50 dark:border-green-800/50">
                   <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                    <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs sm:text-sm font-semibold text-green-800 dark:text-green-200 mb-1 flex items-center gap-1">
                         <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -282,10 +283,10 @@ export default function ForgotPassword() {
                 {process.env.NODE_ENV === 'development' && (
                   <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5" />
+                      <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-purple-800 dark:text-purple-200">
                         <strong>Development Mode:</strong> Reset link shown in notification above.
-                        In production, it's sent via email.
+                        In production, it will be sent via email.
                       </p>
                     </div>
                   </div>

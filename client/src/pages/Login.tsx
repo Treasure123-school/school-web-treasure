@@ -632,7 +632,7 @@ export default function Login() {
               {/* Info Box for Students & Parents */}
               <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1 flex items-center gap-1">
                       <Users className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -645,11 +645,11 @@ export default function Login() {
                     <div className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium space-y-0.5">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3 text-green-600" />
-                        <span>If details are correct → Access granted</span>
+                        <span>If details are correct: Access granted</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <XCircle className="h-3 w-3 text-red-600" />
-                        <span>If incorrect → Check your username & password</span>
+                        <span>If incorrect: Check your username & password</span>
                       </div>
                     </div>
                   </div>
@@ -688,7 +688,8 @@ export default function Login() {
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-semibold text-orange-800 dark:text-orange-200 mb-1">
+                  <p className="text-xs sm:text-sm font-semibold text-orange-800 dark:text-orange-200 mb-1 flex items-center gap-1">
+                    <Key className="h-3 w-3 sm:h-4 sm:w-4" />
                     Staff Members Only
                   </p>
                   <p className="text-[10px] sm:text-xs text-orange-700 dark:text-orange-300 leading-relaxed">

@@ -138,8 +138,9 @@ export default function AdminRecoveryTools() {
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-red-900 dark:text-red-200 mb-1">
-                  ⚠️ High-Security Zone
+                <h3 className="font-semibold text-red-900 dark:text-red-200 mb-1 flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  High-Security Zone
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">
                   These tools provide master access to user accounts. All actions are logged in the audit trail. Use responsibly and only when necessary.
