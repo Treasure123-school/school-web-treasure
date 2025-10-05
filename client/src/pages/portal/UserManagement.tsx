@@ -1,6 +1,3 @@
-
-import { Info } from 'lucide-react';
-
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -755,30 +752,26 @@ export default function UserManagement() {
   };
 
   const getStatusBadge = (status: string, userId?: string) => {
-    const badgeConfigs: Record<string, { variant: any; label: string; icon: React.ReactNode; description: string }> = {
+    const badgeConfigs: Record<string, { variant: any; label: string; icon: React.ReactNode }> = {
       'pending': { 
         variant: 'secondary', 
-        label: 'Pending Verification', 
-        icon: <Clock className="h-3 w-3 mr-1" />,
-        description: 'Account verification pending. Awaiting Admin approval.'
+        label: 'Unverified', 
+        icon: <Clock className="h-3 w-3 mr-1" />
       },
       'active': { 
         variant: 'default', 
-        label: 'Active', 
-        icon: <CheckCircle className="h-3 w-3 mr-1" />,
-        description: 'Account is verified and active'
+        label: 'Verified', 
+        icon: <CheckCircle className="h-3 w-3 mr-1" />
       },
       'suspended': { 
         variant: 'destructive', 
         label: 'Suspended', 
-        icon: <ShieldAlert className="h-3 w-3 mr-1" />,
-        description: 'Account suspended. User must contact the Admin.'
+        icon: <ShieldAlert className="h-3 w-3 mr-1" />
       },
       'disabled': { 
         variant: 'outline', 
         label: 'Disabled', 
-        icon: <XCircle className="h-3 w-3 mr-1" />,
-        description: 'Account has been disabled by Admin'
+        icon: <XCircle className="h-3 w-3 mr-1" />
       }
     };
 
@@ -812,11 +805,8 @@ export default function UserManagement() {
             Suspend Account
           </DialogTitle>
           <DialogDescription>
-            Suspend {selectedUser?.firstName} {selectedUser?.lastName}'s account? <br/>
-            <span className="mt-2 block p-2 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
-              <span className="font-semibold text-orange-900 dark:text-orange-100">User will see:</span>
-              <span className="block mt-1 text-sm italic">"Account suspended. Please contact the Admin."</span>
-            </span>
+            Suspend {selectedUser?.firstName} {selectedUser?.lastName}'s account? They will see: 
+            <span className="font-semibold text-foreground"> "Account suspended. Please contact the Admin."</span>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -987,16 +977,6 @@ export default function UserManagement() {
               <DropdownMenuSeparator />
 
               <DropdownMenuItem 
-                onClick={() => window.location.href = `/portal/admin/audit-logs?userId=${userData.id}`}
-                data-testid={`menu-item-view-logs-${userData.id}`}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View User Logs
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem 
                 onClick={() => handleAction(userData, 'delete')}
                 className="text-destructive focus:text-destructive"
                 data-testid={`menu-item-delete-${userData.id}`}
@@ -1044,65 +1024,6 @@ export default function UserManagement() {
             </Select>
           </div>
         </div>
-
-        {/* Admin Actions Reference Card */}
-        <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              Admin Management Tools
-            </CardTitle>
-            <CardDescription className="text-sm">
-              Available actions for managing user accounts
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-white/50 dark:bg-gray-900/50">
-                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Verify / Unverify</p>
-                  <p className="text-xs text-muted-foreground">Activate or deactivate staff/student accounts</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-white/50 dark:bg-gray-900/50">
-                <Ban className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Suspend / Unsuspend</p>
-                  <p className="text-xs text-muted-foreground">Temporarily block access for misconduct or review</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-white/50 dark:bg-gray-900/50">
-                <KeyRound className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Reset Password</p>
-                  <p className="text-xs text-muted-foreground">Generate a secure new password for any user</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-white/50 dark:bg-gray-900/50">
-                <Mail className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Change Recovery Email</p>
-                  <p className="text-xs text-muted-foreground">Update recovery email if lost or incorrect</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-white/50 dark:bg-gray-900/50">
-                <Trash2 className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Delete Account</p>
-                  <p className="text-xs text-muted-foreground">Safely remove account while preserving exam data</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-white/50 dark:bg-gray-900/50">
-                <Eye className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">View Logs</p>
-                  <p className="text-xs text-muted-foreground">View all user activities and login history</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Tabs for different user status views */}
         <Tabs defaultValue="all" className="space-y-4" onValueChange={setStatusFilter}>
@@ -1199,11 +1120,8 @@ export default function UserManagement() {
               )}
               {actionType === 'unverify' && (
                 <>
-                  Are you sure you want to move <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> back to pending? <br/>
-                  <span className="mt-2 block p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
-                    <span className="font-semibold text-blue-900 dark:text-blue-100">User will see:</span>
-                    <span className="block mt-1 text-sm italic">"Account verification pending. Await Admin approval."</span>
-                  </span>
+                  Are you sure you want to move <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> back to pending? 
+                  They will need admin approval again before they can log in.
                 </>
               )}
               {actionType === 'disable' && (
