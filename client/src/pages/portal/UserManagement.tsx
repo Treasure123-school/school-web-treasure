@@ -638,7 +638,7 @@ export default function UserManagement() {
         setDeleteDialog(true);
         break;
       case 'viewLogs':
-        window.location.href = `/admin/audit-logs?userId=${user.id}`;
+        window.location.href = `/portal/admin/audit-logs?userId=${user.id}`;
         break;
       default:
         break;
