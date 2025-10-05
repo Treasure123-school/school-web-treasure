@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GraduationCap, AlertCircle, CheckCircle, Key, Clock, Ban, XCircle } from 'lucide-react';
+import { GraduationCap, AlertCircle, CheckCircle, Key, Clock, Ban, XCircle, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -630,21 +630,28 @@ export default function Login() {
               </div>
 
               {/* Info Box for Students & Parents */}
-              <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200/50 dark:border-blue-800/50">
+              <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
-                      👨‍🎓 For Students & Parents
+                    <p className="text-xs sm:text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1 flex items-center gap-1">
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                      For Students & Parents
                     </p>
                     <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                       Use your THS username and password. <br className="hidden sm:block"/>
                       Example: <span className="font-mono font-medium bg-white/50 dark:bg-gray-800/50 px-1 py-0.5 rounded">THS-STU-2025-PR3-001</span>
                     </p>
-                    <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
-                      ✓ If details are correct → Access granted<br/>
-                      ❌ If incorrect → Check your username & password
-                    </p>
+                    <div className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium space-y-0.5">
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        <span>If details are correct → Access granted</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <XCircle className="h-3 w-3 text-red-600" />
+                        <span>If incorrect → Check your username & password</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

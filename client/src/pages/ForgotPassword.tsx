@@ -214,7 +214,7 @@ export default function ForgotPassword() {
                   </div>
                   <div className="space-y-1 pt-2 border-t border-blue-200 dark:border-blue-700">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <AlertCircle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-blue-700 dark:text-blue-300">
                         Check spam/junk folder if you don't see the email within 2 minutes
                       </p>
@@ -253,8 +253,9 @@ export default function ForgotPassword() {
                   <div className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs sm:text-sm font-semibold text-green-800 dark:text-green-200 mb-1">
-                        ✅ Reset Email Sent Successfully
+                      <p className="text-xs sm:text-sm font-semibold text-green-800 dark:text-green-200 mb-1 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                        Reset Email Sent Successfully
                       </p>
                       <p className="text-[10px] sm:text-xs text-green-700 dark:text-green-300">
                         Check your email inbox for the password reset link. The link expires in 15 minutes for your security.

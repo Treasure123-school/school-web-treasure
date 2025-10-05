@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap } from 'lucide-react';
+import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap, Users as UsersIcon } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function ParentDashboard() {
@@ -222,8 +222,9 @@ export default function ParentDashboard() {
                     <GraduationCap className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                      👨‍👩‍👧 Select Your Child's Records
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <Users className="h-5 w-5 text-blue-600" />
+                      Select Your Child's Records
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {linkedChildren.length === 1

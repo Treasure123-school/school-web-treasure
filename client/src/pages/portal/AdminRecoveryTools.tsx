@@ -123,7 +123,10 @@ export default function AdminRecoveryTools() {
               <Shield className="h-10 w-10 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">🔐 Admin Recovery Tools</h2>
+              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Shield className="h-6 w-6" />
+                Admin Recovery Tools
+              </h2>
               <p className="text-red-100 text-sm">Master recovery powers for account management</p>
             </div>
           </div>
