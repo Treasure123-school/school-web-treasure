@@ -272,15 +272,17 @@ export default function StudentManagement() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Page Header - Fully Responsive */}
+      <div className="flex flex-col gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage student enrollment and information</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-student">
+            <Button className="w-full sm:w-auto" data-testid="button-add-student">
               <UserPlus className="h-4 w-4 mr-2" />
               Add Student
             </Button>
@@ -717,16 +719,16 @@ export default function StudentManagement() {
         </Dialog>
       </div>
 
-      {/* Filter and Search */}
+      {/* Filter and Search - Fully Responsive */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filter Students</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Filter Students</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
+        <CardContent className="p-4 sm:p-6 sm:pt-0">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
+              <Label htmlFor="search" className="text-sm">Search</Label>
+              <div className="relative mt-1.5">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="search"
@@ -738,10 +740,10 @@ export default function StudentManagement() {
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="classFilter">Filter by Class</Label>
+            <div className="w-full sm:w-48">
+              <Label htmlFor="classFilter" className="text-sm">Filter by Class</Label>
               <Select value={selectedClass} onValueChange={setSelectedClass}>
-                <SelectTrigger className="w-48" data-testid="select-class-filter">
+                <SelectTrigger className="w-full mt-1.5" data-testid="select-class-filter">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -758,93 +760,108 @@ export default function StudentManagement() {
         </CardContent>
       </Card>
 
-      {/* Students Table */}
+      {/* Students Table - Fully Responsive */}
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Students ({filteredStudents.length})</CardTitle>
-            <Button variant="outline" size="sm" data-testid="button-export-students">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <CardTitle className="text-base sm:text-lg">Students ({filteredStudents.length})</CardTitle>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm" data-testid="button-export-students">
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6 sm:pt-0">
           {loadingStudents ? (
-            <div className="text-center py-8">Loading students...</div>
+            <div className="text-center py-8 text-sm sm:text-base">Loading students...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Admission Number</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Parent</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
                 {filteredStudents.map((student: any) => (
-                  <TableRow key={student.id} data-testid={`row-student-${student.id}`}>
-                    <TableCell className="font-medium">
-                      {student.admissionNumber}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {student.user?.firstName} {student.user?.lastName}
+                  <div 
+                    key={student.id} 
+                    className="border border-border rounded-lg p-4 bg-muted/30"
+                    data-testid={`card-student-${student.id}`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm truncate">
+                            {student.user?.firstName} {student.user?.lastName}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {student.user?.email}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {student.admissionNumber}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {student.user?.email}
+                        <Badge variant={student.user?.isActive ? "default" : "secondary"} className="ml-2 text-xs">
+                          {student.user?.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Class:</span>
+                          <div className="font-medium mt-0.5">
+                            <Badge variant="secondary" className="text-xs">
+                              {student.class?.name || 'N/A'}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Parent:</span>
+                          <div className="font-medium mt-0.5 truncate">
+                            {student.parent?.firstName ? `${student.parent.firstName} ${student.parent.lastName}` : 'N/A'}
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Emergency:</span>
+                          <div className="font-medium mt-0.5">{student.emergencyContact}</div>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {student.class?.name}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {student.parent?.firstName} {student.parent?.lastName}
-                    </TableCell>
-                    <TableCell>{student.emergencyContact}</TableCell>
-                    <TableCell>
-                      <Badge variant={student.user?.isActive ? "default" : "secondary"}>
-                        {student.user?.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-border">
                         <Button 
-                          variant="ghost" 
-                          size="sm" 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1 text-xs"
                           onClick={() => handleEditClick(student)}
                           data-testid={`button-edit-${student.id}`}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3.5 w-3.5 mr-1.5" />
+                          Edit
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
+                          className="flex-1 text-xs"
                           onClick={() => handleBlockToggle(student)}
                           data-testid={`button-block-${student.id}`}
                         >
                           {student.user?.isActive ? (
-                            <ShieldOff className="h-4 w-4 text-orange-600" />
+                            <>
+                              <ShieldOff className="h-3.5 w-3.5 mr-1.5 text-orange-600" />
+                              Block
+                            </>
                           ) : (
-                            <Shield className="h-4 w-4 text-green-600" />
+                            <>
+                              <Shield className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                              Activate
+                            </>
                           )}
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
+                              className="text-xs"
                               data-testid={`button-delete-${student.id}`}
                             >
-                              <Trash2 className="h-4 w-4 text-red-600" />
+                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -867,18 +884,129 @@ export default function StudentManagement() {
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
                 {filteredStudents.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No students found
-                    </TableCell>
-                  </TableRow>
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    No students found
+                  </div>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs lg:text-sm">Admission Number</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Name</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Class</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Parent</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Contact</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Status</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStudents.map((student: any) => (
+                      <TableRow key={student.id} data-testid={`row-student-${student.id}`}>
+                        <TableCell className="font-medium text-xs lg:text-sm">
+                          {student.admissionNumber}
+                        </TableCell>
+                        <TableCell className="text-xs lg:text-sm">
+                          <div>
+                            <div className="font-medium">
+                              {student.user?.firstName} {student.user?.lastName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {student.user?.email}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs lg:text-sm">
+                          <Badge variant="secondary" className="text-xs">
+                            {student.class?.name}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs lg:text-sm">
+                          {student.parent?.firstName} {student.parent?.lastName}
+                        </TableCell>
+                        <TableCell className="text-xs lg:text-sm">{student.emergencyContact}</TableCell>
+                        <TableCell>
+                          <Badge variant={student.user?.isActive ? "default" : "secondary"} className="text-xs">
+                            {student.user?.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditClick(student)}
+                              data-testid={`button-edit-${student.id}`}
+                              title="Edit student"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleBlockToggle(student)}
+                              data-testid={`button-block-${student.id}`}
+                              title={student.user?.isActive ? "Block student" : "Activate student"}
+                            >
+                              {student.user?.isActive ? (
+                                <ShieldOff className="h-4 w-4 text-orange-600" />
+                              ) : (
+                                <Shield className="h-4 w-4 text-green-600" />
+                              )}
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  data-testid={`button-delete-${student.id}`}
+                                  title="Delete student"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Student</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {student.user?.firstName} {student.user?.lastName}? 
+                                    This will deactivate the student account and cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteStudent(student.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete Student
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredStudents.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-sm">
+                          No students found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
