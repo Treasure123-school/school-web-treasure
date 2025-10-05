@@ -25,7 +25,8 @@ import {
   Shield,
   Users,
   Ban,
-  Eye
+  Eye,
+  AlertCircle
 } from "lucide-react";
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from "@/hooks/use-toast";
@@ -274,12 +275,12 @@ export default function UserManagement() {
         method: 'DELETE',
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to delete user. Please try again.');
       }
-      
+
       return { message: 'User account deleted successfully. All exam data has been preserved for records.' };
     },
     onMutate: async (userId: string) => {
@@ -328,14 +329,14 @@ export default function UserManagement() {
       if (context?.previousPendingUsers) {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
-      
+
       // Provide specific error messages based on the error
       let errorMessage = error.message || "Failed to delete user. Please try again.";
-      
+
       if (error.message?.includes('foreign key constraint') || error.message?.includes('associated')) {
         errorMessage = "Cannot delete user: This account has associated records (exams, grades, etc.). Please disable the account instead.";
       }
-      
+
       toast({
         title: "Deletion Failed",
         description: errorMessage,
@@ -646,7 +647,7 @@ export default function UserManagement() {
 
   const confirmUnverify = () => {
     if (!selectedUser) return;
-    
+
     changeStatusMutation.mutate({
       userId: selectedUser.id,
       status: 'pending',
@@ -1316,7 +1317,7 @@ export default function UserManagement() {
                 {selectedUser?.recoveryEmail || selectedUser?.email || 'Not set'}
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="recovery-email" className="text-sm font-medium">New Recovery Email Address</Label>
               <Input

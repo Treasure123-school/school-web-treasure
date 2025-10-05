@@ -200,7 +200,189 @@ export default function Login() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Login failed');
+        // Enhanced user-friendly error messages based on status type
+        const statusType = result.statusType;
+
+        switch (statusType) {
+          case 'invalid_credentials':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-red-500" />
+                  <span>Invalid Login</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">❌ Invalid login. Please check your username or password and try again.</p>
+                  <p className="text-xs text-muted-foreground font-medium">Make sure CAPS LOCK is off.</p>
+                </div>
+              ),
+              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
+              duration: 10000,
+            });
+            break;
+          case 'pending_staff':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  <span>Account Awaiting Approval</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">⏳ Your Admin/Teacher account is awaiting approval. You will be notified once verified.</p>
+                  <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                    Contact the school administrator for urgent access.
+                  </p>
+                </div>
+              ),
+              className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+              duration: 10000,
+            });
+            break;
+          case 'pending_setup':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  <span>Account Setup Pending</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">⏳ Your account is being set up by the school administrator. Please check back soon.</p>
+                </div>
+              ),
+              className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+              duration: 8000,
+            });
+            break;
+          case 'suspended_staff':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-red-500" />
+                  <span>Account Suspended</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">🚫 Access denied. Your account has been suspended by the school administrator.</p>
+                  <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                    Please contact them to resolve this issue.
+                  </p>
+                </div>
+              ),
+              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
+              duration: 10000,
+            });
+            break;
+          case 'suspended_student':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-red-500" />
+                  <span>Account Suspended</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">🚫 Your account is suspended. Please contact your class teacher or school administrator.</p>
+                </div>
+              ),
+              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
+              duration: 10000,
+            });
+            break;
+          case 'disabled':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-red-500" />
+                  <span>Account Disabled</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">🚫 Your account has been disabled. Please contact the school administrator if you believe this is an error.</p>
+                </div>
+              ),
+              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
+              duration: 10000,
+            });
+            break;
+          case 'rate_limited':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  <span>Too Many Attempts</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">⏰ Account Temporarily Locked: Too many failed login attempts. Your account has been temporarily locked for security.</p>
+                  <p className="text-xs font-medium mt-2">Please wait 15 minutes before trying again, or use "Forgot Password" to reset.</p>
+                </div>
+              ),
+              className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
+              duration: 12000,
+            });
+            break;
+          case 'google_required':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-blue-500" />
+                  <span>Google Sign-In Required</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">🔐 Google Sign-In Required: Admins and Teachers must sign in using the "Sign in with Google" button below.</p>
+                </div>
+              ),
+              className: 'border-blue-500 bg-blue-50 dark:bg-blue-950/50',
+              duration: 10000,
+            });
+            break;
+          case 'setup_incomplete':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <span>Account Setup Incomplete</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">⚠️ Account Setup Incomplete: Please contact the school administrator for assistance.</p>
+                </div>
+              ),
+              className: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/50',
+              duration: 10000,
+            });
+            break;
+          default:
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-red-500" />
+                  <span>Login Failed</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2">❌ Login failed. Please try again or contact support.</p>
+                </div>
+              ),
+              variant: 'destructive',
+              duration: 8000,
+            });
+        }
+        throw new Error(result.message || 'Login failed'); // Throw error to trigger onError
       }
 
       return result;
@@ -261,183 +443,21 @@ export default function Login() {
       }, 200);
     },
     onError: (error: any) => {
-      // Enhanced error handling with structured backend responses
-      const statusType = error?.statusType;
-      const errorMessage = error?.message || 'Invalid Login';
-      const errorDescription = error?.description || error?.hint || 'Please check your username or password and try again.';
-
-      let icon = <XCircle className="h-4 w-4 text-red-500" />;
-      let className = '';
-      let title = errorMessage;
-      let description: string | JSX.Element = errorDescription;
-
-      // Map backend statusType to frontend presentation with THS Story Plan messages
-      switch (statusType) {
-        case 'pending_staff':
-          icon = <Clock className="h-4 w-4 text-orange-500" />;
-          className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
-          title = 'Account Awaiting Approval';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">⏳ Your account is awaiting Admin approval. You will be notified once verified.</p>
-              <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
-                Please contact the school administrator if you need immediate access.
-              </p>
-            </div>
-          );
-          break;
-
-        case 'pending_setup':
-          icon = <Clock className="h-4 w-4 text-orange-500" />;
-          className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
-          title = 'Account Pending Verification';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">⏳ Welcome to THS Portal. Your account is awaiting Admin approval.</p>
-              <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
-                You will be notified via email once your account is verified.
-              </p>
-            </div>
-          );
-          break;
-
-        case 'suspended_staff':
-          icon = <Ban className="h-4 w-4 text-red-500" />;
-          className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
-          title = 'Account Suspended';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">🚫 Access denied: Your account has been suspended by THS Admin.</p>
-              <p className="text-xs text-red-700 dark:text-red-300 mt-2">
-                Please contact the school administrator for assistance.
-              </p>
-            </div>
-          );
-          break;
-
-        case 'suspended_student':
-          icon = <Ban className="h-4 w-4 text-red-500" />;
-          className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
-          title = 'Account Suspended';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">🚫 Your account is suspended. Contact your class teacher or Admin.</p>
-              <p className="text-xs text-red-700 dark:text-red-300 mt-2">
-                Speak with your class teacher or visit the Admin office for support.
-              </p>
-            </div>
-          );
-          break;
-
-        case 'disabled':
-          icon = <Ban className="h-4 w-4 text-red-500" />;
-          className = 'border-red-500 bg-red-50 dark:bg-red-950/50';
-          title = 'Account Disabled';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">🚫 Your account has been disabled. Please contact the school administrator.</p>
-            </div>
-          );
-          break;
-
-        case 'rate_limited':
-          icon = <Ban className="h-4 w-4 text-orange-500" />;
-          className = 'border-orange-500 bg-orange-50 dark:bg-orange-950/50';
-          title = 'Too Many Attempts';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
-            </div>
-          );
-          break;
-
-        case 'google_required':
-          icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
-          className = 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
-          title = 'Google Sign-In Required';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">{errorDescription}</p>
-            </div>
-          );
-          break;
-
-        case 'invalid_credentials':
-        default:
-          icon = <XCircle className="h-4 w-4 text-red-500" />;
-          title = 'Invalid Login';
-          description = (
-            <div className="text-xs sm:text-sm">
-              <p className="mb-2">❌ Invalid login. Please check your username or password.</p>
-            </div>
-          );
-          break;
+      // The actual toast messages are now handled within mutationFn for specific errors
+      // This onError is for unexpected errors or errors not caught by the switch statement.
+      if (!error.message && typeof error === 'string') {
+        toast({
+          title: 'Login Failed',
+          description: error,
+          variant: 'destructive',
+        });
+      } else if (error.message && !error?.statusType) {
+        toast({
+          title: 'Login Failed',
+          description: error.message,
+          variant: 'destructive',
+        });
       }
-
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            {icon}
-            <span className="text-sm sm:text-base font-semibold">{title}</span>
-          </div>
-        ),
-        description: (
-          <div className="space-y-2">
-            {description}
-            {statusType === 'invalid_credentials' && (
-              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-xs text-muted-foreground font-medium">Need help?</p>
-                <p className="text-xs text-muted-foreground">
-                  • Check if CAPS LOCK is on<br />
-                  • Verify your username and password<br />
-                  • Use the "Forgot Password" link below if needed
-                </p>
-              </div>
-            )}
-            {(statusType === 'pending_staff' || statusType === 'pending_setup') && (
-              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
-                <p className="text-xs font-medium">Next Steps:</p>
-                <p className="text-xs">
-                  • Check your email for approval notification<br />
-                  • Contact the school administrator if urgent
-                </p>
-              </div>
-            )}
-            {(statusType === 'suspended_staff' || statusType === 'suspended_student') && (
-              <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800">
-                <p className="text-xs font-medium">What to do:</p>
-                <p className="text-xs">
-                  {statusType === 'suspended_staff'
-                    ? '• Contact the school administrator immediately'
-                    : '• Speak with your class teacher or school administrator'}
-                </p>
-              </div>
-            )}
-            {statusType === 'rate_limited' && (
-              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
-                <p className="text-xs font-medium">What to do:</p>
-                <p className="text-xs">
-                  • Wait 15 minutes before trying again<br />
-                  • Use "Forgot Password" if you can't remember your password<br />
-                  • Contact administrator if you need immediate access
-                </p>
-              </div>
-            )}
-            {statusType === 'google_required' && (
-              <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
-                <p className="text-xs font-medium">How to login:</p>
-                <p className="text-xs">
-                  • Click the "Sign in with Google" button below<br />
-                  • Use your authorized school Google account
-                </p>
-              </div>
-            )}
-          </div>
-        ),
-        variant: className ? undefined : 'destructive',
-        className: className || undefined,
-        duration: 10000, // Longer duration for important messages with next steps
-      });
     },
   });
 

@@ -146,9 +146,15 @@ export default function ForgotPassword() {
           </p>
         </div>
 
-        <Card className="shadow-lg border border-border" data-testid="card-forgot-password">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-center">Reset Your Password</CardTitle>
+        <Card className="w-full border-2 border-blue-200 dark:border-blue-800">
+          <CardHeader className="text-center">
+            <div className="bg-blue-100 dark:bg-blue-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <p className="text-muted-foreground mt-2">
+              Enter your username or email address and we'll send you instructions to reset your password
+            </p>
           </CardHeader>
           <CardContent>
             {!emailSent ? (
@@ -162,9 +168,13 @@ export default function ForgotPassword() {
                     type="text"
                     {...register('identifier')}
                     className="mt-2"
-                    placeholder="e.g., john.doe@email.com or johndoe"
+                    placeholder="e.g., THS-STU-2025-PR3-001 or your email"
                     data-testid="input-identifier"
                   />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    <strong>Students/Parents:</strong> Use your THS username (e.g., THS-STU-2025-PR3-001)<br/>
+                    <strong>Teachers/Admins:</strong> Password reset is handled through Google. If locked out, contact Admin.
+                  </p>
                   {errors.identifier && (
                     <p className="text-destructive text-sm mt-1 flex items-center gap-1" data-testid="error-identifier">
                       <AlertCircle className="h-3 w-3" />

@@ -1106,6 +1106,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Parent-child linking endpoint
+  app.get('/api/parents/children/:parentId', authenticateUser, async (req, res) => {
+    try {
+      const parentId = req.params.parentId;
+      const user = req.user;
+
+      // Security: Only allow parents to access their own children or admins
+      if (user?.roleId !== ROLES.PARENT && user?.roleId !== ROLES.ADMIN && user?.id !== parentId) {
+        return res.status(403).json({ message: 'Unauthorized access to parent records' });
+      }
+
+      const children = await storage.getStudentsByParentId(parentId);
+      res.json(children);
+    } catch (error) {
+      console.error('Error fetching parent children:', error);
+      res.status(500).json({ message: 'Failed to fetch children records' });
+    }
+  });
+
   // Notification API endpoints
   app.get('/api/notifications', authenticateUser, async (req, res) => {
     try {
