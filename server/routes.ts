@@ -1376,7 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check rate limit
+      // Check rate limit - Message 12: Account Temporarily Locked
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
         console.warn(`Rate limit exceeded for ${attemptKey}`);
@@ -1412,11 +1412,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
                 const isStaffForSuspension = roleNameForSuspension === 'admin' || roleNameForSuspension === 'teacher';
 
-                return res.status(403).json({
-                  message: isStaffForSuspension
-                    ? "Access denied: Your account has been suspended by THS Admin."
-                    : "Your account is suspended. Contact your class teacher or Admin."
-                });
+                if (isStaffForSuspension) {
+                  return res.status(403).json({
+                    message: "Account Suspended",
+                    description: "Access denied. Your account has been suspended by the school administrator due to security concerns.",
+                    statusType: "suspended_staff"
+                  });
+                } else {
+                  return res.status(403).json({
+                    message: "Account Suspended",
+                    description: "Your account has been suspended. Please contact your class teacher or the school administrator.",
+                    statusType: "suspended_student"
+                  });
+                }
               }
             } catch (err) {
               console.error('Failed to suspend account:', err);
@@ -1425,7 +1433,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         return res.status(429).json({ 
-          message: "Too many login attempts. Please try again in 15 minutes." 
+          message: "Account Temporarily Locked",
+          description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again. If you've forgotten your password, use the 'Forgot your password?' link below.",
+          statusType: "rate_limited"
         });
       }
 
@@ -1451,7 +1461,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         console.log(`Login failed: User not found for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
+        return res.status(401).json({ 
+          message: "Invalid username or password. Please check your credentials and try again.",
+          hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
+        });
       }
 
       // Get user role for various checks
@@ -1459,41 +1472,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roleName = userRole?.name?.toLowerCase();
       const isStaffAccount = roleName === 'admin' || roleName === 'teacher';
 
-      // SECURITY CHECK: Block pending accounts
+      // SECURITY CHECK: Block pending accounts - Message 4 & 5
       if (user.status === 'pending') {
         console.warn(`Login blocked: Account ${identifier} is pending approval`);
-        return res.status(403).json({ 
-          message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
-        });
+        
+        if (isStaffAccount) {
+          // Message 4: Admin/Teacher Pending Approval
+          return res.status(403).json({ 
+            message: "Account Pending Approval",
+            description: "Your Admin/Teacher account has been created and is awaiting approval by the school administrator. You will be notified via email once your account is verified. For urgent access needs, please contact the school administrator.",
+            statusType: "pending_staff"
+          });
+        } else {
+          // Message 5: Student/Parent Pending Setup
+          return res.status(403).json({ 
+            message: "Account Pending Setup",
+            description: "Your account is being set up by the school administrator. You will receive a notification once your account is ready. Please check back soon.",
+            statusType: "pending_setup"
+          });
+        }
       }
 
-      // SECURITY CHECK: Block suspended accounts
+      // SECURITY CHECK: Block suspended accounts - Message 9 & 10
       if (user.status === 'suspended') {
         console.warn(`Login blocked: Account ${identifier} is suspended`);
-        return res.status(403).json({ 
-          message: isStaffAccount 
-            ? "Access denied: Your account has been suspended by THS Admin."
-            : "Your account is suspended. Contact your class teacher or Admin."
-        });
+        
+        if (isStaffAccount) {
+          // Message 9: Staff Account Suspended
+          return res.status(403).json({ 
+            message: "Account Suspended",
+            description: "Access denied. Your account has been suspended by the school administrator. Please contact the school administrator to resolve this issue.",
+            statusType: "suspended_staff"
+          });
+        } else {
+          // Message 10: Student Account Suspended
+          return res.status(403).json({ 
+            message: "Account Suspended",
+            description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
+            statusType: "suspended_student"
+          });
+        }
       }
 
-      // SECURITY CHECK: Block disabled accounts
+      // SECURITY CHECK: Block disabled accounts - Message 11
       if (user.status === 'disabled') {
         console.warn(`Login blocked: Account ${identifier} is disabled`);
         return res.status(403).json({ 
-          message: isStaffAccount 
-            ? "Access denied: Your account has been disabled by THS Admin."
-            : "Your account has been disabled. Please contact administrator."
+          message: "Account Disabled",
+          description: "Your account has been disabled and is no longer active. Please contact the school administrator if you believe this is an error.",
+          statusType: "disabled"
         });
       }
 
-      // SECURITY: User role already retrieved above for authentication method separation
-
-      // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login
+      // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login - Message 8
       if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
         console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
         return res.status(401).json({ 
-          message: "Admins and teachers must use Google Sign-In. Please use the 'Sign in with Google' button below." 
+          message: "Google Sign-In Required",
+          description: "Admins and Teachers must sign in using their authorized Google account. Please click the 'Sign in with Google' button below to access your account.",
+          statusType: "google_required"
         });
       }
 
@@ -1501,17 +1538,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user.passwordHash) {
         // If user is admin/teacher without password but with Google, direct them to Google login
         if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
-          return res.status(401).json({ message: "Please use Google Sign-In for admin/teacher accounts." });
+          return res.status(401).json({ 
+            message: "Google Sign-In Required",
+            description: "Please use Google Sign-In for admin/teacher accounts.",
+            statusType: "google_required"
+          });
         }
         console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
-        return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
+        return res.status(401).json({ 
+          message: "Account Setup Incomplete",
+          description: "Your account setup is incomplete. Please contact the school administrator for assistance.",
+          statusType: "setup_incomplete"
+        });
       }
 
-      // Compare provided password with stored hash
+      // Compare provided password with stored hash - Message 1 (Invalid Credentials)
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
+        return res.status(401).json({ 
+          message: "Invalid Credentials",
+          description: "Invalid username or password. Please check your credentials and try again. Make sure CAPS LOCK is off and you're using the correct username and password.",
+          statusType: "invalid_credentials"
+        });
       }
 
       // Password verification successful - reset rate limit and clear lockout violations
