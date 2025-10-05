@@ -40,6 +40,7 @@ const StudentStudyResources = lazy(() => import("@/pages/portal/StudentStudyReso
 const StudentReportCard = lazy(() => import("@/pages/portal/StudentReportCard"));
 const PortalGallery = lazy(() => import("@/pages/portal/Gallery"));
 const TeacherDashboard = lazy(() => import("@/pages/portal/TeacherDashboard"));
+const TeacherProfile = lazy(() => import("@/pages/portal/TeacherProfile"));
 const AdminDashboard = lazy(() => import("@/pages/portal/AdminDashboard"));
 const ParentDashboard = lazy(() => import("@/pages/portal/ParentDashboard"));
 const StudentManagement = lazy(() => import("@/pages/portal/StudentManagement"));
@@ -130,6 +131,11 @@ function Router() {
       <Route path="/portal/teacher">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/profile">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin">

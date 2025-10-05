@@ -1,3 +1,4 @@
+
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,15 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit, Camera } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Save, Edit, Camera, GraduationCap } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export default function StudentProfile() {
+export default function TeacherProfile() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -25,8 +25,6 @@ export default function StudentProfile() {
     email: '',
     phone: '',
     address: '',
-    emergencyContact: '',
-    emergencyPhone: '',
     recoveryEmail: ''
   });
 
@@ -34,43 +32,30 @@ export default function StudentProfile() {
     return <div>Please log in to access your profile.</div>;
   }
 
-  const { data: student, isLoading } = useQuery({
-    queryKey: ['student', user.id],
+  const { data: teacher, isLoading } = useQuery({
+    queryKey: ['teacher', user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/students/${user.id}`, {
+      const response = await fetch(`/api/users/${user.id}`, {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch student data');
+      if (!response.ok) throw new Error('Failed to fetch teacher data');
       return response.json();
     }
   });
 
-  const { data: classes } = useQuery({
-    queryKey: ['student-classes', user.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/students/${user.id}/classes`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch classes');
-      return response.json();
-    }
-  });
-
-  // Initialize form data when student data loads
+  // Initialize form data when teacher data loads
   React.useEffect(() => {
-    if (student) {
+    if (teacher) {
       setProfileData({
-        firstName: student.firstName || user.firstName || '',
-        lastName: student.lastName || user.lastName || '',
-        email: student.email || user.email || '',
-        phone: student.phone || '',
-        address: student.address || '',
-        emergencyContact: student.emergencyContact || '',
-        emergencyPhone: student.emergencyPhone || '',
-        recoveryEmail: student.recoveryEmail || user.recoveryEmail || ''
+        firstName: teacher.firstName || user.firstName || '',
+        lastName: teacher.lastName || user.lastName || '',
+        email: teacher.email || user.email || '',
+        phone: teacher.phone || '',
+        address: teacher.address || '',
+        recoveryEmail: teacher.recoveryEmail || ''
       });
     }
-  }, [student, user]);
+  }, [teacher, user]);
 
   const handleProfileImageUpload = (result: any) => {
     toast({
@@ -78,15 +63,14 @@ export default function StudentProfile() {
       description: "Your profile image has been uploaded successfully.",
     });
     
-    // Refresh user data to show new profile image
-    queryClient.invalidateQueries({ queryKey: ['student', user.id] });
+    queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
     setShowImageUpload(false);
   };
 
   const handleSave = async () => {
     try {
-      const response = await fetch(`/api/students/${user.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -99,17 +83,13 @@ export default function StudentProfile() {
         throw new Error(error.message || 'Failed to update profile');
       }
 
-      const result = await response.json();
-      
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
       });
       
       setIsEditing(false);
-      
-      // Refresh student data
-      queryClient.invalidateQueries({ queryKey: ['student', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
@@ -126,7 +106,7 @@ export default function StudentProfile() {
 
   return (
     <PortalLayout 
-      userRole="student" 
+      userRole="teacher" 
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
@@ -179,29 +159,26 @@ export default function StudentProfile() {
                 <div className="text-center">
                   <div className="relative inline-block">
                     <Avatar className="h-24 w-24 mx-auto mb-4">
-                      <AvatarImage src={user?.profileImageUrl || student?.profileImage} />
+                      <AvatarImage src={user?.profileImageUrl || teacher?.profileImageUrl} />
                       <AvatarFallback className="text-lg">
                         {user.firstName[0]}{user.lastName[0]}
                       </AvatarFallback>
                     </Avatar>
-                    {user.roleId === 4 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                        onClick={() => setShowImageUpload(!showImageUpload)}
-                        data-testid="profile-image-upload-button"
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                      onClick={() => setShowImageUpload(!showImageUpload)}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
                   </div>
                   <h3 className="text-lg font-semibold">
                     {user.firstName} {user.lastName}
                   </h3>
-                  <p className="text-muted-foreground">Student</p>
+                  <p className="text-muted-foreground">Teacher</p>
                   
-                  {user.roleId === 4 && showImageUpload && (
+                  {showImageUpload && (
                     <div className="mt-4">
                       <FileUpload
                         type="profile"
@@ -215,32 +192,20 @@ export default function StudentProfile() {
 
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    <School className="h-4 w-4 text-muted-foreground" />
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Student ID</p>
+                      <p className="text-sm font-medium">Staff ID</p>
                       <p className="text-sm text-muted-foreground">
-                        {student?.admissionNumber || 'N/A'}
+                        {teacher?.username || 'N/A'}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Mail className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Date of Birth</p>
-                      <p className="text-sm text-muted-foreground">
-                        {student?.dateOfBirth 
-                          ? new Date(student.dateOfBirth).toLocaleDateString()
-                          : 'Not provided'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <School className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">Class</p>
-                      <p className="text-sm text-muted-foreground">
-                        {student?.className || 'Not assigned'}
+                      <p className="text-sm font-medium">Email</p>
+                      <p className="text-sm text-muted-foreground break-all">
+                        {teacher?.email || user.email}
                       </p>
                     </div>
                   </div>
@@ -308,38 +273,6 @@ export default function StudentProfile() {
               </CardContent>
             </Card>
 
-            {/* Emergency Contact */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Phone className="h-5 w-5" />
-                  <span>Emergency Contact</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="emergencyContact">Emergency Contact Name</Label>
-                    <Input
-                      id="emergencyContact"
-                      value={profileData.emergencyContact}
-                      onChange={(e) => handleChange('emergencyContact', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emergencyPhone">Emergency Contact Phone</Label>
-                    <Input
-                      id="emergencyPhone"
-                      value={profileData.emergencyPhone}
-                      onChange={(e) => handleChange('emergencyPhone', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Account Security - Recovery Email */}
             <Card className="lg:col-span-3">
               <CardHeader>
@@ -372,35 +305,6 @@ export default function StudentProfile() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Current Classes */}
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <School className="h-5 w-5" />
-                  <span>Current Classes</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {classes && classes.length > 0 ? (
-                  <div className="space-y-3">
-                    {classes.map((classItem: any, index: number) => (
-                      <div key={index} className="p-3 bg-muted/50 rounded-lg">
-                        <p className="font-medium">{classItem.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {classItem.teacher || 'Teacher not assigned'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <School className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No classes assigned yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
         )}
 
@@ -412,27 +316,27 @@ export default function StudentProfile() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-                <Link href="/portal/student/grades">
-                  <School className="h-6 w-6" />
-                  <span className="text-sm">View Grades</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-                <Link href="/portal/student/attendance">
-                  <Calendar className="h-6 w-6" />
-                  <span className="text-sm">Check Attendance</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-                <Link href="/portal/student/messages">
-                  <Mail className="h-6 w-6" />
-                  <span className="text-sm">Messages</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-                <Link href="/portal/student">
+                <Link href="/portal/teacher">
                   <User className="h-6 w-6" />
                   <span className="text-sm">Dashboard</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
+                <Link href="/portal/teacher/exams">
+                  <GraduationCap className="h-6 w-6" />
+                  <span className="text-sm">My Exams</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
+                <Link href="/portal/teacher/grades">
+                  <GraduationCap className="h-6 w-6" />
+                  <span className="text-sm">Grades</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
+                <Link href="/portal/teacher/attendance">
+                  <GraduationCap className="h-6 w-6" />
+                  <span className="text-sm">Attendance</span>
                 </Link>
               </Button>
             </div>

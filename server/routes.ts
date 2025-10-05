@@ -2791,9 +2791,16 @@ Treasure-Home School Administration
     }
   });
 
-  app.put("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app.put("/api/users/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
+      const requestUser = req.user!;
+
+      // Authorization: Users can update their own profile, admins can update any
+      if (requestUser.id !== id && requestUser.roleId !== ROLES.ADMIN) {
+        return res.status(403).json({ message: "You can only update your own profile" });
+      }
+
       // Extract password if provided for separate handling
       const { password, passwordHash, ...otherUserData } = req.body;
 
@@ -2824,6 +2831,13 @@ Treasure-Home School Administration
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
     } catch (error) {
+      console.error('User update error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid user data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
       res.status(400).json({ message: "Invalid user data" });
     }
   });
