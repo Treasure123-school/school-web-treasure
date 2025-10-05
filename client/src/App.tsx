@@ -62,6 +62,8 @@ const ParentReportCards = lazy(() => import("@/pages/portal/ParentReportCards"))
 const PendingApprovals = lazy(() => import("@/pages/portal/PendingApprovals"));
 const UserManagement = lazy(() => import("@/pages/portal/UserManagement"));
 const AuditLogs = lazy(() => import("@/pages/portal/AuditLogs"));
+const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
+const ProfileCompletionMonitoring = lazy(() => import("@/pages/portal/ProfileCompletionMonitoring"));
 
 function Router() {
   return (
@@ -76,6 +78,13 @@ function Router() {
         <Route path="/login" component={Login} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+
+      {/* Profile Onboarding - Available to all authenticated users */}
+      <Route path="/portal/onboarding">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT, ROLE_IDS.TEACHER, ROLE_IDS.PARENT, ROLE_IDS.ADMIN]}>
+          <ProfileOnboarding />
+        </ProtectedRoute>
+      </Route>
 
       {/* Protected Portal pages */}
       <Route path="/portal/student">
@@ -156,6 +165,11 @@ function Router() {
       <Route path="/portal/admin/audit-logs">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AuditLogs />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/profile-completion">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <ProfileCompletionMonitoring />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/students">
