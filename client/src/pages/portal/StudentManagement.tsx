@@ -15,12 +15,19 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
 import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff } from 'lucide-react';
+import PortalLayout from '@/components/layout/PortalLayout';
+import { useAuth } from '@/lib/auth';
 
 // Use shared schema to prevent frontend/backend drift
 type StudentForm = CreateStudentRequest;
 
 export default function StudentManagement() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <div>Please log in to access this page.</div>;
+  }
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
@@ -272,13 +279,18 @@ export default function StudentManagement() {
   });
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Page Header - Fully Responsive */}
-      <div className="flex flex-col gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Manage student enrollment and information</p>
-        </div>
+    <PortalLayout
+      userRole="admin"
+      userName={`${user.firstName} ${user.lastName}`}
+      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
+    >
+      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+        {/* Page Header - Fully Responsive */}
+        <div className="flex flex-col gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage student enrollment and information</p>
+          </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -1011,6 +1023,7 @@ export default function StudentManagement() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PortalLayout>
   );
 }
