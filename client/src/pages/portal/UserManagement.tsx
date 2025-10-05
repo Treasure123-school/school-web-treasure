@@ -87,7 +87,7 @@ interface Role {
   name: string;
 }
 
-type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'unverify' | 'disable' | 'delete' | 'resetPassword' | 'changeRole' | 'updateRecoveryEmail';
+type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'verify' | 'unverify' | 'disable' | 'delete' | 'resetPassword' | 'changeRole' | 'updateRecoveryEmail' | 'viewLogs';
 
 export default function UserManagement() {
   const { user } = useAuth();
@@ -549,7 +549,7 @@ export default function UserManagement() {
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
       toast({
         title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Update Failed</span></div>,
         description: error.message || `Failed to ${variables.action} user.`,
@@ -631,6 +631,9 @@ export default function UserManagement() {
         break;
       case 'delete':
         setDeleteDialog(true);
+        break;
+      case 'viewLogs':
+        window.location.href = `/admin/audit-logs?userId=${user.id}`;
         break;
       default:
         break;
@@ -805,8 +808,8 @@ export default function UserManagement() {
             Suspend Account
           </DialogTitle>
           <DialogDescription>
-            Suspend {selectedUser?.firstName} {selectedUser?.lastName}'s account? They will see: 
-            <span className="font-semibold text-foreground"> "Account suspended. Please contact the Admin."</span>
+            Suspend {selectedUser?.firstName} {selectedUser?.lastName}'s account? They will temporarily lose access and see: 
+            <br/><span className="font-semibold text-foreground">"Account suspended. Please contact the Admin."</span>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -961,8 +964,51 @@ export default function UserManagement() {
                 data-testid={`menu-item-recovery-email-${userData.id}`}
               >
                 <Mail className="h-4 w-4 mr-2" />
-                Update Recovery Email
+                Change Recovery Email
               </DropdownMenuItem>
+
+              <DropdownMenuItem 
+                onClick={() => handleAction(userData, 'viewLogs')}
+                data-testid={`menu-item-view-logs-${userData.id}`}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Activity Logs
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {userData.status === 'active' && (
+                <DropdownMenuItem 
+                  onClick={() => handleAction(userData, 'suspend')}
+                  className="text-orange-600 focus:text-orange-600"
+                  data-testid={`menu-item-suspend-${userData.id}`}
+                >
+                  <Ban className="h-4 w-4 mr-2" />
+                  Suspend Access
+                </DropdownMenuItem>
+              )}
+
+              {userData.status === 'suspended' && (
+                <DropdownMenuItem 
+                  onClick={() => handleAction(userData, 'unsuspend')}
+                  className="text-green-600 focus:text-green-600"
+                  data-testid={`menu-item-unsuspend-${userData.id}`}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Unsuspend Access
+                </DropdownMenuItem>
+              )}
+
+              {userData.status === 'pending' && (
+                <DropdownMenuItem 
+                  onClick={() => handleAction(userData, 'approve')}
+                  className="text-green-600 focus:text-green-600"
+                  data-testid={`menu-item-approve-${userData.id}`}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Verify / Activate
+                </DropdownMenuItem>
+              )}
 
               {(userData.status === 'active' || userData.status === 'pending') && (
                 <DropdownMenuItem 
@@ -970,7 +1016,7 @@ export default function UserManagement() {
                   data-testid={`menu-item-unverify-${userData.id}`}
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
-                  Mark as Unverified
+                  Unverify / Deactivate
                 </DropdownMenuItem>
               )}
 
