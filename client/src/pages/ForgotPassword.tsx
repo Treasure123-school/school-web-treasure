@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GraduationCap, Mail, CheckCircle, AlertCircle } from 'lucide-react';
+import { GraduationCap, Mail, CheckCircle, AlertCircle, Users, Key } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -175,10 +175,16 @@ export default function ForgotPassword() {
                     placeholder="e.g., THS-STU-2025-PR3-001 or your email"
                     data-testid="input-identifier"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    <strong>Students/Parents:</strong> Use your THS username (e.g., THS-STU-2025-PR3-001)<br/>
-                    <strong>Teachers/Admins:</strong> Password reset is handled through Google. If locked out, contact Admin.
-                  </p>
+                  <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                    <p className="flex items-start gap-1">
+                      <Users className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <span><strong>Students/Parents:</strong> Use your THS username (e.g., THS-STU-2025-PR3-001)</span>
+                    </p>
+                    <p className="flex items-start gap-1">
+                      <Key className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <span><strong>Teachers/Admins:</strong> Password reset is handled through Google. If locked out, contact Admin.</span>
+                    </p>
+                  </div>
                   {errors.identifier && (
                     <p className="text-destructive text-sm mt-1 flex items-center gap-1" data-testid="error-identifier">
                       <AlertCircle className="h-3 w-3" />
