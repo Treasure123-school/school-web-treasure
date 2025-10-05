@@ -14,6 +14,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Search, Users, GraduationCap, BookOpen, Trash2 } from 'lucide-react';
+import PortalLayout from '@/components/layout/PortalLayout';
+import { useAuth } from '@/lib/auth';
 
 const classFormSchema = z.object({
   name: z.string().min(1, 'Class name is required'),

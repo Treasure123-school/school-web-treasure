@@ -14,6 +14,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2 } from 'lucide-react';
+import PortalLayout from '@/components/layout/PortalLayout';
+import { useAuth } from '@/lib/auth';
 
 const teacherFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),

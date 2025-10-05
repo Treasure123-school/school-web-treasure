@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Check, X, Clock, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
+import PortalLayout from '@/components/layout/PortalLayout';
+import { useAuth } from '@/lib/auth';
 
 type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 

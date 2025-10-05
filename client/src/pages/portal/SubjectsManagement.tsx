@@ -13,6 +13,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2 } from 'lucide-react';
+import PortalLayout from '@/components/layout/PortalLayout';
+import { useAuth } from '@/lib/auth';
 
 const subjectFormSchema = z.object({
   name: z.string().min(1, 'Subject name is required'),
@@ -23,11 +25,16 @@ const subjectFormSchema = z.object({
 type SubjectForm = z.infer<typeof subjectFormSchema>;
 
 export default function SubjectsManagement() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSubject, setEditingSubject] = useState<any>(null);
   const [subjectToDelete, setSubjectToDelete] = useState<any>(null);
+
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
+  const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
+  const userRole = (user?.role?.name?.toLowerCase() || 'admin') as 'admin' | 'teacher' | 'student' | 'parent';
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<SubjectForm>({
     resolver: zodResolver(subjectFormSchema),
@@ -151,7 +158,8 @@ export default function SubjectsManagement() {
   });
 
   return (
-    <div className="space-y-6" data-testid="subjects-management">
+    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
+      <div className="space-y-6" data-testid="subjects-management">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Subjects Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -372,6 +380,7 @@ export default function SubjectsManagement() {
           </DialogContent>
         </Dialog>
       )}
-    </div>
+      </div>
+    </PortalLayout>
   );
 }
