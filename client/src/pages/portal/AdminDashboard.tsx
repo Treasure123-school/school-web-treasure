@@ -171,6 +171,19 @@ export default function AdminDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* Admin Role Header - Brand Identity */}
+      <div className="mb-6 bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl" data-testid="admin-role-header">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+            <Shield className="h-10 w-10 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Admin Portal</h2>
+            <p className="text-red-100 text-sm">Command center for school management</p>
+          </div>
+        </div>
+      </div>
+
       {/* PROMINENT PENDING APPROVALS NOTIFICATION */}
       {pendingCount > 0 && (
         <Card className="mb-4 sm:mb-6 border-2 border-orange-500 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 shadow-lg" data-testid="card-pending-approvals-alert">

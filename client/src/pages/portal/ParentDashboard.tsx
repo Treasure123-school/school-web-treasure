@@ -197,21 +197,15 @@ export default function ParentDashboard() {
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
       <div className="space-y-6 sm:space-y-8">
-        {/* Parent Header */}
-        <div className="bg-gradient-to-r from-teal-500 via-cyan-600 to-blue-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-10 text-white shadow-xl animate-fade-in">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-2 sm:space-y-3">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Parent Dashboard</h2>
-              <p className="text-cyan-100 text-sm sm:text-base lg:text-lg max-w-2xl">
-                Welcome, {user.firstName?.split(' ')[0] || user.username}! Stay connected with your child's education.
-              </p>
+        {/* Parent Role Header - Brand Identity */}
+        <div className="mb-6 bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600 rounded-2xl p-6 text-white shadow-xl" data-testid="parent-role-header">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+              <Heart className="h-10 w-10 text-white" />
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl px-4 sm:px-6 py-2 sm:py-3 border border-white/30">
-              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
-              <div className="text-left">
-                <p className="text-xs sm:text-sm font-medium opacity-90">Progress</p>
-                <p className="text-lg sm:text-xl font-bold">Excellent</p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Parent Portal</h2>
+              <p className="text-amber-100 text-sm">Partnering in your child's success</p>
             </div>
           </div>
         </div>

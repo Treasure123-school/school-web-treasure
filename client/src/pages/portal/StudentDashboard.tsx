@@ -140,6 +140,19 @@ export default function StudentDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* Student Role Header - Brand Identity */}
+      <div className="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl" data-testid="student-role-header">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+            <BookOpen className="h-10 w-10 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Student Portal</h2>
+            <p className="text-blue-100 text-sm">Your learning journey starts here</p>
+          </div>
+        </div>
+      </div>
+
       {/* Stats Cards - Fully Responsive */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
         <StatsCard

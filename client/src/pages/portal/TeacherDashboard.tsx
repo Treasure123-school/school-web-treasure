@@ -204,6 +204,19 @@ export default function TeacherDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* Teacher Role Header - Brand Identity */}
+      <div className="mb-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl" data-testid="teacher-role-header">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+            <GraduationCap className="h-10 w-10 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Teacher Portal</h2>
+            <p className="text-emerald-100 text-sm">Empowering minds, shaping futures</p>
+          </div>
+        </div>
+      </div>
+
       {/* Header Actions */}
       <div className="flex justify-end mb-6">
         <Button className="bg-primary text-primary-foreground" asChild>
