@@ -4,15 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit, Camera, CheckCircle, XCircle, Shield } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit, Camera } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { apiRequest } from '@/lib/queryClient';
 
 export default function StudentProfile() {
   const { user } = useAuth();
@@ -27,8 +26,7 @@ export default function StudentProfile() {
     phone: '',
     address: '',
     emergencyContact: '',
-    emergencyPhone: '',
-    recoveryEmail: ''
+    emergencyPhone: ''
   });
 
   if (!user) {
@@ -67,22 +65,15 @@ export default function StudentProfile() {
         phone: student.phone || '',
         address: student.address || '',
         emergencyContact: student.emergencyContact || '',
-        emergencyPhone: student.emergencyPhone || '',
-        recoveryEmail: user.recoveryEmail || ''
+        emergencyPhone: student.emergencyPhone || ''
       });
     }
   }, [student, user]);
 
   const handleProfileImageUpload = (result: any) => {
     toast({
-      title: (
-        <div className="flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <span>Profile Image Updated</span>
-        </div>
-      ),
+      title: "Profile image updated",
       description: "Your profile image has been uploaded successfully.",
-      className: "border-green-500 bg-green-50",
     });
     
     // Refresh user data to show new profile image
@@ -90,46 +81,24 @@ export default function StudentProfile() {
     setShowImageUpload(false);
   };
 
-  const saveProfileMutation = useMutation({
-    mutationFn: async (data: typeof profileData) => {
-      const response = await apiRequest('PATCH', `/api/students/${user.id}`, data);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update profile');
+  const handleSave = async () => {
+    try {
+      const response = await fetch(`/api/students/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(profileData)
+      });
+      
+      if (response.ok) {
+        setIsEditing(false);
+        // Show success message
       }
-      return await response.json();
-    },
-    onSuccess: () => {
-      setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['student', user.id] });
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Profile Updated</span>
-          </div>
-        ),
-        description: "Your profile has been updated successfully.",
-        className: "border-green-500 bg-green-50",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Update Failed</span>
-          </div>
-        ),
-        description: error.message || "Failed to update profile. Please try again.",
-        variant: "destructive",
-        className: "border-red-500 bg-red-50",
-      });
+    } catch (error) {
+      console.error('Failed to update profile:', error);
     }
-  });
-
-  const handleSave = () => {
-    saveProfileMutation.mutate(profileData);
   };
 
   const handleChange = (field: string, value: string) => {
@@ -154,28 +123,12 @@ export default function StudentProfile() {
           <div className="flex gap-2">
             {isEditing ? (
               <>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsEditing(false)}
-                  disabled={saveProfileMutation.isPending}
-                >
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={handleSave}
-                  disabled={saveProfileMutation.isPending}
-                >
-                  {saveProfileMutation.isPending ? (
-                    <>
-                      <span className="animate-spin h-4 w-4 mr-2">⏳</span>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
+                <Button onClick={handleSave}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
                 </Button>
               </>
             ) : (
@@ -331,49 +284,6 @@ export default function StudentProfile() {
                       onChange={(e) => handleChange('address', e.target.value)}
                       disabled={!isEditing}
                     />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Security Settings */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Shield className="h-5 w-5" />
-                  <span>Security Settings</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="recoveryEmail">
-                      Recovery Email
-                      <span className="text-xs text-muted-foreground ml-2">(for password reset)</span>
-                    </Label>
-                    <Input
-                      id="recoveryEmail"
-                      type="email"
-                      value={profileData.recoveryEmail}
-                      onChange={(e) => handleChange('recoveryEmail', e.target.value)}
-                      placeholder="recovery@example.com"
-                      disabled={!isEditing}
-                    />
-                    {!profileData.recoveryEmail && !isEditing && (
-                      <p className="text-sm text-orange-600">
-                        No recovery email set. Click "Edit Profile" to add one for account security.
-                      </p>
-                    )}
-                  </div>
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                      Why set a recovery email?
-                    </p>
-                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 ml-4 list-disc">
-                      <li>Reset your password if you forget it</li>
-                      <li>Receive important account notifications</li>
-                      <li>Secure your account access</li>
-                    </ul>
                   </div>
                 </div>
               </CardContent>
