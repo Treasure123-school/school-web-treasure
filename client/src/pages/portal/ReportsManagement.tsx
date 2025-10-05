@@ -257,13 +257,14 @@ export default function ReportsManagement() {
 
   return (
     <div className="space-y-6" data-testid="reports-management">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
-        <div className="flex space-x-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
+        <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
             onClick={() => handleExport('pdf')}
             data-testid="button-export-pdf"
+            className="flex-1 sm:flex-none"
           >
             <Download className="w-4 h-4 mr-2" />
             Export PDF
@@ -272,6 +273,7 @@ export default function ReportsManagement() {
             variant="outline" 
             onClick={() => handleExport('csv')}
             data-testid="button-export-csv"
+            className="flex-1 sm:flex-none"
           >
             <FileText className="w-4 h-4 mr-2" />
             Export CSV
@@ -282,7 +284,7 @@ export default function ReportsManagement() {
       {/* Report Type Selector and Filters */}
       <Card>
         <CardContent className="py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
             <div>
               <Label htmlFor="reportType">Report Type</Label>
               <Select value={selectedReport} onValueChange={setSelectedReport}>

@@ -184,8 +184,8 @@ export default function TeachersManagement() {
 
   return (
     <div className="space-y-6" data-testid="teachers-management">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Teachers Management</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Teachers Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-teacher">

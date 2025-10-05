@@ -244,7 +244,7 @@ export default function SettingsManagement() {
             </CardHeader>
             <CardContent>
               <form onSubmit={schoolForm.handleSubmit(onSchoolSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="schoolName">School Name *</Label>
                     <Input 
@@ -278,7 +278,7 @@ export default function SettingsManagement() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="phoneNumber">Phone Number</Label>
                     <Input 
@@ -331,7 +331,7 @@ export default function SettingsManagement() {
             </CardHeader>
             <CardContent>
               <form onSubmit={securityForm.handleSubmit(onSecuritySubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="passwordMinLength">Password Minimum Length</Label>
                     <Input 
@@ -352,7 +352,7 @@ export default function SettingsManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="loginAttempts">Maximum Login Attempts</Label>
                     <Input 

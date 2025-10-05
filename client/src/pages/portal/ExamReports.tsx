@@ -167,11 +167,11 @@ export default function ExamReports() {
       userName={user.firstName + ' ' + user.lastName}
       userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
     >
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
           <div>
-            <h1 className="text-3xl font-bold">Exam Reports & Analytics</h1>
-            <p className="text-muted-foreground">Comprehensive exam performance analysis and reporting</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Exam Reports & Analytics</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Comprehensive exam performance analysis and reporting</p>
           </div>
           <Button onClick={() => exportExamReport(0, 'pdf')}>
             <Download className="w-4 h-4 mr-2" />
@@ -180,7 +180,7 @@ export default function ExamReports() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">

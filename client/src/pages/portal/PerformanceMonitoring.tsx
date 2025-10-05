@@ -166,18 +166,18 @@ export default function PerformanceMonitoring() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      <div className="space-y-6" data-testid="performance-monitoring-page">
+      <div className="space-y-4 sm:space-y-6" data-testid="performance-monitoring-page">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white" data-testid="page-title">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white" data-testid="page-title">
               Performance Monitoring
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
               Real-time system performance metrics and alerts
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-40" data-testid="time-range-selector">
                 <SelectValue placeholder="Select time range" />
@@ -205,7 +205,7 @@ export default function PerformanceMonitoring() {
         </div>
 
         {/* System Status Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {metrics && (
             <>
               <Card data-testid="total-events-card">

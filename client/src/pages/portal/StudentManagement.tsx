@@ -273,10 +273,10 @@ export default function StudentManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold">Student Management</h1>
-          <p className="text-muted-foreground">Manage student enrollment and information</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage student enrollment and information</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>

@@ -172,10 +172,10 @@ export default function AttendanceManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold">Attendance Management</h1>
-          <p className="text-muted-foreground">Record daily attendance for your classes</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Attendance Management</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Record daily attendance for your classes</p>
         </div>
         <div className="flex items-center space-x-2">
           <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -368,7 +368,7 @@ export default function AttendanceManagement() {
             <CardTitle>Attendance Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
                   {enrichedStudents.filter((s: any) => {
