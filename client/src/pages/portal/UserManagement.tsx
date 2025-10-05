@@ -23,8 +23,11 @@ import {
   KeyRound,
   UserCog,
   Shield,
-  Users
+  Users,
+  Ban,
+  Eye
 } from "lucide-react";
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -102,6 +105,11 @@ export default function UserManagement() {
 
   const [recoveryEmailDialog, setRecoveryEmailDialog] = useState(false);
   const [newRecoveryEmail, setNewRecoveryEmail] = useState('');
+
+  // New states for suspend and delete dialogs
+  const [suspendDialog, setSuspendDialog] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   // Fetch all users with OPTIMIZED settings for instant updates
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
@@ -525,18 +533,107 @@ export default function UserManagement() {
     },
   });
 
+  // Placeholder mutations for verify/unverify and suspend/unsuspend to be implemented
+  const verifyMutation = useMutation({
+    mutationFn: async ({ userId, action }: { userId: string; action: 'verify' | 'unverify' }) => {
+      return await apiRequest('POST', `/api/users/${userId}/${action}`);
+    },
+    onSuccess: (data: any, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      toast({
+        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
+        description: data?.message || `User has been ${variables.action}ed.`,
+        className: "border-green-500 bg-green-50",
+      });
+      setSelectedUser(null);
+      setActionType(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Update Failed</span></div>,
+        description: error.message || `Failed to ${variables.action} user.`,
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+    },
+  });
+
+  const suspendMutation = useMutation({
+    mutationFn: async ({ userId, action, reason }: { userId: string; action: 'suspend' | 'unsuspend'; reason?: string }) => {
+      return await apiRequest('POST', `/api/users/${userId}/${action}`, { reason });
+    },
+    onMutate: async ({ userId, action }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      queryClient.setQueryData(['/api/users'], (old: any) => 
+        old?.map((user: any) => 
+          user.id === userId ? { ...user, status: action === 'suspend' ? 'suspended' : 'active' } : user
+        )
+      );
+      return { previousUsers };
+    },
+    onSuccess: (data: any, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      toast({
+        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
+        description: data?.message || `User has been ${variables.action}ed.`,
+        className: "border-green-500 bg-green-50",
+      });
+      setSuspendDialog(false);
+      setSuspendReason('');
+      setSelectedUser(null);
+      setActionType(null);
+    },
+    onError: (error: any, variables, context: any) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
+      toast({
+        title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Update Failed</span></div>,
+        description: error.message || `Failed to ${variables.action} user.`,
+        variant: "destructive",
+        className: "border-red-500 bg-red-50",
+      });
+    },
+  });
+
   const handleAction = (user: User, action: ActionType) => {
     setSelectedUser(user);
-    if (action === 'resetPassword') {
-      setResetPasswordDialog(true);
-    } else if (action === 'changeRole') {
-      setNewRoleId(user.roleId);
-      setChangeRoleDialog(true);
-    } else if (action === 'updateRecoveryEmail') {
-      setNewRecoveryEmail(user.recoveryEmail || user.email);
-      setRecoveryEmailDialog(true);
-    } else {
-      setActionType(action);
+    setActionType(action);
+
+    switch (action) {
+      case 'verify':
+        verifyMutation.mutate({ userId: user.id, action: 'verify' });
+        break;
+      case 'unverify':
+        verifyMutation.mutate({ userId: user.id, action: 'unverify' });
+        break;
+      case 'suspend':
+        setSuspendDialog(true);
+        break;
+      case 'unsuspend':
+        suspendMutation.mutate({ userId: user.id, action: 'unsuspend' });
+        break;
+      case 'resetPassword':
+        setNewPassword('');
+        setForceChange(true);
+        setResetPasswordDialog(true);
+        break;
+      case 'changeRole':
+        setNewRoleId(user.roleId);
+        setChangeRoleDialog(true);
+        break;
+      case 'updateRecoveryEmail':
+        setNewRecoveryEmail(user.recoveryEmail || '');
+        setRecoveryEmailDialog(true);
+        break;
+      case 'delete':
+        setDeleteDialog(true);
+        break;
+      default:
+        break;
     }
   };
 
@@ -699,129 +796,98 @@ export default function UserManagement() {
     );
   };
 
-  const getActionButtons = (targetUser: User) => {
-    const buttons = [];
-
-    if (targetUser.status === 'pending') {
-      buttons.push(
-        <Button
-          key="approve"
-          size="sm"
-          variant="default"
-          className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
-          onClick={() => handleAction(targetUser, 'approve')}
-          disabled={approveMutation.isPending || changeStatusMutation.isPending}
-          data-testid={`button-approve-${targetUser.id}`}
-        >
-          <CheckCircle className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
-          Verify & Approve
-        </Button>
-      );
-    }
-
-    if (targetUser.status === 'active') {
-      buttons.push(
-        <Button
-          key="suspend"
-          size="sm"
-          variant="outline"
-          className="border-orange-500 text-orange-700 hover:bg-orange-50 text-xs sm:text-sm"
-          onClick={() => handleAction(targetUser, 'suspend')}
-          disabled={approveMutation.isPending || changeStatusMutation.isPending}
-          data-testid={`button-suspend-${targetUser.id}`}
-        >
-          <ShieldAlert className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
-          Suspend Access
-        </Button>
-      );
-    }
-
-    if (targetUser.status === 'suspended') {
-      buttons.push(
-        <Button
-          key="unsuspend"
-          size="sm"
-          variant="default"
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
-          onClick={() => handleAction(targetUser, 'unsuspend')}
-          disabled={approveMutation.isPending || changeStatusMutation.isPending}
-          data-testid={`button-unsuspend-${targetUser.id}`}
-        >
-          <ShieldCheck className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
-          Restore Access
-        </Button>
-      );
-    }
-
-    // More Actions Dropdown
-    buttons.push(
-      <DropdownMenu key="more-actions">
-        <DropdownMenuTrigger asChild>
-          <Button 
-            size="sm" 
-            variant="ghost"
-            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-            data-testid={`button-more-actions-${targetUser.id}`}
-          >
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" data-testid={`menu-actions-${targetUser.id}`}>
-          <DropdownMenuLabel>Admin Powers</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-
-          {targetUser.authProvider !== 'google' && (
-            <DropdownMenuItem 
-              onClick={() => handleAction(targetUser, 'resetPassword')}
-              data-testid={`menu-item-reset-password-${targetUser.id}`}
+  // Suspend Dialog
+  const renderSuspendDialog = () => (
+    <Dialog open={suspendDialog} onOpenChange={setSuspendDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Ban className="h-5 w-5 text-red-600" />
+            Suspend Account
+          </DialogTitle>
+          <DialogDescription>
+            Suspend {selectedUser?.firstName} {selectedUser?.lastName}'s account? They will see: 
+            <span className="font-semibold text-foreground"> "Account suspended. Please contact the Admin."</span>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="suspendReason">Reason for Suspension (Optional)</Label>
+            <Textarea
+              id="suspendReason"
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              placeholder="e.g., Policy violation, pending investigation..."
+              rows={3}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSuspendDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedUser) {
+                  suspendMutation.mutate({ 
+                    userId: selectedUser.id, 
+                    action: 'suspend', 
+                    reason: suspendReason 
+                  });
+                }
+              }}
+              disabled={suspendMutation.isPending}
             >
-              <KeyRound className="h-4 w-4 mr-2" />
-              Reset Password
-            </DropdownMenuItem>
-          )}
+              {suspendMutation.isPending ? 'Suspending...' : 'Suspend Account'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <DropdownMenuItem 
-            onClick={() => handleAction(targetUser, 'changeRole')}
-            data-testid={`menu-item-change-role-${targetUser.id}`}
-          >
-            <UserCog className="h-4 w-4 mr-2" />
-            Change Role
-          </DropdownMenuItem>
-
-          <DropdownMenuItem 
-            onClick={() => handleAction(targetUser, 'updateRecoveryEmail')}
-            data-testid={`menu-item-recovery-email-${targetUser.id}`}
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            Update Recovery Email
-          </DropdownMenuItem>
-
-          {(targetUser.status === 'active' || targetUser.status === 'pending') && (
-            <DropdownMenuItem 
-              onClick={() => handleAction(targetUser, 'unverify')}
-              data-testid={`menu-item-unverify-${targetUser.id}`}
+  // Delete Dialog
+  const renderDeleteDialog = () => (
+    <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-red-600">
+            <Trash2 className="h-5 w-5" />
+            Delete Account Permanently
+          </DialogTitle>
+          <DialogDescription>
+            This will permanently delete {selectedUser?.firstName} {selectedUser?.lastName}'s account. 
+            All exam data will be preserved for records, but the user account will be removed.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-800">
+              <strong>Warning:</strong> This action cannot be undone. The user will no longer be able to access the portal.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedUser) {
+                  deleteMutation.mutate(selectedUser.id);
+                  setDeleteDialog(false);
+                }
+              }}
+              disabled={deleteMutation.isPending}
             >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Mark as Unverified
-            </DropdownMenuItem>
-          )}
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Account'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <DropdownMenuSeparator />
-
-          <DropdownMenuItem 
-            onClick={() => handleAction(targetUser, 'delete')}
-            className="text-destructive focus:text-destructive"
-            data-testid={`menu-item-delete-${targetUser.id}`}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Account
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-
-    return buttons;
-  };
 
   const UserList = ({ users }: { users: User[] }) => (
     <div className="space-y-3">
@@ -1256,6 +1322,9 @@ export default function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {renderSuspendDialog()}
+      {renderDeleteDialog()}
     </PortalLayout>
   );
 }
