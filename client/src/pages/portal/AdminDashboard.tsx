@@ -291,39 +291,81 @@ export default function AdminDashboard() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="p-0 sm:p-6 sm:pt-0">
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="w-full text-xs sm:text-sm min-w-[600px]">
+            <CardContent className="p-3 sm:p-6 sm:pt-0">
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-3">
+                {mockRecentRegistrations.map((student, index) => (
+                  <div 
+                    key={student.id} 
+                    className="border border-border rounded-lg p-3 bg-muted/30"
+                    data-testid={`student-card-${index}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                        <div className={`w-8 h-8 ${student.color} rounded-full flex items-center justify-center flex-shrink-0`}>
+                          <span className="text-white text-xs font-medium">{student.initials}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate" data-testid={`text-student-name-${index}`}>
+                            {student.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground" data-testid={`text-admission-number-${index}`}>
+                            {student.admissionNumber}
+                          </p>
+                        </div>
+                      </div>
+                      <span 
+                        className={`px-2 py-1 rounded-full text-xs flex-shrink-0 ${
+                          student.status === 'Active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                        data-testid={`text-student-status-${index}`}
+                      >
+                        {student.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+                      <span data-testid={`text-student-class-${index}`}>{student.class}</span>
+                      <span data-testid={`text-registration-date-${index}`}>{student.date}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left py-2 px-3 sm:px-3 font-medium">Student Name</th>
-                      <th className="text-left py-2 px-3 sm:px-3 font-medium hidden sm:table-cell">Admission No.</th>
-                      <th className="text-left py-2 px-3 sm:px-3 font-medium">Class</th>
-                      <th className="text-left py-2 px-3 sm:px-3 font-medium hidden md:table-cell">Date</th>
-                      <th className="text-left py-2 px-3 sm:px-3 font-medium">Status</th>
+                      <th className="text-left py-2 px-3 font-medium">Student Name</th>
+                      <th className="text-left py-2 px-3 font-medium">Admission No.</th>
+                      <th className="text-left py-2 px-3 font-medium">Class</th>
+                      <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Date</th>
+                      <th className="text-left py-2 px-3 font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mockRecentRegistrations.map((student, index) => (
                       <tr key={student.id} className="border-b border-border/50" data-testid={`student-row-${index}`}>
-                        <td className="py-3 px-3 sm:px-3">
+                        <td className="py-3 px-3">
                           <div className="flex items-center space-x-2">
-                            <div className={`w-7 h-7 sm:w-8 sm:h-8 ${student.color} rounded-full flex items-center justify-center flex-shrink-0`}>
+                            <div className={`w-8 h-8 ${student.color} rounded-full flex items-center justify-center flex-shrink-0`}>
                               <span className="text-white text-xs font-medium">{student.initials}</span>
                             </div>
-                            <span className="truncate max-w-[120px] sm:max-w-none" data-testid={`text-student-name-${index}`}>{student.name}</span>
+                            <span data-testid={`text-student-name-${index}`}>{student.name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-3 sm:px-3 hidden sm:table-cell" data-testid={`text-admission-number-${index}`}>
+                        <td className="py-3 px-3" data-testid={`text-admission-number-${index}`}>
                           {student.admissionNumber}
                         </td>
-                        <td className="py-3 px-3 sm:px-3" data-testid={`text-student-class-${index}`}>
+                        <td className="py-3 px-3" data-testid={`text-student-class-${index}`}>
                           {student.class}
                         </td>
-                        <td className="py-3 px-3 sm:px-3 hidden md:table-cell" data-testid={`text-registration-date-${index}`}>
+                        <td className="py-3 px-3 hidden md:table-cell" data-testid={`text-registration-date-${index}`}>
                           {student.date}
                         </td>
-                        <td className="py-3 px-3 sm:px-3">
+                        <td className="py-3 px-3">
                           <span 
                             className={`px-2 py-1 rounded-full text-xs ${
                               student.status === 'Active' 
