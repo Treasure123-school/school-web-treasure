@@ -613,7 +613,7 @@ export default function UserManagement() {
         verifyMutation.mutate({ userId: user.id, action: 'verify' });
         break;
       case 'unverify':
-        // Show confirmation dialog for unverify
+        // Show confirmation dialog only
         break;
       case 'suspend':
         setSuspendDialog(true);
@@ -645,16 +645,14 @@ export default function UserManagement() {
     }
   };
 
-  const confirmAction = () => {
-    if (!selectedUser || !actionType) return;
-
-    if (actionType === 'unverify') {
-      changeStatusMutation.mutate({
-        userId: selectedUser.id,
-        status: 'pending',
-        reason: 'Moved back to pending for re-verification'
-      });
-    }
+  const confirmUnverify = () => {
+    if (!selectedUser) return;
+    
+    changeStatusMutation.mutate({
+      userId: selectedUser.id,
+      status: 'pending',
+      reason: 'Account verification pending. Await Admin approval.'
+    });
   };
 
   const handleResetPassword = () => {
@@ -739,39 +737,44 @@ export default function UserManagement() {
   };
 
   const getStatusBadge = (status: string, userId?: string) => {
-    const badgeConfigs: Record<string, { variant: any; label: string; icon: React.ReactNode }> = {
+    const badgeConfigs: Record<string, { variant: any; label: string; icon: React.ReactNode; className?: string }> = {
       'pending': { 
         variant: 'secondary', 
         label: 'Unverified', 
-        icon: <Clock className="h-3 w-3 mr-1" />
+        icon: <Clock className="h-3 w-3 mr-1" />,
+        className: 'bg-yellow-100 text-yellow-800 border-yellow-300'
       },
       'active': { 
         variant: 'default', 
         label: 'Verified', 
-        icon: <CheckCircle className="h-3 w-3 mr-1" />
+        icon: <CheckCircle className="h-3 w-3 mr-1" />,
+        className: 'bg-green-100 text-green-800 border-green-300'
       },
       'suspended': { 
         variant: 'destructive', 
         label: 'Suspended', 
-        icon: <ShieldAlert className="h-3 w-3 mr-1" />
+        icon: <ShieldAlert className="h-3 w-3 mr-1" />,
+        className: 'bg-red-100 text-red-800 border-red-300'
       },
       'disabled': { 
         variant: 'outline', 
         label: 'Disabled', 
-        icon: <XCircle className="h-3 w-3 mr-1" />
+        icon: <XCircle className="h-3 w-3 mr-1" />,
+        className: 'bg-gray-100 text-gray-800 border-gray-300'
       }
     };
 
     const badgeConfig = badgeConfigs[status] || { 
       variant: 'outline', 
       label: status,
-      icon: null
+      icon: null,
+      className: ''
     };
 
     return (
       <Badge 
         variant={badgeConfig.variant as any}
-        className="font-medium text-xs sm:text-sm"
+        className={`font-medium text-xs sm:text-sm ${badgeConfig.className}`}
         data-testid={`badge-status-${status}-${userId || ''}`}
       >
         <div className="flex items-center">
@@ -784,16 +787,24 @@ export default function UserManagement() {
 
   // Suspend Dialog
   const renderSuspendDialog = () => (
-    <Dialog open={suspendDialog} onOpenChange={setSuspendDialog}>
-      <DialogContent>
+    <Dialog open={suspendDialog} onOpenChange={(open) => {
+      if (!open) {
+        setSuspendDialog(false);
+        setSuspendReason('');
+        setSelectedUser(null);
+        setActionType(null);
+      }
+    }}>
+      <DialogContent data-testid="dialog-suspend-account">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Ban className="h-5 w-5 text-red-600" />
+            <Ban className="h-5 w-5 text-orange-600" />
             Suspend Account
           </DialogTitle>
           <DialogDescription>
-            Suspend {selectedUser?.firstName} {selectedUser?.lastName}'s account? They will temporarily lose access and see: 
-            <br/><span className="font-semibold text-foreground">"Account suspended. Please contact the Admin."</span>
+            Temporarily block access for <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>. 
+            They will see this message when trying to log in: 
+            <br/><span className="font-semibold text-foreground mt-2 block">"Your account is suspended. Please contact the Admin."</span>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -803,12 +814,22 @@ export default function UserManagement() {
               id="suspendReason"
               value={suspendReason}
               onChange={(e) => setSuspendReason(e.target.value)}
-              placeholder="e.g., Policy violation, pending investigation..."
+              placeholder="e.g., Misconduct, pending review, policy violation..."
               rows={3}
+              data-testid="textarea-suspend-reason"
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setSuspendDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSuspendDialog(false);
+                setSuspendReason('');
+                setSelectedUser(null);
+                setActionType(null);
+              }}
+              data-testid="button-cancel-suspend"
+            >
               Cancel
             </Button>
             <Button
@@ -818,11 +839,12 @@ export default function UserManagement() {
                   suspendMutation.mutate({ 
                     userId: selectedUser.id, 
                     action: 'suspend', 
-                    reason: suspendReason 
+                    reason: suspendReason || 'Account suspended by Admin'
                   });
                 }
               }}
               disabled={suspendMutation.isPending}
+              data-testid="button-confirm-suspend"
             >
               {suspendMutation.isPending ? 'Suspending...' : 'Suspend Account'}
             </Button>
@@ -834,26 +856,40 @@ export default function UserManagement() {
 
   // Delete Dialog
   const renderDeleteDialog = () => (
-    <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-      <DialogContent>
+    <Dialog open={deleteDialog} onOpenChange={(open) => {
+      if (!open) {
+        setDeleteDialog(false);
+        setSelectedUser(null);
+        setActionType(null);
+      }
+    }}>
+      <DialogContent data-testid="dialog-delete-account">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <Trash2 className="h-5 w-5" />
             Delete Account Permanently
           </DialogTitle>
           <DialogDescription>
-            This will permanently delete {selectedUser?.firstName} {selectedUser?.lastName}'s account. 
+            Permanently remove <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>'s account from the system. 
             All exam data will be preserved for records, but the user account will be removed.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-800">
-              <strong>Warning:</strong> This action cannot be undone. The user will no longer be able to access the portal.
+              <strong>⚠️ Warning:</strong> This action cannot be undone. The user will no longer be able to access the portal.
             </p>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDeleteDialog(false);
+                setSelectedUser(null);
+                setActionType(null);
+              }}
+              data-testid="button-cancel-delete"
+            >
               Cancel
             </Button>
             <Button
@@ -865,6 +901,7 @@ export default function UserManagement() {
                 }
               }}
               disabled={deleteUserMutation.isPending}
+              data-testid="button-confirm-delete"
             >
               {deleteUserMutation.isPending ? 'Deleting...' : 'Delete Account'}
             </Button>
@@ -1112,29 +1149,29 @@ export default function UserManagement() {
         </Tabs>
       </div>
 
-      {/* Confirmation Dialog - Only for Unverify action */}
+      {/* Unverify Confirmation Dialog */}
       <AlertDialog open={!!selectedUser && actionType === 'unverify'} onOpenChange={(open) => {
         if (!open) {
           setSelectedUser(null);
           setActionType(null);
         }
       }}>
-        <AlertDialogContent data-testid="dialog-confirm-action">
+        <AlertDialogContent data-testid="dialog-confirm-unverify">
           <AlertDialogHeader>
             <AlertDialogTitle data-testid="text-dialog-title">
-              Unverify User?
+              Unverify / Deactivate User?
             </AlertDialogTitle>
             <AlertDialogDescription data-testid="text-dialog-description">
-              Are you sure you want to move <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> back to pending? 
+              Move <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> back to pending verification? 
               They will need admin approval again before they can log in and will see: 
-              <br/><span className="font-semibold text-foreground">"Account verification pending. Await Admin approval."</span>
+              <br/><span className="font-semibold text-foreground mt-2 block">"Account verification pending. Await Admin approval."</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-unverify">Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={confirmAction}
-              data-testid="button-confirm"
+              onClick={confirmUnverify}
+              data-testid="button-confirm-unverify"
             >
               Unverify
             </AlertDialogAction>
