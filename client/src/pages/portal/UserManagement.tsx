@@ -613,7 +613,7 @@ export default function UserManagement() {
         verifyMutation.mutate({ userId: user.id, action: 'verify' });
         break;
       case 'unverify':
-        verifyMutation.mutate({ userId: user.id, action: 'unverify' });
+        // Show confirmation dialog for unverify
         break;
       case 'suspend':
         setSuspendDialog(true);
@@ -648,34 +648,13 @@ export default function UserManagement() {
   const confirmAction = () => {
     if (!selectedUser || !actionType) return;
 
-    if (actionType === 'approve') {
-      approveMutation.mutate(selectedUser.id);
-    } else if (actionType === 'suspend') {
-      changeStatusMutation.mutate({
-        userId: selectedUser.id,
-        status: 'suspended',
-        reason: 'Suspended by admin'
-      });
-    } else if (actionType === 'unsuspend') {
-      changeStatusMutation.mutate({
-        userId: selectedUser.id,
-        status: 'active',
-        reason: 'Unsuspended by admin'
-      });
-    } else if (actionType === 'unverify') {
+    if (actionType === 'unverify') {
       changeStatusMutation.mutate({
         userId: selectedUser.id,
         status: 'pending',
         reason: 'Moved back to pending for re-verification'
       });
-    } else if (actionType === 'disable') {
-      changeStatusMutation.mutate({
-        userId: selectedUser.id,
-        status: 'disabled',
-        reason: 'Disabled by admin'
-      });
     }
-    // Note: Delete action now uses the separate delete dialog, not confirmAction
   };
 
   const handleResetPassword = () => {
@@ -1133,8 +1112,8 @@ export default function UserManagement() {
         </Tabs>
       </div>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={!!selectedUser && !!actionType} onOpenChange={(open) => {
+      {/* Confirmation Dialog - Only for Unverify action */}
+      <AlertDialog open={!!selectedUser && actionType === 'unverify'} onOpenChange={(open) => {
         if (!open) {
           setSelectedUser(null);
           setActionType(null);
@@ -1143,67 +1122,21 @@ export default function UserManagement() {
         <AlertDialogContent data-testid="dialog-confirm-action">
           <AlertDialogHeader>
             <AlertDialogTitle data-testid="text-dialog-title">
-              {actionType === 'approve' && 'Approve User?'}
-              {actionType === 'suspend' && 'Suspend User?'}
-              {actionType === 'unsuspend' && 'Unsuspend User?'}
-              {actionType === 'unverify' && 'Unverify User?'}
-              {actionType === 'disable' && 'Disable User?'}
-              {actionType === 'delete' && '⚠️ Delete Account Permanently?'}
+              Unverify User?
             </AlertDialogTitle>
             <AlertDialogDescription data-testid="text-dialog-description">
-              {actionType === 'approve' && (
-                <>
-                  Are you sure you want to approve <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
-                  They will be able to log in immediately.
-                </>
-              )}
-              {actionType === 'suspend' && (
-                <>
-                  Are you sure you want to suspend <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
-                  They will not be able to log in until unsuspended.
-                </>
-              )}
-              {actionType === 'unsuspend' && (
-                <>
-                  Are you sure you want to unsuspend <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
-                  They will be able to log in again immediately.
-                </>
-              )}
-              {actionType === 'unverify' && (
-                <>
-                  Are you sure you want to move <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> back to pending? 
-                  They will need admin approval again before they can log in.
-                </>
-              )}
-              {actionType === 'disable' && (
-                <>
-                  Are you sure you want to disable <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
-                  Their account will be permanently disabled.
-                </>
-              )}
-              {actionType === 'delete' && (
-                <>
-                  <strong className="text-destructive">Warning: This action cannot be undone!</strong>
-                  <br /><br />
-                  Are you sure you want to permanently delete <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>? 
-                  All user data, records, and history will be permanently removed from the system.
-                </>
-              )}
+              Are you sure you want to move <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> back to pending? 
+              They will need admin approval again before they can log in and will see: 
+              <br/><span className="font-semibold text-foreground">"Account verification pending. Await Admin approval."</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmAction}
-              className={(actionType === 'disable' || actionType === 'suspend' || actionType === 'delete') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
               data-testid="button-confirm"
             >
-              {actionType === 'approve' && 'Approve'}
-              {actionType === 'suspend' && 'Suspend'}
-              {actionType === 'unsuspend' && 'Unsuspend'}
-              {actionType === 'unverify' && 'Unverify'}
-              {actionType === 'disable' && 'Disable'}
-              {actionType === 'delete' && 'Delete Permanently'}
+              Unverify
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
