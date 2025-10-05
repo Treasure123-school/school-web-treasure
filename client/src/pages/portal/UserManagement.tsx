@@ -666,9 +666,8 @@ export default function UserManagement() {
         status: 'disabled',
         reason: 'Disabled by admin'
       });
-    } else if (actionType === 'delete') {
-      deleteUserMutation.mutate(selectedUser.id);
     }
+    // Note: Delete action now uses the separate delete dialog, not confirmAction
   };
 
   const handleResetPassword = () => {
@@ -874,13 +873,13 @@ export default function UserManagement() {
               variant="destructive"
               onClick={() => {
                 if (selectedUser) {
-                  deleteMutation.mutate(selectedUser.id);
+                  deleteUserMutation.mutate(selectedUser.id);
                   setDeleteDialog(false);
                 }
               }}
-              disabled={deleteMutation.isPending}
+              disabled={deleteUserMutation.isPending}
             >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete Account'}
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete Account'}
             </Button>
           </div>
         </div>
