@@ -98,6 +98,7 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
   getUsersByRole(roleId: number): Promise<User[]>;
   getUsersByStatus(status: string): Promise<User[]>;
+  getAllUsers(): Promise<User[]>;
   approveUser(userId: string, approvedBy: string): Promise<User>;
   updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User>;
 
@@ -568,6 +569,19 @@ export class DatabaseStorage implements IStorage {
 
   async getUsersByStatus(status: string): Promise<User[]> {
     const result = await this.db.select().from(schema.users).where(sql`${schema.users.status} = ${status}`);
+    return result.map((user: User) => {
+      if (user && user.id) {
+        const normalizedId = normalizeUuid(user.id);
+        if (normalizedId) {
+          user.id = normalizedId;
+        }
+      }
+      return user;
+    });
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const result = await this.db.select().from(schema.users);
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);

@@ -4994,6 +4994,166 @@ Treasure-Home School Administration
     }
   });
 
+  // PROFILE ONBOARDING ROUTES
+  // Get current user's profile with completion status
+  app.get("/api/profile/me", authenticateUser, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const roleId = (req as any).user.roleId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get role-specific profile
+      let roleProfile = null;
+      if (roleId === ROLES.TEACHER) {
+        roleProfile = await storage.getTeacherProfile(userId);
+      } else if (roleId === ROLES.ADMIN) {
+        roleProfile = await storage.getAdminProfile(userId);
+      } else if (roleId === ROLES.PARENT) {
+        roleProfile = await storage.getParentProfile(userId);
+      } else if (roleId === ROLES.STUDENT) {
+        roleProfile = await storage.getStudent(userId);
+      }
+
+      // Calculate completion percentage
+      const completionPercentage = await storage.calculateProfileCompletion(userId, roleId);
+
+      res.json({
+        user,
+        roleProfile,
+        completionPercentage,
+        profileCompleted: user.profileCompleted || false
+      });
+    } catch (error) {
+      console.error('Profile fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  // Update user profile (all steps combined for MVP)
+  app.put("/api/profile/me", authenticateUser, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const roleId = (req as any).user.roleId;
+      const { personalInfo, contactInfo, roleSpecific, security } = req.body;
+
+      // Update user basic info
+      const userUpdates: Partial<schema.InsertUser> = {};
+      if (personalInfo) {
+        if (personalInfo.firstName) userUpdates.firstName = personalInfo.firstName;
+        if (personalInfo.lastName) userUpdates.lastName = personalInfo.lastName;
+        if (personalInfo.dateOfBirth) userUpdates.dateOfBirth = personalInfo.dateOfBirth;
+        if (personalInfo.gender) userUpdates.gender = personalInfo.gender;
+        if (personalInfo.profileImageUrl) userUpdates.profileImageUrl = personalInfo.profileImageUrl;
+      }
+
+      if (contactInfo) {
+        if (contactInfo.phone) userUpdates.phone = contactInfo.phone;
+        if (contactInfo.address) userUpdates.address = contactInfo.address;
+        if (contactInfo.state) userUpdates.state = contactInfo.state;
+        if (contactInfo.country) userUpdates.country = contactInfo.country;
+      }
+
+      if (security) {
+        if (security.securityQuestion) userUpdates.securityQuestion = security.securityQuestion;
+        if (security.securityAnswer) {
+          const bcrypt = require('bcrypt');
+          userUpdates.securityAnswerHash = await bcrypt.hash(security.securityAnswer, 10);
+        }
+        if (security.dataPolicyAgreed) {
+          userUpdates.dataPolicyAgreed = true;
+          userUpdates.dataPolicyAgreedAt = new Date();
+        }
+      }
+
+      // Update user
+      const updatedUser = await storage.updateUserProfile(userId, userUpdates);
+
+      // Update role-specific profile
+      if (roleSpecific) {
+        if (roleId === ROLES.TEACHER) {
+          const existing = await storage.getTeacherProfile(userId);
+          if (existing) {
+            await storage.updateTeacherProfile(userId, roleSpecific);
+          } else {
+            await storage.createTeacherProfile({ userId, ...roleSpecific });
+          }
+        } else if (roleId === ROLES.ADMIN) {
+          const existing = await storage.getAdminProfile(userId);
+          if (existing) {
+            await storage.updateAdminProfile(userId, roleSpecific);
+          } else {
+            await storage.createAdminProfile({ userId, ...roleSpecific });
+          }
+        } else if (roleId === ROLES.PARENT) {
+          const existing = await storage.getParentProfile(userId);
+          if (existing) {
+            await storage.updateParentProfile(userId, roleSpecific);
+          } else {
+            await storage.createParentProfile({ userId, ...roleSpecific });
+          }
+        } else if (roleId === ROLES.STUDENT) {
+          const existing = await storage.getStudent(userId);
+          if (existing && roleSpecific.guardianName) {
+            await storage.updateStudent(userId, {
+              studentPatch: { guardianName: roleSpecific.guardianName }
+            });
+          }
+        }
+      }
+
+      // Calculate new completion percentage
+      const completionPercentage = await storage.calculateProfileCompletion(userId, roleId);
+      const profileCompleted = completionPercentage >= 100;
+
+      // Update completion status
+      await storage.updateUser(userId, {
+        profileCompletionPercentage: completionPercentage,
+        profileCompleted
+      });
+
+      res.json({
+        message: "Profile updated successfully",
+        completionPercentage,
+        profileCompleted
+      });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Admin: Get all users with profile completion status
+  app.get("/api/admin/profile-completion", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      
+      const usersWithCompletion = await Promise.all(
+        allUsers.map(async (user) => {
+          const role = await storage.getRole(user.roleId);
+          return {
+            id: user.id,
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            role: role?.name || 'Unknown',
+            status: user.status,
+            lastLogin: user.lastLoginAt,
+            completionPercentage: user.profileCompletionPercentage || 0,
+            profileCompleted: user.profileCompleted || false
+          };
+        })
+      );
+
+      res.json(usersWithCompletion);
+    } catch (error) {
+      console.error('Profile completion fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch profile completion data" });
+    }
+  });
+
   // PERFORMANCE MONITORING API ENDPOINT
   // Real-time performance metrics for admin monitoring (using real database data)
   app.get("/api/admin/performance-metrics", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
