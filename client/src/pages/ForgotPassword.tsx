@@ -49,7 +49,10 @@ export default function ForgotPassword() {
           ),
           description: (
             <div className="space-y-2">
-              <p>✅ {data.message}</p>
+              <p className="flex items-center gap-1">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                {data.message}
+              </p>
               {data.resetToken && (
                 <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-300">
                   <p className="text-xs font-semibold mb-1">🔑 Reset Code:</p>
@@ -72,8 +75,9 @@ export default function ForgotPassword() {
                   {data.resetLink}
                 </a>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                💡 In production, this will be sent to: {data.email}
+              <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                In production, this will be sent to: {data.email}
               </p>
             </div>
           ),
@@ -189,7 +193,7 @@ export default function ForgotPassword() {
                       <Mail className="h-3.5 w-3.5 text-white" />
                     </div>
                     <p className="text-sm text-blue-900 dark:text-blue-100 font-semibold flex items-center gap-1">
-                      <Key className="h-4 w-4" />
+                      <AlertCircle className="h-4 w-4" />
                       How Password Reset Works
                     </p>
                   </div>

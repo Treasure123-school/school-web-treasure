@@ -214,7 +214,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">❌ Invalid login. Please check your username or password and try again.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Invalid login. Please check your username or password and try again.
+                  </p>
                   <p className="text-xs text-muted-foreground font-medium">Make sure CAPS LOCK is off.</p>
                 </div>
               ),
@@ -232,7 +235,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">⏳ Your Admin/Teacher account is awaiting approval. You will be notified once verified.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Your Admin/Teacher account is awaiting approval. You will be notified once verified.
+                  </p>
                   <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
                     Contact the school administrator for urgent access.
                   </p>
@@ -252,7 +258,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">⏳ Your account is being set up by the school administrator. Please check back soon.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Your account is being set up by the school administrator. Please check back soon.
+                  </p>
                 </div>
               ),
               className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
@@ -269,7 +278,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">🚫 Access denied. Your account has been suspended by the school administrator.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Ban className="h-4 w-4" />
+                    Access denied. Your account has been suspended by the school administrator.
+                  </p>
                   <p className="text-xs text-red-700 dark:text-red-300 mt-2">
                     Please contact them to resolve this issue.
                   </p>
@@ -289,7 +301,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">🚫 Your account is suspended. Please contact your class teacher or school administrator.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Ban className="h-4 w-4" />
+                    Your account is suspended. Please contact your class teacher or school administrator.
+                  </p>
                 </div>
               ),
               className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
@@ -306,7 +321,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">🚫 Your account has been disabled. Please contact the school administrator if you believe this is an error.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Ban className="h-4 w-4" />
+                    Your account has been disabled. Please contact the school administrator if you believe this is an error.
+                  </p>
                 </div>
               ),
               className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
@@ -323,7 +341,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">⏰ Account Temporarily Locked: Too many failed login attempts. Your account has been temporarily locked for security.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Account Temporarily Locked: Too many failed login attempts. Your account has been temporarily locked for security.
+                  </p>
                   <p className="text-xs font-medium mt-2">Please wait 15 minutes before trying again, or use "Forgot Password" to reset.</p>
                 </div>
               ),
@@ -341,7 +362,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">🔐 Google Sign-In Required: Admins and Teachers must sign in using the "Sign in with Google" button below.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Google Sign-In Required: Admins and Teachers must sign in using the "Sign in with Google" button below.
+                  </p>
                 </div>
               ),
               className: 'border-blue-500 bg-blue-50 dark:bg-blue-950/50',
@@ -358,7 +382,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">⚠️ Account Setup Incomplete: Please contact the school administrator for assistance.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Account Setup Incomplete: Please contact the school administrator for assistance.
+                  </p>
                 </div>
               ),
               className: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/50',
@@ -375,7 +402,10 @@ export default function Login() {
               ),
               description: (
                 <div className="text-xs sm:text-sm">
-                  <p className="mb-2">❌ Login failed. Please try again or contact support.</p>
+                  <p className="mb-2 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Login failed. Please try again or contact support.
+                  </p>
                 </div>
               ),
               variant: 'destructive',
