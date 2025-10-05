@@ -119,10 +119,10 @@ export default function ResetPassword() {
             </div>
           </Link>
           <h2 className="text-2xl font-bold text-foreground" data-testid="text-title">
-            Reset Your Password
+            🔐 Reset Your Password
           </h2>
-          <p className="text-muted-foreground" data-testid="text-subtitle">
-            Create a new secure password for your account
+          <p className="text-muted-foreground text-sm" data-testid="text-subtitle">
+            Create a strong, secure password to protect your account
           </p>
         </div>
 
@@ -134,23 +134,42 @@ export default function ResetPassword() {
             {!resetSuccess && token ? (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
-                  <Label htmlFor="newPassword">New Password</Label>
+                  <Label htmlFor="newPassword" className="text-sm font-medium">New Password</Label>
                   <Input
                     id="newPassword"
                     type="password"
                     {...register('newPassword')}
                     className="mt-2"
-                    placeholder="Enter a new secure password"
+                    placeholder="Create a strong password"
                     data-testid="input-new-password"
                   />
                   {errors.newPassword && (
-                    <p className="text-destructive text-sm mt-1" data-testid="error-new-password">
+                    <p className="text-destructive text-sm mt-1 flex items-center gap-1" data-testid="error-new-password">
+                      <AlertCircle className="h-3 w-3" />
                       {errors.newPassword.message}
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    At least 8 characters with uppercase, lowercase, and numbers
-                  </p>
+                  <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">Password must include:</p>
+                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                      <li className="flex items-center gap-1.5">
+                        <span className="text-blue-600 dark:text-blue-400">✓</span>
+                        At least 8 characters long
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <span className="text-blue-600 dark:text-blue-400">✓</span>
+                        One uppercase letter (A-Z)
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <span className="text-blue-600 dark:text-blue-400">✓</span>
+                        One lowercase letter (a-z)
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <span className="text-blue-600 dark:text-blue-400">✓</span>
+                        One number (0-9)
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
                 <div>
@@ -188,12 +207,18 @@ export default function ResetPassword() {
               </form>
             ) : resetSuccess ? (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-green-800 dark:text-green-200">
-                    <p className="font-semibold mb-2">Password Reset Complete!</p>
-                    <p>
-                      Your password has been successfully reset. You will be redirected to the login page in a few seconds.
+                <div className="flex items-start gap-3 p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border-2 border-green-300 dark:border-green-700">
+                  <div className="p-2 bg-green-600 rounded-full flex-shrink-0">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="text-sm text-green-900 dark:text-green-100">
+                    <p className="font-semibold text-base mb-2">🎉 Success! Password Reset Complete</p>
+                    <p className="text-green-800 dark:text-green-200">
+                      Your password has been successfully updated. You can now login with your new password.
+                    </p>
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-3 flex items-center gap-1.5">
+                      <span className="inline-block h-1.5 w-1.5 bg-green-600 rounded-full animate-pulse"></span>
+                      Redirecting to login page...
                     </p>
                   </div>
                 </div>
@@ -201,39 +226,55 @@ export default function ResetPassword() {
                 <div className="text-center">
                   <Link 
                     href="/login" 
-                    className="text-primary text-sm hover:underline"
+                    className="inline-flex items-center gap-2 text-primary text-sm font-medium hover:underline"
                     data-testid="link-login"
                   >
-                    Go to Login →
+                    <span>Go to Login Now</span>
+                    <span>→</span>
                   </Link>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
-                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-red-800 dark:text-red-200">
-                    <p className="font-semibold mb-2">Invalid or Expired Link</p>
-                    <p>
-                      The password reset link is invalid or has expired. Please request a new one.
+                <div className="flex items-start gap-3 p-5 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 rounded-lg border-2 border-red-300 dark:border-red-700">
+                  <div className="p-2 bg-red-600 rounded-full flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="text-sm text-red-900 dark:text-red-100">
+                    <p className="font-semibold text-base mb-2">⚠️ Link Invalid or Expired</p>
+                    <p className="text-red-800 dark:text-red-200">
+                      This password reset link is no longer valid. It may have expired or already been used.
                     </p>
                   </div>
                 </div>
 
-                <div className="text-center space-y-2">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">What to do:</p>
+                  <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1.5 ml-4 list-disc">
+                    <li>Request a new password reset link</li>
+                    <li>Check your email for the most recent reset link</li>
+                    <li>Complete the reset within 15 minutes</li>
+                  </ul>
+                </div>
+
+                <div className="text-center space-y-3 pt-2">
                   <Link 
                     href="/forgot-password" 
-                    className="block text-primary text-sm hover:underline"
+                    className="block"
                     data-testid="link-forgot-password"
                   >
-                    Request New Reset Link
+                    <Button className="w-full" variant="default">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Request New Reset Link
+                    </Button>
                   </Link>
                   <Link 
                     href="/login" 
-                    className="block text-muted-foreground text-sm hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
                     data-testid="link-login"
                   >
-                    ← Back to Login
+                    <span>←</span>
+                    <span>Back to Login</span>
                   </Link>
                 </div>
               </div>
