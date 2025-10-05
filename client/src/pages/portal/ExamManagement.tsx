@@ -996,14 +996,14 @@ export default function ExamManagement() {
           return null;
         })()}
 
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Exam Management</h1>
-            <p className="text-muted-foreground">Create and manage exams for your classes</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Exam Management</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Create and manage exams for your classes</p>
           </div>
           <Dialog open={isExamDialogOpen} onOpenChange={setIsExamDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-create-exam">
+              <Button data-testid="button-create-exam" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Create New Exam
               </Button>
@@ -1525,50 +1525,53 @@ export default function ExamManagement() {
           />
         </div>
 
-        {/* Exams Table */}
+        {/* Exams Table/Cards */}
         <Card>
           <CardHeader>
             <CardTitle>Exams</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6">
             {loadingExams ? (
               <div className="text-center py-8">Loading exams...</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Schedule</TableHead>
-                    <TableHead>Questions</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile Card View */}
+                <div className="sm:hidden space-y-3">
                   {filteredExams.map((exam: any) => (
-                    <TableRow key={exam.id} data-testid={`row-exam-${exam.id}`}>
-                      <TableCell className="font-medium">{exam.name}</TableCell>
-                      <TableCell>{getClassNameById(exam.classId)}</TableCell>
-                      <TableCell>{getSubjectNameById(exam.subjectId)}</TableCell>
-                      <TableCell>{new Date(exam.date).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {exam.timeLimit ? (
-                          <div className="flex items-center">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {exam.timeLimit}m
+                    <div 
+                      key={exam.id} 
+                      className="border border-border rounded-lg p-3 bg-muted/30"
+                      data-testid={`card-exam-${exam.id}`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate">{exam.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {getClassNameById(exam.classId)} • {getSubjectNameById(exam.subjectId)}
+                            </p>
                           </div>
-                        ) : 'No limit'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={exam.isPublished ? 'default' : 'secondary'}>
-                          {exam.isPublished ? 'Published' : 'Draft'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
+                          <Badge variant={exam.isPublished ? 'default' : 'secondary'} className="ml-2 flex-shrink-0">
+                            {exam.isPublished ? 'Published' : 'Draft'}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center space-x-3">
+                            <span>{new Date(exam.date).toLocaleDateString()}</span>
+                            {exam.timeLimit && (
+                              <div className="flex items-center">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {exam.timeLimit}m
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center">
+                            <FileText className="w-3 h-3 mr-1" />
+                            {questionCounts[exam.id] || 0}
+                          </div>
+                        </div>
+
                         {(() => {
                           const now = new Date();
                           const startTime = exam.startTime ? new Date(exam.startTime) : null;
@@ -1577,46 +1580,36 @@ export default function ExamManagement() {
                           if (exam.timerMode === 'global' && startTime && endTime) {
                             if (now < startTime) {
                               return (
-                                <Badge variant="outline" className="bg-yellow-50">
+                                <Badge variant="outline" className="bg-yellow-50 w-fit">
                                   <Clock className="w-3 h-3 mr-1" />
                                   Scheduled
                                 </Badge>
                               );
                             } else if (now >= startTime && now <= endTime) {
                               return (
-                                <Badge variant="default" className="bg-green-600">
+                                <Badge variant="default" className="bg-green-600 w-fit">
                                   <Play className="w-3 h-3 mr-1" />
                                   Live Now
                                 </Badge>
                               );
                             } else {
                               return (
-                                <Badge variant="secondary">
+                                <Badge variant="secondary" className="w-fit">
                                   Ended
                                 </Badge>
                               );
                             }
                           }
-                          return (
-                            <span className="text-sm text-muted-foreground">
-                              Individual Timer
-                            </span>
-                          );
+                          return null;
                         })()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <FileText className="w-4 h-4 mr-1" />
-                          {questionCounts[exam.id] || 0} question{(questionCounts[exam.id] || 0) !== 1 ? 's' : ''}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
+
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setSelectedExam(exam)}
                             data-testid={`button-manage-questions-${exam.id}`}
+                            className="flex-1"
                           >
                             <Edit className="w-4 h-4 mr-1" />
                             Questions
@@ -1630,6 +1623,7 @@ export default function ExamManagement() {
                             })}
                             disabled={togglePublishMutation.isPending}
                             data-testid={`button-toggle-publish-${exam.id}`}
+                            className="flex-1"
                           >
                             <Play className="w-4 h-4 mr-1" />
                             {exam.isPublished ? 'Unpublish' : 'Publish'}
@@ -1673,18 +1667,171 @@ export default function ExamManagement() {
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   ))}
                   {filteredExams.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No exams found. Create your first exam to get started.
-                      </TableCell>
-                    </TableRow>
+                    <div className="text-center py-8 text-muted-foreground">
+                      No exams found. Create your first exam to get started.
+                    </div>
                   )}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Schedule</TableHead>
+                        <TableHead>Questions</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredExams.map((exam: any) => (
+                        <TableRow key={exam.id} data-testid={`row-exam-${exam.id}`}>
+                          <TableCell className="font-medium">{exam.name}</TableCell>
+                          <TableCell>{getClassNameById(exam.classId)}</TableCell>
+                          <TableCell>{getSubjectNameById(exam.subjectId)}</TableCell>
+                          <TableCell>{new Date(exam.date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {exam.timeLimit ? (
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 mr-1" />
+                                {exam.timeLimit}m
+                              </div>
+                            ) : 'No limit'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={exam.isPublished ? 'default' : 'secondary'}>
+                              {exam.isPublished ? 'Published' : 'Draft'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const now = new Date();
+                              const startTime = exam.startTime ? new Date(exam.startTime) : null;
+                              const endTime = exam.endTime ? new Date(exam.endTime) : null;
+                              
+                              if (exam.timerMode === 'global' && startTime && endTime) {
+                                if (now < startTime) {
+                                  return (
+                                    <Badge variant="outline" className="bg-yellow-50">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Scheduled
+                                    </Badge>
+                                  );
+                                } else if (now >= startTime && now <= endTime) {
+                                  return (
+                                    <Badge variant="default" className="bg-green-600">
+                                      <Play className="w-3 h-3 mr-1" />
+                                      Live Now
+                                    </Badge>
+                                  );
+                                } else {
+                                  return (
+                                    <Badge variant="secondary">
+                                      Ended
+                                    </Badge>
+                                  );
+                                }
+                              }
+                              return (
+                                <span className="text-sm text-muted-foreground">
+                                  Individual Timer
+                                </span>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <FileText className="w-4 h-4 mr-1" />
+                              {questionCounts[exam.id] || 0} question{(questionCounts[exam.id] || 0) !== 1 ? 's' : ''}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedExam(exam)}
+                                data-testid={`button-manage-questions-${exam.id}`}
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Questions
+                              </Button>
+                              <Button
+                                variant={exam.isPublished ? "default" : "secondary"}
+                                size="sm"
+                                onClick={() => togglePublishMutation.mutate({ 
+                                  examId: exam.id, 
+                                  isPublished: !exam.isPublished 
+                                })}
+                                disabled={togglePublishMutation.isPending}
+                                data-testid={`button-toggle-publish-${exam.id}`}
+                              >
+                                <Play className="w-4 h-4 mr-1" />
+                                {exam.isPublished ? 'Unpublish' : 'Publish'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                data-testid={`button-preview-exam-${exam.id}`}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={deleteExamMutation.isPending}
+                                    data-testid={`button-delete-exam-${exam.id}`}
+                                    aria-label={`Delete exam ${exam.name}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete the exam "{exam.name}"? This action cannot be undone and will permanently remove all exam questions and student results.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={deleteExamMutation.isPending}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteExamMutation.mutate(exam.id)}
+                                      disabled={deleteExamMutation.isPending}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                    >
+                                      {deleteExamMutation.isPending ? 'Deleting...' : 'Delete Exam'}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredExams.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                            No exams found. Create your first exam to get started.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -1713,24 +1860,27 @@ export default function ExamManagement() {
               </DialogHeader>
               
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="text-sm text-muted-foreground">
                     {examQuestions.length} questions • {selectedExam.totalMarks} total marks
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     {/* CSV Template Download */}
                     <Button
                       variant="outline"
                       onClick={downloadCSVTemplate}
                       data-testid="button-download-template"
                       title="Download CSV template for bulk question upload"
+                      className="w-full sm:w-auto"
+                      size="sm"
                     >
                       <FileText className="w-4 h-4 mr-2" />
-                      Download Template
+                      <span className="hidden sm:inline">Download Template</span>
+                      <span className="sm:hidden">Template</span>
                     </Button>
                     
                     {/* CSV Upload Button */}
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                       <input
                         type="file"
                         id="csv-upload"
@@ -1745,6 +1895,8 @@ export default function ExamManagement() {
                         data-testid="button-upload-csv"
                         disabled={!selectedExam || csvUploadMutation.isPending}
                         title={!selectedExam ? "Please select an exam first" : "Upload questions from CSV file"}
+                        className="w-full sm:w-auto"
+                        size="sm"
                       >
                         <Upload className="w-4 h-4 mr-2" />
                         {csvUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
@@ -1754,11 +1906,13 @@ export default function ExamManagement() {
                     {/* Manual Add Question */}
                     <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
                       <DialogTrigger asChild>
-                        <div title={!selectedExam ? "Select an exam from the list above to add questions" : ""}>
+                        <div title={!selectedExam ? "Select an exam from the list above to add questions" : ""} className="w-full sm:w-auto">
                           <Button 
                             data-testid="button-add-question" 
                             disabled={!selectedExam}
                             style={!selectedExam ? { pointerEvents: 'none' } : {}}
+                            className="w-full sm:w-auto"
+                            size="sm"
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Question
