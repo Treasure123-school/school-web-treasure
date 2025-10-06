@@ -3507,15 +3507,14 @@ Treasure-Home School Administration
       const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
       const generatedPassword = generateStudentPassword(currentYear);
 
-      // Auto-generate email if not provided
-      const studentEmail = validatedData.email || `${generatedUsername.toLowerCase()}@treasure-home.edu`;
+      // ALWAYS auto-generate email (never accept from request)
+      const studentEmail = `${generatedUsername.toLowerCase()}@treasure-home.edu`;
 
-      // Check for existing user with same email (only if email was provided)
-      if (validatedData.email) {
-        const existingUser = await storage.getUserByEmail(validatedData.email);
-        if (existingUser) {
-          return res.status(409).json({ message: "Email address already exists" });
-        }
+      // Check if auto-generated email exists (should never happen with sequential numbering)
+      const existingUser = await storage.getUserByEmail(studentEmail);
+      if (existingUser) {
+        console.error(`CRITICAL: Auto-generated email ${studentEmail} already exists!`);
+        return res.status(409).json({ message: "System error: Generated email already exists. Please contact administrator." });
       }
 
       // Hash the generated password
@@ -3545,13 +3544,13 @@ Treasure-Home School Administration
       console.log('User created with ID:', user.id);
 
       try {
-        // Prepare student data - store exact values, no null conversion for required fields
-        const studentData: UpdateStudentSchema = { // Use UpdateStudentSchema for partial updates/creation
+        // Prepare student data - admission number ALWAYS auto-generated from username
+        const studentData: UpdateStudentSchema = {
           id: user.id, // Use the same ID as the user
-          admissionNumber: generatedUsername, // Use generated username as admission number
+          admissionNumber: generatedUsername, // ALWAYS use generated username as admission number
           classId: validatedData.classId,
           parentId: validatedData.parentId || null,
-          admissionDate: validatedData.admissionDate, // Store exact YYYY-MM-DD string
+          admissionDate: validatedData.admissionDate,
           emergencyContact: validatedData.emergencyContact,
           medicalInfo: validatedData.medicalInfo || null,
           guardianName: validatedData.guardianName || null,

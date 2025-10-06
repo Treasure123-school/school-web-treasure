@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
-import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key } from 'lucide-react';
+import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 
@@ -475,49 +475,22 @@ export default function StudentManagement() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="email" className="text-sm">Email (Optional)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  {...register('email')}
-                  placeholder="Leave blank for auto-generated email"
-                  data-testid="input-email"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  If left blank, a school email will be auto-generated
-                </p>
-                {errors.email && (
-                  <p className="text-red-500 text-sm">{errors.email.message}</p>
-                )}
-              </div>
-
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
-                  🔐 Credentials Auto-Generated
-                </p>
-                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                  Username and password will be automatically generated upon student creation. 
-                  You'll receive these credentials to share with the student and parent.
-                </p>
+                <div className="flex items-start gap-2">
+                  <Key className="h-4 w-4 text-blue-700 dark:text-blue-300 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                      Credentials Auto-Generated
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                      Username, password, admission number, and email will be automatically generated upon student creation. 
+                      You'll receive these credentials to share with the student and parent.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <Label htmlFor="admissionNumber" className="text-sm">Admission Number (Optional)</Label>
-                  <Input
-                    id="admissionNumber"
-                    {...register('admissionNumber')}
-                    placeholder="Leave blank for auto-generated"
-                    data-testid="input-admissionNumber"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Auto-generated if not provided
-                  </p>
-                  {errors.admissionNumber && (
-                    <p className="text-red-500 text-sm">{errors.admissionNumber.message}</p>
-                  )}
-                </div>
                 <div>
                   <Label htmlFor="admissionDate" className="text-sm">Date of Admission</Label>
                   <Input
@@ -696,7 +669,10 @@ export default function StudentManagement() {
         <Dialog open={!!createdCredentials} onOpenChange={() => setCreatedCredentials(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-lg">🎉 Student Created Successfully!</DialogTitle>
+              <DialogTitle className="text-lg flex items-center gap-2">
+                <Key className="h-5 w-5 text-green-600" />
+                Student Created Successfully!
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
@@ -704,6 +680,10 @@ export default function StudentManagement() {
                   Auto-Generated Login Credentials:
                 </p>
                 <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Admission Number:</p>
+                    <p className="font-mono text-sm font-bold">{createdCredentials?.username}</p>
+                  </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Username:</p>
                     <p className="font-mono text-sm font-bold">{createdCredentials?.username}</p>
@@ -720,17 +700,20 @@ export default function StudentManagement() {
               </div>
               
               <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
-                <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                  ⚠️ <strong>Important:</strong> Save these credentials! The password will not be shown again. 
-                  The student must change their password on first login.
-                </p>
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-700 dark:text-yellow-300 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                    <strong>Important:</strong> Save these credentials! The password will not be shown again. 
+                    The student must change their password on first login.
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">
                 <Button
                   onClick={() => {
                     // Copy credentials to clipboard
-                    const text = `Username: ${createdCredentials?.username}\nPassword: ${createdCredentials?.password}\nEmail: ${createdCredentials?.email}`;
+                    const text = `Admission Number: ${createdCredentials?.username}\nUsername: ${createdCredentials?.username}\nPassword: ${createdCredentials?.password}\nEmail: ${createdCredentials?.email}`;
                     navigator.clipboard.writeText(text);
                     toast({
                       title: "Copied!",
@@ -738,8 +721,10 @@ export default function StudentManagement() {
                     });
                   }}
                   variant="outline"
+                  className="flex items-center gap-2"
                 >
-                  📋 Copy Credentials
+                  <FileText className="h-4 w-4" />
+                  Copy Credentials
                 </Button>
                 <Button onClick={() => setCreatedCredentials(null)}>
                   Done
