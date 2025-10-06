@@ -48,7 +48,7 @@ export function generateUsername(
 ): string {
   const roleCode = ROLE_CODES[roleId as keyof typeof ROLE_CODES] || 'USR';
   const paddedNumber = String(number).padStart(3, '0');
-
+  
   if (optional) {
     return `THS-${roleCode}-${year}-${optional}-${paddedNumber}`;
   }
@@ -69,46 +69,6 @@ export function generatePassword(year: string): string {
   return `THS@${year}#${randomPart}`;
 }
 
-// Generate THS-style usernames for different roles
-export function generateUsername(roleId: number, currentYear: string, firstName: string, nextNumber: number): string {
-  const rolePrefix = {
-    1: 'ADM',  // Admin
-    2: 'TCH',  // Teacher
-    3: 'STU',  // Student
-    4: 'PAR',  // Parent
-  }[roleId] || 'USR';
-
-  // Format: THS-{ROLE}-{YEAR}-{NUMBER}
-  // Example: THS-STU-2024-001
-  return `THS-${rolePrefix}-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
-}
-
-// Generate secure random password
-export function generatePassword(currentYear: string): string {
-  // Format: THS@{YEAR}#{RANDOM}
-  // Example: THS@2024#A7B3
-  const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
-  return `THS@${currentYear}#${randomHex}`;
-}
-
-// Generate student-specific username with class code
-export function generateStudentUsername(className: string, currentYear: string, nextNumber: number): string {
-  // Extract class code from class name (e.g., "JSS 1" -> "JSS1", "Primary 3" -> "PRI3")
-  const classCode = className.replace(/\s+/g, '').toUpperCase().slice(0, 4);
-
-  // Format: THS-STU-{YEAR}-{CLASSCODE}-{NUMBER}
-  // Example: THS-STU-2025-JSS1-001
-  return `THS-STU-${currentYear}-${classCode}-${nextNumber.toString().padStart(3, '0')}`;
-}
-
-// Generate student password with year
-export function generateStudentPassword(currentYear: string): string {
-  // Format: THS@{YEAR}#{RANDOM}
-  // Example: THS@2025#A7B3
-  const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
-  return `THS@${currentYear}#${randomHex}`;
-}
-
 /**
  * Parse a THS username to extract components
  * @param username - THS username to parse
@@ -122,11 +82,11 @@ export function parseUsername(username: string): {
   number: string;
 } | null {
   const parts = username.split('-');
-
+  
   if (parts.length < 4 || parts[0] !== 'THS') {
     return null;
   }
-
+  
   if (parts.length === 4) {
     // Format: THS-ROLE-YEAR-NUMBER
     return {
@@ -145,7 +105,7 @@ export function parseUsername(username: string): {
       number: parts[4],
     };
   }
-
+  
   return null;
 }
 
@@ -167,7 +127,7 @@ export function getNextUserNumber(
   const prefix = optional 
     ? `THS-${roleCode}-${year}-${optional}-`
     : `THS-${roleCode}-${year}-`;
-
+  
   const numbers = existingUsernames
     .filter(username => username.startsWith(prefix))
     .map(username => {
@@ -176,11 +136,11 @@ export function getNextUserNumber(
       return parseInt(numStr, 10);
     })
     .filter(num => !isNaN(num));
-
+  
   if (numbers.length === 0) {
     return 1;
   }
-
+  
   return Math.max(...numbers) + 1;
 }
 
@@ -193,20 +153,20 @@ export function getNextUserNumber(
 export function isValidThsUsername(username: string): boolean {
   const parsed = parseUsername(username);
   if (!parsed) return false;
-
+  
   // Validate role code
   const validRoleCodes = ['ADM', 'TCH', 'STU', 'PAR'];
   if (!validRoleCodes.includes(parsed.roleCode)) return false;
-
+  
   // Validate year format (4 digits)
   if (!/^\d{4}$/.test(parsed.year)) return false;
-
+  
   // Validate number suffix (3 digits)
   if (!/^\d{3}$/.test(parsed.number)) return false;
-
+  
   // If optional field exists, validate it (3-4 alphanumeric chars)
   if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
-
+  
   return true;
 }
 
