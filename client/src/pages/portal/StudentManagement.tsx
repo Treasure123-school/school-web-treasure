@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
-import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff } from 'lucide-react';
+import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 
@@ -33,6 +33,9 @@ export default function StudentManagement() {
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [uploadedStudents, setUploadedStudents] = useState<any[]>([]);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<StudentForm>({
     resolver: zodResolver(createStudentSchema),
@@ -216,6 +219,97 @@ export default function StudentManagement() {
     },
   });
 
+  // CSV Upload mutation
+  const csvUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/students/bulk-upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload students');
+      }
+
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Upload Successful',
+        description: `Created ${data.students?.length || 0} students successfully`,
+      });
+      setUploadedStudents(data.students || []);
+      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Upload Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Generate login slips mutation
+  const generateLoginSlipsMutation = useMutation({
+    mutationFn: async ({ studentIds, passwords }: { studentIds: string[], passwords?: Record<string, string> }) => {
+      const studentsForSlips = enrichedStudents
+        .filter((s: any) => studentIds.includes(s.id))
+        .map((s: any) => ({
+          firstName: s.user?.firstName || '',
+          lastName: s.user?.lastName || '',
+          roleId: 3,
+          username: s.user?.username || '',
+          password: passwords?.[s.id] || 'Contact Admin',
+        }));
+
+      const response = await fetch('/api/users/generate-login-slips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ users: studentsForSlips }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate login slips');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `THS-Login-Slips-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Login Slips Generated',
+        description: 'PDF downloaded successfully',
+      });
+      setSelectedStudents([]);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to generate login slips',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const onEditSubmit = (data: Partial<StudentForm>) => {
     if (editingStudent) {
       updateStudentMutation.mutate({ id: editingStudent.id, data });
@@ -250,6 +344,50 @@ export default function StudentManagement() {
 
   const handleDeleteStudent = (studentId: string) => {
     deleteStudentMutation.mutate(studentId);
+  };
+
+  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith('.csv')) {
+        toast({
+          title: 'Invalid File',
+          description: 'Please upload a CSV file',
+          variant: 'destructive',
+        });
+        return;
+      }
+      csvUploadMutation.mutate(file);
+      event.target.value = '';
+    }
+  };
+
+  const handleSelectStudent = (studentId: string) => {
+    setSelectedStudents(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedStudents.length === filteredStudents.length) {
+      setSelectedStudents([]);
+    } else {
+      setSelectedStudents(filteredStudents.map((s: any) => s.id));
+    }
+  };
+
+  const handleGenerateLoginSlips = () => {
+    if (selectedStudents.length === 0) {
+      toast({
+        title: 'No Students Selected',
+        description: 'Please select at least one student',
+        variant: 'destructive',
+      });
+      return;
+    }
+    generateLoginSlipsMutation.mutate({ studentIds: selectedStudents });
   };
 
   // Get student details with user info
@@ -291,7 +429,7 @@ export default function StudentManagement() {
             <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Manage student enrollment and information</p>
           </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-wrap">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full sm:w-auto" data-testid="button-add-student">
@@ -507,6 +645,99 @@ export default function StudentManagement() {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+          <div className="relative w-full sm:w-auto">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleCSVUpload}
+              className="hidden"
+              id="csv-upload"
+              data-testid="input-csv-upload"
+            />
+            <Button
+              onClick={() => document.getElementById('csv-upload')?.click()}
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={csvUploadMutation.isPending}
+              data-testid="button-bulk-upload"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {csvUploadMutation.isPending ? 'Uploading...' : 'Bulk Upload CSV'}
+            </Button>
+          </div>
+
+          <Button
+            onClick={handleGenerateLoginSlips}
+            variant="secondary"
+            className="w-full sm:w-auto"
+            disabled={selectedStudents.length === 0 || generateLoginSlipsMutation.isPending}
+            data-testid="button-generate-slips"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {generateLoginSlipsMutation.isPending ? 'Generating...' : `Generate Login Slips (${selectedStudents.length})`}
+          </Button>
+        </div>
+
+        {/* Upload Results Dialog */}
+        <Dialog open={uploadedStudents.length > 0} onOpenChange={() => setUploadedStudents([])}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Upload Results</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Successfully created {uploadedStudents.length} student(s)
+              </p>
+              <div className="max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Password</TableHead>
+                      <TableHead>Class</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {uploadedStudents.map((student: any) => (
+                      <TableRow key={student.username}>
+                        <TableCell>{student.firstName} {student.lastName}</TableCell>
+                        <TableCell className="font-mono text-sm">{student.username}</TableCell>
+                        <TableCell className="font-mono text-sm">{student.password}</TableCell>
+                        <TableCell>{student.class || 'N/A'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => {
+                    const studentIds = uploadedStudents.map((s: any) => s.id).filter(Boolean);
+                    const passwords: Record<string, string> = {};
+                    uploadedStudents.forEach((s: any) => {
+                      if (s.id && s.password) {
+                        passwords[s.id] = s.password;
+                      }
+                    });
+                    if (studentIds.length > 0) {
+                      generateLoginSlipsMutation.mutate({ studentIds, passwords });
+                      setUploadedStudents([]);
+                    }
+                  }}
+                  data-testid="button-generate-uploaded-slips"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generate Login Slips
+                </Button>
+                <Button variant="outline" onClick={() => setUploadedStudents([])}>
+                  Close
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -912,6 +1143,15 @@ export default function StudentManagement() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4"
+                          data-testid="checkbox-select-all"
+                        />
+                      </TableHead>
                       <TableHead className="text-xs lg:text-sm">Admission Number</TableHead>
                       <TableHead className="text-xs lg:text-sm">Name</TableHead>
                       <TableHead className="text-xs lg:text-sm">Class</TableHead>
@@ -924,6 +1164,15 @@ export default function StudentManagement() {
                   <TableBody>
                     {filteredStudents.map((student: any) => (
                       <TableRow key={student.id} data-testid={`row-student-${student.id}`}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedStudents.includes(student.id)}
+                            onChange={() => handleSelectStudent(student.id)}
+                            className="h-4 w-4"
+                            data-testid={`checkbox-student-${student.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium text-xs lg:text-sm">
                           {student.admissionNumber}
                         </TableCell>
@@ -947,9 +1196,19 @@ export default function StudentManagement() {
                         </TableCell>
                         <TableCell className="text-xs lg:text-sm">{student.emergencyContact}</TableCell>
                         <TableCell>
-                          <Badge variant={student.user?.isActive ? "default" : "secondary"} className="text-xs">
-                            {student.user?.isActive ? "Active" : "Inactive"}
-                          </Badge>
+                          {!student.user?.isActive ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Inactive
+                            </Badge>
+                          ) : student.user?.mustChangePassword && !student.user?.lastLoginAt ? (
+                            <Badge variant="outline" className="text-xs border-orange-500 text-orange-700 dark:text-orange-300">
+                              ⏳ Pending Login
+                            </Badge>
+                          ) : (
+                            <Badge variant="default" className="text-xs bg-green-600">
+                              ✅ Active
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-1">

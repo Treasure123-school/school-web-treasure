@@ -3684,6 +3684,158 @@ Treasure-Home School Administration
     }
   });
 
+  // Bulk upload students from CSV
+  app.post("/api/students/bulk-upload", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const fileContent = await fs.readFile(req.file.path, 'utf-8');
+      const lines = fileContent.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        await fs.unlink(req.file.path);
+        return res.status(400).json({ message: "CSV file is empty or invalid" });
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const createdStudents: any[] = [];
+      const errors: string[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        try {
+          const values = lines[i].split(',').map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+
+          const firstName = row['first name'] || row['firstname'];
+          const lastName = row['last name'] || row['lastname'];
+          const className = row['class'];
+          const gender = row['gender'];
+          const dateOfBirth = row['date of birth'] || row['dob'];
+          const parentEmail = row['parent email'] || row['parentemail'];
+          const parentPhone = row['parent phone'] || row['parentphone'];
+
+          if (!firstName || !lastName || !className) {
+            errors.push(`Row ${i + 1}: Missing required fields (first name, last name, or class)`);
+            continue;
+          }
+
+          const classInfo = await storage.getClasses();
+          const matchingClass = classInfo.find((c: any) => 
+            c.name.toLowerCase() === className.toLowerCase()
+          );
+
+          if (!matchingClass) {
+            errors.push(`Row ${i + 1}: Class "${className}" not found`);
+            continue;
+          }
+
+          const classCode = matchingClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
+          const currentYear = new Date().getFullYear().toString();
+          const nextNumber = await getNextUserNumber(ROLES.STUDENT, currentYear, classCode);
+          const username = generateUsername(ROLES.STUDENT, currentYear, classCode, nextNumber);
+          const password = generatePassword(currentYear);
+          const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+          let parentId = undefined;
+          if (parentEmail) {
+            let parentUser = await storage.getUserByEmail(parentEmail);
+            if (!parentUser) {
+              const parentUsername = `THS-PAR-${currentYear}-${String(nextNumber).padStart(3, '0')}`;
+              const parentPasswordHash = await bcrypt.hash(generatePassword(currentYear), BCRYPT_ROUNDS);
+              
+              parentUser = await storage.createUser({
+                username: parentUsername,
+                email: parentEmail,
+                passwordHash: parentPasswordHash,
+                mustChangePassword: true,
+                roleId: ROLES.PARENT,
+                firstName: firstName,
+                lastName: `(Parent)`,
+                phone: parentPhone || null,
+                isActive: true,
+                status: 'active' as const,
+                createdVia: 'bulk' as const,
+                createdBy: req.user?.id,
+              });
+
+              await storage.createParentProfile({ userId: parentUser.id });
+            }
+            parentId = parentUser.id;
+          }
+
+          const userData = {
+            username,
+            email: `${username.toLowerCase()}@ths.edu.ng`,
+            passwordHash,
+            mustChangePassword: true,
+            firstName,
+            lastName,
+            phone: null,
+            address: null,
+            dateOfBirth: dateOfBirth || null,
+            gender: (gender?.toLowerCase() === 'male' || gender?.toLowerCase() === 'female' || gender?.toLowerCase() === 'other') ? gender as any : null,
+            profileImageUrl: null,
+            roleId: ROLES.STUDENT,
+            isActive: true,
+            status: 'active' as const,
+            createdVia: 'bulk' as const,
+            createdBy: req.user?.id,
+          };
+
+          const user = await storage.createUser(userData);
+
+          const studentData = {
+            id: user.id,
+            admissionNumber: `THS/${currentYear}/${String(nextNumber).padStart(3, '0')}`,
+            classId: matchingClass.id,
+            parentId,
+            admissionDate: new Date().toISOString().split('T')[0],
+            emergencyContact: parentPhone || null,
+            medicalInfo: null,
+            guardianName: parentId ? `${firstName} (Parent)` : null,
+          };
+
+          await storage.createStudent(studentData);
+
+          createdStudents.push({
+            id: user.id,
+            firstName,
+            lastName,
+            username,
+            password,
+            class: matchingClass.name,
+            parentEmail: parentEmail || null,
+          });
+
+        } catch (error) {
+          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      await fs.unlink(req.file.path);
+
+      res.json({
+        message: `Successfully created ${createdStudents.length} students`,
+        students: createdStudents,
+        errors: errors.length > 0 ? errors : undefined
+      });
+
+    } catch (error) {
+      console.error('CSV upload error:', error);
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch {}
+      }
+      res.status(500).json({ message: "Failed to process CSV file" });
+    }
+  });
+
   // Update student (PATCH)
   app.patch("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
