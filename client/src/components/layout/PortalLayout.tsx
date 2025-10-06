@@ -138,7 +138,14 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   };
 
   const navigation = getNavigation();
-  const isActive = (path: string) => location === path || location.startsWith(path + '/');
+  const isActive = (path: string) => {
+    // Exact match for the main dashboard
+    if (path === `/portal/${userRole}`) {
+      return location === path;
+    }
+    // For other paths, check if current location starts with the path
+    return location === path || location.startsWith(path + '/');
+  };
 
   const getRoleTitle = () => {
     switch (userRole) {
