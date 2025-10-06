@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, XCircle, Clock, Mail, User, Filter, Search, CheckSquare, UserCheck, Calendar, Shield } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Mail, User, Filter, Search, CheckSquare, UserCheck, Calendar, Shield, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
@@ -364,8 +364,9 @@ export default function PendingApprovals() {
         {/* Pending Users List */}
         <Card data-testid="card-pending-users">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <Clock className="w-6 h-6 text-blue-600" />
+              <Lock className="w-5 h-5 text-amber-600" />
               Awaiting Approval
             </CardTitle>
             <CardDescription>
@@ -469,8 +470,9 @@ export default function PendingApprovals() {
                             className="text-xs"
                             data-testid={`badge-signup-method-${pendingUser.id}`}
                           >
-                            {pendingUser.googleId ? '🔐 Google' : 
-                             pendingUser.createdVia === 'invite' ? '📧 Invite' : '📝 Direct'}
+                            <Lock className="h-3 w-3 mr-1" />
+                            {pendingUser.googleId ? 'Google' : 
+                             pendingUser.createdVia === 'invite' ? 'Via Invite' : 'Direct Signup'}
                           </Badge>
                         </div>
                       </div>
