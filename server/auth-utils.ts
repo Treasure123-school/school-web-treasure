@@ -1,7 +1,10 @@
+
 /**
  * THS Authentication Utilities
  * Username and password generation following THS branding standards
  */
+
+const crypto = require('crypto');
 
 // Username format: THS-<ROLE>-<YEAR>-<OPTIONAL>-<NUMBER>
 // Examples:
@@ -22,7 +25,6 @@ const ROLE_CODES = {
  * Uses crypto.randomBytes for security
  */
 function generateRandomString(length: number): string {
-  const crypto = require('crypto');
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*';
   const bytes = crypto.randomBytes(length);
   let result = '';
@@ -69,29 +71,9 @@ export function generatePassword(year: string): string {
   return `THS@${year}#${randomPart}`;
 }
 
-// Generate THS-style usernames for different roles
-export function generateUsername(roleId: number, currentYear: string, firstName: string, nextNumber: number): string {
-  const rolePrefix = {
-    1: 'ADM',  // Admin
-    2: 'TCH',  // Teacher
-    3: 'STU',  // Student
-    4: 'PAR',  // Parent
-  }[roleId] || 'USR';
-
-  // Format: THS-{ROLE}-{YEAR}-{NUMBER}
-  // Example: THS-STU-2024-001
-  return `THS-${rolePrefix}-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
-}
-
-// Generate secure random password
-export function generatePassword(currentYear: string): string {
-  // Format: THS@{YEAR}#{RANDOM}
-  // Example: THS@2024#A7B3
-  const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
-  return `THS@${currentYear}#${randomHex}`;
-}
-
-// Generate student-specific username with class code
+/**
+ * Generate student-specific username with class code
+ */
 export function generateStudentUsername(className: string, currentYear: string, nextNumber: number): string {
   // Extract class code from class name (e.g., "JSS 1" -> "JSS1", "Primary 3" -> "PRI3")
   const classCode = className.replace(/\s+/g, '').toUpperCase().slice(0, 4);
@@ -101,7 +83,9 @@ export function generateStudentUsername(className: string, currentYear: string, 
   return `THS-STU-${currentYear}-${classCode}-${nextNumber.toString().padStart(3, '0')}`;
 }
 
-// Generate student password with year
+/**
+ * Generate student password with year
+ */
 export function generateStudentPassword(currentYear: string): string {
   // Format: THS@{YEAR}#{RANDOM}
   // Example: THS@2025#A7B3

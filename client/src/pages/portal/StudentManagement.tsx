@@ -692,10 +692,7 @@ export default function StudentManagement() {
                     <p className="text-xs text-muted-foreground">Password:</p>
                     <p className="font-mono text-sm font-bold">{createdCredentials?.password}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email:</p>
-                    <p className="font-mono text-sm">{createdCredentials?.email}</p>
-                  </div>
+                  
                 </div>
               </div>
               

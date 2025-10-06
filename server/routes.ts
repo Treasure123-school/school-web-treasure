@@ -3503,26 +3503,16 @@ Treasure-Home School Administration
       const existingUsernames = existingStudents.map(s => s.admissionNumber).filter(Boolean);
       const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear);
 
-      // Generate username and password
+      // Generate username and password only
       const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
       const generatedPassword = generateStudentPassword(currentYear);
-
-      // ALWAYS auto-generate email (never accept from request)
-      const studentEmail = `${generatedUsername.toLowerCase()}@treasure-home.edu`;
-
-      // Check if auto-generated email exists (should never happen with sequential numbering)
-      const existingUser = await storage.getUserByEmail(studentEmail);
-      if (existingUser) {
-        console.error(`CRITICAL: Auto-generated email ${studentEmail} already exists!`);
-        return res.status(409).json({ message: "System error: Generated email already exists. Please contact administrator." });
-      }
 
       // Hash the generated password
       const passwordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
 
       // Create user account with auto-generated credentials
       const userData: InsertUser = {
-        email: studentEmail,
+        email: `${generatedUsername.toLowerCase()}@student.local`, // Use local domain placeholder
         username: generatedUsername,
         passwordHash,
         firstName: validatedData.firstName,
@@ -3574,7 +3564,6 @@ Treasure-Home School Administration
           credentials: {
             username: generatedUsername,
             password: generatedPassword, // Return plaintext password for admin to share with student
-            email: studentEmail,
           }
         });
 
