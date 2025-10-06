@@ -613,8 +613,137 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
-    return result.length > 0;
+    try {
+      // CASCADE DELETE: Delete all related records in the correct order
+      // to respect foreign key constraints
+      
+      // 1. Delete student-related records if this is a student
+      const student = await this.db.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
+      if (student.length > 0) {
+        // Get all exam sessions for this student
+        const sessions = await this.db.select().from(schema.examSessions).where(eq(schema.examSessions.studentId, id));
+        const sessionIds = sessions.map(s => s.id);
+        
+        // Delete student answers (references exam sessions)
+        if (sessionIds.length > 0) {
+          for (const sessionId of sessionIds) {
+            await this.db.delete(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, sessionId));
+          }
+        }
+        
+        // Delete exam sessions
+        await this.db.delete(schema.examSessions).where(eq(schema.examSessions.studentId, id));
+        
+        // Delete exam results
+        await this.db.delete(schema.examResults).where(eq(schema.examResults.studentId, id));
+        
+        // Delete attendance records
+        await this.db.delete(schema.attendance).where(eq(schema.attendance.studentId, id));
+        
+        // Delete report card items (via report cards)
+        const reportCards = await this.db.select().from(schema.reportCards).where(eq(schema.reportCards.studentId, id));
+        for (const rc of reportCards) {
+          await this.db.delete(schema.reportCardItems).where(eq(schema.reportCardItems.reportCardId, rc.id));
+        }
+        
+        // Delete report cards
+        await this.db.delete(schema.reportCards).where(eq(schema.reportCards.studentId, id));
+        
+        // Delete student record
+        await this.db.delete(schema.students).where(eq(schema.students.id, id));
+      }
+      
+      // 2. Delete teacher-related records
+      await this.db.delete(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, id));
+      
+      // 3. Delete admin-related records
+      await this.db.delete(schema.adminProfiles).where(eq(schema.adminProfiles.userId, id));
+      
+      // 4. Delete parent-related records
+      await this.db.delete(schema.parentProfiles).where(eq(schema.parentProfiles.userId, id));
+      
+      // 5. Delete records where user is author/creator
+      await this.db.delete(schema.announcements).where(eq(schema.announcements.authorId, id));
+      
+      // 6. Delete messages (both sent and received)
+      await this.db.delete(schema.messages).where(eq(schema.messages.senderId, id));
+      await this.db.delete(schema.messages).where(eq(schema.messages.recipientId, id));
+      
+      // 7. Delete gallery uploads
+      await this.db.delete(schema.gallery).where(eq(schema.gallery.uploadedBy, id));
+      
+      // 8. Set home page content uploaded_by to NULL (preserve content)
+      await this.db.update(schema.homePageContent)
+        .set({ uploadedBy: null })
+        .where(eq(schema.homePageContent.uploadedBy, id));
+      
+      // 9. Set contact messages responded_by to NULL (preserve messages)
+      await this.db.update(schema.contactMessages)
+        .set({ respondedBy: null })
+        .where(eq(schema.contactMessages.respondedBy, id));
+      
+      // 10. Delete audit logs
+      await this.db.delete(schema.auditLogs).where(eq(schema.auditLogs.userId, id));
+      
+      // 11. Delete invites (created_by or accepted_by)
+      await this.db.delete(schema.invites).where(eq(schema.invites.createdBy, id));
+      await this.db.delete(schema.invites).where(eq(schema.invites.acceptedBy, id));
+      
+      // 12. Delete notifications
+      await this.db.delete(schema.notifications).where(eq(schema.notifications.userId, id));
+      
+      // 13. Delete password reset tokens
+      await this.db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.userId, id));
+      await this.db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.resetBy, id));
+      
+      // 14. Update classes (set class_teacher_id to NULL to preserve classes)
+      await this.db.update(schema.classes)
+        .set({ classTeacherId: null })
+        .where(eq(schema.classes.classTeacherId, id));
+      
+      // 15. Handle exams created by this user
+      const userExams = await this.db.select().from(schema.exams).where(eq(schema.exams.createdBy, id));
+      for (const exam of userExams) {
+        // Delete exam questions and their options
+        const questions = await this.db.select().from(schema.examQuestions).where(eq(schema.examQuestions.examId, exam.id));
+        for (const question of questions) {
+          await this.db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, question.id));
+        }
+        await this.db.delete(schema.examQuestions).where(eq(schema.examQuestions.examId, exam.id));
+        
+        // Delete exam results for this exam
+        await this.db.delete(schema.examResults).where(eq(schema.examResults.examId, exam.id));
+        
+        // Delete exam sessions for this exam
+        const examSessions = await this.db.select().from(schema.examSessions).where(eq(schema.examSessions.examId, exam.id));
+        for (const session of examSessions) {
+          await this.db.delete(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, session.id));
+        }
+        await this.db.delete(schema.examSessions).where(eq(schema.examSessions.examId, exam.id));
+        
+        // Finally delete the exam
+        await this.db.delete(schema.exams).where(eq(schema.exams.id, exam.id));
+      }
+      
+      // Also handle exams where user is teacher in charge
+      await this.db.update(schema.exams)
+        .set({ teacherInChargeId: null })
+        .where(eq(schema.exams.teacherInChargeId, id));
+      
+      // Handle exam results recorded by this user (set to NULL to preserve records)
+      await this.db.update(schema.examResults)
+        .set({ recordedBy: null as any })
+        .where(eq(schema.examResults.recordedBy, id));
+      
+      // 16. Finally, delete the user
+      const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
+      
+      console.log(`✅ Successfully deleted user ${id} and all related records`);
+      return result.length > 0;
+    } catch (error) {
+      console.error(`❌ Error deleting user ${id}:`, error);
+      throw error;
+    }
   }
 
   async getUsersByRole(roleId: number): Promise<User[]> {

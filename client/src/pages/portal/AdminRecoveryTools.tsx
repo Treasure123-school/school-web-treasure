@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Shield, Key, Mail, AlertCircle, CheckCircle, UserCog } from 'lucide-react';
+import { Shield, Key, Mail, AlertCircle, CheckCircle, UserCog, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function AdminRecoveryTools() {
   const { user } = useAuth();
@@ -107,6 +108,35 @@ export default function AdminRecoveryTools() {
       return;
     }
     updateRecoveryEmailMutation.mutate({ userId: recoveryUserId, recoveryEmail });
+  };
+
+  // Delete demo accounts mutation
+  const deleteDemoAccountsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/admin/delete-demo-accounts', {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: '✅ Demo Accounts Deleted',
+        description: `Successfully deleted ${data.deletedUsers?.length || 0} demo accounts`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: '❌ Deletion Failed',
+        description: error.message || 'Failed to delete demo accounts',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleDeleteDemoAccounts = () => {
+    if (window.confirm('Are you sure you want to delete all demo accounts (admin@demo.com, teacher@demo.com, admin@treasure.com)? This action cannot be undone and will remove all their data.')) {
+      deleteDemoAccountsMutation.mutate();
+    }
   };
 
   return (
@@ -245,6 +275,42 @@ export default function AdminRecoveryTools() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Delete Demo Accounts Tool */}
+        <Card className="border-2 border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-900 dark:text-orange-200">
+              <Trash2 className="h-5 w-5 text-orange-600" />
+              Delete Demo Accounts
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  This will permanently delete the following demo accounts and all their associated data:
+                </p>
+                <ul className="text-sm text-orange-700 dark:text-orange-300 ml-4 mt-2 list-disc">
+                  <li>admin@demo.com</li>
+                  <li>teacher@demo.com</li>
+                  <li>admin@treasure.com</li>
+                </ul>
+                <p className="text-sm text-orange-700 dark:text-orange-300 mt-2">
+                  <strong>Warning:</strong> This action cannot be undone. All exams, announcements, and related data will be removed.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handleDeleteDemoAccounts}
+              disabled={deleteDemoAccountsMutation.isPending}
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              data-testid="button-delete-demo-accounts"
+            >
+              {deleteDemoAccountsMutation.isPending ? 'Deleting...' : 'Delete Demo Accounts'}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Quick Tips */}
         <Card>

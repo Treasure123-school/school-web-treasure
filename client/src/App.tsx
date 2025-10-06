@@ -64,6 +64,7 @@ const UserManagement = lazy(() => import("@/pages/portal/UserManagement"));
 const AuditLogs = lazy(() => import("@/pages/portal/AuditLogs"));
 const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
 const ProfileCompletionMonitoring = lazy(() => import("@/pages/portal/ProfileCompletionMonitoring"));
+const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
 
 function Router() {
   return (
@@ -215,6 +216,11 @@ function Router() {
       <Route path="/portal/admin/homepage">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <HomepageManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/recovery-tools">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <AdminRecoveryTools />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/attendance">
