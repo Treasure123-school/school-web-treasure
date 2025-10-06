@@ -4,7 +4,7 @@
  * Username and password generation following THS branding standards
  */
 
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 // Username format: THS-<ROLE>-<YEAR>-<OPTIONAL>-<NUMBER>
 // Examples:
