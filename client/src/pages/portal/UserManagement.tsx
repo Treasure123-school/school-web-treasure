@@ -597,30 +597,6 @@ export default function UserManagement() {
     },
   });
 
-  // Delete demo accounts mutation
-  const deleteDemoAccountsMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/admin/delete-demo-accounts');
-    },
-    onSuccess: async (data: any) => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
-      toast({
-        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>Demo Accounts Deleted</span></div>,
-        description: data?.message || `Successfully deleted ${data?.deletedUsers?.length || 0} demo accounts.`,
-        className: "border-green-500 bg-green-50",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Deletion Failed</span></div>,
-        description: error.message || "Failed to delete demo accounts.",
-        variant: "destructive",
-        className: "border-red-500 bg-red-50",
-      });
-    },
-  });
-
   const suspendMutation = useMutation({
     mutationFn: async ({ userId, action, reason }: { userId: string; action: 'suspend' | 'unsuspend'; reason?: string }) => {
       return await apiRequest('POST', `/api/users/${userId}/${action}`, { reason });
@@ -1153,21 +1129,6 @@ export default function UserManagement() {
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <Button 
-              variant="destructive" 
-              size="sm"
-              onClick={() => {
-                if (confirm('Are you sure you want to delete demo accounts: admin@treasure.com, admin@demo.com, and teacher@demo.com? This action cannot be undone.')) {
-                  deleteDemoAccountsMutation.mutate();
-                }
-              }}
-              disabled={deleteDemoAccountsMutation.isPending}
-              data-testid="button-delete-demo-accounts"
-              className="whitespace-nowrap"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {deleteDemoAccountsMutation.isPending ? 'Deleting...' : 'Delete Demo Accounts'}
-            </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
                 <SelectValue placeholder="Filter by status" />
