@@ -3534,12 +3534,78 @@ Treasure-Home School Administration
       console.log('User created with ID:', user.id);
 
       try {
+        // 🔗 SMART AUTO-LINK SYSTEM: Handle parent account creation/linking
+        let parentId = validatedData.parentId || null;
+        let parentCredentials: { username: string; password: string } | null = null;
+        let parentCreated = false;
+
+        // Check if parent email or phone is provided and no explicit parentId
+        if ((validatedData.parentEmail || validatedData.parentPhone) && !parentId) {
+          console.log('🔍 Checking for existing parent account...');
+          
+          // Try to find existing parent by email or phone
+          let existingParent = null;
+          if (validatedData.parentEmail) {
+            existingParent = await storage.getUserByEmail(validatedData.parentEmail);
+            if (existingParent && existingParent.roleId !== ROLES.PARENT) {
+              existingParent = null; // Ignore if not a parent role
+            }
+          }
+          
+          if (!existingParent && validatedData.parentPhone) {
+            const allParents = await storage.getUsersByRole(ROLES.PARENT);
+            existingParent = allParents.find(p => p.phone === validatedData.parentPhone);
+          }
+
+          if (existingParent) {
+            // ✅ Link to existing parent
+            console.log('✅ Found existing parent, linking to student');
+            parentId = existingParent.id;
+          } else {
+            // 🆕 Auto-create new parent account
+            console.log('🆕 No existing parent found, auto-creating parent account');
+            
+            const parentUsername = generateUsername(ROLES.PARENT, currentYear, '', 
+              getNextUserNumber(await storage.getAllUsernames(), ROLES.PARENT, currentYear));
+            const parentPassword = generatePassword(currentYear);
+            const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
+            
+            const parentData: InsertUser = {
+              username: parentUsername,
+              email: validatedData.parentEmail || `${parentUsername.toLowerCase()}@parent.local`,
+              passwordHash: parentPasswordHash,
+              firstName: validatedData.guardianName?.split(' ')[0] || validatedData.firstName,
+              lastName: validatedData.guardianName?.split(' ').slice(1).join(' ') || `Parent`,
+              phone: validatedData.parentPhone || null,
+              roleId: ROLES.PARENT,
+              isActive: true,
+              mustChangePassword: true,
+              status: 'active',
+              authProvider: 'local',
+              createdVia: 'admin',
+              createdBy: req.user?.id,
+            };
+            
+            const parentUser = await storage.createUser(parentData);
+            parentId = parentUser.id;
+            parentCreated = true;
+            
+            // Store parent credentials to return
+            parentCredentials = {
+              username: parentUsername,
+              password: parentPassword,
+            };
+            
+            console.log('✅ Parent account created:', parentUsername);
+          }
+        }
+
         // Prepare student data - admission number ALWAYS auto-generated from username
         const studentData: UpdateStudentSchema = {
           id: user.id, // Use the same ID as the user
           admissionNumber: generatedUsername, // ALWAYS use generated username as admission number
           classId: validatedData.classId,
-          parentId: validatedData.parentId || null,
+          parentId: parentId,
           admissionDate: validatedData.admissionDate,
           emergencyContact: validatedData.emergencyContact,
           medicalInfo: validatedData.medicalInfo || null,
@@ -3551,8 +3617,11 @@ Treasure-Home School Administration
         const student = await storage.createStudent(studentData);
         console.log('Student created successfully with credentials');
 
-        res.json({
-          message: "Student created successfully",
+        // Build response with both student and parent credentials
+        const response: any = {
+          message: parentCreated 
+            ? "Student and Parent accounts created successfully" 
+            : "Student created successfully",
           student,
           user: {
             id: user.id,
@@ -3562,10 +3631,20 @@ Treasure-Home School Administration
             lastName: user.lastName,
           },
           credentials: {
-            username: generatedUsername,
-            password: generatedPassword, // Return plaintext password for admin to share with student
+            student: {
+              username: generatedUsername,
+              password: generatedPassword,
+            }
           }
-        });
+        };
+
+        // Add parent credentials if created
+        if (parentCreated && parentCredentials) {
+          response.credentials.parent = parentCredentials;
+          response.parentCreated = true;
+        }
+
+        res.json(response);
 
       } catch (studentError) {
         // Rollback: delete the user if student creation fails
