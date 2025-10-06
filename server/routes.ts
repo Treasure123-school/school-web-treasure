@@ -1,8 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema } from "@shared/schema";
-import * as schema from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, UpdateExamSessionSchema, UpdateUserStatusSchema, UpdateStudentSchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
@@ -10,7 +9,7 @@ import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import PDFDocument from "pdfkit";
-import { generateUsername, generatePassword, getNextUserNumber } from "./auth-utils";
+import { generateUsername, generatePassword, getNextUserNumber, generateStudentUsername, generateStudentPassword } from "./auth-utils";
 import passport from "passport";
 import session from "express-session";
 import { setupGoogleAuth } from "./google-auth";
@@ -512,7 +511,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const databaseQueryTime = Date.now() - startTime;
     console.log(`⚡ PERFORMANCE: Database query completed in ${databaseQueryTime}ms (was 3000-8000ms before)`);
 
-    const { totalQuestions, maxScore, studentScore, autoScoredQuestions } = summary;
+    const { totalQuestions, maxScore: maxPossibleScore, studentScore, autoScoredQuestions } = summary; // Renamed maxScore to maxPossibleScore
 
     // Get all student answers for theory scoring
     const studentAnswers = await storage.getStudentAnswers(sessionId);
@@ -549,10 +548,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         questionDetail.pointsEarned = q.isCorrect ? q.points : 0;
         questionDetail.isCorrect = q.isCorrect;
         questionDetail.autoScored = true;
-        questionDetail.feedback = q.isCorrect 
+        questionDetail.feedback = q.isCorrect
           ? `Correct! You earned ${q.points} point${q.points !== 1 ? 's' : ''}.`
           : `Incorrect. This question was worth ${q.points} point${q.points !== 1 ? 's' : ''}.`;
-      } 
+      }
       // Theory questions - AI-assisted scoring
       else if (q.questionType === 'text' || q.questionType === 'essay') {
         if (studentAnswer && studentAnswer.textAnswer && question) {
@@ -626,7 +625,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     // Create or update exam result - CRITICAL for instant feedback
     console.log(`🎯 Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
-    console.log(`📊 Score calculation: ${totalScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
+    console.log(`📊 Score calculation: ${totalAutoScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
 
     // ENHANCED ERROR HANDLING: Add validation before database operations
     if (!session.studentId) {
@@ -695,7 +694,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         if (!updatedResult) {
           throw new Error(`Failed to update exam result ID: ${existingResult.id} - updateExamResult returned null/undefined`);
         }
-        console.log(`✅ Updated exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
+        console.log(`✅ Updated exam result for student ${session.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
         console.log(`🎉 INSTANT FEEDBACK READY: Result updated successfully!`);
       } else {
         // Create new result
@@ -704,7 +703,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         if (!newResult || !newResult.id) {
           throw new Error('Failed to create exam result - recordExamResult returned null/undefined or missing ID');
         }
-        console.log(`✅ Created new exam result for student ${session.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${newResult.id})`);
+        console.log(`✅ Created new exam result for student ${session.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${newResult.id})`);
         console.log(`🎉 INSTANT FEEDBACK READY: New result created successfully!`);
       }
 
@@ -804,7 +803,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
     const examQuestions = await storage.getExamQuestions(session.examId);
 
     // Check if all essay questions are graded
-    const essayQuestions = examQuestions.filter((q: any) => 
+    const essayQuestions = examQuestions.filter((q: any) =>
       q.questionType === 'text' || q.questionType === 'essay'
     );
 
@@ -924,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Trigger score merge
       await mergeExamScores(answerId, storage);
 
-      res.json({ 
+      res.json({
         message: approved ? 'AI score approved' : 'Score overridden successfully',
         answer: await storage.getStudentAnswerById(answerId)
       });
@@ -1028,7 +1027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId: newUser.id,
               action: 'account_created_pending_approval',
               entityType: 'user',
-              entityId: BigInt(1),
+              entityId: BigInt(1), // Placeholder, needs proper entity ID if applicable
               newValue: JSON.stringify({ email: user.email, googleId: user.googleId, username, roleId }),
               reason: invite ? 'OAuth signup via invite' : 'OAuth signup without invite',
               ipAddress: req.ip,
@@ -1227,9 +1226,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Delete demo accounts error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
-        message: "Failed to delete demo accounts" 
+        message: "Failed to delete demo accounts"
       });
     }
   });
@@ -1309,9 +1308,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error('Password reset error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
-        message: "Failed to reset passwords" 
+        message: "Failed to reset passwords"
       });
     }
   });
@@ -1347,7 +1346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For now, let's just log what we found and return a helpful message
         if (existingRoles.length === 0) {
           console.log('No roles found in database');
-          return res.json({ 
+          return res.json({
             message: "No roles found. Database tables may need to be created first.",
             rolesCount: 0
           });
@@ -1398,7 +1397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        res.json({ 
+        res.json({
           message: "Demo setup completed",
           rolesCount: existingRoles.length,
           usersCreated: createdCount,
@@ -1407,8 +1406,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       } catch (dbError) {
         console.error('Database error:', dbError);
-        res.status(500).json({ 
-          message: "Database connection failed", 
+        res.status(500).json({
+          message: "Database connection failed",
           error: dbError instanceof Error ? dbError.message : "Unknown database error"
         });
       }
@@ -1492,7 +1491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        return res.status(429).json({ 
+        return res.status(429).json({
           message: "Account Temporarily Locked",
           description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again. If you've forgotten your password, use the 'Forgot your password?' link below.",
           statusType: "rate_limited"
@@ -1521,7 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         console.log(`Login failed: User not found for identifier ${identifier}`);
-        return res.status(401).json({ 
+        return res.status(401).json({
           message: "Invalid username or password. Please check your credentials and try again.",
           hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
         });
@@ -1535,17 +1534,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY CHECK: Block pending accounts - Message 4 & 5
       if (user.status === 'pending') {
         console.warn(`Login blocked: Account ${identifier} is pending approval`);
-        
+
         if (isStaffAccount) {
           // Message 4: Admin/Teacher Pending Approval
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Account Pending Approval",
             description: "Your Admin/Teacher account has been created and is awaiting approval by the school administrator. You will be notified via email once your account is verified. For urgent access needs, please contact the school administrator.",
             statusType: "pending_staff"
           });
         } else {
           // Message 5: Student/Parent Pending Setup
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Account Pending Setup",
             description: "Your account is being set up by the school administrator. You will receive a notification once your account is ready. Please check back soon.",
             statusType: "pending_setup"
@@ -1556,17 +1555,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY CHECK: Block suspended accounts - Message 9 & 10
       if (user.status === 'suspended') {
         console.warn(`Login blocked: Account ${identifier} is suspended`);
-        
+
         if (isStaffAccount) {
           // Message 9: Staff Account Suspended
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Account Suspended",
             description: "Access denied. Your account has been suspended by the school administrator. Please contact the school administrator to resolve this issue.",
             statusType: "suspended_staff"
           });
         } else {
           // Message 10: Student Account Suspended
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Account Suspended",
             description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
             statusType: "suspended_student"
@@ -1577,7 +1576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY CHECK: Block disabled accounts - Message 11
       if (user.status === 'disabled') {
         console.warn(`Login blocked: Account ${identifier} is disabled`);
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: "Account Disabled",
           description: "Your account has been disabled and is no longer active. Please contact the school administrator if you believe this is an error.",
           statusType: "disabled"
@@ -1587,7 +1586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login - Message 8
       if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
         console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
-        return res.status(401).json({ 
+        return res.status(401).json({
           message: "Google Sign-In Required",
           description: "Admins and Teachers must sign in using their authorized Google account. Please click the 'Sign in with Google' button below to access your account.",
           statusType: "google_required"
@@ -1598,14 +1597,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user.passwordHash) {
         // If user is admin/teacher without password but with Google, direct them to Google login
         if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
-          return res.status(401).json({ 
+          return res.status(401).json({
             message: "Google Sign-In Required",
             description: "Please use Google Sign-In for admin/teacher accounts.",
             statusType: "google_required"
           });
         }
         console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
-        return res.status(401).json({ 
+        return res.status(401).json({
           message: "Account Setup Incomplete",
           description: "Your account setup is incomplete. Please contact the school administrator for assistance.",
           statusType: "setup_incomplete"
@@ -1616,7 +1615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for identifier ${identifier}`);
-        return res.status(401).json({ 
+        return res.status(401).json({
           message: "Invalid Credentials",
           description: "Invalid username or password. Please check your credentials and try again. Make sure CAPS LOCK is off and you're using the correct username and password.",
           statusType: "invalid_credentials"
@@ -1641,17 +1640,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Login successful for ${identifier} with roleId: ${user.roleId}`);
 
-      res.json({ 
+      res.json({
         token,
-        user: { 
-          id: user.id, 
+        user: {
+          id: user.id,
           username: user.username,
-          email: user.email, 
-          firstName: user.firstName, 
+          email: user.email,
+          firstName: user.firstName,
           lastName: user.lastName,
           roleId: user.roleId,
           mustChangePassword: user.mustChangePassword || false
-        } 
+        }
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -1741,8 +1740,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        return res.status(429).json({ 
-          message: "Too many password reset attempts. Please try again later." 
+        return res.status(429).json({
+          message: "Too many password reset attempts. Please try again later."
         });
       }
 
@@ -1757,16 +1756,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Don't reveal if user exists or not (security best practice)
       if (!user) {
-        return res.json({ 
-          message: "If an account exists with that email/username, a password reset link will be sent." 
+        return res.json({
+          message: "If an account exists with that email/username, a password reset link will be sent."
         });
       }
 
       // Check if account is locked
       const isLocked = await storage.isAccountLocked(user.id);
       if (isLocked) {
-        return res.status(423).json({ 
-          message: "Your account is temporarily locked. Please contact the administrator or try again later." 
+        return res.status(423).json({
+          message: "Your account is temporarily locked. Please contact the administrator or try again later."
         });
       }
 
@@ -1811,8 +1810,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!emailSent && process.env.NODE_ENV === 'production') {
         log(`❌ Failed to send password reset email to ${recoveryEmail}`);
-        return res.status(500).json({ 
-          message: "Failed to send password reset email. Please try again later or contact administrator." 
+        return res.status(500).json({
+          message: "Failed to send password reset email. Please try again later or contact administrator."
         });
       }
 
@@ -1821,7 +1820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         log(`📧 DEV MODE - Password Reset Token: ${resetToken}`);
         log(`📧 DEV MODE - Reset Link: ${resetLink}`);
 
-        return res.json({ 
+        return res.json({
           message: "Password reset code generated (Development Mode).",
           developmentMode: true,
           resetToken: resetToken, // The actual code
@@ -1834,8 +1833,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
 
-      res.json({ 
-        message: "If an account exists with that email/username, a password reset link will be sent." 
+      res.json({
+        message: "If an account exists with that email/username, a password reset link will be sent."
       });
     } catch (error) {
       console.error('Forgot password error:', error);
@@ -1920,8 +1919,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Reset password error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Password must be at least 8 characters with uppercase, lowercase, number, and special character" 
+        return res.status(400).json({
+          message: "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
         });
       }
       res.status(500).json({ message: "Failed to reset password" });
@@ -1994,7 +1993,7 @@ Treasure-Home School Administration
 
       log(`✅ Admin ${req.user?.email} reset password for user ${userId}`);
 
-      res.json({ 
+      res.json({
         message: "Password reset successfully",
         tempPassword: password,
         username: user.username || user.email,
@@ -2028,7 +2027,7 @@ Treasure-Home School Administration
 
       console.log(`✅ Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
 
-      res.json({ 
+      res.json({
         message: "Recovery email updated successfully",
         oldEmail: user.recoveryEmail || user.email,
         newEmail: recoveryEmail
@@ -2075,7 +2074,7 @@ Treasure-Home School Administration
         userId: req.user!.id,
         action: 'recovery_email_updated',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, recoveryEmail: user.recoveryEmail }),
         newValue: JSON.stringify({ userId: user.id, recoveryEmail }),
         reason: `User ${req.user!.email} updated recovery email`,
@@ -2095,8 +2094,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error updating recovery email:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid request data", 
+        return res.status(400).json({
+          message: "Invalid request data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -2138,7 +2137,7 @@ Treasure-Home School Administration
 
       log(`✅ Admin ${req.user?.email} unlocked account for user ${userId}`);
 
-      res.json({ 
+      res.json({
         message: "Account unlocked successfully",
         username: user.username || user.email
       });
@@ -2187,9 +2186,9 @@ Treasure-Home School Administration
 
       // Unlock account by changing status to active
       const updatedUser = await storage.updateUserStatus(
-        userId, 
-        'active', 
-        req.user!.id, 
+        userId,
+        'active',
+        req.user!.id,
         reason || `Account unlocked by admin ${req.user!.email}`
       );
 
@@ -2282,7 +2281,7 @@ Treasure-Home School Administration
         });
       }
 
-      res.json({ 
+      res.json({
         message: "Invite sent successfully",
         invite: {
           id: invite.id,
@@ -2458,9 +2457,9 @@ Treasure-Home School Administration
       const savedMessage = await storage.createContactMessage(contactMessageData);
       console.log("✅ Contact form saved to database:", { id: savedMessage.id, email: data.email });
 
-      res.json({ 
+      res.json({
         message: "Message sent successfully! We'll get back to you soon.",
-        id: savedMessage.id 
+        id: savedMessage.id
       });
     } catch (error) {
       console.error("❌ Contact form error:", error);
@@ -2564,7 +2563,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_approved',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: 'pending' }),
         newValue: JSON.stringify({ userId: user.id, status: 'active' }),
         reason: `Admin ${adminUser.email} approved user ${user.email}`,
@@ -2611,7 +2610,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_verified',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'active' }),
         reason: `Admin ${adminUser.email} verified user ${user.email}`,
@@ -2658,7 +2657,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_unverified',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'pending' }),
         reason: `Admin ${adminUser.email} unverified user ${user.email}`,
@@ -2706,7 +2705,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_suspended',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'suspended' }),
         reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
@@ -2753,7 +2752,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_unsuspended',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'active' }),
         reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
@@ -2807,7 +2806,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_status_changed',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status }),
         reason: reason || `Admin ${adminUser.email} changed status of user ${user.email || user.username}`,
@@ -2861,10 +2860,10 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_deleted',
         entityType: 'user',
-        entityId: BigInt(0),
-        oldValue: JSON.stringify({ 
-          userId: user.id, 
-          email: user.email, 
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        oldValue: JSON.stringify({
+          userId: user.id,
+          email: user.email,
           username: user.username,
           roleId: user.roleId
         }),
@@ -2881,7 +2880,7 @@ Treasure-Home School Administration
       // Handle foreign key constraint errors with clear message
       if (error?.cause?.code === '23503' || error?.message?.includes('foreign key constraint')) {
         const relatedTable = error?.cause?.table_name || 'related records';
-        return res.status(409).json({ 
+        return res.status(409).json({
           message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead of deleting it.`
         });
       }
@@ -2928,7 +2927,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'password_reset',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
         newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
         reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? ' (force change on next login)' : ''}`,
@@ -2946,8 +2945,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error resetting password:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid request data", 
+        return res.status(400).json({
+          message: "Invalid request data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -2999,7 +2998,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'role_changed',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, roleId: user.roleId, roleName: oldRole?.name }),
         newValue: JSON.stringify({ userId: user.id, roleId: roleId, roleName: newRole.name }),
         reason: `Admin ${adminUser.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
@@ -3017,8 +3016,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error changing user role:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid request data", 
+        return res.status(400).json({
+          message: "Invalid request data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -3057,8 +3056,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid query parameters", 
+        return res.status(400).json({
+          message: "Invalid query parameters",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -3092,8 +3091,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('User creation error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid user data", 
+        return res.status(400).json({
+          message: "Invalid user data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -3143,8 +3142,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('User update error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid user data", 
+        return res.status(400).json({
+          message: "Invalid user data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -3175,8 +3174,8 @@ Treasure-Home School Administration
       const hasRequiredColumns = requiredColumns.every(col => headers.includes(col));
 
       if (!hasRequiredColumns) {
-        return res.status(400).json({ 
-          message: "CSV must contain columns: studentName, class, parentName, parentEmail" 
+        return res.status(400).json({
+          message: "CSV must contain columns: studentName, class, parentName, parentEmail"
         });
       }
 
@@ -3189,10 +3188,6 @@ Treasure-Home School Administration
       const errors: string[] = [];
 
       // Get roles
-      const studentRole = await storage.getClasses(); // Fix: Get roles, not classes. Assuming getClasses() returns roles or equivalent
-      const parentRole = await storage.getRoles(); // Fix: Should fetch roles based on name, not just getClasses()
-
-      // Corrected logic to fetch roles by name
       const studentRoleData = await storage.getRoleByName('Student');
       const parentRoleData = await storage.getRoleByName('Parent');
 
@@ -3392,7 +3387,7 @@ Treasure-Home School Administration
         doc.font('Helvetica-Bold').fontSize(16).text(user.password, 200, startY + 90);
 
         // Important notice
-        doc.fontSize(12).font('Helvetica-Oblique').text('⚠️ Please change your password immediately after first login', 70, startY + 140, { 
+        doc.fontSize(12).font('Helvetica-Oblique').text('⚠️ Please change your password immediately after first login', 70, startY + 140, {
           width: doc.page.width - 140,
           align: 'center'
         });
@@ -3453,9 +3448,9 @@ Treasure-Home School Administration
 
   app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      console.log('Creating student:', req.body.firstName, req.body.lastName);
+      console.log('Creating student with auto-generated credentials');
 
-      // Simple date validation function that doesn't use Date constructor
+      // Date validation helper
       const isValidDate = (dateString: string): boolean => {
         const regex = /^\d{4}-\d{2}-\d{2}$/;
         if (!regex.test(dateString)) return false;
@@ -3465,7 +3460,6 @@ Treasure-Home School Administration
         if (month < 1 || month > 12) return false;
         if (day < 1 || day > 31) return false;
 
-        // Check for invalid dates like Feb 30
         if (month === 2) {
           const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
           if (day > (isLeapYear ? 29 : 28)) return false;
@@ -3476,96 +3470,62 @@ Treasure-Home School Administration
         return true;
       };
 
-      // Use shared schema and add enhanced date validation - prevents frontend/backend drift
+      // Enhanced schema validation with date checks - email and password are now optional
       const sharedCreateStudentSchema = createStudentSchema.extend({
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
         dateOfBirth: createStudentSchema.shape.dateOfBirth.refine(isValidDate, "Invalid date of birth"),
         admissionDate: createStudentSchema.shape.admissionDate.refine(isValidDate, "Invalid admission date"),
-        medicalInfo: z.string().nullable().optional().transform(val => val === null ? "" : val),
+        medicalInfo: z.string().nullable().optional().transform(val => val === null ? '' : val),
       });
 
-      // Defensive normalization: convert null/empty strings to undefined for optional string fields
-      for (const field of ["phone", "address", "medicalInfo", "parentId", "email", "password", "admissionNumber", "parentEmail"]) {
-        if (req.body[field] == null || req.body[field] === "") {
+      // Clean up empty/null fields before validation
+      for (const field of ['phone', 'address', 'medicalInfo', 'parentId', 'email', 'password']) {
+        if (req.body[field] == null || req.body[field] === '') {
           delete req.body[field];
         }
       }
 
       const validatedData = sharedCreateStudentSchema.parse(req.body);
 
-      // AUTO-GENERATE CREDENTIALS if not provided (THS Admin Upload feature)
+      // Get class information for username generation
+      const classInfo = await storage.getClass(validatedData.classId);
+      if (!classInfo) {
+        return res.status(400).json({ message: "Invalid class ID" });
+      }
+
+      // Generate credentials automatically
       const currentYear = new Date().getFullYear().toString();
-      let generatedUsername: string | null = null;
-      let generatedPassword: string | null = null;
-      let generatedEmail: string | null = null;
-      let generatedAdmissionNumber: string | null = null;
+      const { generateStudentUsername, generateStudentPassword } = await import('./auth-utils');
 
-      // Get class info for username generation
-      const studentClass = validatedData.classId ? await storage.getClass(validatedData.classId) : null;
-      if (!studentClass) {
-        return res.status(400).json({ message: "Invalid class selection" });
-      }
+      // Get existing students to calculate next number
+      const existingStudents = await storage.getAllStudents(true);
+      const existingUsernames = existingStudents.map(s => s.admissionNumber).filter(Boolean);
+      const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear);
 
-      // Generate class code from class name (PR3, JSS1, SS2, etc.)
-      const classCode = studentClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
+      // Generate username and password
+      const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
+      const generatedPassword = generateStudentPassword(currentYear);
 
-      // Get all existing usernames for sequence numbering
-      const allUsers = await storage.getAllUsers();
-      const existingUsernames = allUsers.map(u => u.username).filter(Boolean) as string[];
+      // Auto-generate email if not provided
+      const studentEmail = validatedData.email || `${generatedUsername.toLowerCase()}@treasure-home.edu`;
 
-      // Get next sequence number for this class
-      const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear, classCode);
-
-      // Generate THS-branded username: THS-STU-2025-PR3-001
-      generatedUsername = generateUsername(ROLES.STUDENT, currentYear, classCode, nextNumber);
-
-      // Generate THS-branded password: THS@2025#X4D1a9...
-      generatedPassword = generatePassword(currentYear);
-
-      // Generate email from username: THS-STU-2025-PR3-001@ths.local
-      generatedEmail = `${generatedUsername}@ths.local`;
-
-      // Generate admission number if not provided
-      if (!validatedData.admissionNumber) {
-        generatedAdmissionNumber = `THS${currentYear.substring(2)}${String(nextNumber).padStart(4, '0')}`;
-      }
-
-      // Use generated or provided credentials
-      const finalEmail = validatedData.email || generatedEmail;
-      const finalPassword = validatedData.password || generatedPassword;
-      const finalAdmissionNumber = validatedData.admissionNumber || generatedAdmissionNumber;
-
-      // Check if user with this email already exists
-      const existingUser = await storage.getUserByEmail(finalEmail);
-      if (existingUser) {
-        return res.status(409).json({ message: "Email address already exists" });
-      }
-
-      // Check if username already exists
-      const existingUsername = await storage.getUserByUsername(generatedUsername);
-      if (existingUsername) {
-        return res.status(409).json({ message: "Username already exists. Please try again." });
-      }
-
-      // Hash the password
-      const passwordHash = await bcrypt.hash(finalPassword, BCRYPT_ROUNDS);
-
-      // AUTO-LINK PARENT by email if provided (parentEmail field)
-      let finalParentId = validatedData.parentId || null;
-      if (!finalParentId && validatedData.parentEmail) {
-        const parentUser = await storage.getUserByEmail(validatedData.parentEmail);
-        if (parentUser && parentUser.roleId === ROLES.PARENT) {
-          finalParentId = parentUser.id;
-          console.log('Auto-linked student to existing parent:', parentUser.email);
+      // Check for existing user with same email (only if email was provided)
+      if (validatedData.email) {
+        const existingUser = await storage.getUserByEmail(validatedData.email);
+        if (existingUser) {
+          return res.status(409).json({ message: "Email address already exists" });
         }
       }
 
-      // Prepare user data - store exact date strings, no conversion
-      const userData = {
-        username: generatedUsername, // THS-STU-2025-PR3-001
-        email: finalEmail,
+      // Hash the generated password
+      const passwordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
+
+      // Create user account with auto-generated credentials
+      const userData: InsertUser = {
+        email: studentEmail,
+        username: generatedUsername,
         passwordHash,
-        mustChangePassword: true, // Force password change on first login
-        createdVia: 'admin' as const,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         phone: validatedData.phone || null,
@@ -3575,22 +3535,22 @@ Treasure-Home School Administration
         profileImageUrl: validatedData.profileImageUrl || null,
         roleId: ROLES.STUDENT, // Always set to student role
         isActive: true,
-        status: 'active' as const, // Students don't need approval
-        createdBy: req.user?.id,
+        mustChangePassword: true, // ✅ Student must change password on first login
+        status: 'active',
+        authProvider: 'local',
       };
 
-      // Create user first
       console.log('Creating user for student with username:', generatedUsername);
       const user = await storage.createUser(userData);
       console.log('User created with ID:', user.id);
 
       try {
         // Prepare student data - store exact values, no null conversion for required fields
-        const studentData = {
+        const studentData: UpdateStudentSchema = { // Use UpdateStudentSchema for partial updates/creation
           id: user.id, // Use the same ID as the user
-          admissionNumber: finalAdmissionNumber,
+          admissionNumber: generatedUsername, // Use generated username as admission number
           classId: validatedData.classId,
-          parentId: finalParentId,
+          parentId: validatedData.parentId || null,
           admissionDate: validatedData.admissionDate, // Store exact YYYY-MM-DD string
           emergencyContact: validatedData.emergencyContact,
           medicalInfo: validatedData.medicalInfo || null,
@@ -3600,24 +3560,23 @@ Treasure-Home School Administration
         // Create student record
         console.log('Creating student record...');
         const student = await storage.createStudent(studentData);
-        console.log('Student created successfully');
+        console.log('Student created successfully with credentials');
 
-        res.json({ 
+        res.json({
           message: "Student created successfully",
           student,
           user: {
             id: user.id,
-            username: generatedUsername, // Return generated username
             email: user.email,
+            username: generatedUsername,
             firstName: user.firstName,
             lastName: user.lastName,
           },
-          // Return generated credentials for login slip
-          generatedCredentials: generatedPassword ? {
+          credentials: {
             username: generatedUsername,
-            password: generatedPassword, // Only returned immediately after creation
-            admissionNumber: finalAdmissionNumber,
-          } : null,
+            password: generatedPassword, // Return plaintext password for admin to share with student
+            email: studentEmail,
+          }
         });
 
       } catch (studentError) {
@@ -3647,8 +3606,8 @@ Treasure-Home School Administration
           return `${fieldPath}: ${err.message}`;
         });
         console.error('Student creation validation errors:', formattedErrors);
-        return res.status(400).json({ 
-          message: "Validation failed", 
+        return res.status(400).json({
+          message: "Validation failed",
           errors: formattedErrors.join(', '),
           details: validationErrors // Include full details for debugging
         });
@@ -3693,7 +3652,7 @@ Treasure-Home School Administration
 
       const fileContent = await fs.readFile(req.file.path, 'utf-8');
       const lines = fileContent.split('\n').filter(line => line.trim());
-      
+
       if (lines.length < 2) {
         await fs.unlink(req.file.path);
         return res.status(400).json({ message: "CSV file is empty or invalid" });
@@ -3725,7 +3684,7 @@ Treasure-Home School Administration
           }
 
           const classInfo = await storage.getClasses();
-          const matchingClass = classInfo.find((c: any) => 
+          const matchingClass = classInfo.find((c: any) =>
             c.name.toLowerCase() === className.toLowerCase()
           );
 
@@ -3736,26 +3695,27 @@ Treasure-Home School Administration
 
           const classCode = matchingClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
           const currentYear = new Date().getFullYear().toString();
-          const nextNumber = await getNextUserNumber(ROLES.STUDENT, currentYear, classCode);
-          const username = generateUsername(ROLES.STUDENT, currentYear, classCode, nextNumber);
-          const password = generatePassword(currentYear);
+          const nextNumber = await getNextUserNumber(ROLES.STUDENT, currentYear, classCode); // Use classCode here for better uniqueness
+          const username = generateStudentUsername(matchingClass.name, currentYear, nextNumber); // Use class name for clarity
+          const password = generateStudentPassword(currentYear);
           const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
           let parentId = undefined;
           if (parentEmail) {
             let parentUser = await storage.getUserByEmail(parentEmail);
             if (!parentUser) {
-              const parentUsername = `THS-PAR-${currentYear}-${String(nextNumber).padStart(3, '0')}`;
-              const parentPasswordHash = await bcrypt.hash(generatePassword(currentYear), BCRYPT_ROUNDS);
-              
+              // Generate parent username based on year and a sequence number
+              const parentUsername = `THS-PAR-${currentYear}-${String(await storage.getParentCount() + 1).padStart(3, '0')}`; // Use a separate counter for parents
+              const parentPasswordHash = await bcrypt.hash(generateStudentPassword(currentYear), BCRYPT_ROUNDS);
+
               parentUser = await storage.createUser({
                 username: parentUsername,
                 email: parentEmail,
                 passwordHash: parentPasswordHash,
                 mustChangePassword: true,
                 roleId: ROLES.PARENT,
-                firstName: firstName,
-                lastName: `(Parent)`,
+                firstName: firstName, // Use student's first name as parent's first name (can be refined)
+                lastName: `(Parent of ${firstName})`, // Placeholder for parent's last name
                 phone: parentPhone || null,
                 isActive: true,
                 status: 'active' as const,
@@ -3763,6 +3723,7 @@ Treasure-Home School Administration
                 createdBy: req.user?.id,
               });
 
+              // Create a parent profile associated with the user
               await storage.createParentProfile({ userId: parentUser.id });
             }
             parentId = parentUser.id;
@@ -3770,7 +3731,7 @@ Treasure-Home School Administration
 
           const userData = {
             username,
-            email: `${username.toLowerCase()}@ths.edu.ng`,
+            email: `${username.toLowerCase()}@ths.edu.ng`, // Auto-generated email
             passwordHash,
             mustChangePassword: true,
             firstName,
@@ -3791,13 +3752,13 @@ Treasure-Home School Administration
 
           const studentData = {
             id: user.id,
-            admissionNumber: `THS/${currentYear}/${String(nextNumber).padStart(3, '0')}`,
+            admissionNumber: `THS/${currentYear.substring(2)}/${String(nextNumber).padStart(3, '0')}`, // THS/25/001 format
             classId: matchingClass.id,
             parentId,
-            admissionDate: new Date().toISOString().split('T')[0],
+            admissionDate: new Date().toISOString().split('T')[0], // Current date as admission date
             emergencyContact: parentPhone || null,
             medicalInfo: null,
-            guardianName: parentId ? `${firstName} (Parent)` : null,
+            guardianName: parentId ? `${firstName} (Parent)` : null, // Placeholder for guardian name
           };
 
           await storage.createStudent(studentData);
@@ -3807,7 +3768,8 @@ Treasure-Home School Administration
             firstName,
             lastName,
             username,
-            password,
+            password, // Return plaintext password for admin to share
+            email: userData.email,
             class: matchingClass.name,
             parentEmail: parentEmail || null,
           });
@@ -3860,6 +3822,7 @@ Treasure-Home School Administration
       if (password && password.length >= 6) {
         const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         userPatch.passwordHash = passwordHash;
+        userPatch.mustChangePassword = true; // Force password change on next login if password is reset
       }
 
       // Prepare student patch data
@@ -3888,7 +3851,7 @@ Treasure-Home School Administration
       }
 
       // Update student using transactional method
-      const result = await storage.updateStudent(id, { 
+      const result = await storage.updateStudent(id, {
         userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
         studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : undefined
       });
@@ -3976,7 +3939,7 @@ Treasure-Home School Administration
         return res.status(404).json({ message: "Student not found" });
       }
 
-      res.json({ 
+      res.json({
         message: "Student deleted successfully",
         status: "deleted"
       });
@@ -4124,7 +4087,7 @@ Treasure-Home School Administration
       const { date } = req.query;
 
       const attendance = await storage.getAttendanceByStudent(
-        studentId, 
+        studentId,
         typeof date === 'string' ? date : undefined
       );
 
@@ -4168,7 +4131,7 @@ Treasure-Home School Administration
       if (month !== undefined && year !== undefined) {
         filteredAttendance = attendance.filter((record: any) => {
           const recordDate = new Date(record.date);
-          return recordDate.getMonth() === parseInt(month as string) && 
+          return recordDate.getMonth() === parseInt(month as string) &&
                  recordDate.getFullYear() === parseInt(year as string);
         });
       }
@@ -4380,9 +4343,9 @@ Treasure-Home School Administration
         try {
           validatedOptions = options.map(option => createQuestionOptionSchema.parse(option));
         } catch (optionError) {
-          return res.status(400).json({ 
-            message: "Invalid option data", 
-            details: optionError instanceof ZodError ? optionError.errors : optionError 
+          return res.status(400).json({
+            message: "Invalid option data",
+            details: optionError instanceof ZodError ? optionError.errors : optionError
           });
         }
       }
@@ -4755,7 +4718,7 @@ Treasure-Home School Administration
       }
 
       if (validationErrors.length > 0) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Validation errors found",
           errors: validationErrors
         });
@@ -4775,7 +4738,7 @@ Treasure-Home School Administration
         console.warn('⚠️ Some questions failed during bulk upload:', result.errors);
       }
 
-      res.json({ 
+      res.json({
         message: `Successfully created ${result.created} questions${result.errors.length > 0 ? ` (${result.errors.length} failed)` : ''}`,
         created: result.created,
         questions: result.questions,
@@ -4788,7 +4751,7 @@ Treasure-Home School Administration
     }
   });
 
-  // Question Options routes  
+  // Question Options routes
   app.post("/api/question-options", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const optionData = insertQuestionOptionSchema.parse(req.body);
@@ -4901,18 +4864,18 @@ Treasure-Home School Administration
   // Comprehensive grade recording API endpoint
   app.post("/api/comprehensive-grades", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      const { 
-        studentId, 
-        subjectId, 
-        termId, 
-        testScore, 
+      const {
+        studentId,
+        subjectId,
+        termId,
+        testScore,
         testMaxScore = 40, // Default to 40 for test marks
-        examScore, 
+        examScore,
         examMaxScore = 60, // Default to 60 for exam marks
-        totalScore, 
-        grade, 
-        teacherRemarks, 
-        recordedBy 
+        totalScore,
+        grade,
+        teacherRemarks,
+        recordedBy
       } = req.body;
 
       // Basic Validation
@@ -4961,7 +4924,7 @@ Treasure-Home School Administration
 
     } catch (error) {
       console.error('Comprehensive grade recording error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to record comprehensive grade",
         error: error instanceof Error ? error.message : "Unknown error"
       });
@@ -5053,7 +5016,7 @@ Treasure-Home School Administration
 
     } catch (error) {
       console.error('Report card generation error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to generate report card",
         error: error instanceof Error ? error.message : "Unknown error"
       });
@@ -5109,8 +5072,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error saving exam result:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid input data", 
+        return res.status(400).json({
+          message: "Invalid input data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -5339,7 +5302,7 @@ Treasure-Home School Administration
       }
 
       // Remove duplicates based on id
-      const uniqueContent = allContent.filter((item, index, self) => 
+      const uniqueContent = allContent.filter((item, index, self) =>
         index === self.findIndex((t) => t.id === item.id)
       );
 
@@ -5358,8 +5321,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Home page content creation error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid content data", 
+        return res.status(400).json({
+          message: "Invalid content data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -5381,8 +5344,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Home page content update error:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid content data", 
+        return res.status(400).json({
+          message: "Invalid content data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -5412,8 +5375,8 @@ Treasure-Home School Administration
       if (content.imageUrl) {
         try {
           // Remove leading slash and construct full file path
-          const filePath = content.imageUrl.startsWith('/') 
-            ? content.imageUrl.substring(1) 
+          const filePath = content.imageUrl.startsWith('/')
+            ? content.imageUrl.substring(1)
             : content.imageUrl;
 
           const fullPath = path.resolve(filePath);
@@ -5466,9 +5429,9 @@ Treasure-Home School Administration
         uploadedBy: (req as any).user.id
       });
 
-      res.json({ 
-        message: "Home page image uploaded successfully", 
-        content: homePageContent 
+      res.json({
+        message: "Home page image uploaded successfully",
+        content: homePageContent
       });
     } catch (error) {
       console.error('Home page upload error:', error);
@@ -5534,7 +5497,7 @@ Treasure-Home School Administration
       const userId = (req as any).user.id;
       const roleId = (req as any).user.roleId;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -5553,12 +5516,13 @@ Treasure-Home School Administration
 
       // Calculate completion percentage
       const completionPercentage = await storage.calculateProfileCompletion(userId, roleId);
+      const profileCompleted = user.profileCompleted || false;
 
       res.json({
         user,
         roleProfile,
         completionPercentage,
-        profileCompleted: user.profileCompleted || false
+        profileCompleted
       });
     } catch (error) {
       console.error('Profile fetch error:', error);
@@ -5574,7 +5538,7 @@ Treasure-Home School Administration
       const { personalInfo, contactInfo, roleSpecific, security } = req.body;
 
       // Update user basic info
-      const userUpdates: Partial<schema.InsertUser> = {};
+      const userUpdates: Partial<InsertUser> = {};
       if (personalInfo) {
         if (personalInfo.firstName) userUpdates.firstName = personalInfo.firstName;
         if (personalInfo.lastName) userUpdates.lastName = personalInfo.lastName;
@@ -5663,7 +5627,7 @@ Treasure-Home School Administration
   app.get("/api/admin/profile-completion", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
-      
+
       const usersWithCompletion = await Promise.all(
         allUsers.map(async (user) => {
           const role = await storage.getRole(user.roleId);
@@ -5784,7 +5748,7 @@ Treasure-Home School Administration
         return res.status(404).json({ message: `Exam session ${sessionId} not found` });
       }
 
-      console.log(`📊 Testing session: ${session.id}, Student: ${session.studentId}, Exam: ${session.examId}, Completed: ${session.isCompleted}`);
+      console.log('📊 Testing session:', { sessionId: session.id, studentId: session.studentId, examId: session.examId, Completed: session.isCompleted });
 
       const startTime = Date.now();
 
@@ -5797,7 +5761,7 @@ Treasure-Home School Administration
 
         // Get the results to verify success
         const results = await storage.getExamResultsByStudent(session.studentId);
-        const testResult = results.find((r: any) => r.examId === session.examId && r.autoScored === true);
+        const testResult = results.find(r => r.examId === examId);
 
         if (testResult) {
           console.log(`🎉 VERIFIED: Auto-scored result found - ${testResult.score}/${testResult.maxScore}`);
@@ -5825,7 +5789,7 @@ Treasure-Home School Administration
             testDetails: {
               sessionId: sessionId,
               duration: totalTime,
-              allResults: results.filter((r: any) => r.examId === session.examId)
+              allResults: results.filter(r => r.examId === session.examId)
             }
           });
         }
@@ -5846,7 +5810,7 @@ Treasure-Home School Administration
       }
     } catch (error) {
       console.error('Test auto-scoring endpoint error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Failed to run auto-scoring test",
         error: error instanceof Error ? error.message : String(error)
@@ -5990,7 +5954,7 @@ Treasure-Home School Administration
   app.post("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const { examId, studentId } = req.body;
-      const user = (req as any).user;
+      const user = req.user!;
 
       console.log('📝 Creating exam session:', { examId, studentId, userFromToken: user.id });
 
@@ -6023,9 +5987,9 @@ Treasure-Home School Administration
       const existingSession = await storage.getActiveExamSession(examId, studentId);
       if (existingSession && !existingSession.isCompleted) {
         console.error('❌ Student already has active session:', { sessionId: existingSession.id, examId, studentId });
-        return res.status(409).json({ 
+        return res.status(409).json({
           message: "You already have an active session for this exam",
-          sessionId: existingSession.id 
+          sessionId: existingSession.id
         });
       }
 
@@ -6056,8 +6020,8 @@ Treasure-Home School Administration
 
       if (error instanceof z.ZodError) {
         console.error('❌ Validation error:', error.errors);
-        return res.status(400).json({ 
-          message: "Invalid session data", 
+        return res.status(400).json({
+          message: "Invalid session data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -6075,7 +6039,7 @@ Treasure-Home School Administration
         }
       }
 
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to create exam session",
         error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       });
@@ -6153,8 +6117,8 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error updating exam session:', error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid update data", 
+        return res.status(400).json({
+          message: "Invalid update data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -6287,8 +6251,8 @@ Treasure-Home School Administration
       console.error('Student answer submission error:', error);
 
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid answer data", 
+        return res.status(400).json({
+          message: "Invalid answer data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
@@ -6303,7 +6267,7 @@ Treasure-Home School Administration
       }
 
       // Generic server error
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to submit answer. Please try again.",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
@@ -6491,7 +6455,7 @@ Treasure-Home School Administration
 
     } catch (error) {
       console.error('❌ Exam submission error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to submit exam",
         error: error instanceof Error ? error.message : "Unknown error"
       });
@@ -6735,13 +6699,13 @@ Treasure-Home School Administration
           userId: user.id,
           action: 'unauthorized_access_attempt',
           entityType: 'student_report_cards',
-          entityId: 0,
+          entityId: 0, // Placeholder, needs proper entity ID if applicable
           newValue: `Attempted to access student ${studentId}`,
           ipAddress: req.ip,
           userAgent: req.get('user-agent')
         });
-        return res.status(403).json({ 
-          message: "Access denied. You can only view records for children linked to your account." 
+        return res.status(403).json({
+          message: "Access denied. You can only view records for children linked to your account."
         });
       }
 
@@ -6824,8 +6788,8 @@ Treasure-Home School Administration
             ipAddress: req.ip,
             userAgent: req.get('user-agent')
           });
-          return res.status(403).json({ 
-            message: "Access denied. Parents can only view their own children's report cards." 
+          return res.status(403).json({
+            message: "Access denied. Parents can only view their own children's report cards."
           });
         }
       } else if (user.roleId === ROLES.STUDENT) {
