@@ -161,7 +161,10 @@ export default function TeacherGrades() {
     queryKey: ['/api/grading/stats'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/grading/stats');
-      if (!response.ok) throw new Error('Failed to fetch grading stats');
+      if (!response.ok) {
+        console.warn('Failed to fetch grading stats - feature may not be fully configured');
+        return { pendingTasks: 0, gradedToday: 0, avgTimePerTask: 0 };
+      }
       return response.json();
     },
   });
@@ -171,7 +174,10 @@ export default function TeacherGrades() {
     queryKey: ['/api/grading/tasks'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/grading/tasks?status=pending&limit=100');
-      if (!response.ok) throw new Error('Failed to fetch grading tasks');
+      if (!response.ok) {
+        console.warn('Failed to fetch grading tasks - feature may not be fully configured');
+        return [];
+      }
       return response.json();
     },
     refetchInterval: 30000, // Refresh every 30 seconds

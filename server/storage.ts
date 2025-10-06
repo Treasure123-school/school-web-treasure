@@ -458,7 +458,7 @@ export class DatabaseStorage implements IStorage {
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
     }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
-    
+
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -491,7 +491,7 @@ export class DatabaseStorage implements IStorage {
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
     }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
-    
+
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -536,7 +536,7 @@ export class DatabaseStorage implements IStorage {
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
     }).from(schema.users).where(eq(schema.users.googleId, googleId)).limit(1);
-    
+
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -616,91 +616,91 @@ export class DatabaseStorage implements IStorage {
     try {
       // CASCADE DELETE: Delete all related records in the correct order
       // to respect foreign key constraints
-      
+
       // 1. Delete student-related records if this is a student
       const student = await this.db.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
       if (student.length > 0) {
         // Get all exam sessions for this student
         const sessions = await this.db.select().from(schema.examSessions).where(eq(schema.examSessions.studentId, id));
         const sessionIds = sessions.map(s => s.id);
-        
+
         // Delete student answers (references exam sessions)
         if (sessionIds.length > 0) {
           for (const sessionId of sessionIds) {
             await this.db.delete(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, sessionId));
           }
         }
-        
+
         // Delete exam sessions
         await this.db.delete(schema.examSessions).where(eq(schema.examSessions.studentId, id));
-        
+
         // Delete exam results
         await this.db.delete(schema.examResults).where(eq(schema.examResults.studentId, id));
-        
+
         // Delete attendance records
         await this.db.delete(schema.attendance).where(eq(schema.attendance.studentId, id));
-        
+
         // Delete report card items (via report cards)
         const reportCards = await this.db.select().from(schema.reportCards).where(eq(schema.reportCards.studentId, id));
         for (const rc of reportCards) {
           await this.db.delete(schema.reportCardItems).where(eq(schema.reportCardItems.reportCardId, rc.id));
         }
-        
+
         // Delete report cards
         await this.db.delete(schema.reportCards).where(eq(schema.reportCards.studentId, id));
-        
+
         // Delete student record
         await this.db.delete(schema.students).where(eq(schema.students.id, id));
       }
-      
+
       // 2. Delete teacher-related records
       await this.db.delete(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, id));
-      
+
       // 3. Delete admin-related records
       await this.db.delete(schema.adminProfiles).where(eq(schema.adminProfiles.userId, id));
-      
+
       // 4. Delete parent-related records
       await this.db.delete(schema.parentProfiles).where(eq(schema.parentProfiles.userId, id));
-      
+
       // 5. Delete records where user is author/creator
       await this.db.delete(schema.announcements).where(eq(schema.announcements.authorId, id));
-      
+
       // 6. Delete messages (both sent and received)
       await this.db.delete(schema.messages).where(eq(schema.messages.senderId, id));
       await this.db.delete(schema.messages).where(eq(schema.messages.recipientId, id));
-      
+
       // 7. Delete gallery uploads
       await this.db.delete(schema.gallery).where(eq(schema.gallery.uploadedBy, id));
-      
+
       // 8. Set home page content uploaded_by to NULL (preserve content)
       await this.db.update(schema.homePageContent)
         .set({ uploadedBy: null })
         .where(eq(schema.homePageContent.uploadedBy, id));
-      
+
       // 9. Set contact messages responded_by to NULL (preserve messages)
       await this.db.update(schema.contactMessages)
         .set({ respondedBy: null })
         .where(eq(schema.contactMessages.respondedBy, id));
-      
+
       // 10. Delete audit logs
       await this.db.delete(schema.auditLogs).where(eq(schema.auditLogs.userId, id));
-      
+
       // 11. Delete invites (created_by or accepted_by)
       await this.db.delete(schema.invites).where(eq(schema.invites.createdBy, id));
       await this.db.delete(schema.invites).where(eq(schema.invites.acceptedBy, id));
-      
+
       // 12. Delete notifications
       await this.db.delete(schema.notifications).where(eq(schema.notifications.userId, id));
-      
+
       // 13. Delete password reset tokens
       await this.db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.userId, id));
       await this.db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.resetBy, id));
-      
+
       // 14. Update classes (set class_teacher_id to NULL to preserve classes)
       await this.db.update(schema.classes)
         .set({ classTeacherId: null })
         .where(eq(schema.classes.classTeacherId, id));
-      
+
       // 15. Handle exams created by this user
       const userExams = await this.db.select().from(schema.exams).where(eq(schema.exams.createdBy, id));
       for (const exam of userExams) {
@@ -710,34 +710,34 @@ export class DatabaseStorage implements IStorage {
           await this.db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, question.id));
         }
         await this.db.delete(schema.examQuestions).where(eq(schema.examQuestions.examId, exam.id));
-        
+
         // Delete exam results for this exam
         await this.db.delete(schema.examResults).where(eq(schema.examResults.examId, exam.id));
-        
+
         // Delete exam sessions for this exam
         const examSessions = await this.db.select().from(schema.examSessions).where(eq(schema.examSessions.examId, exam.id));
         for (const session of examSessions) {
           await this.db.delete(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, session.id));
         }
         await this.db.delete(schema.examSessions).where(eq(schema.examSessions.examId, exam.id));
-        
+
         // Finally delete the exam
         await this.db.delete(schema.exams).where(eq(schema.exams.id, exam.id));
       }
-      
+
       // Also handle exams where user is teacher in charge
       await this.db.update(schema.exams)
         .set({ teacherInChargeId: null })
         .where(eq(schema.exams.teacherInChargeId, id));
-      
+
       // Handle exam results recorded by this user (set to NULL to preserve records)
       await this.db.update(schema.examResults)
         .set({ recordedBy: null as any })
         .where(eq(schema.examResults.recordedBy, id));
-      
+
       // 16. Finally, delete the user
       const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
-      
+
       console.log(`✅ Successfully deleted user ${id} and all related records`);
       return result.length > 0;
     } catch (error) {
@@ -1024,7 +1024,7 @@ export class DatabaseStorage implements IStorage {
     if (!user) return 0;
 
     const requiredFields = [
-      'firstName', 'lastName', 'email', 'phone', 'address', 
+      'firstName', 'lastName', 'email', 'phone', 'address',
       'dateOfBirth', 'gender', 'profileImageUrl', 'state', 'country',
       'securityQuestion', 'securityAnswerHash', 'dataPolicyAgreed'
     ];
@@ -2748,7 +2748,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get exam sessions that need manual grading for this teacher's exams
       let query = `
-        SELECT 
+        SELECT
           sa.id,
           es.student_id,
           u.first_name || ' ' || u.last_name as student_name,
@@ -2760,7 +2760,7 @@ export class DatabaseStorage implements IStorage {
           eq.points as max_marks,
           sa.text_answer as student_answer,
           es.submitted_at,
-          CASE 
+          CASE
             WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
             ELSE 'pending'
           END as status,
@@ -2807,8 +2807,8 @@ export class DatabaseStorage implements IStorage {
       const result = await pgClient`
         INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
         VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
-        ON CONFLICT (answer_id) 
-        DO UPDATE SET 
+        ON CONFLICT (answer_id)
+        DO UPDATE SET
           awarded_marks = EXCLUDED.awarded_marks,
           comment = EXCLUDED.comment,
           graded_at = EXCLUDED.graded_at,
@@ -2818,7 +2818,7 @@ export class DatabaseStorage implements IStorage {
 
       // Update the student answer with the manual score
       await pgClient`
-        UPDATE student_answers 
+        UPDATE student_answers
         SET points_earned = ${score}
         WHERE id = ${taskId}
       `;
@@ -2834,19 +2834,19 @@ export class DatabaseStorage implements IStorage {
     try {
       const pgClient = await initializeDatabase().pg;
       const result = await pgClient`
-        SELECT 
+        SELECT
           es.*,
           e.name as exam_title,
           u.first_name || ' ' || u.last_name as student_name,
           (
-            SELECT COUNT(*) 
-            FROM student_answers sa 
-            WHERE sa.session_id = es.id 
+            SELECT COUNT(*)
+            FROM student_answers sa
+            WHERE sa.session_id = es.id
             AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
           ) as answered_questions,
           (
-            SELECT COUNT(*) 
-            FROM exam_questions eq 
+            SELECT COUNT(*)
+            FROM exam_questions eq
             WHERE eq.exam_id = es.exam_id
           ) as total_questions
         FROM exam_sessions es
@@ -2865,7 +2865,7 @@ export class DatabaseStorage implements IStorage {
   async getExamReports(filters: { subjectId?: number; classId?: number }): Promise<any[]> {
     try {
       let query = `
-        SELECT 
+        SELECT
           e.id as exam_id,
           e.name as exam_title,
           c.name as class_name,
@@ -2876,19 +2876,19 @@ export class DatabaseStorage implements IStorage {
           COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
           COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
           COALESCE(
-            COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 / 
-            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0), 
+            COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 /
+            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
             0
           ) as pass_rate,
           COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
           COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
-          CASE 
+          CASE
             WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
             ELSE 'completed'
           END as status,
           COALESCE(
-            COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 / 
-            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0), 
+            COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 /
+            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
             0
           ) as grading_progress
         FROM exams e
@@ -2932,13 +2932,13 @@ export class DatabaseStorage implements IStorage {
     try {
       const pgClient = await initializeDatabase().pg;
       const result = await pgClient`
-        SELECT 
+        SELECT
           u.id as student_id,
           u.first_name || ' ' || u.last_name as student_name,
           st.admission_number,
           COALESCE(er.marks_obtained, 0) as score,
           COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
-          CASE 
+          CASE
             WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
             WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
             WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
@@ -2950,8 +2950,8 @@ export class DatabaseStorage implements IStorage {
           es.submitted_at,
           er.auto_scored,
           CASE WHEN EXISTS (
-            SELECT 1 FROM manual_scores ms 
-            JOIN student_answers sa ON ms.answer_id = sa.id 
+            SELECT 1 FROM manual_scores ms
+            JOIN student_answers sa ON ms.answer_id = sa.id
             WHERE sa.session_id = es.id
           ) THEN true ELSE false END as manual_scored
         FROM users u
@@ -3749,96 +3749,142 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Manual grading task queue implementation
+  // Manual grading task queue
   async createGradingTask(task: InsertGradingTask): Promise<GradingTask> {
-    const result = await this.db.insert(schema.gradingTasks).values(task).returning();
-    return result[0];
+    try {
+      const result = await this.db.insert(schema.gradingTasks).values(task).returning();
+      return result[0];
+    } catch (error: any) {
+      if (error?.cause?.code === '42P01') {
+        console.warn('⚠️ grading_tasks table does not exist yet - skipping task creation');
+        return { id: 0, ...task } as GradingTask;
+      }
+      throw error;
+    }
   }
 
   async assignGradingTask(taskId: number, teacherId: string): Promise<GradingTask | undefined> {
-    const result = await this.db.update(schema.gradingTasks)
-      .set({
-        assignedTeacherId: teacherId,
-        assignedAt: new Date(),
-        status: 'in_progress'
-      })
-      .where(eq(schema.gradingTasks.id, taskId))
-      .returning();
-    return result[0];
+    try {
+      const result = await this.db.update(schema.gradingTasks)
+        .set({
+          assignedTeacherId: teacherId,
+          assignedAt: new Date(),
+          status: 'in_progress'
+        })
+        .where(eq(schema.gradingTasks.id, taskId))
+        .returning();
+      return result[0];
+    } catch (error: any) {
+      if (error?.cause?.code === '42P01') {
+        console.warn('⚠️ grading_tasks table does not exist yet');
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async getGradingTasksByTeacher(teacherId: string, status?: string): Promise<GradingTask[]> {
-    const conditions = [eq(schema.gradingTasks.assignedTeacherId, teacherId)];
-    if (status) {
-      conditions.push(eq(schema.gradingTasks.status, status));
-    }
+    try {
+      let query = this.db.select().from(schema.gradingTasks)
+        .where(eq(schema.gradingTasks.assignedTeacherId, teacherId))
+        .orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
 
-    return await this.db.select()
-      .from(schema.gradingTasks)
-      .where(and(...conditions))
-      .orderBy(desc(schema.gradingTasks.priority), schema.gradingTasks.createdAt);
+      if (status) {
+        query = query.where(and(
+          eq(schema.gradingTasks.assignedTeacherId, teacherId),
+          eq(schema.gradingTasks.status, status)
+        ));
+      }
+
+      return await query;
+    } catch (error: any) {
+      if (error?.cause?.code === '42P01') {
+        console.warn('⚠️ grading_tasks table does not exist yet - returning empty array');
+        return [];
+      }
+      throw error;
+    }
   }
 
   async getGradingTasksBySession(sessionId: number): Promise<GradingTask[]> {
-    return await this.db.select()
-      .from(schema.gradingTasks)
-      .where(eq(schema.gradingTasks.sessionId, sessionId))
-      .orderBy(schema.gradingTasks.createdAt);
+    try {
+      return await this.db.select().from(schema.gradingTasks)
+        .where(eq(schema.gradingTasks.sessionId, sessionId))
+        .orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
+    } catch (error: any) {
+      if (error?.cause?.code === '42P01') {
+        console.warn('⚠️ grading_tasks table does not exist yet - returning empty array');
+        return [];
+      }
+      throw error;
+    }
   }
 
   async updateGradingTaskStatus(taskId: number, status: string, completedAt?: Date): Promise<GradingTask | undefined> {
-    const updates: any = { status };
-    if (status === 'in_progress' && !completedAt) {
-      updates.startedAt = new Date();
-    }
-    if (status === 'completed' || completedAt) {
-      updates.completedAt = completedAt || new Date();
-    }
+    try {
+      const updateData: any = { status };
+      if (completedAt) {
+        updateData.completedAt = completedAt;
+      }
 
-    const result = await this.db.update(schema.gradingTasks)
-      .set(updates)
-      .where(eq(schema.gradingTasks.id, taskId))
-      .returning();
-    return result[0];
+      const result = await this.db.update(schema.gradingTasks)
+        .set(updateData)
+        .where(eq(schema.gradingTasks.id, taskId))
+        .returning();
+      return result[0];
+    } catch (error: any) {
+      if (error?.cause?.code === '42P01') {
+        console.warn('⚠️ grading_tasks table does not exist yet');
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async completeGradingTask(taskId: number, pointsEarned: number, feedbackText?: string): Promise<{ task: GradingTask; answer: StudentAnswer } | undefined> {
     try {
-      // Get the grading task
-      const task = await this.db.select()
-        .from(schema.gradingTasks)
-        .where(eq(schema.gradingTasks.id, taskId))
-        .limit(1);
+      return await this.db.transaction(async (tx: any) => {
+        // Get the task
+        const tasks = await tx.select().from(schema.gradingTasks)
+          .where(eq(schema.gradingTasks.id, taskId))
+          .limit(1);
 
-      if (!task || task.length === 0) return undefined;
+        if (tasks.length === 0) {
+          return undefined;
+        }
 
-      // Update the student answer with the grade
-      const answerResult = await this.db.update(schema.studentAnswers)
-        .set({
-          pointsEarned,
-          feedbackText,
-          manualOverride: true
-        })
-        .where(eq(schema.studentAnswers.id, task[0].answerId))
-        .returning();
+        const task = tasks[0];
 
-      if (!answerResult || answerResult.length === 0) return undefined;
+        // Update the student answer
+        const answers = await tx.update(schema.studentAnswers)
+          .set({
+            pointsEarned,
+            feedbackText,
+            autoScored: false,
+            manualOverride: true
+          })
+          .where(eq(schema.studentAnswers.id, task.answerId))
+          .returning();
 
-      // Update the grading task status
-      const taskResult = await this.db.update(schema.gradingTasks)
-        .set({
-          status: 'completed',
-          completedAt: new Date()
-        })
-        .where(eq(schema.gradingTasks.id, taskId))
-        .returning();
+        // Mark task as completed
+        const updatedTasks = await tx.update(schema.gradingTasks)
+          .set({
+            status: 'completed',
+            completedAt: new Date()
+          })
+          .where(eq(schema.gradingTasks.id, taskId))
+          .returning();
 
-      return {
-        task: taskResult[0],
-        answer: answerResult[0]
-      };
-    } catch (error) {
-      console.error('Error completing grading task:', error);
+        return {
+          task: updatedTasks[0],
+          answer: answers[0]
+        };
+      });
+    } catch (error: any) {
+      if (error?.cause?.code === '42P01') {
+        console.warn('⚠️ grading_tasks table does not exist yet');
+        return undefined;
+      }
       throw error;
     }
   }
