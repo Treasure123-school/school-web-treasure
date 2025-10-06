@@ -3295,7 +3295,7 @@ export class DatabaseStorage implements IStorage {
     try {
       let examResults = await db.select().from(schema.examResults);
 
-      // Apply filters if provided
+      // Apply filters
       if (filters.classId) {
         const studentsInClass = await db.select().from(schema.students)
           .where(eq(schema.students.classId, filters.classId));
@@ -3658,49 +3658,67 @@ export class DatabaseStorage implements IStorage {
     slowSubmissions: number;
     eventsByType: Record<string, number>;
   }> {
-    const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+    try {
+      const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const sinceISO = since.toISOString();
 
-    const events = await this.db.select()
-      .from(schema.performanceEvents)
-      .where(dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`);
+      const events = await this.db.select()
+        .from(schema.performanceEvents)
+        .where(sql`${schema.performanceEvents.createdAt} >= ${sinceISO}`);
 
-    const totalEvents = events.length;
-    const goalAchievedCount = events.filter((e: PerformanceEvent) => e.goalAchieved).length;
-    const goalAchievementRate = totalEvents > 0 ? (goalAchievedCount / totalEvents) * 100 : 0;
+      const totalEvents = events.length;
+      const goalAchievedCount = events.filter((e: PerformanceEvent) => e.goalAchieved).length;
+      const goalAchievementRate = totalEvents > 0 ? (goalAchievedCount / totalEvents) * 100 : 0;
 
-    const averageDuration = totalEvents > 0
-      ? events.reduce((sum: number, e: PerformanceEvent) => sum + e.duration, 0) / totalEvents
-      : 0;
+      const averageDuration = totalEvents > 0
+        ? events.reduce((sum: number, e: PerformanceEvent) => sum + e.duration, 0) / totalEvents
+        : 0;
 
-    const slowSubmissions = events.filter((e: PerformanceEvent) => e.duration > 2000).length;
+      const slowSubmissions = events.filter((e: PerformanceEvent) => e.duration > 2000).length;
 
-    const eventsByType: Record<string, number> = {};
-    events.forEach((e: PerformanceEvent) => {
-      eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
-    });
+      const eventsByType: Record<string, number> = {};
+      events.forEach((e: PerformanceEvent) => {
+        eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
+      });
 
-    return {
-      totalEvents,
-      goalAchievementRate: Math.round(goalAchievementRate * 100) / 100,
-      averageDuration: Math.round(averageDuration),
-      slowSubmissions,
-      eventsByType
-    };
+      return {
+        totalEvents,
+        goalAchievementRate: Math.round(goalAchievementRate * 100) / 100,
+        averageDuration: Math.round(averageDuration),
+        slowSubmissions,
+        eventsByType
+      };
+    } catch (error) {
+      console.error('Error in getPerformanceMetrics:', error);
+      // Return a default structure to prevent errors downstream
+      return {
+        totalEvents: 0,
+        goalAchievementRate: 0,
+        averageDuration: 0,
+        slowSubmissions: 0,
+        eventsByType: {},
+      };
+    }
   }
 
   async getRecentPerformanceAlerts(hours: number = 24): Promise<PerformanceEvent[]> {
-    const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+    try {
+      const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const sinceISO = since.toISOString();
 
-    return await this.db.select()
-      .from(schema.performanceEvents)
-      .where(
-        and(
-          dsql`${schema.performanceEvents.createdAt} >= ${cutoffTime}`,
+      const alerts = await this.db.select()
+        .from(schema.performanceEvents)
+        .where(and(
+          sql`${schema.performanceEvents.createdAt} >= ${sinceISO}`,
           eq(schema.performanceEvents.goalAchieved, false)
-        )
-      )
-      .orderBy(desc(schema.performanceEvents.createdAt))
-      .limit(50);
+        ))
+        .orderBy(desc(schema.performanceEvents.createdAt))
+        .limit(50);
+      return alerts;
+    } catch (error) {
+      console.error('Error in getRecentPerformanceAlerts:', error);
+      return [];
+    }
   }
 
   // Teacher class assignments implementation

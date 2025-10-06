@@ -1,6 +1,4 @@
 
--- Add guardian_name column to students table
-ALTER TABLE students ADD COLUMN IF NOT EXISTS guardian_name VARCHAR(255);
-
--- Add index for performance
-CREATE INDEX IF NOT EXISTS idx_students_guardian_name ON students(guardian_name);
+-- Migration file kept for reference but column not added to actual schema
+-- The guardian_name field was removed from the schema as it's better stored in user profiles
+-- This migration is preserved for audit trail purposes only
