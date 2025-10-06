@@ -488,8 +488,8 @@ export default function StudentManagement() {
                       Credentials Auto-Generated
                     </p>
                     <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                      Username, password, admission number, and email will be automatically generated upon student creation. 
-                      You'll receive these credentials to share with the student and parent.
+                      Username, password, and admission number will be automatically generated upon student creation. 
+                      Students don't need email - they login with username only. You'll receive these credentials to share.
                     </p>
                   </div>
                 </div>
