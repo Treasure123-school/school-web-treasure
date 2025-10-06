@@ -733,7 +733,7 @@ export default function Login() {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-11 sm:h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5 transition-all duration-300 hover:scale-[1.02] shadow-md hover:shadow-lg"
+              className="w-full h-11 sm:h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5 hover:text-gray-900 dark:hover:text-white transition-all duration-300 hover:scale-[1.02] shadow-md hover:shadow-lg"
               onClick={() => window.location.href = '/api/auth/google'}
               data-testid="button-google-login"
             >
