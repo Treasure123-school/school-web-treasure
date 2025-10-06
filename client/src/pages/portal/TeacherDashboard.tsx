@@ -315,29 +315,45 @@ export default function TeacherDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-            <Link to="/portal/exams">
-                <Button className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
-                  <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-                  Create Exam
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Link to="/portal/exams">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <ClipboardList className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-medium text-sm">Create Exam</span>
+                  </div>
                 </Button>
               </Link>
               <Link to="/portal/teacher/attendance">
-                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
-                  <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-                  Take Attendance
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <UserCheck className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-medium text-sm">Take Attendance</span>
+                  </div>
                 </Button>
               </Link>
               <Link to="/portal/teacher/grades">
-                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-                  Manage Grades
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Star className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-medium text-sm">Manage Grades</span>
+                  </div>
                 </Button>
               </Link>
               <Link to="/portal/announcements">
-                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
-                  <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-                  Create Announcement
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Bell className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-medium text-sm">Create Announcement</span>
+                  </div>
                 </Button>
               </Link>
             </div>

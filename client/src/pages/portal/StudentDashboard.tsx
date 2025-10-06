@@ -425,29 +425,45 @@ export default function StudentDashboard() {
               Quick Actions
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-2">
             <Link to="/portal/student/exams">
-              <Button className="w-full justify-start">
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Take Exams
+              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <ClipboardList className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">Take Exams</span>
+                </div>
               </Button>
             </Link>
             <Link to="/portal/student/grades">
-              <Button variant="outline" className="w-full justify-start">
-                <Star className="w-4 h-4 mr-2" />
-                View Grades
+              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Star className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">View Grades</span>
+                </div>
               </Button>
             </Link>
             <Link to="/portal/student/report-card">
-              <Button variant="outline" className="w-full justify-start">
-                <FileText className="w-4 h-4 mr-2" />
-                Report Card
+              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileText className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">Report Card</span>
+                </div>
               </Button>
             </Link>
             <Link to="/portal/student/study-resources">
-              <Button variant="outline" className="w-full justify-start">
-                <BookOpen className="w-4 h-4 mr-2" />
-                Study Resources
+              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">Study Resources</span>
+                </div>
               </Button>
             </Link>
           </CardContent>

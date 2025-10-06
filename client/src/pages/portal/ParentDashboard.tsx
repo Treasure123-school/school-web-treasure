@@ -495,19 +495,21 @@ export default function ParentDashboard() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {quickActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
                   <Button
                     key={index}
                     variant="outline"
-                    className="h-20 flex flex-col space-y-2"
+                    className="h-auto py-4 px-3 flex flex-col gap-2 hover:shadow-md transition-all duration-200 border-t-4 border-t-transparent hover:border-t-primary bg-gradient-to-b hover:from-primary/5 hover:to-transparent"
                     asChild
                   >
                     <Link href={action.href} data-testid={`button-action-${index}`}>
-                      <Icon className="h-6 w-6" />
-                      <span className="text-sm">{action.title}</span>
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <span className="text-xs font-medium text-center">{action.title}</span>
                     </Link>
                   </Button>
                 );

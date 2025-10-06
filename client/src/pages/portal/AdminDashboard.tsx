@@ -437,24 +437,30 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm sm:text-base md:text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-            <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
+            <div className="space-y-2">
               {quickActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
                   <Button
                     key={index}
-                    variant="ghost"
-                    className={`w-full justify-start h-auto p-2.5 sm:p-3 ${action.color} transition-colors text-xs sm:text-sm`}
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent"
                     asChild
                   >
                     <Link href={action.href} data-testid={`button-action-${index}`}>
-                      <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
-                      <span className="font-medium flex-1 text-left">{action.title}</span>
-                      {action.badge !== undefined && (
-                        <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0.5" data-testid={`badge-count-${index}`}>
-                          {action.badge}
-                        </Badge>
-                      )}
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <Icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <span className="font-medium text-sm">{action.title}</span>
+                        </div>
+                        {action.badge !== undefined && (
+                          <Badge variant="destructive" className="ml-2 text-xs" data-testid={`badge-count-${index}`}>
+                            {action.badge}
+                          </Badge>
+                        )}
+                      </div>
                     </Link>
                   </Button>
                 );
