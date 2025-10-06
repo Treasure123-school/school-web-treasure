@@ -83,13 +83,16 @@ export default function StudentManagement() {
   });
 
   // Create student mutation
+  const [createdCredentials, setCreatedCredentials] = useState<any>(null);
+
   const createStudentMutation = useMutation({
     mutationFn: async (data: StudentForm) => {
       // Create student with all data in single API call
+      // Email and password are optional - will be auto-generated
       const studentResponse = await apiRequest('POST', '/api/students', {
-        // User fields
-        email: data.email,
-        password: data.password,
+        // User fields (email and password now optional)
+        email: data.email?.trim() || undefined,
+        password: data.password || undefined,
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone?.trim() || undefined,
@@ -97,7 +100,7 @@ export default function StudentManagement() {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         // Student-specific fields
-        admissionNumber: data.admissionNumber,
+        admissionNumber: data.admissionNumber || undefined,
         classId: data.classId, // Already coerced to number by zod
         parentId: data.parentId || undefined,
         emergencyContact: data.emergencyContact,
@@ -112,10 +115,15 @@ export default function StudentManagement() {
 
       return await studentResponse.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Store generated credentials to show to admin
+      if (data.credentials) {
+        setCreatedCredentials(data.credentials);
+      }
+      
       toast({
         title: 'Success',
-        description: 'Student created successfully',
+        description: 'Student created successfully with auto-generated credentials',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -468,41 +476,44 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="email" className="text-sm">Email</Label>
+                <Label htmlFor="email" className="text-sm">Email (Optional)</Label>
                 <Input
                   id="email"
                   type="email"
                   {...register('email')}
+                  placeholder="Leave blank for auto-generated email"
                   data-testid="input-email"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  If left blank, a school email will be auto-generated
+                </p>
                 {errors.email && (
                   <p className="text-red-500 text-sm">{errors.email.message}</p>
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="password" className="text-sm">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  {...register('password')}
-                  placeholder="Minimum 6 characters"
-                  data-testid="input-password"
-                />
-                {errors.password && (
-                  <p className="text-red-500 text-sm">{errors.password.message}</p>
-                )}
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                  🔐 Credentials Auto-Generated
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                  Username and password will be automatically generated upon student creation. 
+                  You'll receive these credentials to share with the student and parent.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="admissionNumber" className="text-sm">Admission Number</Label>
+                  <Label htmlFor="admissionNumber" className="text-sm">Admission Number (Optional)</Label>
                   <Input
                     id="admissionNumber"
                     {...register('admissionNumber')}
-                    placeholder="THS/2024/001"
+                    placeholder="Leave blank for auto-generated"
                     data-testid="input-admissionNumber"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Auto-generated if not provided
+                  </p>
                   {errors.admissionNumber && (
                     <p className="text-red-500 text-sm">{errors.admissionNumber.message}</p>
                   )}
@@ -680,6 +691,63 @@ export default function StudentManagement() {
             {generateLoginSlipsMutation.isPending ? 'Generating...' : `Generate Login Slips (${selectedStudents.length})`}
           </Button>
         </div>
+
+        {/* Generated Credentials Dialog */}
+        <Dialog open={!!createdCredentials} onOpenChange={() => setCreatedCredentials(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg">🎉 Student Created Successfully!</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-800 dark:text-green-200 font-medium mb-3">
+                  Auto-Generated Login Credentials:
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Username:</p>
+                    <p className="font-mono text-sm font-bold">{createdCredentials?.username}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Password:</p>
+                    <p className="font-mono text-sm font-bold">{createdCredentials?.password}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email:</p>
+                    <p className="font-mono text-sm">{createdCredentials?.email}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
+                <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                  ⚠️ <strong>Important:</strong> Save these credentials! The password will not be shown again. 
+                  The student must change their password on first login.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => {
+                    // Copy credentials to clipboard
+                    const text = `Username: ${createdCredentials?.username}\nPassword: ${createdCredentials?.password}\nEmail: ${createdCredentials?.email}`;
+                    navigator.clipboard.writeText(text);
+                    toast({
+                      title: "Copied!",
+                      description: "Credentials copied to clipboard",
+                    });
+                  }}
+                  variant="outline"
+                >
+                  📋 Copy Credentials
+                </Button>
+                <Button onClick={() => setCreatedCredentials(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Upload Results Dialog */}
         <Dialog open={uploadedStudents.length > 0} onOpenChange={() => setUploadedStudents([])}>
