@@ -656,8 +656,7 @@ export const createStudentSchema = z.object({
   // Student-specific fields - admissionNumber auto-generated
   classId: z.coerce.number().positive("Please select a valid class"),
   parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
-  parentEmail: z.string().email("Invalid parent email").optional(), // For parent linking only
-  parentPhone: z.string().optional(),
+  parentPhone: z.string().optional(), // For parent linking/creation by phone only
   admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
   emergencyContact: z.string().optional(),
   medicalInfo: z.string().optional(),

@@ -3503,7 +3503,7 @@ Treasure-Home School Administration
       const existingUsernames = existingStudents.map(s => s.admissionNumber).filter(Boolean);
       const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear);
 
-      // Generate username and password only
+      // Generate username and password only - NO EMAIL
       const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
       const generatedPassword = generateStudentPassword(currentYear);
       
@@ -3521,9 +3521,9 @@ Treasure-Home School Administration
       // Hash the generated password
       const passwordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
 
-      // Create user account with auto-generated credentials
+      // Create user account with auto-generated credentials - NO EMAIL REQUIRED
       const userData: InsertUser = {
-        email: `${finalUsername.toLowerCase()}@student.local`, // Use local domain placeholder with unique username
+        email: `${finalUsername.toLowerCase()}@internal.ths`, // Internal placeholder only - not used for login
         username: finalUsername,
         passwordHash,
         firstName: validatedData.firstName,
@@ -3550,30 +3550,21 @@ Treasure-Home School Administration
         let parentCredentials: { username: string; password: string } | null = null;
         let parentCreated = false;
 
-        // Check if parent email or phone is provided and no explicit parentId
-        if ((validatedData.parentEmail || validatedData.parentPhone) && !parentId) {
-          console.log('🔍 Checking for existing parent account...');
+        // Check if parent phone is provided and no explicit parentId - NO EMAIL MATCHING
+        if (validatedData.parentPhone && !parentId) {
+          console.log('🔍 Checking for existing parent account by phone...');
           
-          // Try to find existing parent by email or phone
+          // Try to find existing parent by phone ONLY
           let existingParent = null;
-          if (validatedData.parentEmail) {
-            existingParent = await storage.getUserByEmail(validatedData.parentEmail);
-            if (existingParent && existingParent.roleId !== ROLES.PARENT) {
-              existingParent = null; // Ignore if not a parent role
-            }
-          }
-          
-          if (!existingParent && validatedData.parentPhone) {
-            const allParents = await storage.getUsersByRole(ROLES.PARENT);
-            existingParent = allParents.find(p => p.phone === validatedData.parentPhone);
-          }
+          const allParents = await storage.getUsersByRole(ROLES.PARENT);
+          existingParent = allParents.find(p => p.phone === validatedData.parentPhone);
 
           if (existingParent) {
             // ✅ Link to existing parent
-            console.log('✅ Found existing parent, linking to student');
+            console.log('✅ Found existing parent by phone, linking to student');
             parentId = existingParent.id;
           } else {
-            // 🆕 Auto-create new parent account
+            // 🆕 Auto-create new parent account - USERNAME/PASSWORD ONLY
             console.log('🆕 No existing parent found, auto-creating parent account');
             
             const parentUsername = generateUsername(ROLES.PARENT, currentYear, '', 
@@ -3583,7 +3574,7 @@ Treasure-Home School Administration
             
             const parentData: InsertUser = {
               username: parentUsername,
-              email: validatedData.parentEmail || `${parentUsername.toLowerCase()}@parent.local`,
+              email: `${parentUsername.toLowerCase()}@internal.ths`, // Internal placeholder - not used for login
               passwordHash: parentPasswordHash,
               firstName: validatedData.guardianName?.split(' ')[0] || validatedData.firstName,
               lastName: validatedData.guardianName?.split(' ').slice(1).join(' ') || `Parent`,

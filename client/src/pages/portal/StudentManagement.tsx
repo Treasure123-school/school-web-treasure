@@ -488,8 +488,8 @@ export default function StudentManagement() {
                       Credentials Auto-Generated
                     </p>
                     <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                      Username, password, and admission number will be automatically generated upon student creation. 
-                      Students don't need email - they login with username only. You'll receive these credentials to share.
+                      Username, password, and admission number will be automatically generated. 
+                      Students login with USERNAME only (no email needed). You'll receive credentials to share with student and parent.
                     </p>
                   </div>
                 </div>
@@ -603,29 +603,17 @@ export default function StudentManagement() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="parentEmail" className="text-sm">Parent Email (Optional)</Label>
-                      <Input
-                        id="parentEmail"
-                        type="email"
-                        {...register('parentEmail')}
-                        placeholder="parent@example.com"
-                        data-testid="input-parentEmail"
-                      />
-                      {errors.parentEmail && (
-                        <p className="text-red-500 text-sm">{errors.parentEmail.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="parentPhone" className="text-sm">Parent Phone (Optional)</Label>
-                      <Input
-                        id="parentPhone"
-                        {...register('parentPhone')}
-                        placeholder="+1234567890"
-                        data-testid="input-parentPhone"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="parentPhone" className="text-sm">Parent Phone (Optional - for auto-link/create)</Label>
+                    <Input
+                      id="parentPhone"
+                      {...register('parentPhone')}
+                      placeholder="+1234567890"
+                      data-testid="input-parentPhone"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      If phone matches existing parent, student will be linked. Otherwise, new parent account will be created.
+                    </p>
                   </div>
 
                   <div>
