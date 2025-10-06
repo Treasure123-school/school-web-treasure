@@ -824,30 +824,20 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="editEmail" className="text-sm">Email</Label>
-                <Input
-                  id="editEmail"
-                  type="email"
-                  {...registerEdit('email')}
-                  data-testid="input-edit-email"
-                />
-                {editErrors.email && (
-                  <p className="text-red-500 text-sm">{editErrors.email.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="editPassword" className="text-sm">New Password (Optional)</Label>
+                <Label htmlFor="editPassword" className="text-sm">Password (Optional - Leave blank to keep current)</Label>
                 <Input
                   id="editPassword"
-                  type="password"
+                  type="text"
                   {...registerEdit('password')}
-                  placeholder="Leave blank to keep current password"
+                  placeholder="Enter new password to change"
                   data-testid="input-edit-password"
                 />
                 {editErrors.password && (
                   <p className="text-red-500 text-sm">{editErrors.password.message}</p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current password is hidden for security. Enter a new password only if you want to change it.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
