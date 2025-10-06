@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GraduationCap, AlertCircle, CheckCircle, Key, Clock, Ban, XCircle, Users } from 'lucide-react';
+import { GraduationCap, AlertCircle, CheckCircle, Key, Clock, Ban, XCircle, Users, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -43,6 +43,7 @@ export default function Login() {
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [selectedRole, setSelectedRole] = useState<number | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Check for OAuth callback parameters
   useEffect(() => {
@@ -643,14 +644,28 @@ export default function Login() {
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  {...register('password')}
-                  className="h-11 sm:h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                  placeholder="Enter your password"
-                  data-testid="input-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    {...register('password')}
+                    className="h-11 sm:h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
+                    placeholder="Enter your password"
+                    data-testid="input-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="toggle-password-visibility"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-destructive text-xs sm:text-sm mt-1 flex items-center gap-1" data-testid="error-password">
                     <AlertCircle className="h-3 w-3" />
