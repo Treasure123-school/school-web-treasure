@@ -1,3 +1,4 @@
+
 /**
  * THS Authentication Utilities
  * Username and password generation following THS branding standards
