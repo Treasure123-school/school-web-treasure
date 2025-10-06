@@ -103,6 +103,9 @@ export default function StudentManagement() {
         admissionNumber: data.admissionNumber || undefined,
         classId: data.classId, // Already coerced to number by zod
         parentId: data.parentId || undefined,
+        parentEmail: data.parentEmail?.trim() || undefined,
+        parentPhone: data.parentPhone?.trim() || undefined,
+        guardianName: data.guardianName?.trim() || undefined,
         emergencyContact: data.emergencyContact,
         medicalInfo: data.medicalInfo?.trim() || undefined,
         admissionDate: data.admissionDate, // Fixed field name
@@ -123,7 +126,9 @@ export default function StudentManagement() {
       
       toast({
         title: 'Success',
-        description: 'Student created successfully with auto-generated credentials',
+        description: data.parentCreated 
+          ? 'Student and Parent accounts created successfully!' 
+          : 'Student created successfully with auto-generated credentials',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -556,22 +561,82 @@ export default function StudentManagement() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="parentId" className="text-sm">Parent</Label>
-                  <Select onValueChange={(value) => setValue('parentId', value)}>
-                    <SelectTrigger data-testid="select-parent">
-                      <SelectValue placeholder="Select parent" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {parents.map((parent: any) => (
-                        <SelectItem key={parent.id} value={parent.id}>
-                          {parent.firstName} {parent.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.parentId && (
-                    <p className="text-red-500 text-sm">{errors.parentId.message}</p>
+                  <Label htmlFor="admissionDate" className="text-sm">Admission Date</Label>
+                  <Input
+                    id="admissionDate"
+                    type="date"
+                    {...register('admissionDate')}
+                    data-testid="input-admissionDate"
+                  />
+                  {errors.admissionDate && (
+                    <p className="text-red-500 text-sm">{errors.admissionDate.message}</p>
                   )}
+                </div>
+              </div>
+
+              <div className="border-t pt-4 mt-2">
+                <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Parent/Guardian Information
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Select an existing parent or provide email/phone to auto-create a new parent account
+                </p>
+                
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="parentId" className="text-sm">Link to Existing Parent (Optional)</Label>
+                    <Select onValueChange={(value) => setValue('parentId', value)}>
+                      <SelectTrigger data-testid="select-parent">
+                        <SelectValue placeholder="Select existing parent (or auto-create below)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {parents.map((parent: any) => (
+                          <SelectItem key={parent.id} value={parent.id}>
+                            {parent.firstName} {parent.lastName} - {parent.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.parentId && (
+                      <p className="text-red-500 text-sm">{errors.parentId.message}</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="parentEmail" className="text-sm">Parent Email (Optional)</Label>
+                      <Input
+                        id="parentEmail"
+                        type="email"
+                        {...register('parentEmail')}
+                        placeholder="parent@example.com"
+                        data-testid="input-parentEmail"
+                      />
+                      {errors.parentEmail && (
+                        <p className="text-red-500 text-sm">{errors.parentEmail.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="parentPhone" className="text-sm">Parent Phone (Optional)</Label>
+                      <Input
+                        id="parentPhone"
+                        {...register('parentPhone')}
+                        placeholder="+1234567890"
+                        data-testid="input-parentPhone"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="guardianName" className="text-sm">Guardian Full Name (Optional)</Label>
+                    <Input
+                      id="guardianName"
+                      {...register('guardianName')}
+                      placeholder="Guardian's full name"
+                      data-testid="input-guardianName"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -665,65 +730,166 @@ export default function StudentManagement() {
           </Button>
         </div>
 
-        {/* Generated Credentials Dialog */}
+        {/* Generated Credentials Dialog - Enhanced with Parent Credentials */}
         <Dialog open={!!createdCredentials} onOpenChange={() => setCreatedCredentials(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-lg flex items-center gap-2">
                 <Key className="h-5 w-5 text-green-600" />
-                Student Created Successfully!
+                {createdCredentials?.parent ? 'Student & Parent Accounts Created!' : 'Student Created Successfully!'}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <p className="text-sm text-green-800 dark:text-green-200 font-medium mb-3">
-                  Auto-Generated Login Credentials:
+              {/* Student Credentials */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200 font-medium mb-3 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Student Login Credentials:
                 </p>
                 <div className="space-y-2">
                   <div>
-                    <p className="text-xs text-muted-foreground">Admission Number:</p>
-                    <p className="font-mono text-sm font-bold">{createdCredentials?.username}</p>
-                  </div>
-                  <div>
                     <p className="text-xs text-muted-foreground">Username:</p>
-                    <p className="font-mono text-sm font-bold">{createdCredentials?.username}</p>
+                    <p className="font-mono text-sm font-bold">{createdCredentials?.student?.username}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Password:</p>
-                    <p className="font-mono text-sm font-bold">{createdCredentials?.password}</p>
+                    <p className="font-mono text-sm font-bold">{createdCredentials?.student?.password}</p>
                   </div>
-                  
                 </div>
               </div>
+
+              {/* Parent Credentials - Only show if parent was auto-created */}
+              {createdCredentials?.parent && (
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <p className="text-sm text-green-800 dark:text-green-200 font-medium mb-3 flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Parent Login Credentials (Auto-Created):
+                  </p>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Username:</p>
+                      <p className="font-mono text-sm font-bold">{createdCredentials?.parent?.username}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Password:</p>
+                      <p className="font-mono text-sm font-bold">{createdCredentials?.parent?.password}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-yellow-700 dark:text-yellow-300 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                    <strong>Important:</strong> Save these credentials! The password will not be shown again. 
-                    The student must change their password on first login.
+                    <strong>Important:</strong> Save these credentials immediately! The passwords will not be shown again. 
+                    Both accounts must change their passwords on first login.
                   </p>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   onClick={() => {
-                    // Copy credentials to clipboard
-                    const text = `Admission Number: ${createdCredentials?.username}\nUsername: ${createdCredentials?.username}\nPassword: ${createdCredentials?.password}\nEmail: ${createdCredentials?.email}`;
+                    // Copy all credentials to clipboard
+                    let text = `=== STUDENT CREDENTIALS ===\nUsername: ${createdCredentials?.student?.username}\nPassword: ${createdCredentials?.student?.password}`;
+                    
+                    if (createdCredentials?.parent) {
+                      text += `\n\n=== PARENT CREDENTIALS ===\nUsername: ${createdCredentials?.parent?.username}\nPassword: ${createdCredentials?.parent?.password}`;
+                    }
+                    
                     navigator.clipboard.writeText(text);
                     toast({
                       title: "Copied!",
-                      description: "Credentials copied to clipboard",
+                      description: "All credentials copied to clipboard",
                     });
                   }}
                   variant="outline"
                   className="flex items-center gap-2"
+                  data-testid="button-copy-credentials"
                 >
                   <FileText className="h-4 w-4" />
-                  Copy Credentials
+                  Copy All
                 </Button>
-                <Button onClick={() => setCreatedCredentials(null)}>
+                <Button
+                  onClick={() => {
+                    // Print/Download credentials as PDF
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head>
+                            <title>THS Portal Login Credentials</title>
+                            <style>
+                              body { font-family: Arial, sans-serif; padding: 40px; }
+                              .header { text-align: center; margin-bottom: 30px; }
+                              .section { margin: 20px 0; padding: 20px; border: 2px solid #ddd; border-radius: 8px; }
+                              .student { border-color: #3b82f6; }
+                              .parent { border-color: #22c55e; }
+                              h1 { color: #1e40af; }
+                              h2 { margin-top: 0; }
+                              .credential { margin: 10px 0; }
+                              .label { font-weight: bold; }
+                              .value { font-family: monospace; font-size: 16px; }
+                              .warning { background: #fef3c7; padding: 15px; border-radius: 5px; margin-top: 20px; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="header">
+                              <h1>Treasure-Home School Portal</h1>
+                              <p>Login Credentials</p>
+                            </div>
+                            
+                            <div class="section student">
+                              <h2>Student Login</h2>
+                              <div class="credential">
+                                <span class="label">Username:</span>
+                                <div class="value">${createdCredentials?.student?.username}</div>
+                              </div>
+                              <div class="credential">
+                                <span class="label">Password:</span>
+                                <div class="value">${createdCredentials?.student?.password}</div>
+                              </div>
+                            </div>
+                            
+                            ${createdCredentials?.parent ? `
+                              <div class="section parent">
+                                <h2>Parent/Guardian Login</h2>
+                                <div class="credential">
+                                  <span class="label">Username:</span>
+                                  <div class="value">${createdCredentials?.parent?.username}</div>
+                                </div>
+                                <div class="credential">
+                                  <span class="label">Password:</span>
+                                  <div class="value">${createdCredentials?.parent?.password}</div>
+                                </div>
+                              </div>
+                            ` : ''}
+                            
+                            <div class="warning">
+                              <strong>Important Notes:</strong>
+                              <ul>
+                                <li>Keep these credentials safe and secure</li>
+                                <li>You must change your password on first login</li>
+                                <li>Never share your password with anyone</li>
+                                <li>Contact school administration if you forget your password</li>
+                              </ul>
+                            </div>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                      printWindow.print();
+                    }
+                  }}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  data-testid="button-print-credentials"
+                >
+                  <Download className="h-4 w-4" />
+                  Print/Download
+                </Button>
+                <Button onClick={() => setCreatedCredentials(null)} data-testid="button-close-credentials">
                   Done
                 </Button>
               </div>
