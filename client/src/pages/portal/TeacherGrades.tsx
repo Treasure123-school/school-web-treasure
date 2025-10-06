@@ -18,7 +18,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star } from 'lucide-react';
+import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star, RefreshCw } from 'lucide-react';
 
 const examSchema = z.object({
   name: z.string().min(1, 'Exam name is required'),
@@ -792,7 +792,7 @@ export default function TeacherGrades() {
                   </span>
                   <div className="flex items-center space-x-2">
                     <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries(['/api/grading/tasks'])}>
-                      <Reload className="w-4 h-4 mr-2" /> Refresh
+                      <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                     </Button>
                     <Button size="sm" onClick={() => setActiveTab('overview')}>Back to Overview</Button>
                   </div>
