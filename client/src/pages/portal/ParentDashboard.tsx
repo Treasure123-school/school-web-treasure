@@ -502,14 +502,14 @@ export default function ParentDashboard() {
                   <Button
                     key={index}
                     variant="outline"
-                    className="h-auto py-4 px-3 flex flex-col gap-2 hover:shadow-md transition-all duration-200 border-t-4 border-t-transparent hover:border-t-primary bg-gradient-to-b hover:from-primary/5 hover:to-transparent"
+                    className="w-full justify-start h-auto py-4 px-3 flex flex-col gap-2 hover:shadow-md transition-all duration-200 border-t-4 border-t-transparent hover:border-t-primary bg-gradient-to-b hover:from-primary/5 hover:to-transparent group"
                     asChild
                   >
                     <Link href={action.href} data-testid={`button-action-${index}`}>
-                      <div className="p-2 rounded-lg bg-primary/10">
+                      <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
-                      <span className="text-xs font-medium text-center">{action.title}</span>
+                      <span className="text-xs font-medium text-center text-foreground group-hover:text-primary transition-colors">{action.title}</span>
                     </Link>
                   </Button>
                 );

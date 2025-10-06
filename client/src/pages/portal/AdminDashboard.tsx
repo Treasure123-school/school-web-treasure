@@ -444,16 +444,16 @@ export default function AdminDashboard() {
                   <Button
                     key={index}
                     variant="outline"
-                    className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent"
+                    className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group"
                     asChild
                   >
                     <Link href={action.href} data-testid={`button-action-${index}`}>
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-primary/10">
+                          <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                             <Icon className="h-4 w-4 text-primary" />
                           </div>
-                          <span className="font-medium text-sm">{action.title}</span>
+                          <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{action.title}</span>
                         </div>
                         {action.badge !== undefined && (
                           <Badge variant="destructive" className="ml-2 text-xs" data-testid={`badge-count-${index}`}>

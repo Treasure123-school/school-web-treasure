@@ -317,42 +317,42 @@ export default function TeacherDashboard() {
           <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Link to="/portal/exams">
-                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                       <ClipboardList className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="font-medium text-sm">Create Exam</span>
+                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Create Exam</span>
                   </div>
                 </Button>
               </Link>
               <Link to="/portal/teacher/attendance">
-                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                       <UserCheck className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="font-medium text-sm">Take Attendance</span>
+                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Take Attendance</span>
                   </div>
                 </Button>
               </Link>
               <Link to="/portal/teacher/grades">
-                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                       <Star className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="font-medium text-sm">Manage Grades</span>
+                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Manage Grades</span>
                   </div>
                 </Button>
               </Link>
               <Link to="/portal/announcements">
-                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                       <Bell className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="font-medium text-sm">Create Announcement</span>
+                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Create Announcement</span>
                   </div>
                 </Button>
               </Link>
