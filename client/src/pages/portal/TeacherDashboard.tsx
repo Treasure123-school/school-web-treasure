@@ -1,4 +1,3 @@
-replit_final_file>
 import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap, FileText } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
 import { Link } from 'wouter';
 
 // Component for displaying results by class card
@@ -199,11 +198,6 @@ export default function TeacherDashboard() {
   const totalClasses = teacherClasses.length;
   const pendingGradesCount = (pendingGradingTasks as any[]).length;
 
-  // Placeholder for gradingStats - replace with actual data fetching if available
-  const gradingStats = {
-    total_pending: pendingGradesCount,
-  };
-
   return (
     <PortalLayout 
       userRole="teacher" 
@@ -313,74 +307,42 @@ export default function TeacherDashboard() {
         </Card>
 
         {/* Quick Actions - Fully Responsive */}
-      <Card className="shadow-sm border border-border">
-        <CardHeader className="p-3 sm:p-4 md:p-6">
-          <CardTitle className="text-sm sm:text-base md:text-lg">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-          <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-auto p-2.5 sm:p-3 bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors text-xs sm:text-sm"
-              asChild
-            >
-              <Link href="/portal/teacher/exams/create">
-                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
-                <span className="font-medium flex-1 text-left">Create Exam</span>
+        <Card className="lg:col-span-2 order-1 lg:order-2">
+          <CardHeader className="p-4 sm:p-5 md:p-6">
+            <CardTitle className="flex items-center text-sm sm:text-base">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+            <Link to="/portal/exams">
+                <Button className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Create Exam
+                </Button>
               </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-auto p-2.5 sm:p-3 bg-green-100 hover:bg-green-200 text-green-600 transition-colors text-xs sm:text-sm"
-              asChild
-            >
-              <Link href="/portal/teacher/attendance">
-                <CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
-                <span className="font-medium flex-1 text-left">Take Attendance</span>
+              <Link to="/portal/teacher/attendance">
+                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Take Attendance
+                </Button>
               </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-auto p-2.5 sm:p-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 transition-colors text-xs sm:text-sm"
-              asChild
-            >
-              <Link href="/portal/teacher/grades">
-                <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
-                <span className="font-medium flex-1 text-left">Manage Grades</span>
+              <Link to="/portal/teacher/grades">
+                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Manage Grades
+                </Button>
               </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-auto p-2.5 sm:p-3 bg-blue-100 hover:bg-blue-200 text-blue-600 transition-colors text-xs sm:text-sm"
-              asChild
-            >
-              <Link href="/portal/teacher/announcements">
-                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
-                <span className="font-medium flex-1 text-left">Create Announcement</span>
+              <Link to="/portal/announcements">
+                <Button variant="outline" className="w-full justify-start text-xs sm:text-sm h-9 sm:h-10">
+                  <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                  Create Announcement
+                </Button>
               </Link>
-            </Button>
-
-            {gradingStats && gradingStats.total_pending > 0 && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start h-auto p-2.5 sm:p-3 bg-orange-100 hover:bg-orange-200 text-orange-600 transition-colors text-xs sm:text-sm"
-                asChild
-              >
-                <Link href="/portal/teacher/grading-queue">
-                  <ClipboardCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3 flex-shrink-0" />
-                  <span className="font-medium flex-1 text-left">Grading Queue</span>
-                  <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0.5">
-                    {gradingStats.total_pending}
-                  </Badge>
-                </Link>
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Results by Class - New Section */}
@@ -423,4 +385,3 @@ export default function TeacherDashboard() {
     </PortalLayout>
   );
 }
-</replit_final_file>
