@@ -1282,7 +1282,6 @@ export default function StudentManagement() {
           )}
         </CardContent>
       </Card>
-      </div>
     </PortalLayout>
   );
 }
