@@ -3453,7 +3453,7 @@ Treasure-Home School Administration
 
   app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      console.log('Creating student for email:', req.body.email); // Log context without sensitive data
+      console.log('Creating student:', req.body.firstName, req.body.lastName);
 
       // Simple date validation function that doesn't use Date constructor
       const isValidDate = (dateString: string): boolean => {
@@ -3484,7 +3484,7 @@ Treasure-Home School Administration
       });
 
       // Defensive normalization: convert null/empty strings to undefined for optional string fields
-      for (const field of ["phone", "address", "medicalInfo", "parentId"]) {
+      for (const field of ["phone", "address", "medicalInfo", "parentId", "email", "password", "admissionNumber", "parentEmail"]) {
         if (req.body[field] == null || req.body[field] === "") {
           delete req.body[field];
         }
@@ -3492,19 +3492,80 @@ Treasure-Home School Administration
 
       const validatedData = sharedCreateStudentSchema.parse(req.body);
 
+      // AUTO-GENERATE CREDENTIALS if not provided (THS Admin Upload feature)
+      const currentYear = new Date().getFullYear().toString();
+      let generatedUsername: string | null = null;
+      let generatedPassword: string | null = null;
+      let generatedEmail: string | null = null;
+      let generatedAdmissionNumber: string | null = null;
+
+      // Get class info for username generation
+      const studentClass = validatedData.classId ? await storage.getClass(validatedData.classId) : null;
+      if (!studentClass) {
+        return res.status(400).json({ message: "Invalid class selection" });
+      }
+
+      // Generate class code from class name (PR3, JSS1, SS2, etc.)
+      const classCode = studentClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
+
+      // Get all existing usernames for sequence numbering
+      const allUsers = await storage.getAllUsers();
+      const existingUsernames = allUsers.map(u => u.username).filter(Boolean) as string[];
+
+      // Get next sequence number for this class
+      const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear, classCode);
+
+      // Generate THS-branded username: THS-STU-2025-PR3-001
+      generatedUsername = generateUsername(ROLES.STUDENT, currentYear, classCode, nextNumber);
+
+      // Generate THS-branded password: THS@2025#X4D1a9...
+      generatedPassword = generatePassword(currentYear);
+
+      // Generate email from username: THS-STU-2025-PR3-001@ths.local
+      generatedEmail = `${generatedUsername}@ths.local`;
+
+      // Generate admission number if not provided
+      if (!validatedData.admissionNumber) {
+        generatedAdmissionNumber = `THS${currentYear.substring(2)}${String(nextNumber).padStart(4, '0')}`;
+      }
+
+      // Use generated or provided credentials
+      const finalEmail = validatedData.email || generatedEmail;
+      const finalPassword = validatedData.password || generatedPassword;
+      const finalAdmissionNumber = validatedData.admissionNumber || generatedAdmissionNumber;
+
       // Check if user with this email already exists
-      const existingUser = await storage.getUserByEmail(validatedData.email);
+      const existingUser = await storage.getUserByEmail(finalEmail);
       if (existingUser) {
         return res.status(409).json({ message: "Email address already exists" });
       }
 
+      // Check if username already exists
+      const existingUsername = await storage.getUserByUsername(generatedUsername);
+      if (existingUsername) {
+        return res.status(409).json({ message: "Username already exists. Please try again." });
+      }
+
       // Hash the password
-      const passwordHash = await bcrypt.hash(validatedData.password, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt.hash(finalPassword, BCRYPT_ROUNDS);
+
+      // AUTO-LINK PARENT by email if provided (parentEmail field)
+      let finalParentId = validatedData.parentId || null;
+      if (!finalParentId && validatedData.parentEmail) {
+        const parentUser = await storage.getUserByEmail(validatedData.parentEmail);
+        if (parentUser && parentUser.roleId === ROLES.PARENT) {
+          finalParentId = parentUser.id;
+          console.log('Auto-linked student to existing parent:', parentUser.email);
+        }
+      }
 
       // Prepare user data - store exact date strings, no conversion
       const userData = {
-        email: validatedData.email,
+        username: generatedUsername, // THS-STU-2025-PR3-001
+        email: finalEmail,
         passwordHash,
+        mustChangePassword: true, // Force password change on first login
+        createdVia: 'admin' as const,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         phone: validatedData.phone || null,
@@ -3513,11 +3574,13 @@ Treasure-Home School Administration
         gender: validatedData.gender,
         profileImageUrl: validatedData.profileImageUrl || null,
         roleId: ROLES.STUDENT, // Always set to student role
-        isActive: true
+        isActive: true,
+        status: 'active' as const, // Students don't need approval
+        createdBy: req.user?.id,
       };
 
       // Create user first
-      console.log('Creating user for student...');
+      console.log('Creating user for student with username:', generatedUsername);
       const user = await storage.createUser(userData);
       console.log('User created with ID:', user.id);
 
@@ -3525,12 +3588,13 @@ Treasure-Home School Administration
         // Prepare student data - store exact values, no null conversion for required fields
         const studentData = {
           id: user.id, // Use the same ID as the user
-          admissionNumber: validatedData.admissionNumber,
+          admissionNumber: finalAdmissionNumber,
           classId: validatedData.classId,
-          parentId: validatedData.parentId || null,
+          parentId: finalParentId,
           admissionDate: validatedData.admissionDate, // Store exact YYYY-MM-DD string
           emergencyContact: validatedData.emergencyContact,
           medicalInfo: validatedData.medicalInfo || null,
+          guardianName: validatedData.guardianName || null,
         };
 
         // Create student record
@@ -3543,10 +3607,17 @@ Treasure-Home School Administration
           student,
           user: {
             id: user.id,
+            username: generatedUsername, // Return generated username
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
-          }
+          },
+          // Return generated credentials for login slip
+          generatedCredentials: generatedPassword ? {
+            username: generatedUsername,
+            password: generatedPassword, // Only returned immediately after creation
+            admissionNumber: finalAdmissionNumber,
+          } : null,
         });
 
       } catch (studentError) {
