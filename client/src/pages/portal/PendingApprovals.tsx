@@ -332,29 +332,33 @@ export default function PendingApprovals() {
           {/* Bulk Actions Bar */}
           {selectedUsers.size > 0 && (
             <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="py-3 px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-5 w-5 text-primary" />
-                  <span className="font-medium">{selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    onClick={handleBulkApprove}
-                    disabled={bulkApproveMutation.isPending}
-                    data-testid="button-bulk-approve"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve Selected
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => setSelectedUsers(new Set())}
-                    data-testid="button-clear-selection"
-                  >
-                    Clear Selection
-                  </Button>
+              <CardContent className="py-3 px-3 sm:px-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="h-5 w-5 text-primary flex-shrink-0" />
+                    <span className="font-medium text-sm sm:text-base">{selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected</span>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button 
+                      size="sm" 
+                      onClick={handleBulkApprove}
+                      disabled={bulkApproveMutation.isPending}
+                      data-testid="button-bulk-approve"
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    >
+                      <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Approve Selected
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setSelectedUsers(new Set())}
+                      data-testid="button-clear-selection"
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
