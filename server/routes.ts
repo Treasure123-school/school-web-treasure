@@ -3506,14 +3506,25 @@ Treasure-Home School Administration
       // Generate username and password only
       const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
       const generatedPassword = generateStudentPassword(currentYear);
+      
+      // Check if username already exists and increment if needed
+      let finalUsername = generatedUsername;
+      let attemptNumber = nextNumber;
+      let existingUser = await storage.getUserByUsername(finalUsername);
+      
+      while (existingUser) {
+        attemptNumber++;
+        finalUsername = generateStudentUsername(classInfo.name, currentYear, attemptNumber);
+        existingUser = await storage.getUserByUsername(finalUsername);
+      }
 
       // Hash the generated password
       const passwordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
 
       // Create user account with auto-generated credentials
       const userData: InsertUser = {
-        email: `${generatedUsername.toLowerCase()}@student.local`, // Use local domain placeholder
-        username: generatedUsername,
+        email: `${finalUsername.toLowerCase()}@student.local`, // Use local domain placeholder with unique username
+        username: finalUsername,
         passwordHash,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
@@ -3603,7 +3614,7 @@ Treasure-Home School Administration
         // Prepare student data - admission number ALWAYS auto-generated from username
         const studentData: UpdateStudentSchema = {
           id: user.id, // Use the same ID as the user
-          admissionNumber: generatedUsername, // ALWAYS use generated username as admission number
+          admissionNumber: finalUsername, // ALWAYS use final unique username as admission number
           classId: validatedData.classId,
           parentId: parentId,
           admissionDate: validatedData.admissionDate,
@@ -3626,13 +3637,13 @@ Treasure-Home School Administration
           user: {
             id: user.id,
             email: user.email,
-            username: generatedUsername,
+            username: finalUsername,
             firstName: user.firstName,
             lastName: user.lastName,
           },
           credentials: {
             student: {
-              username: generatedUsername,
+              username: finalUsername,
               password: generatedPassword,
             }
           }

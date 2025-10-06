@@ -641,7 +641,7 @@ export default function StudentManagement() {
               </div>
 
               <div>
-                <Label htmlFor="emergencyContact" className="text-sm">Emergency Contact</Label>
+                <Label htmlFor="emergencyContact" className="text-sm">Emergency Contact (Optional)</Label>
                 <Input
                   id="emergencyContact"
                   {...register('emergencyContact')}

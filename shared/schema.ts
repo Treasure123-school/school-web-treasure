@@ -658,7 +658,7 @@ export const createStudentSchema = z.object({
   parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
   parentEmail: z.string().email("Invalid parent email").optional(), // For parent linking only
   admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
-  emergencyContact: z.string().min(1, "Emergency contact is required"),
+  emergencyContact: z.string().optional(),
   medicalInfo: z.string().optional(),
   guardianName: z.string().optional(),
 });
