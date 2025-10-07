@@ -916,6 +916,9 @@ export async function registerRoutes(app: Express): Server {
       const profilePhotoPath = files['profileImage']?.[0]?.path;
       const signaturePath = files['signature']?.[0]?.path;
 
+      // Normalize gender to match database enum (Male, Female, Other)
+      const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
+
       // Create or update teacher profile
       const profileData = {
         userId: teacherId,
@@ -931,13 +934,14 @@ export async function registerRoutes(app: Express): Server {
         notificationPreference,
         availability: availability || null,
         firstLogin: false,
-        verified: true // Auto-verify on completion
+        verified: true, // Auto-verify on completion
+        verifiedAt: new Date()
       };
 
       // Update user table with basic info
       await storage.updateUser(teacherId, {
         phone: phoneNumber,
-        gender,
+        gender: normalizedGender,
         dateOfBirth,
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
       });

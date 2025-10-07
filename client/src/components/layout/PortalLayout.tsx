@@ -8,7 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useState, useEffect } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Clock, PenTool, CheckSquare, Award } from 'lucide-react';
+import { Clock, PenTool, CheckSquare, Award, Star } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 
 

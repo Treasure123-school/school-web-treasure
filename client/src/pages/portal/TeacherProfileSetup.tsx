@@ -156,6 +156,7 @@ export default function TeacherProfileSetup() {
     if (!formData.dateOfBirth) errors.push("Date of Birth");
     if (!formData.nationalId) errors.push("National ID / Staff ID");
     if (!formData.phoneNumber) errors.push("Phone Number");
+    if (!profileImage) errors.push("Profile Photo");
     
     if (errors.length > 0) {
       toast({
@@ -174,6 +175,7 @@ export default function TeacherProfileSetup() {
     if (!formData.qualification) errors.push("Qualification");
     if (!formData.specialization) errors.push("Specialization");
     if (!formData.department) errors.push("Department");
+    if (!formData.yearsOfExperience || formData.yearsOfExperience < 0) errors.push("Years of Experience");
     if (formData.subjects.length === 0) errors.push("At least one Subject");
     if (formData.assignedClasses.length === 0) errors.push("At least one Class");
     
@@ -193,6 +195,15 @@ export default function TeacherProfileSetup() {
       toast({
         title: "Agreement Required",
         description: "Please agree to the terms before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!profileImage) {
+      toast({
+        title: "Profile Photo Required",
+        description: "Please upload a profile photo before submitting.",
         variant: "destructive",
       });
       return;
@@ -304,7 +315,12 @@ export default function TeacherProfileSetup() {
                 <div className="relative">
                   <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg">
                     {profileImage ? (
-                      <img src={URL.createObjectURL(profileImage)} alt="Profile" className="h-full w-full object-cover" />
+                      <img 
+                        src={URL.createObjectURL(profileImage)} 
+                        alt="Profile Preview" 
+                        className="h-full w-full object-cover"
+                        data-testid="profile-image-preview"
+                      />
                     ) : (
                       <Camera className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                     )}
@@ -315,10 +331,29 @@ export default function TeacherProfileSetup() {
                       type="file"
                       accept="image/*"
                       className="hidden"
+                      data-testid="profile-image-input"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
-                        setProfileImage(file);
                         if (file) {
+                          // Validate file size (max 5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast({
+                              title: "File Too Large",
+                              description: "Please select an image smaller than 5MB",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          // Validate file type
+                          if (!file.type.startsWith('image/')) {
+                            toast({
+                              title: "Invalid File Type",
+                              description: "Please select an image file",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setProfileImage(file);
                           toast({
                             title: "Image Selected",
                             description: `${file.name} ready to upload`,
@@ -334,7 +369,9 @@ export default function TeacherProfileSetup() {
                     <span>{profileImage.name} selected</span>
                   </div>
                 ) : (
-                  <p className="text-xs sm:text-sm text-muted-foreground text-center">Upload your profile photo</p>
+                  <p className="text-xs sm:text-sm text-red-500 dark:text-red-400 text-center">
+                    <span className="text-red-500">*</span> Upload your profile photo (Required)
+                  </p>
                 )}
               </div>
 
@@ -361,9 +398,9 @@ export default function TeacherProfileSetup() {
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -638,7 +675,7 @@ export default function TeacherProfileSetup() {
               <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                 <Label className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
                   <FileSignature className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                  Digital Signature Upload
+                  Digital Signature Upload (Optional)
                 </Label>
                 <div className="space-y-3">
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
@@ -647,10 +684,29 @@ export default function TeacherProfileSetup() {
                       accept="image/*"
                       id="signature-upload"
                       className="hidden"
+                      data-testid="signature-file-input"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
-                        setSignatureFile(file);
                         if (file) {
+                          // Validate file size (max 2MB)
+                          if (file.size > 2 * 1024 * 1024) {
+                            toast({
+                              title: "File Too Large",
+                              description: "Please select a signature image smaller than 2MB",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          // Validate file type
+                          if (!file.type.startsWith('image/')) {
+                            toast({
+                              title: "Invalid File Type",
+                              description: "Please select an image file",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setSignatureFile(file);
                           toast({
                             title: "Signature Selected",
                             description: `${file.name} ready to upload`,
@@ -664,7 +720,8 @@ export default function TeacherProfileSetup() {
                           <img 
                             src={URL.createObjectURL(signatureFile)} 
                             alt="Signature preview" 
-                            className="max-h-24 mx-auto border border-gray-200 dark:border-gray-700 rounded"
+                            className="max-h-24 mx-auto border border-gray-200 dark:border-gray-700 rounded bg-white p-2"
+                            data-testid="signature-preview"
                           />
                           <p className="text-xs text-muted-foreground">{signatureFile.name}</p>
                         </div>
