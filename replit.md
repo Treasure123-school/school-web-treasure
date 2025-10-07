@@ -8,6 +8,22 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
+### Teacher Profile Onboarding System (Latest Update)
+- **Compulsory Setup Form**: First-time teacher login automatically redirects to comprehensive profile setup.
+- **3-Step Wizard Interface**: 
+  1. Personal Information (Staff ID, Gender, DOB, Phone)
+  2. Academic & Professional Details (Qualification, Specialization, Experience, Subjects, Classes, Department)
+  3. Operational Preferences (Grading Mode, Notifications, Availability, Digital Signature Upload)
+- **Admin Verification Workflow**: Dedicated admin interface to review, approve, or request revisions for teacher profiles.
+- **Professional Profile View**: Enhanced teacher profile page displaying:
+  - Profile completion progress indicator (percentage-based)
+  - Academic qualifications and professional credentials
+  - Teaching assignments (subjects and classes)
+  - Digital signature display
+  - Verification status badge
+- **Data Validation**: Form validation with required fields, auto-save progress, and agreement checkbox.
+- **System Integration**: Automatic notifications to admins on profile submission, teacher dashboard access locked until profile completion and admin verification.
+
 ### Online Exam System Features
 - **Exam Creation**: Teachers/admins can create exams with multiple question types (MCQ, essay, short answer, true/false, fill-in-blank).
 - **Exam Delivery**: Students take exams with a countdown timer, auto-save every 30 seconds, tab-switch detection, and auto-submit on timeout.
