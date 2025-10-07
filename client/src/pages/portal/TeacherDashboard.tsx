@@ -190,6 +190,11 @@ export default function TeacherDashboard() {
     enabled: !!user,
   });
 
+  const { data: teacherProfile } = useQuery({
+    queryKey: ['/api/teacher/profile/me'],
+    enabled: !!user && !!profileStatus?.hasProfile,
+  });
+
   // Redirect to setup if profile is incomplete
   useEffect(() => {
     // SAFETY: Only redirect if we have confirmed data (not loading) AND profile is missing
@@ -249,15 +254,35 @@ export default function TeacherDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      {/* Teacher Role Header - Brand Identity */}
+      {/* Teacher Role Header - Personalized */}
       <div className="mb-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl" data-testid="teacher-role-header">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-            <GraduationCap className="h-10 w-10 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+              <GraduationCap className="h-10 w-10 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight" data-testid="text-personalized-greeting">
+                Welcome back, {user.firstName}!
+              </h2>
+              <p className="text-emerald-100 text-sm">
+                {teacherProfile ? (
+                  <span data-testid="text-teacher-assignment">
+                    {teacherProfile.department && `${teacherProfile.department} Department`}
+                    {teacherProfile.subjects && teacherProfile.subjects.length > 0 && 
+                      ` • ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
+                    {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 && 
+                      ` • ${teacherProfile.assignedClasses.length} Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
+                  </span>
+                ) : (
+                  'Empowering minds, shaping futures'
+                )}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Teacher Portal</h2>
-            <p className="text-emerald-100 text-sm">Empowering minds, shaping futures</p>
+          <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
           </div>
         </div>
       </div>
