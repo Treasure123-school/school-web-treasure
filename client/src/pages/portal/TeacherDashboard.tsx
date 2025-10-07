@@ -168,6 +168,27 @@ export default function TeacherDashboard() {
     }
   });
 
+  // Fetch dashboard data from real API endpoints - MUST be before any conditional returns
+  const { data: classes = [], isLoading: classesLoading } = useQuery({
+    queryKey: ['/api/classes'],
+    enabled: !!user,
+  });
+
+  const { data: students = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ['/api/students'],
+    enabled: !!user,
+  });
+
+  const { data: exams = [], isLoading: examsLoading } = useQuery({
+    queryKey: ['/api/exams'],
+    enabled: !!user,
+  });
+
+  const { data: pendingGradingTasks = [], isLoading: gradingTasksLoading } = useQuery({
+    queryKey: ['/api/grading-tasks'],
+    enabled: !!user,
+  });
+
   // Redirect to setup if profile is incomplete
   useEffect(() => {
     if (profileStatus && (!profileStatus.hasProfile || profileStatus.firstLogin)) {
@@ -192,27 +213,6 @@ export default function TeacherDashboard() {
       </PortalLayout>
     );
   }
-
-  // Fetch dashboard data from real API endpoints
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ['/api/classes'],
-    enabled: !!user,
-  });
-
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ['/api/students'],
-    enabled: !!user,
-  });
-
-  const { data: exams = [], isLoading: examsLoading } = useQuery({
-    queryKey: ['/api/exams'],
-    enabled: !!user,
-  });
-
-  const { data: pendingGradingTasks = [], isLoading: gradingTasksLoading } = useQuery({
-    queryKey: ['/api/grading-tasks'],
-    enabled: !!user,
-  });
 
   const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
 
