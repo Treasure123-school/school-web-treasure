@@ -1466,7 +1466,7 @@ export async function registerRoutes(app: Express): Server {
                 console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
                 lockoutViolations.delete(identifier); // Clear violations after suspension
 
-                // Get user role to provide appropriate message
+                // Get user role to provide appropriate message - SHOW ONCE
                 const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
                 const isStaffForSuspension = roleNameForSuspension === 'admin' || roleNameForSuspension === 'teacher';
@@ -1499,6 +1499,7 @@ export async function registerRoutes(app: Express): Server {
           }
         }
 
+        // After suspension check, always show rate limit message for subsequent attempts
         return res.status(429).json({
           message: "Account Temporarily Locked",
           description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again, or use 'Forgot Password' to reset.",
@@ -1506,13 +1507,7 @@ export async function registerRoutes(app: Express): Server {
         });
       }
 
-      // Increment attempt counter
-      loginAttempts.set(attemptKey, {
-        count: attempts.count + 1,
-        lastAttempt: now
-      });
-
-      // Try to find user by username or email
+      // Try to find user by username or email FIRST to check suspension
       let user;
       if (identifier.includes('@')) {
         // Looks like an email
@@ -1527,6 +1522,12 @@ export async function registerRoutes(app: Express): Server {
       }
 
       if (!user) {
+        // Increment attempt counter only after confirming user doesn't exist
+        loginAttempts.set(attemptKey, {
+          count: attempts.count + 1,
+          lastAttempt: now
+        });
+        
         console.log(`Login failed: User not found for identifier ${identifier}`);
         return res.status(401).json({
           message: "Invalid username or password. Please check your credentials and try again.",
@@ -1538,6 +1539,40 @@ export async function registerRoutes(app: Express): Server {
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
       const isStaffAccount = roleName === 'admin' || roleName === 'teacher';
+
+      // SECURITY CHECK: Block suspended accounts BEFORE incrementing attempts
+      if (user.status === 'suspended') {
+        console.warn(`Login blocked: Account ${identifier} is suspended`);
+
+        if (isStaffAccount) {
+          // Message 9: Staff Account Suspended
+          return res.status(403).json({
+            message: "Account Suspended",
+            description: "Access denied. Your account has been suspended by the school administrator. Please contact the school administrator to resolve this issue.",
+            statusType: "suspended_staff"
+          });
+        } else if (roleName === 'parent') {
+          // Message for suspended parent accounts
+          return res.status(403).json({
+            message: "Account Suspended - Security Alert",
+            description: "Your parent account has been automatically suspended due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.\n\n📞 To Restore Your Account:\nContact School Administrator:\n📧 Email: treasurehomeschool@gmail.com\n📞 Call: School office during working hours\n\n💡 Have your child's information ready for verification.",
+            statusType: "suspended_parent"
+          });
+        } else {
+          // Message 10: Student Account Suspended
+          return res.status(403).json({
+            message: "Account Suspended",
+            description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
+            statusType: "suspended_student"
+          });
+        }
+      }
+
+      // Now increment attempt counter for valid users who aren't suspended
+      loginAttempts.set(attemptKey, {
+        count: attempts.count + 1,
+        lastAttempt: now
+      });
 
       // SECURITY CHECK: Block pending accounts - Message 4 & 5
       if (user.status === 'pending') {
@@ -1556,27 +1591,6 @@ export async function registerRoutes(app: Express): Server {
             message: "Account Pending Setup",
             description: "Your account is being set up by the school administrator. You will receive a notification once your account is ready. Please check back soon.",
             statusType: "pending_setup"
-          });
-        }
-      }
-
-      // SECURITY CHECK: Block suspended accounts - Message 9 & 10
-      if (user.status === 'suspended') {
-        console.warn(`Login blocked: Account ${identifier} is suspended`);
-
-        if (isStaffAccount) {
-          // Message 9: Staff Account Suspended
-          return res.status(403).json({
-            message: "Account Suspended",
-            description: "Access denied. Your account has been suspended by the school administrator. Please contact the school administrator to resolve this issue.",
-            statusType: "suspended_staff"
-          });
-        } else {
-          // Message 10: Student Account Suspended
-          return res.status(403).json({
-            message: "Account Suspended",
-            description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
-            statusType: "suspended_student"
           });
         }
       }
