@@ -254,30 +254,44 @@ export default function TeacherDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      {/* Teacher Role Header - Personalized */}
+      {/* Teacher Role Header - Personalized with Dynamic Subject/Class Info */}
       <div className="mb-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl" data-testid="teacher-role-header">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-1">
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
               <GraduationCap className="h-10 w-10 text-white" />
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-2xl font-bold tracking-tight" data-testid="text-personalized-greeting">
                 Welcome back, {user.firstName}!
               </h2>
-              <p className="text-emerald-100 text-sm" data-testid="text-teacher-assignment">
+              <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
                 {teacherProfile ? (
                   <>
                     {teacherProfile.department && `${teacherProfile.department} Department`}
                     {teacherProfile.subjects && teacherProfile.subjects.length > 0 && 
-                      ` • ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
+                      ` • Teaching ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
                     {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 &&
-                      ` • Assigned to ${teacherProfile.assignedClasses.length} Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
+                      ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
                   </>
                 ) : (
                   'Empowering minds, shaping futures'
                 )}
               </p>
+              {teacherProfile && (teacherProfile.subjects?.length > 0 || teacherProfile.assignedClasses?.length > 0) && (
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {teacherProfile.subjects?.slice(0, 3).map((subject: string, idx: number) => (
+                    <span key={idx} className="px-2 py-1 bg-white/20 rounded-full text-xs">
+                      {subject}
+                    </span>
+                  ))}
+                  {teacherProfile.assignedClasses?.slice(0, 2).map((cls: string, idx: number) => (
+                    <span key={idx} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
+                      {cls}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">

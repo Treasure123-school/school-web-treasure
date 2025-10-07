@@ -730,6 +730,36 @@ export default function AdminDashboard() {
         </Card>
       )}
 
+      {/* AUTO-VERIFICATION SUCCESS NOTIFICATION - Show if there are new verifications today */}
+      {todayAutoVerified.length > 0 && (
+        <Card className="mb-4 sm:mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 shadow-lg">
+          <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
+                <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+                  <CheckCircle className="h-6 w-6 text-green-600 animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold text-green-900 dark:text-green-200">
+                    🎉 {todayAutoVerified.length} Teacher Profile{todayAutoVerified.length !== 1 ? 's' : ''} Auto-Verified Today!
+                  </h3>
+                  <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 mt-1">
+                    {todayAutoVerified.length === 1 
+                      ? `${todayAutoVerified[0].firstName} ${todayAutoVerified[0].lastName} completed profile setup and can now access the dashboard.`
+                      : `${todayAutoVerified.length} teachers completed their profile setup and are now active in the system.`}
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800" asChild>
+                <Link href="/portal/admin/teachers">
+                  View All Teachers →
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* PROMINENT PENDING APPROVALS NOTIFICATION */}
       {pendingCount > 0 && (
         <Card className="mb-4 sm:mb-6 border-2 border-orange-500 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 shadow-lg" data-testid="card-pending-approvals-alert">
