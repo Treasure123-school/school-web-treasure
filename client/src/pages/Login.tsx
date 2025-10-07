@@ -296,26 +296,48 @@ export default function Login() {
             toast({
               title: (
                 <div className="flex items-center gap-2">
-                  <Ban className="h-4 w-4 text-red-500" />
-                  <span>Parent Account Suspended</span>
+                  <Ban className="h-5 w-5 text-red-600" />
+                  <span className="font-bold">Parent Account Suspended</span>
                 </div>
               ),
               description: (
-                <div className="text-xs sm:text-sm">
-                  <p className="mb-2 flex items-center gap-2">
-                    <Ban className="h-4 w-4" />
-                    Your parent account has been temporarily suspended due to multiple failed login attempts.
-                  </p>
-                  <p className="text-xs text-red-700 dark:text-red-300 mt-2">
-                    Contact the school administrator at <strong>admin@ths.edu</strong> or call the school office to restore access.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    This is a security measure to protect your child's information.
+                <div className="text-xs sm:text-sm space-y-3">
+                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
+                    <p className="font-semibold text-red-900 dark:text-red-100 mb-2">
+                      🔒 Security Alert - Account Locked
+                    </p>
+                    <p className="text-red-800 dark:text-red-200">
+                      Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="font-medium text-red-900 dark:text-red-100">
+                      Why was my account suspended?
+                    </p>
+                    <p className="text-red-800 dark:text-red-200">
+                      This is a <strong>security measure</strong> to protect your child's information and prevent unauthorized access.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-300 dark:border-blue-700">
+                    <p className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                      📞 How to restore access:
+                    </p>
+                    <ul className="text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                      <li><strong>Email:</strong> admin@ths.edu</li>
+                      <li><strong>Call:</strong> School office during working hours</li>
+                      <li>Have your child's information ready for verification</li>
+                    </ul>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground italic">
+                    The administrator will verify your identity and restore your account access.
                   </p>
                 </div>
               ),
-              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
-              duration: 15000,
+              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-md',
+              duration: 20000,
             });
             break;
           case 'suspended_student':
