@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
+import { useEffect } from 'react';
 
 // Component for displaying results by class card
 function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
@@ -153,6 +154,20 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Check teacher profile status for first-time login
+  const { data: profileStatus } = useQuery({
+    queryKey: ['/api/teacher/profile/status'],
+    enabled: !!user,
+  });
+
+  // Redirect to profile setup if first login
+  useEffect(() => {
+    if (profileStatus && profileStatus.firstLogin) {
+      setLocation('/portal/teacher/profile-setup');
+    }
+  }, [profileStatus, setLocation]);
 
   if (!user) {
     return <div>Please log in to access the teacher portal.</div>;
