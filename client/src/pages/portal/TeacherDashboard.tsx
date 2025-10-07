@@ -204,7 +204,7 @@ export default function TeacherDashboard() {
   if (statusLoading) {
     return (
       <PortalLayout
-        userRole={getRoleName(user.roleId)}
+        userRole="teacher"
         userName={user.firstName + ' ' + user.lastName}
         userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
       >

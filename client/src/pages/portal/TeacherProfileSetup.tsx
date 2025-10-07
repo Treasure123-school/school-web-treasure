@@ -137,13 +137,6 @@ export default function TeacherProfileSetup() {
 
   const handleInputChange = (field: keyof TeacherProfileData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Show auto-save indicator
-    toast({
-      title: "Changes saved",
-      description: "Your input has been saved locally",
-      duration: 1000,
-    });
   };
 
   const handleMultiSelect = (field: 'subjects' | 'assignedClasses', value: string) => {
