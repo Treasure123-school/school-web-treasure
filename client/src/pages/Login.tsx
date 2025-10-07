@@ -297,47 +297,41 @@ export default function Login() {
               title: (
                 <div className="flex items-center gap-2">
                   <Ban className="h-5 w-5 text-red-600" />
-                  <span className="font-bold">Parent Account Suspended</span>
+                  <span className="font-bold text-base">🔒 Account Suspended</span>
                 </div>
               ),
               description: (
-                <div className="text-xs sm:text-sm space-y-3">
-                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
-                    <p className="font-semibold text-red-900 dark:text-red-100 mb-2">
-                      🔒 Security Alert - Account Locked
+                <div className="text-sm space-y-3">
+                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
+                    <p className="font-bold text-red-900 dark:text-red-100 mb-2 text-base">
+                      Security Alert - Access Blocked
                     </p>
-                    <p className="text-red-800 dark:text-red-200">
-                      Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="font-medium text-red-900 dark:text-red-100">
-                      Why was my account suspended?
-                    </p>
-                    <p className="text-red-800 dark:text-red-200">
-                      This is a <strong>security measure</strong> to protect your child's information and prevent unauthorized access.
+                    <p className="text-red-800 dark:text-red-200 leading-relaxed">
+                      Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts. This protects your child's information from unauthorized access.
                     </p>
                   </div>
 
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-300 dark:border-blue-700">
-                    <p className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                      📞 How to restore access:
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
+                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-base flex items-center gap-2">
+                      📞 To Restore Your Account:
                     </p>
-                    <ul className="text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-                      <li><strong>Email:</strong> treasurehomeschool@gmail.com</li>
-                      <li><strong>Call:</strong> School office during working hours</li>
-                      <li>Have your child's information ready for verification</li>
-                    </ul>
+                    <div className="space-y-2 text-blue-900 dark:text-blue-200">
+                      <p className="font-semibold">Contact School Administrator:</p>
+                      <p className="text-base">
+                        📧 <strong>Email:</strong> <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm">treasurehomeschool@gmail.com</span>
+                      </p>
+                      <p className="text-base">
+                        📞 <strong>Call:</strong> School office during working hours
+                      </p>
+                      <p className="text-sm mt-2 text-blue-700 dark:text-blue-300">
+                        Have your child's information ready for verification
+                      </p>
+                    </div>
                   </div>
-
-                  <p className="text-xs text-muted-foreground italic">
-                    The administrator will verify your identity and restore your account access.
-                  </p>
                 </div>
               ),
-              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-md',
-              duration: 20000,
+              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-lg',
+              duration: 25000,
             });
             break;
           case 'suspended_student':
