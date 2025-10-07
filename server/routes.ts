@@ -900,7 +900,7 @@ export async function registerRoutes(app: Express): Server {
     try {
       const teacherId = req.user!.id;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       const {
         fullName, gender, dateOfBirth, staffId, nationalId, phoneNumber,
         qualification, specialization, yearsOfExperience,
@@ -1007,7 +1007,7 @@ export async function registerRoutes(app: Express): Server {
     try {
       const teacherId = req.user!.id;
       const profile = await storage.getTeacherProfile(teacherId);
-      
+
       res.json({
         hasProfile: !!profile,
         verified: profile?.verified || false,
@@ -1024,7 +1024,7 @@ export async function registerRoutes(app: Express): Server {
     try {
       const teacherId = req.user!.id;
       const profile = await storage.getTeacherProfile(teacherId);
-      
+
       if (!profile) {
         return res.status(404).json({ message: 'Profile not found' });
       }
@@ -2873,7 +2873,7 @@ Treasure-Home School Administration
       // Update the user status to suspended
       const updatedUser = await storage.updateUserStatus(id, 'suspended', adminUser.id, reason || 'Account suspended by admin');
 
-      // PERFORMANCE: Log audit event asynchronously
+      // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
         userId: adminUser.id,
         action: 'user_suspended',
@@ -3448,7 +3448,6 @@ Treasure-Home School Administration
             username: studentUsername,
             email: `${studentUsername.toLowerCase()}@ths.edu`, // Auto-generated email
             passwordHash: studentPasswordHash,
-            roleId: studentRoleData.id,
             firstName: studentFirstName,
             lastName: studentLastName,
             mustChangePassword: true
@@ -3947,7 +3946,7 @@ Treasure-Home School Administration
             let parentUser = await storage.getUserByEmail(parentEmail);
             if (!parentUser) {
               // Generate parent username based on year and a sequence number
-              const parentUsername = `THS-PAR-${currentYear}-${String(await storage.getParentCount() + 1).padStart(3, '0')}`; // Use a separate counter for parents
+              const parentUsername = `THS-PAR-${currentYear}-${String(await storage.getParentCount()+ 1).padStart(3, '0')}`; // Use a separate counter for parents
               const parentPasswordHash = await bcrypt.hash(generateStudentPassword(currentYear), BCRYPT_ROUNDS);
 
               parentUser = await storage.createUser({
@@ -5405,7 +5404,6 @@ Treasure-Home School Administration
       res.status(500).json({ message: "Failed to update exam result" });
     }
   });
-
 
   // Study resources routes
   app.get("/api/study-resources", authenticateUser, async (req, res) => {
@@ -7278,13 +7276,13 @@ Treasure-Home School Administration
   // Subjects are fetched on the client side in the component that needs them
 
   // ==================== TEACHER PROFILE SETUP ROUTES ====================
-  
+
   // Check teacher first-login status
   app.get("/api/teacher/profile/status", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const userId = req.user!.id;
       const profile = await storage.getTeacherProfile(userId);
-      
+
       res.json({
         firstLogin: profile?.firstLogin ?? true,
         profileCompleted: profile?.verified ?? false,
@@ -7302,7 +7300,7 @@ Treasure-Home School Administration
       const userId = req.user!.id;
       const user = await storage.getUser(userId);
       const profile = await storage.getTeacherProfile(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -7330,7 +7328,7 @@ Treasure-Home School Administration
     try {
       const userId = req.user!.id;
       const profileData = req.body;
-      
+
       // Handle arrays that come as JSON strings
       if (typeof profileData.subjects === 'string') {
         profileData.subjects = JSON.parse(profileData.subjects);
@@ -7346,7 +7344,7 @@ Treasure-Home School Administration
       }
 
       const existingProfile = await storage.getTeacherProfile(userId);
-      
+
       const profilePayload = {
         userId,
         staffId: profileData.staffId,
@@ -7404,54 +7402,28 @@ Treasure-Home School Administration
   app.get("/api/admin/teachers/overview", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const teachers = await storage.getUsersByRole(ROLES.TEACHER);
-      const teacherOverview = [];
 
-      for (const teacher of teachers) {
+      // Enrich with profile data
+      const enrichedTeachers = await Promise.all(teachers.map(async (teacher) => {
         const profile = await storage.getTeacherProfile(teacher.id);
-        
-        // Get subject names
-        let subjectNames: string[] = [];
-        if (profile?.subjects && profile.subjects.length > 0) {
-          const subjectsData = await Promise.all(
-            profile.subjects.map(subId => 
-              storage.db.select().from(storage.schema.subjects).where(eq(storage.schema.subjects.id, subId)).limit(1)
-            )
-          );
-          subjectNames = subjectsData.map(s => s[0]?.name).filter(Boolean);
-        }
 
-        // Get class names
-        let classNames: string[] = [];
-        if (profile?.assignedClasses && profile.assignedClasses.length > 0) {
-          const classesData = await Promise.all(
-            profile.assignedClasses.map(classId => 
-              storage.db.select().from(storage.schema.classes).where(eq(storage.schema.classes.id, classId)).limit(1)
-            )
-          );
-          classNames = classesData.map(c => c[0]?.name).filter(Boolean);
-        }
-
-        teacherOverview.push({
+        return {
           id: teacher.id,
           firstName: teacher.firstName,
           lastName: teacher.lastName,
           email: teacher.email,
           phone: teacher.phone,
-          profileImageUrl: teacher.profileImageUrl,
-          status: teacher.status,
-          createdAt: teacher.createdAt,
-          profileCompleted: teacher.profileCompleted,
-          hasProfile: !!profile,
+          staffId: profile?.staffId || null,
+          department: profile?.department || null,
+          subjects: profile?.subjects || [],
+          classes: profile?.assignedClasses || [],
           verified: profile?.verified || false,
-          department: profile?.department || 'N/A',
-          subjects: subjectNames,
-          classes: classNames,
-          staffId: profile?.staffId || 'N/A',
-          firstLogin: profile?.firstLogin ?? true
-        });
-      }
+          hasProfile: !!profile,
+          createdAt: teacher.createdAt,
+        };
+      }));
 
-      res.json(teacherOverview);
+      res.json(enrichedTeachers);
     } catch (error) {
       console.error('Error fetching teacher overview:', error);
       res.status(500).json({ message: "Failed to fetch teacher overview" });
@@ -7562,7 +7534,7 @@ Treasure-Home School Administration
     try {
       const { userId, action } = req.body; // action: 'approve' or 'reject'
       const adminId = req.user!.id;
-      
+
       if (action === 'approve') {
         const profile = await storage.updateTeacherProfile(userId, {
           verified: true,

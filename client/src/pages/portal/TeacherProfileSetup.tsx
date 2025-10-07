@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
@@ -66,7 +65,7 @@ export default function TeacherProfileSetup() {
   const [currentStep, setCurrentStep] = useState(1);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
-  
+
   const [formData, setFormData] = useState<TeacherProfileData>({
     staffId: '',
     gender: '',
@@ -173,12 +172,12 @@ export default function TeacherProfileSetup() {
         body: data,
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Profile creation failed');
       }
-      
+
       return await response.json();
     },
     onSuccess: (data) => {
@@ -188,7 +187,7 @@ export default function TeacherProfileSetup() {
         spread: 70,
         origin: { y: 0.6 }
       });
-      
+
       setTimeout(() => {
         confetti({
           particleCount: 50,
@@ -208,21 +207,21 @@ export default function TeacherProfileSetup() {
         title: "Profile Setup Complete!",
         description: "Your profile has been created and verified. Redirecting to dashboard...",
       });
-      
+
       // Clear draft from localStorage
       localStorage.removeItem('teacher_profile_draft');
-      
+
       // CRITICAL: Update cache BEFORE navigation to prevent redirect loop
       queryClient.setQueryData(['/api/teacher/profile/status'], {
         hasProfile: true,
         verified: true,
         firstLogin: false
       });
-      
+
       // Invalidate to ensure fresh data loads after navigation
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      
+
       // Navigate immediately - cache is already updated
       navigate('/portal/teacher');
     },
@@ -251,13 +250,13 @@ export default function TeacherProfileSetup() {
 
   const validateStep1 = (): boolean => {
     const errors: string[] = [];
-    
+
     if (!formData.gender) errors.push("Gender");
     if (!formData.dateOfBirth) errors.push("Date of Birth");
     if (!formData.nationalId) errors.push("National ID / Staff ID");
     if (!formData.phoneNumber) errors.push("Phone Number");
     if (!profileImage) errors.push("Profile Photo");
-    
+
     if (errors.length > 0) {
       toast({
         title: "Required Fields Missing",
@@ -271,14 +270,14 @@ export default function TeacherProfileSetup() {
 
   const validateStep2 = (): boolean => {
     const errors: string[] = [];
-    
+
     if (!formData.qualification) errors.push("Qualification");
     if (!formData.specialization) errors.push("Specialization");
     if (!formData.department) errors.push("Department");
     if (!formData.yearsOfExperience || formData.yearsOfExperience < 0) errors.push("Years of Experience");
     if (formData.subjects.length === 0) errors.push("At least one Subject");
     if (formData.assignedClasses.length === 0) errors.push("At least one Class");
-    
+
     if (errors.length > 0) {
       toast({
         title: "Required Fields Missing",
@@ -293,7 +292,7 @@ export default function TeacherProfileSetup() {
   const handleSubmit = async () => {
     // Smart validation with flagging
     const validationIssues: string[] = [];
-    
+
     if (!formData.agreement) {
       toast({
         title: "Agreement Required",
@@ -316,15 +315,15 @@ export default function TeacherProfileSetup() {
     if (formData.subjects.length === 0) {
       validationIssues.push("No subjects assigned - profile may need admin review");
     }
-    
+
     if (formData.assignedClasses.length === 0) {
       validationIssues.push("No classes assigned - profile may need admin review");
     }
-    
+
     if (!formData.department || formData.department.trim() === '') {
       validationIssues.push("Department not specified");
     }
-    
+
     if (formData.yearsOfExperience === 0) {
       validationIssues.push("Years of experience not set");
     }

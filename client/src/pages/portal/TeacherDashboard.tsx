@@ -200,7 +200,7 @@ export default function TeacherDashboard() {
     // SAFETY: Only redirect if we have confirmed data (not loading) AND profile is missing
     if (!statusLoading && profileStatus) {
       const needsSetup = !profileStatus.hasProfile || profileStatus.firstLogin === true;
-      
+
       if (needsSetup) {
         console.log('🔄 Redirecting to profile setup:', { 
           hasProfile: profileStatus.hasProfile, 
