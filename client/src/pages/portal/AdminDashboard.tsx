@@ -299,10 +299,11 @@ function NotificationSummary() {
                             const createdDate = new Date(teacher.createdAt);
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
-                            const isToday = createdDate >= today;
-                            return isToday && (
-                              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                                ✨ Auto-Verified
+                            createdDate.setHours(0, 0, 0, 0);
+                            const isToday = createdDate.getTime() === today.getTime();
+                            return isToday && teacher.verified && (
+                              <span className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                                ✨ Auto-Verified Today
                               </span>
                             );
                           })()}

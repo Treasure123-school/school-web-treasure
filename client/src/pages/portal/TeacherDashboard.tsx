@@ -204,14 +204,21 @@ export default function TeacherDashboard() {
   useEffect(() => {
     // SAFETY: Only redirect if we have confirmed data (not loading) AND profile is missing
     if (!statusLoading && profileStatus) {
-      const needsSetup = !profileStatus.hasProfile || profileStatus.firstLogin === true;
+      // A teacher needs setup if they have no profile OR if first_login is explicitly true
+      // Note: firstLogin becomes false after setup, so we check hasProfile as primary indicator
+      const needsSetup = !profileStatus.hasProfile;
 
       if (needsSetup) {
         console.log('🔄 Redirecting to profile setup:', { 
           hasProfile: profileStatus.hasProfile, 
-          firstLogin: profileStatus.firstLogin 
+          verified: profileStatus.verified 
         });
         navigate('/portal/teacher/profile-setup');
+      } else {
+        console.log('✅ Teacher profile exists, dashboard access granted:', {
+          hasProfile: profileStatus.hasProfile,
+          verified: profileStatus.verified
+        });
       }
     }
   }, [profileStatus, statusLoading, navigate]);
