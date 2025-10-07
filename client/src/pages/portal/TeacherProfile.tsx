@@ -59,6 +59,12 @@ export default function TeacherProfile() {
     enabled: !!user
   });
 
+  // Fetch subjects for display
+  const { data: subjects = [] } = useQuery<any[]>({
+    queryKey: ['/api/subjects'],
+    enabled: !!user
+  });
+
   // Calculate profile completion percentage
   const calculateCompletion = () => {
     if (!teacherProfile) return 0;
@@ -220,7 +226,7 @@ export default function TeacherProfile() {
                 <div className="text-center">
                   <div className="relative inline-block">
                     <Avatar className="h-24 w-24 mx-auto mb-4">
-                      <AvatarImage src={user?.profileImageUrl || teacher?.profileImageUrl} />
+                      <AvatarImage src={teacher?.profileImageUrl || ''} />
                       <AvatarFallback className="text-lg">
                         {user.firstName[0]}{user.lastName[0]}
                       </AvatarFallback>
@@ -404,12 +410,15 @@ export default function TeacherProfile() {
                     <Label className="text-muted-foreground mb-2 block">Subjects</Label>
                     <div className="flex flex-wrap gap-2" data-testid="container-subjects">
                       {teacherProfile.subjects && teacherProfile.subjects.length > 0 ? (
-                        teacherProfile.subjects.map((subject: string, idx: number) => (
-                          <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
-                            <BookOpen className="w-3 h-3 mr-1" />
-                            {subject}
-                          </Badge>
-                        ))
+                        teacherProfile.subjects.map((subjectId: number, idx: number) => {
+                          const subjectData = subjects.find((s: any) => s.id === subjectId);
+                          return (
+                            <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              {subjectData?.name || `Subject ${subjectId}`}
+                            </Badge>
+                          );
+                        })
                       ) : (
                         <p className="text-sm text-muted-foreground">No subjects assigned</p>
                       )}
