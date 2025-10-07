@@ -894,7 +894,7 @@ export async function registerRoutes(app: Express): Server {
 
   // Teacher profile setup (first-time login)
   app.post('/api/teacher/profile/setup', authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
-    { name: 'profilePhoto', maxCount: 1 },
+    { name: 'profileImage', maxCount: 1 },
     { name: 'signature', maxCount: 1 }
   ]), async (req, res) => {
     try {
@@ -902,18 +902,18 @@ export async function registerRoutes(app: Express): Server {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       
       const {
-        fullName, gender, dateOfBirth, staffId, email, phone,
+        fullName, gender, dateOfBirth, staffId, nationalId, phoneNumber,
         qualification, specialization, yearsOfExperience,
-        subjects, classes, department, gradingMode,
-        notificationPreference, availability, dataAgreement
+        subjects, assignedClasses, department, gradingMode,
+        notificationPreference, availability, agreement
       } = req.body;
 
       // Parse JSON arrays
       const parsedSubjects = typeof subjects === 'string' ? JSON.parse(subjects) : subjects;
-      const parsedClasses = typeof classes === 'string' ? JSON.parse(classes) : classes;
+      const parsedClasses = typeof assignedClasses === 'string' ? JSON.parse(assignedClasses) : assignedClasses;
 
       // Get file paths
-      const profilePhotoPath = files['profilePhoto']?.[0]?.path;
+      const profilePhotoPath = files['profileImage']?.[0]?.path;
       const signaturePath = files['signature']?.[0]?.path;
 
       // Create or update teacher profile
@@ -923,7 +923,7 @@ export async function registerRoutes(app: Express): Server {
         subjects: parsedSubjects,
         assignedClasses: parsedClasses,
         qualification,
-        yearsOfExperience: parseInt(yearsOfExperience),
+        yearsOfExperience: parseInt(yearsOfExperience) || 0,
         specialization,
         department,
         signatureUrl: signaturePath ? `/${signaturePath}` : null,
@@ -931,15 +931,12 @@ export async function registerRoutes(app: Express): Server {
         notificationPreference,
         availability: availability || null,
         firstLogin: false,
-        verified: false // Requires admin verification
+        verified: true // Auto-verify on completion
       };
 
       // Update user table with basic info
       await storage.updateUser(teacherId, {
-        firstName: fullName.split(' ')[0],
-        lastName: fullName.split(' ').slice(1).join(' '),
-        email,
-        phone,
+        phone: phoneNumber,
         gender,
         dateOfBirth,
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
