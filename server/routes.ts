@@ -873,7 +873,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
   }
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express): Server {
 
   // AI-assisted grading routes
   // Get AI-suggested grading tasks for teacher review
@@ -1470,12 +1470,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
                 const isStaffForSuspension = roleNameForSuspension === 'admin' || roleNameForSuspension === 'teacher';
+                const isParentForSuspension = roleNameForSuspension === 'parent';
 
                 if (isStaffForSuspension) {
                   return res.status(403).json({
                     message: "Account Suspended",
                     description: "Access denied. Your account has been suspended by the school administrator due to security concerns.",
                     statusType: "suspended_staff"
+                  });
+                } else if (isParentForSuspension) {
+                  return res.status(403).json({
+                    message: "Account Suspended - Security Alert",
+                    description: "Your parent account has been automatically suspended due to multiple failed login attempts. This is a security measure to protect your child's information. Please contact the school administrator at admin@ths.edu or call the school office during working hours to restore your account access.",
+                    statusType: "suspended_parent"
                   });
                 } else {
                   return res.status(403).json({
@@ -1493,7 +1500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         return res.status(429).json({
           message: "Account Temporarily Locked",
-          description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again. If you've forgotten your password, use the 'Forgot your password?' link below.",
+          description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again, or use 'Forgot Password' to reset.",
           statusType: "rate_limited"
         });
       }
@@ -3506,12 +3513,12 @@ Treasure-Home School Administration
       // Generate username and password only - NO EMAIL
       const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
       const generatedPassword = generateStudentPassword(currentYear);
-      
+
       // Check if username already exists and increment if needed
       let finalUsername = generatedUsername;
       let attemptNumber = nextNumber;
       let existingUser = await storage.getUserByUsername(finalUsername);
-      
+
       while (existingUser) {
         attemptNumber++;
         finalUsername = generateStudentUsername(classInfo.name, currentYear, attemptNumber);
@@ -3553,7 +3560,7 @@ Treasure-Home School Administration
         // Check if parent phone is provided and no explicit parentId - NO EMAIL MATCHING
         if (validatedData.parentPhone && !parentId) {
           console.log('🔍 Checking for existing parent account by phone...');
-          
+
           // Try to find existing parent by phone ONLY
           let existingParent = null;
           const allParents = await storage.getUsersByRole(ROLES.PARENT);
@@ -3566,12 +3573,12 @@ Treasure-Home School Administration
           } else {
             // 🆕 Auto-create new parent account - USERNAME/PASSWORD ONLY
             console.log('🆕 No existing parent found, auto-creating parent account');
-            
+
             const parentUsername = generateUsername(ROLES.PARENT, currentYear, '', 
               getNextUserNumber(await storage.getAllUsernames(), ROLES.PARENT, currentYear));
             const parentPassword = generatePassword(currentYear);
             const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
-            
+
             const parentData: InsertUser = {
               username: parentUsername,
               email: `${parentUsername.toLowerCase()}@internal.ths`, // Internal placeholder - not used for login
@@ -3587,17 +3594,17 @@ Treasure-Home School Administration
               createdVia: 'admin',
               createdBy: req.user?.id,
             };
-            
+
             const parentUser = await storage.createUser(parentData);
             parentId = parentUser.id;
             parentCreated = true;
-            
+
             // Store parent credentials to return
             parentCredentials = {
               username: parentUsername,
               password: parentPassword,
             };
-            
+
             console.log('✅ Parent account created:', parentUsername);
           }
         }
@@ -4470,7 +4477,7 @@ Treasure-Home School Administration
             return res.status(403).json({ message: "Teachers can only view questions for their own exams" });
           }
         }
-        // Admins can view all questions
+        // Admins can view all
       }
 
       const questions = await storage.getExamQuestions(parseInt(examId));
@@ -4629,7 +4636,7 @@ Treasure-Home School Administration
         graderId: graderId || req.user?.id
       });
 
-      // Trigger score merging after manual grade submission (non-blocking)
+      // Trigger score merge after manual grade submission (non-blocking)
       console.log('🔄 SCORE MERGE: Manual grade submitted for answer', taskId);
       mergeExamScores(parseInt(taskId), storage).catch(error => {
         console.error('❌ SCORE MERGE: Failed to merge scores (non-blocking):', error);
@@ -6381,7 +6388,7 @@ Treasure-Home School Administration
           const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
           if (teachers && teachers.length > 0) {
             assignedTeacherId = teachers[0].id; // Assign to first teacher found
-            console.log(`👨‍🏫 Assigning grading tasks to class-subject teacher: ${assignedTeacherId}`);
+            console.log(`👨‍ öğretmen Assigning grading tasks to class-subject teacher: ${assignedTeacherId}`);
           }
         } catch (error) {
           console.warn(`⚠️ Could not find class-subject teacher, using exam creator: ${error}`);

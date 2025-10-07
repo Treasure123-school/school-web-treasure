@@ -292,6 +292,32 @@ export default function Login() {
               duration: 10000,
             });
             break;
+          case 'suspended_parent':
+            toast({
+              title: (
+                <div className="flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-red-500" />
+                  <span>Parent Account Suspended</span>
+                </div>
+              ),
+              description: (
+                <div className="text-xs sm:text-sm">
+                  <p className="mb-2 flex items-center gap-2">
+                    <Ban className="h-4 w-4" />
+                    Your parent account has been temporarily suspended due to multiple failed login attempts.
+                  </p>
+                  <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                    Contact the school administrator at <strong>admin@ths.edu</strong> or call the school office to restore access.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    This is a security measure to protect your child's information.
+                  </p>
+                </div>
+              ),
+              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
+              duration: 15000,
+            });
+            break;
           case 'suspended_student':
             toast({
               title: (
