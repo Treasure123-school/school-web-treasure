@@ -156,6 +156,45 @@ export default function TeacherProfileSetup() {
     }));
   };
 
+  const validateStep1 = (): boolean => {
+    const errors: string[] = [];
+    
+    if (!formData.gender) errors.push("Gender");
+    if (!formData.dateOfBirth) errors.push("Date of Birth");
+    if (!formData.nationalId) errors.push("National ID / Staff ID");
+    if (!formData.phoneNumber) errors.push("Phone Number");
+    
+    if (errors.length > 0) {
+      toast({
+        title: "Required Fields Missing",
+        description: `Please fill in: ${errors.join(", ")}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = (): boolean => {
+    const errors: string[] = [];
+    
+    if (!formData.qualification) errors.push("Qualification");
+    if (!formData.specialization) errors.push("Specialization");
+    if (!formData.department) errors.push("Department");
+    if (formData.subjects.length === 0) errors.push("At least one Subject");
+    if (formData.assignedClasses.length === 0) errors.push("At least one Class");
+    
+    if (errors.length > 0) {
+      toast({
+        title: "Required Fields Missing",
+        description: `Please fill in: ${errors.join(", ")}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (!formData.agreement) {
       toast({
@@ -382,8 +421,13 @@ export default function TeacherProfileSetup() {
 
               <div className="flex justify-end pt-4">
                 <Button 
-                  onClick={() => setCurrentStep(2)} 
+                  onClick={() => {
+                    if (validateStep1()) {
+                      setCurrentStep(2);
+                    }
+                  }} 
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
+                  data-testid="button-next-step-1"
                 >
                   Next Step
                   <ChevronRight className="h-4 w-4" />
@@ -512,13 +556,19 @@ export default function TeacherProfileSetup() {
                   variant="outline" 
                   onClick={() => setCurrentStep(1)}
                   className="gap-2 text-sm sm:text-base"
+                  data-testid="button-previous-step-2"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Previous
                 </Button>
                 <Button 
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => {
+                    if (validateStep2()) {
+                      setCurrentStep(3);
+                    }
+                  }}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
+                  data-testid="button-next-step-2"
                 >
                   Next Step
                   <ChevronRight className="h-4 w-4" />
@@ -669,6 +719,7 @@ export default function TeacherProfileSetup() {
                   variant="outline" 
                   onClick={() => setCurrentStep(2)}
                   className="gap-2 text-sm sm:text-base"
+                  data-testid="button-previous-step-3"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Previous
@@ -677,6 +728,7 @@ export default function TeacherProfileSetup() {
                   onClick={handleSubmit}
                   disabled={!formData.agreement || createProfileMutation.isPending}
                   className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-submit-profile"
                 >
                   {createProfileMutation.isPending ? (
                     <>
