@@ -1,5 +1,5 @@
 
-import { db } from './db';
+import { db } from './storage';
 import { academicTerms } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
