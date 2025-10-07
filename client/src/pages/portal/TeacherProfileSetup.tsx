@@ -314,9 +314,12 @@ export default function TeacherProfileSetup() {
                   <Input
                     value={formData.nationalId}
                     onChange={(e) => handleInputChange('nationalId', e.target.value)}
-                    placeholder="Enter ID number"
+                    placeholder="e.g., 12345678901 (NIN) or THS/2024/001"
                     className="text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Enter your 11-digit National Identification Number (NIN) or school-assigned Staff ID
+                  </p>
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
