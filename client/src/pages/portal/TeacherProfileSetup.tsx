@@ -1,647 +1,621 @@
 
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, UserCircle, GraduationCap, Briefcase, CheckCircle, Upload, Camera } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useAuth } from "@/lib/auth";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth';
+import { useLocation } from 'wouter';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { FileUpload } from '@/components/ui/file-upload';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { 
+  User, 
+  GraduationCap, 
+  CheckCircle, 
+  Camera, 
+  Calendar, 
+  Phone, 
+  IdCard,
+  BookOpen,
+  Award,
+  Briefcase,
+  Users,
+  Building,
+  Upload,
+  Bell,
+  Clock,
+  FileSignature,
+  ChevronRight,
+  ChevronLeft,
+  AlertCircle
+} from 'lucide-react';
 
-// Teacher Profile Setup Schema
-const teacherSetupSchema = z.object({
-  // Personal Information
-  fullName: z.string().min(1, "Full name is required"),
-  gender: z.string().min(1, "Gender is required"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  staffId: z.string().min(1, "Staff ID is required"),
-  email: z.string().email("Valid email is required"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  
-  // Academic & Professional Details
-  qualification: z.string().min(1, "Qualification is required"),
-  specialization: z.string().min(1, "Area of specialization is required"),
-  yearsOfExperience: z.coerce.number().min(0, "Years of experience must be 0 or more"),
-  subjects: z.array(z.string()).min(1, "Select at least one subject"),
-  classes: z.array(z.string()).min(1, "Select at least one class"),
-  department: z.string().min(1, "Department is required"),
-  
-  // Operational Preferences
-  gradingMode: z.string().min(1, "Grading mode is required"),
-  notificationPreference: z.string().min(1, "Notification preference is required"),
-  availability: z.string().optional(),
-  
-  // Agreement
-  dataAgreement: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the data policy"
-  })
-});
-
-type TeacherSetupFormData = z.infer<typeof teacherSetupSchema>;
+interface TeacherProfileData {
+  staffId: string;
+  gender: string;
+  dateOfBirth: string;
+  phoneNumber: string;
+  nationalId: string;
+  qualification: string;
+  specialization: string;
+  yearsOfExperience: number;
+  subjects: number[];
+  assignedClasses: number[];
+  department: string;
+  signatureUrl: string;
+  gradingMode: string;
+  notificationPreference: string;
+  availability: string;
+  agreement: boolean;
+}
 
 export default function TeacherProfileSetup() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
-  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
-  const [signature, setSignature] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
-  const [signaturePreview, setSignaturePreview] = useState<string>("");
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  
+  const [formData, setFormData] = useState<TeacherProfileData>({
+    staffId: '',
+    gender: '',
+    dateOfBirth: '',
+    phoneNumber: '',
+    nationalId: '',
+    qualification: '',
+    specialization: '',
+    yearsOfExperience: 0,
+    subjects: [],
+    assignedClasses: [],
+    department: '',
+    signatureUrl: '',
+    gradingMode: 'manual',
+    notificationPreference: 'all',
+    availability: 'full-time',
+    agreement: false,
+  });
 
-  // Fetch available subjects and classes
+  // Fetch subjects
   const { data: subjects = [] } = useQuery({
-    queryKey: ["/api/subjects"],
+    queryKey: ['/api/subjects'],
   });
 
+  // Fetch classes
   const { data: classes = [] } = useQuery({
-    queryKey: ["/api/classes"],
+    queryKey: ['/api/classes'],
   });
 
-  // Check if teacher profile already exists
-  const { data: existingProfile, isLoading } = useQuery({
-    queryKey: ["/api/teacher/profile/me"],
-  });
-
-  const form = useForm<TeacherSetupFormData>({
-    resolver: zodResolver(teacherSetupSchema),
-    defaultValues: {
-      fullName: user ? `${user.firstName} ${user.lastName}` : "",
-      email: user?.email || "",
-      subjects: [],
-      classes: [],
-      dataAgreement: false,
-    }
-  });
-
-  useEffect(() => {
-    // If profile exists and is verified, redirect to dashboard
-    if (existingProfile && existingProfile.verified) {
-      navigate("/portal/teacher");
-    }
-  }, [existingProfile, navigate]);
-
-  // Handle profile photo upload
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfilePhoto(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle signature upload
-  const handleSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSignature(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSignaturePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Submit mutation
-  const setupProfileMutation = useMutation({
-    mutationFn: async (data: TeacherSetupFormData) => {
-      const formData = new FormData();
-      
-      // Append all form fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (typeof value === 'boolean') {
-          formData.append(key, value.toString());
-        } else {
-          formData.append(key, value?.toString() || '');
-        }
-      });
-
-      // Append files if available
-      if (profilePhoto) {
-        formData.append('profilePhoto', profilePhoto);
-      }
-      if (signature) {
-        formData.append('signature', signature);
-      }
-
-      const response = await fetch("/api/teacher/profile/setup", {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to setup profile");
-      }
-
-      return response.json();
+  const createProfileMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('POST', '/api/teacher/profile', data);
+      return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/teacher/profile/me"] });
       toast({
-        title: "Profile Setup Complete!",
-        description: "Your profile has been submitted for admin verification. You'll be notified once approved.",
+        title: "Profile Created Successfully",
+        description: "Your profile has been submitted for admin verification.",
       });
-      
-      // Redirect to teacher dashboard (with pending status)
-      setTimeout(() => {
-        navigate("/portal/teacher");
-      }, 2000);
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
+      navigate('/portal/teacher');
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
-        title: "Setup Failed",
-        description: error.message || "Failed to setup profile",
+        title: "Profile Creation Failed",
+        description: error.message || "An error occurred while creating your profile.",
         variant: "destructive",
       });
-    }
+    },
   });
 
-  const onSubmit = (data: TeacherSetupFormData) => {
-    setupProfileMutation.mutate(data);
+  const handleInputChange = (field: keyof TeacherProfileData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const nextStep = async () => {
-    const isValid = await form.trigger();
-    if (isValid) {
-      setCurrentStep(prev => Math.min(prev + 1, 3));
+  const handleMultiSelect = (field: 'subjects' | 'assignedClasses', value: string) => {
+    const numValue = parseInt(value);
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].includes(numValue)
+        ? prev[field].filter(id => id !== numValue)
+        : [...prev[field], numValue]
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.agreement) {
+      toast({
+        title: "Agreement Required",
+        description: "Please agree to the terms before submitting.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    const submitData = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        submitData.append(key, JSON.stringify(value));
+      } else {
+        submitData.append(key, String(value));
+      }
+    });
+
+    if (profileImage) {
+      submitData.append('profileImage', profileImage);
+    }
+    if (signatureFile) {
+      submitData.append('signature', signatureFile);
+    }
+
+    createProfileMutation.mutate(submitData);
   };
 
-  const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
-  };
+  const progressPercentage = (currentStep / 3) * 100;
 
-  const progress = (currentStep / 3) * 100;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const steps = [
+    { number: 1, title: 'Personal Info', icon: User },
+    { number: 2, title: 'Academic Details', icon: GraduationCap },
+    { number: 3, title: 'Confirmation', icon: CheckCircle },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-6 sm:py-8 md:py-12 px-3 sm:px-4 lg:px-6">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            📘 Welcome, Teacher!
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Please Complete Your Profile to Access the Portal
-          </p>
+        <div className="mb-6 sm:mb-8 md:mb-10 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-3 shadow-lg">
+              <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                Welcome, Teacher!
+              </h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1">
+                Please Complete Your Profile to Access the Portal
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Progress Bar */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Profile Setup Progress</CardTitle>
-            <CardDescription>Step {currentStep} of 3</CardDescription>
+        {/* Progress Section */}
+        <Card className="mb-6 sm:mb-8 shadow-lg border-0 bg-white dark:bg-gray-800">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg md:text-xl flex items-center gap-2">
+              <FileSignature className="h-5 w-5 text-blue-600" />
+              Profile Setup Progress
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Step {currentStep} of 3</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Progress value={progress} className="h-3" data-testid="progress-setup" />
-            <div className="flex justify-between mt-4 text-sm">
-              <span className={currentStep >= 1 ? "text-primary font-semibold" : "text-gray-500"}>
-                Personal Info
-              </span>
-              <span className={currentStep >= 2 ? "text-primary font-semibold" : "text-gray-500"}>
-                Academic Details
-              </span>
-              <span className={currentStep >= 3 ? "text-primary font-semibold" : "text-gray-500"}>
-                Confirmation
-              </span>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <Progress value={progressPercentage} className="h-2 mb-4" />
+            <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-4">
+              {steps.map((step) => {
+                const StepIcon = step.icon;
+                return (
+                  <div
+                    key={step.number}
+                    className={`flex items-center gap-2 sm:gap-3 flex-1 p-2 sm:p-3 rounded-lg transition-all ${
+                      currentStep === step.number
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                        : currentStep > step.number
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                        : 'bg-gray-50 dark:bg-gray-700 text-gray-400'
+                    }`}
+                  >
+                    <div className={`p-1.5 sm:p-2 rounded-full ${
+                      currentStep === step.number
+                        ? 'bg-white/20'
+                        : currentStep > step.number
+                        ? 'bg-green-100 dark:bg-green-800'
+                        : 'bg-gray-200 dark:bg-gray-600'
+                    }`}>
+                      <StepIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold hidden sm:inline">{step.title}</span>
+                    <span className="text-xs font-semibold sm:hidden">{step.number}</span>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Main Form */}
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          {/* Step 1: Personal Information */}
-          {currentStep === 1 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <UserCircle className="h-6 w-6 text-primary" />
-                  <CardTitle>Personal Information</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Profile Photo */}
-                <div className="flex justify-center mb-6">
-                  <div className="relative">
-                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                      {photoPreview ? (
-                        <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                        <Camera className="h-12 w-12 text-gray-400" />
-                      )}
-                    </div>
-                    <label className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90">
-                      <Upload className="h-4 w-4" />
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png"
-                        onChange={handlePhotoChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="fullName">Full Name *</Label>
-                    <Input
-                      id="fullName"
-                      {...form.register("fullName")}
-                      data-testid="input-fullName"
-                    />
-                    {form.formState.errors.fullName && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.fullName.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="gender">Gender *</Label>
-                    <Select onValueChange={(value) => form.setValue("gender", value)}>
-                      <SelectTrigger data-testid="select-gender">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.gender && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.gender.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      {...form.register("dateOfBirth")}
-                      data-testid="input-dateOfBirth"
-                    />
-                    {form.formState.errors.dateOfBirth && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.dateOfBirth.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="staffId">National ID / Staff ID *</Label>
-                    <Input
-                      id="staffId"
-                      {...form.register("staffId")}
-                      placeholder="e.g., THS-TCH-2025-007"
-                      data-testid="input-staffId"
-                    />
-                    {form.formState.errors.staffId && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.staffId.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="email">Contact Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      {...form.register("email")}
-                      data-testid="input-email"
-                    />
-                    {form.formState.errors.email && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Phone Number *</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      {...form.register("phone")}
-                      placeholder="+234-8012345678"
-                      data-testid="input-phone"
-                    />
-                    {form.formState.errors.phone && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.phone.message}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button type="button" onClick={nextStep}>
-                  Next Step →
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
-
-          {/* Step 2: Academic & Professional Details */}
-          {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="h-6 w-6 text-primary" />
-                  <CardTitle>Academic & Professional Details</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="qualification">Highest Qualification *</Label>
-                    <Select onValueChange={(value) => form.setValue("qualification", value)}>
-                      <SelectTrigger data-testid="select-qualification">
-                        <SelectValue placeholder="Select qualification" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="B.Ed">B.Ed</SelectItem>
-                        <SelectItem value="M.Ed">M.Ed</SelectItem>
-                        <SelectItem value="B.Sc">B.Sc</SelectItem>
-                        <SelectItem value="NCE">NCE</SelectItem>
-                        <SelectItem value="PGDE">PGDE</SelectItem>
-                        <SelectItem value="PhD">PhD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.qualification && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.qualification.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="specialization">Area of Specialization *</Label>
-                    <Input
-                      id="specialization"
-                      {...form.register("specialization")}
-                      placeholder="e.g., Mathematics, English"
-                      data-testid="input-specialization"
-                    />
-                    {form.formState.errors.specialization && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.specialization.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="yearsOfExperience">Teaching Experience (Years) *</Label>
-                    <Input
-                      id="yearsOfExperience"
-                      type="number"
-                      {...form.register("yearsOfExperience", { valueAsNumber: true })}
-                      data-testid="input-yearsOfExperience"
-                    />
-                    {form.formState.errors.yearsOfExperience && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.yearsOfExperience.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="department">Department *</Label>
-                    <Select onValueChange={(value) => form.setValue("department", value)}>
-                      <SelectTrigger data-testid="select-department">
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Science">Science</SelectItem>
-                        <SelectItem value="Arts">Arts</SelectItem>
-                        <SelectItem value="Commercial">Commercial</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.department && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.department.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Subject(s) to Handle *</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
-                    {subjects.map((subject: any) => (
-                      <div key={subject.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`subject-${subject.id}`}
-                          onCheckedChange={(checked) => {
-                            const current = form.getValues("subjects") || [];
-                            if (checked) {
-                              form.setValue("subjects", [...current, subject.name]);
-                            } else {
-                              form.setValue("subjects", current.filter((s: string) => s !== subject.name));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`subject-${subject.id}`} className="text-sm font-normal cursor-pointer">
-                          {subject.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  {form.formState.errors.subjects && (
-                    <p className="text-sm text-red-500 mt-1">{form.formState.errors.subjects.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Class(es) Assigned *</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
-                    {classes.map((cls: any) => (
-                      <div key={cls.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`class-${cls.id}`}
-                          onCheckedChange={(checked) => {
-                            const current = form.getValues("classes") || [];
-                            if (checked) {
-                              form.setValue("classes", [...current, cls.name]);
-                            } else {
-                              form.setValue("classes", current.filter((c: string) => c !== cls.name));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`class-${cls.id}`} className="text-sm font-normal cursor-pointer">
-                          {cls.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  {form.formState.errors.classes && (
-                    <p className="text-sm text-red-500 mt-1">{form.formState.errors.classes.message}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="gradingMode">Grading Mode *</Label>
-                    <Select onValueChange={(value) => form.setValue("gradingMode", value)}>
-                      <SelectTrigger data-testid="select-gradingMode">
-                        <SelectValue placeholder="Select grading mode" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="100 Marks">100 Marks</SelectItem>
-                        <SelectItem value="Continuous Assessment Only">Continuous Assessment Only</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.gradingMode && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.gradingMode.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="notificationPreference">Notification Preference *</Label>
-                    <Select onValueChange={(value) => form.setValue("notificationPreference", value)}>
-                      <SelectTrigger data-testid="select-notificationPreference">
-                        <SelectValue placeholder="Select preference" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Email">Email</SelectItem>
-                        <SelectItem value="SMS">SMS</SelectItem>
-                        <SelectItem value="In-app">In-app Alert</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.notificationPreference && (
-                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.notificationPreference.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="availability">Availability (Optional)</Label>
-                  <Input
-                    id="availability"
-                    {...form.register("availability")}
-                    placeholder="e.g., Mon–Fri, 8AM–2PM"
-                    data-testid="input-availability"
-                  />
-                </div>
-
-                {/* Digital Signature Upload */}
-                <div>
-                  <Label>Digital Signature (Upload) *</Label>
-                  <div className="mt-2 border-2 border-dashed rounded-lg p-4 text-center">
-                    {signaturePreview ? (
-                      <img src={signaturePreview} alt="Signature" className="mx-auto max-h-24" />
+        {/* Step 1: Personal Information */}
+        {currentStep === 1 && (
+          <Card className="shadow-xl border-0 bg-white dark:bg-gray-800">
+            <CardHeader className="p-4 sm:p-6 border-b">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl flex items-center gap-2">
+                <User className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                Personal Information
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Tell us about yourself</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Profile Image Upload */}
+              <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                <div className="relative">
+                  <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg">
+                    {profileImage ? (
+                      <img src={URL.createObjectURL(profileImage)} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
-                      <p className="text-gray-500 text-sm">JPEG / PNG only</p>
+                      <Camera className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                     )}
-                    <label className="mt-2 inline-block">
-                      <Button type="button" variant="outline" size="sm" asChild>
-                        <span>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Signature
-                        </span>
-                      </Button>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png"
-                        onChange={handleSignatureChange}
-                        className="hidden"
-                      />
-                    </label>
                   </div>
+                  <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg cursor-pointer transition-colors">
+                    <Upload className="h-4 w-4" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setProfileImage(e.target.files?.[0] || null)}
+                    />
+                  </label>
                 </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button type="button" variant="outline" onClick={prevStep}>
-                  ← Previous
-                </Button>
-                <Button type="button" onClick={nextStep}>
-                  Next Step →
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
+                <p className="text-xs sm:text-sm text-muted-foreground text-center">Upload your profile photo</p>
+              </div>
 
-          {/* Step 3: Confirmation */}
-          {currentStep === 3 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-6 w-6 text-primary" />
-                  <CardTitle>Review & Confirmation</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Declaration */}
-                <div className="bg-blue-50 dark:bg-blue-950 p-6 rounded-lg">
-                  <h3 className="font-semibold mb-3 text-lg">📋 Declaration</h3>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                    "I hereby confirm that the information provided above is accurate and that I will comply with the institution's digital data policy for student and score management."
-                  </p>
-                </div>
-
-                {/* Agreement Checkbox */}
-                <div className="flex items-start space-x-3">
-                  <Checkbox
-                    id="dataAgreement"
-                    onCheckedChange={(checked) => form.setValue("dataAgreement", checked as boolean)}
-                  />
-                  <Label htmlFor="dataAgreement" className="text-sm font-semibold cursor-pointer">
-                    ✅ I Agree & Proceed
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Full Name <span className="text-red-500">*</span>
                   </Label>
+                  <Input
+                    value={`${user?.firstName} ${user?.lastName}`}
+                    disabled
+                    className="bg-gray-50 dark:bg-gray-700 text-sm"
+                  />
                 </div>
-                {form.formState.errors.dataAgreement && (
-                  <p className="text-sm text-red-500">{form.formState.errors.dataAgreement.message}</p>
-                )}
 
-                {/* Summary Preview */}
-                <div className="border rounded-lg p-4 space-y-2 bg-gray-50 dark:bg-gray-900">
-                  <h4 className="font-semibold mb-2">Profile Summary:</h4>
-                  <p className="text-sm"><strong>Name:</strong> {form.watch("fullName")}</p>
-                  <p className="text-sm"><strong>Staff ID:</strong> {form.watch("staffId")}</p>
-                  <p className="text-sm"><strong>Qualification:</strong> {form.watch("qualification")}</p>
-                  <p className="text-sm"><strong>Specialization:</strong> {form.watch("specialization")}</p>
-                  <p className="text-sm"><strong>Department:</strong> {form.watch("department")}</p>
-                  <p className="text-sm"><strong>Subjects:</strong> {form.watch("subjects")?.join(", ")}</p>
-                  <p className="text-sm"><strong>Classes:</strong> {form.watch("classes")?.join(", ")}</p>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Gender <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button type="button" variant="outline" onClick={prevStep}>
-                  ← Previous
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={setupProfileMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700"
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Date of Birth <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <IdCard className="h-3 w-3 sm:h-4 sm:w-4" />
+                    National ID / Staff ID <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={formData.nationalId}
+                    onChange={(e) => handleInputChange('nationalId', e.target.value)}
+                    placeholder="Enter ID number"
+                    className="text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Phone className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Phone Number <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="tel"
+                    value={formData.phoneNumber}
+                    onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                    placeholder="+234 XXX XXX XXXX"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={() => setCurrentStep(2)} 
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
                 >
-                  {setupProfileMutation.isPending ? (
+                  Next Step
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 2: Academic & Professional Details */}
+        {currentStep === 2 && (
+          <Card className="shadow-xl border-0 bg-white dark:bg-gray-800">
+            <CardHeader className="p-4 sm:p-6 border-b">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                Academic & Professional Details
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Your qualifications and teaching information</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Award className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Qualification <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={formData.qualification} onValueChange={(value) => handleInputChange('qualification', value)}>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Select qualification" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bsc">B.Sc / B.A</SelectItem>
+                      <SelectItem value="msc">M.Sc / M.A</SelectItem>
+                      <SelectItem value="phd">Ph.D</SelectItem>
+                      <SelectItem value="nce">NCE</SelectItem>
+                      <SelectItem value="pgde">PGDE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Specialization <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={formData.specialization}
+                    onChange={(e) => handleInputChange('specialization', e.target.value)}
+                    placeholder="e.g., Mathematics, Physics"
+                    className="text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Years of Experience <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={formData.yearsOfExperience}
+                    onChange={(e) => handleInputChange('yearsOfExperience', parseInt(e.target.value))}
+                    className="text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Building className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Department <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={formData.department}
+                    onChange={(e) => handleInputChange('department', e.target.value)}
+                    placeholder="e.g., Science, Arts"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+                  Subjects to Teach <span className="text-red-500">*</span>
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg max-h-48 overflow-y-auto">
+                  {(subjects as any[]).map((subject) => (
+                    <div key={subject.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`subject-${subject.id}`}
+                        checked={formData.subjects.includes(subject.id)}
+                        onCheckedChange={() => handleMultiSelect('subjects', subject.id.toString())}
+                      />
+                      <label htmlFor={`subject-${subject.id}`} className="text-xs sm:text-sm cursor-pointer">
+                        {subject.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                  <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                  Assigned Classes <span className="text-red-500">*</span>
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg max-h-48 overflow-y-auto">
+                  {(classes as any[]).map((cls) => (
+                    <div key={cls.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`class-${cls.id}`}
+                        checked={formData.assignedClasses.includes(cls.id)}
+                        onCheckedChange={() => handleMultiSelect('assignedClasses', cls.id.toString())}
+                      />
+                      <label htmlFor={`class-${cls.id}`} className="text-xs sm:text-sm cursor-pointer">
+                        {cls.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentStep(1)}
+                  className="gap-2 text-sm sm:text-base"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button 
+                  onClick={() => setCurrentStep(3)}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
+                >
+                  Next Step
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 3: Operational Preferences */}
+        {currentStep === 3 && (
+          <Card className="shadow-xl border-0 bg-white dark:bg-gray-800">
+            <CardHeader className="p-4 sm:p-6 border-b">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                Operational Preferences
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Configure your working preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <FileSignature className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Grading Mode
+                  </Label>
+                  <Select value={formData.gradingMode} onValueChange={(value) => handleInputChange('gradingMode', value)}>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual Grading</SelectItem>
+                      <SelectItem value="auto">Auto Grading</SelectItem>
+                      <SelectItem value="hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Notification Preference
+                  </Label>
+                  <Select value={formData.notificationPreference} onValueChange={(value) => handleInputChange('notificationPreference', value)}>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Notifications</SelectItem>
+                      <SelectItem value="important">Important Only</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Availability
+                  </Label>
+                  <Select value={formData.availability} onValueChange={(value) => handleInputChange('availability', value)}>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full-time">Full Time</SelectItem>
+                      <SelectItem value="part-time">Part Time</SelectItem>
+                      <SelectItem value="contract">Contract</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <Label className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
+                  <FileSignature className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  Digital Signature Upload
+                </Label>
+                <FileUpload
+                  onFileSelect={setSignatureFile}
+                  accept="image/*"
+                  maxSize={2 * 1024 * 1024}
+                  label="Upload your signature (PNG, JPG - Max 2MB)"
+                />
+                {signatureFile && (
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                    Signature uploaded successfully
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-start space-x-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                <Checkbox
+                  id="agreement"
+                  checked={formData.agreement}
+                  onCheckedChange={(checked) => handleInputChange('agreement', checked)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <label htmlFor="agreement" className="text-xs sm:text-sm cursor-pointer leading-relaxed">
+                    I confirm that all information provided is accurate and complete. I understand that my profile will be reviewed by the admin before I can access the portal.
+                  </label>
+                </div>
+              </div>
+
+              {!formData.agreement && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-4 w-4" />
+                  <p className="text-xs sm:text-sm">Please agree to the terms to submit your profile</p>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentStep(2)}
+                  className="gap-2 text-sm sm:text-base"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={!formData.agreement || createProfileMutation.isPending}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createProfileMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                       Submitting...
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <CheckCircle className="h-4 w-4" />
                       Submit Profile
                     </>
                   )}
                 </Button>
-              </CardFooter>
-            </Card>
-          )}
-        </form>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
