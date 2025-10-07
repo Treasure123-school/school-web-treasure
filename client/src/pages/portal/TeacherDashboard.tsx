@@ -159,26 +159,14 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  // Check if teacher profile is complete
-  const { data: profileStatus, isLoading: statusLoading } = useQuery({
-    queryKey: ['/api/teacher/profile/status'],
-    enabled: !!user
-  });
-
-  // Redirect to setup if profile incomplete
-  useEffect(() => {
-    if (!statusLoading && profileStatus && !profileStatus.hasProfile) {
-      navigate('/portal/teacher/profile-setup');
-    }
-  }, [profileStatus, statusLoading, navigate]);
-
   // Check teacher profile status
   const { data: profileStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['/api/teacher/profile/status'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/teacher/profile/status');
       return await response.json();
-    }
+    },
+    enabled: !!user
   });
 
   // Fetch dashboard data from real API endpoints - MUST be before any conditional returns
@@ -204,10 +192,10 @@ export default function TeacherDashboard() {
 
   // Redirect to setup if profile is incomplete
   useEffect(() => {
-    if (profileStatus && (!profileStatus.hasProfile || profileStatus.firstLogin)) {
+    if (!statusLoading && profileStatus && (!profileStatus.hasProfile || profileStatus.firstLogin)) {
       navigate('/portal/teacher/profile-setup');
     }
-  }, [profileStatus, navigate]);
+  }, [profileStatus, statusLoading, navigate]);
 
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
