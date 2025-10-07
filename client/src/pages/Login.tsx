@@ -325,7 +325,7 @@ export default function Login() {
                       📞 How to restore access:
                     </p>
                     <ul className="text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-                      <li><strong>Email:</strong> admin@ths.edu</li>
+                      <li><strong>Email:</strong> treasurehomeschool@gmail.com</li>
                       <li><strong>Call:</strong> School office during working hours</li>
                       <li>Have your child's information ready for verification</li>
                     </ul>

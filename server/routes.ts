@@ -1945,7 +1945,7 @@ export async function registerRoutes(app: Express): Server {
     try {
       const { userId, newPassword, forceChange } = z.object({
         userId: z.string().uuid(),
-        newPassword: z.string().min(6).max(100).optional(),
+        newPassword: z.string().min(6, "Password must be at least 6 characters").optional(),
         forceChange: z.boolean().optional().default(true)
       }).parse(req.body);
 
@@ -3574,7 +3574,7 @@ Treasure-Home School Administration
             // 🆕 Auto-create new parent account - USERNAME/PASSWORD ONLY
             console.log('🆕 No existing parent found, auto-creating parent account');
 
-            const parentUsername = generateUsername(ROLES.PARENT, currentYear, '', 
+            const parentUsername = generateUsername(ROLES.PARENT, currentYear, '',
               getNextUserNumber(await storage.getAllUsernames(), ROLES.PARENT, currentYear));
             const parentPassword = generatePassword(currentYear);
             const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
@@ -3628,8 +3628,8 @@ Treasure-Home School Administration
 
         // Build response with both student and parent credentials
         const response: any = {
-          message: parentCreated 
-            ? "Student and Parent accounts created successfully" 
+          message: parentCreated
+            ? "Student and Parent accounts created successfully"
             : "Student created successfully",
           student,
           user: {
@@ -5435,7 +5435,6 @@ Treasure-Home School Administration
 
       // First get the content to retrieve file information before deletion
       const content = await storage.getHomePageContentById(parseInt(id));
-
       if (!content) {
         return res.status(404).json({ message: "Content not found" });
       }
