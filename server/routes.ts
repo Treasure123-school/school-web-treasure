@@ -946,11 +946,13 @@ export async function registerRoutes(app: Express): Server {
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
       });
 
-      // Create teacher profile with verified status
+      // Create teacher profile with verified status and theory grading preferences
       const profile = await storage.createTeacherProfile({
         ...profileData,
         verified: true, // Auto-verify on completion
-        firstLogin: false
+        firstLogin: false,
+        autoGradeTheoryQuestions: req.body.autoGradeTheoryQuestions === 'true',
+        theoryGradingInstructions: req.body.theoryGradingInstructions || null
       });
 
       // Update user's profile completion status
