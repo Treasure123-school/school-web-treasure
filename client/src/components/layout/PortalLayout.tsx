@@ -93,6 +93,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Grading Queue', href: `/portal/${userRole}/grading-queue`, icon: ClipboardCheck },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
+          { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },
         ];
       case 'admin':
         return [
