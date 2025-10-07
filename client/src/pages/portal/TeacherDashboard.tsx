@@ -271,7 +271,17 @@ export default function TeacherDashboard() {
                     {teacherProfile.department && `${teacherProfile.department} Department`}
                     {teacherProfile.subjects && teacherProfile.subjects.length > 0 && 
                       ` • ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
-                    {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 && 
+                    {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 &&
+                      ` • Assigned to ${teacherProfile.assignedClasses.length} Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
+                  </span>
+                ) : (
+                  "Your teaching dashboard"
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div> > 0 && 
                       ` • ${teacherProfile.assignedClasses.length} Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
                   </span>
                 ) : (

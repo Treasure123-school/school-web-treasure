@@ -207,7 +207,7 @@ export default function TeacherProfileSetup() {
       }, 250);
 
       toast({
-        title: "Profile Setup Complete!",
+        title: "🎉 Profile Setup Complete!",
         description: "Your profile has been created and verified. Redirecting to dashboard...",
       });
 
@@ -225,8 +225,10 @@ export default function TeacherProfileSetup() {
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
 
-      // Navigate immediately - cache is already updated
-      navigate('/portal/teacher');
+      // Navigate with 2-second delay
+      setTimeout(() => {
+        navigate('/portal/teacher');
+      }, 2000);
     },
     onError: (error: any) => {
       toast({
@@ -438,7 +440,7 @@ export default function TeacherProfileSetup() {
 
         {/* Progress Section */}
         <Card className="mb-6 sm:mb-8 shadow-lg border-0 bg-white dark:bg-gray-800">
-          <CardHeader className="p-4 sm:p-6">
+          <CardHeader className="p-4 sm:p-6 border-b">
             <CardTitle className="text-base sm:text-lg md:text-xl flex items-center gap-2">
               <FileSignature className="h-5 w-5 text-blue-600" />
               Profile Setup Progress
