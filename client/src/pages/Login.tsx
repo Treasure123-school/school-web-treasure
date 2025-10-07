@@ -293,27 +293,28 @@ export default function Login() {
             });
             break;
           case 'suspended_parent':
+            // Prevent default error handling
             toast({
               title: (
                 <div className="flex items-center gap-2">
                   <Ban className="h-5 w-5 text-red-600" />
-                  <span className="font-bold text-base">🔒 Account Suspended</span>
+                  <span className="font-bold text-base">🔒 Account Suspended - Security Alert</span>
                 </div>
               ),
               description: (
                 <div className="text-sm space-y-3">
                   <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
                     <p className="font-bold text-red-900 dark:text-red-100 mb-2 text-base">
-                      Security Alert - Access Blocked
+                      ⚠️ Access Blocked for Your Safety
                     </p>
                     <p className="text-red-800 dark:text-red-200 leading-relaxed">
-                      Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts. This protects your child's information from unauthorized access.
+                      Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.
                     </p>
                   </div>
 
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
                     <p className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-base flex items-center gap-2">
-                      📞 To Restore Your Account:
+                      📞 How to Restore Your Account:
                     </p>
                     <div className="space-y-2 text-blue-900 dark:text-blue-200">
                       <p className="font-semibold">Contact School Administrator:</p>
@@ -324,15 +325,16 @@ export default function Login() {
                         📞 <strong>Call:</strong> School office during working hours
                       </p>
                       <p className="text-sm mt-2 text-blue-700 dark:text-blue-300">
-                        Have your child's information ready for verification
+                        💡 Tip: Have your child's information ready for verification
                       </p>
                     </div>
                   </div>
                 </div>
               ),
               className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-lg',
-              duration: 25000,
+              duration: 30000, // 30 seconds for important security message
             });
+            throw new Error('SUSPENDED_PARENT_HANDLED'); // Prevent default error handling
             break;
           case 'suspended_student':
             toast({
@@ -516,6 +518,11 @@ export default function Login() {
       }, 200);
     },
     onError: (error: any) => {
+      // Skip if already handled (e.g., suspended parent with custom message)
+      if (error.message === 'SUSPENDED_PARENT_HANDLED') {
+        return;
+      }
+      
       // The actual toast messages are now handled within mutationFn for specific errors
       // This onError is for unexpected errors or errors not caught by the switch statement.
       if (!error.message && typeof error === 'string') {
