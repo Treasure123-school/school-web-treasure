@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
-import apiRequest from '@/lib/api';
+import { apiRequest } from '@/lib/queryClient';
 import { getRoleName } from '@/lib/utils';
 
 
