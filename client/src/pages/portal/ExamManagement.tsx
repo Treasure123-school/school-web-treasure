@@ -19,7 +19,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { insertExamSchema, insertExamQuestionSchema, insertQuestionOptionSchema, type Exam, type ExamQuestion, type QuestionOption, type Class, type Subject } from '@shared/schema';
 import { z } from 'zod';
-import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload } from 'lucide-react';
+import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload, Save } from 'lucide-react';
 
 // Form schemas - Use the shared insertExamSchema which has proper preprocessing
 const examFormSchema = insertExamSchema.omit({ createdBy: true });
@@ -32,11 +32,11 @@ const questionFormSchema = insertExamQuestionSchema
       if (val === '' || val === null || val === undefined || Number.isNaN(val)) return 1;
       return val;
     }, z.coerce.number().int().min(1, "Points must be at least 1").default(1)),
-    
+
     // Enhanced fields for theory questions
     instructions: z.string().optional(),
     sampleAnswer: z.string().optional(),
-    
+
     options: z.array(z.object({
       optionText: z.string().min(1, 'Option text is required'),
       isCorrect: z.boolean(),
@@ -153,6 +153,9 @@ export default function ExamManagement() {
 
   const questionType = watchQuestion('questionType');
   const options = watchQuestion('options');
+  const watchTimerMode = watchExam('timerMode');
+  const watchDuration = watchExam('timeLimit');
+  const watchGlobalStartTime = watchExam('startTime');
 
   // Fetch data
   const { data: exams = [], isLoading: loadingExams } = useQuery<Exam[]>({
@@ -163,8 +166,22 @@ export default function ExamManagement() {
     queryKey: ['/api/classes'],
   });
 
-  const { data: subjects = [] } = useQuery<Subject[]>({
+  // Fetch subjects
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
     queryKey: ['/api/subjects'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/subjects');
+      return await response.json();
+    },
+  });
+
+  // Fetch teachers for teacher in-charge dropdown
+  const { data: teachers = [], isLoading: loadingTeachers } = useQuery({
+    queryKey: ['/api/users', 'Teacher'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/users?role=Teacher');
+      return await response.json();
+    },
   });
 
   const { data: terms = [] } = useQuery<any[]>({
@@ -183,7 +200,7 @@ export default function ExamManagement() {
     queryFn: async () => {
       const examIds = exams.map(exam => exam.id);
       if (examIds.length === 0) return {};
-      
+
       const queryString = examIds.map(id => `examIds=${id}`).join('&');
       const response = await apiRequest('GET', `/api/exams/question-counts?${queryString}`);
       if (!response.ok) throw new Error('Failed to fetch question counts');
@@ -316,7 +333,7 @@ export default function ExamManagement() {
     mutationFn: async (questionData: QuestionForm & { examId: number }) => {
       console.log('🔄 Creating question:', questionData);
       const response = await apiRequest('POST', '/api/exam-questions', questionData);
-      
+
       // apiRequest already handles error classification for non-OK responses
       const result = await response.json();
       console.log('✅ Question created:', result);
@@ -351,7 +368,7 @@ export default function ExamManagement() {
     },
     onError: (error: any) => {
       console.error('❌ Question creation mutation error:', error);
-      
+
       // Use classified error types for better error handling
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
@@ -467,7 +484,7 @@ export default function ExamManagement() {
 
   const onSubmitQuestion = (data: QuestionForm) => {
     console.log('📝 Manual question submission:', data);
-    
+
     if (!selectedExam) {
       toast({
         title: "No Exam Selected",
@@ -476,7 +493,7 @@ export default function ExamManagement() {
       });
       return;
     }
-    
+
     // Enhanced validation for question text
     if (!data.questionText || data.questionText.trim().length < 5) {
       toast({
@@ -486,9 +503,9 @@ export default function ExamManagement() {
       });
       return;
     }
-    
+
     const nextOrderNumber = examQuestions.length + 1;
-    
+
     // Prepare the question data
     const questionData: any = {
       ...data,
@@ -497,7 +514,7 @@ export default function ExamManagement() {
       questionText: data.questionText.trim(),
       points: data.points || 1,
     };
-    
+
     // For multiple choice questions, filter out empty options and validate
     if (data.questionType === 'multiple_choice' && data.options) {
       const validOptions = data.options
@@ -507,7 +524,7 @@ export default function ExamManagement() {
           isCorrect: option.isCorrect
           // orderNumber is automatically set by the backend
         }));
-      
+
       // Validate multiple choice requirements
       if (validOptions.length < 2) {
         toast({
@@ -517,7 +534,7 @@ export default function ExamManagement() {
         });
         return;
       }
-      
+
       const hasCorrectAnswer = validOptions.some(opt => opt.isCorrect);
       if (!hasCorrectAnswer) {
         toast({
@@ -527,7 +544,7 @@ export default function ExamManagement() {
         });
         return;
       }
-      
+
       questionData.options = validOptions;
       console.log('✅ Multiple choice validation passed:', validOptions);
     } else {
@@ -535,7 +552,7 @@ export default function ExamManagement() {
       delete questionData.options;
       console.log('✅ Non-multiple choice question ready');
     }
-    
+
     console.log('🚀 Submitting question data:', questionData);
     createQuestionMutation.mutate(questionData);
   };
@@ -567,7 +584,7 @@ export default function ExamManagement() {
         examId: selectedExam?.id,
         questions 
       });
-      
+
       // apiRequest already handles error classification for non-OK responses
       const result = await response.json();
       console.log('✅ CSV upload result:', result);
@@ -577,13 +594,13 @@ export default function ExamManagement() {
       const successMessage = data.errors && data.errors.length > 0 
         ? `${data.created} questions uploaded successfully. ${data.errors.length} failed - check logs for details.`
         : `${data.created} questions uploaded successfully`;
-        
+
       toast({
         title: "Upload Complete",
         description: successMessage,
         variant: data.errors && data.errors.length > 0 ? "default" : "default",
       });
-      
+
       // Show detailed errors if any
       if (data.errors && data.errors.length > 0) {
         console.warn('⚠️ Upload errors:', data.errors);
@@ -591,7 +608,7 @@ export default function ExamManagement() {
           // Show first few errors in the toast for immediate feedback
           const errorSummary = data.errors.slice(0, 3).join('; ');
           const moreErrors = data.errors.length > 3 ? ` (and ${data.errors.length - 3} more)` : '';
-          
+
           toast({
             title: `${data.errors.length} Questions Failed Validation`,
             description: `${errorSummary}${moreErrors}. Check browser console for all details.`,
@@ -600,13 +617,13 @@ export default function ExamManagement() {
           });
         }, 2000);
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] });
     },
     onError: (error: any) => {
       console.error('❌ CSV upload mutation error:', error);
-      
+
       // Enhanced error handling for CSV uploads using classified error types
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
@@ -640,7 +657,7 @@ export default function ExamManagement() {
           const firstFewErrors = error.errors.slice(0, 2).join('; ');
           errorDetails = `${firstFewErrors}${error.errors.length > 2 ? ' (and more)' : ''}`;
         }
-        
+
         toast({
           title: "CSV Validation Errors",
           description: errorDetails,
@@ -676,7 +693,7 @@ export default function ExamManagement() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Enhanced Template Downloaded",
       description: "CSV template with support for multiple choice, text, and essay questions has been downloaded.",
@@ -724,13 +741,13 @@ export default function ExamManagement() {
       try {
         const csv = e.target?.result as string;
         const questions = parseCSV(csv);
-        
+
         // Show preview of what will be uploaded
         toast({
           title: "Processing CSV",
           description: `Found ${questions.length} questions. Uploading to exam...`,
         });
-        
+
         csvUploadMutation.mutate(questions);
       } catch (error: any) {
         toast({
@@ -740,7 +757,7 @@ export default function ExamManagement() {
         });
       }
     };
-    
+
     reader.onerror = () => {
       toast({
         title: "File Read Error",
@@ -748,9 +765,9 @@ export default function ExamManagement() {
         variant: "destructive",
       });
     };
-    
+
     reader.readAsText(file);
-    
+
     // Reset the input
     event.target.value = '';
   };
@@ -759,7 +776,7 @@ export default function ExamManagement() {
   const parseCSV = (csvContent: string) => {
     console.log('📊 Starting enhanced CSV parsing...');
     const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
-    
+
     if (lines.length < 2) {
       throw new Error('CSV must have at least a header row and one question row. Found only ' + lines.length + ' line(s).');
     }
@@ -769,17 +786,17 @@ export default function ExamManagement() {
     const requiredHeaders = ['QuestionText', 'Type', 'Points'];
     const optionalHeaders = ['OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Instructions', 'SampleAnswer'];
     const allExpectedHeaders = [...requiredHeaders, ...optionalHeaders];
-    
+
     console.log('📋 CSV headers found:', headers);
     console.log('📋 Expected headers (required):', requiredHeaders);
     console.log('📋 Expected headers (optional):', optionalHeaders);
-    
+
     // Validate required headers with case-insensitive matching
     const normalizedHeaders = headers.map(h => h.trim());
     const missingRequiredHeaders = requiredHeaders.filter(expected => 
       !normalizedHeaders.some(found => found.toLowerCase() === expected.toLowerCase())
     );
-    
+
     if (missingRequiredHeaders.length > 0) {
       throw new Error(`Missing required CSV headers: ${missingRequiredHeaders.join(', ')}.\nRequired headers: ${requiredHeaders.join(', ')}\nOptional headers: ${optionalHeaders.join(', ')}\nFound headers: ${headers.join(', ')}\n\nPlease download the template to see the correct format.`);
     }
@@ -790,7 +807,7 @@ export default function ExamManagement() {
     for (let i = 1; i < lines.length; i++) {
       try {
         const row = parseCSVLine(lines[i]);
-        
+
         if (row.length < headers.length) {
           errors.push(`Row ${i + 1}: Incomplete row (expected ${headers.length} columns, found ${row.length})`);
           continue;
@@ -855,7 +872,7 @@ export default function ExamManagement() {
         if (questionType === 'multiple_choice') {
           const correctAnswer = getColumnValue('CorrectAnswer')?.toUpperCase();
           const optionLetters = ['A', 'B', 'C', 'D'];
-          
+
           if (!optionLetters.includes(correctAnswer)) {
             errors.push(`Row ${i + 1}: Multiple choice questions require correct answer A, B, C, or D (found: "${correctAnswer}")`);
             continue;
@@ -888,7 +905,7 @@ export default function ExamManagement() {
             const option = getColumnValue(`Option${letter}`);
             return option && option.trim() !== '';
           });
-          
+
           if (hasOptions) {
             console.warn(`Row ${i + 1}: ${questionType} questions don't need option columns. Options will be ignored.`);
           }
@@ -920,10 +937,10 @@ export default function ExamManagement() {
     const result = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
         if (inQuotes && line[i + 1] === '"') {
           // Escaped quote
@@ -941,7 +958,7 @@ export default function ExamManagement() {
         current += char;
       }
     }
-    
+
     // Add the last field
     result.push(current.trim());
     return result;
@@ -1132,7 +1149,7 @@ export default function ExamManagement() {
                     </p>
                   </div>
                   <div>
-                    <Label htmlFor="teacherInCharge">Teacher In-Charge</Label>
+                    <Label htmlFor="teacherInChargeId">Teacher In-Charge</Label>
                     <Controller
                       name="teacherInChargeId"
                       control={examControl}
@@ -1142,12 +1159,17 @@ export default function ExamManagement() {
                             <SelectValue placeholder="Select teacher (optional)" />
                           </SelectTrigger>
                           <SelectContent>
-                            {/* Filter teachers from classes data or add separate teacher query */}
-                            {classes.filter(c => c.classTeacherId).map((classItem: any) => (
-                              <SelectItem key={classItem.classTeacherId} value={classItem.classTeacherId}>
-                                Teacher for {classItem.name}
+                            {teachers && teachers.length > 0 ? (
+                              teachers.map((teacher: any) => (
+                                <SelectItem key={teacher.id} value={teacher.id}>
+                                  {teacher.firstName} {teacher.lastName} - {teacher.department || 'No Department'}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-teachers" disabled>
+                                No teachers available
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       )}
@@ -1155,13 +1177,14 @@ export default function ExamManagement() {
                     <p className="text-xs text-muted-foreground mt-1">
                       Assigns grading responsibility
                     </p>
+                    {examErrors.teacherInChargeId && <p className="text-sm text-red-500">{examErrors.teacherInChargeId.message}</p>}
                   </div>
                 </div>
 
                 {/* Exam Metadata Section */}
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
                   <h4 className="font-medium text-sm">Exam Details & Rules</h4>
-                  
+
                   <div>
                     <Label htmlFor="name">Exam Title</Label>
                     <Input 
@@ -1190,21 +1213,27 @@ export default function ExamManagement() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="term">Academic Term</Label>
+                    <Label htmlFor="termId">Academic Term</Label>
                     <Controller
                       name="termId"
                       control={examControl}
                       render={({ field }) => (
-                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
-                          <SelectTrigger data-testid="select-exam-term">
+                        <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                          <SelectTrigger data-testid="select-term">
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
                           <SelectContent>
-                            {terms.map((term: any) => (
-                              <SelectItem key={term.id} value={term.id.toString()}>
-                                {term.name} ({term.year})
+                            {terms && terms.length > 0 ? (
+                              terms.map((term: any) => (
+                                <SelectItem key={term.id} value={term.id.toString()}>
+                                  {term.name} ({new Date(term.startDate).getFullYear()})
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-terms" disabled>
+                                No academic terms available
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       )}
@@ -1219,7 +1248,7 @@ export default function ExamManagement() {
                     <Clock className="w-4 h-4" />
                     Timer Mode Selection
                   </h4>
-                  
+
                   <div>
                     <Label htmlFor="timerMode">Choose Timer Mode</Label>
                     <Controller
@@ -1249,7 +1278,7 @@ export default function ExamManagement() {
                     />
                   </div>
 
-                  {watchExam('timerMode') === 'individual' && (
+                  {watchTimerMode === 'individual' && (
                     <div className="bg-white dark:bg-gray-900 p-3 rounded border">
                       <p className="text-sm font-medium mb-2">Individual Timer Mode</p>
                       <ul className="text-xs text-muted-foreground space-y-1">
@@ -1260,7 +1289,7 @@ export default function ExamManagement() {
                     </div>
                   )}
 
-                  {watchExam('timerMode') === 'global' && (
+                  {watchTimerMode === 'global' && (
                     <div className="bg-white dark:bg-gray-900 p-3 rounded border">
                       <p className="text-sm font-medium mb-2">Global Timer Mode</p>
                       <ul className="text-xs text-muted-foreground space-y-1">
@@ -1286,7 +1315,7 @@ export default function ExamManagement() {
                   </div>
                   <div>
                     <Label htmlFor="timeLimit">
-                      {watchExam('timerMode') === 'individual' ? 'Duration per Student' : 'Exam Duration'} (minutes)
+                      {watchTimerMode === 'individual' ? 'Duration per Student' : 'Exam Duration'} (minutes)
                     </Label>
                     <Input 
                       id="timeLimit" 
@@ -1297,7 +1326,7 @@ export default function ExamManagement() {
                     />
                     {examErrors.timeLimit && <p className="text-sm text-red-500">{examErrors.timeLimit.message}</p>}
                     <p className="text-xs text-muted-foreground mt-1">
-                      {watchExam('timerMode') === 'individual' 
+                      {watchTimerMode === 'individual' 
                         ? 'Each student gets this many minutes from when they start' 
                         : 'Total duration of the exam window for all students'}
                     </p>
@@ -1305,47 +1334,54 @@ export default function ExamManagement() {
                 </div>
 
                 {/* Scheduling Section for Global Timer */}
-                {watchExam('timerMode') === 'global' && (
-                  <div className="space-y-4 p-4 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
-                    <h4 className="font-medium text-sm flex items-center gap-2">
-                      <Timer className="w-4 h-4" />
-                      Exam Scheduling (Global Timer)
+                {watchTimerMode === 'global' && (
+                  <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Global Timer Configuration
                     </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="startTime">Start Date & Time</Label>
-                        <Input 
-                          id="startTime" 
-                          type="datetime-local"
-                          {...registerExam('startTime')} 
-                          data-testid="input-exam-start-time"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          When the exam automatically becomes available
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="endTime">End Date & Time</Label>
-                        <Input 
-                          id="endTime" 
-                          type="datetime-local"
-                          {...registerExam('endTime')} 
-                          data-testid="input-exam-end-time"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          When the exam automatically closes for all students
-                        </p>
-                      </div>
-                    </div>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="startTime">Start Time</Label>
+                          <Input
+                            id="startTime"
+                            type="datetime-local"
+                            {...registerExam('startTime')} 
+                            data-testid="input-exam-start-time"
+                            min={new Date().toISOString().slice(0, 16)}
+                          />
+                          {examErrors.startTime && (
+                            <p className="text-sm text-red-500 mt-1">{examErrors.startTime.message}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Exam becomes available
+                          </p>
+                        </div>
 
-                    <div className="bg-white dark:bg-gray-900 p-3 rounded border">
-                      <p className="text-sm font-medium mb-2">📅 Auto-Publishing</p>
-                      <p className="text-xs text-muted-foreground">
-                        The system will automatically publish this exam at the scheduled start time, 
-                        and it will become available to all students in the selected class.
-                      </p>
+                        <div>
+                          <Label htmlFor="endTime">End Time</Label>
+                          <Input
+                            id="endTime"
+                            type="datetime-local"
+                            {...registerExam('endTime')} 
+                            data-testid="input-exam-end-time"
+                            min={watchGlobalStartTime || new Date().toISOString().slice(0, 16)}
+                          />
+                          {examErrors.endTime && (
+                            <p className="text-sm text-red-500 mt-1">{examErrors.endTime.message}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Exam auto-submits at this time
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                          All students must complete the exam between these times. The exam will automatically submit at the end time, regardless of when students start.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1367,7 +1403,7 @@ export default function ExamManagement() {
                     <Play className="w-4 h-4" />
                     Publishing & Options
                   </h4>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
                       <Controller
@@ -1384,13 +1420,13 @@ export default function ExamManagement() {
                       <div>
                         <Label>Publish Immediately</Label>
                         <p className="text-xs text-muted-foreground">
-                          {watchExam('timerMode') === 'global' 
+                          {watchTimerMode === 'global' 
                             ? 'Will be published at scheduled start time' 
                             : 'Make exam visible to students now'}
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <Controller
                         name="allowRetakes"
@@ -1441,7 +1477,7 @@ export default function ExamManagement() {
                 {/* Enhanced Auto-Grading Controls */}
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
                   <h4 className="font-medium text-sm">Auto-Grading Settings</h4>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
                       <Controller
@@ -1601,7 +1637,7 @@ export default function ExamManagement() {
                           const now = new Date();
                           const startTime = exam.startTime ? new Date(exam.startTime) : null;
                           const endTime = exam.endTime ? new Date(exam.endTime) : null;
-                          
+
                           if (exam.timerMode === 'global' && startTime && endTime) {
                             if (now < startTime) {
                               return (
@@ -1743,7 +1779,7 @@ export default function ExamManagement() {
                               const now = new Date();
                               const startTime = exam.startTime ? new Date(exam.startTime) : null;
                               const endTime = exam.endTime ? new Date(exam.endTime) : null;
-                              
+
                               if (exam.timerMode === 'global' && startTime && endTime) {
                                 if (now < startTime) {
                                   return (
@@ -1883,7 +1919,7 @@ export default function ExamManagement() {
               <DialogHeader>
                 <DialogTitle>Manage Questions - {selectedExam.name}</DialogTitle>
               </DialogHeader>
-              
+
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="text-sm text-muted-foreground">
@@ -1903,7 +1939,7 @@ export default function ExamManagement() {
                       <span className="hidden sm:inline">Download Template</span>
                       <span className="sm:hidden">Template</span>
                     </Button>
-                    
+
                     {/* CSV Upload Button */}
                     <div className="relative w-full sm:w-auto">
                       <input
@@ -1927,7 +1963,7 @@ export default function ExamManagement() {
                         {csvUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
                       </Button>
                     </div>
-                    
+
                     {/* Manual Add Question */}
                     <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
                       <DialogTrigger asChild>
@@ -2115,7 +2151,7 @@ export default function ExamManagement() {
                                 <span className="text-sm text-muted-foreground">{question.points} points</span>
                               </div>
                               <p className="mb-2 font-medium">{question.questionText}</p>
-                              
+
                               {question.instructions && (
                                 <div className="mb-2 p-2 bg-blue-50 rounded text-sm">
                                   <span className="font-medium text-blue-800">Instructions: </span>
@@ -2132,7 +2168,9 @@ export default function ExamManagement() {
                               {(question.questionType === 'text' || question.questionType === 'essay') && (
                                 <div className="ml-4 text-sm text-muted-foreground">
                                   <div className="flex items-center space-x-4">
-                                    <span>📝 {question.questionType === 'essay' ? 'Long answer required' : 'Short answer required'}</span>
+                                    <span>
+                                      {question.questionType === 'essay' ? '📝 Essay question' : '📝 Short answer question'}
+                                    </span>
                                     {question.sampleAnswer && (
                                       <span className="text-green-600">✓ Sample answer provided</span>
                                     )}
