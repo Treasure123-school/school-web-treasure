@@ -945,17 +945,21 @@ export async function registerRoutes(app: Express): Server {
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
       });
 
-      // Create teacher profile
-      const profile = await storage.createTeacherProfile(profileData);
+      // Create teacher profile with verified status
+      const profile = await storage.createTeacherProfile({
+        ...profileData,
+        verified: true, // Auto-verify on completion
+        firstLogin: false
+      });
 
-      // Create notification for admins
+      // Create notification for admins (informational only)
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
       for (const admin of admins) {
         await storage.createNotification({
           userId: admin.id,
-          type: 'teacher_profile_verification',
-          title: 'New Teacher Profile Pending Verification',
-          message: `${fullName} has completed their profile setup and is awaiting verification.`,
+          type: 'teacher_profile_created',
+          title: 'New Teacher Profile Created',
+          message: `${fullName} has completed their profile setup and can now access the dashboard.`,
           relatedEntityType: 'teacher_profile',
           relatedEntityId: profile.id,
           isRead: false
@@ -975,10 +979,10 @@ export async function registerRoutes(app: Express): Server {
       });
 
       res.json({
-        message: 'Profile setup submitted successfully. Awaiting admin verification.',
+        message: 'Profile setup completed successfully! You can now access your dashboard.',
         profile: {
           id: profile.id,
-          verified: profile.verified,
+          verified: true,
           subjects: parsedSubjects,
           classes: parsedClasses
         }

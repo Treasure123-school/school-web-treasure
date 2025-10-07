@@ -95,13 +95,13 @@ export default function TeacherProfileSetup() {
 
   const createProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest('POST', '/api/teacher/profile', data);
+      const response = await apiRequest('POST', '/api/teacher/profile/setup', data);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: "Profile Created Successfully",
-        description: "Your profile has been submitted for admin verification.",
+        title: "Profile Setup Complete!",
+        description: "Your profile has been created successfully. Welcome to your dashboard!",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
       navigate('/portal/teacher');
@@ -256,11 +256,27 @@ export default function TeacherProfileSetup() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => setProfileImage(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setProfileImage(file);
+                        if (file) {
+                          toast({
+                            title: "Image Selected",
+                            description: `${file.name} ready to upload`,
+                          });
+                        }
+                      }}
                     />
                   </label>
                 </div>
-                <p className="text-xs sm:text-sm text-muted-foreground text-center">Upload your profile photo</p>
+                {profileImage ? (
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600 dark:text-green-400">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>{profileImage.name} selected</span>
+                  </div>
+                ) : (
+                  <p className="text-xs sm:text-sm text-muted-foreground text-center">Upload your profile photo</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -554,18 +570,50 @@ export default function TeacherProfileSetup() {
                   <FileSignature className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Digital Signature Upload
                 </Label>
-                <FileUpload
-                  onFileSelect={setSignatureFile}
-                  accept="image/*"
-                  maxSize={2 * 1024 * 1024}
-                  label="Upload your signature (PNG, JPG - Max 2MB)"
-                />
-                {signatureFile && (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600">
-                    <CheckCircle className="h-4 w-4" />
-                    Signature uploaded successfully
+                <div className="space-y-3">
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="signature-upload"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setSignatureFile(file);
+                        if (file) {
+                          toast({
+                            title: "Signature Selected",
+                            description: `${file.name} ready to upload`,
+                          });
+                        }
+                      }}
+                    />
+                    <label htmlFor="signature-upload" className="cursor-pointer">
+                      {signatureFile ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={URL.createObjectURL(signatureFile)} 
+                            alt="Signature preview" 
+                            className="max-h-24 mx-auto border border-gray-200 dark:border-gray-700 rounded"
+                          />
+                          <p className="text-xs text-muted-foreground">{signatureFile.name}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload signature</p>
+                          <p className="text-xs text-gray-500">PNG, JPG - Max 2MB</p>
+                        </div>
+                      )}
+                    </label>
                   </div>
-                )}
+                  {signatureFile && (
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600 dark:text-green-400">
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Signature ready to upload</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-start space-x-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
