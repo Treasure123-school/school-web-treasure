@@ -117,14 +117,19 @@ export default function TeacherProfileSetup() {
         description: "Your profile has been created and verified. Redirecting to dashboard...",
       });
       
-      // Invalidate queries and redirect after a brief delay
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
+      // CRITICAL: Update cache BEFORE navigation to prevent redirect loop
+      queryClient.setQueryData(['/api/teacher/profile/status'], {
+        hasProfile: true,
+        verified: true,
+        firstLogin: false
+      });
+      
+      // Invalidate to ensure fresh data loads after navigation
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       
-      setTimeout(() => {
-        navigate('/portal/teacher');
-      }, 1500);
+      // Navigate immediately - cache is already updated
+      navigate('/portal/teacher');
     },
     onError: (error: any) => {
       toast({

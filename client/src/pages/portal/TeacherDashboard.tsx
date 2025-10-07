@@ -192,8 +192,17 @@ export default function TeacherDashboard() {
 
   // Redirect to setup if profile is incomplete
   useEffect(() => {
-    if (!statusLoading && profileStatus && (!profileStatus.hasProfile || profileStatus.firstLogin)) {
-      navigate('/portal/teacher/profile-setup');
+    // SAFETY: Only redirect if we have confirmed data (not loading) AND profile is missing
+    if (!statusLoading && profileStatus) {
+      const needsSetup = !profileStatus.hasProfile || profileStatus.firstLogin === true;
+      
+      if (needsSetup) {
+        console.log('🔄 Redirecting to profile setup:', { 
+          hasProfile: profileStatus.hasProfile, 
+          firstLogin: profileStatus.firstLogin 
+        });
+        navigate('/portal/teacher/profile-setup');
+      }
     }
   }, [profileStatus, statusLoading, navigate]);
 

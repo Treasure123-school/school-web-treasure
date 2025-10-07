@@ -987,6 +987,8 @@ export async function registerRoutes(app: Express): Server {
 
       res.json({
         message: 'Profile setup completed successfully! You can now access your dashboard.',
+        hasProfile: true,
+        verified: true,
         profile: {
           id: profile.id,
           verified: true,
