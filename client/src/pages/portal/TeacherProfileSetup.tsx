@@ -14,6 +14,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import confetti from 'canvas-confetti';
 import { 
   User, 
   GraduationCap, 
@@ -33,7 +34,9 @@ import {
   FileSignature,
   ChevronRight,
   ChevronLeft,
-  AlertCircle
+  AlertCircle,
+  Save,
+  TrendingUp
 } from 'lucide-react';
 
 interface TeacherProfileData {
@@ -83,6 +86,73 @@ export default function TeacherProfileSetup() {
     agreement: false,
   });
 
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Calculate profile completeness percentage
+  const calculateCompleteness = (): number => {
+    const totalFields = 15; // Total required fields
+    let completedFields = 0;
+
+    if (formData.staffId) completedFields++;
+    if (formData.gender) completedFields++;
+    if (formData.dateOfBirth) completedFields++;
+    if (formData.phoneNumber) completedFields++;
+    if (formData.nationalId) completedFields++;
+    if (formData.qualification) completedFields++;
+    if (formData.specialization) completedFields++;
+    if (formData.department) completedFields++;
+    if (formData.yearsOfExperience > 0) completedFields++;
+    if (formData.subjects.length > 0) completedFields++;
+    if (formData.assignedClasses.length > 0) completedFields++;
+    if (profileImage) completedFields++;
+    if (signatureFile) completedFields++;
+    if (formData.gradingMode) completedFields++;
+    if (formData.agreement) completedFields++;
+
+    return Math.round((completedFields / totalFields) * 100);
+  };
+
+  const completeness = calculateCompleteness();
+
+  // Auto-save draft every 10 seconds
+  useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      if (completeness > 0 && completeness < 100) {
+        setIsSaving(true);
+        // Save to localStorage
+        localStorage.setItem('teacher_profile_draft', JSON.stringify({
+          formData,
+          profileImageName: profileImage?.name,
+          signatureName: signatureFile?.name,
+          currentStep
+        }));
+        setLastSaved(new Date());
+        setTimeout(() => setIsSaving(false), 500);
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [formData, profileImage, signatureFile, currentStep, completeness]);
+
+  // Load saved draft on mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('teacher_profile_draft');
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setFormData(draft.formData);
+        setCurrentStep(draft.currentStep || 1);
+        toast({
+          title: "Draft Restored",
+          description: "Your previous progress has been restored.",
+        });
+      } catch (e) {
+        console.error('Failed to restore draft:', e);
+      }
+    }
+  }, []);
+
   // Fetch subjects
   const { data: subjects = [] } = useQuery({
     queryKey: ['/api/subjects'],
@@ -112,10 +182,35 @@ export default function TeacherProfileSetup() {
       return await response.json();
     },
     onSuccess: (data) => {
+      // Trigger confetti celebration
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      
+      setTimeout(() => {
+        confetti({
+          particleCount: 50,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 }
+        });
+        confetti({
+          particleCount: 50,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 }
+        });
+      }, 250);
+
       toast({
         title: "Profile Setup Complete!",
         description: "Your profile has been created and verified. Redirecting to dashboard...",
       });
+      
+      // Clear draft from localStorage
+      localStorage.removeItem('teacher_profile_draft');
       
       // CRITICAL: Update cache BEFORE navigation to prevent redirect loop
       queryClient.setQueryData(['/api/teacher/profile/status'], {
@@ -260,6 +355,56 @@ export default function TeacherProfileSetup() {
             </div>
           </div>
         </div>
+
+        {/* Profile Completeness Meter */}
+        <Card className="mb-6 sm:mb-8 shadow-lg border-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm sm:text-base font-semibold">Profile Completeness</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {isSaving && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Save className="h-3 w-3 animate-pulse" />
+                    <span>Saving...</span>
+                  </div>
+                )}
+                {lastSaved && !isSaving && (
+                  <span className="text-xs text-muted-foreground">
+                    Saved {new Date(lastSaved).toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {completeness < 100 
+                    ? `Fill in all required fields to complete your profile` 
+                    : 'All fields completed! Ready to submit'}
+                </span>
+                <Badge 
+                  variant={completeness === 100 ? "default" : "secondary"}
+                  className={completeness === 100 ? "bg-green-600" : ""}
+                >
+                  {completeness}%
+                </Badge>
+              </div>
+              <Progress 
+                value={completeness} 
+                className={`h-3 ${completeness === 100 ? 'bg-green-100' : ''}`} 
+              />
+              {completeness < 100 && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Your progress is auto-saved every 10 seconds
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Progress Section */}
         <Card className="mb-6 sm:mb-8 shadow-lg border-0 bg-white dark:bg-gray-800">
