@@ -297,6 +297,7 @@ export default function TeacherProfileSetup() {
   const handleSubmit = async () => {
     // Smart validation with flagging
     const validationIssues: string[] = [];
+    let needsAdminReview = false;
 
     if (!formData.agreement) {
       toast({
@@ -316,28 +317,35 @@ export default function TeacherProfileSetup() {
       return;
     }
 
-    // Fail-safe validation checks
+    // Fail-safe validation checks - Flag for admin review if data is suspicious/incomplete
     if (formData.subjects.length === 0) {
-      validationIssues.push("No subjects assigned - profile may need admin review");
+      validationIssues.push("No subjects assigned");
+      needsAdminReview = true;
     }
 
     if (formData.assignedClasses.length === 0) {
-      validationIssues.push("No classes assigned - profile may need admin review");
+      validationIssues.push("No classes assigned");
+      needsAdminReview = true;
     }
 
     if (!formData.department || formData.department.trim() === '') {
       validationIssues.push("Department not specified");
+      needsAdminReview = true;
     }
 
     if (formData.yearsOfExperience === 0) {
       validationIssues.push("Years of experience not set");
+      needsAdminReview = true;
     }
 
+    // Show warning but allow submission with admin review flag
     if (validationIssues.length > 0) {
       toast({
-        title: "Profile Validation Warning",
-        description: `${validationIssues.join(', ')}. Your profile will be flagged for admin review.`,
-        variant: "default",
+        title: needsAdminReview ? "⚠️ Profile Pending Admin Confirmation" : "Profile Validation Warning",
+        description: needsAdminReview 
+          ? `${validationIssues.join(', ')}. Your profile will be flagged for admin review before full access is granted.`
+          : `${validationIssues.join(', ')}. Please review before submitting.`,
+        variant: needsAdminReview ? "default" : "destructive",
       });
     }
 

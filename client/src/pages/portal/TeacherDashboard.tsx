@@ -278,18 +278,46 @@ export default function TeacherDashboard() {
                   'Empowering minds, shaping futures'
                 )}
               </p>
-              {teacherProfile && (teacherProfile.subjects?.length > 0 || teacherProfile.assignedClasses?.length > 0) && (
+              {teacherProfile && (
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  {teacherProfile.subjects?.slice(0, 3).map((subject: string, idx: number) => (
-                    <span key={idx} className="px-2 py-1 bg-white/20 rounded-full text-xs">
-                      {subject}
-                    </span>
-                  ))}
-                  {teacherProfile.assignedClasses?.slice(0, 2).map((cls: string, idx: number) => (
-                    <span key={idx} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
-                      {cls}
-                    </span>
-                  ))}
+                  {/* Subject Badges - Get actual subject names from subjects array */}
+                  {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && (
+                    <>
+                      {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
+                        // Find subject name from subjects query
+                        const subject = (subjects as any[])?.find(s => s.id === subjectId);
+                        return subject ? (
+                          <span key={idx} className="px-2 py-1 bg-white/20 rounded-full text-xs">
+                            {subject.name}
+                          </span>
+                        ) : null;
+                      })}
+                      {teacherProfile.subjects.length > 3 && (
+                        <span className="px-2 py-1 bg-white/20 rounded-full text-xs">
+                          +{teacherProfile.subjects.length - 3} more
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {/* Class Badges - Get actual class names from classes array */}
+                  {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && (
+                    <>
+                      {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
+                        // Find class name from classes query
+                        const classObj = (classes as any[])?.find(c => c.id === classId);
+                        return classObj ? (
+                          <span key={idx} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
+                            {classObj.name}
+                          </span>
+                        ) : null;
+                      })}
+                      {teacherProfile.assignedClasses.length > 2 && (
+                        <span className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
+                          +{teacherProfile.assignedClasses.length - 2} more
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>

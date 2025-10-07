@@ -1036,6 +1036,39 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get teacher overview for admin dashboard (with auto-verified indicator)
+  app.get('/api/admin/teachers/overview', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      // Get all teachers
+      const teachers = await storage.getUsersByRole(ROLES.TEACHER);
+      
+      // Get all teacher profiles
+      const overview = await Promise.all(teachers.map(async (teacher: any) => {
+        const profile = await storage.getTeacherProfile(teacher.id);
+        
+        return {
+          id: teacher.id,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          phone: teacher.phone,
+          staffId: profile?.staffId || null,
+          department: profile?.department || null,
+          subjects: profile?.subjects || [],
+          classes: profile?.assignedClasses || [],
+          verified: profile?.verified || false,
+          hasProfile: !!profile,
+          createdAt: teacher.createdAt,
+        };
+      }));
+
+      res.json(overview);
+    } catch (error) {
+      console.error('Get teacher overview error:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher overview' });
+    }
+  });
+
   // Teacher approves or overrides AI-suggested score
   app.post('/api/grading/ai-suggested/:answerId/review', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {

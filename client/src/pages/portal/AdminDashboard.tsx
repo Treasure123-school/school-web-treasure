@@ -1051,6 +1051,12 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
+      {/* Teacher Overview Section */}
+      <TeacherOverviewSection />
+
+      {/* Notification Summary - Today's Auto-Verified Teachers */}
+      <NotificationSummary />
+
       {/* System Analytics & Upcoming Events - Fully Responsive */}
       <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
         <Card className="shadow-sm border border-border" data-testid="card-system-analytics">
