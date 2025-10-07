@@ -892,6 +892,137 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Teacher profile setup (first-time login)
+  app.post('/api/teacher/profile/setup', authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
+    { name: 'profilePhoto', maxCount: 1 },
+    { name: 'signature', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      const {
+        fullName, gender, dateOfBirth, staffId, email, phone,
+        qualification, specialization, yearsOfExperience,
+        subjects, classes, department, gradingMode,
+        notificationPreference, availability, dataAgreement
+      } = req.body;
+
+      // Parse JSON arrays
+      const parsedSubjects = typeof subjects === 'string' ? JSON.parse(subjects) : subjects;
+      const parsedClasses = typeof classes === 'string' ? JSON.parse(classes) : classes;
+
+      // Get file paths
+      const profilePhotoPath = files['profilePhoto']?.[0]?.path;
+      const signaturePath = files['signature']?.[0]?.path;
+
+      // Create or update teacher profile
+      const profileData = {
+        userId: teacherId,
+        staffId,
+        subjects: parsedSubjects,
+        assignedClasses: parsedClasses,
+        qualification,
+        yearsOfExperience: parseInt(yearsOfExperience),
+        specialization,
+        department,
+        signatureUrl: signaturePath ? `/${signaturePath}` : null,
+        gradingMode,
+        notificationPreference,
+        availability: availability || null,
+        firstLogin: false,
+        verified: false // Requires admin verification
+      };
+
+      // Update user table with basic info
+      await storage.updateUser(teacherId, {
+        firstName: fullName.split(' ')[0],
+        lastName: fullName.split(' ').slice(1).join(' '),
+        email,
+        phone,
+        gender,
+        dateOfBirth,
+        profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
+      });
+
+      // Create teacher profile
+      const profile = await storage.createTeacherProfile(profileData);
+
+      // Create notification for admins
+      const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      for (const admin of admins) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: 'teacher_profile_verification',
+          title: 'New Teacher Profile Pending Verification',
+          message: `${fullName} has completed their profile setup and is awaiting verification.`,
+          relatedEntityType: 'teacher_profile',
+          relatedEntityId: profile.id,
+          isRead: false
+        });
+      }
+
+      // Log audit event
+      await storage.createAuditLog({
+        userId: teacherId,
+        action: 'teacher_profile_setup_completed',
+        entityType: 'teacher_profile',
+        entityId: BigInt(profile.id),
+        newValue: JSON.stringify({ staffId, subjects: parsedSubjects, classes: parsedClasses }),
+        reason: 'Teacher completed first-time profile setup',
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.headers['user-agent'] || null
+      });
+
+      res.json({
+        message: 'Profile setup submitted successfully. Awaiting admin verification.',
+        profile: {
+          id: profile.id,
+          verified: profile.verified,
+          subjects: parsedSubjects,
+          classes: parsedClasses
+        }
+      });
+    } catch (error) {
+      console.error('Teacher profile setup error:', error);
+      res.status(500).json({ message: 'Failed to setup teacher profile' });
+    }
+  });
+
+  // Get teacher profile status (check if setup is needed)
+  app.get('/api/teacher/profile/status', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const profile = await storage.getTeacherProfile(teacherId);
+      
+      res.json({
+        hasProfile: !!profile,
+        verified: profile?.verified || false,
+        firstLogin: profile?.firstLogin !== false
+      });
+    } catch (error) {
+      console.error('Get teacher profile status error:', error);
+      res.status(500).json({ message: 'Failed to check profile status' });
+    }
+  });
+
+  // Get teacher's own profile
+  app.get('/api/teacher/profile/me', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const profile = await storage.getTeacherProfile(teacherId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: 'Profile not found' });
+      }
+
+      res.json(profile);
+    } catch (error) {
+      console.error('Get teacher profile error:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher profile' });
+    }
+  });
+
   // Teacher approves or overrides AI-suggested score
   app.post('/api/grading/ai-suggested/:answerId/review', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {

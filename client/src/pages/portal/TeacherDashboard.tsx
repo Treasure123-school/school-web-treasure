@@ -9,6 +9,9 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
+import apiRequest from '@/lib/api';
+import { getRoleName } from '@/lib/utils';
+
 
 // Component for displaying results by class card
 function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
@@ -154,23 +157,40 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
+  const [, navigate] = useLocation();
 
-  // Check teacher profile status for first-time login
-  const { data: profileStatus } = useQuery({
+  // Check teacher profile status
+  const { data: profileStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['/api/teacher/profile/status'],
-    enabled: !!user,
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/teacher/profile/status');
+      return await response.json();
+    }
   });
 
-  // Redirect to profile setup if first login
+  // Redirect to setup if profile is incomplete
   useEffect(() => {
-    if (profileStatus && profileStatus.firstLogin) {
-      setLocation('/portal/teacher/profile-setup');
+    if (profileStatus && (!profileStatus.hasProfile || profileStatus.firstLogin)) {
+      navigate('/portal/teacher/profile-setup');
     }
-  }, [profileStatus, setLocation]);
+  }, [profileStatus, navigate]);
 
   if (!user) {
-    return <div>Please log in to access the teacher portal.</div>;
+    return <div>Please log in to access the teacher dashboard.</div>;
+  }
+
+  if (statusLoading) {
+    return (
+      <PortalLayout
+        userRole={getRoleName(user.roleId)}
+        userName={user.firstName + ' ' + user.lastName}
+        userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </PortalLayout>
+    );
   }
 
   // Fetch dashboard data from real API endpoints

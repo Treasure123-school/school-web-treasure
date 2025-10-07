@@ -1,343 +1,458 @@
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useAuth } from '@/lib/auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useLocation } from 'wouter';
-import { ChevronRight, ChevronLeft, Upload, CheckCircle, User, GraduationCap, Settings } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader2, UserCircle, GraduationCap, Briefcase, CheckCircle, Upload, Camera } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/lib/auth";
+
+// Teacher Profile Setup Schema
+const teacherSetupSchema = z.object({
+  // Personal Information
+  fullName: z.string().min(1, "Full name is required"),
+  gender: z.string().min(1, "Gender is required"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  staffId: z.string().min(1, "Staff ID is required"),
+  email: z.string().email("Valid email is required"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  
+  // Academic & Professional Details
+  qualification: z.string().min(1, "Qualification is required"),
+  specialization: z.string().min(1, "Area of specialization is required"),
+  yearsOfExperience: z.coerce.number().min(0, "Years of experience must be 0 or more"),
+  subjects: z.array(z.string()).min(1, "Select at least one subject"),
+  classes: z.array(z.string()).min(1, "Select at least one class"),
+  department: z.string().min(1, "Department is required"),
+  
+  // Operational Preferences
+  gradingMode: z.string().min(1, "Grading mode is required"),
+  notificationPreference: z.string().min(1, "Notification preference is required"),
+  availability: z.string().optional(),
+  
+  // Agreement
+  dataAgreement: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the data policy"
+  })
+});
+
+type TeacherSetupFormData = z.infer<typeof teacherSetupSchema>;
 
 export default function TeacherProfileSetup() {
-  const { user } = useAuth();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    // Personal Information
-    staffId: '',
-    phone: '',
-    dateOfBirth: '',
-    gender: '',
-    
-    // Academic & Professional Details
-    qualification: '',
-    specialization: '',
-    yearsOfExperience: '',
-    subjects: [] as string[],
-    assignedClasses: [] as string[],
-    department: '',
-    
-    // Operational Preferences
-    gradingMode: '100_marks',
-    notificationPreference: 'email',
-    availability: '',
-    signatureFile: null as File | null,
-    
-    // Agreement
-    agreedToPolicy: false
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [signature, setSignature] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [signaturePreview, setSignaturePreview] = useState<string>("");
+
+  // Fetch available subjects and classes
+  const { data: subjects = [] } = useQuery({
+    queryKey: ["/api/subjects"],
   });
 
-  const { data: profileData, isLoading } = useQuery({
-    queryKey: ['/api/teacher/profile'],
-    enabled: !!user
+  const { data: classes = [] } = useQuery({
+    queryKey: ["/api/classes"],
   });
 
-  const { data: classes } = useQuery({
-    queryKey: ['/api/classes'],
-    enabled: currentStep === 2
+  // Check if teacher profile already exists
+  const { data: existingProfile, isLoading } = useQuery({
+    queryKey: ["/api/teacher/profile/me"],
   });
 
-  const { data: subjects } = useQuery({
-    queryKey: ['/api/subjects'],
-    enabled: currentStep === 2
+  const form = useForm<TeacherSetupFormData>({
+    resolver: zodResolver(teacherSetupSchema),
+    defaultValues: {
+      fullName: user ? `${user.firstName} ${user.lastName}` : "",
+      email: user?.email || "",
+      subjects: [],
+      classes: [],
+      dataAgreement: false,
+    }
   });
 
-  const submitMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      return apiRequest('/api/teacher/profile', {
-        method: 'POST',
-        body: data
+  useEffect(() => {
+    // If profile exists and is verified, redirect to dashboard
+    if (existingProfile && existingProfile.verified) {
+      navigate("/portal/teacher");
+    }
+  }, [existingProfile, navigate]);
+
+  // Handle profile photo upload
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle signature upload
+  const handleSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSignature(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSignaturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Submit mutation
+  const setupProfileMutation = useMutation({
+    mutationFn: async (data: TeacherSetupFormData) => {
+      const formData = new FormData();
+      
+      // Append all form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (typeof value === 'boolean') {
+          formData.append(key, value.toString());
+        } else {
+          formData.append(key, value?.toString() || '');
+        }
       });
+
+      // Append files if available
+      if (profilePhoto) {
+        formData.append('profilePhoto', profilePhoto);
+      }
+      if (signature) {
+        formData.append('signature', signature);
+      }
+
+      const response = await fetch("/api/teacher/profile/setup", {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to setup profile");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/profile/me"] });
       toast({
-        title: "Profile Submitted Successfully",
-        description: "Your profile has been submitted for admin verification. You will be notified once it's approved.",
+        title: "Profile Setup Complete!",
+        description: "Your profile has been submitted for admin verification. You'll be notified once approved.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
-      setLocation('/portal/teacher');
+      
+      // Redirect to teacher dashboard (with pending status)
+      setTimeout(() => {
+        navigate("/portal/teacher");
+      }, 2000);
     },
     onError: (error: Error) => {
       toast({
-        title: "Submission Failed",
-        description: error.message,
-        variant: "destructive"
+        title: "Setup Failed",
+        description: error.message || "Failed to setup profile",
+        variant: "destructive",
       });
     }
   });
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const onSubmit = (data: TeacherSetupFormData) => {
+    setupProfileMutation.mutate(data);
   };
 
-  const handleSubjectToggle = (subject: string) => {
-    setFormData(prev => ({
-      ...prev,
-      subjects: prev.subjects.includes(subject)
-        ? prev.subjects.filter(s => s !== subject)
-        : [...prev.subjects, subject]
-    }));
-  };
-
-  const handleClassToggle = (classId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      assignedClasses: prev.assignedClasses.includes(classId)
-        ? prev.assignedClasses.filter(c => c !== classId)
-        : [...prev.assignedClasses, classId]
-    }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData(prev => ({ ...prev, signatureFile: e.target.files![0] }));
+  const nextStep = async () => {
+    const isValid = await form.trigger();
+    if (isValid) {
+      setCurrentStep(prev => Math.min(prev + 1, 3));
     }
   };
 
-  const canProceedStep1 = formData.staffId && formData.phone && formData.dateOfBirth && formData.gender;
-  const canProceedStep2 = formData.qualification && formData.specialization && formData.subjects.length > 0 && formData.assignedClasses.length > 0 && formData.department;
-  const canSubmit = formData.gradingMode && formData.notificationPreference && formData.agreedToPolicy;
-
-  const handleSubmit = async () => {
-    const submitData = new FormData();
-    
-    // Append all form fields
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key === 'signatureFile' && value) {
-        submitData.append('signature', value as File);
-      } else if (key === 'subjects' || key === 'assignedClasses') {
-        submitData.append(key, JSON.stringify(value));
-      } else if (key !== 'signatureFile' && key !== 'agreedToPolicy') {
-        submitData.append(key, value as string);
-      }
-    });
-
-    submitMutation.mutate(submitData);
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const steps = [
-    { number: 1, title: 'Personal Info', icon: User },
-    { number: 2, title: 'Academic Details', icon: GraduationCap },
-    { number: 3, title: 'Preferences', icon: Settings }
-  ];
-
-  const progressPercentage = (currentStep / 3) * 100;
+  const progress = (currentStep / 3) * 100;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2" data-testid="heading-welcome">
-            Welcome, Teacher! 📘
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            📘 Welcome, Teacher!
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400" data-testid="text-instruction">
-            Please complete your profile to access the portal
+          <p className="text-gray-600 dark:text-gray-300">
+            Please Complete Your Profile to Access the Portal
           </p>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <Progress value={progressPercentage} className="h-2 mb-4" data-testid="progress-bar" />
-          <div className="flex justify-between">
-            {steps.map((step) => {
-              const Icon = step.icon;
-              const isActive = currentStep === step.number;
-              const isCompleted = currentStep > step.number;
-              
-              return (
-                <div key={step.number} className="flex flex-col items-center" data-testid={`step-indicator-${step.number}`}>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
-                    isCompleted ? 'bg-green-500 text-white' :
-                    isActive ? 'bg-primary text-white' :
-                    'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                  }`}>
-                    {isCompleted ? <CheckCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
-                  </div>
-                  <p className={`text-sm font-medium ${isActive ? 'text-primary' : 'text-gray-500'}`}>
-                    {step.title}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Form Card */}
-        <Card className="shadow-lg">
+        {/* Progress Bar */}
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle data-testid={`title-step-${currentStep}`}>
-              {currentStep === 1 && 'Personal Information'}
-              {currentStep === 2 && 'Academic & Professional Details'}
-              {currentStep === 3 && 'Operational Preferences'}
-            </CardTitle>
-            <CardDescription data-testid={`description-step-${currentStep}`}>
-              {currentStep === 1 && 'Basic personal information about you'}
-              {currentStep === 2 && 'Your qualifications and teaching assignments'}
-              {currentStep === 3 && 'Set your preferences and upload signature'}
-            </CardDescription>
+            <CardTitle>Profile Setup Progress</CardTitle>
+            <CardDescription>Step {currentStep} of 3</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Step 1: Personal Information */}
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">Full Name</Label>
-                    <Input
-                      id="firstName"
-                      value={`${user?.firstName} ${user?.lastName}`}
-                      disabled
-                      className="bg-gray-100 dark:bg-gray-800"
-                      data-testid="input-fullname"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="staffId">Staff ID <span className="text-red-500">*</span></Label>
-                    <Input
-                      id="staffId"
-                      placeholder="THS-TCH-2025-007"
-                      value={formData.staffId}
-                      onChange={(e) => handleInputChange('staffId', e.target.value)}
-                      data-testid="input-staffid"
-                    />
+          <CardContent>
+            <Progress value={progress} className="h-3" data-testid="progress-setup" />
+            <div className="flex justify-between mt-4 text-sm">
+              <span className={currentStep >= 1 ? "text-primary font-semibold" : "text-gray-500"}>
+                Personal Info
+              </span>
+              <span className={currentStep >= 2 ? "text-primary font-semibold" : "text-gray-500"}>
+                Academic Details
+              </span>
+              <span className={currentStep >= 3 ? "text-primary font-semibold" : "text-gray-500"}>
+                Confirmation
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Form */}
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          {/* Step 1: Personal Information */}
+          {currentStep === 1 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <UserCircle className="h-6 w-6 text-primary" />
+                  <CardTitle>Personal Information</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Profile Photo */}
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera className="h-12 w-12 text-gray-400" />
+                      )}
+                    </div>
+                    <label className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90">
+                      <Upload className="h-4 w-4" />
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
-                    <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                    <Label htmlFor="fullName">Full Name *</Label>
+                    <Input
+                      id="fullName"
+                      {...form.register("fullName")}
+                      data-testid="input-fullName"
+                    />
+                    {form.formState.errors.fullName && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.fullName.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="gender">Gender *</Label>
+                    <Select onValueChange={(value) => form.setValue("gender", value)}>
                       <SelectTrigger data-testid="select-gender">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Male">Male</SelectItem>
                         <SelectItem value="Female">Female</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.gender && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.gender.message}</p>
+                    )}
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="dateOfBirth">Date of Birth <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                     <Input
                       id="dateOfBirth"
                       type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      data-testid="input-dob"
+                      {...form.register("dateOfBirth")}
+                      data-testid="input-dateOfBirth"
                     />
+                    {form.formState.errors.dateOfBirth && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.dateOfBirth.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="staffId">National ID / Staff ID *</Label>
+                    <Input
+                      id="staffId"
+                      {...form.register("staffId")}
+                      placeholder="e.g., THS-TCH-2025-007"
+                      data-testid="input-staffId"
+                    />
+                    {form.formState.errors.staffId && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.staffId.message}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="email">Contact Email</Label>
+                    <Label htmlFor="email">Contact Email *</Label>
                     <Input
                       id="email"
-                      value={user?.email}
-                      disabled
-                      className="bg-gray-100 dark:bg-gray-800"
+                      type="email"
+                      {...form.register("email")}
                       data-testid="input-email"
                     />
+                    {form.formState.errors.email && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>
+                    )}
                   </div>
                   <div>
-                    <Label htmlFor="phone">Contact Number <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="phone">Phone Number *</Label>
                     <Input
                       id="phone"
+                      type="tel"
+                      {...form.register("phone")}
                       placeholder="+234-8012345678"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
                       data-testid="input-phone"
                     />
+                    {form.formState.errors.phone && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.phone.message}</p>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button type="button" onClick={nextStep}>
+                  Next Step →
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
 
-            {/* Step 2: Academic & Professional Details */}
-            {currentStep === 2 && (
-              <div className="space-y-4">
+          {/* Step 2: Academic & Professional Details */}
+          {currentStep === 2 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="h-6 w-6 text-primary" />
+                  <CardTitle>Academic & Professional Details</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="qualification">Highest Qualification <span className="text-red-500">*</span></Label>
-                    <Select value={formData.qualification} onValueChange={(value) => handleInputChange('qualification', value)}>
+                    <Label htmlFor="qualification">Highest Qualification *</Label>
+                    <Select onValueChange={(value) => form.setValue("qualification", value)}>
                       <SelectTrigger data-testid="select-qualification">
                         <SelectValue placeholder="Select qualification" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="NCE">NCE</SelectItem>
                         <SelectItem value="B.Ed">B.Ed</SelectItem>
-                        <SelectItem value="B.Sc">B.Sc</SelectItem>
                         <SelectItem value="M.Ed">M.Ed</SelectItem>
-                        <SelectItem value="M.Sc">M.Sc</SelectItem>
+                        <SelectItem value="B.Sc">B.Sc</SelectItem>
+                        <SelectItem value="NCE">NCE</SelectItem>
                         <SelectItem value="PGDE">PGDE</SelectItem>
                         <SelectItem value="PhD">PhD</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.qualification && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.qualification.message}</p>
+                    )}
                   </div>
                   <div>
-                    <Label htmlFor="yearsOfExperience">Teaching Experience (Years)</Label>
+                    <Label htmlFor="specialization">Area of Specialization *</Label>
+                    <Input
+                      id="specialization"
+                      {...form.register("specialization")}
+                      placeholder="e.g., Mathematics, English"
+                      data-testid="input-specialization"
+                    />
+                    {form.formState.errors.specialization && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.specialization.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="yearsOfExperience">Teaching Experience (Years) *</Label>
                     <Input
                       id="yearsOfExperience"
                       type="number"
-                      placeholder="8"
-                      value={formData.yearsOfExperience}
-                      onChange={(e) => handleInputChange('yearsOfExperience', e.target.value)}
-                      data-testid="input-experience"
+                      {...form.register("yearsOfExperience", { valueAsNumber: true })}
+                      data-testid="input-yearsOfExperience"
                     />
+                    {form.formState.errors.yearsOfExperience && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.yearsOfExperience.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="department">Department *</Label>
+                    <Select onValueChange={(value) => form.setValue("department", value)}>
+                      <SelectTrigger data-testid="select-department">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Science">Science</SelectItem>
+                        <SelectItem value="Arts">Arts</SelectItem>
+                        <SelectItem value="Commercial">Commercial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.department && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.department.message}</p>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="specialization">Area of Specialization <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="specialization"
-                    placeholder="Mathematics / English / Biology"
-                    value={formData.specialization}
-                    onChange={(e) => handleInputChange('specialization', e.target.value)}
-                    data-testid="input-specialization"
-                  />
-                </div>
-
-                <div>
-                  <Label>Subject(s) to Handle <span className="text-red-500">*</span></Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2" data-testid="checkbox-group-subjects">
-                    {subjects?.map((subject: any) => (
+                  <Label>Subject(s) to Handle *</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                    {subjects.map((subject: any) => (
                       <div key={subject.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={`subject-${subject.id}`}
-                          checked={formData.subjects.includes(subject.name)}
-                          onCheckedChange={() => handleSubjectToggle(subject.name)}
-                          data-testid={`checkbox-subject-${subject.id}`}
+                          onCheckedChange={(checked) => {
+                            const current = form.getValues("subjects") || [];
+                            if (checked) {
+                              form.setValue("subjects", [...current, subject.name]);
+                            } else {
+                              form.setValue("subjects", current.filter((s: string) => s !== subject.name));
+                            }
+                          }}
                         />
                         <Label htmlFor={`subject-${subject.id}`} className="text-sm font-normal cursor-pointer">
                           {subject.name}
@@ -345,18 +460,26 @@ export default function TeacherProfileSetup() {
                       </div>
                     ))}
                   </div>
+                  {form.formState.errors.subjects && (
+                    <p className="text-sm text-red-500 mt-1">{form.formState.errors.subjects.message}</p>
+                  )}
                 </div>
 
                 <div>
-                  <Label>Class(es) Assigned <span className="text-red-500">*</span></Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2" data-testid="checkbox-group-classes">
-                    {classes?.map((cls: any) => (
+                  <Label>Class(es) Assigned *</Label>
+                  <div className="grid grid-cols-3 gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                    {classes.map((cls: any) => (
                       <div key={cls.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={`class-${cls.id}`}
-                          checked={formData.assignedClasses.includes(cls.id.toString())}
-                          onCheckedChange={() => handleClassToggle(cls.id.toString())}
-                          data-testid={`checkbox-class-${cls.id}`}
+                          onCheckedChange={(checked) => {
+                            const current = form.getValues("classes") || [];
+                            if (checked) {
+                              form.setValue("classes", [...current, cls.name]);
+                            } else {
+                              form.setValue("classes", current.filter((c: string) => c !== cls.name));
+                            }
+                          }}
                         />
                         <Label htmlFor={`class-${cls.id}`} className="text-sm font-normal cursor-pointer">
                           {cls.name}
@@ -364,53 +487,42 @@ export default function TeacherProfileSetup() {
                       </div>
                     ))}
                   </div>
+                  {form.formState.errors.classes && (
+                    <p className="text-sm text-red-500 mt-1">{form.formState.errors.classes.message}</p>
+                  )}
                 </div>
 
-                <div>
-                  <Label htmlFor="department">Department <span className="text-red-500">*</span></Label>
-                  <Select value={formData.department} onValueChange={(value) => handleInputChange('department', value)}>
-                    <SelectTrigger data-testid="select-department">
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Science">Science</SelectItem>
-                      <SelectItem value="Arts">Arts</SelectItem>
-                      <SelectItem value="Commercial">Commercial</SelectItem>
-                      <SelectItem value="Technical">Technical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Operational Preferences */}
-            {currentStep === 3 && (
-              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="gradingMode">Grading Mode</Label>
-                    <Select value={formData.gradingMode} onValueChange={(value) => handleInputChange('gradingMode', value)}>
-                      <SelectTrigger data-testid="select-grading">
-                        <SelectValue />
+                    <Label htmlFor="gradingMode">Grading Mode *</Label>
+                    <Select onValueChange={(value) => form.setValue("gradingMode", value)}>
+                      <SelectTrigger data-testid="select-gradingMode">
+                        <SelectValue placeholder="Select grading mode" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="100_marks">100 Marks</SelectItem>
-                        <SelectItem value="ca_only">Continuous Assessment Only</SelectItem>
+                        <SelectItem value="100 Marks">100 Marks</SelectItem>
+                        <SelectItem value="Continuous Assessment Only">Continuous Assessment Only</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.gradingMode && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.gradingMode.message}</p>
+                    )}
                   </div>
                   <div>
-                    <Label htmlFor="notificationPreference">Notification Preference</Label>
-                    <Select value={formData.notificationPreference} onValueChange={(value) => handleInputChange('notificationPreference', value)}>
-                      <SelectTrigger data-testid="select-notification">
-                        <SelectValue />
+                    <Label htmlFor="notificationPreference">Notification Preference *</Label>
+                    <Select onValueChange={(value) => form.setValue("notificationPreference", value)}>
+                      <SelectTrigger data-testid="select-notificationPreference">
+                        <SelectValue placeholder="Select preference" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="sms">SMS</SelectItem>
-                        <SelectItem value="in_app">In-app Alert</SelectItem>
+                        <SelectItem value="Email">Email</SelectItem>
+                        <SelectItem value="SMS">SMS</SelectItem>
+                        <SelectItem value="In-app">In-app Alert</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.notificationPreference && (
+                      <p className="text-sm text-red-500 mt-1">{form.formState.errors.notificationPreference.message}</p>
+                    )}
                   </div>
                 </div>
 
@@ -418,94 +530,118 @@ export default function TeacherProfileSetup() {
                   <Label htmlFor="availability">Availability (Optional)</Label>
                   <Input
                     id="availability"
-                    placeholder="Mon-Fri, 8AM-2PM"
-                    value={formData.availability}
-                    onChange={(e) => handleInputChange('availability', e.target.value)}
+                    {...form.register("availability")}
+                    placeholder="e.g., Mon–Fri, 8AM–2PM"
                     data-testid="input-availability"
                   />
                 </div>
 
+                {/* Digital Signature Upload */}
                 <div>
-                  <Label htmlFor="signature">Digital Signature (Upload)</Label>
-                  <div className="mt-2">
-                    <Input
-                      id="signature"
-                      type="file"
-                      accept="image/jpeg,image/png"
-                      onChange={handleFileChange}
-                      data-testid="input-signature"
-                    />
-                    {formData.signatureFile && (
-                      <Badge variant="secondary" className="mt-2">
-                        <Upload className="w-3 h-3 mr-1" />
-                        {formData.signatureFile.name}
-                      </Badge>
+                  <Label>Digital Signature (Upload) *</Label>
+                  <div className="mt-2 border-2 border-dashed rounded-lg p-4 text-center">
+                    {signaturePreview ? (
+                      <img src={signaturePreview} alt="Signature" className="mx-auto max-h-24" />
+                    ) : (
+                      <p className="text-gray-500 text-sm">JPEG / PNG only</p>
                     )}
+                    <label className="mt-2 inline-block">
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <span>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Signature
+                        </span>
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        onChange={handleSignatureChange}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
                 </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button type="button" variant="outline" onClick={prevStep}>
+                  ← Previous
+                </Button>
+                <Button type="button" onClick={nextStep}>
+                  Next Step →
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
 
-                <div className="border-t pt-4 mt-6">
-                  <div className="flex items-start space-x-2">
-                    <Checkbox
-                      id="agreement"
-                      checked={formData.agreedToPolicy}
-                      onCheckedChange={(checked) => handleInputChange('agreedToPolicy', checked)}
-                      data-testid="checkbox-agreement"
-                    />
-                    <Label htmlFor="agreement" className="text-sm cursor-pointer">
-                      I hereby confirm that the information provided above is accurate and that I will comply with the institution's digital data policy for student and score management.
-                    </Label>
-                  </div>
+          {/* Step 3: Confirmation */}
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-6 w-6 text-primary" />
+                  <CardTitle>Review & Confirmation</CardTitle>
                 </div>
-              </div>
-            )}
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Declaration */}
+                <div className="bg-blue-50 dark:bg-blue-950 p-6 rounded-lg">
+                  <h3 className="font-semibold mb-3 text-lg">📋 Declaration</h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    "I hereby confirm that the information provided above is accurate and that I will comply with the institution's digital data policy for student and score management."
+                  </p>
+                </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between pt-6 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentStep(prev => prev - 1)}
-                disabled={currentStep === 1}
-                data-testid="button-previous"
-              >
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Previous
-              </Button>
+                {/* Agreement Checkbox */}
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="dataAgreement"
+                    onCheckedChange={(checked) => form.setValue("dataAgreement", checked as boolean)}
+                  />
+                  <Label htmlFor="dataAgreement" className="text-sm font-semibold cursor-pointer">
+                    ✅ I Agree & Proceed
+                  </Label>
+                </div>
+                {form.formState.errors.dataAgreement && (
+                  <p className="text-sm text-red-500">{form.formState.errors.dataAgreement.message}</p>
+                )}
 
-              {currentStep < 3 ? (
-                <Button
-                  onClick={() => setCurrentStep(prev => prev + 1)}
-                  disabled={
-                    (currentStep === 1 && !canProceedStep1) ||
-                    (currentStep === 2 && !canProceedStep2)
-                  }
-                  data-testid="button-next"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                {/* Summary Preview */}
+                <div className="border rounded-lg p-4 space-y-2 bg-gray-50 dark:bg-gray-900">
+                  <h4 className="font-semibold mb-2">Profile Summary:</h4>
+                  <p className="text-sm"><strong>Name:</strong> {form.watch("fullName")}</p>
+                  <p className="text-sm"><strong>Staff ID:</strong> {form.watch("staffId")}</p>
+                  <p className="text-sm"><strong>Qualification:</strong> {form.watch("qualification")}</p>
+                  <p className="text-sm"><strong>Specialization:</strong> {form.watch("specialization")}</p>
+                  <p className="text-sm"><strong>Department:</strong> {form.watch("department")}</p>
+                  <p className="text-sm"><strong>Subjects:</strong> {form.watch("subjects")?.join(", ")}</p>
+                  <p className="text-sm"><strong>Classes:</strong> {form.watch("classes")?.join(", ")}</p>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button type="button" variant="outline" onClick={prevStep}>
+                  ← Previous
                 </Button>
-              ) : (
                 <Button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit || submitMutation.isPending}
-                  data-testid="button-submit"
+                  type="submit"
+                  disabled={setupProfileMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  {submitMutation.isPending ? 'Submitting...' : 'Submit & Proceed'}
+                  {setupProfileMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Submit Profile
+                    </>
+                  )}
                 </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Info Card */}
-        <Card className="mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-6">
-            <p className="text-sm text-blue-900 dark:text-blue-100" data-testid="text-info">
-              <strong>Note:</strong> Your profile will be reviewed by the administrator for verification. 
-              You will receive a notification once your profile is approved, granting you full access to the portal.
-            </p>
-          </CardContent>
-        </Card>
+              </CardFooter>
+            </Card>
+          )}
+        </form>
       </div>
     </div>
   );
