@@ -340,21 +340,44 @@ export default function Login() {
             toast({
               title: (
                 <div className="flex items-center gap-2">
-                  <Ban className="h-4 w-4 text-red-500" />
-                  <span>Account Suspended</span>
+                  <Ban className="h-5 w-5 text-red-600" />
+                  <span className="font-bold text-base">🔒 Account Suspended</span>
                 </div>
               ),
               description: (
-                <div className="text-xs sm:text-sm">
-                  <p className="mb-2 flex items-center gap-2">
-                    <Ban className="h-4 w-4" />
-                    Your account is suspended. Please contact your class teacher or school administrator.
-                  </p>
+                <div className="text-sm space-y-3">
+                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
+                    <p className="font-bold text-red-900 dark:text-red-100 mb-2 text-base">
+                      ⚠️ Your Account Has Been Suspended
+                    </p>
+                    <p className="text-red-800 dark:text-red-200 leading-relaxed">
+                      Your student account has been <strong>temporarily suspended</strong>. This could be due to multiple failed login attempts or other security concerns.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
+                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-base flex items-center gap-2">
+                      📞 How to Restore Your Account:
+                    </p>
+                    <div className="space-y-2 text-blue-900 dark:text-blue-200">
+                      <p className="font-semibold">Contact School Administrator:</p>
+                      <p className="text-base">
+                        📧 <strong>Email:</strong> <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm">treasurehomeschool@gmail.com</span>
+                      </p>
+                      <p className="text-base">
+                        📞 <strong>Call:</strong> School office during working hours
+                      </p>
+                      <p className="text-sm mt-2 text-blue-700 dark:text-blue-300">
+                        💡 Alternatively, speak with your class teacher for assistance
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ),
-              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
-              duration: 10000,
+              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-lg',
+              duration: 30000,
             });
+            throw new Error('SUSPENDED_STUDENT_HANDLED'); // Prevent default error handling
             break;
           case 'disabled':
             toast({
@@ -518,8 +541,8 @@ export default function Login() {
       }, 200);
     },
     onError: (error: any) => {
-      // Skip if already handled (e.g., suspended parent with custom message)
-      if (error.message === 'SUSPENDED_PARENT_HANDLED') {
+      // Skip if already handled (e.g., suspended parent/student with custom message)
+      if (error.message === 'SUSPENDED_PARENT_HANDLED' || error.message === 'SUSPENDED_STUDENT_HANDLED') {
         return;
       }
       
