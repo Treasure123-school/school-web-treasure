@@ -142,6 +142,9 @@ export default function TeacherProfileSetup() {
         const draft = JSON.parse(savedDraft);
         setFormData(draft.formData);
         setCurrentStep(draft.currentStep || 1);
+        // Potentially set profileImage and signatureFile if names are stored, though not strictly necessary for this logic
+        // if (draft.profileImageName) { /* logic to handle image */ }
+        // if (draft.signatureName) { /* logic to handle signature */ }
         toast({
           title: "Draft Restored",
           description: "Your previous progress has been restored.",

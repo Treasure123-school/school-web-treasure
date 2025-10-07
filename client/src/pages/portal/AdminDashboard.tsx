@@ -1,6 +1,6 @@
 import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -15,10 +15,21 @@ import { Link, navigate } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef, useState } from "react";
 
+// Define DashboardStats type (assuming it's defined elsewhere or can be inferred)
+interface DashboardStats {
+  totalStudents: number;
+  studentsThisMonth: number;
+  totalTeachers: number;
+  teachersThisTerm: number;
+  totalClasses: number;
+  classesWithCapacity: string;
+  averageAttendance: number;
+}
+
 function TeacherOverviewSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  
+
   const { data: teachersOverview = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/teachers/overview'],
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -30,13 +41,13 @@ function TeacherOverviewSection() {
       teacher.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       teacher.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       teacher.staffId?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStatus = 
       statusFilter === "all" ||
       (statusFilter === "verified" && teacher.verified) ||
       (statusFilter === "pending" && !teacher.verified && teacher.hasProfile) ||
       (statusFilter === "incomplete" && !teacher.hasProfile);
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -229,7 +240,7 @@ function TeacherOverviewSection() {
             </TableBody>
           </Table>
         </div>
-        
+
         {/* Quick Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
@@ -516,6 +527,45 @@ export default function AdminDashboard() {
     averageAttendance: 94, // Can be enhanced with real attendance data
   };
 
+  const [recentTeachers, setRecentTeachers] = useState<any[]>([]);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch("/api/dashboard/stats", {
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+
+      // Fetch recent teacher profiles
+      const teachersResponse = await fetch("/api/admin/teachers/overview", {
+        credentials: "include",
+      });
+
+      if (teachersResponse.ok) {
+        const teachersData = await teachersResponse.json();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTeachers = teachersData.filter((t: any) => 
+          new Date(t.createdAt) >= today
+        );
+        setRecentTeachers(todayTeachers);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+
   if (!user) {
     return <div>Please log in to access the admin portal.</div>;
   }
@@ -580,7 +630,7 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      
+
 
       {/* Statistics Cards - Fully Responsive */}
       <div className="grid gap-2 xs:gap-3 sm:gap-4 md:gap-6 grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">

@@ -1632,7 +1632,7 @@ export async function registerRoutes(app: Express): Server {
                 } else {
                   return res.status(403).json({
                     message: "Account Suspended",
-                    description: "Your account has been suspended. Please contact your class teacher or the school administrator.",
+                    description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
                     statusType: "suspended_student"
                   });
                 }
@@ -3941,35 +3941,6 @@ Treasure-Home School Administration
           const password = generateStudentPassword(currentYear);
           const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-          let parentId = undefined;
-          if (parentEmail) {
-            let parentUser = await storage.getUserByEmail(parentEmail);
-            if (!parentUser) {
-              // Generate parent username based on year and a sequence number
-              const parentUsername = `THS-PAR-${currentYear}-${String(await storage.getParentCount()+ 1).padStart(3, '0')}`; // Use a separate counter for parents
-              const parentPasswordHash = await bcrypt.hash(generateStudentPassword(currentYear), BCRYPT_ROUNDS);
-
-              parentUser = await storage.createUser({
-                username: parentUsername,
-                email: parentEmail,
-                passwordHash: parentPasswordHash,
-                mustChangePassword: true,
-                roleId: ROLES.PARENT,
-                firstName: firstName, // Use student's first name as parent's first name (can be refined)
-                lastName: `(Parent of ${firstName})`, // Placeholder for parent's last name
-                phone: parentPhone || null,
-                isActive: true,
-                status: 'active' as const,
-                createdVia: 'bulk' as const,
-                createdBy: req.user?.id,
-              });
-
-              // Create a parent profile associated with the user
-              await storage.createParentProfile({ userId: parentUser.id });
-            }
-            parentId = parentUser.id;
-          }
-
           const userData = {
             username,
             email: `${username.toLowerCase()}@ths.edu.ng`, // Auto-generated email
@@ -4115,7 +4086,7 @@ Treasure-Home School Administration
 
       // Handle specific database errors
       if ((error as any)?.code) {
-        switch ((error as any).code) {
+        switch ((error)?.code) {
           case '23503': // Foreign key violation
             if ((error as any).message.includes('class_id')) {
               return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
@@ -6192,14 +6163,14 @@ Treasure-Home School Administration
   // Exam Sessions - Student exam taking
   app.post("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const { examId, studentId } = req.body;
       const user = req.user!;
+      const { examId, studentId } = req.body;
+      const examIdNum = parseInt(examId);
 
-      console.log('📝 Creating exam session:', { examId, studentId, userFromToken: user.id });
+      console.log('🚀 EXAM SUBMISSION: Student', user.id, 'submitting exam', examIdNum);
 
-      // Validate required fields
-      if (!examId || !studentId) {
-        return res.status(400).json({ message: "examId and studentId are required" });
+      if (isNaN(examIdNum)) {
+        return res.status(400).json({ message: "Invalid exam ID" });
       }
 
       // Ensure student can only create sessions for themselves
@@ -6209,21 +6180,21 @@ Treasure-Home School Administration
       }
 
       // Check if exam exists and is published
-      const exam = await storage.getExamById(examId);
+      const exam = await storage.getExamById(examIdNum);
       if (!exam) {
-        console.error('❌ Exam not found:', examId);
+        console.error('❌ Exam not found:', examIdNum);
         return res.status(404).json({ message: "Exam not found" });
       }
 
       console.log('📋 Exam details:', { id: exam.id, name: exam.name, isPublished: exam.isPublished, timeLimit: exam.timeLimit });
 
       if (!exam.isPublished) {
-        console.error('❌ Exam not published:', examId);
+        console.error('❌ Exam not published:', examIdNum);
         return res.status(403).json({ message: "Exam is not published" });
       }
 
       // Check if student already has an active session for this exam
-      const existingSession = await storage.getActiveExamSession(examId, studentId);
+      const existingSession = await storage.getActiveExamSession(examIdNum, studentId);
       if (existingSession && !existingSession.isCompleted) {
         console.error('❌ Student already has active session:', { sessionId: existingSession.id, examId, studentId });
         return res.status(409).json({
@@ -7409,14 +7380,13 @@ Treasure-Home School Administration
 
         return {
           id: teacher.id,
-          firstName: teacher.firstName,
-          lastName: teacher.lastName,
-          email: teacher.email,
-          phone: teacher.phone,
-          staffId: profile?.staffId || null,
+          userId: teacher.id, // Ensure this matches what the frontend expects (usually userId)
+          name: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
+          email: teacher.email || '',
+          staffId: profile?.staffId || 'N/A',
           department: profile?.department || null,
-          subjects: profile?.subjects || [],
-          classes: profile?.assignedClasses || [],
+          subjects: profile?.subjects ? profile.subjects.split(',').filter(s => s.trim()) : [],
+          classes: profile?.assignedClasses ? profile.assignedClasses.split(',').filter(c => c.trim()) : [],
           verified: profile?.verified || false,
           hasProfile: !!profile,
           createdAt: teacher.createdAt,
