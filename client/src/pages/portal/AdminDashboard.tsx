@@ -5,12 +5,254 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar, Search, Filter, Mail, Phone, Edit, Ban, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Link, navigate } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+function TeacherOverviewSection() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  
+  const { data: teachersOverview = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/teachers/overview'],
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const filteredTeachers = teachersOverview.filter(teacher => {
+    const matchesSearch = 
+      teacher.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      teacher.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      teacher.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      teacher.staffId?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = 
+      statusFilter === "all" ||
+      (statusFilter === "verified" && teacher.verified) ||
+      (statusFilter === "pending" && !teacher.verified && teacher.hasProfile) ||
+      (statusFilter === "incomplete" && !teacher.hasProfile);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const stats = {
+    total: teachersOverview.length,
+    verified: teachersOverview.filter(t => t.verified).length,
+    pending: teachersOverview.filter(t => !t.verified && t.hasProfile).length,
+    incomplete: teachersOverview.filter(t => !t.hasProfile).length,
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 pt-0">
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+            <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+            <span>Teacher Overview</span>
+            <Badge variant="secondary" className="ml-2">{stats.total} Total</Badge>
+          </CardTitle>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search teachers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-full sm:w-64"
+                data-testid="input-search-teachers"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-40" data-testid="select-status-filter">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="verified">Verified ({stats.verified})</SelectItem>
+                <SelectItem value="pending">Pending ({stats.pending})</SelectItem>
+                <SelectItem value="incomplete">Incomplete ({stats.incomplete})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 sm:p-6 pt-0">
+        <div className="rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[250px]">Teacher</TableHead>
+                <TableHead>Staff ID</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Subjects</TableHead>
+                <TableHead>Classes</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTeachers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    No teachers found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTeachers.map((teacher) => (
+                  <TableRow key={teacher.id} data-testid={`row-teacher-${teacher.id}`}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-semibold">
+                          {teacher.firstName[0]}{teacher.lastName[0]}
+                        </div>
+                        <div>
+                          <div className="font-medium" data-testid={`text-teacher-name-${teacher.id}`}>
+                            {teacher.firstName} {teacher.lastName}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {teacher.email}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell data-testid={`text-staff-id-${teacher.id}`}>
+                      {teacher.staffId}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{teacher.department}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {teacher.subjects && teacher.subjects.length > 0 ? (
+                          teacher.subjects.slice(0, 2).map((subject: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {subject}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">None</span>
+                        )}
+                        {teacher.subjects && teacher.subjects.length > 2 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{teacher.subjects.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {teacher.classes && teacher.classes.length > 0 ? (
+                          teacher.classes.slice(0, 2).map((cls: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {cls}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">None</span>
+                        )}
+                        {teacher.classes && teacher.classes.length > 2 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{teacher.classes.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {teacher.verified ? (
+                        <Badge variant="default" className="bg-green-600" data-testid={`badge-status-${teacher.id}`}>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Verified
+                        </Badge>
+                      ) : teacher.hasProfile ? (
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" data-testid={`badge-status-${teacher.id}`}>
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" data-testid={`badge-status-${teacher.id}`}>
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Incomplete
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(teacher.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          asChild
+                          data-testid={`button-view-teacher-${teacher.id}`}
+                        >
+                          <Link href={`/portal/admin/teacher-profiles/${teacher.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        {teacher.phone && (
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={`tel:${teacher.phone}`}>
+                              <Phone className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+          <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+            <div className="text-2xl font-bold text-green-600">{stats.verified}</div>
+            <div className="text-xs text-green-700 dark:text-green-400">Verified</div>
+          </div>
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900">
+            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <div className="text-xs text-yellow-700 dark:text-yellow-400">Pending Review</div>
+          </div>
+          <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
+            <div className="text-2xl font-bold text-red-600">{stats.incomplete}</div>
+            <div className="text-xs text-red-700 dark:text-red-400">Incomplete</div>
+          </div>
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
+            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+            <div className="text-xs text-blue-700 dark:text-blue-400">Total Teachers</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -598,6 +840,9 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Teacher Overview Section */}
+      <TeacherOverviewSection />
 
       {/* Security Alerts - Responsive */}
       <Card className="mt-4 sm:mt-6 shadow-sm border border-border">

@@ -7400,6 +7400,64 @@ Treasure-Home School Administration
     }
   });
 
+  // Admin: Get comprehensive teacher overview for dashboard
+  app.get("/api/admin/teachers/overview", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const teachers = await storage.getUsersByRole(ROLES.TEACHER);
+      const teacherOverview = [];
+
+      for (const teacher of teachers) {
+        const profile = await storage.getTeacherProfile(teacher.id);
+        
+        // Get subject names
+        let subjectNames: string[] = [];
+        if (profile?.subjects && profile.subjects.length > 0) {
+          const subjectsData = await Promise.all(
+            profile.subjects.map(subId => 
+              storage.db.select().from(storage.schema.subjects).where(eq(storage.schema.subjects.id, subId)).limit(1)
+            )
+          );
+          subjectNames = subjectsData.map(s => s[0]?.name).filter(Boolean);
+        }
+
+        // Get class names
+        let classNames: string[] = [];
+        if (profile?.assignedClasses && profile.assignedClasses.length > 0) {
+          const classesData = await Promise.all(
+            profile.assignedClasses.map(classId => 
+              storage.db.select().from(storage.schema.classes).where(eq(storage.schema.classes.id, classId)).limit(1)
+            )
+          );
+          classNames = classesData.map(c => c[0]?.name).filter(Boolean);
+        }
+
+        teacherOverview.push({
+          id: teacher.id,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          phone: teacher.phone,
+          profileImageUrl: teacher.profileImageUrl,
+          status: teacher.status,
+          createdAt: teacher.createdAt,
+          profileCompleted: teacher.profileCompleted,
+          hasProfile: !!profile,
+          verified: profile?.verified || false,
+          department: profile?.department || 'N/A',
+          subjects: subjectNames,
+          classes: classNames,
+          staffId: profile?.staffId || 'N/A',
+          firstLogin: profile?.firstLogin ?? true
+        });
+      }
+
+      res.json(teacherOverview);
+    } catch (error) {
+      console.error('Error fetching teacher overview:', error);
+      res.status(500).json({ message: "Failed to fetch teacher overview" });
+    }
+  });
+
   // Admin: Get all pending teacher profiles
   app.get("/api/admin/teacher-profiles/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
