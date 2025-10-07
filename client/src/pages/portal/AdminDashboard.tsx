@@ -257,15 +257,7 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* Header Actions - Fully Responsive */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end mb-4 sm:mb-6">
-        <Button className="bg-primary text-primary-foreground text-xs sm:text-sm" asChild>
-          <Link href="/portal/admin/students" data-testid="button-manage-students">
-            <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-            Manage Students
-          </Link>
-        </Button>
-      </div>
+      
 
       {/* Statistics Cards - Fully Responsive */}
       <div className="grid gap-2 xs:gap-3 sm:gap-4 md:gap-6 grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
