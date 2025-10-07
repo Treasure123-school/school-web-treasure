@@ -4343,7 +4343,7 @@ Treasure-Home School Administration
       const exams = await storage.getExamsByClass(parseInt(classId));
       res.json(exams);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exams for class" });
+      res.status(500).json({ message:"Failed to fetch exams for class" });
     }
   });
 
@@ -4363,7 +4363,7 @@ Treasure-Home School Administration
   app.put("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      // First get the existing exam to check ownership
+      // First get the exam to check ownership
       const existingExam = await storage.getExamById(parseInt(id));
       if (!existingExam) {
         return res.status(404).json({ message: "Exam not found" });
@@ -4562,7 +4562,7 @@ Treasure-Home School Administration
       // Robust parsing: handle array, comma-separated string, or single value
       const ids = (Array.isArray(raw) ? raw : (typeof raw === 'string' ? raw.split(',') : []))
         .map(x => parseInt(String(x), 10))
-        .filter(Number.isFinite);
+        .filter(id => !isNaN(id));
 
       if (ids.length === 0) {
         return res.status(400).json({ message: "No valid exam IDs provided" });
@@ -6653,9 +6653,9 @@ Treasure-Home School Administration
         // Create audit log
         await storage.createAuditLog({
           userId: user.id,
+          action: 'manual_grade',
           entityType: 'student_answer',
           entityId: result.answer.id,
-          action: 'manual_grade',
           description: `Teacher manually graded question with ${pointsEarned} points`,
           ipAddress: req.ip,
           userAgent: req.get('user-agent')
@@ -6732,8 +6732,8 @@ Treasure-Home School Administration
       const studentId = req.params.studentId;
       const user = req.user!;
 
-      // Check authorization - student can only view their own, teachers/admins can view all
-      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
+      // Parent can only view their own children
+      if (user.roleId === ROLES.PARENT && user.id !== studentId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -7130,13 +7130,8 @@ Treasure-Home School Administration
   });
 
   // Fetch subjects
-  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
-    queryKey: ['/api/subjects'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/subjects');
-      return await response.json();
-    },
-  });
+  // Removed useQuery hook as it's client-side and shouldn't be in server code.
+  // Subjects are fetched on the client side in the component that needs them
 
   const httpServer = createServer(app);
   return httpServer;
