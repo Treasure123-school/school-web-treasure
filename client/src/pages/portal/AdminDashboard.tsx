@@ -277,10 +277,24 @@ function NotificationSummary() {
                     </TableCell>
                     <TableCell>
                       {teacher.verified ? (
-                        <Badge variant="default" className="bg-green-600" data-testid={`badge-status-${teacher.id}`}>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Verified
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="default" className="bg-green-600" data-testid={`badge-status-${teacher.id}`}>
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Verified
+                          </Badge>
+                          {/* Show "Auto-Verified" indicator if created today */}
+                          {(() => {
+                            const createdDate = new Date(teacher.createdAt);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const isToday = createdDate >= today;
+                            return isToday && (
+                              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                                ✨ Auto-Verified
+                              </span>
+                            );
+                          })()}
+                        </div>
                       ) : teacher.hasProfile ? (
                         <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" data-testid={`badge-status-${teacher.id}`}>
                           <Clock className="h-3 w-3 mr-1" />
@@ -653,6 +667,20 @@ export default function AdminDashboard() {
     return <div>Please log in to access the admin portal.</div>;
   }
 
+  // Fetch today's auto-verified teachers
+  const { data: todayAutoVerified = [] } = useQuery({
+    queryKey: ['/api/admin/teachers/overview'],
+    select: (data: any[]) => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return data.filter(t => {
+        const createdDate = new Date(t.createdAt);
+        return createdDate >= today && t.verified;
+      });
+    },
+    enabled: !!user
+  });
+
   return (
     <PortalLayout
       userRole="admin"
@@ -671,6 +699,36 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Auto-Verification Alert - Show if there are new verifications today */}
+      {todayAutoVerified.length > 0 && (
+        <Card className="mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-green-900 dark:text-green-200">
+                  {todayAutoVerified.length} Teacher Profile{todayAutoVerified.length !== 1 ? 's' : ''} Auto-Verified Today
+                </h3>
+                <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                  {todayAutoVerified.length === 1 
+                    ? `${todayAutoVerified[0].firstName} ${todayAutoVerified[0].lastName} completed profile setup and can now access the dashboard.`
+                    : `${todayAutoVerified.length} teachers completed their profile setup and can now access their dashboards.`}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800">
+                    <Link href="/portal/admin/teachers">
+                      View All Teachers →
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* PROMINENT PENDING APPROVALS NOTIFICATION */}
       {pendingCount > 0 && (
