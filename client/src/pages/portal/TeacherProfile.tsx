@@ -1,17 +1,21 @@
 
 import PortalLayout from '@/components/layout/PortalLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { User, Mail, Phone, MapPin, Save, Edit, Camera, GraduationCap } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Save, Edit, Camera, GraduationCap, BookOpen, Users, CheckCircle, Clock, Award, FileText } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import type { TeacherProfile, Class } from '@shared/schema';
 
 export default function TeacherProfile() {
   const { user } = useAuth();
@@ -42,6 +46,38 @@ export default function TeacherProfile() {
       return response.json();
     }
   });
+
+  // Fetch teacher professional profile
+  const { data: teacherProfile } = useQuery<TeacherProfile>({
+    queryKey: ['/api/teacher/profile'],
+    enabled: !!user
+  });
+
+  // Fetch classes for display
+  const { data: classes = [] } = useQuery<Class[]>({
+    queryKey: ['/api/classes'],
+    enabled: !!user
+  });
+
+  // Calculate profile completion percentage
+  const calculateCompletion = () => {
+    if (!teacherProfile) return 0;
+    let completed = 0;
+    let total = 8;
+
+    if (teacherProfile.staffId) completed++;
+    if (teacherProfile.qualification) completed++;
+    if (teacherProfile.specialization) completed++;
+    if (teacherProfile.yearsOfExperience) completed++;
+    if (teacherProfile.subjects && teacherProfile.subjects.length > 0) completed++;
+    if (teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0) completed++;
+    if (teacherProfile.department) completed++;
+    if (teacherProfile.signatureUrl) completed++;
+
+    return Math.round((completed / total) * 100);
+  };
+
+  const profileCompletion = calculateCompletion();
 
   // Initialize form data when teacher data loads
   React.useEffect(() => {
@@ -138,6 +174,31 @@ export default function TeacherProfile() {
             )}
           </div>
         </div>
+
+        {/* Profile Completion Progress */}
+        {teacherProfile && (
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800" data-testid="card-progress">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-lg font-semibold" data-testid="text-completion-title">Profile Completion</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {profileCompletion === 100 ? 'Your profile is complete! ✅' : 'Complete your profile for better visibility'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-primary" data-testid="text-completion-percentage">{profileCompletion}%</p>
+                </div>
+              </div>
+              <Progress value={profileCompletion} className="h-2" data-testid="progress-completion" />
+              {profileCompletion < 100 && (
+                <p className="text-xs text-muted-foreground mt-2" data-testid="text-missing-info">
+                  {!teacherProfile.signatureUrl && 'Upload digital signature to reach 100%'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <Card>
@@ -272,6 +333,129 @@ export default function TeacherProfile() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Academic & Professional Details */}
+            {teacherProfile && (
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2" data-testid="heading-academic">
+                    <GraduationCap className="h-5 w-5" />
+                    <span>Academic & Professional Details</span>
+                  </CardTitle>
+                  <CardDescription>Your qualifications and professional information</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-muted-foreground">Staff ID</Label>
+                      <p className="text-lg font-medium mt-1" data-testid="text-staff-id">{teacherProfile.staffId || 'Not set'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Qualification</Label>
+                      <p className="text-lg font-medium mt-1" data-testid="text-qualification">{teacherProfile.qualification || 'Not set'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Specialization</Label>
+                      <p className="text-lg font-medium mt-1" data-testid="text-specialization">{teacherProfile.specialization || 'Not set'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Years of Experience</Label>
+                      <p className="text-lg font-medium mt-1" data-testid="text-experience">
+                        {teacherProfile.yearsOfExperience ? `${teacherProfile.yearsOfExperience} years` : 'Not set'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Department</Label>
+                      <p className="text-lg font-medium mt-1" data-testid="text-department">{teacherProfile.department || 'Not set'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Verification Status</Label>
+                      <div className="mt-1">
+                        {teacherProfile.verified ? (
+                          <Badge variant="default" className="gap-1" data-testid="badge-verified">
+                            <CheckCircle className="w-3 h-3" />
+                            Verified
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="gap-1" data-testid="badge-pending">
+                            <Clock className="w-3 h-3" />
+                            Pending Verification
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Teaching Assignments */}
+            {teacherProfile && (
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2" data-testid="heading-assignments">
+                    <BookOpen className="h-5 w-5" />
+                    <span>Teaching Assignments</span>
+                  </CardTitle>
+                  <CardDescription>Subjects and classes you teach</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-muted-foreground mb-2 block">Subjects</Label>
+                    <div className="flex flex-wrap gap-2" data-testid="container-subjects">
+                      {teacherProfile.subjects && teacherProfile.subjects.length > 0 ? (
+                        teacherProfile.subjects.map((subject: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
+                            <BookOpen className="w-3 h-3 mr-1" />
+                            {subject}
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No subjects assigned</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <Separator />
+
+                  <div>
+                    <Label className="text-muted-foreground mb-2 block">Assigned Classes</Label>
+                    <div className="flex flex-wrap gap-2" data-testid="container-classes">
+                      {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 ? (
+                        teacherProfile.assignedClasses.map((classId: number, idx: number) => {
+                          const classData = classes.find((c) => c.id === classId);
+                          return (
+                            <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
+                              <Users className="w-3 h-3 mr-1" />
+                              {classData?.name || `Class ${classId}`}
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No classes assigned</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {teacherProfile.signatureUrl && (
+                    <>
+                      <Separator />
+                      <div>
+                        <Label className="text-muted-foreground mb-2 block">Digital Signature</Label>
+                        <div className="border rounded-lg p-4 bg-muted/30 inline-block">
+                          <img 
+                            src={teacherProfile.signatureUrl} 
+                            alt="Digital Signature" 
+                            className="max-h-20 max-w-xs"
+                            data-testid="img-signature"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Account Security - Recovery Email */}
             <Card className="lg:col-span-3">
