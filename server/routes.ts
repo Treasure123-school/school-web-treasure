@@ -1479,9 +1479,10 @@ export async function registerRoutes(app: Express): Server {
                     statusType: "suspended_staff"
                   });
                 } else if (isParentForSuspension) {
+                  // Updated message for suspended parent accounts
                   return res.status(403).json({
                     message: "Account Suspended - Security Alert",
-                    description: "Your parent account has been automatically suspended due to multiple failed login attempts. This is a security measure to protect your child's information. Please contact the school administrator at admin@ths.edu or call the school office during working hours to restore your account access.",
+                    description: "Your parent account has been automatically suspended due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.\n\n📞 To Restore Your Account:\nContact School Administrator:\n📧 Email: treasurehomeschool@gmail.com\n📞 Call: School office during working hours\n\n💡 Have your child's information ready for verification.",
                     statusType: "suspended_parent"
                   });
                 } else {
@@ -3280,7 +3281,7 @@ Treasure-Home School Administration
 
           const studentUser = await storage.createUser({
             username: studentUsername,
-            email: `${studentUsername.toLowerCase()}@ths.edu`,
+            email: `${studentUsername.toLowerCase()}@ths.edu`, // Auto-generated email
             passwordHash: studentPasswordHash,
             roleId: studentRoleData.id,
             firstName: studentFirstName,
@@ -4292,7 +4293,7 @@ Treasure-Home School Administration
           exams = classExams.filter(exam => exam.isPublished);
           console.log(`Filtered to ${exams.length} published exams for student`);
         } else {
-          console.log('Student not found or has no class assigned');
+          console.log('Student notfound or has no class assigned');
         }
       } else {
         // For teachers and admins: show all exams they have access to
@@ -5319,7 +5320,7 @@ Treasure-Home School Administration
     try {
       const { id } = req.params;
 
-      // Get resource first to find the file path
+      // First get the resource to find the file path
       const resource = await storage.getStudyResourceById(parseInt(id));
       if (!resource) {
         return res.status(404).json({ message: "Study resource not found" });
