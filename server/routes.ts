@@ -988,33 +988,108 @@ export async function registerRoutes(app: Express): Server {
         await storage.createNotification({
           userId: admin.id,
           type: 'teacher_profile_created',
-          title: 'New Teacher Profile Created',
-          message: `${fullName} has completed their profile setup and can now access the dashboard.`,
+          title: '🎉 New Teacher Auto-Verified',
+          message: `${fullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}`,
           relatedEntityType: 'teacher_profile',
           relatedEntityId: profile.id,
           isRead: false
         });
 
-        // Send email notification to admin
+        // Send email notification to admin with enhanced details
         try {
+          const { sendEmail } = await import('./email-service');
+          
+          // Get subject and class names for better readability
+          const subjectNames = await Promise.all(
+            parsedSubjects.map(async (subjectId: number) => {
+              try {
+                const subjects = await storage.getSubjects();
+                const subject = subjects.find((s: any) => s.id === subjectId);
+                return subject?.name || `Subject #${subjectId}`;
+              } catch {
+                return `Subject #${subjectId}`;
+              }
+            })
+          );
+
+          const classNames = await Promise.all(
+            parsedClasses.map(async (classId: number) => {
+              try {
+                const classes = await storage.getClasses();
+                const cls = classes.find((c: any) => c.id === classId);
+                return cls?.name || `Class #${classId}`;
+              } catch {
+                return `Class #${classId}`;
+              }
+            })
+          );
+
           await sendEmail({
             to: admin.email,
             subject: '🎉 New Teacher Auto-Verified - THS Portal',
             html: `
-              <h2>New Teacher Profile Auto-Verified</h2>
-              <p><strong>${fullName}</strong> has completed their profile setup and has been automatically verified.</p>
-              <p><strong>Details:</strong></p>
-              <ul>
-                <li>Department: ${department}</li>
-                <li>Subjects: ${parsedSubjects.join(', ')}</li>
-                <li>Classes: ${parsedClasses.join(', ')}</li>
-                <li>Qualification: ${qualification}</li>
-                <li>Experience: ${yearsOfExperience} years</li>
-              </ul>
-              <p>The teacher can now access their personalized dashboard.</p>
-              <p><a href="${process.env.BASE_URL || 'http://localhost:5000'}/portal/admin/teachers">View Teacher Profile</a></p>
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                  <h1 style="color: white; margin: 0;">✨ New Teacher Auto-Verified</h1>
+                </div>
+                <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+                  <p style="font-size: 16px; color: #374151;">
+                    <strong style="color: #1f2937; font-size: 18px;">${fullName}</strong> has completed their profile setup and has been <strong style="color: #10b981;">automatically verified</strong>.
+                  </p>
+                  
+                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+                    <h3 style="color: #1f2937; margin-top: 0;">Profile Details</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; width: 140px;">Department:</td>
+                        <td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${department}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280;">Subjects:</td>
+                        <td style="padding: 8px 0; color: #1f2937;">${subjectNames.join(', ')}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280;">Classes:</td>
+                        <td style="padding: 8px 0; color: #1f2937;">${classNames.join(', ')}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280;">Qualification:</td>
+                        <td style="padding: 8px 0; color: #1f2937;">${qualification}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280;">Experience:</td>
+                        <td style="padding: 8px 0; color: #1f2937;">${yearsOfExperience} years</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280;">Staff ID:</td>
+                        <td style="padding: 8px 0; color: #1f2937;">${staffId || 'Pending'}</td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+                    <p style="margin: 0; color: #065f46;">
+                      ✅ <strong>Status:</strong> The teacher can now access their personalized dashboard with full functionality.
+                    </p>
+                  </div>
+
+                  <div style="text-align: center; margin-top: 30px;">
+                    <a href="${process.env.BASE_URL || 'http://localhost:5000'}/portal/admin/teachers" 
+                       style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; 
+                              font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                      View Teacher Profile →
+                    </a>
+                  </div>
+
+                  <p style="color: #6b7280; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                    This is an automated notification from THS Portal. The teacher profile was auto-verified based on complete and valid form submission.
+                  </p>
+                </div>
+              </div>
             `
           });
+          console.log(`✅ Auto-verification email sent to admin: ${admin.email}`);
         } catch (emailError) {
           console.error('Failed to send admin notification email:', emailError);
           // Don't fail the entire process if email fails

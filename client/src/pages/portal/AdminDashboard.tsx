@@ -716,29 +716,71 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Auto-Verification Alert - Show if there are new verifications today */}
+      {/* AUTO-VERIFICATION SUCCESS BANNER - Enhanced with teacher details */}
       {todayAutoVerified.length > 0 && (
-        <Card className="mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 shadow-lg">
+        <Card className="mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-950/30 dark:via-emerald-950/30 dark:to-teal-950/30 shadow-xl">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+              <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full shadow-md animate-pulse">
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-green-900 dark:text-green-200">
-                  {todayAutoVerified.length} Teacher Profile{todayAutoVerified.length !== 1 ? 's' : ''} Auto-Verified Today
-                </h3>
-                <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-bold text-green-900 dark:text-green-200">
+                    🎉 {todayAutoVerified.length} Teacher Profile{todayAutoVerified.length !== 1 ? 's' : ''} Auto-Verified Today!
+                  </h3>
+                  <Badge variant="default" className="bg-green-600 text-white">
+                    New
+                  </Badge>
+                </div>
+                <p className="text-sm text-green-700 dark:text-green-300 mb-3">
                   {todayAutoVerified.length === 1 
-                    ? `${todayAutoVerified[0].firstName} ${todayAutoVerified[0].lastName} completed profile setup and can now access the dashboard.`
-                    : `${todayAutoVerified.length} teachers completed their profile setup and can now access their dashboards.`}
+                    ? `${todayAutoVerified[0].firstName} ${todayAutoVerified[0].lastName} completed profile setup and can now access the full teaching dashboard.`
+                    : `${todayAutoVerified.length} teachers completed their profile setup and are now active in the system with full dashboard access.`}
                 </p>
-                <div className="mt-3 flex gap-2">
-                  <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800">
+                
+                {/* Show individual teacher cards for today's verifications */}
+                {todayAutoVerified.length <= 3 && (
+                  <div className="grid gap-2 mb-3">
+                    {todayAutoVerified.map((teacher: any, idx: number) => (
+                      <div 
+                        key={teacher.id} 
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-800"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-600 dark:text-green-400 font-semibold">
+                            {teacher.firstName[0]}{teacher.lastName[0]}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{teacher.firstName} {teacher.lastName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {teacher.department} • {teacher.subjects?.length || 0} subject{teacher.subjects?.length !== 1 ? 's' : ''} • {teacher.classes?.length || 0} class{teacher.classes?.length !== 1 ? 'es' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                          {new Date(teacher.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800 hover:bg-green-50">
                     <Link href="/portal/admin/teachers">
+                      <Users className="h-4 w-4 mr-2" />
                       View All Teachers →
                     </Link>
                   </Button>
+                  {todayAutoVerified.length > 0 && (
+                    <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800 hover:bg-green-50">
+                      <Link href="/portal/admin/teacher-verification">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Verification Center
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
