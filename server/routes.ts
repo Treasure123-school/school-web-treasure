@@ -619,7 +619,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     if (process.env.NODE_ENV === 'development') {
       console.log(`📊 DETAILED BREAKDOWN:`, breakdown);
       questionDetails.forEach((q: any, index: number) => {
-        console.log(`Question ${index + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? (q.isCorrect ? 'Correct!' : 'Incorrect') : 'Manual Review'} - ${q.pointsEarned}/${q.points} points`);
+        console.log(`Question ${index + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? (q.isCorrect ? 'Correct!' : 'Incorrect') : 'Manual Review'} - ${q.pointsEarned}/${q.points}`);
       });
     }
 
@@ -1508,7 +1508,7 @@ export async function registerRoutes(app: Express): Server {
             statusType: "rate_limited"
           });
         }
-        
+
         // After suspension threshold reached, show nothing here - let the actual suspension check handle it
         // This allows the user to see their account is actually suspended with proper message
       }
@@ -1533,7 +1533,7 @@ export async function registerRoutes(app: Express): Server {
           count: attempts.count + 1,
           lastAttempt: now
         });
-        
+
         console.log(`Login failed: User not found for identifier ${identifier}`);
         return res.status(401).json({
           message: "Invalid username or password. Please check your credentials and try again.",
@@ -4312,7 +4312,7 @@ Treasure-Home School Administration
 
           // Filter to only published exams
           exams = classExams.filter(exam => exam.isPublished);
-          console.log(`Filtered to ${exams.length} published exams for student`);
+          console.log(`Filtered to ${exams.length}published exams for student`);
         } else {
           console.log('Student notfound or has no class assigned');
         }
@@ -4775,7 +4775,7 @@ Treasure-Home School Administration
             orderNumber: maxOrder + i + 1
           });
 
-          // Validate options for multiple choice questions using creation schema
+          // Validate options for multiple choice questions
           if (validatedQuestion.questionType === 'multiple_choice') {
             if (!questionData.options || !Array.isArray(questionData.options) || questionData.options.length < 2) {
               validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least 2 options`);
@@ -7101,6 +7101,41 @@ Treasure-Home School Administration
       console.error('Error fetching entity audit logs:', error);
       res.status(500).json({ message: "Failed to fetch audit logs" });
     }
+  });
+
+  // Create academic term (Admin only)
+  app.post("/api/terms", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { name, year, startDate, endDate, isCurrent } = req.body;
+
+      // If setting as current, unset all other current terms
+      if (isCurrent) {
+        await storage.db.update(storage.schema.academicTerms)
+          .set({ isCurrent: false });
+      }
+
+      const term = await storage.db.insert(storage.schema.academicTerms).values({
+        name,
+        year,
+        startDate,
+        endDate,
+        isCurrent: isCurrent || false
+      }).returning();
+
+      res.json(term[0]);
+    } catch (error) {
+      console.error('Create term error:', error);
+      res.status(500).json({ message: "Failed to create academic term" });
+    }
+  });
+
+  // Fetch subjects
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['/api/subjects'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/subjects');
+      return await response.json();
+    },
   });
 
   const httpServer = createServer(app);

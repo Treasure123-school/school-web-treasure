@@ -4,6 +4,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { db } from "./storage";
+import { seedAcademicTerms } from "./seed-terms";
+
 
 const app = express();
 
@@ -55,7 +57,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      
+
       // Only log response body in development and redact sensitive fields
       if (!isProduction && capturedJsonResponse) {
         const sanitizedResponse = sanitizeLogData(capturedJsonResponse);
@@ -78,29 +80,29 @@ function sanitizeLogData(data: any): any {
   if (Array.isArray(data)) {
     return data.map(item => sanitizeLogData(item));
   }
-  
+
   if (data && typeof data === 'object') {
     const sanitized = { ...data };
-    
+
     // Redact common sensitive fields
     const sensitiveFields = ['password', 'token', 'jwt', 'secret', 'key', 'auth', 'session'];
-    
+
     for (const field of sensitiveFields) {
       if (field in sanitized) {
         sanitized[field] = '[REDACTED]';
       }
     }
-    
+
     // Recursively sanitize nested objects
     for (const key in sanitized) {
       if (sanitized[key] && typeof sanitized[key] === 'object') {
         sanitized[key] = sanitizeLogData(sanitized[key]);
       }
     }
-    
+
     return sanitized;
   }
-  
+
   return data;
 }
 
@@ -112,17 +114,17 @@ function sanitizeLogData(data: any): any {
     log("✅ Database migrations completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    
+
     // Check if this is a benign idempotency case (migrations already applied)
     const errorCode = (error as any)?.cause?.code;
-    const isIdempotencyError = errorMessage.includes('already exists') || 
+    const isIdempotencyError = errorMessage.includes('already exists') ||
                               (errorMessage.includes('relation') && errorMessage.includes('already exists')) ||
                               errorMessage.includes('duplicate key') ||
                               errorMessage.includes('nothing to migrate') ||
                               errorMessage.includes('PostgresError: relation') ||
                               errorCode === '42P07' || // relation already exists
                               errorCode === '42710'; // type already exists
-    
+
     if (isIdempotencyError) {
       log(`ℹ️ Migrations already applied: ${errorMessage}`);
     } else {
@@ -130,7 +132,7 @@ function sanitizeLogData(data: any): any {
       console.error(`🚨 MIGRATION ERROR: ${errorMessage}`);
       console.error(error);
       log(`⚠️ Migration failed: ${errorMessage}`);
-      
+
       // In production, we might want to fail fast on real migration errors
       if (process.env.NODE_ENV === 'production') {
         console.error('Production migration failure detected. Review required.');
@@ -139,6 +141,19 @@ function sanitizeLogData(data: any): any {
       }
     }
   }
+
+  // Seed academic terms if they don't exist
+  try {
+    log("Seeding academic terms if needed...");
+    await seedAcademicTerms();
+    log("✅ Academic terms seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`🚨 ACADEMIC TERMS SEEDING ERROR: ${errorMessage}`);
+    console.error(error);
+    log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
+  }
+
 
   // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
@@ -154,7 +169,7 @@ function sanitizeLogData(data: any): any {
 
     log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
     console.error(err.stack);
-    
+
     if (!res.headersSent) {
       res.status(status).json({ message });
     }
