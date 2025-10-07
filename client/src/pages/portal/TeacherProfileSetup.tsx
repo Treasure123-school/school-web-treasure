@@ -291,6 +291,9 @@ export default function TeacherProfileSetup() {
   };
 
   const handleSubmit = async () => {
+    // Smart validation with flagging
+    const validationIssues: string[] = [];
+    
     if (!formData.agreement) {
       toast({
         title: "Agreement Required",
@@ -307,6 +310,31 @@ export default function TeacherProfileSetup() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Fail-safe validation checks
+    if (formData.subjects.length === 0) {
+      validationIssues.push("No subjects assigned - profile may need admin review");
+    }
+    
+    if (formData.assignedClasses.length === 0) {
+      validationIssues.push("No classes assigned - profile may need admin review");
+    }
+    
+    if (!formData.department || formData.department.trim() === '') {
+      validationIssues.push("Department not specified");
+    }
+    
+    if (formData.yearsOfExperience === 0) {
+      validationIssues.push("Years of experience not set");
+    }
+
+    if (validationIssues.length > 0) {
+      toast({
+        title: "Profile Validation Warning",
+        description: `${validationIssues.join(', ')}. Your profile will be flagged for admin review.`,
+        variant: "default",
+      });
     }
 
     const submitData = new FormData();
