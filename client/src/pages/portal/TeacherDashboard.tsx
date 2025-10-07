@@ -159,6 +159,19 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
+  // Check if teacher profile is complete
+  const { data: profileStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ['/api/teacher/profile/status'],
+    enabled: !!user
+  });
+
+  // Redirect to setup if profile incomplete
+  useEffect(() => {
+    if (!statusLoading && profileStatus && !profileStatus.hasProfile) {
+      navigate('/portal/teacher/profile-setup');
+    }
+  }, [profileStatus, statusLoading, navigate]);
+
   // Check teacher profile status
   const { data: profileStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['/api/teacher/profile/status'],

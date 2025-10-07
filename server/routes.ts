@@ -949,6 +949,12 @@ export async function registerRoutes(app: Express): Server {
         firstLogin: false
       });
 
+      // Update user's profile completion status
+      await storage.updateUser(teacherId, {
+        profileCompleted: true,
+        profileCompletionPercentage: 100
+      });
+
       // Create notification for admins (informational only)
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
       for (const admin of admins) {

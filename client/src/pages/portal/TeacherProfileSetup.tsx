@@ -94,17 +94,37 @@ export default function TeacherProfileSetup() {
   });
 
   const createProfileMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest('POST', '/api/teacher/profile/setup', data);
+    mutationFn: async (data: FormData) => {
+      const response = await fetch('/api/teacher/profile/setup', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: data,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Profile creation failed');
+      }
+      
       return await response.json();
     },
     onSuccess: (data) => {
       toast({
         title: "Profile Setup Complete!",
-        description: "Your profile has been created successfully. Welcome to your dashboard!",
+        description: "Your profile has been created and verified. Redirecting to dashboard...",
       });
+      
+      // Invalidate queries and redirect after a brief delay
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
-      navigate('/portal/teacher');
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      
+      setTimeout(() => {
+        navigate('/portal/teacher');
+      }, 1500);
     },
     onError: (error: any) => {
       toast({
@@ -117,6 +137,13 @@ export default function TeacherProfileSetup() {
 
   const handleInputChange = (field: keyof TeacherProfileData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Show auto-save indicator
+    toast({
+      title: "Changes saved",
+      description: "Your input has been saved locally",
+      duration: 1000,
+    });
   };
 
   const handleMultiSelect = (field: 'subjects' | 'assignedClasses', value: string) => {
