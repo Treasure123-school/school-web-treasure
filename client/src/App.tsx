@@ -67,6 +67,7 @@ const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
 const ProfileCompletionMonitoring = lazy(() => import("@/pages/portal/ProfileCompletionMonitoring"));
 const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
 const AcademicTermsManagement = lazy(() => import("@/pages/portal/AcademicTermsManagement"));
+const TeacherProfileVerification = lazy(() => import("@/pages/portal/TeacherProfileVerification"));
 
 function Router() {
   return (
@@ -188,6 +189,11 @@ function Router() {
       <Route path="/portal/admin/teachers">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <TeachersManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/teacher-verification">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <TeacherProfileVerification />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/classes">
