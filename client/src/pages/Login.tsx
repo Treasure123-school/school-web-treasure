@@ -296,42 +296,45 @@ export default function Login() {
             // Prevent default error handling
             toast({
               title: (
-                <div className="flex items-center gap-2">
-                  <Ban className="h-5 w-5 text-red-600" />
-                  <span className="font-bold text-base">🔒 Account Suspended - Security Alert</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
+                  <span className="font-bold text-sm sm:text-base break-words">🔒 Account Suspended - Security Alert</span>
                 </div>
               ),
               description: (
-                <div className="text-sm space-y-3">
-                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
-                    <p className="font-bold text-red-900 dark:text-red-100 mb-2 text-base">
+                <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
+                  <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
+                    <p className="font-bold text-red-900 dark:text-red-100 mb-1.5 sm:mb-2 text-sm sm:text-base break-words">
                       ⚠️ Access Blocked for Your Safety
                     </p>
-                    <p className="text-red-800 dark:text-red-200 leading-relaxed">
+                    <p className="text-red-800 dark:text-red-200 leading-relaxed text-xs sm:text-sm">
                       Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.
                     </p>
                   </div>
 
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
-                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-base flex items-center gap-2">
+                  <div className="p-2.5 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
+                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-2 sm:mb-3 text-sm sm:text-base flex items-center gap-1.5 sm:gap-2 break-words">
                       📞 How to Restore Your Account:
                     </p>
-                    <div className="space-y-2 text-blue-900 dark:text-blue-200">
-                      <p className="font-semibold">Contact School Administrator:</p>
-                      <p className="text-base">
-                        📧 <strong>Email:</strong> <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm">treasurehomeschool@gmail.com</span>
-                      </p>
-                      <p className="text-base">
+                    <div className="space-y-1.5 sm:space-y-2 text-blue-900 dark:text-blue-200">
+                      <p className="font-semibold text-xs sm:text-sm">Contact School Administrator:</p>
+                      <div className="text-xs sm:text-sm break-all">
+                        <p className="mb-1.5 sm:mb-2">
+                          📧 <strong>Email:</strong>
+                        </p>
+                        <span className="bg-white dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono text-[10px] sm:text-xs inline-block">treasurehomeschool@gmail.com</span>
+                      </div>
+                      <p className="text-xs sm:text-sm">
                         📞 <strong>Call:</strong> School office during working hours
                       </p>
-                      <p className="text-sm mt-2 text-blue-700 dark:text-blue-300">
+                      <p className="text-[10px] sm:text-xs mt-1.5 sm:mt-2 text-blue-700 dark:text-blue-300">
                         💡 Tip: Have your child's information ready for verification
                       </p>
                     </div>
                   </div>
                 </div>
               ),
-              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-lg',
+              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-[95vw] sm:max-w-md md:max-w-lg',
               duration: 30000, // 30 seconds for important security message
             });
             throw new Error('SUSPENDED_PARENT_HANDLED'); // Prevent default error handling
@@ -339,42 +342,45 @@ export default function Login() {
           case 'suspended_student':
             toast({
               title: (
-                <div className="flex items-center gap-2">
-                  <Ban className="h-5 w-5 text-red-600" />
-                  <span className="font-bold text-base">🔒 Account Suspended</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
+                  <span className="font-bold text-sm sm:text-base break-words">🔒 Account Suspended</span>
                 </div>
               ),
               description: (
-                <div className="text-sm space-y-3">
-                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
-                    <p className="font-bold text-red-900 dark:text-red-100 mb-2 text-base">
+                <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
+                  <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
+                    <p className="font-bold text-red-900 dark:text-red-100 mb-1.5 sm:mb-2 text-sm sm:text-base break-words">
                       ⚠️ Your Account Has Been Suspended
                     </p>
-                    <p className="text-red-800 dark:text-red-200 leading-relaxed">
+                    <p className="text-red-800 dark:text-red-200 leading-relaxed text-xs sm:text-sm">
                       Your student account has been <strong>temporarily suspended</strong>. This could be due to multiple failed login attempts or other security concerns.
                     </p>
                   </div>
 
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
-                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-base flex items-center gap-2">
+                  <div className="p-2.5 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
+                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-2 sm:mb-3 text-sm sm:text-base flex items-center gap-1.5 sm:gap-2 break-words">
                       📞 How to Restore Your Account:
                     </p>
-                    <div className="space-y-2 text-blue-900 dark:text-blue-200">
-                      <p className="font-semibold">Contact School Administrator:</p>
-                      <p className="text-base">
-                        📧 <strong>Email:</strong> <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm">treasurehomeschool@gmail.com</span>
-                      </p>
-                      <p className="text-base">
+                    <div className="space-y-1.5 sm:space-y-2 text-blue-900 dark:text-blue-200">
+                      <p className="font-semibold text-xs sm:text-sm">Contact School Administrator:</p>
+                      <div className="text-xs sm:text-sm break-all">
+                        <p className="mb-1.5 sm:mb-2">
+                          📧 <strong>Email:</strong>
+                        </p>
+                        <span className="bg-white dark:bg-gray-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono text-[10px] sm:text-xs inline-block">treasurehomeschool@gmail.com</span>
+                      </div>
+                      <p className="text-xs sm:text-sm">
                         📞 <strong>Call:</strong> School office during working hours
                       </p>
-                      <p className="text-sm mt-2 text-blue-700 dark:text-blue-300">
+                      <p className="text-[10px] sm:text-xs mt-1.5 sm:mt-2 text-blue-700 dark:text-blue-300">
                         💡 Alternatively, speak with your class teacher for assistance
                       </p>
                     </div>
                   </div>
                 </div>
               ),
-              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-lg',
+              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 max-w-[95vw] sm:max-w-md md:max-w-lg',
               duration: 30000,
             });
             throw new Error('SUSPENDED_STUDENT_HANDLED'); // Prevent default error handling
