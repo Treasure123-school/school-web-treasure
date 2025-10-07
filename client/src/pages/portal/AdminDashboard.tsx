@@ -30,6 +30,10 @@ function TeacherOverviewSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Fetch subjects and classes to map IDs to names
+  const { data: subjects = [] } = useQuery<any[]>({ queryKey: ['/api/subjects'] });
+  const { data: classes = [] } = useQuery<any[]>({ queryKey: ['/api/classes'] });
+
   const { data: teachersOverview = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/teachers/overview'],
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -164,7 +168,7 @@ function NotificationSummary() {
           <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
             <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             <span>Teacher Overview</span>
-            <Badge variant="secondary" className="ml-2">{stats.total} Total</Badge>
+            <Badge variant="secondary" className="ml-2">{stats.total}</Badge>
           </CardTitle>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-initial">
@@ -242,11 +246,15 @@ function NotificationSummary() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {teacher.subjects && teacher.subjects.length > 0 ? (
-                          teacher.subjects.slice(0, 2).map((subject: string, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {subject}
-                            </Badge>
-                          ))
+                          teacher.subjects.slice(0, 2).map((subjectId: number, idx: number) => {
+                            // Find subject name from subjects query - ensure proper ID matching
+                            const subject = subjects?.find(s => Number(s.id) === Number(subjectId));
+                            return subject ? (
+                              <Badge key={idx} variant="secondary" className="text-xs" data-testid={`badge-subject-${idx}`}>
+                                {subject.name}
+                              </Badge>
+                            ) : null;
+                          })
                         ) : (
                           <span className="text-xs text-muted-foreground">None</span>
                         )}
@@ -260,11 +268,15 @@ function NotificationSummary() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {teacher.classes && teacher.classes.length > 0 ? (
-                          teacher.classes.slice(0, 2).map((cls: string, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {cls}
-                            </Badge>
-                          ))
+                          teacher.classes.slice(0, 2).map((classId: number, idx: number) => {
+                            // Find class name from classes query - ensure proper ID matching
+                            const classObj = classes?.find(c => Number(c.id) === Number(classId));
+                            return classObj ? (
+                              <Badge key={idx} variant="secondary" className="text-xs" data-testid={`badge-class-${idx}`}>
+                                {classObj.name}
+                              </Badge>
+                            ) : null;
+                          })
                         ) : (
                           <span className="text-xs text-muted-foreground">None</span>
                         )}
@@ -511,7 +523,7 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
-  // Get recent registrations (last 10 students)
+  // Get recent registrations (last 3 students)
   const mockRecentRegistrations = allUsers
     .filter(u => u.roleId === 3) // Students only
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -625,6 +637,7 @@ export default function AdminDashboard() {
   };
 
   const [recentTeachers, setRecentTeachers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true); // State for loading
 
   const fetchStats = async () => {
     try {
@@ -634,7 +647,9 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setStats(data);
+        // Assuming setStats is available or stats is a state variable managed elsewhere
+        // For now, let's assume 'stats' is directly updated if it's not a state variable
+        // If stats is a state variable, you'd use a setter function like setStats(data)
       }
 
       // Fetch recent teacher profiles

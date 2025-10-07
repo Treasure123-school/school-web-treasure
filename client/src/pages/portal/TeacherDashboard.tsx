@@ -175,6 +175,11 @@ export default function TeacherDashboard() {
     enabled: !!user,
   });
 
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+    queryKey: ['/api/subjects'],
+    enabled: !!user,
+  });
+
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['/api/students'],
     enabled: !!user,

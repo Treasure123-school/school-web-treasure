@@ -946,14 +946,35 @@ export async function registerRoutes(app: Express): Server {
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
       });
 
+      // Detect suspicious patterns for admin review
+      const isSuspicious = (
+        parsedSubjects.length === 0 ||
+        parsedClasses.length === 0 ||
+        !department || 
+        yearsOfExperience === 0
+      );
+
       // Create teacher profile with verified status and theory grading preferences
       const profile = await storage.createTeacherProfile({
         ...profileData,
-        verified: true, // Auto-verify on completion
+        verified: !isSuspicious, // Only auto-verify if not suspicious
         firstLogin: false,
         autoGradeTheoryQuestions: req.body.autoGradeTheoryQuestions === 'true',
         theoryGradingInstructions: req.body.theoryGradingInstructions || null
       });
+
+      // Flag for admin review if suspicious
+      if (isSuspicious) {
+        await storage.createNotification({
+          userId: (await storage.getUsersByRole(ROLES.ADMIN))[0]?.id,
+          type: 'teacher_profile_review_required',
+          title: '⚠️ Teacher Profile Requires Review',
+          message: `${fullName}'s profile has incomplete data and requires admin verification before full access.`,
+          relatedEntityType: 'teacher_profile',
+          relatedEntityId: profile.id,
+          isRead: false
+        });
+      }
 
       // Update user's profile completion status
       await storage.updateUser(teacherId, {
@@ -973,6 +994,31 @@ export async function registerRoutes(app: Express): Server {
           relatedEntityId: profile.id,
           isRead: false
         });
+
+        // Send email notification to admin
+        try {
+          await sendEmail({
+            to: admin.email,
+            subject: '🎉 New Teacher Auto-Verified - THS Portal',
+            html: `
+              <h2>New Teacher Profile Auto-Verified</h2>
+              <p><strong>${fullName}</strong> has completed their profile setup and has been automatically verified.</p>
+              <p><strong>Details:</strong></p>
+              <ul>
+                <li>Department: ${department}</li>
+                <li>Subjects: ${parsedSubjects.join(', ')}</li>
+                <li>Classes: ${parsedClasses.join(', ')}</li>
+                <li>Qualification: ${qualification}</li>
+                <li>Experience: ${yearsOfExperience} years</li>
+              </ul>
+              <p>The teacher can now access their personalized dashboard.</p>
+              <p><a href="${process.env.BASE_URL || 'http://localhost:5000'}/portal/admin/teachers">View Teacher Profile</a></p>
+            `
+          });
+        } catch (emailError) {
+          console.error('Failed to send admin notification email:', emailError);
+          // Don't fail the entire process if email fails
+        }
       }
 
       // Log audit event
