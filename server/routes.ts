@@ -1435,7 +1435,7 @@ export async function registerRoutes(app: Express): Server {
         }
       }
 
-      // Check rate limit - Message 12: Account Temporarily Locked
+      // Check rate limit - Message 12: Account Temporarily Locked (show once, then suspension message)
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
         console.warn(`Rate limit exceeded for ${attemptKey}`);
@@ -1466,7 +1466,7 @@ export async function registerRoutes(app: Express): Server {
                 console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
                 lockoutViolations.delete(identifier); // Clear violations after suspension
 
-                // Get user role to provide appropriate message - SHOW ONCE
+                // Get user role to provide appropriate message - SHOW DETAILED SUSPENSION MESSAGE
                 const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
                 const isStaffForSuspension = roleNameForSuspension === 'admin' || roleNameForSuspension === 'teacher';
@@ -1479,7 +1479,7 @@ export async function registerRoutes(app: Express): Server {
                     statusType: "suspended_staff"
                   });
                 } else if (isParentForSuspension) {
-                  // Updated message for suspended parent accounts
+                  // Detailed message for suspended parent accounts
                   return res.status(403).json({
                     message: "Account Suspended - Security Alert",
                     description: "Your parent account has been automatically suspended due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.\n\n📞 To Restore Your Account:\nContact School Administrator:\n📧 Email: treasurehomeschool@gmail.com\n📞 Call: School office during working hours\n\n💡 Have your child's information ready for verification.",
@@ -1499,12 +1499,18 @@ export async function registerRoutes(app: Express): Server {
           }
         }
 
-        // After suspension check, always show rate limit message for subsequent attempts
-        return res.status(429).json({
-          message: "Account Temporarily Locked",
-          description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again, or use 'Forgot Password' to reset.",
-          statusType: "rate_limited"
-        });
+        // Show "temporarily locked" message ONLY on first rate limit hit (when violations < 3)
+        const currentViolations = lockoutViolations.get(identifier);
+        if (currentViolations && currentViolations.count < MAX_RATE_LIMIT_VIOLATIONS) {
+          return res.status(429).json({
+            message: "Account Temporarily Locked",
+            description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again, or use 'Forgot Password' to reset.",
+            statusType: "rate_limited"
+          });
+        }
+        
+        // After suspension threshold reached, show nothing here - let the actual suspension check handle it
+        // This allows the user to see their account is actually suspended with proper message
       }
 
       // Try to find user by username or email FIRST to check suspension
@@ -1541,8 +1547,9 @@ export async function registerRoutes(app: Express): Server {
       const isStaffAccount = roleName === 'admin' || roleName === 'teacher';
 
       // SECURITY CHECK: Block suspended accounts BEFORE incrementing attempts
+      // This shows the detailed suspension message on all subsequent login attempts
       if (user.status === 'suspended') {
-        console.warn(`Login blocked: Account ${identifier} is suspended`);
+        console.warn(`Login blocked: Account ${identifier} is suspended (showing detailed message)`);
 
         if (isStaffAccount) {
           // Message 9: Staff Account Suspended
@@ -1552,7 +1559,7 @@ export async function registerRoutes(app: Express): Server {
             statusType: "suspended_staff"
           });
         } else if (roleName === 'parent') {
-          // Message for suspended parent accounts
+          // Detailed message for suspended parent accounts - shown on every attempt after suspension
           return res.status(403).json({
             message: "Account Suspended - Security Alert",
             description: "Your parent account has been automatically suspended due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.\n\n📞 To Restore Your Account:\nContact School Administrator:\n📧 Email: treasurehomeschool@gmail.com\n📞 Call: School office during working hours\n\n💡 Have your child's information ready for verification.",
