@@ -7355,7 +7355,7 @@ Treasure-Home School Administration
         notificationPreference: profileData.notificationPreference || 'email',
         availability: profileData.availability,
         firstLogin: false, // Mark as completed
-        verified: false // Awaiting admin verification
+        verified: true // Auto-verify on completion
       };
 
       let profile;
@@ -7374,14 +7374,14 @@ Treasure-Home School Administration
         });
       }
 
-      // Create notification for admin
+      // Create notification for admin (informational only)
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
       for (const admin of admins) {
         await storage.createNotification({
           userId: admin.id,
-          type: 'teacher_profile_pending',
-          title: 'New Teacher Profile Awaiting Verification',
-          message: `${req.user!.firstName} ${req.user!.lastName} has completed their teacher profile setup and is awaiting verification.`,
+          type: 'teacher_profile_created',
+          title: 'New Teacher Profile Created',
+          message: `${req.user!.firstName} ${req.user!.lastName} has completed their profile setup and can now access the dashboard.`,
           relatedEntityType: 'teacher_profile',
           relatedEntityId: userId
         });
