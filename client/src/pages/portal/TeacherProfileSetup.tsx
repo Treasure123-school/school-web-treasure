@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { FileUpload } from '@/components/ui/file-upload';
+import { ImageCapture } from '@/components/ui/image-capture';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import confetti from 'canvas-confetti';
@@ -521,67 +522,13 @@ export default function TeacherProfileSetup() {
             <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Profile Image Upload */}
               <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                <div className="relative">
-                  <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg">
-                    {profileImage ? (
-                      <img
-                        src={URL.createObjectURL(profileImage)}
-                        alt="Profile Preview"
-                        className="h-full w-full object-cover"
-                        data-testid="profile-image-preview"
-                      />
-                    ) : (
-                      <Camera className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
-                    )}
-                  </div>
-                  <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg cursor-pointer transition-colors">
-                    <Upload className="h-4 w-4" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      data-testid="profile-image-input"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        if (file) {
-                          // Validate file size (max 5MB)
-                          if (file.size > 5 * 1024 * 1024) {
-                            toast({
-                              title: "File Too Large",
-                              description: "Please select an image smaller than 5MB",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          // Validate file type
-                          if (!file.type.startsWith('image/')) {
-                            toast({
-                              title: "Invalid File Type",
-                              description: "Please select an image file",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          setProfileImage(file);
-                          toast({
-                            title: "Image Selected",
-                            description: `${file.name} ready to upload`,
-                          });
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                {profileImage ? (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600 dark:text-green-400">
-                    <CheckCircle className="h-4 w-4" />
-                    <span>{profileImage.name} selected</span>
-                  </div>
-                ) : (
-                  <p className="text-xs sm:text-sm text-red-500 dark:text-red-400 text-center">
-                    <span className="text-red-500">*</span> Upload your profile photo (Required)
-                  </p>
-                )}
+                <ImageCapture
+                  value={profileImage}
+                  onChange={setProfileImage}
+                  label="Upload your profile photo (Required)"
+                  required={true}
+                  shape="circle"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -902,70 +849,13 @@ export default function TeacherProfileSetup() {
                   <FileSignature className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Digital Signature Upload (Optional)
                 </Label>
-                <div className="space-y-3">
-                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      id="signature-upload"
-                      className="hidden"
-                      data-testid="signature-file-input"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        if (file) {
-                          // Validate file size (max 2MB)
-                          if (file.size > 2 * 1024 * 1024) {
-                            toast({
-                              title: "File Too Large",
-                              description: "Please select a signature image smaller than 2MB",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          // Validate file type
-                          if (!file.type.startsWith('image/')) {
-                            toast({
-                              title: "Invalid File Type",
-                              description: "Please select an image file",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          setSignatureFile(file);
-                          toast({
-                            title: "Signature Selected",
-                            description: `${file.name} ready to upload`,
-                          });
-                        }
-                      }}
-                    />
-                    <label htmlFor="signature-upload" className="cursor-pointer">
-                      {signatureFile ? (
-                        <div className="space-y-2">
-                          <img
-                            src={URL.createObjectURL(signatureFile)}
-                            alt="Signature preview"
-                            className="max-h-24 mx-auto border border-gray-200 dark:border-gray-700 rounded bg-white p-2"
-                            data-testid="signature-preview"
-                          />
-                          <p className="text-xs text-muted-foreground">{signatureFile.name}</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Upload className="h-8 w-8 mx-auto text-gray-400" />
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload signature</p>
-                          <p className="text-xs text-gray-500">PNG, JPG - Max 2MB</p>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-                  {signatureFile && (
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600 dark:text-green-400">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Signature ready to upload</span>
-                    </div>
-                  )}
-                </div>
+                <ImageCapture
+                  value={signatureFile}
+                  onChange={setSignatureFile}
+                  label="Upload Digital Signature"
+                  required={false}
+                  shape="square"
+                />
               </div>
 
               <div className="flex items-start space-x-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
