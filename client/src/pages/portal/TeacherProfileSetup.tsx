@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 
 interface TeacherProfileData {
-  staffId: string;
   gender: string;
   dateOfBirth: string;
   phoneNumber: string;
@@ -68,7 +67,6 @@ export default function TeacherProfileSetup() {
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState<TeacherProfileData>({
-    staffId: '', // Optional - will be auto-generated if left empty
     gender: '',
     dateOfBirth: '',
     phoneNumber: '',
@@ -91,10 +89,9 @@ export default function TeacherProfileSetup() {
 
   // Calculate profile completeness percentage
   const calculateCompleteness = (): number => {
-    const totalFields = 14; // Total required fields (staffId is optional, auto-generated)
+    const totalFields = 14; // Total required fields
     let completedFields = 0;
 
-    // staffId is optional - will be auto-generated if not provided
     if (formData.gender) completedFields++;
     if (formData.dateOfBirth) completedFields++;
     if (formData.phoneNumber) completedFields++;
@@ -635,22 +632,6 @@ export default function TeacherProfileSetup() {
             </CardHeader>
             <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
-                    <IdCard className="h-3 w-3 sm:h-4 sm:w-4" />
-                    Staff ID (Optional)
-                  </Label>
-                  <Input
-                    value={formData.staffId}
-                    onChange={(e) => handleInputChange('staffId', e.target.value)}
-                    placeholder="Leave blank for auto-generation (e.g., THS/TCH/2025/001)"
-                    className="text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    💡 If left blank, a unique Staff ID will be automatically generated for you (e.g., THS/TCH/2025/001)
-                  </p>
-                </div>
-
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-xs sm:text-sm">
                     <Award className="h-3 w-3 sm:h-4 sm:w-4" />

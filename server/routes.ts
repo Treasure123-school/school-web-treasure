@@ -902,7 +902,7 @@ export async function registerRoutes(app: Express): Server {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
       const {
-        gender, dateOfBirth, staffId, nationalId, phoneNumber,
+        gender, dateOfBirth, nationalId, phoneNumber,
         qualification, specialization, yearsOfExperience,
         subjects, assignedClasses, department, gradingMode,
         notificationPreference, availability, agreement
@@ -919,44 +919,31 @@ export async function registerRoutes(app: Express): Server {
       // Normalize gender to match database enum (Male, Female, Other)
       const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
 
-      // CRITICAL FIX: Check if staffId is provided and unique, or auto-generate
-      let finalStaffId: string | null = null;
+      // Auto-generate Staff ID: THS/TCH/YYYY/XXX
+      let finalStaffId: string;
+      const currentYear = new Date().getFullYear();
+      const allTeacherProfiles = await storage.getAllTeacherProfiles();
       
-      if (staffId && staffId.trim() !== '') {
-        // User provided a staff ID - check uniqueness
-        const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
-        if (existingProfile && existingProfile.userId !== teacherId) {
-          return res.status(409).json({ 
-            message: "Staff ID already exists. Please use a unique Staff ID or leave it blank for auto-generation." 
-          });
-        }
-        finalStaffId = staffId.trim();
-      } else {
-        // Auto-generate staff ID: THS/TCH/YYYY/XXX
-        const currentYear = new Date().getFullYear();
-        const allTeacherProfiles = await storage.getAllTeacherProfiles();
-        
-        const teacherProfilesThisYear = allTeacherProfiles.filter(p => 
-          p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
-        );
-        
-        const existingNumbers = teacherProfilesThisYear
-          .map((p: any) => {
-            const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-          })
-          .filter((n: number) => !isNaN(n));
-        
-        const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-        finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
-        
-        console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
-      }
+      const teacherProfilesThisYear = allTeacherProfiles.filter(p => 
+        p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
+      );
+      
+      const existingNumbers = teacherProfilesThisYear
+        .map((p: any) => {
+          const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        })
+        .filter((n: number) => !isNaN(n));
+      
+      const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+      finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
+      
+      console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
 
       // Create or update teacher profile
       const profileData = {
         userId: teacherId,
-        staffId: finalStaffId, // Use validated staffId or null
+        staffId: finalStaffId,
         subjects: parsedSubjects,
         assignedClasses: parsedClasses,
         qualification,
@@ -968,7 +955,7 @@ export async function registerRoutes(app: Express): Server {
         notificationPreference,
         availability: availability || null,
         firstLogin: false,
-        verified: true, // Auto-verify on completion
+        verified: true,
         verifiedAt: new Date()
       };
 
@@ -988,26 +975,31 @@ export async function registerRoutes(app: Express): Server {
         yearsOfExperience === 0
       );
 
-      // Create teacher profile with verified status and theory grading preferences
+      // Create teacher profile with verified status
       const profile = await storage.createTeacherProfile({
         ...profileData,
-        verified: !isSuspicious, // Only auto-verify if not suspicious
-        firstLogin: false,
-        autoGradeTheoryQuestions: req.body.autoGradeTheoryQuestions === 'true',
-        theoryGradingInstructions: req.body.theoryGradingInstructions || null
+        verified: !isSuspicious,
+        firstLogin: false
       });
+
+      // Get teacher's full name from user record
+      const teacher = await storage.getUser(teacherId);
+      const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
 
       // Flag for admin review if suspicious
       if (isSuspicious) {
-        await storage.createNotification({
-          userId: (await storage.getUsersByRole(ROLES.ADMIN))[0]?.id,
-          type: 'teacher_profile_review_required',
-          title: '⚠️ Teacher Profile Requires Review',
-          message: `${fullName}'s profile has incomplete data and requires admin verification before full access.`,
-          relatedEntityType: 'teacher_profile',
-          relatedEntityId: profile.id,
-          isRead: false
-        });
+        const admins = await storage.getUsersByRole(ROLES.ADMIN);
+        if (admins.length > 0) {
+          await storage.createNotification({
+            userId: admins[0].id,
+            type: 'teacher_profile_review_required',
+            title: '⚠️ Teacher Profile Requires Review',
+            message: `${teacherFullName}'s profile has incomplete data and requires admin verification before full access.`,
+            relatedEntityType: 'teacher_profile',
+            relatedEntityId: profile.id.toString(),
+            isRead: false
+          });
+        }
       }
 
       // Update user's profile completion status
@@ -1016,10 +1008,6 @@ export async function registerRoutes(app: Express): Server {
         profileCompletionPercentage: 100
       });
 
-      // Get teacher's full name from user record
-      const teacher = await storage.getUser(teacherId);
-      const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
-
       // Create notification for admins (informational only)
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
       for (const admin of admins) {
@@ -1027,9 +1015,9 @@ export async function registerRoutes(app: Express): Server {
           userId: admin.id,
           type: 'teacher_profile_created',
           title: '🎉 New Teacher Auto-Verified',
-          message: `${teacherFullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}`,
+          message: `${teacherFullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}, Staff ID: ${finalStaffId}`,
           relatedEntityType: 'teacher_profile',
-          relatedEntityId: profile.id,
+          relatedEntityId: profile.id.toString(),
           isRead: false
         });
 
@@ -1037,7 +1025,7 @@ export async function registerRoutes(app: Express): Server {
         try {
           const { sendEmail } = await import('./email-service');
           
-          // Get subject and class names for better readability with error handling
+          // Get subject and class names for better readability
           let subjectNames: string[] = [];
           let classNames: string[] = [];
           
@@ -1080,7 +1068,11 @@ export async function registerRoutes(app: Express): Server {
                     <h3 style="color: #1f2937; margin-top: 0;">Profile Details</h3>
                     <table style="width: 100%; border-collapse: collapse;">
                       <tr>
-                        <td style="padding: 8px 0; color: #6b7280; width: 140px;">Department:</td>
+                        <td style="padding: 8px 0; color: #6b7280; width: 140px;">Staff ID:</td>
+                        <td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${finalStaffId}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280;">Department:</td>
                         <td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${department}</td>
                       </tr>
                       <tr>
@@ -1098,10 +1090,6 @@ export async function registerRoutes(app: Express): Server {
                       <tr>
                         <td style="padding: 8px 0; color: #6b7280;">Experience:</td>
                         <td style="padding: 8px 0; color: #1f2937;">${yearsOfExperience} years</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280;">Staff ID:</td>
-                        <td style="padding: 8px 0; color: #1f2937;">${staffId || 'Pending'}</td>
                       </tr>
                     </table>
                   </div>
@@ -1131,7 +1119,6 @@ export async function registerRoutes(app: Express): Server {
           console.log(`✅ Auto-verification email sent to admin: ${admin.email}`);
         } catch (emailError) {
           console.error('Failed to send admin notification email:', emailError);
-          // Don't fail the entire process if email fails
         }
       }
 
@@ -1141,7 +1128,7 @@ export async function registerRoutes(app: Express): Server {
         action: 'teacher_profile_setup_completed',
         entityType: 'teacher_profile',
         entityId: BigInt(profile.id),
-        newValue: JSON.stringify({ staffId, subjects: parsedSubjects, classes: parsedClasses }),
+        newValue: JSON.stringify({ staffId: finalStaffId, subjects: parsedSubjects, classes: parsedClasses }),
         reason: 'Teacher completed first-time profile setup',
         ipAddress: req.ip || 'unknown',
         userAgent: req.headers['user-agent'] || null
@@ -1153,6 +1140,7 @@ export async function registerRoutes(app: Express): Server {
         verified: true,
         profile: {
           id: profile.id,
+          staffId: finalStaffId,
           verified: true,
           subjects: parsedSubjects,
           classes: parsedClasses
