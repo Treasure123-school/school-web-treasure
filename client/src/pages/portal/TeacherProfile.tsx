@@ -68,7 +68,7 @@ export default function TeacherProfile() {
 
   // Fetch teacher professional profile
   const { data: teacherProfile } = useQuery<TeacherProfile>({
-    queryKey: ['/api/teacher/profile'],
+    queryKey: ['/api/teacher/profile/me'],
     enabled: !!user
   });
 
@@ -138,6 +138,16 @@ export default function TeacherProfile() {
   // Initialize professional data when teacher profile loads
   React.useEffect(() => {
     if (teacherProfile) {
+      // Handle subjects - ensure it's always an array
+      const subjectsArray = Array.isArray(teacherProfile.subjects) 
+        ? teacherProfile.subjects 
+        : teacherProfile.subjects ? [teacherProfile.subjects] : [];
+      
+      // Handle assignedClasses - ensure it's always an array
+      const classesArray = Array.isArray(teacherProfile.assignedClasses) 
+        ? teacherProfile.assignedClasses 
+        : teacherProfile.assignedClasses ? [teacherProfile.assignedClasses] : [];
+
       setProfessionalData({
         qualification: teacherProfile.qualification || '',
         specialization: teacherProfile.specialization || '',
@@ -146,8 +156,8 @@ export default function TeacherProfile() {
         gradingMode: teacherProfile.gradingMode || 'manual',
         notificationPreference: teacherProfile.notificationPreference || 'all',
         availability: teacherProfile.availability || 'full-time',
-        subjects: teacherProfile.subjects || [],
-        assignedClasses: teacherProfile.assignedClasses || [],
+        subjects: subjectsArray,
+        assignedClasses: classesArray,
         staffId: teacherProfile.staffId || ''
       });
     }
