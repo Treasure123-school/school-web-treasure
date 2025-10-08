@@ -1173,13 +1173,13 @@ export async function registerRoutes(app: Express): Server {
         }
       }
 
-      // Log audit event
+      // Log audit event - FIX: profile.id is already a number, don't convert to BigInt
       await storage.createAuditLog({
         userId: teacherId,
         action: 'teacher_profile_setup_completed',
         entityType: 'teacher_profile',
-        entityId: BigInt(profile.id),
-        newValue: JSON.stringify({ staffId, subjects: parsedSubjects, classes: parsedClasses }),
+        entityId: profile.id, // Already a number from database
+        newValue: JSON.stringify({ staffId: finalStaffId, subjects: parsedSubjects, classes: parsedClasses }),
         reason: 'Teacher completed first-time profile setup',
         ipAddress: req.ip || 'unknown',
         userAgent: req.headers['user-agent'] || null
