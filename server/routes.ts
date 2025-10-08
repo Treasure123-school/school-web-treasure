@@ -1015,6 +1015,16 @@ export async function registerRoutes(app: Express): Server {
         yearsOfExperience === 0
       );
 
+      // Enhanced logging before profile creation
+      console.log('✅ Creating teacher profile:', {
+        userId: teacherId,
+        staffId: finalStaffId,
+        department: profileData.department,
+        subjectsCount: profileData.subjects.length,
+        classesCount: profileData.assignedClasses.length,
+        verified: !isSuspicious
+      });
+
       // Create teacher profile with verified status and theory grading preferences
       const profile = await storage.createTeacherProfile({
         ...profileData,
@@ -1022,6 +1032,13 @@ export async function registerRoutes(app: Express): Server {
         firstLogin: false,
         autoGradeTheoryQuestions: req.body.autoGradeTheoryQuestions === 'true',
         theoryGradingInstructions: req.body.theoryGradingInstructions || null
+      });
+
+      console.log('✅ PROFILE CREATED SUCCESSFULLY:', {
+        profileId: profile.id,
+        userId: profile.userId,
+        staffId: profile.staffId,
+        verified: profile.verified
       });
 
       // Flag for admin review if suspicious
@@ -1291,11 +1308,25 @@ export async function registerRoutes(app: Express): Server {
   app.get('/api/teacher/profile/me', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const teacherId = req.user!.id;
+      
+      console.log('📋 Fetching teacher profile for userId:', teacherId);
+      
       const profile = await storage.getTeacherProfile(teacherId);
 
       if (!profile) {
+        console.log('❌ No profile found for teacher:', teacherId);
         return res.status(404).json({ message: 'Profile not found' });
       }
+
+      console.log('✅ Teacher profile found:', {
+        profileId: profile.id,
+        userId: profile.userId,
+        staffId: profile.staffId,
+        department: profile.department,
+        subjectsCount: profile.subjects?.length || 0,
+        classesCount: profile.assignedClasses?.length || 0,
+        verified: profile.verified
+      });
 
       // Also get user data to return complete profile
       const user = await storage.getUser(teacherId);
@@ -1314,9 +1345,11 @@ export async function registerRoutes(app: Express): Server {
         } : null
       };
 
+      console.log('📤 Sending profile to frontend:', completeProfile.subjects?.length || 0, 'subjects,', completeProfile.assignedClasses?.length || 0, 'classes');
+
       res.json(completeProfile);
     } catch (error) {
-      console.error('Get teacher profile error:', error);
+      console.error('❌ Get teacher profile error:', error);
       res.status(500).json({ message: 'Failed to fetch teacher profile' });
     }
   });
