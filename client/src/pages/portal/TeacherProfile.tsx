@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { User, Mail, Phone, MapPin, Save, Edit, Camera, GraduationCap, BookOpen, Users, CheckCircle, Clock, Award, FileText } from 'lucide-react';
@@ -29,8 +30,17 @@ export default function TeacherProfile() {
     phone: '',
     address: '',
     recoveryEmail: '',
-    gender: '', // Added gender field
-    dateOfBirth: '' // Added dateOfBirth field
+    gender: '',
+    dateOfBirth: ''
+  });
+  const [professionalData, setProfessionalData] = useState({
+    qualification: '',
+    specialization: '',
+    yearsOfExperience: 0,
+    department: '',
+    gradingMode: 'manual',
+    notificationPreference: 'all',
+    availability: 'full-time'
   });
 
   if (!user) {
@@ -110,11 +120,26 @@ export default function TeacherProfile() {
         phone: teacher.phone || '',
         address: teacher.address || '',
         recoveryEmail: teacher.recoveryEmail || '',
-        gender: teacher.gender || '', // Initialize gender
-        dateOfBirth: teacher.dateOfBirth || '' // Initialize dateOfBirth
+        gender: teacher.gender || '',
+        dateOfBirth: teacher.dateOfBirth || ''
       });
     }
   }, [teacher, user]);
+
+  // Initialize professional data when teacher profile loads
+  React.useEffect(() => {
+    if (teacherProfile) {
+      setProfessionalData({
+        qualification: teacherProfile.qualification || '',
+        specialization: teacherProfile.specialization || '',
+        yearsOfExperience: teacherProfile.yearsOfExperience || 0,
+        department: teacherProfile.department || '',
+        gradingMode: teacherProfile.gradingMode || 'manual',
+        notificationPreference: teacherProfile.notificationPreference || 'all',
+        availability: teacherProfile.availability || 'full-time'
+      });
+    }
+  }, [teacherProfile]);
 
   const handleProfileImageUpload = (result: any) => {
     toast({
@@ -128,7 +153,8 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
-      const response = await fetch(`/api/users/${user.id}`, {
+      // Update personal data (users table)
+      const userResponse = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -137,9 +163,29 @@ export default function TeacherProfile() {
         body: JSON.stringify(profileData)
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update profile');
+      if (!userResponse.ok) {
+        const error = await userResponse.json();
+        throw new Error(error.message || 'Failed to update personal information');
+      }
+
+      // Update professional data (teacher_profiles table)
+      const profileResponse = await fetch('/api/teacher/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...professionalData,
+          phone: profileData.phone,
+          dateOfBirth: profileData.dateOfBirth,
+          gender: profileData.gender
+        })
+      });
+
+      if (!profileResponse.ok) {
+        const error = await profileResponse.json();
+        throw new Error(error.message || 'Failed to update professional information');
       }
 
       toast({
@@ -149,6 +195,7 @@ export default function TeacherProfile() {
 
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
@@ -161,6 +208,10 @@ export default function TeacherProfile() {
 
   const handleChange = (field: string, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProfessionalChange = (field: string, value: string | number) => {
+    setProfessionalData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -411,22 +462,59 @@ export default function TeacherProfile() {
                       <p className="text-lg font-medium mt-1" data-testid="text-staff-id">{teacherProfile.staffId || 'Not set'}</p>
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Qualification</Label>
-                      <p className="text-lg font-medium mt-1" data-testid="text-qualification">{teacherProfile.qualification || 'Not set'}</p>
+                      <Label htmlFor="qualification">Qualification</Label>
+                      {isEditing ? (
+                        <Input
+                          id="qualification"
+                          value={professionalData.qualification}
+                          onChange={(e) => handleProfessionalChange('qualification', e.target.value)}
+                          placeholder="e.g., B.Ed, M.Ed, Ph.D"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium mt-1" data-testid="text-qualification">{teacherProfile.qualification || 'Not set'}</p>
+                      )}
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Specialization</Label>
-                      <p className="text-lg font-medium mt-1" data-testid="text-specialization">{teacherProfile.specialization || 'Not set'}</p>
+                      <Label htmlFor="specialization">Specialization</Label>
+                      {isEditing ? (
+                        <Input
+                          id="specialization"
+                          value={professionalData.specialization}
+                          onChange={(e) => handleProfessionalChange('specialization', e.target.value)}
+                          placeholder="e.g., Mathematics, Science"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium mt-1" data-testid="text-specialization">{teacherProfile.specialization || 'Not set'}</p>
+                      )}
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Years of Experience</Label>
-                      <p className="text-lg font-medium mt-1" data-testid="text-experience">
-                        {teacherProfile.yearsOfExperience ? `${teacherProfile.yearsOfExperience} years` : 'Not set'}
-                      </p>
+                      <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+                      {isEditing ? (
+                        <Input
+                          id="yearsOfExperience"
+                          type="number"
+                          value={professionalData.yearsOfExperience}
+                          onChange={(e) => handleProfessionalChange('yearsOfExperience', parseInt(e.target.value) || 0)}
+                          min="0"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium mt-1" data-testid="text-experience">
+                          {teacherProfile.yearsOfExperience ? `${teacherProfile.yearsOfExperience} years` : 'Not set'}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Department</Label>
-                      <p className="text-lg font-medium mt-1" data-testid="text-department">{teacherProfile.department || 'Not set'}</p>
+                      <Label htmlFor="department">Department</Label>
+                      {isEditing ? (
+                        <Input
+                          id="department"
+                          value={professionalData.department}
+                          onChange={(e) => handleProfessionalChange('department', e.target.value)}
+                          placeholder="e.g., Science, Arts"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium mt-1" data-testid="text-department">{teacherProfile.department || 'Not set'}</p>
+                      )}
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Verification Status</Label>
@@ -533,22 +621,70 @@ export default function TeacherProfile() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <Label className="text-muted-foreground">Grading Mode</Label>
-                      <p className="text-lg font-medium mt-1 capitalize" data-testid="text-grading-mode">
-                        {teacherProfile.gradingMode || 'Manual'}
-                      </p>
+                      <Label htmlFor="gradingMode">Grading Mode</Label>
+                      {isEditing ? (
+                        <Select
+                          value={professionalData.gradingMode}
+                          onValueChange={(value) => handleProfessionalChange('gradingMode', value)}
+                        >
+                          <SelectTrigger id="gradingMode">
+                            <SelectValue placeholder="Select grading mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manual">Manual</SelectItem>
+                            <SelectItem value="auto">Auto</SelectItem>
+                            <SelectItem value="hybrid">Hybrid</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-lg font-medium mt-1 capitalize" data-testid="text-grading-mode">
+                          {teacherProfile.gradingMode || 'Manual'}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Notification Preference</Label>
-                      <p className="text-lg font-medium mt-1 capitalize" data-testid="text-notification-pref">
-                        {teacherProfile.notificationPreference || 'All'}
-                      </p>
+                      <Label htmlFor="notificationPreference">Notification Preference</Label>
+                      {isEditing ? (
+                        <Select
+                          value={professionalData.notificationPreference}
+                          onValueChange={(value) => handleProfessionalChange('notificationPreference', value)}
+                        >
+                          <SelectTrigger id="notificationPreference">
+                            <SelectValue placeholder="Select notification preference" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Notifications</SelectItem>
+                            <SelectItem value="important">Important Only</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-lg font-medium mt-1 capitalize" data-testid="text-notification-pref">
+                          {teacherProfile.notificationPreference || 'All'}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <Label className="text-muted-foreground">Availability</Label>
-                      <p className="text-lg font-medium mt-1 capitalize" data-testid="text-availability">
-                        {teacherProfile.availability || 'Full-time'}
-                      </p>
+                      <Label htmlFor="availability">Availability</Label>
+                      {isEditing ? (
+                        <Select
+                          value={professionalData.availability}
+                          onValueChange={(value) => handleProfessionalChange('availability', value)}
+                        >
+                          <SelectTrigger id="availability">
+                            <SelectValue placeholder="Select availability" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="full-time">Full-time</SelectItem>
+                            <SelectItem value="part-time">Part-time</SelectItem>
+                            <SelectItem value="on-leave">On Leave</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-lg font-medium mt-1 capitalize" data-testid="text-availability">
+                          {teacherProfile.availability || 'Full-time'}
+                        </p>
+                      )}
                     </div>
                   </div>
                   {teacherProfile.updatedAt && (
