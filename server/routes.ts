@@ -1016,7 +1016,7 @@ export async function registerRoutes(app: Express): Server {
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
       });
 
-      // Detect suspicious patterns for admin review
+      // Detect suspicious patterns for admin notification (informational only)
       const isSuspicious = (
         parsedSubjects.length === 0 ||
         parsedClasses.length === 0 ||
@@ -1025,23 +1025,30 @@ export async function registerRoutes(app: Express): Server {
       );
 
       // Create teacher profile with verified status and theory grading preferences
+      // FIX: Always auto-verify completed profiles, suspicious check is for admin notification only
       const profile = await storage.createTeacherProfile({
         ...profileData,
-        verified: !isSuspicious, // Only auto-verify if not suspicious
         firstLogin: false,
         autoGradeTheoryQuestions: req.body.autoGradeTheoryQuestions === 'true',
         theoryGradingInstructions: req.body.theoryGradingInstructions || null
       });
 
-      // Flag for admin review if suspicious
+      // Send additional notification for admin review if suspicious (informational only)
       if (isSuspicious) {
         const teacher = await storage.getUser(teacherId);
         const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
+        
+        const missingFields = [];
+        if (parsedSubjects.length === 0) missingFields.push('subjects');
+        if (parsedClasses.length === 0) missingFields.push('classes');
+        if (!department) missingFields.push('department');
+        if (yearsOfExperience === 0) missingFields.push('experience');
+        
         await storage.createNotification({
           userId: (await storage.getUsersByRole(ROLES.ADMIN))[0]?.id,
           type: 'teacher_profile_review_required',
-          title: '⚠️ Teacher Profile Requires Review',
-          message: `${teacherFullName}'s profile has incomplete data and requires admin verification before full access.`,
+          title: '⚠️ Teacher Profile Has Incomplete Data',
+          message: `${teacherFullName}'s profile was auto-verified but has incomplete data (missing: ${missingFields.join(', ')}). Please review and update if needed.`,
           relatedEntityType: 'teacher_profile',
           relatedEntityId: profile.id.toString(),
           isRead: false
