@@ -244,8 +244,10 @@ export default function TeacherProfileSetup() {
         queryClient.setQueryData(['/api/teacher/profile/me'], data.profile);
       }
 
-      // Invalidate auth to refresh user status
+      // CRITICAL: Invalidate all related queries to force fresh data fetch
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
 
       // Navigate after confetti animation
       setTimeout(() => {
