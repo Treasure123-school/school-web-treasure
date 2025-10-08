@@ -1142,7 +1142,7 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get teacher's own profile
+  // Get teacher's own profile with user data
   app.get('/api/teacher/profile/me', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const teacherId = req.user!.id;
@@ -1152,7 +1152,24 @@ export async function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: 'Profile not found' });
       }
 
-      res.json(profile);
+      // Also get user data to return complete profile
+      const user = await storage.getUser(teacherId);
+      
+      // Combine profile and user data
+      const completeProfile = {
+        ...profile,
+        user: user ? {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          dateOfBirth: user.dateOfBirth,
+          gender: user.gender,
+          profileImageUrl: user.profileImageUrl
+        } : null
+      };
+
+      res.json(completeProfile);
     } catch (error) {
       console.error('Get teacher profile error:', error);
       res.status(500).json({ message: 'Failed to fetch teacher profile' });

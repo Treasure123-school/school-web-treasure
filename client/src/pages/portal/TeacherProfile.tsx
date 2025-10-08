@@ -1,4 +1,3 @@
-
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,9 @@ export default function TeacherProfile() {
     email: '',
     phone: '',
     address: '',
-    recoveryEmail: ''
+    recoveryEmail: '',
+    gender: '', // Added gender field
+    dateOfBirth: '' // Added dateOfBirth field
   });
 
   if (!user) {
@@ -94,7 +95,9 @@ export default function TeacherProfile() {
         email: teacher.email || user.email || '',
         phone: teacher.phone || '',
         address: teacher.address || '',
-        recoveryEmail: teacher.recoveryEmail || ''
+        recoveryEmail: teacher.recoveryEmail || '',
+        gender: teacher.gender || '', // Initialize gender
+        dateOfBirth: teacher.dateOfBirth || '' // Initialize dateOfBirth
       });
     }
   }, [teacher, user]);
@@ -104,7 +107,7 @@ export default function TeacherProfile() {
       title: "Profile image updated",
       description: "Your profile image has been uploaded successfully.",
     });
-    
+
     queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
     setShowImageUpload(false);
   };
@@ -119,7 +122,7 @@ export default function TeacherProfile() {
         credentials: 'include',
         body: JSON.stringify(profileData)
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to update profile');
@@ -129,7 +132,7 @@ export default function TeacherProfile() {
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
       });
-      
+
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
     } catch (error) {
@@ -147,8 +150,8 @@ export default function TeacherProfile() {
   };
 
   return (
-    <PortalLayout 
-      userRole="teacher" 
+    <PortalLayout
+      userRole="teacher"
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
@@ -244,7 +247,7 @@ export default function TeacherProfile() {
                     {user.firstName} {user.lastName}
                   </h3>
                   <p className="text-muted-foreground">Teacher</p>
-                  
+
                   {showImageUpload && (
                     <div className="mt-4">
                       <FileUpload
@@ -315,8 +318,10 @@ export default function TeacherProfile() {
                       type="email"
                       value={profileData.email}
                       onChange={(e) => handleChange('email', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={true}
+                      className="bg-muted"
                     />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
@@ -324,6 +329,25 @@ export default function TeacherProfile() {
                       id="phone"
                       value={profileData.phone}
                       onChange={(e) => handleChange('phone', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Input
+                      id="gender"
+                      value={profileData.gender}
+                      onChange={(e) => handleChange('gender', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={profileData.dateOfBirth}
+                      onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                       disabled={!isEditing}
                     />
                   </div>
@@ -424,7 +448,7 @@ export default function TeacherProfile() {
                       )}
                     </div>
                   </div>
-                  
+
                   <Separator />
 
                   <div>
@@ -452,9 +476,9 @@ export default function TeacherProfile() {
                       <div>
                         <Label className="text-muted-foreground mb-2 block">Digital Signature</Label>
                         <div className="border rounded-lg p-4 bg-muted/30 inline-block">
-                          <img 
-                            src={teacherProfile.signatureUrl} 
-                            alt="Digital Signature" 
+                          <img
+                            src={teacherProfile.signatureUrl}
+                            alt="Digital Signature"
                             className="max-h-20 max-w-xs"
                             data-testid="img-signature"
                           />
