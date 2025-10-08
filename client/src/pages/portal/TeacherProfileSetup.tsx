@@ -267,7 +267,7 @@ export default function TeacherProfileSetup() {
 
     if (!formData.gender) errors.push("Gender");
     if (!formData.dateOfBirth) errors.push("Date of Birth");
-    if (!formData.nationalId) errors.push("National ID / Staff ID");
+    if (!formData.nationalId) errors.push("National ID (NIN)");
     if (!formData.phoneNumber) errors.push("Phone Number");
     if (!profileImage) errors.push("Profile Photo");
 
@@ -577,16 +577,17 @@ export default function TeacherProfileSetup() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-xs sm:text-sm">
                     <IdCard className="h-3 w-3 sm:h-4 sm:w-4" />
-                    National ID / Staff ID <span className="text-red-500">*</span>
+                    National ID (NIN) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     value={formData.nationalId}
                     onChange={(e) => handleInputChange('nationalId', e.target.value)}
-                    placeholder="e.g., 12345678901 (NIN) or THS/2024/001"
+                    placeholder="e.g., 12345678901"
                     className="text-sm"
+                    data-testid="input-national-id"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Enter your 11-digit National Identification Number (NIN) or school-assigned Staff ID
+                    Enter your 11-digit National Identification Number (NIN)
                   </p>
                 </div>
 
@@ -635,22 +636,6 @@ export default function TeacherProfileSetup() {
             </CardHeader>
             <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
-                    <IdCard className="h-3 w-3 sm:h-4 sm:w-4" />
-                    Staff ID (Optional)
-                  </Label>
-                  <Input
-                    value={formData.staffId}
-                    onChange={(e) => handleInputChange('staffId', e.target.value)}
-                    placeholder="Leave blank for auto-generation (e.g., THS/TCH/2025/001)"
-                    className="text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    💡 If left blank, a unique Staff ID will be automatically generated for you (e.g., THS/TCH/2025/001)
-                  </p>
-                </div>
-
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-xs sm:text-sm">
                     <Award className="h-3 w-3 sm:h-4 sm:w-4" />
