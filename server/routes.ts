@@ -999,13 +999,15 @@ export async function registerRoutes(app: Express): Server {
 
       // Flag for admin review if suspicious
       if (isSuspicious) {
+        const teacher = await storage.getUser(teacherId);
+        const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
         await storage.createNotification({
           userId: (await storage.getUsersByRole(ROLES.ADMIN))[0]?.id,
           type: 'teacher_profile_review_required',
           title: '⚠️ Teacher Profile Requires Review',
-          message: `${fullName}'s profile has incomplete data and requires admin verification before full access.`,
+          message: `${teacherFullName}'s profile has incomplete data and requires admin verification before full access.`,
           relatedEntityType: 'teacher_profile',
-          relatedEntityId: profile.id,
+          relatedEntityId: profile.id.toString(),
           isRead: false
         });
       }
@@ -1029,7 +1031,7 @@ export async function registerRoutes(app: Express): Server {
           title: '🎉 New Teacher Auto-Verified',
           message: `${teacherFullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}`,
           relatedEntityType: 'teacher_profile',
-          relatedEntityId: profile.id,
+          relatedEntityId: profile.id.toString(),
           isRead: false
         });
 
