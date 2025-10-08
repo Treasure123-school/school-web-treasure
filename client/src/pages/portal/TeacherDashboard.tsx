@@ -201,15 +201,24 @@ export default function TeacherDashboard() {
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/teacher/profile/me');
       if (!response.ok) {
-        throw new Error('Failed to fetch profile');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch profile');
       }
       const data = await response.json();
-      console.log('📊 Profile data received:', data);
+      console.log('📊 Profile data received:', {
+        hasData: !!data,
+        department: data?.department,
+        subjects: data?.subjects,
+        classes: data?.assignedClasses,
+        verified: data?.verified
+      });
       return data;
     },
     enabled: !!user && !!profileStatus?.hasProfile,
-    staleTime: 0, // Always fetch fresh data
-    retry: 1
+    staleTime: 0,
+    cacheTime: 0,
+    retry: 2,
+    retryDelay: 1000
   });
 
   // Redirect to setup if profile is incomplete
@@ -293,32 +302,42 @@ export default function TeacherDashboard() {
                 Welcome back, {user.firstName}!
               </h2>
               <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
-                {teacherProfile && !isLoading && !profileLoading ? (
-                  <>
-                    {teacherProfile.department && `${teacherProfile.department} Department`}
-                    {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && 
-                      ` • Teaching ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
-                    {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 &&
-                      ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
-                  </>
-                ) : profileLoading ? (
+                {profileLoading ? (
                   'Loading profile...'
                 ) : profileError ? (
-                  'Profile data unavailable'
+                  'Profile data unavailable - please refresh'
+                ) : teacherProfile ? (
+                  <>
+                    {teacherProfile.department ? `${teacherProfile.department} Department` : 'Department not set'}
+                    {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 ? (
+                      ` • Teaching ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`
+                    ) : ' • No subjects assigned'}
+                    {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 ? (
+                      ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`
+                    ) : ' • No classes assigned'}
+                  </>
                 ) : (
                   'Empowering minds, shaping futures'
                 )}
               </p>
-              {teacherProfile && !isLoading && !subjectsLoading && !classesLoading && !profileLoading && (
+              {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (
                 <div className="flex gap-2 mt-2 flex-wrap">
+                  {console.log('🎨 Rendering badges:', {
+                    hasProfile: !!teacherProfile,
+                    subjects: teacherProfile.subjects,
+                    classes: teacherProfile.assignedClasses,
+                    subjectsArray: subjects,
+                    classesArray: classes
+                  })}
+                  
                   {/* Subject Badges - Get actual subject names from subjects array */}
                   {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
                     <>
                       {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
-                        // Find subject name from subjects query
                         const subject = subjects.find((s: any) => s.id === subjectId);
+                        console.log(`🔍 Subject ${subjectId}:`, subject);
                         return subject ? (
-                          <span key={idx} className="px-2 py-1 bg-white/20 rounded-full text-xs">
+                          <span key={`subject-${subjectId}-${idx}`} className="px-2 py-1 bg-white/20 rounded-full text-xs">
                             {subject.name}
                           </span>
                         ) : null;
@@ -330,14 +349,15 @@ export default function TeacherDashboard() {
                       )}
                     </>
                   )}
+                  
                   {/* Class Badges - Get actual class names from classes array */}
                   {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && classes.length > 0 && (
                     <>
                       {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
-                        // Find class name from classes query
                         const classObj = classes.find((c: any) => c.id === classId);
+                        console.log(`🔍 Class ${classId}:`, classObj);
                         return classObj ? (
-                          <span key={idx} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
+                          <span key={`class-${classId}-${idx}`} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
                             {classObj.name}
                           </span>
                         ) : null;

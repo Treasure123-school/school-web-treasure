@@ -1288,22 +1288,44 @@ export async function registerRoutes(app: Express): Server {
       // Get user data to merge with profile
       const user = await storage.getUser(userId);
 
-      console.log('✅ Teacher profile fetched for dashboard:', {
-        userId,
-        department: profile.department,
-        subjectCount: Array.isArray(profile.subjects) ? profile.subjects.length : 0,
-        classCount: Array.isArray(profile.assignedClasses) ? profile.assignedClasses.length : 0
-      });
-
-      // Return complete profile with user data
+      // Build complete profile with all fields
       const completeProfile = {
-        ...profile,
+        // Profile fields
+        id: profile.id,
+        userId: profile.userId,
+        staffId: profile.staffId,
+        subjects: profile.subjects || [],
+        assignedClasses: profile.assignedClasses || [],
+        department: profile.department,
+        qualification: profile.qualification,
+        yearsOfExperience: profile.yearsOfExperience,
+        specialization: profile.specialization,
+        verified: profile.verified,
+        firstLogin: profile.firstLogin,
+        
+        // User fields
         firstName: user?.firstName,
         lastName: user?.lastName,
         email: user?.email,
         phone: user?.phone,
-        profileImageUrl: user?.profileImageUrl
+        gender: user?.gender,
+        dateOfBirth: user?.dateOfBirth,
+        profileImageUrl: user?.profileImageUrl,
+        
+        // Additional profile fields
+        gradingMode: profile.gradingMode,
+        notificationPreference: profile.notificationPreference,
+        availability: profile.availability,
+        signatureUrl: profile.signatureUrl
       };
+
+      console.log('✅ Teacher profile fetched for dashboard:', {
+        userId,
+        department: profile.department,
+        subjectCount: Array.isArray(profile.subjects) ? profile.subjects.length : 0,
+        classCount: Array.isArray(profile.assignedClasses) ? profile.assignedClasses.length : 0,
+        staffId: profile.staffId
+      });
 
       res.json(completeProfile);
     } catch (error: any) {
