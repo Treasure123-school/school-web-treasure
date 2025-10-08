@@ -358,23 +358,29 @@ export default function TeacherProfileSetup() {
     }
 
     const submitData = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          submitData.append(key, JSON.stringify(value));
-        } else {
-          // CRITICAL FIX: Convert empty strings to null to avoid unique constraint violations
-          const stringValue = String(value).trim();
-          if (stringValue === '' || stringValue === 'undefined' || stringValue === 'null') {
-            // Don't append empty/null values - backend will handle defaults
-            // Exception: staffId should be explicitly omitted if empty
-            if (key === 'staffId') {
-              return; // Skip empty staffId to let backend handle it
-            }
-            return;
+    
+    // Add fullName from user data
+    if (user) {
+      submitData.append('fullName', `${user.firstName} ${user.lastName}`);
+    }
+    
+    Object.entries(formData).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        submitData.append(key, JSON.stringify(value));
+      } else {
+        // CRITICAL FIX: Convert empty strings to null to avoid unique constraint violations
+        const stringValue = String(value).trim();
+        if (stringValue === '' || stringValue === 'undefined' || stringValue === 'null') {
+          // Don't append empty/null values - backend will handle defaults
+          // Exception: staffId should be explicitly omitted if empty
+          if (key === 'staffId') {
+            return; // Skip empty staffId to let backend handle it
           }
-          submitData.append(key, stringValue);
+          return;
         }
-      });
+        submitData.append(key, stringValue);
+      }
+    });
 
     if (profileImage) {
       submitData.append('profileImage', profileImage);
