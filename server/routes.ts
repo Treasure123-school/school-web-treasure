@@ -922,7 +922,7 @@ export async function registerRoutes(app: Express): Server {
       // Create or update teacher profile
       const profileData = {
         userId: teacherId,
-        staffId,
+        staffId: staffId && staffId.trim() !== '' ? staffId : null, // Convert empty string to null
         subjects: parsedSubjects,
         assignedClasses: parsedClasses,
         qualification,

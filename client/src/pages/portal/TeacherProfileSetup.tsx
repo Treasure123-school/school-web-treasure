@@ -67,7 +67,7 @@ export default function TeacherProfileSetup() {
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState<TeacherProfileData>({
-    staffId: '',
+    staffId: '', // Will be converted to null if empty on submit
     gender: '',
     dateOfBirth: '',
     phoneNumber: '',
@@ -362,7 +362,13 @@ export default function TeacherProfileSetup() {
       if (Array.isArray(value)) {
         submitData.append(key, JSON.stringify(value));
       } else {
-        submitData.append(key, String(value));
+        // CRITICAL FIX: Convert empty strings to null to avoid unique constraint violations
+        const stringValue = String(value).trim();
+        if (stringValue === '' || stringValue === 'undefined' || stringValue === 'null') {
+          // Don't append null values - backend will handle defaults
+          return;
+        }
+        submitData.append(key, stringValue);
       }
     });
 
