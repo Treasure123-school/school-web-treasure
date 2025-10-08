@@ -919,9 +919,11 @@ export async function registerRoutes(app: Express): Server {
       // Normalize gender to match database enum (Male, Female, Other)
       const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
 
-      // CRITICAL FIX: Check if staffId is provided and unique
-      let finalStaffId = null;
+      // CRITICAL FIX: Check if staffId is provided and unique, or auto-generate
+      let finalStaffId: string | null = null;
+      
       if (staffId && staffId.trim() !== '') {
+        // User provided a staff ID - check uniqueness
         const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
         if (existingProfile && existingProfile.userId !== teacherId) {
           return res.status(409).json({ 
@@ -929,6 +931,24 @@ export async function registerRoutes(app: Express): Server {
           });
         }
         finalStaffId = staffId.trim();
+      } else {
+        // Auto-generate staff ID: THS/TCH/YYYY/XXX
+        const currentYear = new Date().getFullYear();
+        const teacherProfiles = await storage.db.select({ staffId: schema.teacherProfiles.staffId })
+          .from(schema.teacherProfiles)
+          .where(sql`${schema.teacherProfiles.staffId} LIKE ${'THS/TCH/' + currentYear + '/%'}`);
+        
+        const existingNumbers = teacherProfiles
+          .map((p: any) => {
+            const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          })
+          .filter((n: number) => !isNaN(n));
+        
+        const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+        finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
+        
+        console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
       }
 
       // Create or update teacher profile
@@ -1015,30 +1035,31 @@ export async function registerRoutes(app: Express): Server {
         try {
           const { sendEmail } = await import('./email-service');
           
-          // Get subject and class names for better readability
-          const subjectNames = await Promise.all(
-            parsedSubjects.map(async (subjectId: number) => {
-              try {
-                const subjects = await storage.getSubjects();
-                const subject = subjects.find((s: any) => s.id === subjectId);
-                return subject?.name || `Subject #${subjectId}`;
-              } catch {
-                return `Subject #${subjectId}`;
-              }
-            })
-          );
+          // Get subject and class names for better readability with error handling
+          let subjectNames: string[] = [];
+          let classNames: string[] = [];
+          
+          try {
+            const subjects = await storage.getSubjects();
+            subjectNames = parsedSubjects.map((subjectId: number) => {
+              const subject = subjects.find((s: any) => s.id === subjectId);
+              return subject?.name || `Subject #${subjectId}`;
+            });
+          } catch (error) {
+            console.error('Failed to fetch subject names:', error);
+            subjectNames = parsedSubjects.map((id: number) => `Subject #${id}`);
+          }
 
-          const classNames = await Promise.all(
-            parsedClasses.map(async (classId: number) => {
-              try {
-                const classes = await storage.getClasses();
-                const cls = classes.find((c: any) => c.id === classId);
-                return cls?.name || `Class #${classId}`;
-              } catch {
-                return `Class #${classId}`;
-              }
-            })
-          );
+          try {
+            const classes = await storage.getClasses();
+            classNames = parsedClasses.map((classId: number) => {
+              const cls = classes.find((c: any) => c.id === classId);
+              return cls?.name || `Class #${classId}`;
+            });
+          } catch (error) {
+            console.error('Failed to fetch class names:', error);
+            classNames = parsedClasses.map((id: number) => `Class #${id}`);
+          }
 
           await sendEmail({
             to: admin.email,
