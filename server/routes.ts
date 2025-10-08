@@ -931,7 +931,7 @@ export async function registerRoutes(app: Express): Server {
       // FIX #1: Check if profile already exists FIRST
       const existingTeacherProfile = await storage.getTeacherProfile(teacherId);
       if (existingTeacherProfile) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           message: "Profile already exists. Please update your existing profile instead.",
           existingProfile: true
         });
@@ -940,7 +940,7 @@ export async function registerRoutes(app: Express): Server {
       // FIX #2: Validate user exists before proceeding
       const user = await storage.getUser(teacherId);
       if (!user) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           message: "User account not found. Please contact support.",
           code: "USER_NOT_FOUND"
         });
@@ -948,15 +948,15 @@ export async function registerRoutes(app: Express): Server {
 
       // FIX: Make staffId fully optional - auto-generate if not provided
       let finalStaffId: string | null = null;
-      
+
       if (staffId && staffId.trim() !== '' && staffId.trim() !== 'undefined' && staffId.trim() !== 'null') {
         // User provided a staff ID - check uniqueness
         try {
           const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
           if (existingProfile && existingProfile.userId !== teacherId) {
-            return res.status(409).json({ 
+            return res.status(409).json({
               message: "Staff ID already exists. Please use a unique Staff ID or leave it blank for auto-generation.",
-              code: "STAFF_ID_EXISTS" 
+              code: "STAFF_ID_EXISTS"
             });
           }
           finalStaffId = staffId.trim();
@@ -966,27 +966,27 @@ export async function registerRoutes(app: Express): Server {
           finalStaffId = null;
         }
       }
-      
+
       // Auto-generate if still null
       if (!finalStaffId) {
         try {
           const currentYear = new Date().getFullYear();
           const allTeacherProfiles = await storage.getAllTeacherProfiles();
-          
-          const teacherProfilesThisYear = allTeacherProfiles.filter((p: any) => 
+
+          const teacherProfilesThisYear = allTeacherProfiles.filter((p: any) =>
             p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
           );
-          
+
           const existingNumbers = teacherProfilesThisYear
             .map((p: any) => {
               const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
               return match ? parseInt(match[1]) : 0;
             })
             .filter((n: number) => !isNaN(n));
-          
+
           const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
           finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
-          
+
           console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
         } catch (autoGenError) {
           console.error('❌ Auto-generation error:', autoGenError);
@@ -1026,7 +1026,7 @@ export async function registerRoutes(app: Express): Server {
       const isSuspicious = (
         parsedSubjects.length === 0 ||
         parsedClasses.length === 0 ||
-        !department || 
+        !department ||
         yearsOfExperience === 0
       );
 
@@ -1043,13 +1043,13 @@ export async function registerRoutes(app: Express): Server {
       if (isSuspicious) {
         const teacher = await storage.getUser(teacherId);
         const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
-        
+
         const missingFields = [];
         if (parsedSubjects.length === 0) missingFields.push('subjects');
         if (parsedClasses.length === 0) missingFields.push('classes');
         if (!department) missingFields.push('department');
         if (yearsOfExperience === 0) missingFields.push('experience');
-        
+
         await storage.createNotification({
           userId: (await storage.getUsersByRole(ROLES.ADMIN))[0]?.id,
           type: 'teacher_profile_review_required',
@@ -1086,12 +1086,12 @@ export async function registerRoutes(app: Express): Server {
 
         // Send email notification to admin with enhanced details
         try {
-          const { sendEmail } = await import('./email-service');
-          
+          const { sendEmail, getTeacherVerifiedEmailHTML } = await import('./email-service');
+
           // Get subject and class names for better readability with error handling
           let subjectNames: string[] = [];
           let classNames: string[] = [];
-          
+
           try {
             const subjects = await storage.getSubjects();
             subjectNames = parsedSubjects.map((subjectId: number) => {
@@ -1117,67 +1117,16 @@ export async function registerRoutes(app: Express): Server {
           await sendEmail({
             to: admin.email,
             subject: '🎉 New Teacher Auto-Verified - THS Portal',
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                  <h1 style="color: white; margin: 0;">✨ New Teacher Auto-Verified</h1>
-                </div>
-                <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
-                  <p style="font-size: 16px; color: #374151;">
-                    <strong style="color: #1f2937; font-size: 18px;">${teacherFullName}</strong> has completed their profile setup and has been <strong style="color: #10b981;">automatically verified</strong>.
-                  </p>
-                  
-                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-                    <h3 style="color: #1f2937; margin-top: 0;">Profile Details</h3>
-                    <table style="width: 100%; border-collapse: collapse;">
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280; width: 140px;">Department:</td>
-                        <td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${department}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280;">Subjects:</td>
-                        <td style="padding: 8px 0; color: #1f2937;">${subjectNames.join(', ')}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280;">Classes:</td>
-                        <td style="padding: 8px 0; color: #1f2937;">${classNames.join(', ')}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280;">Qualification:</td>
-                        <td style="padding: 8px 0; color: #1f2937;">${qualification}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280;">Experience:</td>
-                        <td style="padding: 8px 0; color: #1f2937;">${yearsOfExperience} years</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #6b7280;">Staff ID:</td>
-                        <td style="padding: 8px 0; color: #1f2937;">${staffId || 'Pending'}</td>
-                      </tr>
-                    </table>
-                  </div>
-
-                  <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-                    <p style="margin: 0; color: #065f46;">
-                      ✅ <strong>Status:</strong> The teacher can now access their personalized dashboard with full functionality.
-                    </p>
-                  </div>
-
-                  <div style="text-align: center; margin-top: 30px;">
-                    <a href="${process.env.BASE_URL || 'http://localhost:5000'}/portal/admin/teachers" 
-                       style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                              color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; 
-                              font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                      View Teacher Profile →
-                    </a>
-                  </div>
-
-                  <p style="color: #6b7280; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                    This is an automated notification from THS Portal. The teacher profile was auto-verified based on complete and valid form submission.
-                  </p>
-                </div>
-              </div>
-            `
+            html: getTeacherVerifiedEmailHTML(
+              teacherFullName,
+              department,
+              subjectNames.join(', '),
+              classNames.join(', '),
+              qualification,
+              yearsOfExperience,
+              staffId || 'Pending',
+              `${process.env.BASE_URL || 'http://localhost:5000'}/portal/admin/teachers`
+            )
           });
           console.log(`✅ Auto-verification email sent to admin: ${admin.email}`);
         } catch (emailError) {
@@ -1250,7 +1199,7 @@ export async function registerRoutes(app: Express): Server {
       if (error instanceof Error) {
         // Check for PostgreSQL/database specific errors
         const dbError = error as any;
-        
+
         // Unique constraint violation
         if (dbError.code === '23505' || dbError.constraint) {
           errorMessage = `A profile with this ${dbError.constraint?.includes('staff_id') ? 'Staff ID' : 'information'} already exists.`;
@@ -1278,16 +1227,16 @@ export async function registerRoutes(app: Express): Server {
         // Generic error message extraction
         else if (error.message) {
           errorMessage = error.message;
-          
+
           // Determine status code based on message
-          if (error.message.toLowerCase().includes('already exists') || 
+          if (error.message.toLowerCase().includes('already exists') ||
               error.message.toLowerCase().includes('duplicate')) {
             statusCode = 409;
             errorCode = 'DUPLICATE_ENTRY';
           } else if (error.message.toLowerCase().includes('not found')) {
             statusCode = 404;
             errorCode = 'NOT_FOUND';
-          } else if (error.message.toLowerCase().includes('invalid') || 
+          } else if (error.message.toLowerCase().includes('invalid') ||
                      error.message.toLowerCase().includes('validation')) {
             statusCode = 400;
             errorCode = 'VALIDATION_ERROR';
@@ -1295,7 +1244,7 @@ export async function registerRoutes(app: Express): Server {
         }
       }
 
-      res.status(statusCode).json({ 
+      res.status(statusCode).json({
         message: errorMessage,
         code: errorCode,
         details: error instanceof Error ? error.message : undefined,
@@ -1322,36 +1271,27 @@ export async function registerRoutes(app: Express): Server {
   });
 
   // Get teacher's own profile with user data
-  app.get('/api/teacher/profile/me', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+  app.get('/api/teacher/profile/me', authenticateUser, async (req, res) => {
     try {
-      const teacherId = req.user!.id;
-      const profile = await storage.getTeacherProfile(teacherId);
+      const userId = req.user!.id;
+
+      const profile = await storage.getTeacherProfile(userId);
 
       if (!profile) {
         return res.status(404).json({ message: 'Profile not found' });
       }
 
-      // Also get user data to return complete profile
-      const user = await storage.getUser(teacherId);
-      
-      // Combine profile and user data
-      const completeProfile = {
-        ...profile,
-        user: user ? {
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          dateOfBirth: user.dateOfBirth,
-          gender: user.gender,
-          profileImageUrl: user.profileImageUrl
-        } : null
-      };
+      console.log('✅ Teacher profile fetched for dashboard:', {
+        userId,
+        department: profile.department,
+        subjectCount: Array.isArray(profile.subjects) ? profile.subjects.length : 0,
+        classCount: Array.isArray(profile.assignedClasses) ? profile.assignedClasses.length : 0
+      });
 
-      res.json(completeProfile);
-    } catch (error) {
-      console.error('Get teacher profile error:', error);
-      res.status(500).json({ message: 'Failed to fetch teacher profile' });
+      res.json(profile);
+    } catch (error: any) {
+      console.error('❌ Error fetching teacher profile:', error);
+      res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
     }
   });
 
@@ -1360,11 +1300,11 @@ export async function registerRoutes(app: Express): Server {
     try {
       // Get all teachers
       const teachers = await storage.getUsersByRole(ROLES.TEACHER);
-      
+
       // Get all teacher profiles
       const overview = await Promise.all(teachers.map(async (teacher: any) => {
         const profile = await storage.getTeacherProfile(teacher.id);
-        
+
         return {
           id: teacher.id,
           firstName: teacher.firstName,
@@ -2051,7 +1991,7 @@ export async function registerRoutes(app: Express): Server {
           // Message 9: Staff Account Suspended
           return res.status(403).json({
             message: "Account Suspended",
-            description: "Access denied. Your account has been suspended by the school administrator. Please contact the school administrator to resolve this issue.",
+            description: "Access denied. Your account has been suspended by the school administrator due to security concerns. Please contact the school administrator to resolve this issue.",
             statusType: "suspended_staff"
           });
         } else if (roleName === 'parent') {
@@ -2577,7 +2517,7 @@ Treasure-Home School Administration
 
       // Only allow users to update their own recovery email or admins to update any
       if (id !== userId && req.user!.roleId !== ROLES.ADMIN) {
-        return res.status(403).json({ message: "Unauthorized: You can only update your own recovery email" });
+        return res.status(403).json({ message: "You can only update your own recovery email" });
       }
 
       const user = await storage.getUser(id);
@@ -4081,7 +4021,7 @@ Treasure-Home School Administration
           // Try to find existing parent by phone ONLY
           let existingParent = null;
           const allParents = await storage.getUsersByRole(ROLES.PARENT);
-          existingParent = allParents.find(p => p.phone === validatedData.parentPhone);
+          existingParent = allParents.find((p: any) => p.phone === validatedData.parentPhone);
 
           if (existingParent) {
             // ✅ Link to existing parent
@@ -4307,8 +4247,8 @@ Treasure-Home School Administration
             profileImageUrl: null,
             roleId: ROLES.STUDENT,
             isActive: true,
-            status: 'active' as const,
-            createdVia: 'bulk' as const,
+            status: 'active',
+            createdVia: 'bulk',
             createdBy: req.user?.id,
           };
 
@@ -4438,7 +4378,7 @@ Treasure-Home School Administration
 
       // Handle specific database errors
       if ((error as any)?.code) {
-        switch ((error)?.code) {
+        switch ((error as any).code) {
           case '23503': // Foreign key violation
             if ((error as any).message.includes('class_id')) {
               return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
@@ -6323,10 +6263,10 @@ Treasure-Home School Administration
 
         // Get the results to verify success
         const results = await storage.getExamResultsByStudent(session.studentId);
-        const testResult = results.find(r => r.examId === examId);
+        const examResult = results.find(r => r.examId === examId);
 
-        if (testResult) {
-          console.log(`🎉 VERIFIED: Auto-scored result found - ${testResult.score}/${testResult.maxScore}`);
+        if (examResult) {
+          console.log(`🎉 VERIFIED: Auto-scored result found - ${examResult.score}/${examResult.maxScore}`);
           return res.json({
             success: true,
             message: "Auto-scoring test completed successfully",
@@ -6336,10 +6276,10 @@ Treasure-Home School Administration
               examId: session.examId,
               duration: totalTime,
               result: {
-                score: testResult.score,
-                maxScore: testResult.maxScore,
-                autoScored: testResult.autoScored,
-                resultId: testResult.id
+                score: examResult.score,
+                maxScore: examResult.maxScore,
+                autoScored: examResult.autoScored,
+                resultId: examResult.id
               }
             }
           });
@@ -6688,7 +6628,7 @@ Treasure-Home School Administration
     }
   });
 
-  // Get student's current active session status
+  // Get active exam sessions for a student
   app.get("/api/exam-sessions/student/:studentId/active", authenticateUser, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -6820,12 +6760,14 @@ Treasure-Home School Administration
       }
 
       // Handle specific database errors
-      if (error?.code === '23503') {
-        return res.status(400).json({ message: "Invalid question or session reference" });
-      } else if (error?.code === '23505') {
-        return res.status(409).json({ message: "Answer already exists for this question" });
-      } else if (error?.code === 'ECONNRESET' || error?.code === 'ETIMEDOUT') {
-        return res.status(408).json({ message: "Database connection timeout. Please try again." });
+      if (error?.code) {
+        if (error?.code === '23503') {
+          return res.status(400).json({ message: "Invalid question or session reference" });
+        } else if (error?.code === '23505') {
+          return res.status(409).json({ message: "Answer already exists for this question" });
+        } else if (error?.code === 'ECONNRESET' || error?.code === 'ETIMEDOUT') {
+          return res.status(408).json({ message: "Database connection timeout. Please try again." });
+        }
       }
 
       // Generic server error
@@ -7721,9 +7663,6 @@ Treasure-Home School Administration
     }
   });
 
-  // Admin: Get comprehensive teacher overview for dashboard (FIXED - removed duplicate)
-  // This route is now handled by the route at line 1219
-
   // Admin: Get all pending teacher profiles
   app.get("/api/admin/teacher-profiles/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
@@ -7796,7 +7735,7 @@ Treasure-Home School Administration
       // Get assigned classes details
       let assignedClassDetails = [];
       if (profile.assignedClasses && profile.assignedClasses.length > 0) {
-        const classesPromises = profile.assignedClasses.map(classId => 
+        const classesPromises = profile.assignedClasses.map(classId =>
           storage.db.select().from(storage.schema.classes).where(eq(storage.schema.classes.id, classId)).limit(1)
         );
         const classesResults = await Promise.all(classesPromises);

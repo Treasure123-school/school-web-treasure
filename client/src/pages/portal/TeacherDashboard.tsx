@@ -196,13 +196,18 @@ export default function TeacherDashboard() {
     enabled: !!user,
   });
 
-  const { data: teacherProfile } = useQuery({
+  const { data: teacherProfile, isLoading: profileLoading } = useQuery({
     queryKey: ['/api/teacher/profile/me'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/teacher/profile/me');
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
       return await response.json();
     },
-    enabled: !!user && !!profileStatus?.hasProfile,
+    enabled: !!user,
+    staleTime: 0, // Always fetch fresh data
+    retry: 1
   });
 
   // Redirect to setup if profile is incomplete
@@ -222,21 +227,18 @@ export default function TeacherDashboard() {
       } else {
         console.log('✅ Teacher profile exists, dashboard access granted:', {
           hasProfile: profileStatus.hasProfile,
-          verified: profileStatus.verified
+          verified: profileStatus.verified,
+          profileData: teacherProfile
         });
-        
-        // CRITICAL FIX: Force refresh all profile-related data when profile is confirmed to exist
-        queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
       }
     }
-  }, [profileStatus, statusLoading, navigate, queryClient]);
+  }, [profileStatus, statusLoading, navigate, teacherProfile]);
 
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
   }
 
-  if (statusLoading) {
+  if (statusLoading || profileLoading) {
     return (
       <PortalLayout
         userRole="teacher"
@@ -287,7 +289,7 @@ export default function TeacherDashboard() {
                 Welcome back, {user.firstName}!
               </h2>
               <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
-                {teacherProfile && !isLoading ? (
+                {teacherProfile && !isLoading && !profileLoading ? (
                   <>
                     {teacherProfile.department && `${teacherProfile.department} Department`}
                     {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && 
@@ -295,14 +297,16 @@ export default function TeacherDashboard() {
                     {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 &&
                       ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
                   </>
+                ) : profileLoading ? (
+                  'Loading profile...'
                 ) : (
                   'Empowering minds, shaping futures'
                 )}
               </p>
-              {teacherProfile && !isLoading && !subjectsLoading && !classesLoading && (
+              {teacherProfile && !isLoading && !subjectsLoading && !classesLoading && !profileLoading && (
                 <div className="flex gap-2 mt-2 flex-wrap">
                   {/* Subject Badges - Get actual subject names from subjects array */}
-                  {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && (
+                  {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
                     <>
                       {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
                         // Find subject name from subjects query
@@ -321,7 +325,7 @@ export default function TeacherDashboard() {
                     </>
                   )}
                   {/* Class Badges - Get actual class names from classes array */}
-                  {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && (
+                  {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && classes.length > 0 && (
                     <>
                       {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
                         // Find class name from classes query
