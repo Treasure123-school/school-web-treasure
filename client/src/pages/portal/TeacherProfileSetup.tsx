@@ -14,13 +14,13 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import confetti from 'canvas-confetti';
-import { 
-  User, 
-  GraduationCap, 
-  CheckCircle, 
-  Camera, 
-  Calendar, 
-  Phone, 
+import {
+  User,
+  GraduationCap,
+  CheckCircle,
+  Camera,
+  Calendar,
+  Phone,
   IdCard,
   BookOpen,
   Award,
@@ -350,7 +350,7 @@ export default function TeacherProfileSetup() {
     if (validationIssues.length > 0) {
       toast({
         title: needsAdminReview ? "⚠️ Profile Pending Admin Confirmation" : "Profile Validation Warning",
-        description: needsAdminReview 
+        description: needsAdminReview
           ? `${validationIssues.join(', ')}. Your profile will be flagged for admin review before full access is granted.`
           : `${validationIssues.join(', ')}. Please review before submitting.`,
         variant: needsAdminReview ? "default" : "destructive",
@@ -358,19 +358,23 @@ export default function TeacherProfileSetup() {
     }
 
     const submitData = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        submitData.append(key, JSON.stringify(value));
-      } else {
-        // CRITICAL FIX: Convert empty strings to null to avoid unique constraint violations
-        const stringValue = String(value).trim();
-        if (stringValue === '' || stringValue === 'undefined' || stringValue === 'null') {
-          // Don't append null values - backend will handle defaults
-          return;
+      Object.entries(formData).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          submitData.append(key, JSON.stringify(value));
+        } else {
+          // CRITICAL FIX: Convert empty strings to null to avoid unique constraint violations
+          const stringValue = String(value).trim();
+          if (stringValue === '' || stringValue === 'undefined' || stringValue === 'null') {
+            // Don't append empty/null values - backend will handle defaults
+            // Exception: staffId should be explicitly omitted if empty
+            if (key === 'staffId') {
+              return; // Skip empty staffId to let backend handle it
+            }
+            return;
+          }
+          submitData.append(key, stringValue);
         }
-        submitData.append(key, stringValue);
-      }
-    });
+      });
 
     if (profileImage) {
       submitData.append('profileImage', profileImage);
@@ -435,20 +439,20 @@ export default function TeacherProfileSetup() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {completeness < 100 
-                    ? `Fill in all required fields to complete your profile` 
+                  {completeness < 100
+                    ? `Fill in all required fields to complete your profile`
                     : 'All fields completed! Ready to submit'}
                 </span>
-                <Badge 
+                <Badge
                   variant={completeness === 100 ? "default" : "secondary"}
                   className={completeness === 100 ? "bg-green-600" : ""}
                 >
                   {completeness}%
                 </Badge>
               </div>
-              <Progress 
-                value={completeness} 
-                className={`h-3 ${completeness === 100 ? 'bg-green-100' : ''}`} 
+              <Progress
+                value={completeness}
+                className={`h-3 ${completeness === 100 ? 'bg-green-100' : ''}`}
               />
               {completeness < 100 && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -519,9 +523,9 @@ export default function TeacherProfileSetup() {
                 <div className="relative">
                   <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg">
                     {profileImage ? (
-                      <img 
-                        src={URL.createObjectURL(profileImage)} 
-                        alt="Profile Preview" 
+                      <img
+                        src={URL.createObjectURL(profileImage)}
+                        alt="Profile Preview"
                         className="h-full w-full object-cover"
                         data-testid="profile-image-preview"
                       />
@@ -654,12 +658,12 @@ export default function TeacherProfileSetup() {
               </div>
 
               <div className="flex justify-end pt-4">
-                <Button 
+                <Button
                   onClick={() => {
                     if (validateStep1()) {
                       setCurrentStep(2);
                     }
-                  }} 
+                  }}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
                   data-testid="button-next-step-1"
                 >
@@ -786,8 +790,8 @@ export default function TeacherProfileSetup() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setCurrentStep(1)}
                   className="gap-2 text-sm sm:text-base"
                   data-testid="button-previous-step-2"
@@ -795,7 +799,7 @@ export default function TeacherProfileSetup() {
                   <ChevronLeft className="h-4 w-4" />
                   Previous
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     if (validateStep2()) {
                       setCurrentStep(3);
@@ -921,9 +925,9 @@ export default function TeacherProfileSetup() {
                     <label htmlFor="signature-upload" className="cursor-pointer">
                       {signatureFile ? (
                         <div className="space-y-2">
-                          <img 
-                            src={URL.createObjectURL(signatureFile)} 
-                            alt="Signature preview" 
+                          <img
+                            src={URL.createObjectURL(signatureFile)}
+                            alt="Signature preview"
                             className="max-h-24 mx-auto border border-gray-200 dark:border-gray-700 rounded bg-white p-2"
                             data-testid="signature-preview"
                           />
@@ -969,8 +973,8 @@ export default function TeacherProfileSetup() {
               )}
 
               <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setCurrentStep(2)}
                   className="gap-2 text-sm sm:text-base"
                   data-testid="button-previous-step-3"
@@ -978,7 +982,7 @@ export default function TeacherProfileSetup() {
                   <ChevronLeft className="h-4 w-4" />
                   Previous
                 </Button>
-                <Button 
+                <Button
                   onClick={handleSubmit}
                   disabled={!formData.agreement || createProfileMutation.isPending}
                   className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white gap-2 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"

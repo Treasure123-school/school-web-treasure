@@ -148,6 +148,7 @@ export interface IStorage {
   // Profile management
   updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined>;
   getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined>;
+  getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined>; // Added method
   createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile>;
   updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined>;
   getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined>;
@@ -954,10 +955,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined> {
-    const result = await this.db.select().from(schema.teacherProfiles)
-      .where(eq(schema.teacherProfiles.userId, userId))
-      .limit(1);
-    return result[0];
+    const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, userId));
+    return profile || null;
+  }
+
+  async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
+    const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
+    return profile || null;
   }
 
   async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
@@ -1935,7 +1939,6 @@ export class DatabaseStorage implements IStorage {
         questionType: schema.examQuestions.questionType,
         points: schema.examQuestions.points,
         expectedAnswers: schema.examQuestions.expectedAnswers,
-        sampleAnswer: schema.examQuestions.sampleAnswer,
         studentId: schema.examSessions.studentId,
         examId: schema.examSessions.examId,
         examName: schema.exams.name

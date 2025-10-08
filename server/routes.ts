@@ -919,10 +919,22 @@ export async function registerRoutes(app: Express): Server {
       // Normalize gender to match database enum (Male, Female, Other)
       const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
 
+      // CRITICAL FIX: Check if staffId is provided and unique
+      let finalStaffId = null;
+      if (staffId && staffId.trim() !== '') {
+        const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
+        if (existingProfile && existingProfile.userId !== teacherId) {
+          return res.status(409).json({ 
+            message: "Staff ID already exists. Please use a unique Staff ID or leave it blank for auto-generation." 
+          });
+        }
+        finalStaffId = staffId.trim();
+      }
+
       // Create or update teacher profile
       const profileData = {
         userId: teacherId,
-        staffId: staffId && staffId.trim() !== '' ? staffId : null, // Convert empty string to null
+        staffId: finalStaffId, // Use validated staffId or null
         subjects: parsedSubjects,
         assignedClasses: parsedClasses,
         qualification,
