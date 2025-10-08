@@ -12,7 +12,7 @@ import type {
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
   StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent,
   TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem,
-  Notification, InsertNotification, TeacherProfile, InsertTeacherProfile
+  Notification, InsertNotification
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
@@ -148,8 +148,7 @@ export interface IStorage {
   // Profile management
   updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined>;
   getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined>;
-  getAllTeacherProfiles(): Promise<TeacherProfile[]>;
-  getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined>;
+  getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined>; // Added method
   createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile>;
   updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined>;
   getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined>;
@@ -459,11 +458,6 @@ export class DatabaseStorage implements IStorage {
       status: schema.users.status,
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
-      recoveryEmail: schema.users.recoveryEmail,
-      accountLockedUntil: schema.users.accountLockedUntil,
-      mustChangePassword: schema.users.mustChangePassword,
-      approvedBy: schema.users.approvedBy,
-      approvedAt: schema.users.approvedAt,
     }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
 
     const user = result[0];
@@ -497,11 +491,6 @@ export class DatabaseStorage implements IStorage {
       status: schema.users.status,
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
-      recoveryEmail: schema.users.recoveryEmail,
-      accountLockedUntil: schema.users.accountLockedUntil,
-      mustChangePassword: schema.users.mustChangePassword,
-      approvedBy: schema.users.approvedBy,
-      approvedAt: schema.users.approvedAt,
     }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
 
     const user = result[0];
@@ -547,11 +536,6 @@ export class DatabaseStorage implements IStorage {
       status: schema.users.status,
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
-      recoveryEmail: schema.users.recoveryEmail,
-      accountLockedUntil: schema.users.accountLockedUntil,
-      mustChangePassword: schema.users.mustChangePassword,
-      approvedBy: schema.users.approvedBy,
-      approvedAt: schema.users.approvedAt,
     }).from(schema.users).where(eq(schema.users.googleId, googleId)).limit(1);
 
     const user = result[0];
@@ -783,11 +767,6 @@ export class DatabaseStorage implements IStorage {
       status: schema.users.status,
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
-      recoveryEmail: schema.users.recoveryEmail,
-      accountLockedUntil: schema.users.accountLockedUntil,
-      mustChangePassword: schema.users.mustChangePassword,
-      approvedBy: schema.users.approvedBy,
-      approvedAt: schema.users.approvedAt,
     }).from(schema.users).where(eq(schema.users.roleId, roleId));
     return result.map((user: User) => {
       if (user && user.id) {
@@ -833,11 +812,6 @@ export class DatabaseStorage implements IStorage {
       status: schema.users.status,
       createdAt: schema.users.createdAt,
       updatedAt: schema.users.updatedAt,
-      recoveryEmail: schema.users.recoveryEmail,
-      accountLockedUntil: schema.users.accountLockedUntil,
-      mustChangePassword: schema.users.mustChangePassword,
-      approvedBy: schema.users.approvedBy,
-      approvedAt: schema.users.approvedAt,
     }).from(schema.users);
     return result.map((user: User) => {
       if (user && user.id) {
@@ -981,29 +955,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined> {
-    const result = await this.db
-      .select()
-      .from(schema.teacherProfiles)
-      .where(eq(schema.teacherProfiles.userId, userId))
-      .limit(1);
-    return result[0];
-  }
-
-  async getAllTeacherProfiles(): Promise<TeacherProfile[]> {
-    const result = await this.db
-      .select()
-      .from(schema.teacherProfiles);
-
-    return result;
+    const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, userId));
+    return profile || null;
   }
 
   async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
-    const result = await this.db
-      .select()
-      .from(schema.teacherProfiles)
-      .where(eq(schema.teacherProfiles.staffId, staffId))
-      .limit(1);
-    return result[0];
+    const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
+    return profile || null;
   }
 
   async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
