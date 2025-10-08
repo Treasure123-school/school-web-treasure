@@ -192,6 +192,8 @@ export default function TeacherProfileSetup() {
       return await response.json();
     },
     onSuccess: (data) => {
+      console.log('✅ Profile creation successful, response:', data);
+      
       // Trigger confetti celebration
       const duration = 3000;
       const animationEnd = Date.now() + duration;
@@ -230,14 +232,14 @@ export default function TeacherProfileSetup() {
       // Clear draft from localStorage
       localStorage.removeItem('teacher_profile_draft');
 
-      // CRITICAL: Update ALL caches BEFORE navigation to prevent redirect loop
+      // CRITICAL: Update caches with ACTUAL backend values to prevent mismatches
       queryClient.setQueryData(['/api/teacher/profile/status'], {
-        hasProfile: true,
-        verified: true,
+        hasProfile: data.hasProfile ?? true,
+        verified: data.verified ?? true,
         firstLogin: false
       });
 
-      // Also update the profile data cache if backend returned it
+      // Update the profile data cache if backend returned it
       if (data.profile) {
         queryClient.setQueryData(['/api/teacher/profile/me'], data.profile);
       }
@@ -372,10 +374,10 @@ export default function TeacherProfileSetup() {
   };
 
   const handleSubmit = async () => {
-    // Smart validation with flagging
-    const validationIssues: string[] = [];
-    let needsAdminReview = false;
+    // Comprehensive validation - all critical fields required
+    const errors: string[] = [];
 
+    // Critical fields validation
     if (!formData.agreement) {
       toast({
         title: "Agreement Required",
@@ -394,36 +396,40 @@ export default function TeacherProfileSetup() {
       return;
     }
 
-    // Fail-safe validation checks - Flag for admin review if data is suspicious/incomplete
+    // Required academic fields - STRICT validation
     if (formData.subjects.length === 0) {
-      validationIssues.push("No subjects assigned");
-      needsAdminReview = true;
+      errors.push("At least one subject");
     }
 
     if (formData.assignedClasses.length === 0) {
-      validationIssues.push("No classes assigned");
-      needsAdminReview = true;
+      errors.push("At least one class");
     }
 
     if (!formData.department || formData.department.trim() === '') {
-      validationIssues.push("Department not specified");
-      needsAdminReview = true;
+      errors.push("Department");
     }
 
-    if (formData.yearsOfExperience === 0) {
-      validationIssues.push("Years of experience not set");
-      needsAdminReview = true;
+    if (!formData.yearsOfExperience || formData.yearsOfExperience <= 0) {
+      errors.push("Years of experience (must be greater than 0)");
     }
 
-    // Show warning but allow submission with admin review flag
-    if (validationIssues.length > 0) {
+    if (!formData.qualification || formData.qualification.trim() === '') {
+      errors.push("Qualification");
+    }
+
+    if (!formData.specialization || formData.specialization.trim() === '') {
+      errors.push("Specialization");
+    }
+
+    // Block submission if any critical fields are missing
+    if (errors.length > 0) {
       toast({
-        title: needsAdminReview ? "⚠️ Profile Pending Admin Confirmation" : "Profile Validation Warning",
-        description: needsAdminReview
-          ? `${validationIssues.join(', ')}. Your profile will be flagged for admin review before full access is granted.`
-          : `${validationIssues.join(', ')}. Please review before submitting.`,
-        variant: needsAdminReview ? "default" : "destructive",
+        title: "Required Fields Missing",
+        description: `Please complete the following required fields: ${errors.join(', ')}`,
+        variant: "destructive",
+        duration: 10000,
       });
+      return;
     }
 
     const submitData = new FormData();
