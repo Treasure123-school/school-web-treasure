@@ -68,17 +68,31 @@ export default function TeacherProfile() {
 
   // Calculate profile completion percentage
   const calculateCompletion = () => {
-    if (!teacherProfile) return 0;
+    if (!teacherProfile || !teacher) return 0;
     let completed = 0;
-    let total = 8;
+    let total = 15; // Total fields from setup form
 
+    // Professional fields (from setup)
     if (teacherProfile.staffId) completed++;
     if (teacherProfile.qualification) completed++;
     if (teacherProfile.specialization) completed++;
-    if (teacherProfile.yearsOfExperience) completed++;
+    if (teacherProfile.yearsOfExperience && teacherProfile.yearsOfExperience > 0) completed++;
     if (teacherProfile.subjects && teacherProfile.subjects.length > 0) completed++;
     if (teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0) completed++;
     if (teacherProfile.department) completed++;
+    
+    // Personal fields (from setup)
+    if (teacher.gender) completed++;
+    if (teacher.dateOfBirth) completed++;
+    if (teacher.phone) completed++;
+    if (teacher.profileImageUrl) completed++;
+    
+    // Operational preferences (from setup)
+    if (teacherProfile.gradingMode) completed++;
+    if (teacherProfile.notificationPreference) completed++;
+    if (teacherProfile.availability) completed++;
+    
+    // Optional: Digital signature (bonus for 100%)
     if (teacherProfile.signatureUrl) completed++;
 
     return Math.round((completed / total) * 100);
@@ -202,7 +216,23 @@ export default function TeacherProfile() {
               <Progress value={profileCompletion} className="h-2" data-testid="progress-completion" />
               {profileCompletion < 100 && (
                 <p className="text-xs text-muted-foreground mt-2" data-testid="text-missing-info">
-                  {!teacherProfile.signatureUrl && 'Upload digital signature to reach 100%'}
+                  {(() => {
+                    const missing = [];
+                    if (!teacherProfile?.staffId) missing.push('Staff ID');
+                    if (!teacherProfile?.qualification) missing.push('Qualification');
+                    if (!teacherProfile?.department) missing.push('Department');
+                    if (!teacherProfile?.subjects?.length) missing.push('Subjects');
+                    if (!teacherProfile?.assignedClasses?.length) missing.push('Classes');
+                    if (!teacher?.gender) missing.push('Gender');
+                    if (!teacher?.dateOfBirth) missing.push('Date of Birth');
+                    if (!teacher?.phone) missing.push('Phone');
+                    if (!teacher?.profileImageUrl) missing.push('Profile Photo');
+                    if (!teacherProfile?.signatureUrl) missing.push('Digital Signature (Optional)');
+                    
+                    return missing.length > 0 
+                      ? `Missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` +${missing.length - 3} more` : ''}`
+                      : 'Complete your profile to reach 100%';
+                  })()}
                 </p>
               )}
             </CardContent>
