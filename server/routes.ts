@@ -1259,13 +1259,17 @@ export async function registerRoutes(app: Express): Server {
       const teacherId = req.user!.id;
       const profile = await storage.getTeacherProfile(teacherId);
 
-      res.json({
+      const status = {
         hasProfile: !!profile,
         verified: profile?.verified || false,
         firstLogin: profile?.firstLogin !== false
-      });
+      };
+
+      console.log('📋 Profile status check:', { teacherId, ...status });
+
+      res.json(status);
     } catch (error) {
-      console.error('Get teacher profile status error:', error);
+      console.error('❌ Get teacher profile status error:', error);
       res.status(500).json({ message: 'Failed to check profile status' });
     }
   });
@@ -1281,6 +1285,9 @@ export async function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: 'Profile not found' });
       }
 
+      // Get user data to merge with profile
+      const user = await storage.getUser(userId);
+
       console.log('✅ Teacher profile fetched for dashboard:', {
         userId,
         department: profile.department,
@@ -1288,7 +1295,17 @@ export async function registerRoutes(app: Express): Server {
         classCount: Array.isArray(profile.assignedClasses) ? profile.assignedClasses.length : 0
       });
 
-      res.json(profile);
+      // Return complete profile with user data
+      const completeProfile = {
+        ...profile,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        email: user?.email,
+        phone: user?.phone,
+        profileImageUrl: user?.profileImageUrl
+      };
+
+      res.json(completeProfile);
     } catch (error: any) {
       console.error('❌ Error fetching teacher profile:', error);
       res.status(500).json({ message: 'Failed to fetch profile', error: error.message });

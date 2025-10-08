@@ -196,16 +196,18 @@ export default function TeacherDashboard() {
     enabled: !!user,
   });
 
-  const { data: teacherProfile, isLoading: profileLoading } = useQuery({
+  const { data: teacherProfile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ['/api/teacher/profile/me'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/teacher/profile/me');
       if (!response.ok) {
         throw new Error('Failed to fetch profile');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log('📊 Profile data received:', data);
+      return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!profileStatus?.hasProfile,
     staleTime: 0, // Always fetch fresh data
     retry: 1
   });
@@ -228,11 +230,13 @@ export default function TeacherDashboard() {
         console.log('✅ Teacher profile exists, dashboard access granted:', {
           hasProfile: profileStatus.hasProfile,
           verified: profileStatus.verified,
+          profileLoading,
+          profileError: profileError?.message,
           profileData: teacherProfile
         });
       }
     }
-  }, [profileStatus, statusLoading, navigate, teacherProfile]);
+  }, [profileStatus, statusLoading, navigate, teacherProfile, profileLoading, profileError]);
 
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
@@ -292,13 +296,15 @@ export default function TeacherDashboard() {
                 {teacherProfile && !isLoading && !profileLoading ? (
                   <>
                     {teacherProfile.department && `${teacherProfile.department} Department`}
-                    {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && 
+                    {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && 
                       ` • Teaching ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
-                    {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 &&
+                    {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 &&
                       ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
                   </>
                 ) : profileLoading ? (
                   'Loading profile...'
+                ) : profileError ? (
+                  'Profile data unavailable'
                 ) : (
                   'Empowering minds, shaping futures'
                 )}
