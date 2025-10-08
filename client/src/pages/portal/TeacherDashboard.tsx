@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
@@ -158,6 +158,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
 
   // Check teacher profile status
   const { data: profileStatus, isLoading: statusLoading } = useQuery({
