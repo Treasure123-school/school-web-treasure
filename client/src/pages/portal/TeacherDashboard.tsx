@@ -247,6 +247,18 @@ export default function TeacherDashboard() {
     }
   }, [profileStatus, statusLoading, navigate, teacherProfile, profileLoading, profileError]);
 
+  // Debug: Log profile data when it changes
+  useEffect(() => {
+    if (teacherProfile) {
+      console.log('📋 TeacherProfile data structure:', {
+        department: teacherProfile.department,
+        subjects: teacherProfile.subjects,
+        assignedClasses: teacherProfile.assignedClasses,
+        fullProfile: teacherProfile
+      });
+    }
+  }, [teacherProfile]);
+
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
   }
@@ -309,11 +321,11 @@ export default function TeacherDashboard() {
                 ) : teacherProfile ? (
                   <>
                     {teacherProfile.department ? `${teacherProfile.department} Department` : 'Department not set'}
-                    {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 ? (
-                      ` • Teaching ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`
+                    {teacherProfile.subjects && (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length > 0 : teacherProfile.subjects) ? (
+                      ` • Teaching ${Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length : 1} Subject${Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 1 ? 's' : ''}`
                     ) : ' • No subjects assigned'}
-                    {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 ? (
-                      ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`
+                    {teacherProfile.assignedClasses && (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length > 0 : teacherProfile.assignedClasses) ? (
+                      ` • ${Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length : 1} Active Class${Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`
                     ) : ' • No classes assigned'}
                   </>
                 ) : (
@@ -331,7 +343,7 @@ export default function TeacherDashboard() {
                   })}
                   
                   {/* Subject Badges - Get actual subject names from subjects array */}
-                  {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
+                  {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
                     <>
                       {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
                         const subject = subjects.find((s: any) => s.id === subjectId);
@@ -351,7 +363,7 @@ export default function TeacherDashboard() {
                   )}
                   
                   {/* Class Badges - Get actual class names from classes array */}
-                  {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && classes.length > 0 && (
+                  {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && classes.length > 0 && (
                     <>
                       {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
                         const classObj = classes.find((c: any) => c.id === classId);

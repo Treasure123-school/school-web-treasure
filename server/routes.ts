@@ -1294,8 +1294,8 @@ export async function registerRoutes(app: Express): Server {
         id: profile.id,
         userId: profile.userId,
         staffId: profile.staffId,
-        subjects: profile.subjects || [],
-        assignedClasses: profile.assignedClasses || [],
+        subjects: Array.isArray(profile.subjects) ? profile.subjects : (profile.subjects ? [profile.subjects] : []),
+        assignedClasses: Array.isArray(profile.assignedClasses) ? profile.assignedClasses : (profile.assignedClasses ? [profile.assignedClasses] : []),
         department: profile.department,
         qualification: profile.qualification,
         yearsOfExperience: profile.yearsOfExperience,
@@ -1322,8 +1322,10 @@ export async function registerRoutes(app: Express): Server {
       console.log('✅ Teacher profile fetched for dashboard:', {
         userId,
         department: profile.department,
-        subjectCount: Array.isArray(profile.subjects) ? profile.subjects.length : 0,
-        classCount: Array.isArray(profile.assignedClasses) ? profile.assignedClasses.length : 0,
+        subjects: completeProfile.subjects,
+        assignedClasses: completeProfile.assignedClasses,
+        subjectCount: completeProfile.subjects.length,
+        classCount: completeProfile.assignedClasses.length,
         staffId: profile.staffId
       });
 
