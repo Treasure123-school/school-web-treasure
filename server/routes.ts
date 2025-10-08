@@ -901,6 +901,15 @@ export async function registerRoutes(app: Express): Server {
       const teacherId = req.user!.id;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
+      console.log('📥 RECEIVED PROFILE SETUP REQUEST:', {
+        teacherId,
+        hasFiles: Object.keys(files || {}).length,
+        bodyKeys: Object.keys(req.body),
+        staffId: req.body.staffId,
+        subjects: req.body.subjects,
+        assignedClasses: req.body.assignedClasses
+      });
+
       const {
         gender, dateOfBirth, staffId, nationalId, phoneNumber,
         qualification, specialization, yearsOfExperience,
@@ -1176,16 +1185,28 @@ export async function registerRoutes(app: Express): Server {
         userAgent: req.headers['user-agent'] || null
       });
 
+      // Return complete profile with correct field names
+      const completeProfileResponse = {
+        id: profile.id,
+        userId: profile.userId,
+        staffId: profile.staffId,
+        subjects: profile.subjects,
+        assignedClasses: profile.assignedClasses, // FIX: Use correct field name
+        department: profile.department,
+        qualification: profile.qualification,
+        yearsOfExperience: profile.yearsOfExperience,
+        specialization: profile.specialization,
+        verified: profile.verified,
+        firstLogin: profile.firstLogin
+      };
+
+      console.log('📤 Sending profile response to frontend:', completeProfileResponse);
+
       res.json({
         message: 'Profile setup completed successfully! You can now access your dashboard.',
         hasProfile: true,
-        verified: true,
-        profile: {
-          id: profile.id,
-          verified: true,
-          subjects: parsedSubjects,
-          classes: parsedClasses
-        }
+        verified: profile.verified,
+        profile: completeProfileResponse
       });
     } catch (error) {
       console.error('❌ TEACHER PROFILE SETUP ERROR - Full Details:', {
