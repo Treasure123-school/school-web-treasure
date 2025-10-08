@@ -7581,36 +7581,8 @@ Treasure-Home School Administration
     }
   });
 
-  // Admin: Get comprehensive teacher overview for dashboard
-  app.get("/api/admin/teachers/overview", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const teachers = await storage.getUsersByRole(ROLES.TEACHER);
-
-      // Enrich with profile data
-      const enrichedTeachers = await Promise.all(teachers.map(async (teacher) => {
-        const profile = await storage.getTeacherProfile(teacher.id);
-
-        return {
-          id: teacher.id,
-          userId: teacher.id, // Ensure this matches what the frontend expects (usually userId)
-          name: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
-          email: teacher.email || '',
-          staffId: profile?.staffId || 'N/A',
-          department: profile?.department || null,
-          subjects: profile?.subjects ? profile.subjects.split(',').filter(s => s.trim()) : [],
-          classes: profile?.assignedClasses ? profile.assignedClasses.split(',').filter(c => c.trim()) : [],
-          verified: profile?.verified || false,
-          hasProfile: !!profile,
-          createdAt: teacher.createdAt,
-        };
-      }));
-
-      res.json(enrichedTeachers);
-    } catch (error) {
-      console.error('Error fetching teacher overview:', error);
-      res.status(500).json({ message: "Failed to fetch teacher overview" });
-    }
-  });
+  // Admin: Get comprehensive teacher overview for dashboard (FIXED - removed duplicate)
+  // This route is now handled by the route at line 1219
 
   // Admin: Get all pending teacher profiles
   app.get("/api/admin/teacher-profiles/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
