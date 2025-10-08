@@ -441,6 +441,19 @@ export default function TeacherProfile() {
                       disabled={!isEditing}
                     />
                   </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="recoveryEmail">Recovery Email</Label>
+                    <Input
+                      id="recoveryEmail"
+                      type="email"
+                      value={profileData.recoveryEmail}
+                      onChange={(e) => handleChange('recoveryEmail', e.target.value)}
+                      disabled={!isEditing}
+                      placeholder="alternate@email.com"
+                      data-testid="input-recovery-email"
+                    />
+                    <p className="text-xs text-muted-foreground">Used for account recovery purposes</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
