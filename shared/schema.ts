@@ -189,6 +189,8 @@ export const teacherProfiles = pgTable("teacher_profiles", {
   department: varchar("department", { length: 100 }),
   signatureUrl: text("signature_url"),
   gradingMode: varchar("grading_mode", { length: 50 }).default('manual'),
+  autoGradeTheoryQuestions: boolean("auto_grade_theory_questions").default(false),
+  theoryGradingInstructions: text("theory_grading_instructions"),
   notificationPreference: varchar("notification_preference", { length: 50 }).default('all'),
   availability: varchar("availability", { length: 50 }),
   firstLogin: boolean("first_login").default(true),
