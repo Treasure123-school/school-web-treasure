@@ -148,7 +148,8 @@ export interface IStorage {
   // Profile management
   updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined>;
   getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined>;
-  getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined>; // Added method
+  getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined>;
+  getAllTeacherProfiles(): Promise<schema.TeacherProfile[]>;
   createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile>;
   updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined>;
   getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined>;
@@ -962,6 +963,11 @@ export class DatabaseStorage implements IStorage {
   async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
     const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
     return profile || null;
+  }
+
+  async getAllTeacherProfiles(): Promise<schema.TeacherProfile[]> {
+    const profiles = await db.select().from(schema.teacherProfiles);
+    return profiles;
   }
 
   async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
