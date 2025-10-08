@@ -934,11 +934,13 @@ export async function registerRoutes(app: Express): Server {
       } else {
         // Auto-generate staff ID: THS/TCH/YYYY/XXX
         const currentYear = new Date().getFullYear();
-        const teacherProfiles = await storage.db.select({ staffId: schema.teacherProfiles.staffId })
-          .from(schema.teacherProfiles)
-          .where(sql`${schema.teacherProfiles.staffId} LIKE ${'THS/TCH/' + currentYear + '/%'}`);
+        const allTeacherProfiles = await storage.getAllTeacherProfiles();
         
-        const existingNumbers = teacherProfiles
+        const teacherProfilesThisYear = allTeacherProfiles.filter(p => 
+          p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
+        );
+        
+        const existingNumbers = teacherProfilesThisYear
           .map((p: any) => {
             const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
             return match ? parseInt(match[1]) : 0;
