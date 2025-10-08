@@ -359,11 +359,6 @@ export default function TeacherProfileSetup() {
 
     const submitData = new FormData();
     
-    // Add fullName from user data
-    if (user) {
-      submitData.append('fullName', `${user.firstName} ${user.lastName}`);
-    }
-    
     Object.entries(formData).forEach(([key, value]) => {
       if (Array.isArray(value)) {
         submitData.append(key, JSON.stringify(value));

@@ -902,7 +902,7 @@ export async function registerRoutes(app: Express): Server {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
       const {
-        fullName, gender, dateOfBirth, staffId, nationalId, phoneNumber,
+        gender, dateOfBirth, staffId, nationalId, phoneNumber,
         qualification, specialization, yearsOfExperience,
         subjects, assignedClasses, department, gradingMode,
         notificationPreference, availability, agreement
@@ -994,6 +994,10 @@ export async function registerRoutes(app: Express): Server {
         profileCompletionPercentage: 100
       });
 
+      // Get teacher's full name from user record
+      const teacher = await storage.getUser(teacherId);
+      const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
+
       // Create notification for admins (informational only)
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
       for (const admin of admins) {
@@ -1001,7 +1005,7 @@ export async function registerRoutes(app: Express): Server {
           userId: admin.id,
           type: 'teacher_profile_created',
           title: '🎉 New Teacher Auto-Verified',
-          message: `${fullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}`,
+          message: `${teacherFullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}`,
           relatedEntityType: 'teacher_profile',
           relatedEntityId: profile.id,
           isRead: false
@@ -1046,7 +1050,7 @@ export async function registerRoutes(app: Express): Server {
                 </div>
                 <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
                   <p style="font-size: 16px; color: #374151;">
-                    <strong style="color: #1f2937; font-size: 18px;">${fullName}</strong> has completed their profile setup and has been <strong style="color: #10b981;">automatically verified</strong>.
+                    <strong style="color: #1f2937; font-size: 18px;">${teacherFullName}</strong> has completed their profile setup and has been <strong style="color: #10b981;">automatically verified</strong>.
                   </p>
                   
                   <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
