@@ -191,7 +191,7 @@ export default function TeacherProfileSetup() {
 
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('✅ Profile creation successful, response:', data);
       
       // Trigger confetti celebration
@@ -232,22 +232,27 @@ export default function TeacherProfileSetup() {
       // Clear draft from localStorage
       localStorage.removeItem('teacher_profile_draft');
 
-      // CRITICAL: Update caches with ACTUAL backend values to prevent mismatches
-      queryClient.setQueryData(['/api/teacher/profile/status'], {
-        hasProfile: data.hasProfile ?? true,
-        verified: data.verified ?? true,
-        firstLogin: false
-      });
+      // CRITICAL FIX: Invalidate ALL caches FIRST to force fresh data fetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
 
-      // Update the profile data cache if backend returned it
+      // THEN set cache data from backend response (if available)
       if (data.profile) {
         queryClient.setQueryData(['/api/teacher/profile/me'], data.profile);
       }
 
-      // CRITICAL: Invalidate all related queries to force fresh data fetch
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+      queryClient.setQueryData(['/api/teacher/profile/status'], {
+        hasProfile: true,
+        verified: true,
+        firstLogin: false
+      });
+
+      // Refetch immediately to ensure latest data
+      await queryClient.refetchQueries({ queryKey: ['/api/auth/me'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/teacher/profile/status'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/teacher/profile/me'] });
 
       // Navigate after confetti animation
       setTimeout(() => {
@@ -255,67 +260,91 @@ export default function TeacherProfileSetup() {
       }, 3000);
     },
     onError: (error: any) => {
-      console.error('❌ PROFILE CREATION ERROR:', {
+      console.error('❌ PROFILE CREATION ERROR - Full Diagnostic:', {
         message: error.message,
         code: error.code,
         details: error.details,
         constraint: error.constraint,
         status: error.status,
         existingProfile: error.existingProfile,
+        stack: error.stack,
         fullError: error
       });
       
       let errorMessage = error.message || "An error occurred while creating your profile.";
       const errorDetails: string[] = [];
-      
-      // Parse backend error response
-      if (error.code) errorDetails.push(`Code: ${error.code}`);
-      if (error.status) errorDetails.push(`Status: ${error.status}`);
-      if (error.constraint) errorDetails.push(`DB Constraint: ${error.constraint}`);
-      
-      // Check for network errors
-      if (error.message === 'Failed to fetch') {
-        errorMessage = "Network error - cannot connect to server. Please check your internet connection.";
-        errorDetails.push("The server may be restarting or unavailable.");
-      }
-      
-      // Special handling for profile already exists
-      if (error.existingProfile) {
-        errorMessage = "You already have a profile. Redirecting to dashboard...";
-        setTimeout(() => navigate('/portal/teacher'), 2000);
-      }
-      
-      // Helpful action hints
       let actionHint = '';
-      if (error.code === 'STAFF_ID_EXISTS') {
-        actionHint = 'Leave Staff ID blank for auto-generation.';
-      } else if (error.message?.includes('unique constraint')) {
-        actionHint = 'A profile with this information already exists. Contact admin if this is an error.';
-      } else if (error.message === 'Failed to fetch') {
-        actionHint = 'Try refreshing the page and submitting again in a few moments.';
+      
+      // Network error handling
+      if (error.message === 'Failed to fetch' || !error.status) {
+        errorMessage = "❌ Network Error - Cannot Connect to Server";
+        errorDetails.push("The server may be restarting or temporarily unavailable");
+        actionHint = 'Wait a few moments and try again. If the problem persists, contact the administrator.';
       }
+      // Profile already exists
+      else if (error.existingProfile || error.code === 'DUPLICATE_ENTRY') {
+        errorMessage = "✅ Profile Already Exists";
+        errorDetails.push("Your profile is already set up in the system");
+        actionHint = 'Redirecting to your dashboard...';
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+          navigate('/portal/teacher');
+        }, 2000);
+      }
+      // Staff ID conflict
+      else if (error.code === 'STAFF_ID_EXISTS' || error.constraint?.includes('staff_id')) {
+        errorMessage = "❌ Staff ID Already Exists";
+        errorDetails.push("Another teacher is using this Staff ID");
+        actionHint = 'Leave the Staff ID field blank to auto-generate a unique ID, or contact admin.';
+      }
+      // Database constraint violations
+      else if (error.code === '23505' || error.constraint) {
+        errorMessage = "❌ Database Constraint Violation";
+        errorDetails.push(`Duplicate entry detected: ${error.constraint || 'unknown field'}`);
+        actionHint = 'This information already exists in the system. Please verify your input or contact admin.';
+      }
+      // Missing required fields (backend validation)
+      else if (error.code === 'VALIDATION_ERROR' || error.status === 400) {
+        errorMessage = "❌ Validation Error";
+        errorDetails.push(error.details || "Some required information is missing or invalid");
+        actionHint = 'Please review the form and ensure all required fields are completed correctly.';
+      }
+      // Generic server errors
+      else if (error.status === 500) {
+        errorMessage = "❌ Server Error";
+        errorDetails.push("An unexpected error occurred on the server");
+        actionHint = 'Please try again. If the problem persists, contact the administrator with the error details.';
+      }
+      
+      // Add diagnostic info
+      if (error.code) errorDetails.push(`Error Code: ${error.code}`);
+      if (error.status) errorDetails.push(`HTTP Status: ${error.status}`);
+      if (error.constraint) errorDetails.push(`Database Constraint: ${error.constraint}`);
       
       toast({
-        title: "Profile Creation Failed",
+        title: "❌ Profile Creation Failed",
         description: (
-          <div className="space-y-2">
-            <p className="font-medium">{errorMessage}</p>
+          <div className="space-y-3">
+            <p className="font-semibold text-base">{errorMessage}</p>
             {errorDetails.length > 0 && (
-              <div className="text-xs opacity-80 space-y-1">
+              <div className="bg-red-50 dark:bg-red-950 p-3 rounded-lg space-y-1">
+                <p className="text-xs font-semibold mb-1">Error Details:</p>
                 {errorDetails.map((detail, idx) => (
-                  <p key={idx}>{detail}</p>
+                  <p key={idx} className="text-xs opacity-90">• {detail}</p>
                 ))}
               </div>
             )}
             {actionHint && (
-              <p className="text-xs font-semibold bg-yellow-100 dark:bg-yellow-900 p-2 rounded mt-2">
-                💡 {actionHint}
-              </p>
+              <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <p className="text-xs font-semibold">💡 How to Fix:</p>
+                <p className="text-xs mt-1">{actionHint}</p>
+              </div>
             )}
           </div>
         ),
         variant: "destructive",
-        duration: 15000,
+        duration: 20000,
       });
     },
   });
@@ -379,42 +408,28 @@ export default function TeacherProfileSetup() {
     // Comprehensive validation - all critical fields required
     const errors: string[] = [];
 
-    // Critical fields validation
-    if (!formData.agreement) {
-      toast({
-        title: "Agreement Required",
-        description: "Please agree to the terms before submitting.",
-        variant: "destructive",
-      });
-      return;
+    // Step 1: Personal Information validation
+    if (!formData.gender || formData.gender.trim() === '') {
+      errors.push("Gender");
+    }
+
+    if (!formData.dateOfBirth || formData.dateOfBirth.trim() === '') {
+      errors.push("Date of Birth");
+    }
+
+    if (!formData.nationalId || formData.nationalId.trim() === '') {
+      errors.push("National ID (NIN)");
+    }
+
+    if (!formData.phoneNumber || formData.phoneNumber.trim() === '') {
+      errors.push("Phone Number");
     }
 
     if (!profileImage) {
-      toast({
-        title: "Profile Photo Required",
-        description: "Please upload a profile photo before submitting.",
-        variant: "destructive",
-      });
-      return;
+      errors.push("Profile Photo");
     }
 
-    // Required academic fields - STRICT validation
-    if (formData.subjects.length === 0) {
-      errors.push("At least one subject");
-    }
-
-    if (formData.assignedClasses.length === 0) {
-      errors.push("At least one class");
-    }
-
-    if (!formData.department || formData.department.trim() === '') {
-      errors.push("Department");
-    }
-
-    if (!formData.yearsOfExperience || formData.yearsOfExperience <= 0) {
-      errors.push("Years of experience (must be greater than 0)");
-    }
-
+    // Step 2: Academic & Professional validation
     if (!formData.qualification || formData.qualification.trim() === '') {
       errors.push("Qualification");
     }
@@ -423,13 +438,43 @@ export default function TeacherProfileSetup() {
       errors.push("Specialization");
     }
 
-    // Block submission if any critical fields are missing
+    if (!formData.department || formData.department.trim() === '') {
+      errors.push("Department");
+    }
+
+    if (!formData.yearsOfExperience || formData.yearsOfExperience <= 0) {
+      errors.push("Years of Experience (must be greater than 0)");
+    }
+
+    if (!formData.subjects || formData.subjects.length === 0) {
+      errors.push("At least one Subject");
+    }
+
+    if (!formData.assignedClasses || formData.assignedClasses.length === 0) {
+      errors.push("At least one Class");
+    }
+
+    // Step 3: Agreement validation
+    if (!formData.agreement) {
+      errors.push("Terms & Conditions Agreement");
+    }
+
+    // Block submission if ANY required fields are missing
     if (errors.length > 0) {
       toast({
-        title: "Required Fields Missing",
-        description: `Please complete the following required fields: ${errors.join(', ')}`,
+        title: "❌ Cannot Submit - Required Fields Missing",
+        description: (
+          <div className="space-y-2">
+            <p className="font-semibold">Please complete ALL required fields:</p>
+            <ul className="list-disc list-inside text-sm">
+              {errors.map((error, idx) => (
+                <li key={idx}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        ),
         variant: "destructive",
-        duration: 10000,
+        duration: 15000,
       });
       return;
     }

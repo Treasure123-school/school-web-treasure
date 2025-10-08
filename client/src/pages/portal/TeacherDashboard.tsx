@@ -219,9 +219,13 @@ export default function TeacherDashboard() {
           hasProfile: profileStatus.hasProfile,
           verified: profileStatus.verified
         });
+        
+        // CRITICAL FIX: Force refresh all profile-related data when profile is confirmed to exist
+        queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
       }
     }
-  }, [profileStatus, statusLoading, navigate]);
+  }, [profileStatus, statusLoading, navigate, queryClient]);
 
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
