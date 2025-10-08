@@ -919,38 +919,65 @@ export async function registerRoutes(app: Express): Server {
       // Normalize gender to match database enum (Male, Female, Other)
       const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
 
-      // CRITICAL FIX: Check if staffId is provided and unique, or auto-generate
+      // FIX #1: Check if profile already exists FIRST
+      const existingTeacherProfile = await storage.getTeacherProfile(teacherId);
+      if (existingTeacherProfile) {
+        return res.status(409).json({ 
+          message: "Profile already exists. Please update your existing profile instead.",
+          existingProfile: true
+        });
+      }
+
+      // FIX #2: Validate user exists before proceeding
+      const user = await storage.getUser(teacherId);
+      if (!user) {
+        return res.status(404).json({ 
+          message: "User account not found. Please contact support.",
+          code: "USER_NOT_FOUND"
+        });
+      }
+
+      // FIX #3: Check staffId with proper error handling
       let finalStaffId: string | null = null;
       
-      if (staffId && staffId.trim() !== '') {
-        // User provided a staff ID - check uniqueness
-        const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
-        if (existingProfile && existingProfile.userId !== teacherId) {
-          return res.status(409).json({ 
-            message: "Staff ID already exists. Please use a unique Staff ID or leave it blank for auto-generation." 
-          });
+      try {
+        if (staffId && staffId.trim() !== '') {
+          // User provided a staff ID - check uniqueness
+          const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
+          if (existingProfile && existingProfile.userId !== teacherId) {
+            return res.status(409).json({ 
+              message: "Staff ID already exists. Please use a unique Staff ID or leave it blank for auto-generation.",
+              code: "STAFF_ID_EXISTS" 
+            });
+          }
+          finalStaffId = staffId.trim();
+        } else {
+          // Auto-generate staff ID: THS/TCH/YYYY/XXX
+          const currentYear = new Date().getFullYear();
+          const allTeacherProfiles = await storage.getAllTeacherProfiles();
+          
+          const teacherProfilesThisYear = allTeacherProfiles.filter(p => 
+            p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
+          );
+          
+          const existingNumbers = teacherProfilesThisYear
+            .map((p: any) => {
+              const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
+              return match ? parseInt(match[1]) : 0;
+            })
+            .filter((n: number) => !isNaN(n));
+          
+          const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+          finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
+          
+          console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
         }
-        finalStaffId = staffId.trim();
-      } else {
-        // Auto-generate staff ID: THS/TCH/YYYY/XXX
-        const currentYear = new Date().getFullYear();
-        const allTeacherProfiles = await storage.getAllTeacherProfiles();
-        
-        const teacherProfilesThisYear = allTeacherProfiles.filter(p => 
-          p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
-        );
-        
-        const existingNumbers = teacherProfilesThisYear
-          .map((p: any) => {
-            const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-          })
-          .filter((n: number) => !isNaN(n));
-        
-        const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-        finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
-        
-        console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
+      } catch (staffIdError) {
+        console.error('❌ Staff ID validation error:', staffIdError);
+        return res.status(500).json({ 
+          message: "Failed to validate Staff ID. Please try again.",
+          code: "STAFF_ID_VALIDATION_ERROR"
+        });
       }
 
       // Create or update teacher profile
@@ -1161,22 +1188,78 @@ export async function registerRoutes(app: Express): Server {
         }
       });
     } catch (error) {
+      // FIX #4: Enhanced error extraction for database errors
       console.error('❌ TEACHER PROFILE SETUP ERROR - Full Details:', {
         error: error,
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
+        errorName: error instanceof Error ? error.name : undefined,
+        errorCode: (error as any)?.code,
+        errorDetail: (error as any)?.detail,
+        errorConstraint: (error as any)?.constraint,
         teacherId: req.user?.id,
         requestBody: req.body,
         files: Object.keys(req.files || {})
       });
 
-      // Send detailed error response
-      const errorMessage = error instanceof Error ? error.message : 'Failed to setup teacher profile';
-      const statusCode = errorMessage.includes('already exists') ? 409 : 500;
+      // Extract meaningful error information
+      let errorMessage = 'Failed to setup teacher profile';
+      let statusCode = 500;
+      let errorCode = 'UNKNOWN_ERROR';
+
+      if (error instanceof Error) {
+        // Check for PostgreSQL/database specific errors
+        const dbError = error as any;
+        
+        // Unique constraint violation
+        if (dbError.code === '23505' || dbError.constraint) {
+          errorMessage = `A profile with this ${dbError.constraint?.includes('staff_id') ? 'Staff ID' : 'information'} already exists.`;
+          statusCode = 409;
+          errorCode = 'DUPLICATE_ENTRY';
+        }
+        // Foreign key violation
+        else if (dbError.code === '23503') {
+          errorMessage = 'Invalid reference data provided. Please check your selections.';
+          statusCode = 400;
+          errorCode = 'INVALID_REFERENCE';
+        }
+        // Not null violation
+        else if (dbError.code === '23502') {
+          errorMessage = `Required field missing: ${dbError.column || 'unknown'}`;
+          statusCode = 400;
+          errorCode = 'MISSING_REQUIRED_FIELD';
+        }
+        // Check constraint violation
+        else if (dbError.code === '23514') {
+          errorMessage = 'Invalid data provided. Please check your input values.';
+          statusCode = 400;
+          errorCode = 'INVALID_DATA';
+        }
+        // Generic error message extraction
+        else if (error.message) {
+          errorMessage = error.message;
+          
+          // Determine status code based on message
+          if (error.message.toLowerCase().includes('already exists') || 
+              error.message.toLowerCase().includes('duplicate')) {
+            statusCode = 409;
+            errorCode = 'DUPLICATE_ENTRY';
+          } else if (error.message.toLowerCase().includes('not found')) {
+            statusCode = 404;
+            errorCode = 'NOT_FOUND';
+          } else if (error.message.toLowerCase().includes('invalid') || 
+                     error.message.toLowerCase().includes('validation')) {
+            statusCode = 400;
+            errorCode = 'VALIDATION_ERROR';
+          }
+        }
+      }
 
       res.status(statusCode).json({ 
         message: errorMessage,
-        details: error instanceof Error ? error.stack?.split('\n')[0] : undefined
+        code: errorCode,
+        details: error instanceof Error ? error.message : undefined,
+        constraint: (error as any)?.constraint
       });
     }
   });

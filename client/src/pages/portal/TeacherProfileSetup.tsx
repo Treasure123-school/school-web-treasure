@@ -179,7 +179,14 @@ export default function TeacherProfileSetup() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Profile creation failed');
+        // FIX #5: Attach full error data for better error handling
+        const error = new Error(errorData.message || 'Profile creation failed') as any;
+        error.code = errorData.code;
+        error.details = errorData.details;
+        error.constraint = errorData.constraint;
+        error.status = response.status;
+        error.existingProfile = errorData.existingProfile;
+        throw error;
       }
 
       return await response.json();
@@ -240,28 +247,77 @@ export default function TeacherProfileSetup() {
       }, 3000);
     },
     onError: (error: any) => {
-      console.error('❌ PROFILE CREATION ERROR:', error);
+      // FIX #6: Enhanced frontend error display with proper extraction
+      console.error('❌ PROFILE CREATION ERROR:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        constraint: error.constraint,
+        status: error.status,
+        existingProfile: error.existingProfile,
+        fullError: error
+      });
       
-      // Extract detailed error message
+      // Extract and format error message
       let errorMessage = error.message || "An error occurred while creating your profile.";
-      let errorDetails = '';
+      const errorDetails: string[] = [];
       
-      if (error.response) {
-        console.error('Error Response:', error.response);
-        errorDetails = `Status: ${error.response.status}`;
+      // Add error code if available
+      if (error.code) {
+        errorDetails.push(`Error Code: ${error.code}`);
+      }
+      
+      // Add HTTP status
+      if (error.status) {
+        errorDetails.push(`Status: ${error.status}`);
+      }
+      
+      // Add constraint information for database errors
+      if (error.constraint) {
+        errorDetails.push(`Constraint: ${error.constraint}`);
+      }
+      
+      // Special handling for profile already exists
+      if (error.existingProfile) {
+        errorMessage = "You already have a profile. Please update your existing profile from the dashboard.";
+      }
+      
+      // Add helpful action based on error code
+      let actionHint = '';
+      if (error.code === 'STAFF_ID_EXISTS') {
+        actionHint = 'Try leaving the Staff ID field blank for auto-generation.';
+      } else if (error.code === 'DUPLICATE_ENTRY') {
+        actionHint = 'This information is already in use. Please use different values.';
+      } else if (error.code === 'USER_NOT_FOUND') {
+        actionHint = 'Please log out and log back in, then try again.';
+      } else if (error.code === 'VALIDATION_ERROR') {
+        actionHint = 'Please check all your form fields and try again.';
       }
       
       toast({
         title: "Profile Creation Failed",
         description: (
-          <div className="space-y-1">
-            <p>{errorMessage}</p>
-            {errorDetails && <p className="text-xs opacity-80">{errorDetails}</p>}
-            <p className="text-xs opacity-60 mt-2">Check browser console for details</p>
+          <div className="space-y-2">
+            <p className="font-medium">{errorMessage}</p>
+            {errorDetails.length > 0 && (
+              <div className="text-xs opacity-80 space-y-1">
+                {errorDetails.map((detail, idx) => (
+                  <p key={idx}>{detail}</p>
+                ))}
+              </div>
+            )}
+            {actionHint && (
+              <p className="text-xs font-semibold bg-yellow-100 dark:bg-yellow-900 p-2 rounded">
+                💡 {actionHint}
+              </p>
+            )}
+            {error.details && error.details !== errorMessage && (
+              <p className="text-xs opacity-60 mt-2">Details: {error.details}</p>
+            )}
           </div>
         ),
         variant: "destructive",
-        duration: 10000, // Show for 10 seconds
+        duration: 15000, // Show for 15 seconds to give user time to read
       });
     },
   });
