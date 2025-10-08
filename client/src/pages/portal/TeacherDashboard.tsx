@@ -198,6 +198,10 @@ export default function TeacherDashboard() {
 
   const { data: teacherProfile } = useQuery({
     queryKey: ['/api/teacher/profile/me'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/teacher/profile/me');
+      return await response.json();
+    },
     enabled: !!user && !!profileStatus?.hasProfile,
   });
 
@@ -283,26 +287,26 @@ export default function TeacherDashboard() {
                 Welcome back, {user.firstName}!
               </h2>
               <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
-                {teacherProfile ? (
+                {teacherProfile && !isLoading ? (
                   <>
                     {teacherProfile.department && `${teacherProfile.department} Department`}
-                    {teacherProfile.subjects && teacherProfile.subjects.length > 0 && 
+                    {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && 
                       ` • Teaching ${teacherProfile.subjects.length} Subject${teacherProfile.subjects.length > 1 ? 's' : ''}`}
-                    {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 &&
+                    {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 &&
                       ` • ${teacherProfile.assignedClasses.length} Active Class${teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`}
                   </>
                 ) : (
                   'Empowering minds, shaping futures'
                 )}
               </p>
-              {teacherProfile && (
+              {teacherProfile && !isLoading && !subjectsLoading && !classesLoading && (
                 <div className="flex gap-2 mt-2 flex-wrap">
                   {/* Subject Badges - Get actual subject names from subjects array */}
-                  {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && (
+                  {Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && (
                     <>
                       {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
                         // Find subject name from subjects query
-                        const subject = (subjects as any[])?.find(s => s.id === subjectId);
+                        const subject = subjects.find((s: any) => s.id === subjectId);
                         return subject ? (
                           <span key={idx} className="px-2 py-1 bg-white/20 rounded-full text-xs">
                             {subject.name}
@@ -317,11 +321,11 @@ export default function TeacherDashboard() {
                     </>
                   )}
                   {/* Class Badges - Get actual class names from classes array */}
-                  {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && (
+                  {Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && (
                     <>
                       {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
                         // Find class name from classes query
-                        const classObj = (classes as any[])?.find(c => c.id === classId);
+                        const classObj = classes.find((c: any) => c.id === classId);
                         return classObj ? (
                           <span key={idx} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
                             {classObj.name}
