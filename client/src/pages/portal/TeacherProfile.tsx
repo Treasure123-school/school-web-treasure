@@ -11,10 +11,12 @@ import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileUpload } from '@/components/ui/file-upload';
+import { ImageCapture } from '@/components/ui/image-capture';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { TeacherProfile, Class } from '@shared/schema';
 
 export default function TeacherProfile() {
@@ -23,6 +25,8 @@ export default function TeacherProfile() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
@@ -31,7 +35,8 @@ export default function TeacherProfile() {
     address: '',
     recoveryEmail: '',
     gender: '',
-    dateOfBirth: ''
+    dateOfBirth: '',
+    nationalId: ''
   });
   const [professionalData, setProfessionalData] = useState({
     qualification: '',
@@ -40,7 +45,10 @@ export default function TeacherProfile() {
     department: '',
     gradingMode: 'manual',
     notificationPreference: 'all',
-    availability: 'full-time'
+    availability: 'full-time',
+    subjects: [] as number[],
+    assignedClasses: [] as number[],
+    staffId: ''
   });
 
   if (!user) {
@@ -121,7 +129,8 @@ export default function TeacherProfile() {
         address: teacher.address || '',
         recoveryEmail: teacher.recoveryEmail || '',
         gender: teacher.gender || '',
-        dateOfBirth: teacher.dateOfBirth || ''
+        dateOfBirth: teacher.dateOfBirth || '',
+        nationalId: teacher.nationalId || ''
       });
     }
   }, [teacher, user]);
@@ -136,7 +145,10 @@ export default function TeacherProfile() {
         department: teacherProfile.department || '',
         gradingMode: teacherProfile.gradingMode || 'manual',
         notificationPreference: teacherProfile.notificationPreference || 'all',
-        availability: teacherProfile.availability || 'full-time'
+        availability: teacherProfile.availability || 'full-time',
+        subjects: teacherProfile.subjects || [],
+        assignedClasses: teacherProfile.assignedClasses || [],
+        staffId: teacherProfile.staffId || ''
       });
     }
   }, [teacherProfile]);
@@ -153,6 +165,38 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
+      // Upload profile image if changed
+      if (profileImageFile) {
+        const imageFormData = new FormData();
+        imageFormData.append('profileImage', profileImageFile);
+        
+        const imageResponse = await fetch('/api/upload/profile', {
+          method: 'POST',
+          credentials: 'include',
+          body: imageFormData
+        });
+        
+        if (!imageResponse.ok) {
+          throw new Error('Failed to upload profile image');
+        }
+      }
+
+      // Upload signature if changed
+      if (signatureFile) {
+        const sigFormData = new FormData();
+        sigFormData.append('signature', signatureFile);
+        
+        const sigResponse = await fetch('/api/upload/signature', {
+          method: 'POST',
+          credentials: 'include',
+          body: sigFormData
+        });
+        
+        if (!sigResponse.ok) {
+          throw new Error('Failed to upload signature');
+        }
+      }
+
       // Update personal data (users table)
       const userResponse = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
@@ -179,7 +223,8 @@ export default function TeacherProfile() {
           ...professionalData,
           phone: profileData.phone,
           dateOfBirth: profileData.dateOfBirth,
-          gender: profileData.gender
+          gender: profileData.gender,
+          nationalId: profileData.nationalId
         })
       });
 
@@ -308,36 +353,26 @@ export default function TeacherProfile() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="text-center">
-                  <div className="relative inline-block">
-                    <Avatar className="h-24 w-24 mx-auto mb-4">
-                      <AvatarImage src={teacher?.profileImageUrl || ''} />
-                      <AvatarFallback className="text-lg">
-                        {user.firstName[0]}{user.lastName[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                      onClick={() => setShowImageUpload(!showImageUpload)}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <h3 className="text-lg font-semibold">
-                    {user.firstName} {user.lastName}
-                  </h3>
-                  <p className="text-muted-foreground">Teacher</p>
-
-                  {showImageUpload && (
-                    <div className="mt-4">
-                      <FileUpload
-                        type="profile"
-                        userId={user.id}
-                        onUploadSuccess={handleProfileImageUpload}
-                        className="max-w-sm mx-auto"
-                      />
-                    </div>
+                  {isEditing ? (
+                    <ImageCapture
+                      value={profileImageFile}
+                      onChange={setProfileImageFile}
+                      label="Profile Photo"
+                      shape="circle"
+                    />
+                  ) : (
+                    <>
+                      <Avatar className="h-24 w-24 mx-auto mb-4">
+                        <AvatarImage src={teacher?.profileImageUrl || ''} />
+                        <AvatarFallback className="text-lg">
+                          {user.firstName[0]}{user.lastName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <h3 className="text-lg font-semibold">
+                        {user.firstName} {user.lastName}
+                      </h3>
+                      <p className="text-muted-foreground">Teacher</p>
+                    </>
                   )}
                 </div>
 
@@ -430,6 +465,17 @@ export default function TeacherProfile() {
                       value={profileData.dateOfBirth}
                       onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                       disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nationalId">National ID</Label>
+                    <Input
+                      id="nationalId"
+                      value={profileData.nationalId}
+                      onChange={(e) => handleChange('nationalId', e.target.value)}
+                      disabled={!isEditing}
+                      placeholder="e.g., 12345678901"
+                      data-testid="input-national-id"
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
@@ -563,60 +609,133 @@ export default function TeacherProfile() {
                 <CardContent className="space-y-4">
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Subjects</Label>
-                    <div className="flex flex-wrap gap-2" data-testid="container-subjects">
-                      {teacherProfile.subjects && teacherProfile.subjects.length > 0 ? (
-                        teacherProfile.subjects.map((subjectId: number, idx: number) => {
-                          const subjectData = subjects.find((s: any) => s.id === subjectId);
-                          return (
-                            <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
-                              <BookOpen className="w-3 h-3 mr-1" />
-                              {subjectData?.name || `Subject ${subjectId}`}
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No subjects assigned</p>
-                      )}
-                    </div>
+                    {isEditing ? (
+                      <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                        {subjects.map((subject: any) => (
+                          <div key={subject.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`subject-${subject.id}`}
+                              checked={professionalData.subjects.includes(subject.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setProfessionalData(prev => ({
+                                    ...prev,
+                                    subjects: [...prev.subjects, subject.id]
+                                  }));
+                                } else {
+                                  setProfessionalData(prev => ({
+                                    ...prev,
+                                    subjects: prev.subjects.filter(id => id !== subject.id)
+                                  }));
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`subject-${subject.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {subject.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2" data-testid="container-subjects">
+                        {teacherProfile.subjects && teacherProfile.subjects.length > 0 ? (
+                          teacherProfile.subjects.map((subjectId: number, idx: number) => {
+                            const subjectData = subjects.find((s: any) => s.id === subjectId);
+                            return (
+                              <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
+                                <BookOpen className="w-3 h-3 mr-1" />
+                                {subjectData?.name || `Subject ${subjectId}`}
+                              </Badge>
+                            );
+                          })
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No subjects assigned</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <Separator />
 
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Assigned Classes</Label>
-                    <div className="flex flex-wrap gap-2" data-testid="container-classes">
-                      {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 ? (
-                        teacherProfile.assignedClasses.map((classId: number, idx: number) => {
-                          const classData = classes.find((c) => c.id === classId);
-                          return (
-                            <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
-                              <Users className="w-3 h-3 mr-1" />
-                              {classData?.name || `Class ${classId}`}
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No classes assigned</p>
-                      )}
-                    </div>
+                    {isEditing ? (
+                      <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                        {classes.map((cls: any) => (
+                          <div key={cls.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`class-${cls.id}`}
+                              checked={professionalData.assignedClasses.includes(cls.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setProfessionalData(prev => ({
+                                    ...prev,
+                                    assignedClasses: [...prev.assignedClasses, cls.id]
+                                  }));
+                                } else {
+                                  setProfessionalData(prev => ({
+                                    ...prev,
+                                    assignedClasses: prev.assignedClasses.filter(id => id !== cls.id)
+                                  }));
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`class-${cls.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {cls.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2" data-testid="container-classes">
+                        {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 ? (
+                          teacherProfile.assignedClasses.map((classId: number, idx: number) => {
+                            const classData = classes.find((c) => c.id === classId);
+                            return (
+                              <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
+                                <Users className="w-3 h-3 mr-1" />
+                                {classData?.name || `Class ${classId}`}
+                              </Badge>
+                            );
+                          })
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No classes assigned</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {teacherProfile.signatureUrl && (
-                    <>
-                      <Separator />
-                      <div>
-                        <Label className="text-muted-foreground mb-2 block">Digital Signature</Label>
-                        <div className="border rounded-lg p-4 bg-muted/30 inline-block">
-                          <img
-                            src={teacherProfile.signatureUrl}
-                            alt="Digital Signature"
-                            className="max-h-20 max-w-xs"
-                            data-testid="img-signature"
-                          />
-                        </div>
+                  <Separator />
+                  
+                  <div>
+                    <Label className="text-muted-foreground mb-2 block">Digital Signature</Label>
+                    {isEditing ? (
+                      <ImageCapture
+                        value={signatureFile}
+                        onChange={setSignatureFile}
+                        label="Digital Signature"
+                        shape="square"
+                        className="max-w-xs"
+                      />
+                    ) : teacherProfile.signatureUrl ? (
+                      <div className="border rounded-lg p-4 bg-muted/30 inline-block">
+                        <img
+                          src={teacherProfile.signatureUrl}
+                          alt="Digital Signature"
+                          className="max-h-20 max-w-xs"
+                          data-testid="img-signature"
+                        />
                       </div>
-                    </>
-                  )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No signature uploaded</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
