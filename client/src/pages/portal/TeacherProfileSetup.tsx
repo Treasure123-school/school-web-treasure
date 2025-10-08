@@ -240,10 +240,28 @@ export default function TeacherProfileSetup() {
       }, 3000);
     },
     onError: (error: any) => {
+      console.error('❌ PROFILE CREATION ERROR:', error);
+      
+      // Extract detailed error message
+      let errorMessage = error.message || "An error occurred while creating your profile.";
+      let errorDetails = '';
+      
+      if (error.response) {
+        console.error('Error Response:', error.response);
+        errorDetails = `Status: ${error.response.status}`;
+      }
+      
       toast({
         title: "Profile Creation Failed",
-        description: error.message || "An error occurred while creating your profile.",
+        description: (
+          <div className="space-y-1">
+            <p>{errorMessage}</p>
+            {errorDetails && <p className="text-xs opacity-80">{errorDetails}</p>}
+            <p className="text-xs opacity-60 mt-2">Check browser console for details</p>
+          </div>
+        ),
         variant: "destructive",
+        duration: 10000, // Show for 10 seconds
       });
     },
   });

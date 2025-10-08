@@ -1161,8 +1161,23 @@ export async function registerRoutes(app: Express): Server {
         }
       });
     } catch (error) {
-      console.error('Teacher profile setup error:', error);
-      res.status(500).json({ message: 'Failed to setup teacher profile' });
+      console.error('❌ TEACHER PROFILE SETUP ERROR - Full Details:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        teacherId: req.user?.id,
+        requestBody: req.body,
+        files: Object.keys(req.files || {})
+      });
+
+      // Send detailed error response
+      const errorMessage = error instanceof Error ? error.message : 'Failed to setup teacher profile';
+      const statusCode = errorMessage.includes('already exists') ? 409 : 500;
+
+      res.status(statusCode).json({ 
+        message: errorMessage,
+        details: error instanceof Error ? error.stack?.split('\n')[0] : undefined
+      });
     }
   });
 
