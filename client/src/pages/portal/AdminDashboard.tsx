@@ -716,24 +716,24 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* AUTO-VERIFICATION SUCCESS BANNER - Enhanced with teacher details */}
+      {/* AUTO-VERIFICATION SUCCESS BANNER - Enhanced with teacher details - Fully Responsive */}
       {todayAutoVerified.length > 0 && (
-        <Card className="mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-950/30 dark:via-emerald-950/30 dark:to-teal-950/30 shadow-xl">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full shadow-md animate-pulse">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+        <Card className="mb-4 sm:mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-950/30 dark:via-emerald-950/30 dark:to-teal-950/30 shadow-xl">
+          <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+              <div className="bg-green-100 dark:bg-green-900 p-2 sm:p-3 rounded-full shadow-md animate-pulse flex-shrink-0">
+                <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-bold text-green-900 dark:text-green-200">
+              <div className="flex-1 min-w-0 w-full">
+                <div className="flex flex-col xs:flex-row xs:items-center gap-2 mb-2">
+                  <h3 className="text-base sm:text-lg font-bold text-green-900 dark:text-green-200">
                     🎉 {todayAutoVerified.length} Teacher Profile{todayAutoVerified.length !== 1 ? 's' : ''} Auto-Verified Today!
                   </h3>
-                  <Badge variant="default" className="bg-green-600 text-white">
+                  <Badge variant="default" className="bg-green-600 text-white text-xs w-fit">
                     New
                   </Badge>
                 </div>
-                <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 mb-3">
                   {todayAutoVerified.length === 1 
                     ? `${todayAutoVerified[0].firstName} ${todayAutoVerified[0].lastName} completed profile setup and can now access the full teaching dashboard.`
                     : `${todayAutoVerified.length} teachers completed their profile setup and are now active in the system with full dashboard access.`}
@@ -745,20 +745,20 @@ export default function AdminDashboard() {
                     {todayAutoVerified.map((teacher: any, idx: number) => (
                       <div 
                         key={teacher.id} 
-                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-800"
+                        className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-3 p-2 sm:p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-800"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-600 dark:text-green-400 font-semibold">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-600 dark:text-green-400 text-xs sm:text-sm font-semibold flex-shrink-0">
                             {teacher.firstName[0]}{teacher.lastName[0]}
                           </div>
-                          <div>
-                            <p className="font-medium text-sm">{teacher.firstName} {teacher.lastName}</p>
-                            <p className="text-xs text-muted-foreground">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-xs sm:text-sm truncate">{teacher.firstName} {teacher.lastName}</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                               {teacher.department} • {teacher.subjects?.length || 0} subject{teacher.subjects?.length !== 1 ? 's' : ''} • {teacher.classes?.length || 0} class{teacher.classes?.length !== 1 ? 'es' : ''}
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                        <span className="text-[10px] sm:text-xs text-green-600 dark:text-green-400 font-medium text-left xs:text-right flex-shrink-0">
                           {new Date(teacher.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
@@ -766,17 +766,17 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800 hover:bg-green-50">
+                <div className="flex flex-col xs:flex-row gap-2">
+                  <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800 hover:bg-green-50 text-xs sm:text-sm h-8 sm:h-9 w-full xs:w-auto">
                     <Link href="/portal/admin/teachers">
-                      <Users className="h-4 w-4 mr-2" />
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                       View All Teachers →
                     </Link>
                   </Button>
                   {todayAutoVerified.length > 0 && (
-                    <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800 hover:bg-green-50">
+                    <Button variant="outline" size="sm" asChild className="bg-white dark:bg-gray-800 hover:bg-green-50 text-xs sm:text-sm h-8 sm:h-9 w-full xs:w-auto">
                       <Link href="/portal/admin/teacher-verification">
-                        <CheckCircle className="h-4 w-4 mr-2" />
+                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                         Verification Center
                       </Link>
                     </Button>
@@ -788,17 +788,17 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* AUTO-VERIFICATION SUCCESS NOTIFICATION - Show if there are new verifications today */}
+      {/* AUTO-VERIFICATION SUCCESS NOTIFICATION - Show if there are new verifications today - Fully Responsive */}
       {todayAutoVerified.length > 0 && (
         <Card className="mb-4 sm:mb-6 border-2 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 shadow-lg">
           <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
-                <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
-                  <CheckCircle className="h-6 w-6 text-green-600 animate-pulse" />
+              <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                <div className="bg-green-100 dark:bg-green-900 p-2 sm:p-3 rounded-full flex-shrink-0">
+                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 animate-pulse" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base sm:text-lg font-bold text-green-900 dark:text-green-200">
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-green-900 dark:text-green-200">
                     🎉 {todayAutoVerified.length} Teacher Profile{todayAutoVerified.length !== 1 ? 's' : ''} Auto-Verified Today!
                   </h3>
                   <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 mt-1">
@@ -808,7 +808,7 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800" asChild>
+              <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800 w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9" asChild>
                 <Link href="/portal/admin/teachers">
                   View All Teachers →
                 </Link>
