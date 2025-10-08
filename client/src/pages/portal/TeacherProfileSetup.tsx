@@ -230,24 +230,27 @@ export default function TeacherProfileSetup() {
       // Clear draft from localStorage
       localStorage.removeItem('teacher_profile_draft');
 
-      // CRITICAL: Update cache BEFORE navigation to prevent redirect loop
+      // CRITICAL: Update ALL caches BEFORE navigation to prevent redirect loop
       queryClient.setQueryData(['/api/teacher/profile/status'], {
         hasProfile: true,
         verified: true,
         firstLogin: false
       });
 
-      // Invalidate to ensure fresh data loads after navigation
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+      // Also update the profile data cache if backend returned it
+      if (data.profile) {
+        queryClient.setQueryData(['/api/teacher/profile/me'], data.profile);
+      }
+
+      // Invalidate auth to refresh user status
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
 
-      // Navigate with 2-second delay
+      // Navigate after confetti animation
       setTimeout(() => {
         navigate('/portal/teacher');
       }, 3000);
     },
     onError: (error: any) => {
-      // FIX #6: Enhanced frontend error display with proper extraction
       console.error('❌ PROFILE CREATION ERROR:', {
         message: error.message,
         code: error.code,
@@ -258,40 +261,34 @@ export default function TeacherProfileSetup() {
         fullError: error
       });
       
-      // Extract and format error message
       let errorMessage = error.message || "An error occurred while creating your profile.";
       const errorDetails: string[] = [];
       
-      // Add error code if available
-      if (error.code) {
-        errorDetails.push(`Error Code: ${error.code}`);
-      }
+      // Parse backend error response
+      if (error.code) errorDetails.push(`Code: ${error.code}`);
+      if (error.status) errorDetails.push(`Status: ${error.status}`);
+      if (error.constraint) errorDetails.push(`DB Constraint: ${error.constraint}`);
       
-      // Add HTTP status
-      if (error.status) {
-        errorDetails.push(`Status: ${error.status}`);
-      }
-      
-      // Add constraint information for database errors
-      if (error.constraint) {
-        errorDetails.push(`Constraint: ${error.constraint}`);
+      // Check for network errors
+      if (error.message === 'Failed to fetch') {
+        errorMessage = "Network error - cannot connect to server. Please check your internet connection.";
+        errorDetails.push("The server may be restarting or unavailable.");
       }
       
       // Special handling for profile already exists
       if (error.existingProfile) {
-        errorMessage = "You already have a profile. Please update your existing profile from the dashboard.";
+        errorMessage = "You already have a profile. Redirecting to dashboard...";
+        setTimeout(() => navigate('/portal/teacher'), 2000);
       }
       
-      // Add helpful action based on error code
+      // Helpful action hints
       let actionHint = '';
       if (error.code === 'STAFF_ID_EXISTS') {
-        actionHint = 'Try leaving the Staff ID field blank for auto-generation.';
-      } else if (error.code === 'DUPLICATE_ENTRY') {
-        actionHint = 'This information is already in use. Please use different values.';
-      } else if (error.code === 'USER_NOT_FOUND') {
-        actionHint = 'Please log out and log back in, then try again.';
-      } else if (error.code === 'VALIDATION_ERROR') {
-        actionHint = 'Please check all your form fields and try again.';
+        actionHint = 'Leave Staff ID blank for auto-generation.';
+      } else if (error.message?.includes('unique constraint')) {
+        actionHint = 'A profile with this information already exists. Contact admin if this is an error.';
+      } else if (error.message === 'Failed to fetch') {
+        actionHint = 'Try refreshing the page and submitting again in a few moments.';
       }
       
       toast({
@@ -307,17 +304,14 @@ export default function TeacherProfileSetup() {
               </div>
             )}
             {actionHint && (
-              <p className="text-xs font-semibold bg-yellow-100 dark:bg-yellow-900 p-2 rounded">
+              <p className="text-xs font-semibold bg-yellow-100 dark:bg-yellow-900 p-2 rounded mt-2">
                 💡 {actionHint}
               </p>
-            )}
-            {error.details && error.details !== errorMessage && (
-              <p className="text-xs opacity-60 mt-2">Details: {error.details}</p>
             )}
           </div>
         ),
         variant: "destructive",
-        duration: 15000, // Show for 15 seconds to give user time to read
+        duration: 15000,
       });
     },
   });
@@ -438,14 +432,13 @@ export default function TeacherProfileSetup() {
       if (Array.isArray(value)) {
         submitData.append(key, JSON.stringify(value));
       } else {
-        // CRITICAL FIX: Convert empty strings to null to avoid unique constraint violations
         const stringValue = String(value).trim();
-        if (stringValue === '' || stringValue === 'undefined' || stringValue === 'null') {
-          // Don't append empty/null values - backend will handle defaults
-          // Exception: staffId should be explicitly omitted if empty
-          if (key === 'staffId') {
-            return; // Skip empty staffId to let backend handle it
-          }
+        // CRITICAL FIX: Skip staffId entirely if empty - backend will auto-generate
+        if (key === 'staffId' && (!stringValue || stringValue === 'undefined' || stringValue === 'null')) {
+          return; // Don't send staffId at all if empty
+        }
+        // Skip other empty values except booleans
+        if (typeof value !== 'boolean' && (!stringValue || stringValue === 'undefined' || stringValue === 'null')) {
           return;
         }
         submitData.append(key, stringValue);
