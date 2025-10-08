@@ -520,6 +520,54 @@ export default function TeacherProfile() {
               </Card>
             )}
 
+            {/* Operational Preferences */}
+            {teacherProfile && (
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2" data-testid="heading-preferences">
+                    <Award className="h-5 w-5" />
+                    <span>Operational Preferences</span>
+                  </CardTitle>
+                  <CardDescription>Your teaching and notification preferences</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <Label className="text-muted-foreground">Grading Mode</Label>
+                      <p className="text-lg font-medium mt-1 capitalize" data-testid="text-grading-mode">
+                        {teacherProfile.gradingMode || 'Manual'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Notification Preference</Label>
+                      <p className="text-lg font-medium mt-1 capitalize" data-testid="text-notification-pref">
+                        {teacherProfile.notificationPreference || 'All'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Availability</Label>
+                      <p className="text-lg font-medium mt-1 capitalize" data-testid="text-availability">
+                        {teacherProfile.availability || 'Full-time'}
+                      </p>
+                    </div>
+                  </div>
+                  {teacherProfile.updatedAt && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs text-muted-foreground" data-testid="text-last-updated">
+                        Last updated: {new Date(teacherProfile.updatedAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Account Security - Recovery Email */}
             <Card className="lg:col-span-3">
               <CardHeader>
