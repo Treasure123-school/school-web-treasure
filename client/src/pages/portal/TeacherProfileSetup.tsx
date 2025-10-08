@@ -193,7 +193,7 @@ export default function TeacherProfileSetup() {
     },
     onSuccess: async (data) => {
       console.log('✅ Profile creation successful, response:', data);
-      
+
       // Trigger confetti celebration
       const duration = 3000;
       const animationEnd = Date.now() + duration;
@@ -270,11 +270,11 @@ export default function TeacherProfileSetup() {
         stack: error.stack,
         fullError: error
       });
-      
+
       let errorMessage = error.message || "An error occurred while creating your profile.";
       const errorDetails: string[] = [];
       let actionHint = '';
-      
+
       // Network error handling
       if (error.message === 'Failed to fetch' || !error.status) {
         errorMessage = "❌ Network Error - Cannot Connect to Server";
@@ -316,12 +316,12 @@ export default function TeacherProfileSetup() {
         errorDetails.push("An unexpected error occurred on the server");
         actionHint = 'Please try again. If the problem persists, contact the administrator with the error details.';
       }
-      
+
       // Add diagnostic info
       if (error.code) errorDetails.push(`Error Code: ${error.code}`);
       if (error.status) errorDetails.push(`HTTP Status: ${error.status}`);
       if (error.constraint) errorDetails.push(`Database Constraint: ${error.constraint}`);
-      
+
       toast({
         title: "❌ Profile Creation Failed",
         description: (
@@ -480,7 +480,7 @@ export default function TeacherProfileSetup() {
     }
 
     const submitData = new FormData();
-    
+
     Object.entries(formData).forEach(([key, value]) => {
       if (Array.isArray(value)) {
         submitData.append(key, JSON.stringify(value));
@@ -711,7 +711,7 @@ export default function TeacherProfileSetup() {
                   </p>
                 </div>
 
-                <div className="space-y-2 sm:col-span-2">
+                <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-xs sm:text-sm">
                     <Phone className="h-3 w-3 sm:h-4 sm:w-4" />
                     Phone Number <span className="text-red-500">*</span>
@@ -724,6 +724,13 @@ export default function TeacherProfileSetup() {
                     className="text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <IdCard className="h-4 w-4" />
+                  Your Staff ID will be automatically generated after profile submission
+                </p>
               </div>
 
               <div className="flex justify-end pt-4">

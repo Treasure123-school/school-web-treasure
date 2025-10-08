@@ -946,12 +946,12 @@ export async function registerRoutes(app: Express): Server {
         });
       }
 
-      // FIX #3: Check staffId with proper error handling
+      // FIX: Make staffId fully optional - auto-generate if not provided
       let finalStaffId: string | null = null;
       
-      try {
-        if (staffId && staffId.trim() !== '') {
-          // User provided a staff ID - check uniqueness
+      if (staffId && staffId.trim() !== '' && staffId.trim() !== 'undefined' && staffId.trim() !== 'null') {
+        // User provided a staff ID - check uniqueness
+        try {
           const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
           if (existingProfile && existingProfile.userId !== teacherId) {
             return res.status(409).json({ 
@@ -960,12 +960,20 @@ export async function registerRoutes(app: Express): Server {
             });
           }
           finalStaffId = staffId.trim();
-        } else {
-          // Auto-generate staff ID: THS/TCH/YYYY/XXX
+        } catch (staffIdError) {
+          console.error('❌ Staff ID validation error:', staffIdError);
+          // Don't fail - just auto-generate instead
+          finalStaffId = null;
+        }
+      }
+      
+      // Auto-generate if still null
+      if (!finalStaffId) {
+        try {
           const currentYear = new Date().getFullYear();
           const allTeacherProfiles = await storage.getAllTeacherProfiles();
           
-          const teacherProfilesThisYear = allTeacherProfiles.filter(p => 
+          const teacherProfilesThisYear = allTeacherProfiles.filter((p: any) => 
             p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
           );
           
@@ -980,13 +988,11 @@ export async function registerRoutes(app: Express): Server {
           finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
           
           console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
+        } catch (autoGenError) {
+          console.error('❌ Auto-generation error:', autoGenError);
+          // Last resort - use timestamp
+          finalStaffId = `THS/TCH/${new Date().getFullYear()}/${Date.now().toString().slice(-3)}`;
         }
-      } catch (staffIdError) {
-        console.error('❌ Staff ID validation error:', staffIdError);
-        return res.status(500).json({ 
-          message: "Failed to validate Staff ID. Please try again.",
-          code: "STAFF_ID_VALIDATION_ERROR"
-        });
       }
 
       // Create or update teacher profile
