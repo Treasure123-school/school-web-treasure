@@ -618,15 +618,18 @@ export class DatabaseStorage implements IStorage {
         // Remove the problematic field and retry
         const { [missingColumn]: removed, ...safeUser } = user as any;
         
-        const result = await this.db.update(schema.users).set(safeUser).where(eq(schema.users.id, id)).returning();
-        const updatedUser = result[0];
-        if (updatedUser && updatedUser.id) {
-          const normalizedId = normalizeUuid(updatedUser.id);
-          if (normalizedId) {
-            updatedUser.id = normalizedId;
+        // If we removed the field, retry the update
+        if (Object.keys(safeUser).length > 0) {
+          const result = await this.db.update(schema.users).set(safeUser).where(eq(schema.users.id, id)).returning();
+          const updatedUser = result[0];
+          if (updatedUser && updatedUser.id) {
+            const normalizedId = normalizeUuid(updatedUser.id);
+            if (normalizedId) {
+              updatedUser.id = normalizedId;
+            }
           }
+          return updatedUser;
         }
-        return updatedUser;
       }
       throw error;
     }
