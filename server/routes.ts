@@ -911,7 +911,7 @@ export async function registerRoutes(app: Express): Server {
       });
 
       const {
-        gender, dateOfBirth, staffId, nationalId, phoneNumber,
+        gender, dateOfBirth, staffId, nationalId, phoneNumber, recoveryEmail,
         qualification, specialization, yearsOfExperience,
         subjects, assignedClasses, department, gradingMode,
         notificationPreference, availability, agreement
@@ -1025,6 +1025,11 @@ export async function registerRoutes(app: Express): Server {
       // Only include nationalId if provided
       if (nationalId && nationalId.trim() !== '' && nationalId !== 'undefined') {
         userUpdateData.nationalId = nationalId.trim();
+      }
+      
+      // Only include recoveryEmail if provided
+      if (recoveryEmail && recoveryEmail.trim() !== '' && recoveryEmail !== 'undefined') {
+        userUpdateData.recoveryEmail = recoveryEmail.trim();
       }
       
       await storage.updateUser(teacherId, userUpdateData);

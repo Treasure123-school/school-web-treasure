@@ -36,7 +36,8 @@ import {
   ChevronLeft,
   AlertCircle,
   Save,
-  TrendingUp
+  TrendingUp,
+  Mail
 } from 'lucide-react';
 
 interface TeacherProfileData {
@@ -45,6 +46,7 @@ interface TeacherProfileData {
   dateOfBirth: string;
   phoneNumber: string;
   nationalId: string;
+  recoveryEmail: string;
   qualification: string;
   specialization: string;
   yearsOfExperience: number;
@@ -73,6 +75,7 @@ export default function TeacherProfileSetup() {
     dateOfBirth: '',
     phoneNumber: '',
     nationalId: '',
+    recoveryEmail: '',
     qualification: '',
     specialization: '',
     yearsOfExperience: 0,
@@ -237,6 +240,7 @@ export default function TeacherProfileSetup() {
         queryClient.setQueryData(['/api/teacher/profile/me'], {
           ...data.profile,
           nationalId: formData.nationalId,
+          recoveryEmail: formData.recoveryEmail,
           profileImageUrl: data.profile.profileImageUrl || '/uploads/profiles/default.jpg'
         });
       }
@@ -726,6 +730,24 @@ export default function TeacherProfileSetup() {
                     placeholder="+234 XXX XXX XXXX"
                     className="text-sm"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs sm:text-sm">
+                    <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Recovery Email (Optional)
+                  </Label>
+                  <Input
+                    type="email"
+                    value={formData.recoveryEmail}
+                    onChange={(e) => handleInputChange('recoveryEmail', e.target.value)}
+                    placeholder="recovery@example.com"
+                    className="text-sm"
+                    data-testid="input-recovery-email"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Alternative email for password recovery
+                  </p>
                 </div>
               </div>
 
