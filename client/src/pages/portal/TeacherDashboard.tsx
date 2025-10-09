@@ -296,6 +296,27 @@ export default function TeacherDashboard() {
   const totalClasses = teacherClasses.length;
   const pendingGradesCount = (pendingGradingTasks as any[]).length;
 
+  // Helper functions to get subject and class names
+  const getSubjectNames = () => {
+    if (!teacherProfile || !Array.isArray(teacherProfile.subjects) || !Array.isArray(subjects)) return [];
+    return teacherProfile.subjects
+      .map((subjectId: number) => {
+        const subject = subjects.find((s: any) => s.id === subjectId);
+        return subject ? subject.name : null;
+      })
+      .filter(Boolean); // Remove nulls
+  };
+
+  const getClassNames = () => {
+    if (!teacherProfile || !Array.isArray(teacherProfile.assignedClasses) || !Array.isArray(classes)) return [];
+    return teacherProfile.assignedClasses
+      .map((classId: number) => {
+        const classObj = classes.find((c: any) => c.id === classId);
+        return classObj ? classObj.name : null;
+      })
+      .filter(Boolean); // Remove nulls
+  };
+
   return (
     <PortalLayout 
       userRole="teacher" 
@@ -320,16 +341,16 @@ export default function TeacherDashboard() {
                   'Profile data unavailable - please refresh'
                 ) : teacherProfile ? (
                   <>
-                    {teacherProfile.department ? `${teacherProfile.department} Department` : 'Department not set'}
-                    {teacherProfile.subjects && (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length > 0 : teacherProfile.subjects) ? (
-                      ` • Teaching ${Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length : 1} Subject${Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 1 ? 's' : ''}`
-                    ) : ' • No subjects assigned'}
-                    {teacherProfile.assignedClasses && (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length > 0 : teacherProfile.assignedClasses) ? (
-                      ` • ${Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length : 1} Active Class${Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 1 ? 'es' : ''}`
-                    ) : ' • No classes assigned'}
+                    {teacherProfile.department || 'Department not set'}
+                    {getSubjectNames().length > 0 && (
+                      <> • Teaching {getSubjectNames().join(', ')}</>
+                    )}
+                    {getClassNames().length > 0 && (
+                      <> • {getClassNames().join(', ')}</>
+                    )}
                   </>
                 ) : (
-                  'Empowering minds, shaping futures'
+                  'Complete your profile to see assignment details'
                 )}
               </p>
               {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (
@@ -341,7 +362,7 @@ export default function TeacherDashboard() {
                     subjectsArray: subjects,
                     classesArray: classes
                   })}
-                  
+
                   {/* Subject Badges - Get actual subject names from subjects array */}
                   {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
                     <>
@@ -361,7 +382,7 @@ export default function TeacherDashboard() {
                       )}
                     </>
                   )}
-                  
+
                   {/* Class Badges - Get actual class names from classes array */}
                   {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && classes.length > 0 && (
                     <>
