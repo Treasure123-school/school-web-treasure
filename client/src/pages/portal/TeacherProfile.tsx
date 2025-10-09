@@ -125,6 +125,8 @@ export default function TeacherProfile() {
     if (teacherProfile) {
       console.log('🔄 Initializing complete personal data from teacherProfile');
       console.log('  - teacherProfile data:', teacherProfile);
+      console.log('  - nationalId:', teacherProfile.nationalId);
+      console.log('  - profileImageUrl:', teacherProfile.profileImageUrl);
 
       // teacherProfile from /api/teacher/profile/me already has everything merged (user + profile)
       const newProfileData = {
@@ -136,10 +138,13 @@ export default function TeacherProfile() {
         recoveryEmail: teacherProfile.recoveryEmail || '',
         gender: teacherProfile.gender || '',
         dateOfBirth: teacherProfile.dateOfBirth || '',
-        nationalId: teacherProfile.nationalId || ''
+        nationalId: teacherProfile.nationalId || '',
+        profileImageUrl: teacherProfile.profileImageUrl || ''
       };
 
       console.log('✅ Setting complete personal data:', newProfileData);
+      console.log('  - National ID in state:', newProfileData.nationalId);
+      console.log('  - Profile Image in state:', newProfileData.profileImageUrl);
       setProfileData(newProfileData);
     }
   }, [teacherProfile, user]);
@@ -418,7 +423,10 @@ export default function TeacherProfile() {
                   ) : (
                     <>
                       <Avatar className="h-24 w-24 mx-auto mb-4">
-                        <AvatarImage src={teacherProfile?.profileImageUrl || ''} />
+                        <AvatarImage 
+                          src={teacherProfile?.profileImageUrl || profileData.profileImageUrl || ''} 
+                          alt={`${profileData.firstName} ${profileData.lastName}`}
+                        />
                         <AvatarFallback className="text-lg">
                           {user.firstName[0]}{user.lastName[0]}
                         </AvatarFallback>
@@ -427,6 +435,9 @@ export default function TeacherProfile() {
                         {profileData.firstName} {profileData.lastName}
                       </h3>
                       <p className="text-muted-foreground">Teacher</p>
+                      {teacherProfile?.profileImageUrl && (
+                        <p className="text-xs text-green-600 mt-1">✓ Profile photo uploaded</p>
+                      )}
                     </>
                   )}
                 </div>
@@ -468,7 +479,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
-                      value={profileData.firstName}
+                      value={profileData.firstName || ''}
                       onChange={(e) => handleChange('firstName', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -477,7 +488,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
-                      value={profileData.lastName}
+                      value={profileData.lastName || ''}
                       onChange={(e) => handleChange('lastName', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -487,7 +498,7 @@ export default function TeacherProfile() {
                     <Input
                       id="email"
                       type="email"
-                      value={profileData.email}
+                      value={profileData.email || ''}
                       onChange={(e) => handleChange('email', e.target.value)}
                       disabled={true}
                       className="bg-muted"
@@ -498,7 +509,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
-                      value={profileData.phone}
+                      value={profileData.phone || ''}
                       onChange={(e) => handleChange('phone', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -507,7 +518,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="gender">Gender</Label>
                     <Input
                       id="gender"
-                      value={profileData.gender}
+                      value={profileData.gender || ''}
                       onChange={(e) => handleChange('gender', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -517,27 +528,30 @@ export default function TeacherProfile() {
                     <Input
                       id="dateOfBirth"
                       type="date"
-                      value={profileData.dateOfBirth}
+                      value={profileData.dateOfBirth || ''}
                       onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                       disabled={!isEditing}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nationalId">National ID</Label>
+                    <Label htmlFor="nationalId">National ID (NIN)</Label>
                     <Input
                       id="nationalId"
-                      value={profileData.nationalId}
+                      value={profileData.nationalId || ''}
                       onChange={(e) => handleChange('nationalId', e.target.value)}
                       disabled={!isEditing}
                       placeholder="e.g., 12345678901"
                       data-testid="input-national-id"
                     />
+                    {profileData.nationalId && !isEditing && (
+                      <p className="text-xs text-green-600">✓ National ID verified</p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="address">Address</Label>
                     <Input
                       id="address"
-                      value={profileData.address}
+                      value={profileData.address || ''}
                       onChange={(e) => handleChange('address', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -547,7 +561,7 @@ export default function TeacherProfile() {
                     <Input
                       id="recoveryEmail"
                       type="email"
-                      value={profileData.recoveryEmail}
+                      value={profileData.recoveryEmail || ''}
                       onChange={(e) => handleChange('recoveryEmail', e.target.value)}
                       disabled={!isEditing}
                       placeholder="alternate@email.com"
