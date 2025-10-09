@@ -232,15 +232,13 @@ export default function TeacherProfileSetup() {
       // Clear draft from localStorage
       localStorage.removeItem('teacher_profile_draft');
 
-      // CRITICAL FIX: Invalidate ALL caches FIRST to force fresh data fetch
-      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
-
-      // THEN set cache data from backend response (if available)
+      // CRITICAL FIX: Set cache data IMMEDIATELY before any invalidation
       if (data.profile) {
-        queryClient.setQueryData(['/api/teacher/profile/me'], data.profile);
+        queryClient.setQueryData(['/api/teacher/profile/me'], {
+          ...data.profile,
+          nationalId: formData.nationalId,
+          profileImageUrl: data.profile.profileImageUrl || '/uploads/profiles/default.jpg'
+        });
       }
 
       queryClient.setQueryData(['/api/teacher/profile/status'], {
@@ -249,15 +247,20 @@ export default function TeacherProfileSetup() {
         firstLogin: false
       });
 
-      // Refetch immediately to ensure latest data
+      // THEN invalidate to force refetch with new data
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/status'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+
+      // Wait for refetch to complete
       await queryClient.refetchQueries({ queryKey: ['/api/auth/me'] });
       await queryClient.refetchQueries({ queryKey: ['/api/teacher/profile/status'] });
       await queryClient.refetchQueries({ queryKey: ['/api/teacher/profile/me'] });
 
-      // Navigate after confetti animation
+      // Navigate after cache is fully updated AND confetti animation completes
       setTimeout(() => {
         navigate('/portal/teacher');
-      }, 3000);
+      }, 3500); // Slightly longer delay to ensure cache is ready
     },
     onError: (error: any) => {
       console.error('❌ PROFILE CREATION ERROR - Full Diagnostic:', {

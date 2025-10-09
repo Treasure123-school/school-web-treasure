@@ -1314,17 +1314,17 @@ export async function registerRoutes(app: Express): Server {
         verified: profile.verified,
         firstLogin: profile.firstLogin,
 
-        // User fields - ALL personal data from users table
+        // CRITICAL FIX: Include ALL user fields from users table
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
         phone: user.phone || '',
         gender: user.gender || '',
         dateOfBirth: user.dateOfBirth || '',
-        nationalId: user.nationalId || '', // From users.national_id
+        nationalId: user.nationalId || '', // ✅ FIX: From users.national_id column
         address: user.address || '',
-        recoveryEmail: user.recoveryEmail || '', // From users.recovery_email
-        profileImageUrl: user.profileImageUrl || '', // From users.profile_image_url
+        recoveryEmail: user.recoveryEmail || '', // ✅ FIX: From users.recovery_email column
+        profileImageUrl: user.profileImageUrl || '', // ✅ FIX: From users.profile_image_url column
 
         // Additional profile fields
         gradingMode: profile.gradingMode,
