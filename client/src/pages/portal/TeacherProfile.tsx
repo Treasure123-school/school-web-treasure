@@ -66,7 +66,7 @@ export default function TeacherProfile() {
     }
   });
 
-  // Fetch teacher professional profile
+  // Fetch teacher professional profile - this already has merged user data
   const { data: teacherProfile, isLoading: teacherProfileLoading } = useQuery<TeacherProfile>({
     queryKey: ['/api/teacher/profile/me'],
     enabled: !!user
@@ -88,7 +88,7 @@ export default function TeacherProfile() {
 
   // Calculate profile completion percentage
   const calculateCompletion = () => {
-    if (!teacherProfile || !teacher) return 0;
+    if (!teacherProfile) return 0;
     let completed = 0;
     let total = 15; // Total fields from setup form
 
@@ -101,11 +101,11 @@ export default function TeacherProfile() {
     if (teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0) completed++;
     if (teacherProfile.department) completed++;
 
-    // Personal fields (from setup)
-    if (teacher.gender) completed++;
-    if (teacher.dateOfBirth) completed++;
-    if (teacher.phone) completed++;
-    if (teacher.profileImageUrl) completed++;
+    // Personal fields (from setup) - now from teacherProfile which has merged data
+    if (teacherProfile.gender) completed++;
+    if (teacherProfile.dateOfBirth) completed++;
+    if (teacherProfile.phone) completed++;
+    if (teacherProfile.profileImageUrl) completed++;
 
     // Operational preferences (from setup)
     if (teacherProfile.gradingMode) completed++;
@@ -120,31 +120,29 @@ export default function TeacherProfile() {
 
   const profileCompletion = calculateCompletion();
 
-  // Initialize form data when teacher data loads - COMPLETE MERGE
+  // Initialize form data when teacher profile loads - ALL DATA IS IN teacherProfile
   React.useEffect(() => {
-    if (teacher || teacherProfile) {
-      console.log('🔄 Initializing complete personal data');
-      console.log('  - teacher data:', teacher);
+    if (teacherProfile) {
+      console.log('🔄 Initializing complete personal data from teacherProfile');
       console.log('  - teacherProfile data:', teacherProfile);
 
-      // Merge all data sources with proper priority: teacherProfile > teacher > user
-      // teacherProfile from /api/teacher/profile/me already has everything merged
+      // teacherProfile from /api/teacher/profile/me already has everything merged (user + profile)
       const newProfileData = {
-        firstName: teacherProfile?.firstName || teacher?.firstName || user.firstName || '',
-        lastName: teacherProfile?.lastName || teacher?.lastName || user.lastName || '',
-        email: teacherProfile?.email || teacher?.email || user.email || '',
-        phone: teacherProfile?.phone || teacher?.phone || '',
-        address: teacherProfile?.address || teacher?.address || '',
-        recoveryEmail: teacherProfile?.recoveryEmail || teacher?.recoveryEmail || '',
-        gender: teacherProfile?.gender || teacher?.gender || '',
-        dateOfBirth: teacherProfile?.dateOfBirth || teacher?.dateOfBirth || '',
-        nationalId: teacherProfile?.nationalId || teacher?.nationalId || ''
+        firstName: teacherProfile.firstName || user.firstName || '',
+        lastName: teacherProfile.lastName || user.lastName || '',
+        email: teacherProfile.email || user.email || '',
+        phone: teacherProfile.phone || '',
+        address: teacherProfile.address || '',
+        recoveryEmail: teacherProfile.recoveryEmail || '',
+        gender: teacherProfile.gender || '',
+        dateOfBirth: teacherProfile.dateOfBirth || '',
+        nationalId: teacherProfile.nationalId || ''
       };
 
       console.log('✅ Setting complete personal data:', newProfileData);
       setProfileData(newProfileData);
     }
-  }, [teacher, teacherProfile, user]);
+  }, [teacherProfile, user]);
 
   // Initialize professional data when teacher profile loads
   React.useEffect(() => {
@@ -420,18 +418,13 @@ export default function TeacherProfile() {
                   ) : (
                     <>
                       <Avatar className="h-24 w-24 mx-auto mb-4">
-                        <AvatarImage src={
-                          teacherProfile?.profileImageUrl || 
-                          teacher?.profileImageUrl || 
-                          user.profileImageUrl ||
-                          ''
-                        } />
+                        <AvatarImage src={teacherProfile?.profileImageUrl || ''} />
                         <AvatarFallback className="text-lg">
                           {user.firstName[0]}{user.lastName[0]}
                         </AvatarFallback>
                       </Avatar>
                       <h3 className="text-lg font-semibold">
-                        {teacherProfile?.firstName || profileData.firstName || user.firstName} {teacherProfile?.lastName || profileData.lastName || user.lastName}
+                        {profileData.firstName} {profileData.lastName}
                       </h3>
                       <p className="text-muted-foreground">Teacher</p>
                     </>
@@ -475,7 +468,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
-                      value={teacherProfile?.firstName || profileData.firstName || user.firstName || ''}
+                      value={profileData.firstName}
                       onChange={(e) => handleChange('firstName', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -484,7 +477,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
-                      value={teacherProfile?.lastName || profileData.lastName || user.lastName || ''}
+                      value={profileData.lastName}
                       onChange={(e) => handleChange('lastName', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -494,7 +487,7 @@ export default function TeacherProfile() {
                     <Input
                       id="email"
                       type="email"
-                      value={teacherProfile?.email || profileData.email || user.email || ''}
+                      value={profileData.email}
                       onChange={(e) => handleChange('email', e.target.value)}
                       disabled={true}
                       className="bg-muted"
@@ -505,7 +498,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
-                      value={teacherProfile?.phone || profileData.phone || ''}
+                      value={profileData.phone}
                       onChange={(e) => handleChange('phone', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -514,7 +507,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="gender">Gender</Label>
                     <Input
                       id="gender"
-                      value={teacherProfile?.gender || profileData.gender || ''}
+                      value={profileData.gender}
                       onChange={(e) => handleChange('gender', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -524,7 +517,7 @@ export default function TeacherProfile() {
                     <Input
                       id="dateOfBirth"
                       type="date"
-                      value={teacherProfile?.dateOfBirth || profileData.dateOfBirth || ''}
+                      value={profileData.dateOfBirth}
                       onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -533,7 +526,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="nationalId">National ID</Label>
                     <Input
                       id="nationalId"
-                      value={teacherProfile?.nationalId || profileData.nationalId || ''}
+                      value={profileData.nationalId}
                       onChange={(e) => handleChange('nationalId', e.target.value)}
                       disabled={!isEditing}
                       placeholder="e.g., 12345678901"
@@ -544,7 +537,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="address">Address</Label>
                     <Input
                       id="address"
-                      value={teacherProfile?.address || profileData.address || ''}
+                      value={profileData.address}
                       onChange={(e) => handleChange('address', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -554,7 +547,7 @@ export default function TeacherProfile() {
                     <Input
                       id="recoveryEmail"
                       type="email"
-                      value={teacherProfile?.recoveryEmail || profileData.recoveryEmail || ''}
+                      value={profileData.recoveryEmail}
                       onChange={(e) => handleChange('recoveryEmail', e.target.value)}
                       disabled={!isEditing}
                       placeholder="alternate@email.com"
