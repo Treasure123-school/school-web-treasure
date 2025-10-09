@@ -123,7 +123,9 @@ export default function TeacherProfile() {
   // Initialize form data when teacher data loads
   React.useEffect(() => {
     if (teacher) {
-      setProfileData({
+      console.log('🔄 Initializing personal data from teacher:', teacher);
+
+      const newProfileData = {
         firstName: teacher.firstName || user.firstName || '',
         lastName: teacher.lastName || user.lastName || '',
         email: teacher.email || user.email || '',
@@ -133,13 +135,18 @@ export default function TeacherProfile() {
         gender: teacher.gender || '',
         dateOfBirth: teacher.dateOfBirth || '',
         nationalId: teacher.nationalId || ''
-      });
+      };
+
+      console.log('✅ Setting personal data:', newProfileData);
+      setProfileData(newProfileData);
     }
   }, [teacher, user]);
 
   // Initialize professional data when teacher profile loads
   React.useEffect(() => {
     if (teacherProfile) {
+      console.log('🔄 Initializing professional data from profile:', teacherProfile);
+
       // Handle subjects - ensure it's always an array
       const subjectsArray = Array.isArray(teacherProfile.subjects) 
         ? teacherProfile.subjects 
@@ -150,7 +157,7 @@ export default function TeacherProfile() {
         ? teacherProfile.assignedClasses 
         : teacherProfile.assignedClasses ? [teacherProfile.assignedClasses] : [];
 
-      setProfessionalData({
+      const newProfessionalData = {
         qualification: teacherProfile.qualification || '',
         specialization: teacherProfile.specialization || '',
         yearsOfExperience: teacherProfile.yearsOfExperience || 0,
@@ -161,7 +168,10 @@ export default function TeacherProfile() {
         subjects: subjectsArray,
         assignedClasses: classesArray,
         staffId: teacherProfile.staffId || ''
-      });
+      };
+
+      console.log('✅ Setting professional data:', newProfessionalData);
+      setProfessionalData(newProfessionalData);
     }
   }, [teacherProfile]);
 
@@ -291,12 +301,15 @@ export default function TeacherProfile() {
     console.error('Teacher data error:', teacherError);
   }
 
-  // Debug: Log current state
-  console.log('Profile render state:', {
+  // Debug: Log current state with detailed info
+  console.log('📊 Profile render state:', {
     hasTeacher: !!teacher,
     hasTeacherProfile: !!teacherProfile,
-    profileData,
-    teacherData: teacher
+    profileDataState: profileData,
+    professionalDataState: professionalData,
+    teacherData: teacher,
+    teacherProfileData: teacherProfile,
+    isLoading: isLoading
   });
 
   return (
@@ -409,7 +422,7 @@ export default function TeacherProfile() {
                         </AvatarFallback>
                       </Avatar>
                       <h3 className="text-lg font-semibold">
-                        {user.firstName} {user.lastName}
+                        {profileData.firstName || user.firstName} {profileData.lastName || user.lastName}
                       </h3>
                       <p className="text-muted-foreground">Teacher</p>
                     </>
@@ -422,7 +435,7 @@ export default function TeacherProfile() {
                     <div>
                       <p className="text-sm font-medium">Staff ID</p>
                       <p className="text-sm text-muted-foreground">
-                        {teacher?.username || 'N/A'}
+                        {professionalData.staffId || teacherProfile?.staffId || 'Not set'}
                       </p>
                     </div>
                   </div>
@@ -431,7 +444,7 @@ export default function TeacherProfile() {
                     <div>
                       <p className="text-sm font-medium">Email</p>
                       <p className="text-sm text-muted-foreground break-all">
-                        {teacher?.email || user.email}
+                        {profileData.email || user.email}
                       </p>
                     </div>
                   </div>
