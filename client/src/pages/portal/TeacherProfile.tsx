@@ -209,12 +209,16 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
+      let uploadedImageUrl = profileData.profileImageUrl;
+      let uploadedSignatureUrl = professionalData.signatureUrl;
+
       // Upload profile image if changed
       if (profileImageFile) {
         const imageFormData = new FormData();
-        imageFormData.append('profileImage', profileImageFile);
+        imageFormData.append('file', profileImageFile);
+        imageFormData.append('uploadType', 'profile');
 
-        const imageResponse = await fetch('/api/upload/profile', {
+        const imageResponse = await fetch('/api/upload', {
           method: 'POST',
           credentials: 'include',
           body: imageFormData
@@ -223,14 +227,18 @@ export default function TeacherProfile() {
         if (!imageResponse.ok) {
           throw new Error('Failed to upload profile image');
         }
+        
+        const imageData = await imageResponse.json();
+        uploadedImageUrl = imageData.url;
       }
 
       // Upload signature if changed
       if (signatureFile) {
         const sigFormData = new FormData();
-        sigFormData.append('signature', signatureFile);
+        sigFormData.append('file', signatureFile);
+        sigFormData.append('uploadType', 'profile');
 
-        const sigResponse = await fetch('/api/upload/signature', {
+        const sigResponse = await fetch('/api/upload', {
           method: 'POST',
           credentials: 'include',
           body: sigFormData
@@ -239,16 +247,29 @@ export default function TeacherProfile() {
         if (!sigResponse.ok) {
           throw new Error('Failed to upload signature');
         }
+        
+        const sigData = await sigResponse.json();
+        uploadedSignatureUrl = sigData.url;
       }
 
-      // Update personal data (users table)
+      // Update personal data (users table) with auth token
+      const token = localStorage.getItem('token');
       const userResponse = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
-        body: JSON.stringify(profileData)
+        body: JSON.stringify({
+          phone: profileData.phone,
+          address: profileData.address,
+          gender: profileData.gender,
+          dateOfBirth: profileData.dateOfBirth,
+          nationalId: profileData.nationalId,
+          recoveryEmail: profileData.recoveryEmail,
+          profileImageUrl: uploadedImageUrl
+        })
       });
 
       if (!userResponse.ok) {
@@ -261,14 +282,12 @@ export default function TeacherProfile() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
         body: JSON.stringify({
           ...professionalData,
-          phone: profileData.phone,
-          dateOfBirth: profileData.dateOfBirth,
-          gender: profileData.gender,
-          nationalId: profileData.nationalId
+          signatureUrl: uploadedSignatureUrl
         })
       });
 
@@ -284,7 +303,7 @@ export default function TeacherProfile() {
 
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
