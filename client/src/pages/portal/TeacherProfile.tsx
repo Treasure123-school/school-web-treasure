@@ -36,7 +36,8 @@ export default function TeacherProfile() {
     recoveryEmail: '',
     gender: '',
     dateOfBirth: '',
-    nationalId: ''
+    nationalId: '',
+    profileImageUrl: ''
   });
   const [professionalData, setProfessionalData] = useState({
     qualification: '',
