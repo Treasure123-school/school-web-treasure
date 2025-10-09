@@ -123,13 +123,13 @@ export default function TeacherProfile() {
   const getMissingCriticalFields = () => {
     if (!teacherProfile) return [];
     const missing = [];
-    
+
     if (!teacherProfile.nationalId) missing.push({ field: 'National ID (NIN)', key: 'nationalId' });
     if (!teacherProfile.profileImageUrl) missing.push({ field: 'Profile Image', key: 'profileImageUrl' });
     if (!teacherProfile.phone) missing.push({ field: 'Phone Number', key: 'phone' });
     if (!teacherProfile.gender) missing.push({ field: 'Gender', key: 'gender' });
     if (!teacherProfile.dateOfBirth) missing.push({ field: 'Date of Birth', key: 'dateOfBirth' });
-    
+
     return missing;
   };
 
@@ -228,7 +228,7 @@ export default function TeacherProfile() {
         if (!imageResponse.ok) {
           throw new Error('Failed to upload profile image');
         }
-        
+
         const imageData = await imageResponse.json();
         uploadedImageUrl = imageData.url;
       }
@@ -248,53 +248,67 @@ export default function TeacherProfile() {
         if (!sigResponse.ok) {
           throw new Error('Failed to upload signature');
         }
-        
+
         const sigData = await sigResponse.json();
         uploadedSignatureUrl = sigData.url;
       }
 
-      // Update personal data (users table) with auth token
-      const token = localStorage.getItem('token');
+      // Update user data (personal info)
+      const userUpdateData = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        phone: profileData.phone || null,
+        address: profileData.address || null,
+        recoveryEmail: profileData.recoveryEmail || null,
+        gender: profileData.gender || null,
+        dateOfBirth: profileData.dateOfBirth || null,
+        nationalId: profileData.nationalId || null,
+        profileImageUrl: uploadedImageUrl || null
+      };
+
       const userResponse = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         credentials: 'include',
-        body: JSON.stringify({
-          phone: profileData.phone,
-          address: profileData.address,
-          gender: profileData.gender,
-          dateOfBirth: profileData.dateOfBirth,
-          nationalId: profileData.nationalId,
-          recoveryEmail: profileData.recoveryEmail,
-          profileImageUrl: uploadedImageUrl
-        })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userUpdateData)
       });
 
       if (!userResponse.ok) {
-        const error = await userResponse.json();
-        throw new Error(error.message || 'Failed to update personal information');
+        const errorText = await userResponse.text();
+        console.error('User update error:', errorText);
+        throw new Error('Failed to update personal information');
       }
 
-      // Update professional data (teacher_profiles table)
+      // Update teacher profile (professional info)
+      const profileUpdateData = {
+        userId: user.id,
+        qualification: professionalData.qualification || null,
+        specialization: professionalData.specialization || null,
+        yearsOfExperience: professionalData.yearsOfExperience || 0,
+        department: professionalData.department || null,
+        gradingMode: professionalData.gradingMode || 'manual',
+        notificationPreference: professionalData.notificationPreference || 'all',
+        availability: professionalData.availability || 'full-time',
+        subjects: professionalData.subjects || [],
+        assignedClasses: professionalData.assignedClasses || [],
+        signatureUrl: uploadedSignatureUrl || null
+      };
+
       const profileResponse = await fetch('/api/teacher/profile', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         credentials: 'include',
-        body: JSON.stringify({
-          ...professionalData,
-          signatureUrl: uploadedSignatureUrl
-        })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(profileUpdateData)
       });
 
       if (!profileResponse.ok) {
-        const error = await profileResponse.json();
-        throw new Error(error.message || 'Failed to update professional information');
+        const errorText = await profileResponse.text();
+        console.error('Profile update error:', errorText);
+        throw new Error('Failed to update professional information');
       }
 
       toast({

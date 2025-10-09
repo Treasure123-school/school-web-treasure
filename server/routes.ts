@@ -1819,6 +1819,21 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Profile image upload endpoint
+  app.post('/api/upload', authenticateUser, upload.single('profileImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+      res.json({ url: fileUrl });
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({ message: 'Failed to upload file' });
+    }
+  });
+
   // Secure file serving for uploads - require authentication
   app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
