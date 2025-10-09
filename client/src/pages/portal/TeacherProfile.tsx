@@ -144,10 +144,11 @@ export default function TeacherProfile() {
       console.log('  - profileImageUrl:', teacherProfile.profileImageUrl);
 
       // teacherProfile from /api/teacher/profile/me already has everything merged (user + profile)
+      // Use ONLY teacherProfile data, no fallbacks to avoid overwriting
       const newProfileData = {
-        firstName: teacherProfile.firstName || user.firstName || '',
-        lastName: teacherProfile.lastName || user.lastName || '',
-        email: teacherProfile.email || user.email || '',
+        firstName: teacherProfile.firstName || '',
+        lastName: teacherProfile.lastName || '',
+        email: teacherProfile.email || '',
         phone: teacherProfile.phone || '',
         address: teacherProfile.address || '',
         recoveryEmail: teacherProfile.recoveryEmail || '',
@@ -162,7 +163,7 @@ export default function TeacherProfile() {
       console.log('  - Profile Image in state:', newProfileData.profileImageUrl);
       setProfileData(newProfileData);
     }
-  }, [teacherProfile, user]);
+  }, [teacherProfile]); // Remove 'user' from dependencies to prevent re-initialization
 
   // Initialize professional data when teacher profile loads
   React.useEffect(() => {

@@ -1295,7 +1295,7 @@ export async function registerRoutes(app: Express): Server {
       // Get user data to merge with profile
       const user = await storage.getUser(userId);
 
-      // Build complete profile with all fields
+      // Build complete profile with all fields - CRITICAL: Include ALL user data
       const completeProfile = {
         // Profile fields
         id: profile.id,
@@ -1310,23 +1310,24 @@ export async function registerRoutes(app: Express): Server {
         verified: profile.verified,
         firstLogin: profile.firstLogin,
 
-        // User fields - ALL personal data
-        firstName: user?.firstName,
-        lastName: user?.lastName,
-        email: user?.email,
-        phone: user?.phone,
-        gender: user?.gender,
-        dateOfBirth: user?.dateOfBirth,
-        nationalId: user?.nationalId, // ✅ Added nationalId
-        address: user?.address, // ✅ Added address
-        recoveryEmail: user?.recoveryEmail, // ✅ Added recoveryEmail
-        profileImageUrl: user?.profileImageUrl,
+        // User fields - ALL personal data (CRITICAL: These must all be included)
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        gender: user?.gender || '',
+        dateOfBirth: user?.dateOfBirth || '',
+        nationalId: user?.nationalId || '', // CRITICAL: Must be included
+        address: user?.address || '',
+        recoveryEmail: user?.recoveryEmail || '',
+        profileImageUrl: user?.profileImageUrl || '', // CRITICAL: Must be included
 
         // Additional profile fields
         gradingMode: profile.gradingMode,
         notificationPreference: profile.notificationPreference,
         availability: profile.availability,
-        signatureUrl: profile.signatureUrl
+        signatureUrl: profile.signatureUrl,
+        updatedAt: profile.updatedAt
       };
 
       console.log('✅ Teacher profile fetched for dashboard:', {
@@ -1337,11 +1338,22 @@ export async function registerRoutes(app: Express): Server {
         subjectCount: completeProfile.subjects.length,
         classCount: completeProfile.assignedClasses.length,
         staffId: profile.staffId,
-        // DEBUG: Check if these critical fields are present (NOT logging sensitive data)
+        // DEBUG: Check if these critical fields are present
         firstName: completeProfile.firstName,
         lastName: completeProfile.lastName,
         hasNationalId: !!completeProfile.nationalId,
-        hasProfileImage: !!completeProfile.profileImageUrl
+        nationalIdLength: completeProfile.nationalId?.length || 0,
+        hasProfileImage: !!completeProfile.profileImageUrl,
+        profileImageUrl: completeProfile.profileImageUrl ? 'SET' : 'MISSING',
+        allUserFields: {
+          phone: !!user?.phone,
+          gender: !!user?.gender,
+          dateOfBirth: !!user?.dateOfBirth,
+          nationalId: !!user?.nationalId,
+          address: !!user?.address,
+          recoveryEmail: !!user?.recoveryEmail,
+          profileImageUrl: !!user?.profileImageUrl
+        }
       });
 
       res.json(completeProfile);
