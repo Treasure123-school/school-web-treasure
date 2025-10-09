@@ -1015,12 +1015,19 @@ export async function registerRoutes(app: Express): Server {
       };
 
       // Update user table with basic info
-      await storage.updateUser(teacherId, {
+      const userUpdateData: any = {
         phone: phoneNumber,
         gender: normalizedGender,
         dateOfBirth,
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
-      });
+      };
+      
+      // Only include nationalId if provided
+      if (nationalId && nationalId.trim() !== '' && nationalId !== 'undefined') {
+        userUpdateData.nationalId = nationalId.trim();
+      }
+      
+      await storage.updateUser(teacherId, userUpdateData);
 
       // Detect suspicious patterns for admin notification (informational only)
       const isSuspicious = (

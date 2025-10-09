@@ -612,19 +612,13 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       // Handle missing column errors by filtering out non-existent fields
       if (error?.cause?.code === '42703') {
-        console.warn('⚠️ Some columns do not exist, retrying with safe fields only');
-        const safeFields: Partial<InsertUser> = {};
-        const existingColumns = ['email', 'passwordHash', 'roleId', 'firstName', 'lastName', 
-          'phone', 'address', 'dateOfBirth', 'gender', 'profileImageUrl', 'isActive', 
-          'authProvider', 'googleId', 'status', 'createdVia', 'mustChangePassword'];
+        const missingColumn = error?.cause?.message?.match(/column "(\w+)" does not exist/)?.[1];
+        console.warn(`⚠️ Column "${missingColumn}" does not exist, retrying without it`);
         
-        for (const [key, value] of Object.entries(user)) {
-          if (existingColumns.includes(key) && value !== undefined) {
-            (safeFields as any)[key] = value;
-          }
-        }
+        // Remove the problematic field and retry
+        const { [missingColumn]: removed, ...safeUser } = user as any;
         
-        const result = await this.db.update(schema.users).set(safeFields).where(eq(schema.users.id, id)).returning();
+        const result = await this.db.update(schema.users).set(safeUser).where(eq(schema.users.id, id)).returning();
         const updatedUser = result[0];
         if (updatedUser && updatedUser.id) {
           const normalizedId = normalizeUuid(updatedUser.id);
