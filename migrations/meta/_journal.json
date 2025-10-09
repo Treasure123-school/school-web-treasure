@@ -22,6 +22,13 @@
       "when": 1758252125370,
       "tag": "0002_equal_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759989770068,
+      "tag": "0003_premium_sabretooth",
+      "breakpoints": true
     }
   ]
 }

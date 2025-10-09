@@ -1,6 +1,6 @@
 {
-  "id": "c6b5e355-fa9f-436c-84e0-caa0f2f2802a",
-  "prevId": "e6bb77ad-7651-4761-a908-2a1c147fa57a",
+  "id": "951478fe-4231-49e1-a61b-389ecb7aee38",
+  "prevId": "c6b5e355-fa9f-436c-84e0-caa0f2f2802a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4040,6 +4040,12 @@
           "name": "gender",
           "type": "gender",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "national_id": {
+          "name": "national_id",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
         },
