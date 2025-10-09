@@ -1295,7 +1295,11 @@ export async function registerRoutes(app: Express): Server {
       // Get user data to merge with profile
       const user = await storage.getUser(userId);
 
-      // Build complete profile with all fields - CRITICAL: Include ALL user data
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Build complete profile with ALL fields merged from both tables
       const completeProfile = {
         // Profile fields
         id: profile.id,
@@ -1310,17 +1314,17 @@ export async function registerRoutes(app: Express): Server {
         verified: profile.verified,
         firstLogin: profile.firstLogin,
 
-        // User fields - ALL personal data (CRITICAL: These must all be included)
-        firstName: user?.firstName || '',
-        lastName: user?.lastName || '',
-        email: user?.email || '',
-        phone: user?.phone || '',
-        gender: user?.gender || '',
-        dateOfBirth: user?.dateOfBirth || '',
-        nationalId: user?.nationalId || '', // CRITICAL: Must be included
-        address: user?.address || '',
-        recoveryEmail: user?.recoveryEmail || '',
-        profileImageUrl: user?.profileImageUrl || '', // CRITICAL: Must be included
+        // User fields - ALL personal data from users table
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        gender: user.gender || '',
+        dateOfBirth: user.dateOfBirth || '',
+        nationalId: user.nationalId || '', // From users.national_id
+        address: user.address || '',
+        recoveryEmail: user.recoveryEmail || '', // From users.recovery_email
+        profileImageUrl: user.profileImageUrl || '', // From users.profile_image_url
 
         // Additional profile fields
         gradingMode: profile.gradingMode,
@@ -1330,30 +1334,13 @@ export async function registerRoutes(app: Express): Server {
         updatedAt: profile.updatedAt
       };
 
-      console.log('✅ Teacher profile fetched for dashboard:', {
+      console.log('✅ Teacher profile API response:', {
         userId,
-        department: profile.department,
-        subjects: completeProfile.subjects,
-        assignedClasses: completeProfile.assignedClasses,
-        subjectCount: completeProfile.subjects.length,
-        classCount: completeProfile.assignedClasses.length,
-        staffId: profile.staffId,
-        // DEBUG: Check if these critical fields are present
-        firstName: completeProfile.firstName,
-        lastName: completeProfile.lastName,
+        staffId: completeProfile.staffId,
         hasNationalId: !!completeProfile.nationalId,
-        nationalIdLength: completeProfile.nationalId?.length || 0,
+        nationalId: completeProfile.nationalId,
         hasProfileImage: !!completeProfile.profileImageUrl,
-        profileImageUrl: completeProfile.profileImageUrl ? 'SET' : 'MISSING',
-        allUserFields: {
-          phone: !!user?.phone,
-          gender: !!user?.gender,
-          dateOfBirth: !!user?.dateOfBirth,
-          nationalId: !!user?.nationalId,
-          address: !!user?.address,
-          recoveryEmail: !!user?.recoveryEmail,
-          profileImageUrl: !!user?.profileImageUrl
-        }
+        profileImageUrl: completeProfile.profileImageUrl
       });
 
       res.json(completeProfile);
