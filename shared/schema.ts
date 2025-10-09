@@ -34,6 +34,7 @@ export const users = pgTable("users", {
   address: text("address"),
   dateOfBirth: date("date_of_birth"),
   gender: genderEnum("gender"),
+  nationalId: varchar("national_id", { length: 50 }),
   profileImageUrl: text("profile_image_url"),
   isActive: boolean("is_active").default(true),
   authProvider: varchar("auth_provider", { length: 20 }).default('local'),
