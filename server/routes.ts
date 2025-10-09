@@ -1303,13 +1303,16 @@ export async function registerRoutes(app: Express): Server {
         verified: profile.verified,
         firstLogin: profile.firstLogin,
 
-        // User fields
+        // User fields - ALL personal data
         firstName: user?.firstName,
         lastName: user?.lastName,
         email: user?.email,
         phone: user?.phone,
         gender: user?.gender,
         dateOfBirth: user?.dateOfBirth,
+        nationalId: user?.nationalId, // ✅ Added nationalId
+        address: user?.address, // ✅ Added address
+        recoveryEmail: user?.recoveryEmail, // ✅ Added recoveryEmail
         profileImageUrl: user?.profileImageUrl,
 
         // Additional profile fields

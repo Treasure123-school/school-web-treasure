@@ -127,17 +127,18 @@ export default function TeacherProfile() {
       console.log('  - teacher data:', teacher);
       console.log('  - teacherProfile data:', teacherProfile);
 
-      // Merge all data sources with proper priority: teacher > teacherProfile > user
+      // Merge all data sources with proper priority: teacherProfile > teacher > user
+      // teacherProfile from /api/teacher/profile/me already has everything merged
       const newProfileData = {
-        firstName: teacher?.firstName || teacherProfile?.firstName || user.firstName || '',
-        lastName: teacher?.lastName || teacherProfile?.lastName || user.lastName || '',
-        email: teacher?.email || teacherProfile?.email || user.email || '',
-        phone: teacher?.phone || teacherProfile?.phone || '',
-        address: teacher?.address || teacherProfile?.address || '',
-        recoveryEmail: teacher?.recoveryEmail || teacherProfile?.recoveryEmail || '',
-        gender: teacher?.gender || teacherProfile?.gender || '',
-        dateOfBirth: teacher?.dateOfBirth || teacherProfile?.dateOfBirth || '',
-        nationalId: teacher?.nationalId || teacherProfile?.nationalId || ''
+        firstName: teacherProfile?.firstName || teacher?.firstName || user.firstName || '',
+        lastName: teacherProfile?.lastName || teacher?.lastName || user.lastName || '',
+        email: teacherProfile?.email || teacher?.email || user.email || '',
+        phone: teacherProfile?.phone || teacher?.phone || '',
+        address: teacherProfile?.address || teacher?.address || '',
+        recoveryEmail: teacherProfile?.recoveryEmail || teacher?.recoveryEmail || '',
+        gender: teacherProfile?.gender || teacher?.gender || '',
+        dateOfBirth: teacherProfile?.dateOfBirth || teacher?.dateOfBirth || '',
+        nationalId: teacherProfile?.nationalId || teacher?.nationalId || ''
       };
 
       console.log('✅ Setting complete personal data:', newProfileData);
@@ -420,8 +421,8 @@ export default function TeacherProfile() {
                     <>
                       <Avatar className="h-24 w-24 mx-auto mb-4">
                         <AvatarImage src={
-                          teacher?.profileImageUrl || 
                           teacherProfile?.profileImageUrl || 
+                          teacher?.profileImageUrl || 
                           user.profileImageUrl ||
                           ''
                         } />
@@ -430,7 +431,7 @@ export default function TeacherProfile() {
                         </AvatarFallback>
                       </Avatar>
                       <h3 className="text-lg font-semibold">
-                        {profileData.firstName || user.firstName} {profileData.lastName || user.lastName}
+                        {teacherProfile?.firstName || profileData.firstName || user.firstName} {teacherProfile?.lastName || profileData.lastName || user.lastName}
                       </h3>
                       <p className="text-muted-foreground">Teacher</p>
                     </>
@@ -474,7 +475,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
-                      value={profileData.firstName || teacher?.firstName || teacherProfile?.firstName || user.firstName || ''}
+                      value={teacherProfile?.firstName || profileData.firstName || user.firstName || ''}
                       onChange={(e) => handleChange('firstName', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -483,7 +484,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
-                      value={profileData.lastName || teacher?.lastName || teacherProfile?.lastName || user.lastName || ''}
+                      value={teacherProfile?.lastName || profileData.lastName || user.lastName || ''}
                       onChange={(e) => handleChange('lastName', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -493,7 +494,7 @@ export default function TeacherProfile() {
                     <Input
                       id="email"
                       type="email"
-                      value={profileData.email || teacher?.email || teacherProfile?.email || user.email || ''}
+                      value={teacherProfile?.email || profileData.email || user.email || ''}
                       onChange={(e) => handleChange('email', e.target.value)}
                       disabled={true}
                       className="bg-muted"
@@ -504,7 +505,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
-                      value={profileData.phone || teacher?.phone || teacherProfile?.phone || ''}
+                      value={teacherProfile?.phone || profileData.phone || ''}
                       onChange={(e) => handleChange('phone', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -513,7 +514,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="gender">Gender</Label>
                     <Input
                       id="gender"
-                      value={profileData.gender || teacher?.gender || teacherProfile?.gender || ''}
+                      value={teacherProfile?.gender || profileData.gender || ''}
                       onChange={(e) => handleChange('gender', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -523,7 +524,7 @@ export default function TeacherProfile() {
                     <Input
                       id="dateOfBirth"
                       type="date"
-                      value={profileData.dateOfBirth || teacher?.dateOfBirth || teacherProfile?.dateOfBirth || ''}
+                      value={teacherProfile?.dateOfBirth || profileData.dateOfBirth || ''}
                       onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -532,7 +533,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="nationalId">National ID</Label>
                     <Input
                       id="nationalId"
-                      value={profileData.nationalId || teacher?.nationalId || teacherProfile?.nationalId || ''}
+                      value={teacherProfile?.nationalId || profileData.nationalId || ''}
                       onChange={(e) => handleChange('nationalId', e.target.value)}
                       disabled={!isEditing}
                       placeholder="e.g., 12345678901"
@@ -543,7 +544,7 @@ export default function TeacherProfile() {
                     <Label htmlFor="address">Address</Label>
                     <Input
                       id="address"
-                      value={profileData.address || teacher?.address || teacherProfile?.address || ''}
+                      value={teacherProfile?.address || profileData.address || ''}
                       onChange={(e) => handleChange('address', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -553,7 +554,7 @@ export default function TeacherProfile() {
                     <Input
                       id="recoveryEmail"
                       type="email"
-                      value={profileData.recoveryEmail || teacher?.recoveryEmail || teacherProfile?.recoveryEmail || ''}
+                      value={teacherProfile?.recoveryEmail || profileData.recoveryEmail || ''}
                       onChange={(e) => handleChange('recoveryEmail', e.target.value)}
                       disabled={!isEditing}
                       placeholder="alternate@email.com"
