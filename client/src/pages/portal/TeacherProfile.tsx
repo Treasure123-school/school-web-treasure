@@ -119,6 +119,20 @@ export default function TeacherProfile() {
     return Math.round((completed / total) * 100);
   };
 
+  // Check for missing critical fields
+  const getMissingCriticalFields = () => {
+    if (!teacherProfile) return [];
+    const missing = [];
+    
+    if (!teacherProfile.nationalId) missing.push({ field: 'National ID (NIN)', key: 'nationalId' });
+    if (!teacherProfile.profileImageUrl) missing.push({ field: 'Profile Image', key: 'profileImageUrl' });
+    if (!teacherProfile.phone) missing.push({ field: 'Phone Number', key: 'phone' });
+    if (!teacherProfile.gender) missing.push({ field: 'Gender', key: 'gender' });
+    if (!teacherProfile.dateOfBirth) missing.push({ field: 'Date of Birth', key: 'dateOfBirth' });
+    
+    return missing;
+  };
+
   const profileCompletion = calculateCompletion();
 
   // Initialize form data when teacher profile loads - ALL DATA IS IN teacherProfile
@@ -380,10 +394,10 @@ export default function TeacherProfile() {
                     if (!teacherProfile?.department) missing.push('Department');
                     if (!teacherProfile?.subjects?.length) missing.push('Subjects');
                     if (!teacherProfile?.assignedClasses?.length) missing.push('Classes');
-                    if (!teacher?.gender) missing.push('Gender');
-                    if (!teacher?.dateOfBirth) missing.push('Date of Birth');
-                    if (!teacher?.phone) missing.push('Phone');
-                    if (!teacher?.profileImageUrl) missing.push('Profile Photo');
+                    if (!teacherProfile?.gender) missing.push('Gender');
+                    if (!teacherProfile?.dateOfBirth) missing.push('Date of Birth');
+                    if (!teacherProfile?.phone) missing.push('Phone');
+                    if (!teacherProfile?.profileImageUrl) missing.push('Profile Photo');
                     if (!teacherProfile?.signatureUrl) missing.push('Digital Signature (Optional)');
 
                     return missing.length > 0 
@@ -392,6 +406,41 @@ export default function TeacherProfile() {
                   })()}
                 </p>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Critical Missing Fields Alert */}
+        {teacherProfile && getMissingCriticalFields().length > 0 && !isEditing && (
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950" data-testid="card-missing-fields">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-100">Complete Your Profile</h3>
+                  <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
+                    You're missing some important information:
+                  </p>
+                  <ul className="mt-2 text-sm text-orange-700 dark:text-orange-300 list-disc list-inside">
+                    {getMissingCriticalFields().map(item => (
+                      <li key={item.key}>{item.field}</li>
+                    ))}
+                  </ul>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 border-orange-300 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900"
+                    onClick={() => setIsEditing(true)}
+                    data-testid="button-complete-profile"
+                  >
+                    Complete Profile Now
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -426,10 +475,10 @@ export default function TeacherProfile() {
                       <Avatar className="h-24 w-24 mx-auto mb-4">
                         <AvatarImage 
                           src={teacherProfile?.profileImageUrl || profileData.profileImageUrl || ''} 
-                          alt={`${profileData.firstName} ${profileData.lastName}`}
+                          alt={`${profileData.firstName || user.firstName} ${profileData.lastName || user.lastName}`}
                         />
                         <AvatarFallback className="text-lg">
-                          {user.firstName[0]}{user.lastName[0]}
+                          {(profileData.firstName || user.firstName || 'U')[0].toUpperCase()}{(profileData.lastName || user.lastName || 'U')[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <h3 className="text-lg font-semibold">

@@ -1329,7 +1329,12 @@ export async function registerRoutes(app: Express): Server {
         assignedClasses: completeProfile.assignedClasses,
         subjectCount: completeProfile.subjects.length,
         classCount: completeProfile.assignedClasses.length,
-        staffId: profile.staffId
+        staffId: profile.staffId,
+        // DEBUG: Check if these critical fields are present (NOT logging sensitive data)
+        firstName: completeProfile.firstName,
+        lastName: completeProfile.lastName,
+        hasNationalId: !!completeProfile.nationalId,
+        hasProfileImage: !!completeProfile.profileImageUrl
       });
 
       res.json(completeProfile);
