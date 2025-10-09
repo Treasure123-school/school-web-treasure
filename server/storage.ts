@@ -599,15 +599,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
-    const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
-    const updatedUser = result[0];
-    if (updatedUser && updatedUser.id) {
-      const normalizedId = normalizeUuid(updatedUser.id);
-      if (normalizedId) {
-        updatedUser.id = normalizedId;
+    try {
+      const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
+      const updatedUser = result[0];
+      if (updatedUser && updatedUser.id) {
+        const normalizedId = normalizeUuid(updatedUser.id);
+        if (normalizedId) {
+          updatedUser.id = normalizedId;
+        }
       }
+      return updatedUser;
+    } catch (error: any) {
+      // Handle missing column errors by filtering out non-existent fields
+      if (error?.cause?.code === '42703') {
+        console.warn('⚠️ Some columns do not exist, retrying with safe fields only');
+        const safeFields: Partial<InsertUser> = {};
+        const existingColumns = ['email', 'passwordHash', 'roleId', 'firstName', 'lastName', 
+          'phone', 'address', 'dateOfBirth', 'gender', 'profileImageUrl', 'isActive', 
+          'authProvider', 'googleId', 'status', 'createdVia', 'mustChangePassword'];
+        
+        for (const [key, value] of Object.entries(user)) {
+          if (existingColumns.includes(key) && value !== undefined) {
+            (safeFields as any)[key] = value;
+          }
+        }
+        
+        const result = await this.db.update(schema.users).set(safeFields).where(eq(schema.users.id, id)).returning();
+        const updatedUser = result[0];
+        if (updatedUser && updatedUser.id) {
+          const normalizedId = normalizeUuid(updatedUser.id);
+          if (normalizedId) {
+            updatedUser.id = normalizedId;
+          }
+        }
+        return updatedUser;
+      }
+      throw error;
     }
-    return updatedUser;
   }
 
   async updateUserGoogleId(userId: string, googleId: string): Promise<User | undefined> {
