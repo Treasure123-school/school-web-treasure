@@ -55,7 +55,7 @@ export default function TeacherProfile() {
     return <div>Please log in to access your profile.</div>;
   }
 
-  const { data: teacher, isLoading } = useQuery({
+  const { data: teacher, isLoading: teacherLoading, error: teacherError } = useQuery({
     queryKey: ['teacher', user.id],
     queryFn: async () => {
       const response = await fetch(`/api/users/${user.id}`, {
@@ -67,22 +67,24 @@ export default function TeacherProfile() {
   });
 
   // Fetch teacher professional profile
-  const { data: teacherProfile } = useQuery<TeacherProfile>({
+  const { data: teacherProfile, isLoading: teacherProfileLoading } = useQuery<TeacherProfile>({
     queryKey: ['/api/teacher/profile/me'],
     enabled: !!user
   });
 
   // Fetch classes for display
-  const { data: classes = [] } = useQuery<Class[]>({
+  const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
     enabled: !!user
   });
 
   // Fetch subjects for display
-  const { data: subjects = [] } = useQuery<any[]>({
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<any[]>({
     queryKey: ['/api/subjects'],
     enabled: !!user
   });
+
+  const isLoading = teacherLoading || teacherProfileLoading || classesLoading || subjectsLoading;
 
   // Calculate profile completion percentage
   const calculateCompletion = () => {
@@ -98,18 +100,18 @@ export default function TeacherProfile() {
     if (teacherProfile.subjects && teacherProfile.subjects.length > 0) completed++;
     if (teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0) completed++;
     if (teacherProfile.department) completed++;
-    
+
     // Personal fields (from setup)
     if (teacher.gender) completed++;
     if (teacher.dateOfBirth) completed++;
     if (teacher.phone) completed++;
     if (teacher.profileImageUrl) completed++;
-    
+
     // Operational preferences (from setup)
     if (teacherProfile.gradingMode) completed++;
     if (teacherProfile.notificationPreference) completed++;
     if (teacherProfile.availability) completed++;
-    
+
     // Optional: Digital signature (bonus for 100%)
     if (teacherProfile.signatureUrl) completed++;
 
@@ -142,7 +144,7 @@ export default function TeacherProfile() {
       const subjectsArray = Array.isArray(teacherProfile.subjects) 
         ? teacherProfile.subjects 
         : teacherProfile.subjects ? [teacherProfile.subjects] : [];
-      
+
       // Handle assignedClasses - ensure it's always an array
       const classesArray = Array.isArray(teacherProfile.assignedClasses) 
         ? teacherProfile.assignedClasses 
@@ -179,13 +181,13 @@ export default function TeacherProfile() {
       if (profileImageFile) {
         const imageFormData = new FormData();
         imageFormData.append('profileImage', profileImageFile);
-        
+
         const imageResponse = await fetch('/api/upload/profile', {
           method: 'POST',
           credentials: 'include',
           body: imageFormData
         });
-        
+
         if (!imageResponse.ok) {
           throw new Error('Failed to upload profile image');
         }
@@ -195,13 +197,13 @@ export default function TeacherProfile() {
       if (signatureFile) {
         const sigFormData = new FormData();
         sigFormData.append('signature', signatureFile);
-        
+
         const sigResponse = await fetch('/api/upload/signature', {
           method: 'POST',
           credentials: 'include',
           body: sigFormData
         });
-        
+
         if (!sigResponse.ok) {
           throw new Error('Failed to upload signature');
         }
@@ -269,6 +271,34 @@ export default function TeacherProfile() {
     setProfessionalData(prev => ({ ...prev, [field]: value }));
   };
 
+  if (isLoading) {
+    return (
+      <PortalLayout
+        userRole="teacher"
+        userName={`${user.firstName} ${user.lastName}`}
+        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
+      >
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">Loading profile...</div>
+          </CardContent>
+        </Card>
+      </PortalLayout>
+    );
+  }
+
+  if (teacherError) {
+    console.error('Teacher data error:', teacherError);
+  }
+
+  // Debug: Log current state
+  console.log('Profile render state:', {
+    hasTeacher: !!teacher,
+    hasTeacherProfile: !!teacherProfile,
+    profileData,
+    teacherData: teacher
+  });
+
   return (
     <PortalLayout
       userRole="teacher"
@@ -334,7 +364,7 @@ export default function TeacherProfile() {
                     if (!teacher?.phone) missing.push('Phone');
                     if (!teacher?.profileImageUrl) missing.push('Profile Photo');
                     if (!teacherProfile?.signatureUrl) missing.push('Digital Signature (Optional)');
-                    
+
                     return missing.length > 0 
                       ? `Missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` +${missing.length - 3} more` : ''}`
                       : 'Complete your profile to reach 100%';
@@ -614,7 +644,7 @@ export default function TeacherProfile() {
                     <BookOpen className="h-5 w-5" />
                     <span>Teaching Assignments</span>
                   </CardTitle>
-                  <CardDescription>Subjects and classes you teach</CardDescription>
+                  <CardDescription>Your subjects and classes you teach</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -722,7 +752,7 @@ export default function TeacherProfile() {
                   </div>
 
                   <Separator />
-                  
+
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Digital Signature</Label>
                     {isEditing ? (

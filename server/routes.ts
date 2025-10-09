@@ -1302,7 +1302,7 @@ export async function registerRoutes(app: Express): Server {
         specialization: profile.specialization,
         verified: profile.verified,
         firstLogin: profile.firstLogin,
-        
+
         // User fields
         firstName: user?.firstName,
         lastName: user?.lastName,
@@ -1311,7 +1311,7 @@ export async function registerRoutes(app: Express): Server {
         gender: user?.gender,
         dateOfBirth: user?.dateOfBirth,
         profileImageUrl: user?.profileImageUrl,
-        
+
         // Additional profile fields
         gradingMode: profile.gradingMode,
         notificationPreference: profile.notificationPreference,
@@ -4427,6 +4427,8 @@ Treasure-Home School Administration
               return res.status(400).json({ message: "Selected parent does not exist. Please select a valid parent." });
             }
             return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
+          case '22007': // Invalid datetime format
+            return res.status(400).json({ message: "Invalid date format. Please use YYYY-MM-DD format." });
           case '23505': // Unique violation
             if ((error as any).message.includes('email')) {
               return res.status(409).json({ message: "Email address already exists" });
@@ -6579,6 +6581,8 @@ Treasure-Home School Administration
         }
         if (dbError.code === '23505') { // Unique violation
           return res.status(409).json({ message: "Session already exists for this exam" });
+        } else if (dbError.code === 'ECONNRESET' || dbError.code === 'ETIMEDOUT') {
+          return res.status(408).json({ message: "Database connection timeout. Please try again." });
         }
       }
 
@@ -7185,8 +7189,8 @@ Treasure-Home School Administration
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const examResults = await storage.getExamResultsByStudent(studentId);
-      res.json(examResults);
+      const reportCards = await storage.getReportCardsByStudentId(studentId);
+      res.json(reportCards);
     } catch (error) {
       console.error('Error fetching report cards:', error);
       res.status(500).json({ message: "Failed to fetch report cards" });
