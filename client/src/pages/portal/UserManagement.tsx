@@ -172,8 +172,8 @@ export default function UserManagement() {
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
         title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
@@ -225,8 +225,8 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
 
       toast({
         title: "✓ Status Updated",
@@ -278,8 +278,8 @@ export default function UserManagement() {
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
         title: "✓ User Deleted",
         description: data?.message || "The user has been permanently removed from the system.",
@@ -342,7 +342,7 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
         title: "✓ Password Reset",
         description: data?.message || "User password has been reset successfully.",
@@ -392,7 +392,7 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
         title: "✓ Role Changed",
         description: data?.message || "User role has been updated successfully.",
@@ -446,7 +446,7 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
         title: "✓ Recovery Email Updated",
         description: data?.message || "Recovery email has been updated successfully.",
@@ -512,8 +512,8 @@ export default function UserManagement() {
     },
     onSuccess: async (data: any, variables) => {
       // Force immediate refetch for instant UI update
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action === 'verify' ? 'verified' : 'unverified'}.`,
@@ -555,8 +555,8 @@ export default function UserManagement() {
     },
     onSuccess: async (data: any, variables) => {
       // Force immediate refetch for instant UI update
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action}ed.`,

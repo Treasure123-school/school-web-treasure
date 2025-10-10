@@ -78,8 +78,8 @@ export default function PendingApprovals() {
       return { previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
         title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
@@ -127,8 +127,8 @@ export default function PendingApprovals() {
       return { previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
         title: "✓ User Rejected",
         description: data?.message || "The user account has been rejected successfully.",
@@ -196,8 +196,8 @@ export default function PendingApprovals() {
       return { previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
         title: "✓ Bulk Approval Complete",
         description: `Successfully approved ${data.succeeded.length} user(s).`,
@@ -213,8 +213,8 @@ export default function PendingApprovals() {
       }
       
       // Then refetch to reconcile with actual server state
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       
       // ALWAYS clear selection to prevent confusion
       setSelectedUsers(new Set());
