@@ -210,119 +210,87 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
-      let uploadedImageUrl = profileData.profileImageUrl;
-      let uploadedSignatureUrl = professionalData.signatureUrl;
+      // Create FormData to handle both file uploads and text data
+      const formData = new FormData();
 
-      // Upload profile image if changed
+      // Add profile image if changed
       if (profileImageFile) {
-        const imageFormData = new FormData();
-        imageFormData.append('file', profileImageFile);
-        imageFormData.append('uploadType', 'profile');
-
-        const imageResponse = await fetch('/api/upload', {
-          method: 'POST',
-          credentials: 'include',
-          body: imageFormData
-        });
-
-        if (!imageResponse.ok) {
-          throw new Error('Failed to upload profile image');
-        }
-
-        const imageData = await imageResponse.json();
-        uploadedImageUrl = imageData.url;
+        formData.append('profileImage', profileImageFile);
       }
 
-      // Upload signature if changed
+      // Add signature if changed
       if (signatureFile) {
-        const sigFormData = new FormData();
-        sigFormData.append('file', signatureFile);
-        sigFormData.append('uploadType', 'profile');
-
-        const sigResponse = await fetch('/api/upload', {
-          method: 'POST',
-          credentials: 'include',
-          body: sigFormData
-        });
-
-        if (!sigResponse.ok) {
-          throw new Error('Failed to upload signature');
-        }
-
-        const sigData = await sigResponse.json();
-        uploadedSignatureUrl = sigData.url;
+        formData.append('signature', signatureFile);
       }
 
-      // Update user data (personal info)
-      const userUpdateData = {
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        phone: profileData.phone || null,
-        address: profileData.address || null,
-        recoveryEmail: profileData.recoveryEmail || null,
-        gender: profileData.gender || null,
-        dateOfBirth: profileData.dateOfBirth || null,
-        nationalId: profileData.nationalId || null,
-        profileImageUrl: uploadedImageUrl || null
-      };
+      // Add all personal data
+      formData.append('firstName', profileData.firstName);
+      formData.append('lastName', profileData.lastName);
+      formData.append('email', profileData.email);
+      formData.append('phone', profileData.phone || '');
+      formData.append('address', profileData.address || '');
+      formData.append('recoveryEmail', profileData.recoveryEmail || '');
+      formData.append('gender', profileData.gender || '');
+      formData.append('dateOfBirth', profileData.dateOfBirth || '');
+      formData.append('nationalId', profileData.nationalId || '');
 
-      const userResponse = await fetch(`/api/users/${user.id}`, {
+      // Add professional data
+      formData.append('qualification', professionalData.qualification || '');
+      formData.append('specialization', professionalData.specialization || '');
+      formData.append('yearsOfExperience', String(professionalData.yearsOfExperience || 0));
+      formData.append('department', professionalData.department || '');
+      formData.append('gradingMode', professionalData.gradingMode || 'manual');
+      formData.append('notificationPreference', professionalData.notificationPreference || 'all');
+      formData.append('availability', professionalData.availability || 'full-time');
+      
+      // Add arrays as JSON strings
+      formData.append('subjects', JSON.stringify(professionalData.subjects || []));
+      formData.append('assignedClasses', JSON.stringify(professionalData.assignedClasses || []));
+
+      // Add current URLs if no new files uploaded
+      if (!profileImageFile && profileData.profileImageUrl) {
+        formData.append('profileImageUrl', profileData.profileImageUrl);
+      }
+      if (!signatureFile && professionalData.signatureUrl) {
+        formData.append('signatureUrl', professionalData.signatureUrl);
+      }
+
+      // Send update request
+      const response = await fetch('/api/teacher/profile/me', {
         method: 'PUT',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(userUpdateData)
+        body: formData
       });
 
-      if (!userResponse.ok) {
-        const errorText = await userResponse.text();
-        console.error('User update error:', errorText);
-        throw new Error('Failed to update personal information');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
       }
 
-      // Update teacher profile (professional info)
-      const profileUpdateData = {
-        userId: user.id,
-        qualification: professionalData.qualification || null,
-        specialization: professionalData.specialization || null,
-        yearsOfExperience: professionalData.yearsOfExperience || 0,
-        department: professionalData.department || null,
-        gradingMode: professionalData.gradingMode || 'manual',
-        notificationPreference: professionalData.notificationPreference || 'all',
-        availability: professionalData.availability || 'full-time',
-        subjects: professionalData.subjects || [],
-        assignedClasses: professionalData.assignedClasses || [],
-        signatureUrl: uploadedSignatureUrl || null
-      };
-
-      const profileResponse = await fetch('/api/teacher/profile', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(profileUpdateData)
-      });
-
-      if (!profileResponse.ok) {
-        const errorText = await profileResponse.text();
-        console.error('Profile update error:', errorText);
-        throw new Error('Failed to update professional information');
-      }
+      const result = await response.json();
 
       toast({
-        title: "Profile Updated",
+        title: "✅ Profile Updated",
         description: "Your profile has been updated successfully.",
       });
 
+      // Clear file inputs
+      setProfileImageFile(null);
+      setSignatureFile(null);
+      
       setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+      
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
-        title: "Update Failed",
+        title: "❌ Update Failed",
         description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
         variant: "destructive",
       });

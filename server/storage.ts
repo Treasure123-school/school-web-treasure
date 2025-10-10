@@ -12,7 +12,7 @@ import type {
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
   StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent,
   TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem,
-  Notification, InsertNotification
+  Notification, InsertNotification, TeacherProfile
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
@@ -614,10 +614,10 @@ export class DatabaseStorage implements IStorage {
       if (error?.cause?.code === '42703') {
         const missingColumn = error?.cause?.message?.match(/column "(\w+)" does not exist/)?.[1];
         console.warn(`⚠️ Column "${missingColumn}" does not exist, retrying without it`);
-        
+
         // Remove the problematic field and retry
         const { [missingColumn]: removed, ...safeUser } = user as any;
-        
+
         // If we removed the field, retry the update
         if (Object.keys(safeUser).length > 0) {
           const result = await this.db.update(schema.users).set(safeUser).where(eq(schema.users.id, id)).returning();
@@ -985,6 +985,14 @@ export class DatabaseStorage implements IStorage {
     return profile || null;
   }
 
+  async updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined> {
+    const result = await this.db.update(schema.teacherProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(schema.teacherProfiles.userId, userId))
+      .returning();
+    return result[0];
+  }
+
   async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
     const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
     return profile || null;
@@ -998,14 +1006,6 @@ export class DatabaseStorage implements IStorage {
   async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
     const result = await this.db.insert(schema.teacherProfiles)
       .values(profile)
-      .returning();
-    return result[0];
-  }
-
-  async updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined> {
-    const result = await this.db.update(schema.teacherProfiles)
-      .set({ ...profile, updatedAt: new Date() })
-      .where(eq(schema.teacherProfiles.userId, userId))
       .returning();
     return result[0];
   }

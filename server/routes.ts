@@ -1355,6 +1355,114 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update teacher profile (PUT endpoint for editing)
+  app.put('/api/teacher/profile/me', authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'signature', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      console.log('📝 PROFILE UPDATE REQUEST:', {
+        teacherId,
+        hasFiles: Object.keys(files || {}).length,
+        bodyKeys: Object.keys(req.body)
+      });
+
+      // Parse the update data
+      const updateData = req.body;
+
+      // Handle file uploads
+      let profileImageUrl = updateData.profileImageUrl;
+      let signatureUrl = updateData.signatureUrl;
+
+      if (files['profileImage']?.[0]) {
+        profileImageUrl = `/${files['profileImage'][0].path.replace(/\\/g, '/')}`;
+        console.log('📸 New profile image uploaded:', profileImageUrl);
+      }
+
+      if (files['signature']?.[0]) {
+        signatureUrl = `/${files['signature'][0].path.replace(/\\/g, '/')}`;
+        console.log('✍️ New signature uploaded:', signatureUrl);
+      }
+
+      // Parse JSON fields
+      const subjects = typeof updateData.subjects === 'string' ? JSON.parse(updateData.subjects) : updateData.subjects;
+      const assignedClasses = typeof updateData.assignedClasses === 'string' ? JSON.parse(updateData.assignedClasses) : updateData.assignedClasses;
+
+      // Update user table (personal information)
+      const userUpdateData: any = {
+        firstName: updateData.firstName,
+        lastName: updateData.lastName,
+        phone: updateData.phone || null,
+        address: updateData.address || null,
+        recoveryEmail: updateData.recoveryEmail || null,
+        gender: updateData.gender || null,
+        dateOfBirth: updateData.dateOfBirth || null,
+        nationalId: updateData.nationalId || null,
+      };
+
+      if (profileImageUrl) {
+        userUpdateData.profileImageUrl = profileImageUrl;
+      }
+
+      await storage.updateUser(teacherId, userUpdateData);
+      console.log('✅ User data updated successfully');
+
+      // Update teacher profile table (professional information)
+      const profileUpdateData: any = {
+        qualification: updateData.qualification || null,
+        specialization: updateData.specialization || null,
+        yearsOfExperience: parseInt(updateData.yearsOfExperience) || 0,
+        department: updateData.department || null,
+        gradingMode: updateData.gradingMode || 'manual',
+        notificationPreference: updateData.notificationPreference || 'all',
+        availability: updateData.availability || 'full-time',
+        subjects: subjects || [],
+        assignedClasses: assignedClasses || [],
+        updatedAt: new Date()
+      };
+
+      if (signatureUrl) {
+        profileUpdateData.signatureUrl = signatureUrl;
+      }
+
+      await storage.updateTeacherProfile(teacherId, profileUpdateData);
+      console.log('✅ Teacher profile updated successfully');
+
+      // Fetch and return updated profile
+      const updatedProfile = await storage.getTeacherProfile(teacherId);
+      const updatedUser = await storage.getUser(teacherId);
+
+      const completeProfile = {
+        ...updatedProfile,
+        firstName: updatedUser?.firstName,
+        lastName: updatedUser?.lastName,
+        email: updatedUser?.email,
+        phone: updatedUser?.phone,
+        gender: updatedUser?.gender,
+        dateOfBirth: updatedUser?.dateOfBirth,
+        nationalId: updatedUser?.nationalId,
+        address: updatedUser?.address,
+        recoveryEmail: updatedUser?.recoveryEmail,
+        profileImageUrl: updatedUser?.profileImageUrl,
+      };
+
+      res.json({
+        message: 'Profile updated successfully',
+        profile: completeProfile
+      });
+
+    } catch (error) {
+      console.error('❌ PROFILE UPDATE ERROR:', error);
+      res.status(500).json({ 
+        message: 'Failed to update profile', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   // Get teacher overview for admin dashboard (with auto-verified indicator)
   app.get('/api/admin/teachers/overview', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
