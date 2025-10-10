@@ -81,10 +81,11 @@ Preferred communication style: Simple, everyday language.
    - Optimistic updates provide instant UI feedback while refetch happens in background
 
 3. **Enhanced Error Handling & Server-Side Retry Logic**:
-   - Server-side retry logic with exponential backoff (3 attempts max) for delete operations
+   - Server-side retry logic with TRUE exponential backoff (100ms → 200ms → 400ms) for delete operations
+   - Only retries transient errors (ECONNRESET, timeouts); permanent errors (RLS, foreign keys) fail fast
    - Comprehensive error detection for Supabase RLS permission issues
    - Verification step after delete to ensure operation succeeded
-   - Detailed logging with emoji indicators for easy debugging
+   - Detailed logging with emoji indicators and backoff duration for easy debugging
 
 4. **Improved User Feedback**:
    - Specific error messages for RLS permission errors
