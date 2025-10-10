@@ -48,13 +48,12 @@ export default function PendingApprovals() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [signupMethodFilter, setSignupMethodFilter] = useState<string>("all");
 
-  // Fetch pending users with INSTANT REFRESH settings + BACKGROUND POLLING
+  // Fetch pending users with BALANCED refresh settings
   const { data: pendingUsers = [], isLoading } = useQuery<PendingUser[]>({
     queryKey: ['/api/users/pending'],
-    staleTime: 0, // Always fresh - no stale data allowed
+    staleTime: 3000, // 3 seconds - avoid excessive refetches
     refetchOnWindowFocus: true,
-    refetchOnMount: 'always', // Always refetch on mount
-    refetchInterval: 5000, // BACKGROUND POLLING: Auto-refetch every 5 seconds to ensure data consistency
+    refetchOnMount: true, // Fetch on mount
   });
 
   // Approve user mutation with OPTIMISTIC UPDATES
@@ -81,8 +80,8 @@ export default function PendingApprovals() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' })
       ]);
       
       toast({
@@ -134,8 +133,8 @@ export default function PendingApprovals() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' })
       ]);
       
       toast({
@@ -207,8 +206,8 @@ export default function PendingApprovals() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' })
       ]);
       
       toast({

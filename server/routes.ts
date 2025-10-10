@@ -3541,9 +3541,11 @@ Treasure-Home School Administration
             break;
           }
           
-          // Wait before retry (exponential backoff)
+          // Wait before retry (TRUE exponential backoff: 100ms, 200ms, 400ms)
           if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+            const backoffMs = 100 * Math.pow(2, attempt - 1);
+            console.log(`⏱️ RETRY BACKOFF: Waiting ${backoffMs}ms before attempt ${attempt + 1}`);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
           }
         }
       }

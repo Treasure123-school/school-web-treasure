@@ -112,23 +112,21 @@ export default function UserManagement() {
   const [suspendReason, setSuspendReason] = useState('');
   const [deleteDialog, setDeleteDialog] = useState(false);
 
-  // Fetch all users with INSTANT REFRESH settings + BACKGROUND POLLING
+  // Fetch all users with BALANCED refresh settings
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
-    staleTime: 0, // Always fresh - no stale data allowed
+    staleTime: 3000, // 3 seconds - avoid excessive refetches
     gcTime: 5 * 60 * 1000, // 5 minutes cache
-    refetchOnWindowFocus: true, // Always get fresh data on focus
-    refetchOnMount: 'always', // Always refetch on mount
-    refetchInterval: 5000, // BACKGROUND POLLING: Auto-refetch every 5 seconds to ensure data consistency
+    refetchOnWindowFocus: true, // Refresh when user returns to tab
+    refetchOnMount: true, // Fetch on component mount
   });
 
-  // Fetch pending users for count with INSTANT REFRESH settings + BACKGROUND POLLING
+  // Fetch pending users for count with BALANCED refresh settings
   const { data: pendingUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users/pending'],
-    staleTime: 0, // Always fresh - no stale data allowed
+    staleTime: 3000, // 3 seconds - avoid excessive refetches
     refetchOnWindowFocus: true,
-    refetchOnMount: 'always', // Always refetch on mount
-    refetchInterval: 5000, // BACKGROUND POLLING: Auto-refetch every 5 seconds
+    refetchOnMount: true,
   });
 
   // Fetch roles for role change dialog with LONG cache (roles don't change often)
@@ -176,8 +174,8 @@ export default function UserManagement() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
       
       toast({
@@ -233,8 +231,8 @@ export default function UserManagement() {
     onSuccess: async (data: any, variables) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
 
       toast({
@@ -289,8 +287,8 @@ export default function UserManagement() {
     onSuccess: async (data: any, userId) => {
       // Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
       
       toast({
@@ -357,7 +355,7 @@ export default function UserManagement() {
     },
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       
       toast({
         title: "✓ Password Reset",
@@ -409,7 +407,7 @@ export default function UserManagement() {
     },
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       
       toast({
         title: "✓ Role Changed",
@@ -465,7 +463,7 @@ export default function UserManagement() {
     },
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       
       toast({
         title: "✓ Recovery Email Updated",
@@ -533,8 +531,8 @@ export default function UserManagement() {
     onSuccess: async (data: any, variables) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
       
       toast({
@@ -579,8 +577,8 @@ export default function UserManagement() {
     onSuccess: async (data: any, variables) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
       
       toast({
