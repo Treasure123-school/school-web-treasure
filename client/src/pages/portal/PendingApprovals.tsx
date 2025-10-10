@@ -77,9 +77,13 @@ export default function PendingApprovals() {
 
       return { previousPendingUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' })
+      ]);
+      
       toast({
         title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
@@ -126,9 +130,13 @@ export default function PendingApprovals() {
 
       return { previousPendingUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' })
+      ]);
+      
       toast({
         title: "✓ User Rejected",
         description: data?.message || "The user account has been rejected successfully.",
@@ -195,9 +203,13 @@ export default function PendingApprovals() {
 
       return { previousPendingUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' })
+      ]);
+      
       toast({
         title: "✓ Bulk Approval Complete",
         description: `Successfully approved ${data.succeeded.length} user(s).`,

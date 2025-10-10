@@ -171,9 +171,13 @@ export default function UserManagement() {
 
       return { previousUsers, previousPendingUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+      ]);
+      
       toast({
         title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
@@ -224,9 +228,12 @@ export default function UserManagement() {
 
       return { previousUsers };
     },
-    onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+    onSuccess: async (data: any, variables) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+      ]);
 
       toast({
         title: "✓ Status Updated",
@@ -346,8 +353,10 @@ export default function UserManagement() {
 
       return { previousUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' });
+      
       toast({
         title: "✓ Password Reset",
         description: data?.message || "User password has been reset successfully.",
@@ -396,8 +405,10 @@ export default function UserManagement() {
 
       return { previousUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' });
+      
       toast({
         title: "✓ Role Changed",
         description: data?.message || "User role has been updated successfully.",
@@ -450,8 +461,10 @@ export default function UserManagement() {
 
       return { previousUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    onSuccess: async (data: any) => {
+      // AGGRESSIVE REFETCH: Force immediate background refetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' });
+      
       toast({
         title: "✓ Recovery Email Updated",
         description: data?.message || "Recovery email has been updated successfully.",
@@ -516,9 +529,12 @@ export default function UserManagement() {
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: async (data: any, variables) => {
-      // Force immediate refetch for instant UI update
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+      ]);
+      
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action === 'verify' ? 'verified' : 'unverified'}.`,
@@ -559,9 +575,12 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: async (data: any, variables) => {
-      // Force immediate refetch for instant UI update
-      await queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+      ]);
+      
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action}ed.`,
