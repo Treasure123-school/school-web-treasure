@@ -3478,8 +3478,10 @@ Treasure-Home School Administration
     }
   });
 
-  // Delete user (permanent removal - Admin only) - OPTIMIZED for instant response
+  // Delete user (permanent removal - Admin only) - ENHANCED with retry logic and comprehensive error handling
   app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    const startTime = Date.now();
+    
     try {
       const { id } = req.params;
       const adminUser = req.user;
@@ -3488,30 +3490,101 @@ Treasure-Home School Administration
         return res.status(401).json({ message: "Not authenticated" });
       }
 
+      console.log(`🗑️ DELETE REQUEST: Admin ${adminUser.email} attempting to delete user ${id}`);
+
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
+        console.warn(`❌ DELETE FAILED: User ${id} not found`);
         return res.status(404).json({ message: "User not found" });
       }
 
       // Prevent deleting your own account
       if (user.id === adminUser.id) {
+        console.warn(`❌ DELETE BLOCKED: Admin attempted to delete own account`);
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
 
-      // Delete the user - this will CASCADE delete related records
-      const deleted = await storage.deleteUser(id);
+      console.log(`📋 DELETING USER: ${user.email || user.username} (ID: ${id}, Role: ${user.roleId})`);
+
+      // RETRY LOGIC: Attempt delete with retries for transient errors
+      let deleted = false;
+      let lastError = null;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔄 DELETE ATTEMPT ${attempt}/${maxRetries} for user ${id}`);
+          deleted = await storage.deleteUser(id);
+          
+          if (deleted) {
+            console.log(`✅ DELETE SUCCESS on attempt ${attempt}: User ${id} deleted in ${Date.now() - startTime}ms`);
+            break;
+          } else {
+            console.warn(`⚠️ DELETE RETURNED FALSE on attempt ${attempt}: User ${id}`);
+          }
+        } catch (deleteError: any) {
+          lastError = deleteError;
+          console.error(`❌ DELETE ERROR on attempt ${attempt}:`, deleteError);
+          
+          // Check for Supabase RLS or permission errors
+          if (deleteError?.code === '42501' || deleteError?.message?.includes('permission denied')) {
+            console.error(`🚫 RLS/PERMISSION ERROR: Supabase Row Level Security may be blocking delete for user ${id}`);
+            return res.status(403).json({
+              message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
+              technicalDetails: "RLS_PERMISSION_DENIED"
+            });
+          }
+          
+          // If it's not a transient error, break the retry loop
+          if (deleteError?.code !== 'ECONNRESET' && !deleteError?.message?.includes('timeout')) {
+            break;
+          }
+          
+          // Wait before retry (exponential backoff)
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+          }
+        }
+      }
 
       if (!deleted) {
-        return res.status(500).json({ message: "Failed to delete user" });
+        const errorMsg = lastError?.message || "Unknown error";
+        console.error(`❌ DELETE FAILED AFTER ${maxRetries} ATTEMPTS: ${errorMsg}`);
+        
+        // Provide specific error messages
+        if (lastError?.cause?.code === '23503' || errorMsg.includes('foreign key constraint')) {
+          const relatedTable = lastError?.cause?.table_name || 'related records';
+          return res.status(409).json({
+            message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead.`,
+            technicalDetails: "FOREIGN_KEY_CONSTRAINT"
+          });
+        }
+        
+        return res.status(500).json({ 
+          message: "Failed to delete user after multiple attempts",
+          technicalDetails: errorMsg
+        });
       }
+
+      // Verify deletion was successful
+      const verifyUser = await storage.getUser(id);
+      if (verifyUser) {
+        console.error(`🚨 CRITICAL: User ${id} still exists after delete operation! Possible RLS issue.`);
+        return res.status(500).json({
+          message: "Delete operation completed but user still exists. This may be a database policy issue.",
+          technicalDetails: "DELETE_VERIFICATION_FAILED"
+        });
+      }
+
+      console.log(`🎉 DELETE VERIFIED: User ${id} successfully removed from database`);
 
       // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
         userId: adminUser.id,
         action: 'user_deleted',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: BigInt(0),
         oldValue: JSON.stringify({
           userId: user.id,
           email: user.email,
@@ -3524,19 +3597,23 @@ Treasure-Home School Administration
         userAgent: req.headers['user-agent']
       }).catch(err => console.error('Audit log failed (non-critical):', err));
 
-      res.json({ message: "User deleted successfully" }); // Return JSON for instant response
+      const totalTime = Date.now() - startTime;
+      console.log(`⚡ DELETE COMPLETED in ${totalTime}ms`);
+      
+      res.json({ 
+        message: "User deleted successfully",
+        deletedUserId: id,
+        executionTime: `${totalTime}ms`
+      });
     } catch (error: any) {
-      console.error('Error deleting user:', error);
+      const totalTime = Date.now() - startTime;
+      console.error(`💥 UNEXPECTED DELETE ERROR after ${totalTime}ms:`, error);
+      console.error('Error stack:', error.stack);
 
-      // Handle foreign key constraint errors with clear message
-      if (error?.cause?.code === '23503' || error?.message?.includes('foreign key constraint')) {
-        const relatedTable = error?.cause?.table_name || 'related records';
-        return res.status(409).json({
-          message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead of deleting it.`
-        });
-      }
-
-      res.status(500).json({ message: "Failed to delete user" });
+      res.status(500).json({ 
+        message: "An unexpected error occurred while deleting user",
+        technicalDetails: error.message
+      });
     }
   });
 
