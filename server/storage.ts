@@ -600,7 +600,9 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
     try {
+      console.log('🔍 Storage.updateUser received:', JSON.stringify({ id, user }, null, 2));
       const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
+      console.log('🔍 Storage.updateUser DB result:', JSON.stringify(result, null, 2));
       const updatedUser = result[0];
       if (updatedUser && updatedUser.id) {
         const normalizedId = normalizeUuid(updatedUser.id);

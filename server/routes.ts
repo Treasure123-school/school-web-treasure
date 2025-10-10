@@ -1407,8 +1407,10 @@ export async function registerRoutes(app: Express): Server {
         userUpdateData.profileImageUrl = profileImageUrl;
       }
 
-      await storage.updateUser(teacherId, userUpdateData);
+      console.log('🔍 About to update user with data:', JSON.stringify(userUpdateData, null, 2));
+      const updatedUserResult = await storage.updateUser(teacherId, userUpdateData);
       console.log('✅ User data updated successfully');
+      console.log('🔍 Updated user result:', JSON.stringify(updatedUserResult, null, 2));
 
       // Update teacher profile table (professional information)
       const profileUpdateData: any = {
