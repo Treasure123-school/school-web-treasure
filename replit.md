@@ -57,6 +57,24 @@ Preferred communication style: Simple, everyday language.
     - **Scoring**: Auto-scoring for MCQs/true/false, manual grading for essays, score merging.
     - **Reporting**: Report cards combining test and exam scores, comprehensive analytics.
 
+## Recent Changes
+
+### October 10, 2025 - User Management Performance Fix
+**Issue**: Admin user management operations (delete, suspend, verify, approve/reject) were not persisting properly. Users would reappear after deletion, suspended users would auto-unsuspend, and changes would "undo themselves."
+
+**Root Cause**: Cache invalidation using `refetchType: 'active'` in TanStack Query only refetches mounted queries. When queries weren't active, stale cached data persisted and overwrote optimistic updates when components remounted.
+
+**Solution**: 
+- Removed all `refetchType: 'active'` parameters from `invalidateQueries` calls in UserManagement.tsx and PendingApprovals.tsx
+- Now uses default TanStack Query behavior: refetch all matching queries regardless of mount status
+- Optimistic updates and error rollback logic remain intact for instant UI feedback
+
+**Files Changed**:
+- `client/src/pages/portal/UserManagement.tsx` - All mutation invalidations
+- `client/src/pages/portal/PendingApprovals.tsx` - All mutation invalidations
+
+**Result**: All user management operations now persist correctly with instant UI updates.
+
 ## External Dependencies
 
 ### Core Framework Dependencies
