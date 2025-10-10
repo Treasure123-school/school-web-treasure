@@ -214,11 +214,13 @@ export default function UserManagement() {
     onMutate: async ({ userId, status }) => {
       // INSTANT FEEDBACK: Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
 
       // INSTANT FEEDBACK: Snapshot previous values
       const previousUsers = queryClient.getQueryData(['/api/users']);
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
 
-      // INSTANT FEEDBACK: Optimistically update status
+      // INSTANT FEEDBACK: Optimistically update status in both caches
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) => 
@@ -226,7 +228,17 @@ export default function UserManagement() {
         );
       });
 
-      return { previousUsers };
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        if (status === 'active') {
+          return old.filter((user: any) => user.id !== userId);
+        }
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, status } : user
+        );
+      });
+
+      return { previousUsers, previousPendingUsers };
     },
     onSuccess: async (data: any, variables) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
@@ -247,6 +259,9 @@ export default function UserManagement() {
       // ROLLBACK: Restore previous state on error
       if (context?.previousUsers) {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
       toast({
         title: "✗ Status Update Failed",

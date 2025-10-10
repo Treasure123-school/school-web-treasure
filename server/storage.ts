@@ -647,16 +647,89 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      // Database CASCADE constraints now handle all related deletions automatically
-      // CASCADE DELETE: students, teacherProfiles, adminProfiles, parentProfiles, 
-      //                 examSessions, examResults, attendance, notifications, 
-      //                 passwordResetTokens, teacherClassAssignments, reportCards
-      // SET NULL: audit trail fields (createdBy, uploadedBy, respondedBy, etc.)
+      // CRITICAL FIX: Manual cascade delete due to foreign key constraints
+      // We must delete in correct order to avoid constraint violations
       
-      const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
+      console.log(`🗑️ Starting cascade delete for user ${id}...`);
+      
+      // 1. Delete teacher profile first (has foreign key to users)
+      await this.db.delete(schema.teacherProfiles)
+        .where(eq(schema.teacherProfiles.userId, id));
+      console.log(`✅ Deleted teacher profile for user ${id}`);
+      
+      // 2. Delete admin profile
+      await this.db.delete(schema.adminProfiles)
+        .where(eq(schema.adminProfiles.userId, id));
+      console.log(`✅ Deleted admin profile for user ${id}`);
+      
+      // 3. Delete parent profile
+      await this.db.delete(schema.parentProfiles)
+        .where(eq(schema.parentProfiles.userId, id));
+      console.log(`✅ Deleted parent profile for user ${id}`);
+      
+      // 4. Delete password reset tokens
+      await this.db.delete(schema.passwordResetTokens)
+        .where(eq(schema.passwordResetTokens.userId, id));
+      console.log(`✅ Deleted password reset tokens for user ${id}`);
+      
+      // 5. Delete invites (if user was invited)
+      await this.db.delete(schema.invites)
+        .where(eq(schema.invites.acceptedBy, id));
+      console.log(`✅ Deleted invites for user ${id}`);
+      
+      // 6. Delete notifications
+      await this.db.delete(schema.notifications)
+        .where(eq(schema.notifications.userId, id));
+      console.log(`✅ Deleted notifications for user ${id}`);
+      
+      // 7. Delete teacher class assignments
+      await this.db.delete(schema.teacherClassAssignments)
+        .where(eq(schema.teacherClassAssignments.teacherId, id));
+      console.log(`✅ Deleted teacher assignments for user ${id}`);
+      
+      // 8. Get exam sessions to cascade delete properly
+      const examSessions = await this.db.select({ id: schema.examSessions.id })
+        .from(schema.examSessions)
+        .where(eq(schema.examSessions.studentId, id));
+      
+      const sessionIds = examSessions.map(s => s.id);
+      
+      if (sessionIds.length > 0) {
+        // Delete student answers
+        await this.db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.sessionId, sessionIds));
+        console.log(`✅ Deleted student answers for user ${id}`);
+        
+        // Delete exam sessions
+        await this.db.delete(schema.examSessions)
+          .where(inArray(schema.examSessions.id, sessionIds));
+        console.log(`✅ Deleted exam sessions for user ${id}`);
+      }
+      
+      // 9. Delete exam results
+      await this.db.delete(schema.examResults)
+        .where(eq(schema.examResults.studentId, id));
+      console.log(`✅ Deleted exam results for user ${id}`);
+      
+      // 10. Delete attendance records
+      await this.db.delete(schema.attendance)
+        .where(eq(schema.attendance.studentId, id));
+      console.log(`✅ Deleted attendance records for user ${id}`);
+      
+      // 11. Delete student record if exists
+      await this.db.delete(schema.students)
+        .where(eq(schema.students.id, id));
+      console.log(`✅ Deleted student record for user ${id}`);
+      
+      // 12. Finally, delete the user
+      const result = await this.db.delete(schema.users)
+        .where(eq(schema.users.id, id))
+        .returning();
+      
+      console.log(`✅ Successfully deleted user ${id} and all related records`);
       return result.length > 0;
     } catch (error) {
-      console.error(`Error deleting user ${id}:`, error);
+      console.error(`❌ Error deleting user ${id}:`, error);
       throw error;
     }
   }

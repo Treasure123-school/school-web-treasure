@@ -56,7 +56,7 @@ export default function PendingApprovals() {
     refetchOnMount: true, // Fetch on mount
   });
 
-  // Approve user mutation with OPTIMISTIC UPDATES
+  // Approve user mutation with OPTIMISTIC UPDATES for instant feedback
   const approveMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('POST', `/api/users/${userId}/approve`);
@@ -68,6 +68,7 @@ export default function PendingApprovals() {
 
       // INSTANT FEEDBACK: Snapshot previous values
       const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+      const previousUsers = queryClient.getQueryData(['/api/users']);
 
       // INSTANT FEEDBACK: Optimistically remove from pending list
       queryClient.setQueryData(['/api/users/pending'], (old: any) => {
@@ -75,7 +76,17 @@ export default function PendingApprovals() {
         return old.filter((user: any) => user.id !== userId);
       });
 
-      return { previousPendingUsers };
+      // INSTANT FEEDBACK: Optimistically add to active users list
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        const user = previousPendingUsers?.find((u: any) => u.id === userId);
+        if (user) {
+          return [...old, { ...user, status: 'active' }];
+        }
+        return old;
+      });
+
+      return { previousPendingUsers, previousUsers };
     },
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
@@ -83,7 +94,7 @@ export default function PendingApprovals() {
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
@@ -96,6 +107,9 @@ export default function PendingApprovals() {
       // ROLLBACK: Restore previous state on error
       if (context?.previousPendingUsers) {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
       toast({
         title: "✗ Approval Failed",
@@ -121,6 +135,7 @@ export default function PendingApprovals() {
 
       // INSTANT FEEDBACK: Snapshot previous values
       const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+      const previousUsers = queryClient.getQueryData(['/api/users']);
 
       // INSTANT FEEDBACK: Optimistically remove from pending list
       queryClient.setQueryData(['/api/users/pending'], (old: any) => {
@@ -128,7 +143,19 @@ export default function PendingApprovals() {
         return old.filter((user: any) => user.id !== userId);
       });
 
-      return { previousPendingUsers };
+      // INSTANT FEEDBACK: Optimistically update status in active users list to 'rejected' (or similar)
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        const userIndex = old.findIndex((u: any) => u.id === userId);
+        if (userIndex !== -1) {
+          const newUser = [...old];
+          newUser[userIndex] = { ...newUser[userIndex], status: 'rejected' }; // Assuming a 'rejected' status
+          return newUser;
+        }
+        return old;
+      });
+
+      return { previousPendingUsers, previousUsers };
     },
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
@@ -136,7 +163,7 @@ export default function PendingApprovals() {
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: "✓ User Rejected",
         description: data?.message || "The user account has been rejected successfully.",
@@ -149,6 +176,9 @@ export default function PendingApprovals() {
       // ROLLBACK: Restore previous state on error
       if (context?.previousPendingUsers) {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
       toast({
         title: "✗ Rejection Failed",
@@ -169,10 +199,10 @@ export default function PendingApprovals() {
           return { id, index, result };
         })
       );
-      
+
       const succeeded: string[] = [];
       const failed: Array<{ id: string; error: any }> = [];
-      
+
       results.forEach((r, index) => {
         if (r.status === 'fulfilled') {
           succeeded.push(r.value.id);
@@ -180,11 +210,11 @@ export default function PendingApprovals() {
           failed.push({ id: userIds[index], error: r.reason });
         }
       });
-      
+
       if (failed.length > 0) {
         throw { succeeded, failed, isPartialFailure: succeeded.length > 0 };
       }
-      
+
       return { succeeded, failed: [] };
     },
     onMutate: async (userIds: string[]) => {
@@ -194,6 +224,7 @@ export default function PendingApprovals() {
 
       // INSTANT FEEDBACK: Snapshot previous values
       const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+      const previousUsers = queryClient.getQueryData(['/api/users']);
 
       // INSTANT FEEDBACK: Optimistically remove all approved users from pending list
       queryClient.setQueryData(['/api/users/pending'], (old: any) => {
@@ -201,7 +232,14 @@ export default function PendingApprovals() {
         return old.filter((user: any) => !userIds.includes(user.id));
       });
 
-      return { previousPendingUsers };
+      // INSTANT FEEDBACK: Optimistically add to active users list
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        const usersToAdd = userIds.map((id) => previousPendingUsers?.find((u: any) => u.id === id)).filter(Boolean);
+        return [...old, ...usersToAdd.map((user: any) => ({ ...user, status: 'active' }))];
+      });
+
+      return { previousPendingUsers, previousUsers };
     },
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
@@ -209,7 +247,7 @@ export default function PendingApprovals() {
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: "✓ Bulk Approval Complete",
         description: `Successfully approved ${data.succeeded.length} user(s).`,
@@ -223,15 +261,18 @@ export default function PendingApprovals() {
       if (context?.previousPendingUsers) {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
-      
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
+
       // Then refetch to reconcile with actual server state
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      
+
       // ALWAYS clear selection to prevent confusion
       setSelectedUsers(new Set());
       setActionType(null);
-      
+
       if (error.isPartialFailure) {
         // Partial success: some approved, some failed
         toast({
