@@ -96,6 +96,7 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -275,6 +276,7 @@ export default function UserManagement() {
   // Delete user mutation with OPTIMISTIC UPDATES + AGGRESSIVE REFETCH
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
+      setDeletingUserId(userId); // Mark user as being deleted
       return await apiRequest('DELETE', `/api/users/${userId}`);
     },
     onMutate: async (userId: string) => {
@@ -314,12 +316,15 @@ export default function UserManagement() {
         className: "border-green-500 bg-green-50",
       });
 
+      setDeletingUserId(null); // Clear deleting state
       setDeleteDialog(false);
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any, userId: string, context: any) => {
       console.error(`❌ Failed to delete user ${userId}:`, error);
+
+      setDeletingUserId(null); // Clear deleting state
 
       // ROLLBACK: Restore previous state on error
       if (context?.previousUsers) {
@@ -952,10 +957,14 @@ export default function UserManagement() {
 
   const UserList = ({ users }: { users: User[] }) => (
     <div className="space-y-3">
-      {users.map((userData) => (
+      {users.map((userData) => {
+        const isDeleting = deletingUserId === userData.id;
+        return (
         <div
           key={userData.id}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+          className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg transition-colors gap-3 ${
+            isDeleting ? 'opacity-50 pointer-events-none bg-muted/30' : 'hover:bg-muted/50'
+          }`}
           data-testid={`user-card-${userData.id}`}
         >
           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
@@ -1092,7 +1101,8 @@ export default function UserManagement() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      ))}
+      );
+      })}
     </div>
   );
 
