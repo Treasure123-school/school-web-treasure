@@ -175,12 +175,7 @@ export default function UserManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>User Approved</span>
-          </div>
-        ),
+        title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
         className: "border-green-500 bg-green-50",
       });
@@ -196,12 +191,7 @@ export default function UserManagement() {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Approval Failed</span>
-          </div>
-        ),
+        title: "✗ Approval Failed",
         description: error.message || "Failed to approve user. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -239,12 +229,7 @@ export default function UserManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
 
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Status Updated</span>
-          </div>
-        ),
+        title: "✓ Status Updated",
         description: data?.message || `User status has been updated to ${variables.status}`,
         className: "border-green-500 bg-green-50",
       });
@@ -257,12 +242,7 @@ export default function UserManagement() {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Status Update Failed</span>
-          </div>
-        ),
+        title: "✗ Status Update Failed",
         description: error.message || "Failed to update user status. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -301,12 +281,7 @@ export default function UserManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>User Deleted</span>
-          </div>
-        ),
+        title: "✓ User Deleted",
         description: data?.message || "The user has been permanently removed from the system.",
         className: "border-green-500 bg-green-50",
       });
@@ -353,12 +328,7 @@ export default function UserManagement() {
     onMutate: async ({ userId }) => {
       // INSTANT FEEDBACK: Show immediate success message
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-blue-600" />
-            <span>Resetting Password...</span>
-          </div>
-        ),
+        title: "↻ Resetting Password...",
         description: "Password reset in progress",
         className: "border-blue-500 bg-blue-50",
       });
@@ -374,12 +344,7 @@ export default function UserManagement() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Password Reset</span>
-          </div>
-        ),
+        title: "✓ Password Reset",
         description: data?.message || "User password has been reset successfully.",
         className: "border-green-500 bg-green-50",
       });
@@ -389,12 +354,7 @@ export default function UserManagement() {
     },
     onError: (error: any, variables, context: any) => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Password Reset Failed</span>
-          </div>
-        ),
+        title: "✗ Password Reset Failed",
         description: error.message || "Failed to reset password. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -434,12 +394,7 @@ export default function UserManagement() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Role Changed</span>
-          </div>
-        ),
+        title: "✓ Role Changed",
         description: data?.message || "User role has been updated successfully.",
         className: "border-green-500 bg-green-50",
       });
@@ -453,12 +408,7 @@ export default function UserManagement() {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Role Change Failed</span>
-          </div>
-        ),
+        title: "✗ Role Change Failed",
         description: error.message || "Failed to change user role. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -498,12 +448,7 @@ export default function UserManagement() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-green-600" />
-            <span>Recovery Email Updated</span>
-          </div>
-        ),
+        title: "✓ Recovery Email Updated",
         description: data?.message || "Recovery email has been updated successfully.",
         className: "border-green-500 bg-green-50",
       });
@@ -517,12 +462,7 @@ export default function UserManagement() {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Update Failed</span>
-          </div>
-        ),
+        title: "✗ Update Failed",
         description: error.message || "Failed to update recovery email. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -694,12 +634,7 @@ export default function UserManagement() {
   const handleResetPassword = () => {
     if (!selectedUser || !newPassword || newPassword.length < 6) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Validation Error</span>
-          </div>
-        ),
+        title: "✗ Validation Error",
         description: "Password must be at least 6 characters long",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -716,12 +651,7 @@ export default function UserManagement() {
   const handleChangeRole = () => {
     if (!selectedUser || !newRoleId) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Validation Error</span>
-          </div>
-        ),
+        title: "✗ Validation Error",
         description: "Please select a role",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -737,12 +667,7 @@ export default function UserManagement() {
   const handleUpdateRecoveryEmail = () => {
     if (!selectedUser || !newRecoveryEmail) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Validation Error</span>
-          </div>
-        ),
+        title: "✗ Validation Error",
         description: "Please enter a valid email address",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -754,12 +679,7 @@ export default function UserManagement() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newRecoveryEmail)) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Invalid Email Format</span>
-          </div>
-        ),
+        title: "✗ Invalid Email Format",
         description: "Please enter a valid email address (e.g., parent@example.com)",
         variant: "destructive",
         className: "border-red-500 bg-red-50",

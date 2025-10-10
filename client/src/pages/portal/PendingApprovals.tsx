@@ -81,12 +81,7 @@ export default function PendingApprovals() {
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>User Approved</span>
-          </div>
-        ),
+        title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
         className: "border-green-500 bg-green-50",
       });
@@ -99,12 +94,7 @@ export default function PendingApprovals() {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Approval Failed</span>
-          </div>
-        ),
+        title: "✗ Approval Failed",
         description: error.message || "Failed to approve user. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -140,12 +130,7 @@ export default function PendingApprovals() {
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>User Rejected</span>
-          </div>
-        ),
+        title: "✓ User Rejected",
         description: data?.message || "The user account has been rejected successfully.",
         className: "border-green-500 bg-green-50",
       });
@@ -158,12 +143,7 @@ export default function PendingApprovals() {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Rejection Failed</span>
-          </div>
-        ),
+        title: "✗ Rejection Failed",
         description: error.message || "Failed to reject user. Please try again.",
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -219,12 +199,7 @@ export default function PendingApprovals() {
       queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Bulk Approval Complete</span>
-          </div>
-        ),
+        title: "✓ Bulk Approval Complete",
         description: `Successfully approved ${data.succeeded.length} user(s).`,
         className: "border-green-500 bg-green-50",
       });
@@ -248,24 +223,14 @@ export default function PendingApprovals() {
       if (error.isPartialFailure) {
         // Partial success: some approved, some failed
         toast({
-          title: (
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <span>Partial Success</span>
-            </div>
-          ),
+          title: "⚠ Partial Success",
           description: `Approved ${error.succeeded.length} user(s). Failed to approve ${error.failed.length} user(s). Please retry the failed ones.`,
           className: "border-yellow-500 bg-yellow-50",
         });
       } else {
         // Complete failure
         toast({
-          title: (
-            <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-600" />
-              <span>Bulk Approval Failed</span>
-            </div>
-          ),
+          title: "✗ Bulk Approval Failed",
           description: error.message || "Failed to approve users. Please try again.",
           variant: "destructive",
           className: "border-red-500 bg-red-50",
