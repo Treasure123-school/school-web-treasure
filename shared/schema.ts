@@ -75,12 +75,12 @@ export const users = pgTable("users", {
 // Password reset tokens table
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   token: varchar("token", { length: 255 }).notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
   ipAddress: varchar("ip_address", { length: 45 }), // Track IP for security
-  resetBy: uuid("reset_by").references(() => users.id), // Admin who initiated reset, null if self-service
+  resetBy: uuid("reset_by").references(() => users.id, { onDelete: 'set null' }), // Admin who initiated reset, null if self-service
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
@@ -106,10 +106,10 @@ export const invites = pgTable("invites", {
   token: varchar("token", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull(),
   roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   acceptedAt: timestamp("accepted_at"),
-  acceptedBy: uuid("accepted_by").references(() => users.id),
+  acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   invitesTokenIdx: index("invites_token_idx").on(table.token),
@@ -119,7 +119,7 @@ export const invites = pgTable("invites", {
 // Notifications table for admin alerts
 export const notifications = pgTable("notifications", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(), // Admin receiving the notification
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(), // Admin receiving the notification
   type: varchar("type", { length: 50 }).notNull(), // 'pending_user', 'approval_request', etc.
   title: varchar("title", { length: 200 }).notNull(),
   message: text("message").notNull(),
@@ -149,7 +149,7 @@ export const classes = pgTable("classes", {
   name: varchar("name", { length: 50 }).notNull().unique(),
   level: varchar("level", { length: 20 }).notNull(),
   capacity: integer("capacity").default(30),
-  classTeacherId: uuid("class_teacher_id").references(() => users.id),
+  classTeacherId: uuid("class_teacher_id").references(() => users.id, { onDelete: 'set null' }),
   currentTermId: integer("current_term_id").references(() => academicTerms.id),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -166,10 +166,10 @@ export const subjects = pgTable("subjects", {
 
 // Students table
 export const students = pgTable("students", {
-  id: uuid("id").references(() => users.id).primaryKey(),
+  id: uuid("id").references(() => users.id, { onDelete: 'cascade' }).primaryKey(),
   admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
   classId: integer("class_id").references(() => classes.id),
-  parentId: uuid("parent_id").references(() => users.id),
+  parentId: uuid("parent_id").references(() => users.id, { onDelete: 'set null' }),
   admissionDate: date("admission_date").defaultNow(),
   emergencyContact: varchar("emergency_contact", { length: 20 }),
   medicalInfo: text("medical_info"),
@@ -180,7 +180,7 @@ export const students = pgTable("students", {
 // Teacher profiles table
 export const teacherProfiles = pgTable("teacher_profiles", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
   staffId: varchar("staff_id", { length: 50 }).unique(),
   subjects: integer("subjects").array(),
   assignedClasses: integer("assigned_classes").array(),
@@ -196,7 +196,7 @@ export const teacherProfiles = pgTable("teacher_profiles", {
   availability: varchar("availability", { length: 50 }),
   firstLogin: boolean("first_login").default(true),
   verified: boolean("verified").default(false),
-  verifiedBy: uuid("verified_by").references(() => users.id),
+  verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: 'set null' }),
   verifiedAt: timestamp("verified_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -205,7 +205,7 @@ export const teacherProfiles = pgTable("teacher_profiles", {
 // Admin profiles table
 export const adminProfiles = pgTable("admin_profiles", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
   department: varchar("department", { length: 100 }),
   roleDescription: text("role_description"),
   accessLevel: varchar("access_level", { length: 50 }),
@@ -216,7 +216,7 @@ export const adminProfiles = pgTable("admin_profiles", {
 // Parent profiles table
 export const parentProfiles = pgTable("parent_profiles", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
   occupation: varchar("occupation", { length: 100 }),
   contactPreference: varchar("contact_preference", { length: 50 }),
   linkedStudents: uuid("linked_students").array(),
@@ -227,11 +227,11 @@ export const parentProfiles = pgTable("parent_profiles", {
 // Attendance table
 export const attendance = pgTable("attendance", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
+  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
   classId: integer("class_id").references(() => classes.id).notNull(),
   date: date("date").notNull(),
   status: attendanceStatusEnum("status"),
-  recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
+  recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -245,8 +245,8 @@ export const exams = pgTable("exams", {
   totalMarks: integer("total_marks").notNull(),
   date: text("date").notNull(), // Store as YYYY-MM-DD string to avoid Date object conversion
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id), // Teacher responsible for grading
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id, { onDelete: 'set null' }), // Teacher responsible for grading
   createdAt: timestamp("created_at").defaultNow(),
   // Exam type: 'test' (40 marks) or 'exam' (60 marks)
   examType: examTypeEnum("exam_type").notNull().default('exam'),
@@ -313,7 +313,7 @@ export const questionOptions = pgTable("question_options", {
 export const examSessions = pgTable("exam_sessions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
+  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
   startedAt: timestamp("started_at").defaultNow(),
   submittedAt: timestamp("submitted_at"),
   timeRemaining: integer("time_remaining"), // in seconds
@@ -358,7 +358,7 @@ export const studentAnswers = pgTable("student_answers", {
 export const examResults = pgTable("exam_results", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
+  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
   score: integer("score"),
   maxScore: integer("max_score"),
   marksObtained: integer("marks_obtained"), // Legacy field for backward compatibility
@@ -380,7 +380,7 @@ export const announcements = pgTable("announcements", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   title: varchar("title", { length: 200 }).notNull(),
   content: text("content").notNull(),
-  authorId: uuid("author_id").references(() => users.id).notNull(),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: 'set null' }).notNull(),
   targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
   targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
   isPublished: boolean("is_published").default(false),
@@ -391,8 +391,8 @@ export const announcements = pgTable("announcements", {
 // Messages table
 export const messages = pgTable("messages", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  senderId: uuid("sender_id").references(() => users.id).notNull(),
-  recipientId: uuid("recipient_id").references(() => users.id).notNull(),
+  senderId: uuid("sender_id").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  recipientId: uuid("recipient_id").references(() => users.id, { onDelete: 'set null' }).notNull(),
   subject: varchar("subject", { length: 200 }).notNull(),
   content: text("content").notNull(),
   isRead: boolean("is_read").default(false),
@@ -413,7 +413,7 @@ export const gallery = pgTable("gallery", {
   imageUrl: text("image_url").notNull(),
   caption: text("caption"),
   categoryId: integer("category_id").references(() => galleryCategories.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id),
+  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -426,7 +426,7 @@ export const homePageContent = pgTable("home_page_content", {
   caption: text("caption"),
   isActive: boolean("is_active").default(true).notNull(),
   displayOrder: integer("display_order").default(0).notNull(),
-  uploadedBy: uuid("uploaded_by").references(() => users.id),
+  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -440,7 +440,7 @@ export const contactMessages = pgTable("contact_messages", {
   message: text("message").notNull(),
   isRead: boolean("is_read").default(false),
   respondedAt: timestamp("responded_at"),
-  respondedBy: uuid("responded_by").references(() => users.id),
+  respondedBy: uuid("responded_by").references(() => users.id, { onDelete: 'set null' }),
   response: text("response"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -448,7 +448,7 @@ export const contactMessages = pgTable("contact_messages", {
 // Report cards table for consolidated term-based student reports
 export const reportCards = pgTable("report_cards", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
+  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
   classId: integer("class_id").references(() => classes.id).notNull(),
   termId: integer("term_id").references(() => academicTerms.id).notNull(),
   averagePercentage: integer("average_percentage"), // Overall percentage
@@ -497,7 +497,7 @@ export const studyResources = pgTable("study_resources", {
   subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
   classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id).notNull(),
+  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
   isPublished: boolean("is_published").default(true),
   downloads: integer("downloads").default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -512,7 +512,7 @@ export const performanceEvents = pgTable("performance_events", {
   goalAchieved: boolean("goal_achieved").notNull(), // whether it met the < 2000ms goal
   metadata: text("metadata"), // JSON string for additional data
   clientSide: boolean("client_side").default(false), // whether logged from client or server
-  userId: uuid("user_id").references(() => users.id), // for attribution
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }), // for attribution
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   // Performance indexes for analytics queries
@@ -524,7 +524,7 @@ export const performanceEvents = pgTable("performance_events", {
 // Teacher class assignments table for mapping which teachers teach which subjects in which classes
 export const teacherClassAssignments = pgTable("teacher_class_assignments", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  teacherId: uuid("teacher_id").references(() => users.id).notNull(),
+  teacherId: uuid("teacher_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
   subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
@@ -541,7 +541,7 @@ export const gradingTasks = pgTable("grading_tasks", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id, { onDelete: 'cascade' }).notNull(),
   answerId: bigint("answer_id", { mode: "number" }).references(() => studentAnswers.id, { onDelete: 'cascade' }).notNull(),
-  assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id), // Teacher assigned to grade this
+  assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id, { onDelete: 'set null' }), // Teacher assigned to grade this
   status: varchar("status", { length: 20 }).default('pending'), // 'pending', 'in_progress', 'completed', 'skipped'
   priority: integer("priority").default(0), // Higher number = higher priority
   assignedAt: timestamp("assigned_at"),
@@ -560,7 +560,7 @@ export const gradingTasks = pgTable("grading_tasks", {
 // Audit logs table for tracking all grade changes and important actions
 export const auditLogs = pgTable("audit_logs", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(), // Who made the change
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }).notNull(), // Who made the change - PRESERVE audit trail
   action: varchar("action", { length: 100 }).notNull(), // 'grade_change', 'manual_override', 'report_publish', etc.
   entityType: varchar("entity_type", { length: 50 }).notNull(), // 'exam_result', 'student_answer', 'report_card'
   entityId: bigint("entity_id", { mode: "number" }).notNull(), // ID of the affected entity
