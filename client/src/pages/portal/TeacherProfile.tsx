@@ -24,6 +24,7 @@ export default function TeacherProfile() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
@@ -210,6 +211,7 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
+      setIsSaving(true);
       console.log('🔍 DEBUG - Save triggered:', {
         hasProfileImageFile: !!profileImageFile,
         profileImageFileName: profileImageFile?.name,
@@ -303,6 +305,8 @@ export default function TeacherProfile() {
         description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -363,12 +367,21 @@ export default function TeacherProfile() {
           <div className="flex gap-2">
             {isEditing ? (
               <>
-                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsEditing(false)}
+                  disabled={isSaving}
+                >
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
+                <Button 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
+                  data-testid="button-save-changes"
+                >
+                  <Save className={`h-4 w-4 mr-2 ${isSaving ? 'animate-spin' : ''}`} />
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </>
             ) : (
