@@ -682,10 +682,21 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.notifications.userId, id));
       console.log(`✅ Deleted notifications for user ${id}`);
       
-      // 7. Delete teacher class assignments
-      await this.db.delete(schema.teacherClassAssignments)
-        .where(eq(schema.teacherClassAssignments.teacherId, id));
-      console.log(`✅ Deleted teacher assignments for user ${id}`);
+      // 7. Delete teacher class assignments (if table exists)
+      try {
+        if (schema.teacherClassAssignments) {
+          await this.db.delete(schema.teacherClassAssignments)
+            .where(eq(schema.teacherClassAssignments.teacherId, id));
+          console.log(`✅ Deleted teacher assignments for user ${id}`);
+        }
+      } catch (assignmentError: any) {
+        // Table might not exist yet, skip it
+        if (assignmentError?.cause?.code === '42P01') {
+          console.log(`⚠️ Skipped teacher_class_assignments (table doesn't exist)`);
+        } else {
+          throw assignmentError;
+        }
+      }
       
       // 8. Get exam sessions to cascade delete properly
       const examSessions = await this.db.select({ id: schema.examSessions.id })
