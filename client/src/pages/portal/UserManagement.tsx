@@ -313,7 +313,7 @@ export default function UserManagement() {
         description: data?.message || "User has been deleted successfully.",
         className: "border-green-500 bg-green-50",
       });
-      
+
       setDeleteDialog(false);
       setSelectedUser(null);
       setActionType(null);
@@ -332,17 +332,17 @@ export default function UserManagement() {
       // If user was already deleted (404), treat as success and clear cache
       if (error.message?.includes('not found') || error.message?.includes('404')) {
         console.log(`⚠️ User ${userId} already deleted. Forcing cache refresh...`);
-        
+
         // Force immediate refetch to get accurate state
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
-        
+
         toast({
           title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Already Deleted</span></div>,
           description: "This user has already been removed from the system.",
           className: "border-green-500 bg-green-50",
         });
-        
+
         setDeleteDialog(false);
         setSelectedUser(null);
         setActionType(null);
@@ -934,8 +934,8 @@ export default function UserManagement() {
               variant="destructive"
               onClick={() => {
                 if (selectedUser) {
+                  console.log(`🗑️ Confirm delete clicked for user ${selectedUser.id}`);
                   deleteUserMutation.mutate(selectedUser.id);
-                  setDeleteDialog(false);
                 }
               }}
               disabled={deleteUserMutation.isPending}
