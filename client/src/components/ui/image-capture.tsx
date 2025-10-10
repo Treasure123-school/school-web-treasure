@@ -280,7 +280,7 @@ export function ImageCapture({
           imageSrc={selectedImageUrl}
           onCropComplete={handleCropComplete}
           aspectRatio={shape === 'circle' ? 1 : 4 / 3}
-          shape={shape}
+          shape={shape === 'circle' ? 'round' : 'rect'}
         />
       )}
     </div>

@@ -70,11 +70,9 @@ export function ImageCropDialog({
         </DialogHeader>
 
         <div 
-          className="relative bg-muted/30 rounded-lg overflow-hidden mb-4 w-full" 
+          className="relative bg-gray-900 rounded-lg mb-4 w-full" 
           style={{ 
-            height: 'clamp(250px, 50vh, 450px)',
-            minHeight: '250px',
-            maxHeight: '450px'
+            height: 'clamp(300px, 55vh, 500px)'
           }}
         >
           <Cropper
@@ -89,16 +87,7 @@ export function ImageCropDialog({
             onRotationChange={setRotation}
             onCropComplete={onCropCompleteCallback}
             showGrid={true}
-            style={{
-              containerStyle: {
-                width: '100%',
-                height: '100%',
-                position: 'relative'
-              },
-              cropAreaStyle: {
-                border: '2px solid rgba(255, 255, 255, 0.5)'
-              }
-            }}
+            objectFit="contain"
           />
         </div>
 
