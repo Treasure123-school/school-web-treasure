@@ -3,6 +3,7 @@ import { Button } from './button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
 import { Camera, Upload, X, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ImageCropDialog } from './image-crop-dialog';
 
 interface ImageCaptureProps {
   value: File | null;
@@ -23,6 +24,8 @@ export function ImageCapture({
 }: ImageCaptureProps) {
   const { toast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isCameraMode, setIsCameraMode] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -68,14 +71,11 @@ export function ImageCapture({
         ctx.drawImage(video, 0, 0);
         canvas.toBlob((blob) => {
           if (blob) {
-            const file = new File([blob], `camera-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            onChange(file);
+            const imageUrl = URL.createObjectURL(blob);
+            setSelectedImageUrl(imageUrl);
             stopCamera();
             setShowDialog(false);
-            toast({
-              title: "Photo Captured",
-              description: "Your photo has been captured successfully.",
-            });
+            setShowCropDialog(true);
           }
         }, 'image/jpeg', 0.9);
       }
@@ -103,12 +103,37 @@ export function ImageCapture({
         });
         return;
       }
-      onChange(file);
+      
+      // Create a URL for cropping
+      const imageUrl = URL.createObjectURL(file);
+      setSelectedImageUrl(imageUrl);
       setShowDialog(false);
-      toast({
-        title: "Image Selected",
-        description: `${file.name} ready to upload`,
-      });
+      setShowCropDialog(true);
+    }
+  };
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    const file = new File([croppedBlob], `cropped-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    onChange(file);
+    setShowCropDialog(false);
+    
+    // Clean up URL
+    if (selectedImageUrl) {
+      URL.revokeObjectURL(selectedImageUrl);
+      setSelectedImageUrl(null);
+    }
+    
+    toast({
+      title: "Image Cropped",
+      description: "Your image has been cropped and is ready to upload",
+    });
+  };
+
+  const handleCropCancel = () => {
+    setShowCropDialog(false);
+    if (selectedImageUrl) {
+      URL.revokeObjectURL(selectedImageUrl);
+      setSelectedImageUrl(null);
     }
   };
 
@@ -247,6 +272,17 @@ export function ImageCapture({
           <canvas ref={canvasRef} className="hidden" />
         </DialogContent>
       </Dialog>
+
+      {selectedImageUrl && (
+        <ImageCropDialog
+          open={showCropDialog}
+          onClose={handleCropCancel}
+          imageSrc={selectedImageUrl}
+          onCropComplete={handleCropComplete}
+          aspectRatio={shape === 'circle' ? 1 : 4 / 3}
+          shape={shape}
+        />
+      )}
     </div>
   );
 }
