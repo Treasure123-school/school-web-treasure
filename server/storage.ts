@@ -727,12 +727,18 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.attendance.studentId, id));
       console.log(`✅ Deleted attendance records for user ${id}`);
       
-      // 11. Delete student record if exists
+      // 11. Update students who have this user as a parent (set parent_id to null)
+      await this.db.update(schema.students)
+        .set({ parentId: null })
+        .where(eq(schema.students.parentId, id));
+      console.log(`✅ Unlinked parent relationship for user ${id}`);
+      
+      // 12. Delete student record if exists
       await this.db.delete(schema.students)
         .where(eq(schema.students.id, id));
       console.log(`✅ Deleted student record for user ${id}`);
       
-      // 12. Finally, delete the user
+      // 13. Finally, delete the user
       const result = await this.db.delete(schema.users)
         .where(eq(schema.users.id, id))
         .returning();
