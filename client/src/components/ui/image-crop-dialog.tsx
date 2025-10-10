@@ -58,15 +58,25 @@ export function ImageCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh]" data-testid="dialog-crop-image">
-        <DialogHeader>
+      <DialogContent 
+        className="w-[95vw] max-w-3xl p-4 sm:p-6 max-h-[95vh] flex flex-col gap-0" 
+        data-testid="dialog-crop-image"
+      >
+        <DialogHeader className="pb-4">
           <DialogTitle className="flex items-center gap-2">
             <Crop className="h-5 w-5" />
             Crop Image
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 relative bg-muted/30 rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+        <div 
+          className="relative bg-muted/30 rounded-lg overflow-hidden mb-4 w-full" 
+          style={{ 
+            height: 'clamp(250px, 50vh, 450px)',
+            minHeight: '250px',
+            maxHeight: '450px'
+          }}
+        >
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -79,10 +89,20 @@ export function ImageCropDialog({
             onRotationChange={setRotation}
             onCropComplete={onCropCompleteCallback}
             showGrid={true}
+            style={{
+              containerStyle: {
+                width: '100%',
+                height: '100%',
+                position: 'relative'
+              },
+              cropAreaStyle: {
+                border: '2px solid rgba(255, 255, 255, 0.5)'
+              }
+            }}
           />
         </div>
 
-        <div className="space-y-4 pt-4">
+        <div className="space-y-3 sm:space-y-4 pb-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium flex items-center gap-2">
@@ -122,11 +142,12 @@ export function ImageCropDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button 
             variant="outline" 
             onClick={onClose}
             disabled={isProcessing}
+            className="w-full sm:w-auto"
             data-testid="button-cancel-crop"
           >
             Cancel
@@ -134,7 +155,7 @@ export function ImageCropDialog({
           <Button 
             onClick={handleCropConfirm}
             disabled={isProcessing || !croppedAreaPixels}
-            className="transition-all duration-200 hover:scale-105 active:scale-95"
+            className="w-full sm:w-auto transition-all duration-200 hover:scale-105 active:scale-95"
             data-testid="button-confirm-crop"
           >
             {isProcessing ? 'Processing...' : 'Crop & Save'}
