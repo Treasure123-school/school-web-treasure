@@ -112,19 +112,21 @@ export default function UserManagement() {
   const [suspendReason, setSuspendReason] = useState('');
   const [deleteDialog, setDeleteDialog] = useState(false);
 
-  // Fetch all users with OPTIMIZED settings for instant updates
+  // Fetch all users with INSTANT REFRESH settings
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
-    staleTime: 30 * 1000, // 30 seconds - faster refresh for admin data
+    staleTime: 0, // Always fresh - no stale data allowed
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: true, // Always get fresh data on focus
+    refetchOnMount: 'always', // Always refetch on mount
   });
 
-  // Fetch pending users for count with OPTIMIZED settings
+  // Fetch pending users for count with INSTANT REFRESH settings
   const { data: pendingUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users/pending'],
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 0, // Always fresh - no stale data allowed
     refetchOnWindowFocus: true,
+    refetchOnMount: 'always', // Always refetch on mount
   });
 
   // Fetch roles for role change dialog with LONG cache (roles don't change often)
@@ -170,8 +172,8 @@ export default function UserManagement() {
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -233,8 +235,8 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
 
       toast({
         title: (
@@ -296,8 +298,8 @@ export default function UserManagement() {
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -370,7 +372,7 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -430,7 +432,7 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -494,7 +496,7 @@ export default function UserManagement() {
       return { previousUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
