@@ -59,7 +59,54 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### October 10, 2025 - CASCADE Delete Implementation & Schema Optimization
+### October 10, 2025 (Evening) - Admin User Management Performance Optimization
+**Issue**: All mutation operations (delete, suspend, verify, change role) were slow and not updating the UI instantly. Users sometimes reappeared after deletion, creating data consistency issues.
+
+**Root Cause**:
+1. Frontend cache invalidation not aggressive enough - mutations only invalidated active queries
+2. Missing background polling to keep UI in sync with database
+3. No retry logic for transient database errors
+4. Insufficient error logging for debugging Supabase RLS issues
+
+**Solution Implemented**:
+1. **Aggressive Cache Invalidation**:
+   - Changed all mutations to use `refetchType: 'all'` for complete cache refresh
+   - Forces immediate background refetch after every mutation for guaranteed consistency
+   - Applied to all operations: delete, suspend, verify, approve, reject, role change, recovery email update
+
+2. **Background Polling**:
+   - Added 5-second polling interval to User Management and Pending Approvals pages
+   - Automatically syncs UI with database every 5 seconds, even if mutations fail
+   - Configured with `refetchInterval: 5000` on all user queries
+
+3. **Enhanced Error Handling & Retry Logic**:
+   - Added retry logic with exponential backoff (3 attempts) for delete operations
+   - Comprehensive error detection for Supabase RLS permission issues
+   - Verification step after delete to ensure operation succeeded
+   - Detailed logging with emoji indicators for easy debugging
+
+4. **Improved User Feedback**:
+   - Specific error messages for RLS permission errors
+   - Technical details included for debugging
+   - Execution time tracking for performance monitoring
+   - Clear distinction between transient and permanent errors
+
+**Files Changed**:
+- `client/src/pages/portal/UserManagement.tsx` - Aggressive refetching, 5-second polling
+- `client/src/pages/portal/PendingApprovals.tsx` - Aggressive refetching, 5-second polling
+- `server/routes.ts` - Enhanced delete endpoint with retry logic and verification
+
+**Performance Results**:
+- All mutations now provide instant UI feedback
+- Background polling ensures eventual consistency even if mutations fail
+- Comprehensive error logging for debugging RLS issues
+- User operations feel instant and reliable
+
+**Next Steps (if issues persist)**:
+- Check Supabase RLS policies if delete operations still fail
+- Consider using service role connection to bypass RLS for admin operations
+
+### October 10, 2025 (Morning) - CASCADE Delete Implementation & Schema Optimization
 **Issue**: User deletion operations were extremely slow (30+ seconds) and complex, requiring manual deletion of 26+ related records across multiple tables. Schema had conflicting constraints (NOT NULL columns with SET NULL foreign keys).
 
 **Root Cause**: 
