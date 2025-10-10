@@ -277,14 +277,19 @@ export default function UserManagement() {
 
       return { previousUsers, previousPendingUsers };
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+    onSuccess: async (data: any, userId) => {
+      // Force immediate background refetch for guaranteed consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'all' })
+      ]);
+      
       toast({
-        title: "✓ User Deleted",
-        description: data?.message || "The user has been permanently removed from the system.",
+        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Deleted</span></div>,
+        description: data?.message || "User has been deleted successfully.",
         className: "border-green-500 bg-green-50",
       });
+      setDeleteDialog(false);
       setSelectedUser(null);
       setActionType(null);
     },
