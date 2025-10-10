@@ -177,7 +177,7 @@ export default function UserManagement() {
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: "✓ User Approved",
         description: data?.message || "The user has been approved and can now log in.",
@@ -305,7 +305,7 @@ export default function UserManagement() {
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Deleted</span></div>,
         description: data?.message || "User has been deleted successfully.",
@@ -371,7 +371,7 @@ export default function UserManagement() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch
       await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      
+
       toast({
         title: "✓ Password Reset",
         description: data?.message || "User password has been reset successfully.",
@@ -423,7 +423,7 @@ export default function UserManagement() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch
       await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      
+
       toast({
         title: "✓ Role Changed",
         description: data?.message || "User role has been updated successfully.",
@@ -479,7 +479,7 @@ export default function UserManagement() {
     onSuccess: async (data: any) => {
       // AGGRESSIVE REFETCH: Force immediate background refetch
       await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
-      
+
       toast({
         title: "✓ Recovery Email Updated",
         description: data?.message || "Recovery email has been updated successfully.",
@@ -549,7 +549,7 @@ export default function UserManagement() {
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action === 'verify' ? 'verified' : 'unverified'}.`,
@@ -595,7 +595,7 @@ export default function UserManagement() {
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
-      
+
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
         description: data?.message || `User has been ${variables.action}ed.`,
