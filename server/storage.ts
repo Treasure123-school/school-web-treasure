@@ -646,6 +646,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
+    console.log(`🗑️ DELETE USER CALLED: Starting deletion for user ID: ${id}`);
     try {
       // CASCADE DELETE: Delete all related records in the correct order
       // to respect foreign key constraints
@@ -769,7 +770,9 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.examResults.recordedBy, id));
 
       // 16. Finally, delete the user
+      console.log(`🗑️ DELETE USER: About to delete user record from database for ID: ${id}`);
       const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
+      console.log(`🗑️ DELETE USER RESULT: Deleted ${result.length} user record(s) for ID: ${id}`, result);
 
       console.log(`✅ Successfully deleted user ${id} and all related records`);
       return result.length > 0;
@@ -877,6 +880,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User> {
+    console.log(`🔄 UPDATE USER STATUS CALLED: User ID: ${userId}, New Status: ${status}, Updated By: ${updatedBy}`);
     // Only set approvedBy/approvedAt for actual approvals (status='active')
     // For other status changes (reject/suspend/disable), only update status
     const updates: any = { status };
@@ -886,10 +890,12 @@ export class DatabaseStorage implements IStorage {
       updates.approvedAt = new Date();
     }
 
+    console.log(`🔄 UPDATE USER STATUS: About to update with:`, updates);
     const result = await this.db.update(schema.users)
       .set(updates)
       .where(eq(schema.users.id, userId))
       .returning();
+    console.log(`🔄 UPDATE USER STATUS RESULT: Updated ${result.length} user record(s)`, result[0]);
 
     const user = result[0];
     if (user && user.id) {
