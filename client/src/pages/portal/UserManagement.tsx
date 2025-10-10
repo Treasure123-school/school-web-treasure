@@ -272,22 +272,40 @@ export default function UserManagement() {
     },
   });
 
-  // Delete user mutation with COMPLETE CACHE RESET
+  // Delete user mutation with OPTIMISTIC UPDATES + AGGRESSIVE REFETCH
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('DELETE', `/api/users/${userId}`);
     },
+    onMutate: async (userId: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
+
+      // INSTANT FEEDBACK: Snapshot previous values for rollback
+      const previousUsers = queryClient.getQueryData(['/api/users']);
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+
+      // INSTANT FEEDBACK: Optimistically remove user from both caches
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
+
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
+
+      return { previousUsers, previousPendingUsers };
+    },
     onSuccess: async (data: any, userId) => {
-      console.log(`✅ User ${userId} deleted successfully. Forcing complete cache reset...`);
+      console.log(`✅ User ${userId} deleted successfully. Forcing cache refresh...`);
 
-      // NUCLEAR OPTION: Remove ALL user-related cache and force fresh fetch
-      queryClient.removeQueries({ queryKey: ['/api/users'] });
-      queryClient.removeQueries({ queryKey: ['/api/users/pending'] });
-
-      // Force immediate refetch from server
+      // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/users'], type: 'active' }),
-        queryClient.refetchQueries({ queryKey: ['/api/users/pending'], type: 'active' })
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
       ]);
 
       toast({
@@ -300,16 +318,24 @@ export default function UserManagement() {
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any, userId: string) => {
+    onError: (error: any, userId: string, context: any) => {
       console.error(`❌ Failed to delete user ${userId}:`, error);
 
-      // If user was already deleted (404), treat as success
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['/api/users'], context.previousUsers);
+      }
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
+
+      // If user was already deleted (404), treat as success and clear cache
       if (error.message?.includes('not found') || error.message?.includes('404')) {
-        console.log(`⚠️ User ${userId} already deleted. Forcing cache reset...`);
+        console.log(`⚠️ User ${userId} already deleted. Forcing cache refresh...`);
         
-        // Force complete cache reset
-        queryClient.removeQueries({ queryKey: ['/api/users'] });
-        queryClient.removeQueries({ queryKey: ['/api/users/pending'] });
+        // Force immediate refetch to get accurate state
+        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
         
         toast({
           title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Already Deleted</span></div>,
