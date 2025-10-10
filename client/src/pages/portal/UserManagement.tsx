@@ -549,7 +549,7 @@ export default function UserManagement() {
 
       const newStatus = action === 'verify' ? 'active' : 'pending';
 
-      // INSTANT FEEDBACK: Optimistically update status in main list
+      // INSTANT FEEDBACK: Optimistically update user status in main list
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) => 
