@@ -210,9 +210,6 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
-      console.log('🔍 SAVE - Current profileData:', profileData);
-      console.log('🔍 SAVE - nationalId value:', profileData.nationalId);
-      
       // Create FormData to handle both file uploads and text data
       const formData = new FormData();
 
@@ -301,12 +298,7 @@ export default function TeacherProfile() {
   };
 
   const handleChange = (field: string, value: string) => {
-    console.log(`🔍 CHANGE - Field: ${field}, Value: ${value}`);
-    setProfileData(prev => {
-      const updated = { ...prev, [field]: value };
-      console.log('🔍 CHANGE - Updated profileData:', updated);
-      return updated;
-    });
+    setProfileData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleProfessionalChange = (field: string, value: string | number) => {

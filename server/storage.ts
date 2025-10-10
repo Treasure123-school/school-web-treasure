@@ -444,6 +444,7 @@ export class DatabaseStorage implements IStorage {
       id: schema.users.id,
       username: schema.users.username,
       email: schema.users.email,
+      recoveryEmail: schema.users.recoveryEmail,
       passwordHash: schema.users.passwordHash,
       roleId: schema.users.roleId,
       firstName: schema.users.firstName,
@@ -452,6 +453,7 @@ export class DatabaseStorage implements IStorage {
       address: schema.users.address,
       dateOfBirth: schema.users.dateOfBirth,
       gender: schema.users.gender,
+      nationalId: schema.users.nationalId,
       profileImageUrl: schema.users.profileImageUrl,
       isActive: schema.users.isActive,
       authProvider: schema.users.authProvider,
@@ -477,6 +479,7 @@ export class DatabaseStorage implements IStorage {
       id: schema.users.id,
       username: schema.users.username,
       email: schema.users.email,
+      recoveryEmail: schema.users.recoveryEmail,
       passwordHash: schema.users.passwordHash,
       roleId: schema.users.roleId,
       firstName: schema.users.firstName,
@@ -485,6 +488,7 @@ export class DatabaseStorage implements IStorage {
       address: schema.users.address,
       dateOfBirth: schema.users.dateOfBirth,
       gender: schema.users.gender,
+      nationalId: schema.users.nationalId,
       profileImageUrl: schema.users.profileImageUrl,
       isActive: schema.users.isActive,
       authProvider: schema.users.authProvider,
@@ -522,6 +526,7 @@ export class DatabaseStorage implements IStorage {
       id: schema.users.id,
       username: schema.users.username,
       email: schema.users.email,
+      recoveryEmail: schema.users.recoveryEmail,
       passwordHash: schema.users.passwordHash,
       roleId: schema.users.roleId,
       firstName: schema.users.firstName,
@@ -530,6 +535,7 @@ export class DatabaseStorage implements IStorage {
       address: schema.users.address,
       dateOfBirth: schema.users.dateOfBirth,
       gender: schema.users.gender,
+      nationalId: schema.users.nationalId,
       profileImageUrl: schema.users.profileImageUrl,
       isActive: schema.users.isActive,
       authProvider: schema.users.authProvider,
@@ -600,9 +606,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
     try {
-      console.log('🔍 Storage.updateUser received:', JSON.stringify({ id, user }, null, 2));
       const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
-      console.log('🔍 Storage.updateUser DB result:', JSON.stringify(result, null, 2));
       const updatedUser = result[0];
       if (updatedUser && updatedUser.id) {
         const normalizedId = normalizeUuid(updatedUser.id);
