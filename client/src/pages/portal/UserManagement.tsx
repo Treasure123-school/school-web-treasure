@@ -272,56 +272,93 @@ export default function UserManagement() {
     },
   });
 
-  // Delete user mutation with OPTIMISTIC UPDATES
+  // Delete user mutation with AGGRESSIVE CACHE SYNCHRONIZATION
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('DELETE', `/api/users/${userId}`);
     },
     onMutate: async (userId: string) => {
-      // INSTANT FEEDBACK: Cancel outgoing refetches
+      // INSTANT FEEDBACK: Cancel ALL outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/users'] });
       await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
 
-      // INSTANT FEEDBACK: Snapshot previous values
+      // INSTANT FEEDBACK: Snapshot previous values for rollback
       const previousUsers = queryClient.getQueryData(['/api/users']);
       const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
 
-      // INSTANT FEEDBACK: Optimistically remove user from both lists
+      // INSTANT FEEDBACK: Optimistically remove user from BOTH lists immediately
       queryClient.setQueryData(['/api/users'], (old: any) => {
         if (!old) return old;
-        return old.filter((user: any) => user.id !== userId);
+        const filtered = old.filter((user: any) => user.id !== userId);
+        console.log(`🗑️ Optimistically removed user ${userId} from cache. Remaining: ${filtered.length}`);
+        return filtered;
       });
 
       queryClient.setQueryData(['/api/users/pending'], (old: any) => {
         if (!old) return old;
-        return old.filter((user: any) => user.id !== userId);
+        const filtered = old.filter((user: any) => user.id !== userId);
+        console.log(`🗑️ Optimistically removed user ${userId} from pending cache. Remaining: ${filtered.length}`);
+        return filtered;
       });
 
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: async (data: any, userId) => {
-      // Force immediate background refetch for guaranteed consistency
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' })
-      ]);
+      console.log(`✅ User ${userId} deleted successfully. Synchronizing cache...`);
+
+      // CRITICAL: Set cache data BEFORE invalidation to ensure immediate consistency
+      queryClient.setQueryData(['/api/users'], (old: any) => {
+        if (!old) return [];
+        const filtered = old.filter((user: any) => user.id !== userId);
+        console.log(`✅ Final cache update: Removed user ${userId}. Users remaining: ${filtered.length}`);
+        return filtered;
+      });
+
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return [];
+        return old.filter((user: any) => user.id !== userId);
+      });
+
+      // AGGRESSIVE REFETCH: Force background refetch to sync with server
+      await queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+
+      // Wait for refetch to complete
+      await queryClient.refetchQueries({ queryKey: ['/api/users'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/users/pending'] });
 
       toast({
         title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Deleted</span></div>,
         description: data?.message || "User has been deleted successfully.",
         className: "border-green-500 bg-green-50",
       });
+      
       setDeleteDialog(false);
       setSelectedUser(null);
       setActionType(null);
     },
     onError: (error: any, userId: string, context: any) => {
-      // ROLLBACK: Restore previous state on error
-      if (context?.previousUsers) {
-        queryClient.setQueryData(['/api/users'], context.previousUsers);
-      }
-      if (context?.previousPendingUsers) {
-        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      console.error(`❌ Failed to delete user ${userId}:`, error);
+
+      // ROLLBACK: Restore previous state on error ONLY if user still exists
+      if (!error.message?.includes('not found') && !error.message?.includes('404')) {
+        if (context?.previousUsers) {
+          queryClient.setQueryData(['/api/users'], context.previousUsers);
+        }
+        if (context?.previousPendingUsers) {
+          queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+        }
+      } else {
+        // User is already deleted (404 error), so ensure cache is clean
+        console.log(`⚠️ User ${userId} already deleted. Ensuring cache is synchronized...`);
+        queryClient.setQueryData(['/api/users'], (old: any) => {
+          if (!old) return [];
+          return old.filter((user: any) => user.id !== userId);
+        });
+        queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+          if (!old) return [];
+          return old.filter((user: any) => user.id !== userId);
+        });
       }
 
       // Provide specific error messages based on the error
@@ -329,6 +366,17 @@ export default function UserManagement() {
 
       if (error.message?.includes('foreign key constraint') || error.message?.includes('associated')) {
         errorMessage = "Cannot delete user: This account has associated records (exams, grades, etc.). Please disable the account instead.";
+      } else if (error.message?.includes('not found') || error.message?.includes('404')) {
+        // User already deleted - treat as success
+        toast({
+          title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Already Deleted</span></div>,
+          description: "This user has already been removed from the system.",
+          className: "border-green-500 bg-green-50",
+        });
+        setDeleteDialog(false);
+        setSelectedUser(null);
+        setActionType(null);
+        return;
       }
 
       toast({
