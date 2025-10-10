@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, XCircle, Clock, Mail, User, Filter, Search, CheckSquare, UserCheck, Calendar, Shield, Lock } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Mail, User, Filter, Search, CheckSquare, UserCheck, Calendar, Shield, Lock, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
@@ -48,18 +48,38 @@ export default function PendingApprovals() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [signupMethodFilter, setSignupMethodFilter] = useState<string>("all");
 
-  // Fetch pending users
+  // Fetch pending users with INSTANT REFRESH settings
   const { data: pendingUsers = [], isLoading } = useQuery<PendingUser[]>({
     queryKey: ['/api/users/pending'],
+    staleTime: 0, // Always fresh - no stale data allowed
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always', // Always refetch on mount
   });
 
-  // Approve user mutation
+  // Approve user mutation with OPTIMISTIC UPDATES
   const approveMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('POST', `/api/users/${userId}/approve`);
     },
+    onMutate: async (userId: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+
+      // INSTANT FEEDBACK: Optimistically remove from pending list
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
+
+      return { previousPendingUsers };
+    },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -73,7 +93,11 @@ export default function PendingApprovals() {
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, userId: string, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -88,7 +112,7 @@ export default function PendingApprovals() {
     },
   });
 
-  // Reject user mutation
+  // Reject user mutation with OPTIMISTIC UPDATES
   const rejectMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest('POST', `/api/users/${userId}/status`, {
@@ -96,8 +120,25 @@ export default function PendingApprovals() {
         reason: 'Rejected during approval process'
       });
     },
+    onMutate: async (userId: string) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+
+      // INSTANT FEEDBACK: Optimistically remove from pending list
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
+
+      return { previousPendingUsers };
+    },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -111,7 +152,11 @@ export default function PendingApprovals() {
       setSelectedUser(null);
       setActionType(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, userId: string, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -126,16 +171,53 @@ export default function PendingApprovals() {
     },
   });
 
-  // Bulk approve mutation
+  // Bulk approve mutation with OPTIMISTIC UPDATES and PARTIAL SUCCESS handling
   const bulkApproveMutation = useMutation({
     mutationFn: async (userIds: string[]) => {
-      const results = await Promise.all(
-        userIds.map(id => apiRequest('POST', `/api/users/${id}/approve`))
+      // Use allSettled to track individual successes/failures with correct index mapping
+      const results = await Promise.allSettled(
+        userIds.map(async (id, index) => {
+          const result = await apiRequest('POST', `/api/users/${id}/approve`);
+          return { id, index, result };
+        })
       );
-      return results;
+      
+      const succeeded: string[] = [];
+      const failed: Array<{ id: string; error: any }> = [];
+      
+      results.forEach((r, index) => {
+        if (r.status === 'fulfilled') {
+          succeeded.push(r.value.id);
+        } else {
+          failed.push({ id: userIds[index], error: r.reason });
+        }
+      });
+      
+      if (failed.length > 0) {
+        throw { succeeded, failed, isPartialFailure: succeeded.length > 0 };
+      }
+      
+      return { succeeded, failed: [] };
+    },
+    onMutate: async (userIds: string[]) => {
+      // INSTANT FEEDBACK: Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users/pending'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/users'] });
+
+      // INSTANT FEEDBACK: Snapshot previous values
+      const previousPendingUsers = queryClient.getQueryData(['/api/users/pending']);
+
+      // INSTANT FEEDBACK: Optimistically remove all approved users from pending list
+      queryClient.setQueryData(['/api/users/pending'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => !userIds.includes(user.id));
+      });
+
+      return { previousPendingUsers };
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -143,24 +225,52 @@ export default function PendingApprovals() {
             <span>Bulk Approval Complete</span>
           </div>
         ),
-        description: `Successfully approved ${selectedUsers.size} user(s).`,
+        description: `Successfully approved ${data.succeeded.length} user(s).`,
         className: "border-green-500 bg-green-50",
       });
       setSelectedUsers(new Set());
       setActionType(null);
     },
-    onError: (error: any) => {
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Bulk Approval Failed</span>
-          </div>
-        ),
-        description: error.message || "Some approvals may have failed. Please check and try again.",
-        variant: "destructive",
-        className: "border-red-500 bg-red-50",
-      });
+    onError: (error: any, userIds: string[], context: any) => {
+      // ROLLBACK: Restore previous state before refetching
+      if (context?.previousPendingUsers) {
+        queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
+      }
+      
+      // Then refetch to reconcile with actual server state
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
+      
+      // ALWAYS clear selection to prevent confusion
+      setSelectedUsers(new Set());
+      setActionType(null);
+      
+      if (error.isPartialFailure) {
+        // Partial success: some approved, some failed
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <span>Partial Success</span>
+            </div>
+          ),
+          description: `Approved ${error.succeeded.length} user(s). Failed to approve ${error.failed.length} user(s). Please retry the failed ones.`,
+          className: "border-yellow-500 bg-yellow-50",
+        });
+      } else {
+        // Complete failure
+        toast({
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-600" />
+              <span>Bulk Approval Failed</span>
+            </div>
+          ),
+          description: error.message || "Failed to approve users. Please try again.",
+          variant: "destructive",
+          className: "border-red-500 bg-red-50",
+        });
+      }
     },
   });
 
