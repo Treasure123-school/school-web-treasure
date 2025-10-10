@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import PortalLayout from "@/components/layout/PortalLayout";
@@ -112,21 +112,23 @@ export default function UserManagement() {
   const [suspendReason, setSuspendReason] = useState('');
   const [deleteDialog, setDeleteDialog] = useState(false);
 
-  // Fetch all users with INSTANT REFRESH settings
+  // Fetch all users with INSTANT REFRESH settings + BACKGROUND POLLING
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
     staleTime: 0, // Always fresh - no stale data allowed
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: true, // Always get fresh data on focus
     refetchOnMount: 'always', // Always refetch on mount
+    refetchInterval: 5000, // BACKGROUND POLLING: Auto-refetch every 5 seconds to ensure data consistency
   });
 
-  // Fetch pending users for count with INSTANT REFRESH settings
+  // Fetch pending users for count with INSTANT REFRESH settings + BACKGROUND POLLING
   const { data: pendingUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users/pending'],
     staleTime: 0, // Always fresh - no stale data allowed
     refetchOnWindowFocus: true,
     refetchOnMount: 'always', // Always refetch on mount
+    refetchInterval: 5000, // BACKGROUND POLLING: Auto-refetch every 5 seconds
   });
 
   // Fetch roles for role change dialog with LONG cache (roles don't change often)

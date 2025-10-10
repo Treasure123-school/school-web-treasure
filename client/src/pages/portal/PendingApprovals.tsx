@@ -48,12 +48,13 @@ export default function PendingApprovals() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [signupMethodFilter, setSignupMethodFilter] = useState<string>("all");
 
-  // Fetch pending users with INSTANT REFRESH settings
+  // Fetch pending users with INSTANT REFRESH settings + BACKGROUND POLLING
   const { data: pendingUsers = [], isLoading } = useQuery<PendingUser[]>({
     queryKey: ['/api/users/pending'],
     staleTime: 0, // Always fresh - no stale data allowed
     refetchOnWindowFocus: true,
     refetchOnMount: 'always', // Always refetch on mount
+    refetchInterval: 5000, // BACKGROUND POLLING: Auto-refetch every 5 seconds to ensure data consistency
   });
 
   // Approve user mutation with OPTIMISTIC UPDATES
