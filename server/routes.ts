@@ -1367,6 +1367,9 @@ export async function registerRoutes(app: Express): Server {
       console.log('📝 PROFILE UPDATE REQUEST:', {
         teacherId,
         hasFiles: Object.keys(files || {}).length,
+        fileFields: Object.keys(files || {}),
+        hasProfileImage: !!files['profileImage']?.[0],
+        hasSignature: !!files['signature']?.[0],
         bodyKeys: Object.keys(req.body)
       });
 

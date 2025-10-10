@@ -210,16 +210,25 @@ export default function TeacherProfile() {
 
   const handleSave = async () => {
     try {
+      console.log('🔍 DEBUG - Save triggered:', {
+        hasProfileImageFile: !!profileImageFile,
+        profileImageFileName: profileImageFile?.name,
+        hasSignatureFile: !!signatureFile,
+        signatureFileName: signatureFile?.name
+      });
+
       // Create FormData to handle both file uploads and text data
       const formData = new FormData();
 
       // Add profile image if changed
       if (profileImageFile) {
+        console.log('📸 Adding profile image to FormData:', profileImageFile.name);
         formData.append('profileImage', profileImageFile);
       }
 
       // Add signature if changed
       if (signatureFile) {
+        console.log('✍️ Adding signature to FormData:', signatureFile.name);
         formData.append('signature', signatureFile);
       }
 
