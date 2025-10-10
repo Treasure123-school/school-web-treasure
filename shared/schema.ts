@@ -106,7 +106,7 @@ export const invites = pgTable("invites", {
   token: varchar("token", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull(),
   roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
   expiresAt: timestamp("expires_at").notNull(),
   acceptedAt: timestamp("accepted_at"),
   acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: 'set null' }),
@@ -231,7 +231,7 @@ export const attendance = pgTable("attendance", {
   classId: integer("class_id").references(() => classes.id).notNull(),
   date: date("date").notNull(),
   status: attendanceStatusEnum("status"),
-  recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: 'set null' }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -245,7 +245,7 @@ export const exams = pgTable("exams", {
   totalMarks: integer("total_marks").notNull(),
   date: text("date").notNull(), // Store as YYYY-MM-DD string to avoid Date object conversion
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
   teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id, { onDelete: 'set null' }), // Teacher responsible for grading
   createdAt: timestamp("created_at").defaultNow(),
   // Exam type: 'test' (40 marks) or 'exam' (60 marks)
@@ -380,7 +380,7 @@ export const announcements = pgTable("announcements", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   title: varchar("title", { length: 200 }).notNull(),
   content: text("content").notNull(),
-  authorId: uuid("author_id").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: 'set null' }),
   targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
   targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
   isPublished: boolean("is_published").default(false),
@@ -391,8 +391,8 @@ export const announcements = pgTable("announcements", {
 // Messages table
 export const messages = pgTable("messages", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  senderId: uuid("sender_id").references(() => users.id, { onDelete: 'set null' }).notNull(),
-  recipientId: uuid("recipient_id").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  senderId: uuid("sender_id").references(() => users.id, { onDelete: 'set null' }),
+  recipientId: uuid("recipient_id").references(() => users.id, { onDelete: 'set null' }),
   subject: varchar("subject", { length: 200 }).notNull(),
   content: text("content").notNull(),
   isRead: boolean("is_read").default(false),
@@ -497,7 +497,7 @@ export const studyResources = pgTable("study_resources", {
   subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
   classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }).notNull(),
+  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
   isPublished: boolean("is_published").default(true),
   downloads: integer("downloads").default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -560,7 +560,7 @@ export const gradingTasks = pgTable("grading_tasks", {
 // Audit logs table for tracking all grade changes and important actions
 export const auditLogs = pgTable("audit_logs", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }).notNull(), // Who made the change - PRESERVE audit trail
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }), // Who made the change - PRESERVE audit trail
   action: varchar("action", { length: 100 }).notNull(), // 'grade_change', 'manual_override', 'report_publish', etc.
   entityType: varchar("entity_type", { length: 50 }).notNull(), // 'exam_result', 'student_answer', 'report_card'
   entityId: bigint("entity_id", { mode: "number" }).notNull(), // ID of the affected entity
