@@ -1,58 +1,71 @@
-
 import { db } from '../db';
-import { sql } from 'drizzle-orm';
-import crypto from 'crypto';
+import { users, students, parents, counters } from '@db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import bcrypt from 'bcrypt';
 
 /**
- * Generates a unique THS student username using atomic DB counter
+ * Atomically generates next student username using database counters
  * Format: THS-STU-{YEAR}-{CLASS}-{SEQ}
- * Thread-safe via database transaction
  */
 export async function generateStudentUsername(classCode: string, year: number): Promise<string> {
-  try {
-    // Atomic upsert to get next sequence number
-    const result = await db.execute(sql`
-      INSERT INTO class_counters (class_code, year, seq)
-      VALUES (${classCode}, ${year}, 1)
-      ON CONFLICT (class_code, year) 
-      DO UPDATE SET 
-        seq = class_counters.seq + 1,
-        updated_at = NOW()
-      RETURNING seq
-    `);
+  const yearStr = year.toString();
 
-    const seq = result.rows[0]?.seq || 1;
-    const paddedSeq = String(seq).padStart(3, '0');
-    
-    return `THS-STU-${year}-${classCode}-${paddedSeq}`;
-  } catch (error) {
-    console.error('Error generating student username:', error);
-    throw new Error('Failed to generate unique username');
-  }
+  // Atomic increment using PostgreSQL ON CONFLICT
+  const result = await db
+    .insert(counters)
+    .values({
+      classCode,
+      year: yearStr,
+      sequence: 1
+    })
+    .onConflictDoUpdate({
+      target: [counters.classCode, counters.year],
+      set: {
+        sequence: sql`${counters.sequence} + 1`,
+        updatedAt: new Date()
+      }
+    })
+    .returning();
+
+  const sequence = result[0].sequence;
+  return `THS-STU-${yearStr}-${classCode.toUpperCase()}-${String(sequence).padStart(3, '0')}`;
 }
 
 /**
- * Generates a unique THS parent username
- * Format: THS-PAR-{YEAR}-{RANDOM}
+ * Generates parent username atomically
+ * Format: THS-PAR-{YEAR}-{SEQ}
  */
 export async function generateParentUsername(year: number): Promise<string> {
-  const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase();
-  return `THS-PAR-${year}-${randomPart}`;
+  const yearStr = year.toString();
+  const classCode = 'PARENT'; // Special class code for parents
+
+  const result = await db
+    .insert(counters)
+    .values({
+      classCode,
+      year: yearStr,
+      sequence: 1
+    })
+    .onConflictDoUpdate({
+      target: [counters.classCode, counters.year],
+      set: {
+        sequence: sql`${counters.sequence} + 1`,
+        updatedAt: new Date()
+      }
+    })
+    .returning();
+
+  const sequence = result[0].sequence;
+  return `THS-PAR-${yearStr}-${String(sequence).padStart(3, '0')}`;
 }
 
 /**
- * Generates a secure temporary password
- * Format: THS@{YEAR}#{RANDOM4}
- * Uses crypto-random generation
+ * Generates temporary password
+ * Format: THS@{YEAR}#{RAND4}
  */
 export function generateTempPassword(year: number): string {
-  const token = crypto.randomBytes(3)
-    .toString('base64')
-    .replace(/[^A-Za-z0-9]/g, '')
-    .slice(0, 4)
-    .toUpperCase();
-  
-  return `THS@${year}#${token}`;
+  const random4 = Math.floor(1000 + Math.random() * 9000);
+  return `THS@${year}#${random4}`;
 }
 
 /**
@@ -64,12 +77,12 @@ export function validateUsername(username: string): { valid: boolean; type?: 'st
   }
 
   const studentPattern = /^THS-STU-\d{4}-[A-Z0-9]+-\d{3}$/;
-  const parentPattern = /^THS-PAR-\d{4}-[A-Z0-9]+$/;
+  const parentPattern = /^THS-PAR-\d{4}-\d{3}$/; // Updated to match generated format
 
   if (studentPattern.test(username)) {
     return { valid: true, type: 'student' };
   }
-  
+
   if (parentPattern.test(username)) {
     return { valid: true, type: 'parent' };
   }

@@ -36,6 +36,8 @@ export default function StudentManagement() {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadedStudents, setUploadedStudents] = useState<any[]>([]);
+  const [csvPreview, setCsvPreview] = useState<any>(null);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<StudentForm>({
     resolver: zodResolver(createStudentSchema),
@@ -359,7 +361,7 @@ export default function StudentManagement() {
     deleteStudentMutation.mutate(studentId);
   };
 
-  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.name.endsWith('.csv')) {
@@ -370,8 +372,68 @@ export default function StudentManagement() {
         });
         return;
       }
-      csvUploadMutation.mutate(file);
+
+      // Show preview first
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/students/csv-preview', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to preview CSV');
+        }
+
+        const preview = await response.json();
+        setCsvPreview(preview);
+        setIsPreviewDialogOpen(true);
+      } catch (error) {
+        toast({
+          title: 'Preview Failed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      }
+
       event.target.value = '';
+    }
+  };
+
+  const handleConfirmCSVImport = () => {
+    if (csvPreview?.valid.length > 0) {
+      // Commit the import
+      fetch('/api/students/csv-commit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ validRows: csvPreview.valid }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          setUploadedStudents(data.credentials || []);
+          setIsPreviewDialogOpen(false);
+          setCsvPreview(null);
+          queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+          toast({
+            title: 'Import Successful',
+            description: `Created ${data.successCount} students`,
+          });
+        })
+        .catch(error => {
+          toast({
+            title: 'Import Failed',
+            description: error.message,
+            variant: 'destructive',
+          });
+        });
     }
   };
 
@@ -785,6 +847,123 @@ export default function StudentManagement() {
                     if (createdCredentials?.parent) {
                       text += `\n\n=== PARENT CREDENTIALS ===\nUsername: ${createdCredentials?.parent?.username}\nPassword: ${createdCredentials?.parent?.password}`;
                     }
+
+
+        {/* CSV Preview Dialog */}
+        <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-600" />
+                CSV Import Preview
+              </DialogTitle>
+            </DialogHeader>
+            {csvPreview && (
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Card className="p-3">
+                    <p className="text-xs text-muted-foreground">Total Rows</p>
+                    <p className="text-2xl font-bold">{csvPreview.summary.total}</p>
+                  </Card>
+                  <Card className="p-3 border-green-200">
+                    <p className="text-xs text-muted-foreground">Valid</p>
+                    <p className="text-2xl font-bold text-green-600">{csvPreview.summary.validCount}</p>
+                  </Card>
+                  <Card className="p-3 border-red-200">
+                    <p className="text-xs text-muted-foreground">Invalid</p>
+                    <p className="text-2xl font-bold text-red-600">{csvPreview.summary.invalidCount}</p>
+                  </Card>
+                  <Card className="p-3 border-blue-200">
+                    <p className="text-xs text-muted-foreground">New Parents</p>
+                    <p className="text-2xl font-bold text-blue-600">{csvPreview.summary.newParents}</p>
+                  </Card>
+                </div>
+
+                {/* Invalid Rows Warning */}
+                {csvPreview.invalid.length > 0 && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-700 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                          {csvPreview.invalid.length} Invalid Rows Found
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {csvPreview.invalid.slice(0, 5).map((item: any) => (
+                            <p key={item.row} className="text-xs text-red-600">
+                              Row {item.row}: {item.errors.join(', ')}
+                            </p>
+                          ))}
+                          {csvPreview.invalid.length > 5 && (
+                            <p className="text-xs text-red-600">
+                              ...and {csvPreview.invalid.length - 5} more
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Valid Rows Preview */}
+                {csvPreview.valid.length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-2">Valid Rows Preview (first 10)</h3>
+                    <div className="border rounded-md overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Class</TableHead>
+                            <TableHead>DOB</TableHead>
+                            <TableHead>Parent</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {csvPreview.valid.slice(0, 10).map((item: any) => (
+                            <TableRow key={item.row}>
+                              <TableCell>{item.data.fullName}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">{item.data.classCode}</Badge>
+                              </TableCell>
+                              <TableCell className="text-xs">{item.data.dob}</TableCell>
+                              <TableCell className="text-xs">
+                                {item.data.parentEmail || item.data.parentPhone || 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                {item.parentExists ? (
+                                  <Badge variant="outline" className="text-xs">Link Existing</Badge>
+                                ) : (
+                                  <Badge variant="default" className="text-xs bg-blue-600">Create New</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleConfirmCSVImport}
+                    disabled={csvPreview.valid.length === 0}
+                  >
+                    Import {csvPreview.valid.length} Students
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
 
                     navigator.clipboard.writeText(text);
                     toast({

@@ -912,7 +912,7 @@ export async function registerRoutes(app: Express): Server {
         subjects: req.body.subjects,
         assignedClasses: req.body.assignedClasses
       });
-      
+
       // Log detailed file information
       if (files['profileImage']?.[0]) {
         console.log('📸 Profile Image Details:', {
@@ -925,7 +925,7 @@ export async function registerRoutes(app: Express): Server {
       } else {
         console.log('⚠️ No profile image received in upload');
       }
-      
+
       if (files['signature']?.[0]) {
         console.log('✍️ Signature Details:', {
           filename: files['signature'][0].filename,
@@ -1047,17 +1047,17 @@ export async function registerRoutes(app: Express): Server {
         dateOfBirth,
         profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
       };
-      
+
       // Only include nationalId if provided
       if (nationalId && nationalId.trim() !== '' && nationalId !== 'undefined') {
         userUpdateData.nationalId = nationalId.trim();
       }
-      
+
       // Only include recoveryEmail if provided
       if (recoveryEmail && recoveryEmail.trim() !== '' && recoveryEmail !== 'undefined') {
         userUpdateData.recoveryEmail = recoveryEmail.trim();
       }
-      
+
       await storage.updateUser(teacherId, userUpdateData);
 
       // Detect suspicious patterns for admin notification (informational only)
@@ -1485,9 +1485,9 @@ export async function registerRoutes(app: Express): Server {
 
     } catch (error) {
       console.error('❌ PROFILE UPDATE ERROR:', error);
-      res.status(500).json({ 
-        message: 'Failed to update profile', 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      res.status(500).json({
+        message: 'Failed to update profile',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -3507,7 +3507,7 @@ Treasure-Home School Administration
   // Delete user (permanent removal - Admin only) - ENHANCED with retry logic and comprehensive error handling
   app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     const startTime = Date.now();
-    
+
     try {
       const { id } = req.params;
       const adminUser = req.user;
@@ -3537,12 +3537,12 @@ Treasure-Home School Administration
       let deleted = false;
       let lastError = null;
       const maxRetries = 3;
-      
+
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           console.log(`🔄 DELETE ATTEMPT ${attempt}/${maxRetries} for user ${id}`);
           deleted = await storage.deleteUser(id);
-          
+
           if (deleted) {
             console.log(`✅ DELETE SUCCESS on attempt ${attempt}: User ${id} deleted in ${Date.now() - startTime}ms`);
             break;
@@ -3552,7 +3552,7 @@ Treasure-Home School Administration
         } catch (deleteError: any) {
           lastError = deleteError;
           console.error(`❌ DELETE ERROR on attempt ${attempt}:`, deleteError);
-          
+
           // Check for Supabase RLS or permission errors
           if (deleteError?.code === '42501' || deleteError?.message?.includes('permission denied')) {
             console.error(`🚫 RLS/PERMISSION ERROR: Supabase Row Level Security may be blocking delete for user ${id}`);
@@ -3561,12 +3561,12 @@ Treasure-Home School Administration
               technicalDetails: "RLS_PERMISSION_DENIED"
             });
           }
-          
+
           // If it's not a transient error, break the retry loop
           if (deleteError?.code !== 'ECONNRESET' && !deleteError?.message?.includes('timeout')) {
             break;
           }
-          
+
           // Wait before retry (TRUE exponential backoff: 100ms, 200ms, 400ms)
           if (attempt < maxRetries) {
             const backoffMs = 100 * Math.pow(2, attempt - 1);
@@ -3579,17 +3579,17 @@ Treasure-Home School Administration
       if (!deleted) {
         const errorMsg = lastError?.message || "Unknown error";
         console.error(`❌ DELETE FAILED AFTER ${maxRetries} ATTEMPTS: ${errorMsg}`);
-        
+
         // Provide specific error messages
-        if (lastError?.cause?.code === '23503' || errorMsg.includes('foreign key constraint')) {
+        if (lastError?.cause?.code === '23503' || errorMsg.includes('foreign key')) {
           const relatedTable = lastError?.cause?.table_name || 'related records';
           return res.status(409).json({
             message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead.`,
             technicalDetails: "FOREIGN_KEY_CONSTRAINT"
           });
         }
-        
-        return res.status(500).json({ 
+
+        return res.status(500).json({
           message: "Failed to delete user after multiple attempts",
           technicalDetails: errorMsg
         });
@@ -3605,7 +3605,7 @@ Treasure-Home School Administration
         });
       }
 
-      console.log(`🎉 DELETE VERIFIED: User ${id} successfully removed from database`);
+      console.log(`✅ DELETE VERIFIED: User ${id} successfully removed from database`);
 
       // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
@@ -3627,8 +3627,8 @@ Treasure-Home School Administration
 
       const totalTime = Date.now() - startTime;
       console.log(`⚡ DELETE COMPLETED in ${totalTime}ms`);
-      
-      res.json({ 
+
+      res.json({
         message: "User deleted successfully",
         deletedUserId: id,
         executionTime: `${totalTime}ms`
@@ -3638,7 +3638,7 @@ Treasure-Home School Administration
       console.error(`💥 UNEXPECTED DELETE ERROR after ${totalTime}ms:`, error);
       console.error('Error stack:', error.stack);
 
-      res.status(500).json({ 
+      res.status(500).json({
         message: "An unexpected error occurred while deleting user",
         technicalDetails: error.message
       });
@@ -3925,7 +3925,7 @@ Treasure-Home School Administration
       // Parse header
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
 
-      // Expected columns: studentName, class, rollNo, parentName, parentEmail
+      // Expected columns: studentName, class, parentName, parentEmail
       const requiredColumns = ['studentname', 'class', 'parentname', 'parentemail'];
       const hasRequiredColumns = requiredColumns.every(col => headers.includes(col));
 
@@ -4519,7 +4519,7 @@ Treasure-Home School Administration
 
           const classCode = matchingClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
           const currentYear = new Date().getFullYear().toString();
-          const nextNumber = await getNextUserNumber(ROLES.STUDENT, currentYear, classCode); // Use classCode here for better uniqueness
+          const nextNumber = await storage.getNextSequence(matchingClass.name, currentYear); // Use class name and year for sequence
           const username = generateStudentUsername(matchingClass.name, currentYear, nextNumber); // Use class name for clarity
           const password = generateStudentPassword(currentYear);
           const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -4547,9 +4547,9 @@ Treasure-Home School Administration
 
           const studentData = {
             id: user.id,
-            admissionNumber: `THS/${currentYear.substring(2)}/${String(nextNumber).padStart(3, '0')}`, // THS/25/001 format
+            admissionNumber: `THS/${currentYear.substring(2)}/${String(nextNumber).padStart(4, '0')}`, // THS/25/001 format
             classId: matchingClass.id,
-            parentId,
+            parentId: null, // Will be updated below if parent is found or created
             admissionDate: new Date().toISOString().split('T')[0], // Current date as admission date
             emergencyContact: parentPhone || null,
             medicalInfo: null,
@@ -8074,7 +8074,7 @@ Treasure-Home School Administration
         await storage.createNotification({
           userId: userId,
           type: 'profile_verified',
-          title: 'Profile Verified',
+          title: '```typescript
           message: 'Your teacher profile has been verified by the administrator. You now have full access to the portal.',
           relatedEntityType: 'teacher_profile',
           relatedEntityId: userId
@@ -8111,7 +8111,7 @@ Treasure-Home School Administration
   // ==================== END TEACHER PROFILE ROUTES ====================
 
   // ==================== MODULE 1: SETTINGS MANAGEMENT ====================
-  
+
   // Get all settings (Admin only)
   app.get("/api/admin/settings", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
@@ -8232,7 +8232,7 @@ Treasure-Home School Administration
 
       const csvContent = await fs.readFile(req.file.path, 'utf-8');
       const lines = csvContent.split('\n').filter(line => line.trim());
-      
+
       if (lines.length < 2) {
         return res.status(400).json({ message: "CSV file is empty or invalid" });
       }
@@ -8263,12 +8263,12 @@ Treasure-Home School Administration
         const rowErrors = [];
         if (!row.studentName) rowErrors.push('Missing student name');
         if (!row.class) rowErrors.push('Missing class');
-        
+
         const matchingClass = classes.find(c => c.name.toLowerCase() === row.class.toLowerCase());
         if (!matchingClass) rowErrors.push(`Class "${row.class}" not found`);
 
         const existingUsernames = (await storage.getAllUsers()).map(u => u.username).filter(Boolean);
-        const studentUsername = matchingClass 
+        const studentUsername = matchingClass
           ? generateStudentUsername(matchingClass.name, currentYear, await storage.getNextSequence(matchingClass.name, currentYear))
           : '';
 
@@ -8313,17 +8313,15 @@ Treasure-Home School Administration
   });
 
   // Commit CSV import (create users from validated CSV)
-  app.post("/api/admin/import/commit", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+  app.post("/api/students/csv-commit", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
+      const { validRows } = req.body; // Expecting an array of validated rows from the preview step
+
+      if (!validRows || !Array.isArray(validRows) || validRows.length === 0) {
+        return res.status(400).json({ message: "No valid rows provided for import" });
       }
 
       const adminId = req.user!.id;
-      const csvContent = await fs.readFile(req.file.path, 'utf-8');
-      const lines = csvContent.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim());
-
       const created = [];
       const failed = [];
       const currentYear = new Date().getFullYear().toString();
@@ -8334,149 +8332,111 @@ Treasure-Home School Administration
         return res.status(500).json({ message: "Required roles not found" });
       }
 
-      for (let i = 1; i < lines.length; i++) {
+      // Fetch existing usernames once to avoid redundant queries
+      const existingUsernames = await storage.getAllUsernames();
+
+      for (const rowData of validRows) {
         try {
-          const values = lines[i].split(',').map(v => v.trim());
-          const row: any = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-          });
+          const { data, computed } = rowData;
 
-          const matchingClass = (await storage.getClasses()).find(
-            c => c.name.toLowerCase() === row.class.toLowerCase()
-          );
+          const firstName = data.studentName.split(' ')[0];
+          const lastName = data.studentName.split(' ').slice(1).join(' ') || firstName;
 
-          if (!matchingClass) {
-            failed.push({ row: i, error: `Class "${row.class}" not found` });
-            continue;
-          }
-
-          const sequence = await storage.getNextSequence(matchingClass.name, currentYear);
-          const studentUsername = generateStudentUsername(matchingClass.name, currentYear, sequence);
-          const studentPassword = generateStudentPassword(currentYear);
-          const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
-
-          const [firstName, ...lastNameParts] = row.studentName.split(' ');
-          const lastName = lastNameParts.join(' ') || firstName;
-
-          const studentUser = await storage.createUser({
-            username: studentUsername,
-            email: `${studentUsername.toLowerCase()}@ths.edu.ng`,
-            passwordHash: studentPasswordHash,
-            mustChangePassword: true,
-            roleId: studentRole.id,
-            firstName,
-            lastName,
-            authProvider: 'local',
-            status: 'active',
-            createdVia: 'bulk',
-            createdBy: adminId
-          });
-
-          const admissionNumber = `THS-${currentYear}-${sequence.toString().padStart(4, '0')}`;
-          const student = await storage.createStudent({
-            id: studentUser.id,
-            admissionNumber,
-            classId: matchingClass.id,
-            guardianName: row.parentName || null,
-            admissionDate: new Date().toISOString().split('T')[0]
-          });
+          const parentFirstName = data.parentName.split(' ')[0];
+          const parentLastName = data.parentName.split(' ').slice(1).join(' ') || parentFirstName;
 
           let parentUser = null;
-          if (row.parentEmail) {
-            parentUser = await storage.getUserByEmail(row.parentEmail);
-            
-            if (!parentUser && row.parentName) {
+          let parentId: string | null = null;
+          let parentCredentials = null;
+
+          if (data.parentEmail) {
+            parentUser = await storage.getUserByEmail(data.parentEmail);
+
+            if (!parentUser) {
               const parentPassword = generatePassword(currentYear);
               const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
-              const [parentFirstName, ...parentLastNameParts] = row.parentName.split(' ');
-              const parentLastName = parentLastNameParts.join(' ') || parentFirstName;
               const parentSequence = await storage.getNextSequence('PARENT', currentYear);
               const parentUsername = generateUsername(parentRole.id, currentYear, '', parentSequence);
 
               parentUser = await storage.createUser({
                 username: parentUsername,
-                email: row.parentEmail,
+                email: data.parentEmail,
                 passwordHash: parentPasswordHash,
-                mustChangePassword: true,
                 roleId: parentRole.id,
                 firstName: parentFirstName,
                 lastName: parentLastName,
+                mustChangePassword: true,
                 authProvider: 'local',
                 status: 'active',
                 createdVia: 'bulk',
                 createdBy: adminId
               });
 
-              await storage.createParentProfile({
-                userId: parentUser.id,
-                linkedStudents: [studentUser.id]
-              });
-
-              created.push({
-                type: 'parent',
-                username: parentUsername,
-                password: parentPassword,
-                email: row.parentEmail,
-                name: row.parentName
-              });
+              existingUsernames.push(parentUsername);
+              parentCredentials = { username: parentUsername, password: parentPassword };
             }
-
-            if (parentUser) {
-              await storage.updateStudent(studentUser.id, {
-                studentPatch: { parentId: parentUser.id }
-              });
-            }
+            parentId = parentUser.id;
           }
 
-          created.push({
-            type: 'student',
+          const studentUsername = computed.studentUsername; // Already computed during preview
+          const studentPassword = generateStudentPassword(currentYear);
+          const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
+
+          const studentUser = await storage.createUser({
             username: studentUsername,
-            password: studentPassword,
-            admissionNumber,
-            name: row.studentName,
-            class: matchingClass.name,
-            parentLinked: !!parentUser
+            email: `${studentUsername.toLowerCase()}@ths.edu.ng`,
+            passwordHash: studentPasswordHash,
+            firstName,
+            lastName,
+            roleId: studentRole.id,
+            mustChangePassword: true,
+            authProvider: 'local',
+            status: 'active',
+            createdVia: 'bulk',
+            createdBy: adminId
           });
 
-          await storage.createAuditLog({
-            userId: adminId,
-            action: 'student_bulk_created',
-            entityType: 'student',
-            entityId: 0,
-            oldValue: null,
-            newValue: JSON.stringify({ studentId: studentUser.id, admissionNumber }),
-            reason: 'Bulk CSV import',
-            ipAddress: req.ip,
-            userAgent: req.headers['user-agent']
+          existingUsernames.push(studentUsername);
+
+          const admissionNumber = `THS-${currentYear.slice(-2)}-${await storage.getNextSequence(matchingClass.name, currentYear).toString().padStart(4, '0')}`;
+          await storage.createStudent({
+            id: studentUser.id,
+            admissionNumber,
+            classId: computed.classId,
+            parentId: parentId,
+            admissionDate: new Date().toISOString().split('T')[0]
           });
+
+          created.push({
+            student: {
+              username: studentUsername,
+              password: studentPassword,
+              admissionNumber,
+              name: data.studentName
+            },
+            parent: parentCredentials ? {
+              name: data.parentName,
+              email: data.parentEmail,
+              credentials: parentCredentials
+            } : null
+          });
+
         } catch (rowError) {
-          console.error(`Error processing row ${i}:`, rowError);
-          failed.push({
-            row: i,
-            error: rowError instanceof Error ? rowError.message : 'Unknown error'
-          });
+          failed.push({ row: rowData.rowNumber, error: rowError instanceof Error ? rowError.message : 'Unknown error' });
         }
       }
 
-      await fs.unlink(req.file.path);
-
       res.json({
-        success: true,
-        summary: {
-          totalRows: lines.length - 1,
-          successCount: created.filter(c => c.type === 'student').length,
-          failedCount: failed.length,
-          parentsCreated: created.filter(c => c.type === 'parent').length
-        },
+        message: `Successfully imported ${created.length} students`,
         created,
         failed
       });
     } catch (error) {
       console.error('Error committing CSV import:', error);
-      res.status(500).json({ message: "Failed to import CSV" });
+      res.status(500).json({ message: "Failed to import students" });
     }
   });
+
 
   // ==================== END MODULE 1 ROUTES ====================
 
