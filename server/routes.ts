@@ -1925,13 +1925,15 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
-  // Academic Terms API endpoint - accessible by teachers and admins
+  // Academic Terms API endpoint - accessible by all authenticated users
   app.get('/api/terms', authenticateUser, async (req, res) => {
     try {
+      console.log('📅 Fetching academic terms for user:', req.user?.email);
       const terms = await storage.getAcademicTerms();
+      console.log(`✅ Found ${terms.length} academic terms`);
       res.json(terms);
     } catch (error) {
-      console.error('Error fetching academic terms:', error);
+      console.error('❌ Error fetching academic terms:', error);
       res.status(500).json({ message: 'Failed to fetch academic terms' });
     }
   });

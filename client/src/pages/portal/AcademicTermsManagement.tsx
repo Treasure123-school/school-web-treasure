@@ -27,10 +27,13 @@ export default function AcademicTermsManagement() {
     isCurrent: false
   });
 
-  const { data: terms = [] } = useQuery({
+  const { data: terms = [], isLoading, error } = useQuery({
     queryKey: ['/api/terms'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/terms');
+      if (!response.ok) {
+        throw new Error('Failed to fetch terms');
+      }
       return await response.json();
     },
   });
@@ -170,7 +173,15 @@ export default function AcademicTermsManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {terms.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading academic terms...
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-destructive">
+                Failed to load academic terms. Please try again.
+              </div>
+            ) : terms.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No academic terms found. Create your first term to get started.
               </div>
