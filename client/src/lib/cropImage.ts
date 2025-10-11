@@ -13,47 +13,62 @@ export async function getCroppedImg(
   rotation = 0
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  
+  const rotatedCanvas = document.createElement('canvas');
+  const rotatedCtx = rotatedCanvas.getContext('2d');
 
-  if (!ctx) {
+  if (!rotatedCtx) {
     throw new Error('Failed to get canvas context');
   }
 
   const maxSize = Math.max(image.width, image.height);
   const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
 
-  canvas.width = safeArea;
-  canvas.height = safeArea;
+  rotatedCanvas.width = safeArea;
+  rotatedCanvas.height = safeArea;
 
-  ctx.translate(safeArea / 2, safeArea / 2);
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.translate(-safeArea / 2, -safeArea / 2);
+  rotatedCtx.translate(safeArea / 2, safeArea / 2);
+  rotatedCtx.rotate((rotation * Math.PI) / 180);
+  rotatedCtx.translate(-safeArea / 2, -safeArea / 2);
 
-  ctx.drawImage(
+  rotatedCtx.drawImage(
     image,
     safeArea / 2 - image.width * 0.5,
     safeArea / 2 - image.height * 0.5
   );
 
-  const data = ctx.getImageData(0, 0, safeArea, safeArea);
+  const croppedCanvas = document.createElement('canvas');
+  const croppedCtx = croppedCanvas.getContext('2d');
+  
+  if (!croppedCtx) {
+    throw new Error('Failed to get cropped canvas context');
+  }
 
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  croppedCanvas.width = pixelCrop.width;
+  croppedCanvas.height = pixelCrop.height;
 
-  ctx.putImageData(
-    data,
-    0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x,
-    0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y
+  const offsetX = safeArea / 2 - image.width * 0.5 + pixelCrop.x;
+  const offsetY = safeArea / 2 - image.height * 0.5 + pixelCrop.y;
+
+  croppedCtx.drawImage(
+    rotatedCanvas,
+    offsetX,
+    offsetY,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
   );
 
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
+    croppedCanvas.toBlob((blob) => {
       if (blob) {
         resolve(blob);
       } else {
         reject(new Error('Canvas is empty'));
       }
-    }, 'image/jpeg');
+    }, 'image/jpeg', 0.95);
   });
 }
