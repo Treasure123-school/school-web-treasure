@@ -434,6 +434,17 @@ export default function TeacherProfileSetup() {
 
     if (!profileImage) {
       errors.push("Profile Photo");
+    } else {
+      // Validate the profile image file
+      console.log('📸 Profile image to upload:', {
+        name: profileImage.name,
+        size: profileImage.size,
+        type: profileImage.type
+      });
+      
+      if (profileImage.size === 0) {
+        errors.push("Profile Photo (file is empty)");
+      }
     }
 
     // Step 2: Academic & Professional validation

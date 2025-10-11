@@ -44,8 +44,12 @@ export async function getCroppedImg(
     throw new Error('Failed to get cropped canvas context');
   }
 
-  croppedCanvas.width = pixelCrop.width;
-  croppedCanvas.height = pixelCrop.height;
+  // Ensure valid dimensions
+  const width = Math.max(1, Math.floor(pixelCrop.width));
+  const height = Math.max(1, Math.floor(pixelCrop.height));
+  
+  croppedCanvas.width = width;
+  croppedCanvas.height = height;
 
   const offsetX = safeArea / 2 - image.width * 0.5 + pixelCrop.x;
   const offsetY = safeArea / 2 - image.height * 0.5 + pixelCrop.y;
@@ -54,21 +58,27 @@ export async function getCroppedImg(
     rotatedCanvas,
     offsetX,
     offsetY,
-    pixelCrop.width,
-    pixelCrop.height,
+    width,
+    height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    width,
+    height
   );
 
   return new Promise((resolve, reject) => {
-    croppedCanvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-      } else {
-        reject(new Error('Canvas is empty'));
-      }
-    }, 'image/jpeg', 0.95);
+    croppedCanvas.toBlob(
+      (blob) => {
+        if (blob && blob.size > 0) {
+          console.log('✅ Crop successful - blob created:', blob.size, 'bytes');
+          resolve(blob);
+        } else {
+          console.error('❌ Crop failed - empty blob or null');
+          reject(new Error('Failed to create image blob - canvas may be empty'));
+        }
+      },
+      'image/jpeg',
+      0.95
+    );
   });
 }

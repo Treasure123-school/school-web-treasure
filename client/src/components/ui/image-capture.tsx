@@ -113,7 +113,15 @@ export function ImageCapture({
   };
 
   const handleCropComplete = (croppedBlob: Blob) => {
-    const file = new File([croppedBlob], `cropped-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    // Create a proper File object from the cropped blob
+    const timestamp = Date.now();
+    const file = new File(
+      [croppedBlob], 
+      `cropped-${timestamp}.jpg`, 
+      { type: 'image/jpeg', lastModified: timestamp }
+    );
+    
+    // Update the parent component with the new file
     onChange(file);
     setShowCropDialog(false);
     
@@ -124,8 +132,8 @@ export function ImageCapture({
     }
     
     toast({
-      title: "Image Cropped",
-      description: "Your image has been cropped and is ready to upload",
+      title: "Image Cropped Successfully",
+      description: "Your cropped image is ready to save with your profile",
     });
   };
 

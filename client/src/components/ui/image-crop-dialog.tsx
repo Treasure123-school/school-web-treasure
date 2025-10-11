@@ -42,15 +42,27 @@ export function ImageCropDialog({
   );
 
   const handleCropConfirm = async () => {
-    if (!croppedAreaPixels) return;
+    if (!croppedAreaPixels) {
+      console.error('No crop area selected');
+      return;
+    }
 
     try {
       setIsProcessing(true);
+      console.log('Starting crop operation...', { croppedAreaPixels, rotation });
+      
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
+      
+      if (!croppedBlob) {
+        throw new Error('Failed to create cropped image blob');
+      }
+      
+      console.log('Crop successful, blob size:', croppedBlob.size);
       onCropComplete(croppedBlob);
       onClose();
     } catch (error) {
       console.error('Error cropping image:', error);
+      alert('Failed to crop image. Please try again.');
     } finally {
       setIsProcessing(false);
     }
