@@ -451,6 +451,14 @@ export default function ExamManagement() {
   });
 
   const onSubmitExam = (data: ExamForm) => {
+    console.log('📤 Submitting exam data to server:', JSON.stringify(data, null, 2));
+    console.log('📤 Data types:', {
+      classId: typeof data.classId,
+      subjectId: typeof data.subjectId,
+      termId: typeof data.termId,
+      totalMarks: typeof data.totalMarks,
+      date: typeof data.date,
+    });
     createExamMutation.mutate(data);
   };
 

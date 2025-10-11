@@ -1941,7 +1941,7 @@ export async function registerRoutes(app: Express): Server {
   app.post('/api/terms', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       console.log('📅 Creating academic term:', req.body);
-      
+
       // Validate required fields
       if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
         return res.status(400).json({ message: 'Missing required fields: name, year, startDate, endDate' });
@@ -1959,13 +1959,13 @@ export async function registerRoutes(app: Express): Server {
   app.put('/api/terms/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const termId = parseInt(req.params.id);
-      
+
       if (isNaN(termId)) {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
       console.log('📅 Updating academic term:', termId, req.body);
-      
+
       // Check if term exists first
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
@@ -1985,39 +1985,39 @@ export async function registerRoutes(app: Express): Server {
   app.delete('/api/terms/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const termId = parseInt(req.params.id);
-      
+
       if (isNaN(termId)) {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
       console.log('📅 DELETE REQUEST: Attempting to delete academic term:', termId);
-      
+
       const success = await storage.deleteAcademicTerm(termId);
-      
+
       if (!success) {
         console.error(`❌ DELETE FAILED: Term ${termId} deletion returned false`);
-        return res.status(500).json({ 
-          message: 'Failed to delete academic term. The term may not exist or could not be removed from the database.' 
+        return res.status(500).json({
+          message: 'Failed to delete academic term. The term may not exist or could not be removed from the database.'
         });
       }
 
       console.log('✅ DELETE SUCCESS: Academic term deleted:', termId);
-      res.json({ 
-        message: 'Academic term deleted successfully', 
+      res.json({
+        message: 'Academic term deleted successfully',
         id: termId,
-        success: true 
+        success: true
       });
     } catch (error: any) {
       console.error('❌ DELETE ERROR:', error);
-      
+
       // Handle specific errors
       if (error.code === '23503' || error.message?.includes('linked to it')) {
-        return res.status(400).json({ 
-          message: error.message || 'Cannot delete this term because it is being used by other records.' 
+        return res.status(400).json({
+          message: error.message || 'Cannot delete this term because it is being used by other records.'
         });
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         message: error.message || 'Failed to delete academic term',
         error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       });
@@ -2027,13 +2027,13 @@ export async function registerRoutes(app: Express): Server {
   app.put('/api/terms/:id/mark-current', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const termId = parseInt(req.params.id);
-      
+
       if (isNaN(termId)) {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
       console.log('📅 Marking term as current:', termId);
-      
+
       // Check if term exists first
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
@@ -4576,9 +4576,9 @@ Treasure-Home School Administration
         }
 
         // Prepare student data - admission number ALWAYS auto-generated from username
-        const studentData: UpdateStudentSchema = {
+        const studentData = {
           id: user.id, // Use the same ID as the user
-          admissionNumber: finalUsername, // ALWAYS use final unique username as admission number
+          admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, '0')}`, // THS/25/001 format
           classId: validatedData.classId,
           parentId: parentId,
           admissionDate: validatedData.admissionDate,

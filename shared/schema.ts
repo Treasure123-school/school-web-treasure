@@ -619,31 +619,85 @@ export const insertAcademicTermSchema = createInsertSchema(academicTerms).omit({
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
 // Enhanced exam schema with proper data coercion and empty string handling
 export const insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
-  // Coerce string IDs to numbers (forms often send IDs as strings)
-  classId: z.coerce.number().positive("Please select a valid class"),
-  subjectId: z.coerce.number().positive("Please select a valid subject"),
-  termId: z.coerce.number().positive("Please select a valid term"),
-  totalMarks: z.coerce.number().positive("Total marks must be a positive number"),
+  // Required fields - coerce to numbers with clear error messages
+  classId: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+    z.number().positive("Please select a valid class")
+  ),
+  subjectId: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+    z.number().positive("Please select a valid subject")
+  ),
+  termId: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+    z.number().positive("Please select a valid term")
+  ),
+  totalMarks: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+    z.number().positive("Total marks must be a positive number")
+  ),
 
-  // Handle date string from frontend - keep as string for database with improved validation
+  // Exam name is required
+  name: z.string().min(1, "Exam name is required"),
+
+  // Handle date string from frontend - keep as string for database
   date: z.string()
+    .min(1, "Exam date is required")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
     .refine((dateStr) => {
       const date = new Date(dateStr);
       return !isNaN(date.getTime()) && date.toISOString().startsWith(dateStr);
     }, "Please enter a valid date"),
 
-  // Optional numeric fields - convert empty strings to undefined
-  timeLimit: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(1, "Time limit must be at least 1 minute").optional()),
-  passingScore: z.preprocess((val) => val === '' ? undefined : val, z.coerce.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()),
+  // Exam type with default
+  examType: z.enum(['test', 'exam']).default('exam'),
 
-  // Optional timestamp fields - convert empty strings to undefined
-  startTime: z.preprocess((val) => val === '' ? undefined : val, z.coerce.date().optional()),
-  endTime: z.preprocess((val) => val === '' ? undefined : val, z.coerce.date().optional()),
+  // Timer mode with default
+  timerMode: z.string().default('individual'),
 
-  // Text fields - convert empty strings to undefined for optional fields
-  instructions: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
-  gradingScale: z.preprocess((val) => val === '' ? 'standard' : val, z.string().default('standard')),
+  // Optional numeric fields - handle empty strings properly
+  timeLimit: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+    z.number().int().min(1, "Time limit must be at least 1 minute").optional()
+  ),
+  passingScore: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+    z.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()
+  ),
+
+  // Optional timestamp fields - handle empty strings and convert to Date
+  startTime: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : new Date(val as string),
+    z.date().optional()
+  ),
+  endTime: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : new Date(val as string),
+    z.date().optional()
+  ),
+
+  // Optional text fields - handle empty strings
+  instructions: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : val,
+    z.string().optional()
+  ),
+  gradingScale: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? 'standard' : val,
+    z.string().default('standard')
+  ),
+
+  // Optional teacher in charge
+  teacherInChargeId: z.preprocess(
+    (val) => val === '' || val === null || val === undefined ? undefined : val,
+    z.string().uuid().optional()
+  ),
+
+  // Boolean fields with defaults
+  isPublished: z.boolean().default(false),
+  allowRetakes: z.boolean().default(false),
+  shuffleQuestions: z.boolean().default(false),
+  autoGradingEnabled: z.boolean().default(true),
+  instantFeedback: z.boolean().default(false),
+  showCorrectAnswers: z.boolean().default(false),
 });
 export const insertExamResultSchema = createInsertSchema(examResults).omit({ id: true, createdAt: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
