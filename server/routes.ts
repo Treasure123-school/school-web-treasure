@@ -4558,91 +4558,91 @@ Treasure-Home School Administration
       const errors: string[] = [];
 
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const row: any = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
+        try {
+          const values = lines[i].split(',').map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
 
-        const firstName = row['first name'] || row['firstname'];
-        const lastName = row['last name'] || row['lastname'];
-        const className = row['class'];
-        const gender = row['gender'];
-        const dateOfBirth = row['date of birth'] || row['dob'];
-        const parentEmail = row['parent email'] || row['parentemail'];
-        const parentPhone = row['parent phone'] || row['parentphone'];
+          const firstName = row['first name'] || row['firstname'];
+          const lastName = row['last name'] || row['lastname'];
+          const className = row['class'];
+          const gender = row['gender'];
+          const dateOfBirth = row['date of birth'] || row['dob'];
+          const parentEmail = row['parent email'] || row['parentemail'];
+          const parentPhone = row['parent phone'] || row['parentphone'];
 
-        if (!firstName || !lastName || !className) {
-          errors.push(`Row ${i + 1}: Missing required fields (first name, last name, or class)`);
-          continue;
+          if (!firstName || !lastName || !className) {
+            errors.push(`Row ${i + 1}: Missing required fields (first name, last name, or class)`);
+            continue;
+          }
+
+          const classInfo = await storage.getClasses();
+          const matchingClass = classInfo.find((c: any) =>
+            c.name.toLowerCase() === className.toLowerCase()
+          );
+
+          if (!matchingClass) {
+            errors.push(`Row ${i + 1}: Class "${className}" not found`);
+            continue;
+          }
+
+          const classCode = matchingClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
+          const currentYear = new Date().getFullYear().toString();
+          const nextNumber = await storage.getNextSequence(matchingClass.name, currentYear); // Use class name and year for sequence
+          const username = generateStudentUsername(matchingClass.name, currentYear, nextNumber); // Use class name for clarity
+          const password = generateStudentPassword(currentYear);
+          const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+          const userData = {
+            username,
+            email: `${username.toLowerCase()}@ths.edu.ng`, // Auto-generated email
+            passwordHash,
+            mustChangePassword: true,
+            firstName,
+            lastName,
+            phone: null,
+            address: null,
+            dateOfBirth: dateOfBirth || null,
+            gender: (gender?.toLowerCase() === 'male' || gender?.toLowerCase() === 'female' || gender?.toLowerCase() === 'other') ? gender as any : null,
+            profileImageUrl: null,
+            roleId: ROLES.STUDENT,
+            isActive: true,
+            status: 'active',
+            createdVia: 'bulk',
+            createdBy: req.user?.id,
+          };
+
+          const user = await storage.createUser(userData);
+
+          const studentData = {
+            id: user.id,
+            admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, '0')}`, // THS/25/001 format
+            classId: matchingClass.id,
+            parentId: null, // Will be updated below if parent is found or created
+            admissionDate: new Date().toISOString().split('T')[0], // Current date as admission date
+            emergencyContact: parentPhone || null,
+            medicalInfo: null,
+            guardianName: parentId ? `${firstName} (Parent)` : null, // Placeholder for guardian name
+          };
+
+          await storage.createStudent(studentData);
+
+          createdStudents.push({
+            id: user.id,
+            firstName,
+            lastName,
+            username,
+            password, // Return plaintext password for admin to share
+            email: userData.email,
+            class: matchingClass.name,
+            parentEmail: parentEmail || null,
+          });
+        } catch (error) {
+          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-
-        const classInfo = await storage.getClasses();
-        const matchingClass = classInfo.find((c: any) =>
-          c.name.toLowerCase() === className.toLowerCase()
-        );
-
-        if (!matchingClass) {
-          errors.push(`Row ${i + 1}: Class "${className}" not found`);
-          continue;
-        }
-
-        const classCode = matchingClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
-        const currentYear = new Date().getFullYear().toString();
-        const nextNumber = await storage.getNextSequence(matchingClass.name, currentYear); // Use class name and year for sequence
-        const username = generateStudentUsername(matchingClass.name, currentYear, nextNumber); // Use class name for clarity
-        const password = generateStudentPassword(currentYear);
-        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-
-        const userData = {
-          username,
-          email: `${username.toLowerCase()}@ths.edu.ng`, // Auto-generated email
-          passwordHash,
-          mustChangePassword: true,
-          firstName,
-          lastName,
-          phone: null,
-          address: null,
-          dateOfBirth: dateOfBirth || null,
-          gender: (gender?.toLowerCase() === 'male' || gender?.toLowerCase() === 'female' || gender?.toLowerCase() === 'other') ? gender as any : null,
-          profileImageUrl: null,
-          roleId: ROLES.STUDENT,
-          isActive: true,
-          status: 'active',
-          createdVia: 'bulk',
-          createdBy: req.user?.id,
-        };
-
-        const user = await storage.createUser(userData);
-
-        const studentData = {
-          id: user.id,
-          admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, '0')}`, // THS/25/001 format
-          classId: matchingClass.id,
-          parentId: null, // Will be updated below if parent is found or created
-          admissionDate: new Date().toISOString().split('T')[0], // Current date as admission date
-          emergencyContact: parentPhone || null,
-          medicalInfo: null,
-          guardianName: parentId ? `${firstName} (Parent)` : null, // Placeholder for guardian name
-        };
-
-        await storage.createStudent(studentData);
-
-        createdStudents.push({
-          id: user.id,
-          firstName,
-          lastName,
-          username,
-          password, // Return plaintext password for admin to share
-          email: userData.email,
-          class: matchingClass.name,
-          parentEmail: parentEmail || null,
-        });
-
-      } catch (error) {
-        errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    }
 
     await fs.unlink(req.file.path);
 
