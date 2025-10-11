@@ -615,6 +615,7 @@ export const insertInviteSchema = createInsertSchema(invites).omit({ id: true, c
 export const insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
 export const insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
 export const insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
+export const insertAcademicTermSchema = createInsertSchema(academicTerms).omit({ id: true, createdAt: true });
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
 // Enhanced exam schema with proper data coercion and empty string handling
 export const insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
@@ -850,6 +851,7 @@ export type InsertInvite = z.infer<typeof insertInviteSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type InsertClass = z.infer<typeof insertClassSchema>;
 export type InsertSubject = z.infer<typeof insertSubjectSchema>;
+export type InsertAcademicTerm = z.infer<typeof insertAcademicTermSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertExam = z.infer<typeof insertExamSchema>;
 export type InsertExamResult = z.infer<typeof insertExamResultSchema>;

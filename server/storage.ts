@@ -188,6 +188,11 @@ export interface IStorage {
   // Academic terms
   getCurrentTerm(): Promise<AcademicTerm | undefined>;
   getTerms(): Promise<AcademicTerm[]>;
+  getAcademicTerms(): Promise<AcademicTerm[]>;
+  createAcademicTerm(term: any): Promise<AcademicTerm>;
+  updateAcademicTerm(id: number, term: any): Promise<AcademicTerm | undefined>;
+  deleteAcademicTerm(id: number): Promise<boolean>;
+  markTermAsCurrent(id: number): Promise<AcademicTerm | undefined>;
 
   // Attendance management
   recordAttendance(attendance: InsertAttendance): Promise<Attendance>;
@@ -1325,6 +1330,40 @@ export class DatabaseStorage implements IStorage {
 
   async getAcademicTerm(id: number): Promise<AcademicTerm | undefined> {
     const result = await db.select().from(schema.academicTerms).where(eq(schema.academicTerms.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createAcademicTerm(term: any): Promise<AcademicTerm> {
+    const result = await db.insert(schema.academicTerms).values(term).returning();
+    console.log(`✅ Created academic term: ${result[0].name} (${result[0].year})`);
+    return result[0];
+  }
+
+  async updateAcademicTerm(id: number, term: any): Promise<AcademicTerm | undefined> {
+    const result = await db.update(schema.academicTerms).set(term).where(eq(schema.academicTerms.id, id)).returning();
+    if (result[0]) {
+      console.log(`✅ Updated academic term: ${result[0].name} (${result[0].year})`);
+    }
+    return result[0];
+  }
+
+  async deleteAcademicTerm(id: number): Promise<boolean> {
+    const result = await db.delete(schema.academicTerms).where(eq(schema.academicTerms.id, id));
+    const success = result.length > 0;
+    if (success) {
+      console.log(`✅ Deleted academic term with id: ${id}`);
+    }
+    return success;
+  }
+
+  async markTermAsCurrent(id: number): Promise<AcademicTerm | undefined> {
+    // First, set all terms to not current
+    await db.update(schema.academicTerms).set({ isCurrent: false });
+    // Then mark the specified term as current
+    const result = await db.update(schema.academicTerms).set({ isCurrent: true }).where(eq(schema.academicTerms.id, id)).returning();
+    if (result[0]) {
+      console.log(`✅ Marked term as current: ${result[0].name} (${result[0].year})`);
+    }
     return result[0];
   }
 
