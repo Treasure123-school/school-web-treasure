@@ -193,8 +193,13 @@ export default function ExamManagement() {
     },
   });
 
-  const { data: terms = [] } = useQuery<any[]>({
+  const { data: terms = [], isLoading: loadingTerms } = useQuery<any[]>({
     queryKey: ['/api/terms'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/terms');
+      if (!response.ok) throw new Error('Failed to fetch terms');
+      return response.json();
+    },
   });
 
   const { data: examQuestions = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
@@ -1259,7 +1264,7 @@ export default function ExamManagement() {
                             {terms && terms.length > 0 ? (
                               terms.map((term: any) => (
                                 <SelectItem key={term.id} value={term.id.toString()}>
-                                  {term.name} ({new Date(term.startDate).getFullYear()})
+                                  {term.name} - {term.year}
                                 </SelectItem>
                               ))
                             ) : (
