@@ -1903,6 +1903,28 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Classes API endpoint
+  app.get('/api/classes', authenticateUser, async (req, res) => {
+    try {
+      const classes = await storage.getClasses();
+      res.json(classes);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      res.status(500).json({ message: 'Failed to fetch classes' });
+    }
+  });
+
+  // Subjects API endpoint
+  app.get('/api/subjects', authenticateUser, async (req, res) => {
+    try {
+      const subjects = await storage.getSubjects();
+      res.json(subjects);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      res.status(500).json({ message: 'Failed to fetch subjects' });
+    }
+  });
+
   // Delete demo accounts - admin only
   app.post("/api/admin/delete-demo-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
