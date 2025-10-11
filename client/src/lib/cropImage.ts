@@ -1,10 +1,22 @@
 export const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
-    image.addEventListener('load', () => resolve(image));
-    image.addEventListener('error', (error) => reject(error));
-    image.setAttribute('crossOrigin', 'anonymous');
-    image.src = url;
+    image.addEventListener('load', () => {
+      console.log('✅ Image loaded successfully');
+      resolve(image);
+    });
+    image.addEventListener('error', (error) => {
+      console.error('❌ Image loading failed:', error);
+      reject(new Error('Failed to load image'));
+    });
+    
+    // Try without CORS first for blob URLs
+    if (url.startsWith('blob:')) {
+      image.src = url;
+    } else {
+      image.setAttribute('crossOrigin', 'anonymous');
+      image.src = url;
+    }
   });
 
 export async function getCroppedImg(
@@ -12,10 +24,13 @@ export async function getCroppedImg(
   pixelCrop: { x: number; y: number; width: number; height: number },
   rotation = 0
 ): Promise<Blob> {
+  console.log('🔄 Starting crop with params:', { pixelCrop, rotation });
+  
   const image = await createImage(imageSrc);
+  console.log('✅ Image loaded:', image.width, 'x', image.height);
   
   const rotatedCanvas = document.createElement('canvas');
-  const rotatedCtx = rotatedCanvas.getContext('2d');
+  const rotatedCtx = rotatedCanvas.getContext('2d', { willReadFrequently: true });
 
   if (!rotatedCtx) {
     throw new Error('Failed to get canvas context');
@@ -38,21 +53,25 @@ export async function getCroppedImg(
   );
 
   const croppedCanvas = document.createElement('canvas');
-  const croppedCtx = croppedCanvas.getContext('2d');
+  const croppedCtx = croppedCanvas.getContext('2d', { willReadFrequently: true });
   
   if (!croppedCtx) {
     throw new Error('Failed to get cropped canvas context');
   }
 
-  // Ensure valid dimensions
-  const width = Math.max(1, Math.floor(pixelCrop.width));
-  const height = Math.max(1, Math.floor(pixelCrop.height));
+  // Ensure valid dimensions with bounds checking
+  const width = Math.max(1, Math.min(Math.floor(pixelCrop.width), safeArea));
+  const height = Math.max(1, Math.min(Math.floor(pixelCrop.height), safeArea));
+  
+  console.log('📐 Crop dimensions:', width, 'x', height);
   
   croppedCanvas.width = width;
   croppedCanvas.height = height;
 
   const offsetX = safeArea / 2 - image.width * 0.5 + pixelCrop.x;
   const offsetY = safeArea / 2 - image.height * 0.5 + pixelCrop.y;
+
+  console.log('📍 Drawing at offset:', { offsetX, offsetY });
 
   croppedCtx.drawImage(
     rotatedCanvas,
@@ -67,18 +86,23 @@ export async function getCroppedImg(
   );
 
   return new Promise((resolve, reject) => {
-    croppedCanvas.toBlob(
-      (blob) => {
-        if (blob && blob.size > 0) {
-          console.log('✅ Crop successful - blob created:', blob.size, 'bytes');
-          resolve(blob);
-        } else {
-          console.error('❌ Crop failed - empty blob or null');
-          reject(new Error('Failed to create image blob - canvas may be empty'));
-        }
-      },
-      'image/jpeg',
-      0.95
-    );
+    try {
+      croppedCanvas.toBlob(
+        (blob) => {
+          if (blob && blob.size > 0) {
+            console.log('✅ Crop successful - blob created:', blob.size, 'bytes');
+            resolve(blob);
+          } else {
+            console.error('❌ Crop failed - empty blob or null');
+            reject(new Error('Failed to create image blob - canvas may be empty'));
+          }
+        },
+        'image/jpeg',
+        0.95
+      );
+    } catch (error) {
+      console.error('❌ toBlob error:', error);
+      reject(error);
+    }
   });
 }

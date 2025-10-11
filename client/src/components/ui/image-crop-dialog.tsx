@@ -44,6 +44,7 @@ export function ImageCropDialog({
   const handleCropConfirm = async () => {
     if (!croppedAreaPixels) {
       console.error('No crop area selected');
+      alert('Please select a crop area');
       return;
     }
 
@@ -51,18 +52,24 @@ export function ImageCropDialog({
       setIsProcessing(true);
       console.log('Starting crop operation...', { croppedAreaPixels, rotation });
       
+      // Validate crop area
+      if (croppedAreaPixels.width <= 0 || croppedAreaPixels.height <= 0) {
+        throw new Error('Invalid crop dimensions');
+      }
+      
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
       
-      if (!croppedBlob) {
+      if (!croppedBlob || croppedBlob.size === 0) {
         throw new Error('Failed to create cropped image blob');
       }
       
-      console.log('Crop successful, blob size:', croppedBlob.size);
+      console.log('✅ Crop successful, blob size:', croppedBlob.size);
       onCropComplete(croppedBlob);
       onClose();
     } catch (error) {
-      console.error('Error cropping image:', error);
-      alert('Failed to crop image. Please try again.');
+      console.error('❌ Error cropping image:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to crop image: ${errorMessage}\n\nPlease try:\n1. Selecting a larger crop area\n2. Using a different image\n3. Reloading the page`);
     } finally {
       setIsProcessing(false);
     }
