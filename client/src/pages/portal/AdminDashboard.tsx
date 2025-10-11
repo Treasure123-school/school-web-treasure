@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar, Search, Filter, Mail, Phone, Edit, Ban, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar, Search, Filter, Mail, Phone, Edit, Ban, CheckCircle, XCircle, Clock, Activity } from 'lucide-react';
 import { Link, navigate } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef, useState } from "react";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Define DashboardStats type (assuming it's defined elsewhere or can be inferred)
 interface DashboardStats {
@@ -518,9 +519,16 @@ export default function AdminDashboard() {
     refetchInterval: 30000,
   });
 
-  // Fetch all users for recent registrations
-  const { data: allUsers = [] } = useQuery<any[]>({
+  // Fetch all users for recent registrations (Admin only)
+  const { data: allUsers = [], isError: usersError } = useQuery<any[]>({
     queryKey: ['/api/users'],
+    enabled: !!user && user.roleId === 1, // Only fetch for admins
+    retry: false, // Don't retry on permission errors
+  });
+
+  // Fetch all exams for stats
+  const { data: allExams = [] } = useQuery<any[]>({
+    queryKey: ['/api/exams'],
     enabled: !!user,
   });
 
@@ -543,6 +551,44 @@ export default function AdminDashboard() {
       initials: `${student.firstName[0]}${student.lastName[0]}`,
       color: index === 0 ? 'bg-primary' : index === 1 ? 'bg-secondary' : 'bg-blue-500'
     }));
+
+  // Process user signup trends (last 7 days)
+  const signupTrends = (() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date.toISOString().split('T')[0];
+    });
+
+    return last7Days.map(date => {
+      const dayUsers = allUsers.filter(u => {
+        const userDate = new Date(u.createdAt).toISOString().split('T')[0];
+        return userDate === date;
+      });
+
+      return {
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        students: dayUsers.filter(u => u.roleId === 3).length,
+        teachers: dayUsers.filter(u => u.roleId === 2).length,
+        total: dayUsers.length,
+      };
+    });
+  })();
+
+  // Process role distribution for pie chart
+  const roleDistribution = [
+    { name: 'Students', value: allUsers.filter(u => u.roleId === 3).length, color: '#3b82f6' },
+    { name: 'Teachers', value: allUsers.filter(u => u.roleId === 2).length, color: '#10b981' },
+    { name: 'Parents', value: allUsers.filter(u => u.roleId === 4).length, color: '#f59e0b' },
+    { name: 'Admins', value: allUsers.filter(u => u.roleId === 1).length, color: '#ef4444' },
+  ].filter(item => item.value > 0);
+
+  // Process exam participation data
+  const examParticipation = allExams.slice(0, 6).map(exam => ({
+    name: exam.title?.substring(0, 20) || 'Exam',
+    participants: exam.totalParticipants || 0,
+    submissions: exam.totalSubmissions || 0,
+  }));
 
   const classOverview = [
     {
@@ -1108,6 +1154,112 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Analytics & Trends - Charts Section */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
+        {/* User Signup Trends */}
+        <Card className="shadow-sm border border-border" data-testid="card-signup-trends">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              <span>Daily User Signups (Last 7 Days)</span>
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Track new user registrations over time</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={signupTrends}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 12 }} />
+                <YAxis className="text-xs" tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Line type="monotone" dataKey="students" stroke="#3b82f6" strokeWidth={2} name="Students" />
+                <Line type="monotone" dataKey="teachers" stroke="#10b981" strokeWidth={2} name="Teachers" />
+                <Line type="monotone" dataKey="total" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="Total" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Role Distribution */}
+        <Card className="shadow-sm border border-border" data-testid="card-role-distribution">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+              <span>User Distribution by Role</span>
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Total users: {allUsers.length}</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={roleDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {roleDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Exam Participation Chart */}
+      {examParticipation.length > 0 && (
+        <Card className="mt-4 sm:mt-6 shadow-sm border border-border" data-testid="card-exam-participation">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+              <span>Recent Exam Participation</span>
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Student participation in recent exams
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={examParticipation}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 12 }} />
+                <YAxis className="text-xs" tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Bar dataKey="participants" fill="#8b5cf6" name="Total Participants" />
+                <Bar dataKey="submissions" fill="#10b981" name="Submissions" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Teacher Overview Section */}
       <TeacherOverviewSection />
