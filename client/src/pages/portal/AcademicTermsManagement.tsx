@@ -27,21 +27,31 @@ export default function AcademicTermsManagement() {
     isCurrent: false
   });
 
-  const { data: terms = [], isLoading, error } = useQuery({
+  const { data: terms = [], isLoading, error, refetch } = useQuery({
     queryKey: ['/api/terms'],
     queryFn: async () => {
+      console.log('Fetching academic terms...');
       const response = await apiRequest('GET', '/api/terms');
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch terms:', response.status, errorText);
         throw new Error('Failed to fetch terms');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log('Academic terms fetched:', data);
+      return data;
     },
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const createTermMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest('POST', '/api/terms', data);
-      if (!response.ok) throw new Error('Failed to create term');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to create term');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -52,6 +62,7 @@ export default function AcademicTermsManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/terms'] });
       setIsDialogOpen(false);
       setFormData({ name: '', year: '', startDate: '', endDate: '', isCurrent: false });
+      refetch();
     },
     onError: (error: any) => {
       toast({
@@ -64,6 +75,7 @@ export default function AcademicTermsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Creating term:', formData);
     createTermMutation.mutate(formData);
   };
 
@@ -77,7 +89,11 @@ export default function AcademicTermsManagement() {
     return roleMap[roleId] || 'admin';
   };
 
-  if (!user) return <div>Please log in</div>;
+  if (!user) {
+    return <div className="flex items-center justify-center h-screen">Please log in</div>;
+  }
+
+  console.log('Rendering Academic Terms page:', { isLoading, error, termsCount: terms?.length });
 
   return (
     <PortalLayout
@@ -178,12 +194,19 @@ export default function AcademicTermsManagement() {
                 Loading academic terms...
               </div>
             ) : error ? (
-              <div className="text-center py-8 text-destructive">
-                Failed to load academic terms. Please try again.
+              <div className="text-center py-8">
+                <p className="text-destructive mb-4">Failed to load academic terms. Please try again.</p>
+                <Button onClick={() => refetch()} variant="outline">
+                  Retry
+                </Button>
               </div>
-            ) : terms.length === 0 ? (
+            ) : !terms || terms.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No academic terms found. Create your first term to get started.
+                <p className="mb-4">No academic terms found. Create your first term to get started.</p>
+                <Button onClick={() => setIsDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Term
+                </Button>
               </div>
             ) : (
               <Table>

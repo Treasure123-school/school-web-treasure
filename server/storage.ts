@@ -1312,6 +1312,22 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
   }
 
+  async getAcademicTerms(): Promise<AcademicTerm[]> {
+    try {
+      const terms = await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
+      console.log(`📅 Retrieved ${terms.length} academic terms from database`);
+      return terms;
+    } catch (error) {
+      console.error('❌ Error fetching academic terms:', error);
+      throw error;
+    }
+  }
+
+  async getAcademicTerm(id: number): Promise<AcademicTerm | undefined> {
+    const result = await db.select().from(schema.academicTerms).where(eq(schema.academicTerms.id, id)).limit(1);
+    return result[0];
+  }
+
   // Attendance management
   async recordAttendance(attendance: InsertAttendance): Promise<Attendance> {
     const result = await db.insert(schema.attendance).values(attendance).returning();
