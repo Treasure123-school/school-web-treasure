@@ -1925,7 +1925,7 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
-  // Academic Terms API endpoint - accessible by all authenticated users
+  // Academic Terms API endpoints
   app.get('/api/terms', authenticateUser, async (req, res) => {
     try {
       console.log('📅 Fetching academic terms for user:', req.user?.email);
@@ -1935,6 +1935,62 @@ export async function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('❌ Error fetching academic terms:', error);
       res.status(500).json({ message: 'Failed to fetch academic terms' });
+    }
+  });
+
+  app.post('/api/terms', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      console.log('📅 Creating academic term:', req.body);
+      const term = await storage.createAcademicTerm(req.body);
+      res.json(term);
+    } catch (error) {
+      console.error('❌ Error creating academic term:', error);
+      res.status(500).json({ message: 'Failed to create academic term' });
+    }
+  });
+
+  app.put('/api/terms/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      console.log('📅 Updating academic term:', termId, req.body);
+      const term = await storage.updateAcademicTerm(termId, req.body);
+      if (!term) {
+        return res.status(404).json({ message: 'Academic term not found' });
+      }
+      res.json(term);
+    } catch (error) {
+      console.error('❌ Error updating academic term:', error);
+      res.status(500).json({ message: 'Failed to update academic term' });
+    }
+  });
+
+  app.delete('/api/terms/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      console.log('📅 Deleting academic term:', termId);
+      const success = await storage.deleteAcademicTerm(termId);
+      if (!success) {
+        return res.status(404).json({ message: 'Academic term not found' });
+      }
+      res.json({ message: 'Academic term deleted successfully' });
+    } catch (error) {
+      console.error('❌ Error deleting academic term:', error);
+      res.status(500).json({ message: 'Failed to delete academic term' });
+    }
+  });
+
+  app.put('/api/terms/:id/mark-current', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      console.log('📅 Marking term as current:', termId);
+      const term = await storage.markTermAsCurrent(termId);
+      if (!term) {
+        return res.status(404).json({ message: 'Academic term not found' });
+      }
+      res.json(term);
+    } catch (error) {
+      console.error('❌ Error marking term as current:', error);
+      res.status(500).json({ message: 'Failed to mark term as current' });
     }
   });
 
