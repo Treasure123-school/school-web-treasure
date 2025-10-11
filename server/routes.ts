@@ -986,7 +986,7 @@ export async function registerRoutes(app: Express): Server {
         ...req.body,
         createdBy: req.user!.id
       });
-      
+
       const exam = await storage.createExam(examData);
       res.status(201).json(exam);
     } catch (error: any) {
@@ -1003,11 +1003,11 @@ export async function registerRoutes(app: Express): Server {
     try {
       const examId = parseInt(req.params.id);
       const exam = await storage.getExamById(examId);
-      
+
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      
+
       res.json(exam);
     } catch (error) {
       console.error('Error fetching exam:', error);
@@ -1020,11 +1020,11 @@ export async function registerRoutes(app: Express): Server {
     try {
       const examId = parseInt(req.params.id);
       const exam = await storage.updateExam(examId, req.body);
-      
+
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      
+
       res.json(exam);
     } catch (error) {
       console.error('Error updating exam:', error);
@@ -1037,11 +1037,11 @@ export async function registerRoutes(app: Express): Server {
     try {
       const examId = parseInt(req.params.id);
       const success = await storage.deleteExam(examId);
-      
+
       if (!success) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting exam:', error);
@@ -1054,13 +1054,13 @@ export async function registerRoutes(app: Express): Server {
     try {
       const examId = parseInt(req.params.id);
       const { isPublished } = req.body;
-      
+
       const exam = await storage.updateExam(examId, { isPublished });
-      
+
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      
+
       res.json(exam);
     } catch (error) {
       console.error('Error updating exam publish status:', error);
@@ -1073,20 +1073,20 @@ export async function registerRoutes(app: Express): Server {
     try {
       const examIdsParam = req.query.examIds;
       let examIds: number[] = [];
-      
+
       if (typeof examIdsParam === 'string') {
         examIds = [parseInt(examIdsParam)];
       } else if (Array.isArray(examIdsParam)) {
         examIds = examIdsParam.map((id) => parseInt(id as string));
       }
-      
+
       const counts: Record<number, number> = {};
-      
+
       for (const examId of examIds) {
         const questions = await storage.getExamQuestions(examId);
         counts[examId] = questions.length;
       }
-      
+
       res.json(counts);
     } catch (error) {
       console.error('Error fetching question counts:', error);
@@ -1111,7 +1111,7 @@ export async function registerRoutes(app: Express): Server {
   app.post('/api/exam-questions', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { options, ...questionData } = req.body;
-      
+
       if (options && Array.isArray(options)) {
         const question = await storage.createExamQuestionWithOptions(questionData, options);
         res.status(201).json(question);
@@ -1130,11 +1130,11 @@ export async function registerRoutes(app: Express): Server {
     try {
       const questionId = parseInt(req.params.id);
       const question = await storage.updateExamQuestion(questionId, req.body);
-      
+
       if (!question) {
         return res.status(404).json({ message: 'Question not found' });
       }
-      
+
       res.json(question);
     } catch (error) {
       console.error('Error updating exam question:', error);
@@ -1147,11 +1147,11 @@ export async function registerRoutes(app: Express): Server {
     try {
       const questionId = parseInt(req.params.id);
       const success = await storage.deleteExamQuestion(questionId);
-      
+
       if (!success) {
         return res.status(404).json({ message: 'Question not found' });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting exam question:', error);

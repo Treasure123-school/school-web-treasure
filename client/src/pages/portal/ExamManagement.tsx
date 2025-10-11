@@ -725,6 +725,15 @@ export default function ExamManagement() {
   // Handle CSV file upload
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    
+    console.log('📂 CSV file selected:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      hasSelectedExam: !!selectedExam,
+      examId: selectedExam?.id
+    });
+    
     if (!file || !selectedExam) {
       if (!selectedExam) {
         toast({
@@ -733,6 +742,7 @@ export default function ExamManagement() {
           variant: "destructive",
         });
       }
+      event.target.value = '';
       return;
     }
 
@@ -762,7 +772,18 @@ export default function ExamManagement() {
     reader.onload = (e) => {
       try {
         const csv = e.target?.result as string;
+        
+        if (!csv || csv.trim().length === 0) {
+          throw new Error('CSV file is empty');
+        }
+        
+        console.log('📄 CSV content loaded, parsing...');
         const questions = parseCSV(csv);
+
+        console.log('✅ CSV parsed successfully:', {
+          questionCount: questions.length,
+          firstQuestion: questions[0]
+        });
 
         // Show preview of what will be uploaded
         toast({
@@ -772,15 +793,18 @@ export default function ExamManagement() {
 
         csvUploadMutation.mutate(questions);
       } catch (error: any) {
+        console.error('❌ CSV parsing error:', error);
         toast({
           title: "CSV Format Error",
           description: error.message || "Failed to parse CSV file. Please check the format and try again.",
           variant: "destructive",
+          duration: 8000,
         });
       }
     };
 
     reader.onerror = () => {
+      console.error('❌ File read error');
       toast({
         title: "File Read Error",
         description: "Failed to read the CSV file. Please try again.",
@@ -797,17 +821,21 @@ export default function ExamManagement() {
   // Parse CSV content into questions array
   const parseCSV = (csvContent: string) => {
     console.log('📊 Starting enhanced CSV parsing...');
+    
+    if (!csvContent || csvContent.trim().length === 0) {
+      throw new Error('CSV file is empty. Please provide a valid CSV file with question data.');
+    }
+    
     const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
 
     if (lines.length < 2) {
-      throw new Error('CSV must have at least a header row and one question row. Found only ' + lines.length + ' line(s).');
+      throw new Error(`CSV must have at least a header row and one question row. Found only ${lines.length} line(s). Please download the template for the correct format.`);
     }
 
     // Parse headers more carefully to handle quoted content
     const headers = parseCSVLine(lines[0]);
     const requiredHeaders = ['QuestionText', 'Type', 'Points'];
     const optionalHeaders = ['OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Instructions', 'SampleAnswer'];
-    const allExpectedHeaders = [...requiredHeaders, ...optionalHeaders];
 
     console.log('📋 CSV headers found:', headers);
     console.log('📋 Expected headers (required):', requiredHeaders);
@@ -820,7 +848,13 @@ export default function ExamManagement() {
     );
 
     if (missingRequiredHeaders.length > 0) {
-      throw new Error(`Missing required CSV headers: ${missingRequiredHeaders.join(', ')}.\nRequired headers: ${requiredHeaders.join(', ')}\nOptional headers: ${optionalHeaders.join(', ')}\nFound headers: ${headers.join(', ')}\n\nPlease download the template to see the correct format.`);
+      throw new Error(
+        `Missing required CSV headers: ${missingRequiredHeaders.join(', ')}\n\n` +
+        `Required headers: ${requiredHeaders.join(', ')}\n` +
+        `Optional headers: ${optionalHeaders.join(', ')}\n` +
+        `Found headers: ${headers.join(', ')}\n\n` +
+        `Please download the template to see the correct format.`
+      );
     }
 
     const questions = [];
