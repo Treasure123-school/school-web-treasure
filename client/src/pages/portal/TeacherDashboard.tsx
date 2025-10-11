@@ -512,7 +512,7 @@ export default function TeacherDashboard() {
           </CardHeader>
           <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Link to="/portal/exams">
+              <Link to="/portal/teacher/exams">
                 <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
