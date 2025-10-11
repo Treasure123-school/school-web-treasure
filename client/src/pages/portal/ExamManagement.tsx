@@ -1085,7 +1085,7 @@ export default function ExamManagement() {
                       name="classId"
                       control={examControl}
                       render={({ field }) => (
-                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value !== undefined ? field.value.toString() : ''}>
                           <SelectTrigger data-testid="select-exam-class">
                             <SelectValue placeholder="Select class" />
                           </SelectTrigger>
@@ -1107,7 +1107,7 @@ export default function ExamManagement() {
                       name="subjectId"
                       control={examControl}
                       render={({ field }) => (
-                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value !== undefined ? field.value.toString() : ''}>
                           <SelectTrigger data-testid="select-exam-subject">
                             <SelectValue placeholder="Select subject" />
                           </SelectTrigger>
