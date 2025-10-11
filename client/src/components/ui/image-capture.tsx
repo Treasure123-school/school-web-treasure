@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from './button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
 import { Camera, Upload, X, Check } from 'lucide-react';
@@ -26,11 +26,25 @@ export function ImageCapture({
   const [showDialog, setShowDialog] = useState(false);
   const [showCropDialog, setShowCropDialog] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isCameraMode, setIsCameraMode] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Manage preview URL lifecycle
+  useEffect(() => {
+    if (value) {
+      const url = URL.createObjectURL(value);
+      setPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [value]);
 
   const startCamera = async () => {
     try {
@@ -113,28 +127,41 @@ export function ImageCapture({
   };
 
   const handleCropComplete = (croppedBlob: Blob) => {
-    // Create a proper File object from the cropped blob
-    const timestamp = Date.now();
-    const file = new File(
-      [croppedBlob], 
-      `cropped-${timestamp}.jpg`, 
-      { type: 'image/jpeg', lastModified: timestamp }
-    );
-    
-    // Update the parent component with the new file
-    onChange(file);
-    setShowCropDialog(false);
-    
-    // Clean up URL
-    if (selectedImageUrl) {
-      URL.revokeObjectURL(selectedImageUrl);
-      setSelectedImageUrl(null);
+    try {
+      console.log('📸 Crop complete - creating file from blob:', croppedBlob.size, 'bytes');
+      
+      // Create a proper File object from the cropped blob
+      const timestamp = Date.now();
+      const file = new File(
+        [croppedBlob], 
+        `cropped-${timestamp}.jpg`, 
+        { type: 'image/jpeg', lastModified: timestamp }
+      );
+      
+      console.log('✅ File created:', file.name, file.size, 'bytes');
+      
+      // Update the parent component with the new file
+      onChange(file);
+      setShowCropDialog(false);
+      
+      // Clean up URL
+      if (selectedImageUrl) {
+        URL.revokeObjectURL(selectedImageUrl);
+        setSelectedImageUrl(null);
+      }
+      
+      toast({
+        title: "✅ Image Cropped Successfully",
+        description: "Your cropped image is ready to save with your profile",
+      });
+    } catch (error) {
+      console.error('❌ Error in handleCropComplete:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process cropped image. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    toast({
-      title: "Image Cropped Successfully",
-      description: "Your cropped image is ready to save with your profile",
-    });
   };
 
   const handleCropCancel = () => {
@@ -149,8 +176,6 @@ export function ImageCapture({
     stopCamera();
     setShowDialog(false);
   };
-
-  const previewUrl = value ? URL.createObjectURL(value) : null;
 
   return (
     <div className={className}>
