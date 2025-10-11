@@ -1,10 +1,9 @@
-
 import { parse } from 'csv-parse/sync';
-import { db } from '../db';
-import * as schema from '@db/schema';
-import { users, students } from '@db/schema';
+import { db } from './storage';
+import * as schema from '../shared/schema';
+import { users, students } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
-import { generateStudentUsername, generateParentUsername, generateStudentPassword, generateParentPassword } from './username-generator';
+import { generateStudentUsername, generateParentUsername, generateTempPassword } from './username-generator';
 import bcrypt from 'bcrypt';
 
 export interface CSVRow {
@@ -46,7 +45,7 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
     columns: true,
     skip_empty_lines: true,
     trim: true
-  });
+  }) as any[];
 
   const validResults: ValidationResult[] = [];
   const invalidResults: ValidationResult[] = [];
@@ -55,10 +54,10 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
 
   // Get all classes to validate class codes
   const classes = await db.select().from(schema.classes);
-  const validClassCodes = classes.map(c => c.name);
+  const validClassCodes = classes.map((c: any) => c.name);
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i] as any;
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -120,7 +119,7 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
     if (errors.length === 0) {
       // Generate preview username (non-atomic, just for preview)
       const year = new Date().getFullYear();
-      const classInfo = classes.find(c => c.name === row.classCode);
+      const classInfo = classes.find((c: any) => c.name === row.classCode);
       result.username = `THS-STU-${year}-${classInfo?.id || 'X'}-XXX`;
       validResults.push(result);
     } else {
@@ -157,9 +156,9 @@ export async function commitCSVImport(
 
   for (const item of validRows) {
     try {
-      await db.transaction(async (tx) => {
+      await db.transaction(async (tx: any) => {
         const year = new Date().getFullYear();
-        const classInfo = classes.find(c => c.name === item.data.classCode);
+        const classInfo = classes.find((c: any) => c.name === item.data.classCode);
         
         if (!classInfo) {
           throw new Error(`Class not found: ${item.data.classCode}`);
@@ -172,7 +171,7 @@ export async function commitCSVImport(
 
         // Generate student credentials
         const studentUsername = await generateStudentUsername(item.data.classCode, year);
-        const studentPassword = await generateStudentPassword();
+        const studentPassword = generateTempPassword(year);
         const passwordHash = await bcrypt.hash(studentPassword, 10);
 
         // Create student user
@@ -230,7 +229,7 @@ export async function commitCSVImport(
           } else {
             // Create new parent
             const parentUsername = await generateParentUsername(year);
-            const parentPassword = await generateParentPassword();
+            const parentPassword = generateTempPassword(year);
             const parentHash = await bcrypt.hash(parentPassword, 10);
 
             const [parentUser] = await tx.insert(users).values({

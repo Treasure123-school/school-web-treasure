@@ -1,5 +1,5 @@
-import { db } from '../db';
-import { users, students, parents, counters } from '@db/schema';
+import { db } from './storage';
+import { users, students, parentProfiles, counters } from '../shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 

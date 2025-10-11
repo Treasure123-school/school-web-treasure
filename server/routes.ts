@@ -4685,6 +4685,28 @@ Treasure-Home School Administration
     }
   });
 
+  // Preview CSV import (student endpoint - same as admin/import/preview)
+  app.post('/api/students/csv-preview', authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const csvContent = await fs.readFile(req.file.path, 'utf-8');
+      const { previewCSVImport } = await import('./csv-import-service');
+
+      const preview = await previewCSVImport(csvContent);
+
+      // Clean up uploaded file
+      await fs.unlink(req.file.path);
+
+      res.json(preview);
+    } catch (error: any) {
+      console.error('CSV preview error:', error);
+      res.status(500).json({ message: error.message || 'Failed to preview CSV' });
+    }
+  });
+
   // Commit CSV import (create users from validated CSV)
   app.post('/api/students/csv-commit', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
