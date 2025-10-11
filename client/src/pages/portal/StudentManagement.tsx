@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
-import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle } from 'lucide-react';
+import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle, AlertCircle } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 
@@ -24,7 +24,7 @@ type StudentForm = CreateStudentRequest;
 export default function StudentManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
-  
+
   if (!user) {
     return <div>Please log in to access this page.</div>;
   }
@@ -123,7 +123,7 @@ export default function StudentManagement() {
       if (data.credentials) {
         setCreatedCredentials(data.credentials);
       }
-      
+
       toast({
         title: 'Success',
         description: data.parentCreated 
@@ -582,7 +582,7 @@ export default function StudentManagement() {
                 <p className="text-xs text-muted-foreground mb-3">
                   Select an existing parent or provide email/phone to auto-create a new parent account
                 </p>
-                
+
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="parentId" className="text-sm">Link to Existing Parent (Optional)</Label>
@@ -765,7 +765,7 @@ export default function StudentManagement() {
                   </div>
                 </div>
               )}
-              
+
               <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-yellow-700 dark:text-yellow-300 mt-0.5 flex-shrink-0" />
@@ -781,11 +781,11 @@ export default function StudentManagement() {
                   onClick={() => {
                     // Copy all credentials to clipboard
                     let text = `=== STUDENT CREDENTIALS ===\nUsername: ${createdCredentials?.student?.username}\nPassword: ${createdCredentials?.student?.password}`;
-                    
+
                     if (createdCredentials?.parent) {
                       text += `\n\n=== PARENT CREDENTIALS ===\nUsername: ${createdCredentials?.parent?.username}\nPassword: ${createdCredentials?.parent?.password}`;
                     }
-                    
+
                     navigator.clipboard.writeText(text);
                     toast({
                       title: "Copied!",
@@ -827,7 +827,7 @@ export default function StudentManagement() {
                               <h1>Treasure-Home School Portal</h1>
                               <p>Login Credentials</p>
                             </div>
-                            
+
                             <div class="section student">
                               <h2>Student Login</h2>
                               <div class="credential">
@@ -839,7 +839,7 @@ export default function StudentManagement() {
                                 <div class="value">${createdCredentials?.student?.password}</div>
                               </div>
                             </div>
-                            
+
                             ${createdCredentials?.parent ? `
                               <div class="section parent">
                                 <h2>Parent/Guardian Login</h2>
@@ -853,7 +853,7 @@ export default function StudentManagement() {
                                 </div>
                               </div>
                             ` : ''}
-                            
+
                             <div class="warning">
                               <strong>Important Notes:</strong>
                               <ul>
