@@ -578,6 +578,33 @@ export const auditLogs = pgTable("audit_logs", {
   auditLogsActionIdx: index("audit_logs_action_idx").on(table.action),
 }));
 
+// Settings table for super admin configuration (Module 1 requirement)
+export const settings = pgTable("settings", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  dataType: varchar("data_type", { length: 20 }).notNull().default('string'), // 'string', 'number', 'boolean', 'json'
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  settingsKeyIdx: index("settings_key_idx").on(table.key),
+}));
+
+// Counters table for atomic username sequence generation (Module 1 requirement)
+// Prevents race conditions when generating sequential usernames
+export const counters = pgTable("counters", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  classCode: varchar("class_code", { length: 50 }).notNull(),
+  year: varchar("year", { length: 9 }).notNull(),
+  sequence: integer("sequence").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  countersClassYearIdx: uniqueIndex("counters_class_year_idx").on(table.classCode, table.year),
+}));
+
 
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
@@ -631,6 +658,8 @@ export const insertPerformanceEventSchema = createInsertSchema(performanceEvents
 export const insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
 export const insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+export const insertSettingSchema = createInsertSchema(settings).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCounterSchema = createInsertSchema(counters).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Shared schema for creating students with auto-generated credentials (admin use)
 export const createStudentWithAutoCredsSchema = z.object({
@@ -804,6 +833,8 @@ export type Notification = typeof notifications.$inferSelect;
 export type TeacherProfile = typeof teacherProfiles.$inferSelect;
 export type AdminProfile = typeof adminProfiles.$inferSelect;
 export type ParentProfile = typeof parentProfiles.$inferSelect;
+export type Setting = typeof settings.$inferSelect;
+export type Counter = typeof counters.$inferSelect;
 
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
@@ -839,6 +870,8 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type InsertTeacherProfile = z.infer<typeof insertTeacherProfileSchema>;
 export type InsertAdminProfile = z.infer<typeof insertAdminProfileSchema>;
 export type InsertParentProfile = z.infer<typeof insertParentProfileSchema>;
+export type InsertSetting = z.infer<typeof insertSettingSchema>;
+export type InsertCounter = z.infer<typeof insertCounterSchema>;
 
 // New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;

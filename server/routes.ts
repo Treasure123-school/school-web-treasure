@@ -8110,6 +8110,376 @@ Treasure-Home School Administration
 
   // ==================== END TEACHER PROFILE ROUTES ====================
 
+  // ==================== MODULE 1: SETTINGS MANAGEMENT ====================
+  
+  // Get all settings (Admin only)
+  app.get("/api/admin/settings", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  // Get specific setting
+  app.get("/api/admin/settings/:key", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { key } = req.params;
+      const setting = await storage.getSetting(key);
+      if (!setting) {
+        return res.status(404).json({ message: "Setting not found" });
+      }
+      res.json(setting);
+    } catch (error) {
+      console.error('Error fetching setting:', error);
+      res.status(500).json({ message: "Failed to fetch setting" });
+    }
+  });
+
+  // Create or update setting
+  app.post("/api/admin/settings", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { key, value, description, dataType } = req.body;
+      const adminId = req.user!.id;
+
+      const existingSetting = await storage.getSetting(key);
+      let result;
+
+      if (existingSetting) {
+        result = await storage.updateSetting(key, value, adminId);
+        await storage.createAuditLog({
+          userId: adminId,
+          action: 'setting_updated',
+          entityType: 'setting',
+          entityId: existingSetting.id,
+          oldValue: existingSetting.value,
+          newValue: value,
+          reason: 'Admin updated system setting',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } else {
+        result = await storage.createSetting({
+          key,
+          value,
+          description,
+          dataType: dataType || 'string',
+          updatedBy: adminId
+        });
+        await storage.createAuditLog({
+          userId: adminId,
+          action: 'setting_created',
+          entityType: 'setting',
+          entityId: result.id,
+          oldValue: null,
+          newValue: value,
+          reason: 'Admin created new system setting',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating/updating setting:', error);
+      res.status(500).json({ message: "Failed to save setting" });
+    }
+  });
+
+  // Delete setting
+  app.delete("/api/admin/settings/:key", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { key } = req.params;
+      const adminId = req.user!.id;
+      const setting = await storage.getSetting(key);
+
+      if (!setting) {
+        return res.status(404).json({ message: "Setting not found" });
+      }
+
+      const deleted = await storage.deleteSetting(key);
+      if (deleted) {
+        await storage.createAuditLog({
+          userId: adminId,
+          action: 'setting_deleted',
+          entityType: 'setting',
+          entityId: setting.id,
+          oldValue: setting.value,
+          newValue: null,
+          reason: 'Admin deleted system setting',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      }
+
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error('Error deleting setting:', error);
+      res.status(500).json({ message: "Failed to delete setting" });
+    }
+  });
+
+  // ==================== MODULE 1: CSV IMPORT ENDPOINTS ====================
+
+  // Preview CSV import (validate and return preview)
+  app.post("/api/admin/import/preview", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const csvContent = await fs.readFile(req.file.path, 'utf-8');
+      const lines = csvContent.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ message: "CSV file is empty or invalid" });
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const requiredHeaders = ['studentName', 'class', 'parentName', 'parentEmail'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+      if (missingHeaders.length > 0) {
+        return res.status(400).json({
+          message: `Missing required columns: ${missingHeaders.join(', ')}`,
+          requiredHeaders
+        });
+      }
+
+      const preview = [];
+      const errors = [];
+      const classes = await storage.getClasses();
+      const currentYear = new Date().getFullYear().toString();
+
+      for (let i = 1; i < Math.min(lines.length, 101); i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row: any = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+
+        const rowErrors = [];
+        if (!row.studentName) rowErrors.push('Missing student name');
+        if (!row.class) rowErrors.push('Missing class');
+        
+        const matchingClass = classes.find(c => c.name.toLowerCase() === row.class.toLowerCase());
+        if (!matchingClass) rowErrors.push(`Class "${row.class}" not found`);
+
+        const existingUsernames = (await storage.getAllUsers()).map(u => u.username).filter(Boolean);
+        const studentUsername = matchingClass 
+          ? generateStudentUsername(matchingClass.name, currentYear, await storage.getNextSequence(matchingClass.name, currentYear))
+          : '';
+
+        const parentExists = row.parentEmail ? await storage.getUserByEmail(row.parentEmail) : null;
+
+        preview.push({
+          rowNumber: i,
+          data: row,
+          computed: {
+            studentUsername,
+            classId: matchingClass?.id,
+            parentExists: !!parentExists
+          },
+          errors: rowErrors,
+          warnings: []
+        });
+
+        if (rowErrors.length > 0) {
+          errors.push({
+            row: i,
+            errors: rowErrors
+          });
+        }
+      }
+
+      await fs.unlink(req.file.path);
+
+      res.json({
+        preview,
+        summary: {
+          totalRows: lines.length - 1,
+          previewRows: preview.length,
+          errorCount: errors.length,
+          validCount: preview.length - errors.length
+        },
+        errors
+      });
+    } catch (error) {
+      console.error('Error previewing CSV:', error);
+      res.status(500).json({ message: "Failed to preview CSV" });
+    }
+  });
+
+  // Commit CSV import (create users from validated CSV)
+  app.post("/api/admin/import/commit", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const adminId = req.user!.id;
+      const csvContent = await fs.readFile(req.file.path, 'utf-8');
+      const lines = csvContent.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+
+      const created = [];
+      const failed = [];
+      const currentYear = new Date().getFullYear().toString();
+      const studentRole = await storage.getRoleByName('Student');
+      const parentRole = await storage.getRoleByName('Parent');
+
+      if (!studentRole || !parentRole) {
+        return res.status(500).json({ message: "Required roles not found" });
+      }
+
+      for (let i = 1; i < lines.length; i++) {
+        try {
+          const values = lines[i].split(',').map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+
+          const matchingClass = (await storage.getClasses()).find(
+            c => c.name.toLowerCase() === row.class.toLowerCase()
+          );
+
+          if (!matchingClass) {
+            failed.push({ row: i, error: `Class "${row.class}" not found` });
+            continue;
+          }
+
+          const sequence = await storage.getNextSequence(matchingClass.name, currentYear);
+          const studentUsername = generateStudentUsername(matchingClass.name, currentYear, sequence);
+          const studentPassword = generateStudentPassword(currentYear);
+          const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
+
+          const [firstName, ...lastNameParts] = row.studentName.split(' ');
+          const lastName = lastNameParts.join(' ') || firstName;
+
+          const studentUser = await storage.createUser({
+            username: studentUsername,
+            email: `${studentUsername.toLowerCase()}@ths.edu.ng`,
+            passwordHash: studentPasswordHash,
+            mustChangePassword: true,
+            roleId: studentRole.id,
+            firstName,
+            lastName,
+            authProvider: 'local',
+            status: 'active',
+            createdVia: 'bulk',
+            createdBy: adminId
+          });
+
+          const admissionNumber = `THS-${currentYear}-${sequence.toString().padStart(4, '0')}`;
+          const student = await storage.createStudent({
+            id: studentUser.id,
+            admissionNumber,
+            classId: matchingClass.id,
+            guardianName: row.parentName || null,
+            admissionDate: new Date().toISOString().split('T')[0]
+          });
+
+          let parentUser = null;
+          if (row.parentEmail) {
+            parentUser = await storage.getUserByEmail(row.parentEmail);
+            
+            if (!parentUser && row.parentName) {
+              const parentPassword = generatePassword(currentYear);
+              const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
+              const [parentFirstName, ...parentLastNameParts] = row.parentName.split(' ');
+              const parentLastName = parentLastNameParts.join(' ') || parentFirstName;
+              const parentSequence = await storage.getNextSequence('PARENT', currentYear);
+              const parentUsername = generateUsername(parentRole.id, currentYear, '', parentSequence);
+
+              parentUser = await storage.createUser({
+                username: parentUsername,
+                email: row.parentEmail,
+                passwordHash: parentPasswordHash,
+                mustChangePassword: true,
+                roleId: parentRole.id,
+                firstName: parentFirstName,
+                lastName: parentLastName,
+                authProvider: 'local',
+                status: 'active',
+                createdVia: 'bulk',
+                createdBy: adminId
+              });
+
+              await storage.createParentProfile({
+                userId: parentUser.id,
+                linkedStudents: [studentUser.id]
+              });
+
+              created.push({
+                type: 'parent',
+                username: parentUsername,
+                password: parentPassword,
+                email: row.parentEmail,
+                name: row.parentName
+              });
+            }
+
+            if (parentUser) {
+              await storage.updateStudent(studentUser.id, {
+                studentPatch: { parentId: parentUser.id }
+              });
+            }
+          }
+
+          created.push({
+            type: 'student',
+            username: studentUsername,
+            password: studentPassword,
+            admissionNumber,
+            name: row.studentName,
+            class: matchingClass.name,
+            parentLinked: !!parentUser
+          });
+
+          await storage.createAuditLog({
+            userId: adminId,
+            action: 'student_bulk_created',
+            entityType: 'student',
+            entityId: 0,
+            oldValue: null,
+            newValue: JSON.stringify({ studentId: studentUser.id, admissionNumber }),
+            reason: 'Bulk CSV import',
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+          });
+        } catch (rowError) {
+          console.error(`Error processing row ${i}:`, rowError);
+          failed.push({
+            row: i,
+            error: rowError instanceof Error ? rowError.message : 'Unknown error'
+          });
+        }
+      }
+
+      await fs.unlink(req.file.path);
+
+      res.json({
+        success: true,
+        summary: {
+          totalRows: lines.length - 1,
+          successCount: created.filter(c => c.type === 'student').length,
+          failedCount: failed.length,
+          parentsCreated: created.filter(c => c.type === 'parent').length
+        },
+        created,
+        failed
+      });
+    } catch (error) {
+      console.error('Error committing CSV import:', error);
+      res.status(500).json({ message: "Failed to import CSV" });
+    }
+  });
+
+  // ==================== END MODULE 1 ROUTES ====================
+
   const httpServer = createServer(app);
   return httpServer;
 }

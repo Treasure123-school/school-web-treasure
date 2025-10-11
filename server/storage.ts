@@ -388,6 +388,18 @@ export interface IStorage {
   getExpiredExamSessions(cutoffTime: Date, limit: number): Promise<any[]>;
   getScheduledExamsToPublish(now: Date): Promise<Exam[]>; // New method
   updateExam(examId: number, updates: any): Promise<Exam | undefined>; // Updated method
+
+  // Settings management (Module 1)
+  getSetting(key: string): Promise<any | undefined>;
+  getAllSettings(): Promise<any[]>;
+  createSetting(setting: any): Promise<any>;
+  updateSetting(key: string, value: string, updatedBy: string): Promise<any | undefined>;
+  deleteSetting(key: string): Promise<boolean>;
+
+  // Counters for atomic sequence generation (Module 1)
+  getNextSequence(classCode: string, year: string): Promise<number>;
+  getCounter(classCode: string, year: string): Promise<any | undefined>;
+  resetCounter(classCode: string, year: string): Promise<boolean>;
 }
 
 // Helper to normalize UUIDs from various formats
@@ -4157,6 +4169,98 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return result[0];
+  }
+
+  // Settings management methods (Module 1)
+  async getSetting(key: string): Promise<any | undefined> {
+    const result = await this.db
+      .select()
+      .from(schema.settings)
+      .where(eq(schema.settings.key, key))
+      .limit(1);
+    return result[0];
+  }
+
+  async getAllSettings(): Promise<any[]> {
+    return await this.db
+      .select()
+      .from(schema.settings)
+      .orderBy(asc(schema.settings.key));
+  }
+
+  async createSetting(setting: any): Promise<any> {
+    const result = await this.db
+      .insert(schema.settings)
+      .values(setting)
+      .returning();
+    return result[0];
+  }
+
+  async updateSetting(key: string, value: string, updatedBy: string): Promise<any | undefined> {
+    const result = await this.db
+      .update(schema.settings)
+      .set({ value, updatedBy, updatedAt: new Date() })
+      .where(eq(schema.settings.key, key))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSetting(key: string): Promise<boolean> {
+    const result = await this.db
+      .delete(schema.settings)
+      .where(eq(schema.settings.key, key))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Counters for atomic sequence generation (Module 1)
+  async getNextSequence(classCode: string, year: string): Promise<number> {
+    // Use PostgreSQL's UPSERT with atomic increment to prevent race conditions
+    const result = await this.db
+      .insert(schema.counters)
+      .values({
+        classCode,
+        year,
+        sequence: 1
+      })
+      .onConflictDoUpdate({
+        target: [schema.counters.classCode, schema.counters.year],
+        set: {
+          sequence: dsql`${schema.counters.sequence} + 1`,
+          updatedAt: new Date()
+        }
+      })
+      .returning();
+    
+    return result[0].sequence;
+  }
+
+  async getCounter(classCode: string, year: string): Promise<any | undefined> {
+    const result = await this.db
+      .select()
+      .from(schema.counters)
+      .where(
+        and(
+          eq(schema.counters.classCode, classCode),
+          eq(schema.counters.year, year)
+        )
+      )
+      .limit(1);
+    return result[0];
+  }
+
+  async resetCounter(classCode: string, year: string): Promise<boolean> {
+    const result = await this.db
+      .update(schema.counters)
+      .set({ sequence: 0, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.counters.classCode, classCode),
+          eq(schema.counters.year, year)
+        )
+      )
+      .returning();
+    return result.length > 0;
   }
 }
 
