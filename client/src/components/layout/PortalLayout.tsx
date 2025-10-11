@@ -120,6 +120,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
           { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Bell },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
+          { name: 'Academic Terms', href: `/portal/${userRole}/academic-terms`, icon: Calendar },
           { name: 'Audit Logs', href: `/portal/${userRole}/audit-logs`, icon: History },
           { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
         ];
