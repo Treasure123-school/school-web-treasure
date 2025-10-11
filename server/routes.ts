@@ -1941,56 +1941,118 @@ export async function registerRoutes(app: Express): Server {
   app.post('/api/terms', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       console.log('📅 Creating academic term:', req.body);
+      
+      // Validate required fields
+      if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
+        return res.status(400).json({ message: 'Missing required fields: name, year, startDate, endDate' });
+      }
+
       const term = await storage.createAcademicTerm(req.body);
+      console.log('✅ Academic term created successfully:', term.id);
       res.json(term);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error creating academic term:', error);
-      res.status(500).json({ message: 'Failed to create academic term' });
+      res.status(500).json({ message: error.message || 'Failed to create academic term' });
     }
   });
 
   app.put('/api/terms/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const termId = parseInt(req.params.id);
+      
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: 'Invalid term ID' });
+      }
+
       console.log('📅 Updating academic term:', termId, req.body);
-      const term = await storage.updateAcademicTerm(termId, req.body);
-      if (!term) {
+      
+      // Check if term exists first
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        console.warn(`⚠️ Term ${termId} not found for update`);
         return res.status(404).json({ message: 'Academic term not found' });
       }
+
+      const term = await storage.updateAcademicTerm(termId, req.body);
+      console.log('✅ Academic term updated successfully:', term?.id);
       res.json(term);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error updating academic term:', error);
-      res.status(500).json({ message: 'Failed to update academic term' });
+      res.status(500).json({ message: error.message || 'Failed to update academic term' });
     }
   });
 
   app.delete('/api/terms/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const termId = parseInt(req.params.id);
-      console.log('📅 Deleting academic term:', termId);
-      const success = await storage.deleteAcademicTerm(termId);
-      if (!success) {
+      
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: 'Invalid term ID' });
+      }
+
+      console.log('📅 Attempting to delete academic term:', termId);
+      
+      // Check if term exists first
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        console.warn(`⚠️ Term ${termId} not found for deletion`);
         return res.status(404).json({ message: 'Academic term not found' });
       }
-      res.json({ message: 'Academic term deleted successfully' });
-    } catch (error) {
+
+      // Check if term is being used in exams or classes
+      const examsUsingTerm = await storage.getExamsByTerm(termId);
+      if (examsUsingTerm && examsUsingTerm.length > 0) {
+        console.warn(`⚠️ Cannot delete term ${termId}: ${examsUsingTerm.length} exams are linked to it`);
+        return res.status(400).json({ 
+          message: `Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.` 
+        });
+      }
+
+      const success = await storage.deleteAcademicTerm(termId);
+      if (!success) {
+        console.warn(`⚠️ Failed to delete term ${termId}`);
+        return res.status(500).json({ message: 'Failed to delete academic term' });
+      }
+
+      console.log('✅ Academic term deleted successfully:', termId);
+      res.json({ message: 'Academic term deleted successfully', id: termId });
+    } catch (error: any) {
       console.error('❌ Error deleting academic term:', error);
-      res.status(500).json({ message: 'Failed to delete academic term' });
+      
+      // Handle foreign key constraint errors
+      if (error.code === '23503') {
+        return res.status(400).json({ 
+          message: 'Cannot delete this term because it is being used by other records (exams, classes, etc.). Please remove those associations first.' 
+        });
+      }
+      
+      res.status(500).json({ message: error.message || 'Failed to delete academic term' });
     }
   });
 
   app.put('/api/terms/:id/mark-current', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const termId = parseInt(req.params.id);
+      
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: 'Invalid term ID' });
+      }
+
       console.log('📅 Marking term as current:', termId);
-      const term = await storage.markTermAsCurrent(termId);
-      if (!term) {
+      
+      // Check if term exists first
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        console.warn(`⚠️ Term ${termId} not found`);
         return res.status(404).json({ message: 'Academic term not found' });
       }
+
+      const term = await storage.markTermAsCurrent(termId);
+      console.log('✅ Term marked as current successfully:', term?.id);
       res.json(term);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error marking term as current:', error);
-      res.status(500).json({ message: 'Failed to mark term as current' });
+      res.status(500).json({ message: error.message || 'Failed to mark term as current' });
     }
   });
 

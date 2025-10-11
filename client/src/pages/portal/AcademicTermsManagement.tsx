@@ -78,10 +78,11 @@ export default function AcademicTermsManagement() {
 
   const updateTermMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      console.log('Updating term:', id, data);
       const response = await apiRequest('PUT', `/api/terms/${id}`, data);
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to update term');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to update term' }));
+        throw new Error(errorData.message || 'Failed to update term');
       }
       return response.json();
     },
@@ -97,6 +98,7 @@ export default function AcademicTermsManagement() {
       refetch();
     },
     onError: (error: any) => {
+      console.error('Update term error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update term",
@@ -107,14 +109,16 @@ export default function AcademicTermsManagement() {
 
   const deleteTermMutation = useMutation({
     mutationFn: async (id: number) => {
+      console.log('Deleting term:', id);
       const response = await apiRequest('DELETE', `/api/terms/${id}`);
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to delete term');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete term' }));
+        throw new Error(errorData.message || 'Failed to delete term');
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Delete success:', data);
       toast({
         title: "Success",
         description: "Academic term deleted successfully",
@@ -123,6 +127,7 @@ export default function AcademicTermsManagement() {
       refetch();
     },
     onError: (error: any) => {
+      console.error('Delete term error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete term",
