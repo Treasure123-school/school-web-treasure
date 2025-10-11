@@ -967,6 +967,210 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Exam management routes
+  // Get all exams
+  app.get('/api/exams', authenticateUser, async (req, res) => {
+    try {
+      const exams = await storage.getAllExams();
+      res.json(exams);
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Create exam
+  app.post('/api/exams', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examData = insertExamSchema.parse({
+        ...req.body,
+        createdBy: req.user!.id
+      });
+      
+      const exam = await storage.createExam(examData);
+      res.status(201).json(exam);
+    } catch (error: any) {
+      console.error('Error creating exam:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: 'Invalid exam data', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Failed to create exam' });
+    }
+  });
+
+  // Get single exam
+  app.get('/api/exams/:id', authenticateUser, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const exam = await storage.getExamById(examId);
+      
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      res.json(exam);
+    } catch (error) {
+      console.error('Error fetching exam:', error);
+      res.status(500).json({ message: 'Failed to fetch exam' });
+    }
+  });
+
+  // Update exam
+  app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const exam = await storage.updateExam(examId, req.body);
+      
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      res.json(exam);
+    } catch (error) {
+      console.error('Error updating exam:', error);
+      res.status(500).json({ message: 'Failed to update exam' });
+    }
+  });
+
+  // Delete exam
+  app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const success = await storage.deleteExam(examId);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting exam:', error);
+      res.status(500).json({ message: 'Failed to delete exam' });
+    }
+  });
+
+  // Toggle exam publish status
+  app.patch('/api/exams/:id/publish', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const { isPublished } = req.body;
+      
+      const exam = await storage.updateExam(examId, { isPublished });
+      
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      res.json(exam);
+    } catch (error) {
+      console.error('Error updating exam publish status:', error);
+      res.status(500).json({ message: 'Failed to update exam publish status' });
+    }
+  });
+
+  // Get exam question counts
+  app.get('/api/exams/question-counts', authenticateUser, async (req, res) => {
+    try {
+      const examIdsParam = req.query.examIds;
+      let examIds: number[] = [];
+      
+      if (typeof examIdsParam === 'string') {
+        examIds = [parseInt(examIdsParam)];
+      } else if (Array.isArray(examIdsParam)) {
+        examIds = examIdsParam.map((id) => parseInt(id as string));
+      }
+      
+      const counts: Record<number, number> = {};
+      
+      for (const examId of examIds) {
+        const questions = await storage.getExamQuestions(examId);
+        counts[examId] = questions.length;
+      }
+      
+      res.json(counts);
+    } catch (error) {
+      console.error('Error fetching question counts:', error);
+      res.status(500).json({ message: 'Failed to fetch question counts' });
+    }
+  });
+
+  // Exam questions routes
+  // Get exam questions
+  app.get('/api/exam-questions/:examId', authenticateUser, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const questions = await storage.getExamQuestions(examId);
+      res.json(questions);
+    } catch (error) {
+      console.error('Error fetching exam questions:', error);
+      res.status(500).json({ message: 'Failed to fetch exam questions' });
+    }
+  });
+
+  // Create exam question
+  app.post('/api/exam-questions', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { options, ...questionData } = req.body;
+      
+      if (options && Array.isArray(options)) {
+        const question = await storage.createExamQuestionWithOptions(questionData, options);
+        res.status(201).json(question);
+      } else {
+        const question = await storage.createExamQuestion(questionData);
+        res.status(201).json(question);
+      }
+    } catch (error: any) {
+      console.error('Error creating exam question:', error);
+      res.status(500).json({ message: error.message || 'Failed to create exam question' });
+    }
+  });
+
+  // Update exam question
+  app.patch('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      const question = await storage.updateExamQuestion(questionId, req.body);
+      
+      if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+      
+      res.json(question);
+    } catch (error) {
+      console.error('Error updating exam question:', error);
+      res.status(500).json({ message: 'Failed to update exam question' });
+    }
+  });
+
+  // Delete exam question
+  app.delete('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      const success = await storage.deleteExamQuestion(questionId);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting exam question:', error);
+      res.status(500).json({ message: 'Failed to delete exam question' });
+    }
+  });
+
+  // Get question options
+  app.get('/api/question-options/:questionId', authenticateUser, async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.questionId);
+      const options = await storage.getQuestionOptions(questionId);
+      res.json(options);
+    } catch (error) {
+      console.error('Error fetching question options:', error);
+      res.status(500).json({ message: 'Failed to fetch question options' });
+    }
+  });
+
   // Teacher profile setup (first-time login)
   app.post('/api/teacher/profile/setup', authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
     { name: 'profileImage', maxCount: 1 },
