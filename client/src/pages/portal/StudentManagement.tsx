@@ -405,35 +405,55 @@ export default function StudentManagement() {
     }
   };
 
-  const handleConfirmCSVImport = () => {
+  const handleConfirmCSVImport = async () => {
     if (csvPreview?.valid.length > 0) {
-      // Commit the import
-      fetch('/api/students/csv-commit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ validRows: csvPreview.valid }),
-      })
-        .then(res => res.json())
-        .then(data => {
-          setUploadedStudents(data.credentials || []);
-          setIsPreviewDialogOpen(false);
-          setCsvPreview(null);
-          queryClient.invalidateQueries({ queryKey: ['/api/students'] });
-          toast({
-            title: 'Import Successful',
-            description: `Created ${data.successCount} students`,
-          });
-        })
-        .catch(error => {
-          toast({
-            title: 'Import Failed',
-            description: error.message,
-            variant: 'destructive',
-          });
+      try {
+        // Commit the import
+        const response = await fetch('/api/students/csv-commit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ validRows: csvPreview.valid }),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to import students');
+        }
+
+        const data = await response.json();
+        
+        // Transform credentials for display
+        const transformedCredentials = data.credentials.map((cred: any) => ({
+          id: cred.student.id,
+          firstName: cred.student.name.split(' ')[0],
+          lastName: cred.student.name.split(' ').slice(1).join(' ') || cred.student.name.split(' ')[0],
+          username: cred.student.username,
+          password: cred.student.password,
+          class: cred.student.classCode
+        }));
+
+        setUploadedStudents(transformedCredentials);
+        setIsPreviewDialogOpen(false);
+        setCsvPreview(null);
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+        
+        toast({
+          title: 'Import Successful',
+          description: `Created ${data.successCount} students successfully`,
+        });
+      } catch (error) {
+        console.error('CSV import error:', error);
+        toast({
+          title: 'Import Failed',
+          description: error instanceof Error ? error.message : 'Unknown error occurred',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
