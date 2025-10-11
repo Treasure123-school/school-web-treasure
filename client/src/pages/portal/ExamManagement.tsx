@@ -157,17 +157,26 @@ export default function ExamManagement() {
   const watchDuration = watchExam('timeLimit');
   const watchGlobalStartTime = watchExam('startTime');
 
-  // Fetch data
-  const { data: exams = [], isLoading: loadingExams } = useQuery<Exam[]>({
+  // Fetch exams
+  const { data: exams = [], isLoading: loadingExams } = useQuery({
     queryKey: ['/api/exams'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/exams');
+      return await response.json();
+    },
   });
 
-  const { data: classes = [] } = useQuery<Class[]>({
+  // Fetch classes for dropdown
+  const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/classes');
+      return await response.json();
+    },
   });
 
-  // Fetch subjects
-  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
+  // Fetch subjects for dropdown
+  const { data: subjects = [] } = useQuery({
     queryKey: ['/api/subjects'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/subjects');
@@ -1186,7 +1195,7 @@ export default function ExamManagement() {
                   <h4 className="font-medium text-sm">Exam Details & Rules</h4>
 
                   <div>
-                    <Label htmlFor="name">Exam Title</Label>
+                    <Label htmlFor="name">Exam Name</Label>
                     <Input 
                       id="name" 
                       {...registerExam('name')} 
