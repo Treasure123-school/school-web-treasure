@@ -221,9 +221,21 @@ function Router() {
           <PerformanceMonitoring />
         </ProtectedRoute>
       </Route>
-      <Route path="/portal/admin/homepage-management" element={<ProtectedRoute allowedRoles={['admin']}><HomepageManagement /></ProtectedRoute>} />
-          <Route path="/portal/admin/academic-terms" element={<ProtectedRoute allowedRoles={['admin']}><AcademicTermsManagement /></ProtectedRoute>} />
-          <Route path="/portal/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><SettingsManagement /></ProtectedRoute>} />
+      <Route path="/portal/admin/homepage-management">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <HomepageManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/academic-terms">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <AcademicTermsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/settings">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <SettingsManagement />
+        </ProtectedRoute>
+      </Route>
       <Route path="/portal/admin/recovery-tools">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AdminRecoveryTools />
