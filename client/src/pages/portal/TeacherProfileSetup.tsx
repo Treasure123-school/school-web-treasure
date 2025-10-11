@@ -439,11 +439,17 @@ export default function TeacherProfileSetup() {
       console.log('📸 Profile image to upload:', {
         name: profileImage.name,
         size: profileImage.size,
-        type: profileImage.type
+        type: profileImage.type,
+        lastModified: profileImage.lastModified
       });
       
       if (profileImage.size === 0) {
         errors.push("Profile Photo (file is empty)");
+      }
+      
+      // Additional validation
+      if (!profileImage.type.startsWith('image/')) {
+        errors.push("Profile Photo (must be an image file)");
       }
     }
 
@@ -516,11 +522,54 @@ export default function TeacherProfileSetup() {
       }
     });
 
+    // Ensure cropped profile image is properly sent
     if (profileImage) {
-      submitData.append('profileImage', profileImage);
+      console.log('📤 Appending profile image to FormData:', {
+        name: profileImage.name,
+        size: profileImage.size,
+        type: profileImage.type
+      });
+      
+      // Create a new File object to ensure proper metadata
+      const imageFile = new File(
+        [profileImage], 
+        profileImage.name || `profile-${Date.now()}.jpg`,
+        { 
+          type: profileImage.type || 'image/jpeg',
+          lastModified: profileImage.lastModified || Date.now()
+        }
+      );
+      
+      submitData.append('profileImage', imageFile, imageFile.name);
     }
+    
     if (signatureFile) {
-      submitData.append('signature', signatureFile);
+      console.log('📤 Appending signature to FormData:', {
+        name: signatureFile.name,
+        size: signatureFile.size,
+        type: signatureFile.type
+      });
+      
+      const sigFile = new File(
+        [signatureFile],
+        signatureFile.name || `signature-${Date.now()}.jpg`,
+        {
+          type: signatureFile.type || 'image/jpeg',
+          lastModified: signatureFile.lastModified || Date.now()
+        }
+      );
+      
+      submitData.append('signature', sigFile, sigFile.name);
+    }
+
+    // Log FormData contents for debugging
+    console.log('📦 FormData contents:');
+    for (let pair of submitData.entries()) {
+      if (pair[1] instanceof File) {
+        console.log(`  ${pair[0]}: [File: ${pair[1].name}, ${pair[1].size} bytes]`);
+      } else {
+        console.log(`  ${pair[0]}: ${pair[1]}`);
+      }
     }
 
     createProfileMutation.mutate(submitData);

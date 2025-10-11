@@ -904,11 +904,37 @@ export async function registerRoutes(app: Express): Server {
       console.log('📥 RECEIVED PROFILE SETUP REQUEST:', {
         teacherId,
         hasFiles: Object.keys(files || {}).length,
+        fileFields: Object.keys(files || {}),
+        profileImageExists: !!files['profileImage']?.[0],
+        signatureExists: !!files['signature']?.[0],
         bodyKeys: Object.keys(req.body),
         staffId: req.body.staffId,
         subjects: req.body.subjects,
         assignedClasses: req.body.assignedClasses
       });
+      
+      // Log detailed file information
+      if (files['profileImage']?.[0]) {
+        console.log('📸 Profile Image Details:', {
+          filename: files['profileImage'][0].filename,
+          originalname: files['profileImage'][0].originalname,
+          mimetype: files['profileImage'][0].mimetype,
+          size: files['profileImage'][0].size,
+          path: files['profileImage'][0].path
+        });
+      } else {
+        console.log('⚠️ No profile image received in upload');
+      }
+      
+      if (files['signature']?.[0]) {
+        console.log('✍️ Signature Details:', {
+          filename: files['signature'][0].filename,
+          originalname: files['signature'][0].originalname,
+          mimetype: files['signature'][0].mimetype,
+          size: files['signature'][0].size,
+          path: files['signature'][0].path
+        });
+      }
 
       const {
         gender, dateOfBirth, staffId, nationalId, phoneNumber, recoveryEmail,
