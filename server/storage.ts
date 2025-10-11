@@ -1364,14 +1364,52 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAcademicTerm(id: number): Promise<boolean> {
     try {
-      const result = await db.delete(schema.academicTerms).where(eq(schema.academicTerms.id, id));
-      const success = result.rowCount !== null && result.rowCount > 0;
-      if (success) {
-        console.log(`✅ Deleted academic term with id: ${id}`);
+      console.log(`🗑️ Attempting to delete academic term ${id}...`);
+      
+      // First check if the term exists
+      const existingTerm = await db.select().from(schema.academicTerms)
+        .where(eq(schema.academicTerms.id, id))
+        .limit(1);
+      
+      if (!existingTerm || existingTerm.length === 0) {
+        console.error(`❌ Term ${id} not found in database`);
+        return false;
       }
+      
+      console.log(`📋 Found term to delete: ${existingTerm[0].name} (${existingTerm[0].year})`);
+      
+      // Check for foreign key constraints - exams using this term
+      const examsUsingTerm = await db.select({ id: schema.exams.id })
+        .from(schema.exams)
+        .where(eq(schema.exams.termId, id));
+      
+      if (examsUsingTerm && examsUsingTerm.length > 0) {
+        console.error(`❌ Cannot delete term ${id}: ${examsUsingTerm.length} exams are linked to it`);
+        throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
+      }
+      
+      // Perform the deletion with returning clause for verification
+      const result = await db.delete(schema.academicTerms)
+        .where(eq(schema.academicTerms.id, id))
+        .returning();
+      
+      const success = result && result.length > 0;
+      
+      if (success) {
+        console.log(`✅ Successfully deleted academic term ${id}: ${result[0].name} (${result[0].year})`);
+      } else {
+        console.error(`❌ Delete operation failed for term ${id} - no rows affected`);
+      }
+      
       return success;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Error deleting academic term ${id}:`, error);
+      
+      // Handle specific PostgreSQL errors
+      if (error?.code === '23503') {
+        throw new Error('Cannot delete this term because it is being used by other records (exams, classes, etc.). Please remove those associations first.');
+      }
+      
       throw error;
     }
   }

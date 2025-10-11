@@ -1990,43 +1990,37 @@ export async function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
-      console.log('📅 Attempting to delete academic term:', termId);
+      console.log('📅 DELETE REQUEST: Attempting to delete academic term:', termId);
       
-      // Check if term exists first
-      const existingTerm = await storage.getAcademicTerm(termId);
-      if (!existingTerm) {
-        console.warn(`⚠️ Term ${termId} not found for deletion`);
-        return res.status(404).json({ message: 'Academic term not found' });
-      }
-
-      // Check if term is being used in exams or classes
-      const examsUsingTerm = await storage.getExamsByTerm(termId);
-      if (examsUsingTerm && examsUsingTerm.length > 0) {
-        console.warn(`⚠️ Cannot delete term ${termId}: ${examsUsingTerm.length} exams are linked to it`);
-        return res.status(400).json({ 
-          message: `Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.` 
-        });
-      }
-
       const success = await storage.deleteAcademicTerm(termId);
+      
       if (!success) {
-        console.warn(`⚠️ Failed to delete term ${termId}`);
-        return res.status(500).json({ message: 'Failed to delete academic term' });
+        console.error(`❌ DELETE FAILED: Term ${termId} deletion returned false`);
+        return res.status(500).json({ 
+          message: 'Failed to delete academic term. The term may not exist or could not be removed from the database.' 
+        });
       }
 
-      console.log('✅ Academic term deleted successfully:', termId);
-      res.json({ message: 'Academic term deleted successfully', id: termId });
+      console.log('✅ DELETE SUCCESS: Academic term deleted:', termId);
+      res.json({ 
+        message: 'Academic term deleted successfully', 
+        id: termId,
+        success: true 
+      });
     } catch (error: any) {
-      console.error('❌ Error deleting academic term:', error);
+      console.error('❌ DELETE ERROR:', error);
       
-      // Handle foreign key constraint errors
-      if (error.code === '23503') {
+      // Handle specific errors
+      if (error.code === '23503' || error.message?.includes('linked to it')) {
         return res.status(400).json({ 
-          message: 'Cannot delete this term because it is being used by other records (exams, classes, etc.). Please remove those associations first.' 
+          message: error.message || 'Cannot delete this term because it is being used by other records.' 
         });
       }
       
-      res.status(500).json({ message: error.message || 'Failed to delete academic term' });
+      res.status(500).json({ 
+        message: error.message || 'Failed to delete academic term',
+        error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+      });
     }
   });
 
