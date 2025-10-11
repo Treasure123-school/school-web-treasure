@@ -1925,6 +1925,17 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Academic Terms API endpoint - accessible by teachers and admins
+  app.get('/api/terms', authenticateUser, async (req, res) => {
+    try {
+      const terms = await storage.getAcademicTerms();
+      res.json(terms);
+    } catch (error) {
+      console.error('Error fetching academic terms:', error);
+      res.status(500).json({ message: 'Failed to fetch academic terms' });
+    }
+  });
+
   // Delete demo accounts - admin only
   app.post("/api/admin/delete-demo-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
