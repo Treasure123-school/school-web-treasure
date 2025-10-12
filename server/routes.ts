@@ -5017,7 +5017,7 @@ Treasure-Home School Administration
         passwordHash,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
-        phone:|| null,
+        phone: validatedData.phone || null,
         address: validatedData.address || null,
         dateOfBirth: validatedData.dateOfBirth, // Store exact YYYY-MM-DD string
         gender: validatedData.gender,
