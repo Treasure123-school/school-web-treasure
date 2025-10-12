@@ -1079,6 +1079,100 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Submit exam - synchronous with instant scoring
+  app.post('/api/exams/:examId/submit', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const studentId = req.user!.id;
+      const startTime = Date.now();
+
+      console.log(`🚀 SUBMIT EXAM: Student ${studentId} submitting exam ${examId}`);
+
+      // Find the active exam session
+      const sessions = await storage.getExamSessionsByStudent(studentId);
+      const activeSession = sessions.find(s => s.examId === examId && !s.isCompleted);
+
+      if (!activeSession) {
+        return res.status(404).json({ message: 'No active exam session found' });
+      }
+
+      // Check if already submitted
+      if (activeSession.isCompleted) {
+        return res.status(409).json({ message: 'Exam already submitted' });
+      }
+
+      const now = new Date();
+
+      // Mark session as submitted
+      await storage.updateExamSession(activeSession.id, {
+        isCompleted: true,
+        submittedAt: now,
+        status: 'submitted'
+      });
+
+      console.log(`✅ SUBMIT: Session ${activeSession.id} marked as submitted`);
+
+      // Auto-score the exam
+      const scoringStartTime = Date.now();
+      await autoScoreExamSession(activeSession.id, storage);
+      const scoringTime = Date.now() - scoringStartTime;
+
+      console.log(`⚡ SCORING: Completed in ${scoringTime}ms`);
+
+      // Get the updated session with scores
+      const updatedSession = await storage.getExamSessionById(activeSession.id);
+      
+      // Get detailed results for student
+      const studentAnswers = await storage.getStudentAnswers(activeSession.id);
+      const examQuestions = await storage.getExamQuestions(examId);
+
+      // Build question details for frontend
+      const questionDetails = examQuestions.map(q => {
+        const answer = studentAnswers.find(a => a.questionId === q.id);
+        return {
+          questionId: q.id,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          points: q.points,
+          studentAnswer: answer?.textAnswer || null,
+          selectedOptionId: answer?.selectedOptionId || null,
+          isCorrect: answer?.isCorrect || false,
+          pointsAwarded: answer?.pointsAwarded || 0,
+          feedback: answer?.feedback || null
+        };
+      });
+
+      const totalTime = Date.now() - startTime;
+      console.log(`📊 TOTAL SUBMISSION TIME: ${totalTime}ms`);
+
+      // Return instant results
+      res.json({
+        submitted: true,
+        result: {
+          sessionId: activeSession.id,
+          score: updatedSession?.score || 0,
+          maxScore: updatedSession?.maxScore || 0,
+          percentage: updatedSession?.maxScore ? ((updatedSession?.score || 0) / updatedSession.maxScore) * 100 : 0,
+          submittedAt: now.toISOString(),
+          questionDetails,
+          breakdown: {
+            totalQuestions: examQuestions.length,
+            answered: studentAnswers.filter(a => a.textAnswer || a.selectedOptionId).length,
+            correct: studentAnswers.filter(a => a.isCorrect).length,
+            autoScored: studentAnswers.filter(a => a.isCorrect !== null).length
+          }
+        },
+        performance: {
+          totalTime,
+          scoringTime
+        }
+      });
+    } catch (error: any) {
+      console.error('❌ SUBMIT ERROR:', error);
+      res.status(500).json({ message: error.message || 'Failed to submit exam' });
+    }
+  });
+
   // Get exam question counts
   app.get('/api/exams/question-counts', authenticateUser, async (req, res) => {
     try {
