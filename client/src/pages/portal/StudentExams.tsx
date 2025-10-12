@@ -1790,8 +1790,8 @@ export default function StudentExams() {
                     />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold">Treasure-Home School</h2>
-                    <p className="text-xs text-blue-100">Online Exam</p>
+                    <h2 className="text-lg font-bold">Treasure-Home School Online Exam</h2>
+                    <p className="text-xs text-blue-100">Official Examination Portal</p>
                   </div>
                 </div>
                 <Button
