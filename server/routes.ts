@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createQuestionOptionSchema, createStudentSchema, InsertUser, UpdateExamSessionSchema, UpdateUserStatusSchema, UpdateStudentSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createQuestionOptionSchema, createStudentSchema, InsertUser, InsertStudentAnswer, UpdateExamSessionSchema, UpdateUserStatusSchema, UpdateStudentSchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
@@ -1362,6 +1362,121 @@ export async function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error updating session progress:', error);
       res.status(500).json({ message: 'Failed to update session progress' });
+    }
+  });
+
+  // Save student answer during exam
+  app.post('/api/student-answers', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const { sessionId, questionId, selectedOptionId, textAnswer } = req.body;
+      const studentId = req.user!.id;
+
+      // Validate required fields
+      if (!sessionId || !questionId) {
+        return res.status(400).json({ message: 'Missing required fields: sessionId and questionId' });
+      }
+
+      // Verify the session belongs to this student
+      const session = await storage.getExamSessionById(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: 'Exam session not found' });
+      }
+
+      if (session.studentId !== studentId) {
+        return res.status(403).json({ message: 'Unauthorized access to this exam session' });
+      }
+
+      if (session.isCompleted) {
+        return res.status(409).json({ message: 'Cannot save answer - exam is already completed' });
+      }
+
+      // Get the question to validate
+      const question = await storage.getExamQuestionById(questionId);
+      if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+
+      // CRITICAL SECURITY CHECK: Verify question belongs to the exam in this session
+      if (question.examId !== session.examId) {
+        return res.status(403).json({ message: 'Question does not belong to this exam' });
+      }
+
+      // Prepare answer data based on what was provided
+      let answerData: Partial<InsertStudentAnswer> = {};
+
+      if (selectedOptionId !== undefined && selectedOptionId !== null) {
+        // Multiple choice answer - validate question type
+        if (question.questionType !== 'multiple_choice') {
+          return res.status(400).json({ message: 'Cannot submit multiple choice answer for non-MCQ question' });
+        }
+
+        const optionId = typeof selectedOptionId === 'number' ? selectedOptionId : parseInt(selectedOptionId);
+        
+        const option = await storage.getQuestionOptionById(optionId);
+        if (!option) {
+          return res.status(400).json({ message: 'Invalid option selected' });
+        }
+
+        if (option.questionId !== questionId) {
+          return res.status(400).json({ message: 'Selected option does not belong to this question' });
+        }
+
+        answerData.selectedOptionId = optionId;
+        answerData.textAnswer = null;
+      } else if (textAnswer !== undefined) {
+        // Text/essay answer - validate question type
+        if (question.questionType === 'multiple_choice') {
+          return res.status(400).json({ message: 'Cannot submit text answer for multiple choice question' });
+        }
+
+        answerData.textAnswer = textAnswer || '';
+        answerData.selectedOptionId = null;
+      } else {
+        return res.status(400).json({ message: 'No answer provided' });
+      }
+
+      // Upsert the student answer
+      const savedAnswer = await storage.upsertStudentAnswer(
+        sessionId,
+        questionId,
+        answerData
+      );
+
+      res.json({ 
+        success: true, 
+        data: { 
+          answerId: savedAnswer.id,
+          questionId: savedAnswer.questionId,
+          sessionId: savedAnswer.sessionId,
+          status: 'saved'
+        } 
+      });
+    } catch (error: any) {
+      console.error('Error saving student answer:', error);
+      res.status(500).json({ message: error.message || 'Failed to save answer' });
+    }
+  });
+
+  // Get student answers for a session
+  app.get('/api/student-answers/session/:sessionId', authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      const session = await storage.getExamSessionById(sessionId);
+
+      if (!session) {
+        return res.status(404).json({ message: 'Session not found' });
+      }
+
+      // Ensure student can only access their own answers
+      if (req.user!.id !== session.studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      const answers = await storage.getStudentAnswers(sessionId);
+      res.json(answers);
+    } catch (error) {
+      console.error('Error fetching student answers:', error);
+      res.status(500).json({ message: 'Failed to fetch student answers' });
     }
   });
 

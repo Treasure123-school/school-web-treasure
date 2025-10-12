@@ -218,6 +218,7 @@ export interface IStorage {
   createExamQuestionWithOptions(question: InsertExamQuestion, options?: Array<{optionText: string; isCorrect: boolean}>): Promise<ExamQuestion>;
   createExamQuestionsBulk(questionsData: Array<{question: InsertExamQuestion; options?: Array<{optionText: string; isCorrect: boolean}>}>): Promise<{ created: number; questions: ExamQuestion[]; errors: string[] }>;
   getExamQuestions(examId: number): Promise<ExamQuestion[]>;
+  getExamQuestionById(id: number): Promise<ExamQuestion | undefined>;
   updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined>;
   deleteExamQuestion(id: number): Promise<boolean>;
   getExamQuestionCount(examId: number): Promise<number>;
@@ -244,7 +245,10 @@ export interface IStorage {
   createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
   getStudentAnswers(sessionId: number): Promise<StudentAnswer[]>;
   getStudentAnswerById(id: number): Promise<StudentAnswer | undefined>;
+  getStudentAnswerBySessionAndQuestion(sessionId: number, questionId: number): Promise<StudentAnswer | undefined>;
   updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined>;
+  upsertStudentAnswer(sessionId: number, questionId: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer>;
+  getQuestionOptionById(optionId: number): Promise<QuestionOption | undefined>;
 
   // Performance optimization - single query exam scoring
   getExamScoringData(sessionId: number): Promise<{
@@ -1940,6 +1944,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(schema.examQuestions.orderNumber));
   }
 
+  async getExamQuestionById(id: number): Promise<ExamQuestion | undefined> {
+    const result = await db.select({
+      id: schema.examQuestions.id,
+      examId: schema.examQuestions.examId,
+      questionText: schema.examQuestions.questionText,
+      questionType: schema.examQuestions.questionType,
+      points: schema.examQuestions.points,
+      orderNumber: schema.examQuestions.orderNumber,
+      imageUrl: schema.examQuestions.imageUrl,
+      createdAt: schema.examQuestions.createdAt,
+    }).from(schema.examQuestions)
+      .where(eq(schema.examQuestions.id, id))
+      .limit(1);
+    return result[0];
+  }
+
   async getExamQuestionCount(examId: number): Promise<number> {
     const result = await db.select({ count: dsql`count(*)` }).from(schema.examQuestions)
       .where(eq(schema.examQuestions.examId, examId));
@@ -2430,6 +2450,38 @@ export class DatabaseStorage implements IStorage {
       .set(answer)
       .where(eq(schema.studentAnswers.id, id))
       .returning();
+    return result[0];
+  }
+
+  async getStudentAnswerBySessionAndQuestion(sessionId: number, questionId: number): Promise<StudentAnswer | undefined> {
+    const result = await db.select().from(schema.studentAnswers)
+      .where(and(
+        eq(schema.studentAnswers.sessionId, sessionId),
+        eq(schema.studentAnswers.questionId, questionId)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async upsertStudentAnswer(sessionId: number, questionId: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer> {
+    const existing = await this.getStudentAnswerBySessionAndQuestion(sessionId, questionId);
+    
+    if (existing) {
+      const updated = await this.updateStudentAnswer(existing.id, answer);
+      return updated!;
+    } else {
+      return await this.createStudentAnswer({
+        sessionId,
+        questionId,
+        ...answer
+      } as InsertStudentAnswer);
+    }
+  }
+
+  async getQuestionOptionById(optionId: number): Promise<QuestionOption | undefined> {
+    const result = await db.select().from(schema.questionOptions)
+      .where(eq(schema.questionOptions.id, optionId))
+      .limit(1);
     return result[0];
   }
 
