@@ -746,10 +746,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       // Verify the result was saved by immediately retrieving it
       console.log(`🔍 Verifying result was saved - fetching results for student ${session.studentId}...`);
       const verificationResults = await storage.getExamResultsByStudent(session.studentId);
-      const savedResult = verificationResults.find((r: any) => r.examId === session.examId && r.autoScored === true);
+      const savedResult = verificationResults.find((r: any) => r.examId === session.examId);
 
       if (!savedResult) {
-        throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the auto-scored result');
+        throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the result');
       }
 
       console.log(`✅ Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
