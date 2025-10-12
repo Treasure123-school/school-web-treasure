@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle } from 'lucide-react';
+import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
@@ -384,7 +384,7 @@ export default function StudentExams() {
                 }, 5000);
 
                 toast({
-                  title: "⚠️ Tab Switch Detected",
+                  title: "Tab Switch Detected",
                   description: `Warning ${newCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
                   variant: "destructive",
                 });
@@ -791,33 +791,40 @@ export default function StudentExams() {
 
       console.error(`❌ Answer save failed for question ${variables.questionId}:`, error.message);
 
-      // Handle specific error types
+      // Handle specific error types - only show errors for real issues
       if (error.message.includes('Please select') || error.message.includes('Please enter')) {
         // Validation errors - don't show toast, user can see status indicator
         shouldShowToast = false;
       } else if (error.message.includes('session has expired') || error.message.includes('Session expired') || error.message.includes('Authentication') || error.message.includes('401')) {
-        userFriendlyMessage = "Your session has expired. Please refresh the page and log in again.";
+        userFriendlyMessage = "Session expired. Please refresh and log in again.";
         // Don't auto-retry for authentication issues
-      } else if (error.message.includes('Unable to connect') || error.message.includes('Network connection failed') || error.message.includes('internet connection')) {
-        userFriendlyMessage = "Connection lost. Answer saved locally and will sync when online.";
-        shouldAutoRetry = true;
-      } else if (error.message.includes('timeout') || error.message.includes('Request timeout') || error.message.includes('Retrying')) {
-        userFriendlyMessage = "Connection slow. Answer will be saved automatically.";
-        shouldAutoRetry = true;
-        shouldShowToast = false; // Don't spam with timeout messages
-      } else if (error.message.includes('Server error') || error.message.includes('500') || error.message.includes('after multiple attempts')) {
-        userFriendlyMessage = "Server issue. Click retry or answer will be saved automatically.";
-        shouldAutoRetry = true;
-      } else if (error.message.includes('403') || error.message.includes('Permission denied')) {
-        userFriendlyMessage = "Permission denied. Please contact your instructor.";
-      } else if (error.message.includes('Invalid response') || error.message.includes('Server communication error')) {
-        userFriendlyMessage = "Connection issue. Answer will be retried automatically.";
-        shouldAutoRetry = true;
-        shouldShowToast = false; // Don't spam with communication errors
-      } else if (error.message.includes('Too many requests')) {
-        userFriendlyMessage = "Server busy. Answer will be saved shortly.";
+      } else if (error.message.includes('fetch failed') || error.message.includes('Failed to fetch')) {
+        // Only show network error for actual fetch failures
+        userFriendlyMessage = "Network connection issue. Retrying automatically...";
         shouldAutoRetry = true;
         shouldShowToast = false;
+      } else if (error.message.includes('timeout') || error.message.includes('Request timeout')) {
+        // Timeout - retry silently
+        userFriendlyMessage = "Saving answer...";
+        shouldAutoRetry = true;
+        shouldShowToast = false;
+      } else if (error.message.includes('Server error') || error.message.includes('500')) {
+        userFriendlyMessage = "Server issue. Retrying automatically...";
+        shouldAutoRetry = true;
+        shouldShowToast = false;
+      } else if (error.message.includes('403') || error.message.includes('Permission denied')) {
+        userFriendlyMessage = "Permission denied. Contact instructor.";
+      } else if (error.message.includes('Invalid response')) {
+        // Invalid response - retry silently
+        shouldAutoRetry = true;
+        shouldShowToast = false;
+      } else if (error.message.includes('Too many requests') || error.message.includes('429')) {
+        // Rate limit - retry silently
+        shouldAutoRetry = true;
+        shouldShowToast = false;
+      } else if (error.message.includes('after multiple attempts')) {
+        // Only show if all retries failed
+        userFriendlyMessage = "Unable to save answer. Please check your connection.";
       }
 
       if (shouldShowToast) {
@@ -923,7 +930,7 @@ export default function StudentExams() {
         console.log(`📊 INSTANT FEEDBACK: ${score}/${maxScore} = ${percentage}%`);
 
         // Handle different submission scenarios
-        let toastTitle = "Exam Submitted Successfully! 🎉";
+        let toastTitle = "Exam Submitted Successfully!";
         if (data.alreadySubmitted) {
           toastTitle = "Previous Results Retrieved";
         } else if (data.timedOut) {
@@ -1377,7 +1384,10 @@ export default function StudentExams() {
                       <div className="flex items-start space-x-3">
                         <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" aria-hidden="true" />
                         <div>
-                          <p className="text-sm font-medium">📊 Objective Questions Only</p>
+                          <p className="text-sm font-medium flex items-center gap-1.5">
+                            <Trophy className="w-4 h-4" />
+                            Objective Questions Only
+                          </p>
                           <p className="text-xs mt-1">
                             This score reflects only your multiple-choice and objective answers. 
                             Your essay questions, theory responses, and practical assessments 
@@ -1394,8 +1404,8 @@ export default function StudentExams() {
                     data-testid="banner-clarity"
                   >
                     <div className="flex items-start space-x-3">
-                      <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
-                        💡
+                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center mt-0.5">
+                        <AlertCircle className="w-4 h-4" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-blue-900">What you're seeing now:</p>
@@ -1457,7 +1467,10 @@ export default function StudentExams() {
                             <p className="text-lg text-gray-600" data-testid="text-score-fraction">
                               {normalizedResults.score}/{normalizedResults.maxScore} ({normalizedResults.percentage}%)
                             </p>
-                            <p className="text-sm text-gray-500 mt-1">📝 Multiple-choice and automatic scoring only</p>
+                            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                              <FileText className="w-3 h-3" />
+                              Multiple-choice and automatic scoring only
+                            </p>
                           </div>
                         </div>
 
@@ -1571,7 +1584,10 @@ export default function StudentExams() {
                     {normalizedResults.hasDetailedResults && normalizedResults.questionDetails.length > 0 && (
                       <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg" data-testid="section-question-breakdown">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold text-gray-900">📋 Question-by-Question Results</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <FileText className="w-5 h-5" />
+                            Question-by-Question Results
+                          </h3>
                           <Badge variant="outline" className="text-xs">
                             {normalizedResults.autoScoredQuestions} auto-scored
                           </Badge>
@@ -1762,8 +1778,8 @@ export default function StudentExams() {
                   <div>
                     <p className="text-sm font-semibold">
                       {tabSwitchCount <= MAX_VIOLATIONS_BEFORE_PENALTY 
-                        ? `⚠️ Warning ${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}`
-                        : `❌ Penalty Applied: -${violationPenalty} marks`
+                        ? `Warning ${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}`
+                        : `Penalty Applied: -${violationPenalty} marks`
                       }
                     </p>
                     <p className="text-xs mt-0.5">Please stay on the exam page to avoid penalties</p>
@@ -1774,7 +1790,7 @@ export default function StudentExams() {
                 <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-r-lg p-3 flex items-center gap-3 text-red-800 dark:text-red-200 shadow-sm">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold">📡 Connection Lost</p>
+                    <p className="text-sm font-semibold">Connection Lost</p>
                     <p className="text-xs mt-0.5">Your answers are being saved locally and will sync when connection is restored</p>
                   </div>
                 </div>
@@ -1783,66 +1799,72 @@ export default function StudentExams() {
           )}
 
           {/* Professional Exam Header */}
-          <div className="bg-gradient-to-r from-[#1F51FF] via-[#2B5FFF] to-[#3B6FFF] text-white shadow-xl">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 text-white shadow-2xl border-b-4 border-blue-700">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
               {/* School Branding */}
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/20">
+              <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/30">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-2.5 shadow-lg">
+                  <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-3 shadow-2xl border border-white/20">
                     <img 
                       src={schoolLogo} 
-                      alt="Treasure-Home School Logo" 
-                      className="h-12 w-12 object-contain"
+                      alt="Treasure-Home School" 
+                      className="h-14 w-14 object-contain drop-shadow-lg"
                     />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold tracking-tight">Treasure-Home School</h2>
-                    <p className="text-xs text-blue-100 mt-0.5">📝 Online Examination Portal</p>
+                    <h2 className="text-2xl font-bold tracking-tight drop-shadow-md">Treasure-Home School</h2>
+                    <div className="flex items-center gap-2 text-sm text-blue-50 mt-1">
+                      <ClipboardCheck className="w-4 h-4" />
+                      <span className="font-medium">Online Examination Portal</span>
+                    </div>
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsFullScreen(!isFullScreen)}
-                  className="h-9 w-9 p-0 text-white hover:bg-white/20 rounded-lg transition-all"
+                  className="h-10 w-10 p-0 text-white hover:bg-white/25 rounded-xl transition-all shadow-lg border border-white/20"
                 >
-                  {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                  {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                 </Button>
               </div>
 
               {/* Exam Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* Exam Title */}
                 <div className="md:col-span-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold uppercase tracking-wide mb-1">{selectedExam?.name}</h1>
-                  <div className="flex items-center gap-4 text-sm text-blue-100">
-                    <span className="flex items-center gap-1">
+                  <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2 drop-shadow-lg">{selectedExam?.name}</h1>
+                  <div className="flex items-center gap-5 text-sm text-blue-50 font-medium">
+                    <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
                       <BookOpen className="w-4 h-4" />
                       Question {currentQuestionIndex + 1} of {examQuestions.length}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Trophy className="w-4 h-4" />
+                    <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
+                      <Award className="w-4 h-4" />
                       {selectedExam?.totalMarks} marks
                     </span>
                   </div>
                 </div>
 
                 {/* Timer & Student Info */}
-                <div className="bg-white/10 backdrop-blur-md rounded-xl p-4">
+                <div className="bg-white/15 backdrop-blur-xl rounded-2xl p-5 border border-white/25 shadow-2xl">
                   {timeRemaining !== null && (
-                    <div className="mb-3">
-                      <p className="text-xs text-blue-100 mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-blue-50 mb-2 flex items-center gap-1.5">
+                        <Clock className="w-4 h-4" />
                         Time Remaining
                       </p>
-                      <div className={`text-3xl font-bold font-mono ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-200' : 'text-red-300 animate-pulse'}`}>
+                      <div className={`text-4xl font-black font-mono ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-100' : 'text-red-200 animate-pulse'} drop-shadow-lg`}>
                         {formatTime(timeRemaining)}
                       </div>
                     </div>
                   )}
-                  <div className="pt-3 border-t border-white/20">
-                    <p className="text-xs text-blue-100 mb-1">Student</p>
-                    <p className="text-sm font-semibold truncate">{user?.firstName} {user?.lastName}</p>
+                  <div className="pt-4 border-t border-white/30">
+                    <p className="text-xs font-semibold text-blue-50 mb-1.5 flex items-center gap-1">
+                      <GraduationCap className="w-3 h-3" />
+                      Student
+                    </p>
+                    <p className="text-base font-bold truncate drop-shadow">{user?.firstName} {user?.lastName}</p>
                   </div>
                 </div>
               </div>
@@ -1855,19 +1877,20 @@ export default function StudentExams() {
               {/* Question Card - Main Area */}
               <div className="lg:col-span-2">
                 {currentQuestion && (
-                  <Card className="shadow-xl border-0 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-b p-6">
+                  <Card className="shadow-2xl border-0 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden ring-1 ring-gray-100 dark:ring-gray-700">
+                    <CardHeader className="bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 dark:from-indigo-950 dark:via-blue-950 dark:to-cyan-950 border-b-2 border-blue-100 dark:border-blue-900 p-6">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <CardTitle className="text-xl sm:text-2xl font-bold">
+                            <CardTitle className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-white">
                               Question {currentQuestionIndex + 1}
                             </CardTitle>
-                            <Badge className="bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] text-white border-0 px-3 py-1">
+                            <Badge className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 px-4 py-1.5 text-sm font-bold shadow-lg">
                               {currentQuestion.points} pts
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
                             {currentQuestion.questionType === 'multiple_choice' ? 'Multiple Choice' : 
                              currentQuestion.questionType === 'essay' ? 'Essay Question' : 'Short Answer'}
                           </p>
@@ -1879,18 +1902,18 @@ export default function StudentExams() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
-                              className="h-8 text-xs px-3 border-red-300 text-red-600 hover:bg-red-50"
+                              className="h-9 text-sm px-4 border-2 border-red-400 text-red-600 hover:bg-red-50 font-semibold shadow-md"
                             >
-                              <RotateCcw className="w-3 h-3 mr-1" />
+                              <RotateCcw className="w-4 h-4 mr-1.5" />
                               Retry
                             </Button>
                           )}
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-6 sm:p-8">
-                      <div className="mb-8">
-                        <p className="text-lg leading-relaxed text-gray-800 dark:text-gray-200" data-testid="question-text">
+                    <CardContent className="p-8 sm:p-10">
+                      <div className="mb-10">
+                        <p className="text-xl leading-relaxed text-gray-900 dark:text-gray-100 font-medium" data-testid="question-text">
                           {currentQuestion.questionText}
                         </p>
                       </div>
@@ -1900,23 +1923,23 @@ export default function StudentExams() {
                         <RadioGroup
                           value={answers[currentQuestion.id]?.toString() || ''}
                           onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
-                          className="space-y-3"
+                          className="space-y-4"
                           data-testid="question-options"
                         >
                           {questionOptions.map((option, index) => (
                             <div key={option.id} className="group">
-                              <div className="flex items-start space-x-3 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-[#1F51FF] hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer">
+                              <div className="flex items-start space-x-4 p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 dark:hover:bg-gradient-to-r dark:hover:from-indigo-950/30 dark:hover:to-blue-950/30 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md">
                                 <RadioGroupItem
                                   value={option.id.toString()}
                                   id={`option-${option.id}`}
-                                  className="mt-1"
+                                  className="mt-1.5 w-5 h-5"
                                   data-testid={`option-${index}`}
                                 />
                                 <Label
                                   htmlFor={`option-${option.id}`}
-                                  className="text-base cursor-pointer flex-1 leading-relaxed text-gray-700 dark:text-gray-300 group-hover:text-[#1F51FF] dark:group-hover:text-blue-400"
+                                  className="text-lg cursor-pointer flex-1 leading-relaxed text-gray-800 dark:text-gray-200 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 font-medium"
                                 >
-                                  <span className="font-semibold mr-2">{String.fromCharCode(65 + index)}.</span>
+                                  <span className="font-bold mr-3 text-indigo-600 dark:text-indigo-400">{String.fromCharCode(65 + index)}.</span>
                                   {option.optionText}
                                 </Label>
                               </div>
@@ -1931,16 +1954,16 @@ export default function StudentExams() {
                           placeholder="Type your answer here..."
                           value={answers[currentQuestion.id] || ''}
                           onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
-                          rows={currentQuestion.questionType === 'essay' ? 10 : 5}
-                          className="text-base border-2 rounded-xl focus:border-[#1F51FF] transition-colors"
+                          rows={currentQuestion.questionType === 'essay' ? 12 : 6}
+                          className="text-lg border-2 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all shadow-sm"
                           data-testid="text-answer"
                         />
                       )}
                     </CardContent>
 
                     {/* Navigation Footer */}
-                    <div className="border-t bg-gray-50 dark:bg-gray-900 px-6 py-4">
-                      <div className="flex gap-3">
+                    <div className="border-t-2 border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-950/30 px-8 py-5">
+                      <div className="flex gap-4">
                         <Button
                           variant="outline"
                           onClick={() => {
@@ -1956,7 +1979,7 @@ export default function StudentExams() {
                             setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
                           }}
                           disabled={currentQuestionIndex === 0}
-                          className="flex-1 h-12 text-base font-medium border-2 hover:border-[#1F51FF] hover:bg-blue-50"
+                          className="flex-1 h-14 text-lg font-bold border-2 border-gray-300 hover:border-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all shadow-md disabled:opacity-50"
                           data-testid="button-previous"
                         >
                           ← Previous
@@ -1976,7 +1999,7 @@ export default function StudentExams() {
                             setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
                           }}
                           disabled={currentQuestionIndex === examQuestions.length - 1}
-                          className="flex-1 h-12 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] hover:from-[#1A47E6] hover:to-[#3461E6] text-white font-semibold text-base shadow-lg"
+                          className="flex-1 h-14 bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 hover:from-indigo-700 hover:via-blue-700 hover:to-cyan-700 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all disabled:opacity-50"
                           data-testid="button-next"
                         >
                           Next →
@@ -1991,37 +2014,37 @@ export default function StudentExams() {
               <div className="lg:col-span-1">
                 <div className="sticky top-24 space-y-4">
                   {/* Progress Card */}
-                  <Card className="shadow-xl border-0 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-b p-4">
-                      <CardTitle className="text-lg font-bold flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
+                  <Card className="shadow-2xl border-0 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden ring-1 ring-gray-100 dark:ring-gray-700">
+                    <CardHeader className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950 dark:via-green-950 dark:to-teal-950 border-b-2 border-green-100 dark:border-green-900 p-5">
+                      <CardTitle className="text-xl font-extrabold flex items-center gap-2.5 text-gray-800 dark:text-white">
+                        <CheckCircle className="w-6 h-6 text-emerald-600" />
                         Progress Tracker
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4">
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="font-semibold text-gray-700 dark:text-gray-300">Answered</span>
-                          <span className="font-bold text-green-600">{Object.keys(answers).length}/{examQuestions.length}</span>
+                    <CardContent className="p-5">
+                      <div className="mb-5">
+                        <div className="flex justify-between text-sm mb-3">
+                          <span className="font-bold text-gray-700 dark:text-gray-300">Questions Answered</span>
+                          <span className="font-black text-emerald-600 text-lg">{Object.keys(answers).length}/{examQuestions.length}</span>
                         </div>
-                        <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-3 bg-gray-200 dark:bg-gray-700" />
-                        <p className="text-xs text-gray-500 mt-1 text-center">
+                        <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-4 bg-gray-200 dark:bg-gray-700" />
+                        <p className="text-sm font-semibold text-gray-600 mt-2 text-center">
                           {Math.round((Object.keys(answers).length / examQuestions.length) * 100)}% Complete
                         </p>
                       </div>
 
                       {/* Saving Status */}
                       {hasPendingSaves() && (
-                        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-600 dark:text-blue-400 mb-4">
-                          <Loader className="w-4 h-4 animate-spin" />
-                          <span className="font-medium">Saving your answers...</span>
+                        <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl text-sm text-blue-600 dark:text-blue-400 mb-5 border border-blue-200 dark:border-blue-800">
+                          <Loader className="w-5 h-5 animate-spin" />
+                          <span className="font-bold">Saving your answers...</span>
                         </div>
                       )}
 
                       {/* Question Navigation Grid */}
                       <div>
-                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Navigation</p>
-                        <div className="grid grid-cols-5 gap-2">
+                        <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Quick Navigation</p>
+                        <div className="grid grid-cols-5 gap-2.5">
                           {examQuestions.map((question, index) => {
                             const isAnswered = !!answers[question.id];
                             const isCurrent = currentQuestionIndex === index;
@@ -2031,12 +2054,12 @@ export default function StudentExams() {
                                 key={question.id}
                                 onClick={() => setCurrentQuestionIndex(index)}
                                 className={`
-                                  h-10 rounded-lg text-sm font-bold transition-all duration-200
+                                  h-12 rounded-xl text-base font-black transition-all duration-300 shadow-md
                                   ${isCurrent 
-                                    ? 'bg-gradient-to-br from-[#1F51FF] to-[#3B6FFF] text-white shadow-lg scale-110 ring-2 ring-blue-300' 
+                                    ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-xl scale-110 ring-4 ring-indigo-200 dark:ring-indigo-800' 
                                     : isAnswered
-                                      ? 'bg-green-500 text-white hover:bg-green-600'
-                                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300'
+                                      ? 'bg-gradient-to-br from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 shadow-lg'
+                                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                                   }
                                   hover:scale-105 active:scale-95
                                 `}
@@ -2049,18 +2072,18 @@ export default function StudentExams() {
                         </div>
                         
                         {/* Legend */}
-                        <div className="flex flex-col gap-2 mt-4 text-xs">
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded bg-gradient-to-br from-[#1F51FF] to-[#3B6FFF]" />
-                            <span className="text-gray-600 dark:text-gray-400">Current</span>
+                        <div className="flex flex-col gap-3 mt-5 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 shadow-md" />
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Current</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded bg-green-500" />
-                            <span className="text-gray-600 dark:text-gray-400">Answered</span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 shadow-md" />
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Answered</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700" />
-                            <span className="text-gray-600 dark:text-gray-400">Not answered</span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-lg bg-gray-200 dark:bg-gray-700 shadow-sm" />
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Not answered</span>
                           </div>
                         </div>
                       </div>
@@ -2068,8 +2091,8 @@ export default function StudentExams() {
                   </Card>
 
                   {/* Submit Button Card */}
-                  <Card className="shadow-xl border-0 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
-                    <CardContent className="p-4">
+                  <Card className="shadow-2xl border-0 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950 dark:to-green-950 rounded-3xl overflow-hidden ring-2 ring-emerald-200 dark:ring-emerald-800">
+                    <CardContent className="p-6">
                       <Button
                         onClick={() => {
                           const answeredCount = Object.keys(answers).length;
@@ -2082,33 +2105,33 @@ export default function StudentExams() {
                           if (confirmed) handleSubmitExam();
                         }}
                         disabled={isSubmitting || hasPendingSaves() || isScoring}
-                        className="w-full h-14 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-lg font-bold shadow-xl rounded-xl"
+                        className="w-full h-16 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-700 hover:via-green-700 hover:to-teal-700 text-white text-xl font-black shadow-2xl rounded-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
                         data-testid="button-submit-exam-sidebar"
                       >
                         {isScoring ? (
                           <>
-                            <Loader className="w-5 h-5 mr-2 animate-spin" />
+                            <Loader className="w-6 h-6 mr-3 animate-spin" />
                             Processing...
                           </>
                         ) : isSubmitting ? (
                           <>
-                            <Loader className="w-5 h-5 mr-2 animate-spin" />
+                            <Loader className="w-6 h-6 mr-3 animate-spin" />
                             Submitting...
                           </>
                         ) : hasPendingSaves() ? (
                           <>
-                            <Save className="w-5 h-5 mr-2" />
+                            <Save className="w-6 h-6 mr-3" />
                             Saving...
                           </>
                         ) : (
                           <>
-                            <CheckCircle className="w-5 h-5 mr-2" />
+                            <CheckCircle className="w-6 h-6 mr-3" />
                             Submit Exam
                           </>
                         )}
                       </Button>
-                      <p className="text-xs text-center text-gray-500 mt-3">
-                        Make sure all answers are saved before submitting
+                      <p className="text-sm font-semibold text-center text-gray-600 dark:text-gray-400 mt-4">
+                        Ensure all answers are saved before submitting
                       </p>
                     </CardContent>
                   </Card>
