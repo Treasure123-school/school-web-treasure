@@ -5,14 +5,42 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
+import { useEffect } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   if (!user) {
     return <div>Please log in to access the student portal.</div>;
   }
+
+  // Check student profile status
+  const { data: profileStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ['/api/student/profile/status'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/student/profile/status');
+      return await response.json();
+    },
+    enabled: !!user
+  });
+
+  // Redirect to profile setup if profile is incomplete
+  useEffect(() => {
+    if (!statusLoading && profileStatus) {
+      const needsSetup = !profileStatus.hasProfile || !profileStatus.isComplete;
+      
+      if (needsSetup) {
+        console.log('🔄 Redirecting to student profile setup:', { 
+          hasProfile: profileStatus.hasProfile,
+          isComplete: profileStatus.isComplete
+        });
+        navigate('/portal/student/profile-setup');
+      }
+    }
+  }, [profileStatus, statusLoading, navigate]);
 
   // Fetch real data from API
   const { data: examResults, isLoading: isLoadingGrades } = useQuery({

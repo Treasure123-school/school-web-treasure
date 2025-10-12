@@ -5539,6 +5539,122 @@ Treasure-Home School Administration
     }
   });
 
+  // ==================== STUDENT PROFILE ROUTES ====================
+
+  // Get student profile by ID
+  app.get('/api/students/:id', authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.id;
+      
+      // Ensure student can only access their own profile (or admin/teacher can access)
+      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      const student = await storage.getStudent(studentId);
+      
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      res.json(student);
+    } catch (error) {
+      console.error('Error fetching student:', error);
+      res.status(500).json({ message: 'Failed to fetch student data' });
+    }
+  });
+
+  // Get student's assigned classes
+  app.get('/api/students/:id/classes', authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.id;
+      
+      // Ensure student can only access their own classes (or admin/teacher can access)
+      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      const classes = await storage.getStudentClasses(studentId);
+      res.json(classes);
+    } catch (error) {
+      console.error('Error fetching student classes:', error);
+      res.status(500).json({ message: 'Failed to fetch classes' });
+    }
+  });
+
+  // Update student profile
+  app.patch('/api/students/:id', authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.id;
+      
+      // Ensure student can only update their own profile (or admin can update)
+      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      const updates = req.body;
+      
+      // Update student record
+      const updatedStudent = await storage.updateStudent(studentId, updates);
+      
+      if (!updatedStudent) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      res.json(updatedStudent);
+    } catch (error) {
+      console.error('Error updating student:', error);
+      res.status(500).json({ message: 'Failed to update student profile' });
+    }
+  });
+
+  // Get student profile status (check if profile is complete)
+  app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const studentId = req.user!.id;
+      const student = await storage.getStudent(studentId);
+
+      const status = {
+        hasProfile: !!student,
+        isComplete: !!(student?.phone && student?.address),
+        firstLogin: student?.firstLogin !== false
+      };
+
+      res.json(status);
+    } catch (error) {
+      console.error('Error checking student profile status:', error);
+      res.status(500).json({ message: 'Failed to check profile status' });
+    }
+  });
+
+  // Student profile setup (first-time login)
+  app.post('/api/student/profile/setup', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const studentId = req.user!.id;
+      const profileData = req.body;
+
+      // Update student record with profile information
+      const updatedStudent = await storage.updateStudent(studentId, {
+        ...profileData,
+        firstLogin: false
+      });
+
+      if (!updatedStudent) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      res.json({ 
+        message: 'Profile setup completed successfully',
+        student: updatedStudent 
+      });
+    } catch (error) {
+      console.error('Error setting up student profile:', error);
+      res.status(500).json({ message: 'Failed to setup profile' });
+    }
+  });
+
+  // ==================== END STUDENT PROFILE ROUTES ====================
+
 
   // ==================== END MODULE 1 ROUTES ====================
 

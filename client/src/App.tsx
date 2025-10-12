@@ -35,6 +35,7 @@ const StudentAnnouncements = lazy(() => import("@/pages/portal/StudentAnnounceme
 const StudentAttendance = lazy(() => import("@/pages/portal/StudentAttendance"));
 const StudentMessages = lazy(() => import("@/pages/portal/StudentMessages"));
 const StudentProfile = lazy(() => import("@/pages/portal/StudentProfile"));
+const StudentProfileSetup = lazy(() => import("@/pages/portal/StudentProfileSetup"));
 const StudentExams = lazy(() => import("@/pages/portal/StudentExams"));
 const StudentStudyResources = lazy(() => import("@/pages/portal/StudentStudyResources"));
 const StudentReportCard = lazy(() => import("@/pages/portal/StudentReportCard"));
@@ -126,6 +127,11 @@ function Router() {
       <Route path="/portal/student/report-card">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentReportCard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/profile-setup">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
+          <StudentProfileSetup />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/profile">
