@@ -157,6 +157,23 @@ function sanitizeLogData(data: any): any {
     log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
   }
 
+  // Initialize student self-registration setting if not exists
+  try {
+    const { storage } = await import("./storage");
+    const existingSetting = await storage.getSetting('allow_student_self_registration');
+    if (!existingSetting) {
+      await storage.createSetting({
+        key: 'allow_student_self_registration',
+        value: 'true',
+        description: 'Allow students to self-register with automatic parent account creation',
+        dataType: 'boolean'
+      });
+      log("✅ Student self-registration setting initialized");
+    }
+  } catch (error) {
+    log(`⚠️ Failed to initialize registration setting: ${error}`);
+  }
+
 
   // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
