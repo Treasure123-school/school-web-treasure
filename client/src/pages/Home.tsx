@@ -135,7 +135,7 @@ export default function Home() {
   return (
     <PublicLayout>
       {/* Enhanced Hero Section with beautiful styling */}
-      <section className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 py-20 md:py-32 relative overflow-hidden">
+      <section className="hero-gradient py-20 md:py-32 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="text-primary-foreground order-2 lg:order-1 text-center lg:text-left">
@@ -170,7 +170,7 @@ export default function Home() {
               <div className="relative max-w-lg mx-auto lg:max-w-none">
                 <img 
                   src={heroImage?.imageUrl || "https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"} 
-                  alt={heroImage?.altText || "Treasure-Home School campus with modern facilities"} 
+                  alt={heroImage?.altText || "Empty classroom ready for learning at Treasure-Home School"} 
                   className="rounded-3xl shadow-2xl w-full h-auto aspect-[4/3] object-cover transform transition-all duration-500 hover:scale-105"
                   width="600"
                   height="450"
@@ -179,7 +179,7 @@ export default function Home() {
                   data-testid="img-hero-school"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src = "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80";
+                    target.src = "https://images.unsplash.com/photo-1580582932707-520aed937b7b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80";
                   }}
                 />
                 <div className="absolute -bottom-6 -left-6 sm:-bottom-8 sm:-left-8 bg-white/95 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20">

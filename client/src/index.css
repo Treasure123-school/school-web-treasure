@@ -38,17 +38,17 @@
   --sidebar-border: hsl(214.3, 31.8%, 91.4%);
   --sidebar-ring: hsl(217, 91%, 60%);
   
-  /* Treasure-Home School Brand Colors - Stunning Blue Gradient */
-  --brand-blue: hsl(207, 90%, 54%);
-  --brand-indigo: hsl(211, 100%, 50%);
-  --brand-purple: hsl(207, 90%, 61%);
-  --gradient-blue-start: hsl(207, 90%, 54%);
-  --gradient-blue-middle: hsl(211, 100%, 50%);
-  --gradient-teal: hsl(207, 90%, 61%);
-  --gradient-blue-end: hsl(211, 100%, 50%);
+  /* Treasure-Home School Brand Colors - Exact Match to Icon */
+  --brand-blue: hsl(215, 88%, 55%);
+  --brand-indigo: hsl(220, 90%, 60%);
+  --brand-purple: hsl(225, 85%, 65%);
+  --gradient-blue-start: hsl(215, 88%, 55%);
+  --gradient-blue-middle: hsl(220, 90%, 60%);
+  --gradient-teal: hsl(225, 85%, 65%);
+  --gradient-blue-end: hsl(220, 90%, 60%);
   --gradient-gold: hsl(45, 100%, 65%);
   --gradient-green: hsl(142, 76%, 55%);
-  --gradient-purple: hsl(211, 100%, 50%);
+  --gradient-purple: hsl(220, 90%, 60%);
   
   /* Typography */
   --font-sans: 'Inter', sans-serif;
@@ -121,13 +121,13 @@
 
 /* Treasure-Home School Brand Gradient - Primary */
 .gradient-primary {
-  background: linear-gradient(135deg, #1E88E5 0%, #2196F3 50%, #42A5F5 100%);
-  box-shadow: 0 10px 25px -5px rgba(33, 150, 243, 0.4);
+  background: linear-gradient(135deg, #3B82F6 0%, #6366F1 50%, #8B5CF6 100%);
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
 }
 
 /* Brand Gradient - Consistent across all components */
 .brand-gradient {
-  background: linear-gradient(to right, #1E88E5, #2196F3, #42A5F5);
+  background: linear-gradient(to right, #3B82F6, #6366F1, #8B5CF6);
 }
 
 .brand-gradient-hover {
@@ -135,9 +135,9 @@
 }
 
 .brand-gradient-hover:hover {
-  background: linear-gradient(to right, #1976D2, #1E88E5, #2196F3);
+  background: linear-gradient(to right, #2563EB, #4F46E5, #7C3AED);
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 20px 30px -5px rgba(33, 150, 243, 0.5);
+  box-shadow: 0 20px 30px -5px rgba(99, 102, 241, 0.5);
 }
 
 .gradient-hero {
@@ -232,8 +232,8 @@
 
 /* Enhanced professional buttons with brand colors */
 .btn-primary {
-  @apply bg-gradient-to-r from-[#1E88E5] via-[#2196F3] to-[#42A5F5]
-         hover:from-[#1976D2] hover:via-[#1E88E5] hover:to-[#2196F3]
+  @apply bg-gradient-to-r from-[#3B82F6] via-[#6366F1] to-[#8B5CF6]
+         hover:from-[#2563EB] hover:via-[#4F46E5] hover:to-[#7C3AED]
          text-white font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-2xl 
          transform transition-all duration-300 hover:scale-105 hover:-translate-y-1;
 }
@@ -245,7 +245,7 @@
 }
 
 .btn-ghost {
-  @apply border-2 border-[#2196F3] text-[#2196F3] hover:bg-gradient-to-r hover:from-[#1E88E5] hover:to-[#2196F3] hover:text-white 
+  @apply border-2 border-[#6366F1] text-[#6366F1] hover:bg-gradient-to-r hover:from-[#3B82F6] hover:to-[#6366F1] hover:text-white 
          font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-105 hover:-translate-y-1;
 }
 
@@ -355,11 +355,11 @@
 /* Enhanced hero section gradient - Professional educational branding */
 .hero-gradient {
   background: linear-gradient(135deg, 
-    #1E88E5 0%,
-    #2196F3 25%,
-    #42A5F5 50%,
-    #2196F3 75%,
-    #1E88E5 100%
+    #3B82F6 0%,
+    #6366F1 25%,
+    #8B5CF6 50%,
+    #6366F1 75%,
+    #3B82F6 100%
   );
   position: relative;
   background-size: 400% 400%;
@@ -374,9 +374,9 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, 
-    rgba(30, 136, 229, 0.95) 0%, 
-    rgba(33, 150, 243, 0.9) 50%,
-    rgba(66, 165, 245, 0.85) 100%
+    rgba(59, 130, 246, 0.95) 0%, 
+    rgba(99, 102, 241, 0.9) 50%,
+    rgba(139, 92, 246, 0.85) 100%
   );
   z-index: 1;
 }
