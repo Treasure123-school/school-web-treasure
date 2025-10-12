@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
+import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
 // Constants for violation tracking and penalties
 const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
@@ -1778,10 +1779,20 @@ export default function StudentExams() {
           {/* Professional Exam Header */}
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white p-4 sm:p-6">
             <div className="max-w-4xl mx-auto">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex-1">
-                  <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wide">{selectedExam?.name}</h1>
-                  <p className="text-sm text-blue-100 mt-1">Question {currentQuestionIndex + 1}/{examQuestions.length}</p>
+              {/* School Branding */}
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/20">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
+                    <img 
+                      src={schoolLogo} 
+                      alt="Treasure-Home School Logo" 
+                      className="h-10 w-10 object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">Treasure-Home School</h2>
+                    <p className="text-xs text-blue-100">Online Exam</p>
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
@@ -1791,6 +1802,14 @@ export default function StudentExams() {
                 >
                   {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                 </Button>
+              </div>
+
+              {/* Exam Title and Progress */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex-1">
+                  <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wide">{selectedExam?.name}</h1>
+                  <p className="text-sm text-blue-100 mt-1">Question {currentQuestionIndex + 1}/{examQuestions.length}</p>
+                </div>
               </div>
               
               {timeRemaining !== null && (
@@ -1932,7 +1951,7 @@ export default function StudentExams() {
                   setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
                 }}
                 disabled={currentQuestionIndex === examQuestions.length - 1}
-                className="flex-1 h-11 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                className="flex-1 h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
                 data-testid="button-next"
               >
                 Next →
