@@ -355,11 +355,11 @@
 /* Enhanced hero section gradient - Professional educational branding */
 .hero-gradient {
   background: linear-gradient(135deg, 
-    #3B82F6 0%,
-    #6366F1 25%,
-    #8B5CF6 50%,
-    #6366F1 75%,
-    #3B82F6 100%
+    #1F51FF 0%,
+    #1F51FF 25%,
+    #3B6FFF 50%,
+    #1F51FF 75%,
+    #1F51FF 100%
   );
   position: relative;
   background-size: 400% 400%;
@@ -374,9 +374,9 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, 
-    rgba(59, 130, 246, 0.95) 0%, 
-    rgba(99, 102, 241, 0.9) 50%,
-    rgba(139, 92, 246, 0.85) 100%
+    rgba(31, 81, 255, 0.95) 0%, 
+    rgba(31, 81, 255, 0.9) 50%,
+    rgba(59, 111, 255, 0.85) 100%
   );
   z-index: 1;
 }
@@ -390,7 +390,7 @@
   bottom: 0;
   background: radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
               radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
-              radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+              radial-gradient(circle at 40% 40%, rgba(31, 81, 255, 0.1) 0%, transparent 50%);
   z-index: 1;
 }
 
