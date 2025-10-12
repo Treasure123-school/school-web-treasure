@@ -1751,347 +1751,281 @@ export default function StudentExams() {
         </div>
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
-        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : ''}`}>
-          {/* Compact Warning Banners - Mobile Optimized */}
-          <div className="space-y-2 p-2 sm:p-3">
-            {showTabSwitchWarning && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 rounded-lg p-2 sm:p-3">
-                <div className="flex items-start gap-2 text-yellow-800 dark:text-yellow-200">
-                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-xs sm:text-sm">⚠️ Tab Switch Warning</p>
-                    <p className="text-xs">
-                      {tabSwitchCount <= MAX_VIOLATIONS_BEFORE_PENALTY 
-                        ? `${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY} warnings. Stay on this page!`
-                        : `-${violationPenalty} marks penalty applied`
-                      }
-                    </p>
-                  </div>
+        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : 'bg-gray-50 dark:bg-gray-900'}`}>
+          {/* Warning Banners */}
+          {(showTabSwitchWarning || !isOnline) && (
+            <div className="sticky top-0 z-40 space-y-2 p-3 bg-white dark:bg-gray-900 border-b">
+              {showTabSwitchWarning && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 rounded-lg p-2 flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-xs font-medium">
+                    {tabSwitchCount <= MAX_VIOLATIONS_BEFORE_PENALTY 
+                      ? `Warning ${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}: Stay on exam page`
+                      : `Penalty: -${violationPenalty} marks`
+                    }
+                  </p>
                 </div>
-              </div>
-            )}
+              )}
+              {!isOnline && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg p-2 flex items-center gap-2 text-red-800 dark:text-red-200">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-xs font-medium">Offline - Answers saved locally</p>
+                </div>
+              )}
+            </div>
+          )}
 
-            {!isOnline && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg p-2 sm:p-3">
-                <div className="flex items-start gap-2 text-red-800 dark:text-red-200">
-                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-xs sm:text-sm">Offline Mode</p>
-                    <p className="text-xs">Answers saved locally, will sync when online</p>
+          {/* Professional Exam Header */}
+          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white p-4 sm:p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex-1">
+                  <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wide">{selectedExam?.name}</h1>
+                  <p className="text-sm text-blue-100 mt-1">Question {currentQuestionIndex + 1}/{examQuestions.length}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                >
+                  {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                </Button>
+              </div>
+              
+              {timeRemaining !== null && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-blue-100">Time Remaining</p>
+                    <div className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-200' : 'text-red-300 animate-pulse'}`}>
+                      {formatTime(timeRemaining)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-blue-100 mb-1">Student Name</p>
+                    <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Mobile-First Layout */}
-          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-6 p-2 sm:p-3 lg:p-6">
-            {/* Question Navigation - Collapsible on Mobile */}
-            <div className="w-full lg:w-72 flex-shrink-0">
-              <Card className="lg:sticky lg:top-6">
-                <CardHeader className="p-3 sm:p-4">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-sm sm:text-base">Questions</CardTitle>
-                    <div className="flex gap-1 sm:gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsFullScreen(!isFullScreen)}
-                        className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                        data-testid="button-toggle-fullscreen"
-                      >
-                        {isFullScreen ? <Minimize className="w-3 h-3 sm:w-4 sm:h-4" /> : <Maximize className="w-3 h-3 sm:w-4 sm:h-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  {/* Compact Progress Indicator */}
-                  <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium">Progress</span>
-                      <span className="font-bold">{Math.round((Object.keys(answers).length / examQuestions.length) * 100)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(Object.keys(answers).length / examQuestions.length) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-center text-gray-600 dark:text-gray-400">
-                      {Object.keys(answers).length}/{examQuestions.length} answered
-                    </p>
-                  </div>
-
-                  {/* Compact Timer */}
-                  {timeRemaining !== null && (
-                    <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border-l-4 border-blue-500">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium">Time Left</span>
-                        <div className="flex items-center gap-1">
-                          <Timer className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                          {!isOnline ? (
-                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                          ) : (
-                            <div className="w-2 h-2 bg-green-500 rounded-full" />
-                          )}
-                        </div>
-                      </div>
-                      <div className={`text-xl sm:text-2xl font-mono font-bold ${getTimerColor(timeRemaining)}`}>
-                        {formatTime(timeRemaining)}
-                      </div>
-                      <Progress value={getTimerProgress()} className="h-1.5 mt-1.5" />
-                      {timeRemaining < 300 && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
-                          ⚠️ Less than 5 min!
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Question Grid - Responsive */}
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Jump to:</p>
-                    <div className="grid grid-cols-5 sm:grid-cols-5 gap-1.5 sm:gap-2">
-                      {examQuestions.map((question, index) => {
-                        const isAnswered = !!answers[question.id];
-                        const isCurrent = currentQuestionIndex === index;
-                        const saveStatus = questionSaveStatus[question.id];
-
-                        return (
-                          <button
-                            key={question.id}
-                            onClick={() => setCurrentQuestionIndex(index)}
-                            className={`
-                              relative h-8 sm:h-10 rounded-lg font-semibold text-xs sm:text-sm
-                              transition-all duration-200 flex items-center justify-center
-                              ${isCurrent 
-                                ? 'bg-blue-600 text-white shadow-lg scale-105 sm:scale-110' 
-                                : isAnswered
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-2 border-green-500'
-                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300'
-                              }
-                              hover:scale-105 active:scale-95
-                            `}
-                            data-testid={`question-nav-${index}`}
-                          >
-                            {isAnswered ? (
-                              <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            ) : (
-                              <span>{index + 1}</span>
-                            )}
-                            {saveStatus === 'saving' && (
-                              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Compact Legend */}
-                  <div className="pt-2 border-t space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="w-5 h-5 rounded bg-blue-600" />
-                      <span className="text-gray-600 dark:text-gray-300">Current</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="w-5 h-5 rounded bg-green-100 dark:bg-green-900/30 border-2 border-green-500 flex items-center justify-center">
-                        <CheckCircle2 className="w-3 h-3 text-green-700 dark:text-green-300" />
-                      </div>
-                      <span className="text-gray-600 dark:text-gray-300">Answered</span>
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    onClick={() => {
-                      const answeredCount = Object.keys(answers).length;
-                      const unanswered = examQuestions.length - answeredCount;
-                      const confirmed = window.confirm(
-                        unanswered > 0
-                          ? `${answeredCount}/${examQuestions.length} answered. ${unanswered} unanswered questions will get 0 marks. Submit?`
-                          : `All ${examQuestions.length} questions answered. Submit exam?`
-                      );
-                      if (confirmed) handleSubmitExam();
-                    }}
-                    disabled={isSubmitting || hasPendingSaves() || isScoring}
-                    className="w-full text-sm sm:text-base"
-                    size="lg"
-                    data-testid="button-submit-exam-sidebar"
-                  >
-                    {isScoring ? 'Processing...' : isSubmitting ? 'Submitting...' : hasPendingSaves() ? 'Saving...' : 'Submit Exam'}
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Question Area - Mobile Optimized */}
-            <div className="flex-1 min-w-0 space-y-3 sm:space-y-4">
-              {/* Compact Exam Header */}
-              <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{selectedExam?.name}</h1>
-                    <p className="text-xs sm:text-sm text-blue-100">
-                      Q{currentQuestionIndex + 1}/{examQuestions.length}
-                    </p>
-                    {tabSwitchCount > 0 && (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
-                          {tabSwitchCount} Warning{tabSwitchCount !== 1 ? 's' : ''}
-                        </Badge>
-                        {violationPenalty > 0 && (
-                          <span className="text-xs text-red-200 font-semibold">-{violationPenalty}pts</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {timeRemaining !== null && (
-                    <div className="text-right">
-                      <div className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-200' : 'text-red-300 animate-pulse'}`}>
-                        {formatTime(timeRemaining)}
-                      </div>
-                      <div className="w-20 sm:w-28 bg-white/30 rounded-full h-1.5 mt-1">
-                        <div 
-                          className={`h-1.5 rounded-full transition-all ${getTimerProgress() > 50 ? 'bg-green-400' : getTimerProgress() > 20 ? 'bg-yellow-400' : 'bg-red-400'}`}
-                          style={{ width: `${getTimerProgress()}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Question Card - Mobile Optimized */}
-              {currentQuestion && (
-                <Card className="shadow-md sm:shadow-lg border-t-4 border-blue-600">
-                  <CardHeader className="p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                      <CardTitle className="text-base sm:text-lg">
+          {/* Main Content */}
+          <div className="max-w-4xl mx-auto p-4 sm:p-6">
+            {/* Question Card */}
+            {currentQuestion && (
+              <Card className="shadow-lg border-0 mb-6">
+                <CardHeader className="bg-white dark:bg-gray-800 border-b p-4 sm:p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg sm:text-xl">
                         Question {currentQuestionIndex + 1}
-                        <Badge variant="outline" className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0 text-xs">
+                        <Badge className="ml-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
                           {currentQuestion.points}pts
                         </Badge>
                       </CardTitle>
-                      <div className="flex items-center gap-2 text-xs">
-                        {getSaveStatusIndicator(currentQuestion.id)}
-                        {questionSaveStatus[currentQuestion.id] === 'failed' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
-                            className="h-7 text-xs px-2"
-                            data-testid="button-retry-answer"
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {getSaveStatusIndicator(currentQuestion.id)}
+                      {questionSaveStatus[currentQuestion.id] === 'failed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
+                          className="h-7 text-xs px-2"
+                        >
+                          <RotateCcw className="w-3 h-3 mr-1" />
+                          Retry
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <p className="text-base sm:text-lg leading-relaxed mb-6" data-testid="question-text">
+                    {currentQuestion.questionText}
+                  </p>
+
+                  {/* Multiple Choice */}
+                  {currentQuestion.questionType === 'multiple_choice' && (
+                    <RadioGroup
+                      value={answers[currentQuestion.id]?.toString() || ''}
+                      onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
+                      className="space-y-3"
+                      data-testid="question-options"
+                    >
+                      {questionOptions.map((option, index) => (
+                        <div key={option.id} className="flex items-start space-x-3 p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all">
+                          <RadioGroupItem
+                            value={option.id.toString()}
+                            id={`option-${option.id}`}
+                            className="mt-0.5"
+                            data-testid={`option-${index}`}
+                          />
+                          <Label
+                            htmlFor={`option-${option.id}`}
+                            className="text-sm sm:text-base cursor-pointer flex-1 leading-relaxed"
                           >
-                            <RotateCcw className="w-3 h-3 mr-1" />
-                            Retry
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4 p-3 sm:p-6">
-                    <p className="text-sm sm:text-base leading-relaxed" data-testid="question-text">
-                      {currentQuestion.questionText}
-                    </p>
+                            {option.optionText}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
 
-                    {/* Multiple Choice - Mobile Friendly */}
-                    {currentQuestion.questionType === 'multiple_choice' && (
-                      <RadioGroup
-                        value={answers[currentQuestion.id]?.toString() || ''}
-                        onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
-                        className="space-y-2"
-                        data-testid="question-options"
-                      >
-                        {questionOptions.map((option, index) => (
-                          <div key={option.id} className="flex items-start space-x-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                            <RadioGroupItem
-                              value={option.id.toString()}
-                              id={`option-${option.id}`}
-                              className="mt-0.5"
-                              data-testid={`option-${index}`}
-                            />
-                            <Label
-                              htmlFor={`option-${option.id}`}
-                              className="text-sm sm:text-base cursor-pointer flex-1 leading-relaxed"
-                            >
-                              {option.optionText}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    )}
+                  {/* Text/Essay */}
+                  {(currentQuestion.questionType === 'text' || currentQuestion.questionType === 'essay') && (
+                    <Textarea
+                      placeholder="Enter your answer here..."
+                      value={answers[currentQuestion.id] || ''}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
+                      rows={currentQuestion.questionType === 'essay' ? 8 : 4}
+                      className="text-sm sm:text-base border-2"
+                      data-testid="text-answer"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
-                    {/* Text/Essay - Touch Friendly */}
-                    {(currentQuestion.questionType === 'text' || currentQuestion.questionType === 'essay') && (
-                      <Textarea
-                        placeholder="Enter your answer here..."
-                        value={answers[currentQuestion.id] || ''}
-                        onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
-                        rows={currentQuestion.questionType === 'essay' ? 6 : 4}
-                        className="text-sm sm:text-base min-h-[120px] sm:min-h-[160px]"
-                        data-testid="text-answer"
-                      />
-                    )}
+            {/* Navigation Buttons */}
+            <div className="flex gap-3 mb-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const currentAnswer = answers[currentQuestion.id];
+                  if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                    const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                    const isNewAnswer = !existingAnswer || 
+                      (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                    if (isNewAnswer) {
+                      submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
+                    }
+                  }
+                  setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+                }}
+                disabled={currentQuestionIndex === 0}
+                className="flex-1 h-11"
+                data-testid="button-previous"
+              >
+                ← Previous
+              </Button>
 
-                    {/* Navigation - Mobile Optimized */}
-                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-3 pt-4 border-t">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const currentAnswer = answers[currentQuestion.id];
-                          if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
-                            const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
-                            const isNewAnswer = !existingAnswer || 
-                              (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
-                            if (isNewAnswer) {
-                              submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
-                            }
-                          }
-                          setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
-                        }}
-                        disabled={currentQuestionIndex === 0}
-                        className="flex-1 sm:flex-none text-sm"
-                        data-testid="button-previous"
-                      >
-                        ← Previous
-                      </Button>
+              <Button
+                variant="outline"
+                className="px-6"
+              >
+                Flag →
+              </Button>
 
-                      <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <span className="font-medium">{currentQuestionIndex + 1}/{examQuestions.length}</span>
-                        {hasPendingSaves() && (
-                          <div className="flex items-center gap-1 text-blue-500">
-                            <Loader className="w-3 h-3 animate-spin" />
-                            <span>Saving</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <Button
-                        onClick={() => {
-                          const currentAnswer = answers[currentQuestion.id];
-                          if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
-                            const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
-                            const isNewAnswer = !existingAnswer || 
-                              (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
-                            if (isNewAnswer) {
-                              submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
-                            }
-                          }
-                          setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
-                        }}
-                        disabled={currentQuestionIndex === examQuestions.length - 1}
-                        className="flex-1 sm:flex-none text-sm"
-                        data-testid="button-next"
-                      >
-                        Next →
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <Button
+                onClick={() => {
+                  const currentAnswer = answers[currentQuestion.id];
+                  if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                    const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                    const isNewAnswer = !existingAnswer || 
+                      (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                    if (isNewAnswer) {
+                      submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
+                    }
+                  }
+                  setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
+                }}
+                disabled={currentQuestionIndex === examQuestions.length - 1}
+                className="flex-1 h-11 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                data-testid="button-next"
+              >
+                Next →
+              </Button>
             </div>
+
+            {/* Progress & Jump To Section */}
+            <Card className="shadow-sm border">
+              <CardContent className="p-4">
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="font-medium">Progress</span>
+                    <span className="font-bold">{Object.keys(answers).length}/{examQuestions.length} answered</span>
+                  </div>
+                  <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-2" />
+                </div>
+
+                {/* Saving Status */}
+                {hasPendingSaves() && (
+                  <div className="flex items-center gap-2 mb-3 text-sm text-blue-600">
+                    <Loader className="w-3 h-3 animate-spin" />
+                    <span>Saving your progress...</span>
+                  </div>
+                )}
+
+                {/* Compact Jump To */}
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Jump to:</p>
+                  <div className="grid grid-cols-10 gap-1.5">
+                    {examQuestions.map((question, index) => {
+                      const isAnswered = !!answers[question.id];
+                      const isCurrent = currentQuestionIndex === index;
+
+                      return (
+                        <button
+                          key={question.id}
+                          onClick={() => setCurrentQuestionIndex(index)}
+                          className={`
+                            h-8 rounded text-xs font-semibold transition-all
+                            ${isCurrent 
+                              ? 'bg-blue-600 text-white scale-110' 
+                              : isAnswered
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                            }
+                            hover:scale-105
+                          `}
+                          data-testid={`question-nav-${index}`}
+                        >
+                          {index + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="flex gap-4 mt-3 text-xs">
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded bg-blue-600" />
+                      <span>Current</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded bg-green-500" />
+                      <span>Answered</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700" />
+                      <span>Not answered</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  onClick={() => {
+                    const answeredCount = Object.keys(answers).length;
+                    const unanswered = examQuestions.length - answeredCount;
+                    const confirmed = window.confirm(
+                      unanswered > 0
+                        ? `${answeredCount}/${examQuestions.length} answered. ${unanswered} unanswered questions will get 0 marks. Submit?`
+                        : `All ${examQuestions.length} questions answered. Submit exam?`
+                    );
+                    if (confirmed) handleSubmitExam();
+                  }}
+                  disabled={isSubmitting || hasPendingSaves() || isScoring}
+                  className="w-full mt-4 h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-base font-semibold"
+                  data-testid="button-submit-exam-sidebar"
+                >
+                  {isScoring ? 'Processing...' : isSubmitting ? 'Submitting...' : hasPendingSaves() ? 'Saving...' : 'Submit Exam'}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
       ) : (
