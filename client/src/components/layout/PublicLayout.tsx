@@ -61,8 +61,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                     href={item.href}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                       isActive(item.href) 
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md' 
-                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700'
+                        ? 'bg-gradient-to-r from-[#1E88E5] to-[#2196F3] text-white font-semibold shadow-md' 
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-[#2196F3] hover:scale-105'
                     }`}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
@@ -71,7 +71,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 ))}
                 <Button 
                   asChild 
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white ml-8 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                  className="bg-gradient-to-r from-[#1E88E5] to-[#2196F3] hover:from-[#1976D2] hover:to-[#1E88E5] text-white ml-8 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105"
                   data-testid="button-portal-login"
                 >
                   <Link href="/login">Portal Login</Link>

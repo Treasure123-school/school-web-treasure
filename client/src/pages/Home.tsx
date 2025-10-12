@@ -151,7 +151,7 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start animate-slide-up">
                 <Button 
                   asChild 
-                  className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold h-14 px-10 text-lg rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
+                  className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold h-14 px-10 text-lg rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-110 hover:-translate-y-2"
                   data-testid="button-apply-admission"
                 >
                   <Link href="/admissions">Apply for Admission</Link>
@@ -159,7 +159,7 @@ export default function Home() {
                 <Button 
                   asChild
                   variant="outline" 
-                  className="border-2 border-white bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1"
+                  className="border-2 border-white bg-white/20 backdrop-blur-sm text-white hover:bg-white/40 hover:text-white hover:border-white/80 font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:-translate-y-2"
                   data-testid="button-contact-us"
                 >
                   <Link href="/contact">Contact Us</Link>
@@ -169,7 +169,7 @@ export default function Home() {
             <div className="order-1 lg:order-2 lg:text-right animate-fade-in">
               <div className="relative max-w-lg mx-auto lg:max-w-none">
                 <img 
-                  src={heroImage?.imageUrl || "https://pixabay.com/get/gc7d2935b2c7daee5b00c7f4e5f775c0789f703b5347bf11383e16d0cf64f931493583d7ca01db3a2fd0940d4aa02adb939bbce4c48a8fb42f8bd002547dfe709_1280.jpg"} 
+                  src={heroImage?.imageUrl || "https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"} 
                   alt={heroImage?.altText || "Treasure-Home School campus with modern facilities"} 
                   className="rounded-3xl shadow-2xl w-full h-auto aspect-[4/3] object-cover transform transition-all duration-500 hover:scale-105"
                   width="600"
@@ -177,6 +177,10 @@ export default function Home() {
                   loading="eager"
                   decoding="async"
                   data-testid="img-hero-school"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80";
+                  }}
                 />
                 <div className="absolute -bottom-6 -left-6 sm:-bottom-8 sm:-left-8 bg-white/95 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20">
                   <div className="flex items-center space-x-3 sm:space-x-4">
