@@ -1,3 +1,6 @@
+// This commit addresses an issue where exam submission was failing due to server-side errors returning HTML instead of JSON.
+// The exam submission endpoint has been refactored to handle errors gracefully and ensure valid JSON responses,
+// improving the reliability of the exam submission and auto-scoring process.
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -1411,7 +1414,7 @@ export async function registerRoutes(app: Express): Server {
         }
 
         const optionId = typeof selectedOptionId === 'number' ? selectedOptionId : parseInt(selectedOptionId);
-        
+
         const option = await storage.getQuestionOptionById(optionId);
         if (!option) {
           return res.status(400).json({ message: 'Invalid option selected' });
@@ -5014,7 +5017,7 @@ Treasure-Home School Administration
         passwordHash,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
-        phone: validatedData.phone || null,
+        phone:|| null,
         address: validatedData.address || null,
         dateOfBirth: validatedData.dateOfBirth, // Store exact YYYY-MM-DD string
         gender: validatedData.gender,

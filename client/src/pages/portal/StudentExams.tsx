@@ -973,8 +973,14 @@ export default function StudentExams() {
       let errorDescription = error.message;
       let shouldResetSession = false;
 
+      // Check if error is HTML response (server crash)
+      if (error.message.includes('<!DOCTYPE') || error.message.includes('Unexpected token') || error.message.includes('JSON')) {
+        errorTitle = "Server Error";
+        errorDescription = "The server encountered an error while processing your submission. Your answers have been saved. Please try submitting again.";
+        console.error('🔥 Server returned HTML instead of JSON - critical backend error');
+      }
       // Check for specific error types that can happen with synchronous submission
-      if (error.message.includes('already submitted') || error.message.includes('Exam already submitted')) {
+      else if (error.message.includes('already submitted') || error.message.includes('Exam already submitted')) {
         errorTitle = "Already Submitted";
         errorDescription = "This exam has already been submitted. Redirecting to results...";
         shouldResetSession = true;
@@ -990,7 +996,7 @@ export default function StudentExams() {
 
       } else if (error.message.includes('No active exam session') || error.message.includes('Session not found')) {
         errorTitle = "Session Expired";
-        errorDescription = "Your exam session has expired. Please start the exam again.";
+        errorDescription = "Your exam session has expired or could not be found. Please start the exam again.";
         shouldResetSession = true;
 
         setTimeout(() => {
@@ -1001,10 +1007,10 @@ export default function StudentExams() {
           setSelectedExam(null);
         }, 2000);
 
-      } else if (error.message.includes('Server error') || error.message.includes('Failed to submit exam')) {
+      } else if (error.message.includes('Server error') || error.message.includes('Failed to submit exam') || error.message.includes('500')) {
         errorTitle = "Server Error";
-        errorDescription = "A server error occurred. Your answers are saved. Please try submitting again.";
-      } else if (error.message.includes('Network') || error.message.includes('fetch')) {
+        errorDescription = "A server error occurred. Your answers are saved. Please try submitting again in a moment.";
+      } else if (error.message.includes('Network') || error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
         errorTitle = "Connection Error";
         errorDescription = "Network connection failed. Please check your internet connection and try again.";
       } else if (error.message.includes('timeout')) {
@@ -1016,6 +1022,7 @@ export default function StudentExams() {
         title: errorTitle,
         description: errorDescription,
         variant: shouldResetSession ? "default" : "destructive",
+        duration: 8000, // Show longer for critical errors
       });
     },
   });
@@ -1189,13 +1196,22 @@ export default function StudentExams() {
   // Regular submit with pending save protection
   const handleSubmitExam = async () => {
     if (hasPendingSaves()) {
-      // Don't submit, let the disabled button and UI indicate the state
+      toast({
+        title: "Please Wait",
+        description: "Some answers are still being saved. Please wait a moment before submitting.",
+        variant: "default",
+      });
       return;
     }
 
+    console.log('🚀 User clicked Submit Exam button');
     setIsSubmitting(true);
+    
     try {
       await submitExamMutation.mutateAsync();
+      console.log('✅ Submission completed successfully');
+    } catch (error) {
+      console.error('❌ Submission failed:', error);
     } finally {
       setIsSubmitting(false);
     }
