@@ -873,7 +873,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
   }
 }
 
-// AI-assisted grading task creation
+// Create Grading Tasks Function: Triggered after auto-scoring or manual grading
 async function createGradingTasksForSession(sessionId: number, examId: number, storage: any): Promise<void> {
   try {
     console.log(`📝 Creating grading tasks for session ${sessionId}, exam ${examId}`);
@@ -887,9 +887,9 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
     // Get all questions for this exam
     const examQuestions = await storage.getExamQuestions(examId);
 
-    // Filter for essay/theory questions (non-auto-gradable questions)
+    // Filter for essay/theory questions that require manual grading
     const manualGradingQuestions = examQuestions.filter((q: any) => {
-      return q.questionType !== 'multiple_choice' && q.questionType !== 'true_false';
+      return q.questionType === 'text' || q.questionType === 'essay';
     });
 
     if (manualGradingQuestions.length === 0) {
@@ -912,10 +912,14 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
         if (teachers && teachers.length > 0) {
           assignedTeacherId = teachers[0].id; // Assign to first teacher found
           console.log(`👨‍ teacher Assigning grading tasks to class-subject teacher: ${assignedTeacherId}`);
+        } else {
+          console.log(`ℹ️ No specific teacher found for class ${exam.classId} and subject ${exam.subjectId}. Using exam creator ${exam.createdBy}.`);
         }
       } catch (error) {
         console.warn(`⚠️ Could not find class-subject teacher, using exam creator: ${error}`);
       }
+    } else {
+      console.log(`ℹ️ Exam ${examId} has no classId or subjectId, assigning to exam creator ${exam.createdBy}.`);
     }
 
     // Create grading tasks for each essay answer
@@ -937,14 +941,18 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
             priority: 0 // Default priority
           });
           tasksCreated++;
+        } else {
+          console.log(`ℹ️ Grading task for answer ${studentAnswer.id} already exists. Skipping.`);
         }
+      } else {
+        console.warn(`⚠️ No student answer found for question ${question.id} in session ${sessionId}. Cannot create grading task.`);
       }
     }
 
-    console.log(`✅ Created ${tasksCreated} grading tasks for session ${sessionId}`);
+    console.log(`✅ Created ${tasksCreated} new grading tasks for session ${sessionId}.`);
   } catch (error) {
     console.error(`❌ Error creating grading tasks for session ${sessionId}:`, error);
-    throw error;
+    throw error; // Re-throw to indicate failure
   }
 }
 
@@ -1217,7 +1225,7 @@ export async function registerRoutes(app: Express): Server {
   });
 
   // Exam Sessions - Student exam taking functionality
-  
+
   // Start exam - Create new exam session
   app.post('/api/exam-sessions', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
@@ -1232,7 +1240,7 @@ export async function registerRoutes(app: Express): Server {
 
       // Get exam details to calculate end time
       const exam = await storage.getExamById(examId);
-      
+
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
@@ -1257,7 +1265,7 @@ export async function registerRoutes(app: Express): Server {
 
       // Use idempotent session creation to prevent duplicates
       const session = await storage.createOrGetActiveExamSession(examId, studentId, sessionData);
-      
+
       console.log(`✅ Exam session ${session.wasCreated ? 'created' : 'retrieved'}:`, session.id);
 
       res.status(201).json(session);
@@ -1271,14 +1279,14 @@ export async function registerRoutes(app: Express): Server {
   app.get('/api/exam-sessions/student/:studentId/active', authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.studentId;
-      
+
       // Ensure student can only access their own session
       if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
       const session = await storage.getStudentActiveSession(studentId);
-      
+
       if (!session) {
         return res.json(null);
       }
@@ -1338,7 +1346,7 @@ export async function registerRoutes(app: Express): Server {
       const { currentQuestionIndex, timeRemaining, tabSwitchCount, violationPenalty } = req.body;
 
       const updates: any = {};
-      
+
       if (currentQuestionIndex !== undefined) updates.currentQuestionIndex = currentQuestionIndex;
       if (timeRemaining !== undefined) updates.timeRemaining = timeRemaining;
       if (tabSwitchCount !== undefined) updates.tabSwitchCount = tabSwitchCount;

@@ -351,6 +351,7 @@ export default function StudentExams() {
   useEffect(() => {
     return () => {
       Object.values(saveTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
+      Object.values(debounceTimersRef.current).forEach(timeout => clearTimeout(timeout));
       if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
     };
   }, []);
@@ -445,22 +446,25 @@ export default function StudentExams() {
     return Math.min(penalty, MAX_PENALTY);
   };
 
-  // Client-side answer validation
+  // Client-side answer validation - relaxed for better UX
   const validateAnswer = (questionType: string, answer: any): { isValid: boolean; error?: string } => {
     if (questionType === 'multiple_choice') {
-      if (!answer || isNaN(parseInt(answer))) {
+      // Allow any truthy value for MC questions
+      if (answer === null || answer === undefined || answer === '') {
         return { isValid: false, error: 'Please select an option' };
       }
       return { isValid: true };
     }
 
     if (questionType === 'text' || questionType === 'essay') {
-      if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
+      // Only validate that answer exists and is a string
+      if (answer === null || answer === undefined) {
         return { isValid: false, error: 'Please enter an answer' };
       }
-      if (answer.trim().length < 1) {
-        return { isValid: false, error: 'Answer is too short' };
+      if (typeof answer !== 'string') {
+        return { isValid: false, error: 'Invalid answer format' };
       }
+      // Allow even single character answers for auto-save
       return { isValid: true };
     }
 
@@ -784,64 +788,58 @@ export default function StudentExams() {
         return newSet;
       });
 
-      // Enhanced error handling with specific user-friendly messages
-      let userFriendlyMessage = error.message;
-      let shouldShowToast = true;
-      let shouldAutoRetry = false;
-
       console.error(`❌ Answer save failed for question ${variables.questionId}:`, error.message);
 
-      // Handle specific error types - only show errors for real issues
-      if (error.message.includes('Please select') || error.message.includes('Please enter')) {
-        // Validation errors - don't show toast, user can see status indicator
-        shouldShowToast = false;
-      } else if (error.message.includes('session has expired') || error.message.includes('Session expired') || error.message.includes('Authentication') || error.message.includes('401')) {
-        userFriendlyMessage = "Session expired. Please refresh and log in again.";
-        // Don't auto-retry for authentication issues
-      } else if (error.message.includes('fetch failed') || error.message.includes('Failed to fetch')) {
-        // Only show network error for actual fetch failures
-        userFriendlyMessage = "Network connection issue. Retrying automatically...";
+      // Determine error category and response
+      let shouldShowToast = false;
+      let shouldAutoRetry = false;
+      let userFriendlyMessage = error.message;
+
+      // Network/Connection errors - auto-retry silently
+      if (error.message.includes('fetch') || error.message.includes('Network') || 
+          error.message.includes('timeout') || error.message.includes('500')) {
         shouldAutoRetry = true;
-        shouldShowToast = false;
-      } else if (error.message.includes('timeout') || error.message.includes('Request timeout')) {
-        // Timeout - retry silently
-        userFriendlyMessage = "Saving answer...";
-        shouldAutoRetry = true;
-        shouldShowToast = false;
-      } else if (error.message.includes('Server error') || error.message.includes('500')) {
-        userFriendlyMessage = "Server issue. Retrying automatically...";
-        shouldAutoRetry = true;
-        shouldShowToast = false;
-      } else if (error.message.includes('403') || error.message.includes('Permission denied')) {
-        userFriendlyMessage = "Permission denied. Contact instructor.";
-      } else if (error.message.includes('Invalid response')) {
-        // Invalid response - retry silently
-        shouldAutoRetry = true;
-        shouldShowToast = false;
-      } else if (error.message.includes('Too many requests') || error.message.includes('429')) {
-        // Rate limit - retry silently
-        shouldAutoRetry = true;
-        shouldShowToast = false;
-      } else if (error.message.includes('after multiple attempts')) {
-        // Only show if all retries failed
-        userFriendlyMessage = "Unable to save answer. Please check your connection.";
+        console.log(`🔄 Network issue detected, will auto-retry question ${variables.questionId}`);
+      }
+      // Authentication errors - show to user
+      else if (error.message.includes('401') || error.message.includes('session') || 
+               error.message.includes('Authentication')) {
+        shouldShowToast = true;
+        userFriendlyMessage = "Session expired. Please refresh the page.";
+      }
+      // Permission errors - show to user
+      else if (error.message.includes('403') || error.message.includes('Permission')) {
+        shouldShowToast = true;
+        userFriendlyMessage = "Permission denied. Contact your instructor.";
+      }
+      // Validation errors - silent (user sees status indicator)
+      else if (error.message.includes('Please select') || error.message.includes('Please enter') ||
+               error.message.includes('validation') || error.message.includes('Invalid')) {
+        console.log(`Validation issue for question ${variables.questionId}, showing status only`);
+      }
+      // Unknown errors - show after multiple failures
+      else {
+        const failCount = Object.values(questionSaveStatus).filter(s => s === 'failed').length;
+        if (failCount > 2) {
+          shouldShowToast = true;
+          userFriendlyMessage = "Having trouble saving. Please check your connection.";
+        } else {
+          shouldAutoRetry = true;
+        }
       }
 
       if (shouldShowToast) {
         toast({
-          title: "Answer Save Issue",
+          title: "Save Error",
           description: userFriendlyMessage,
           variant: "destructive",
         });
       }
 
-      // Enhanced auto-retry for recoverable errors with better backoff
+      // Auto-retry logic for recoverable errors
       if (shouldAutoRetry && answers[variables.questionId] && isOnline) {
-        // Get current retry count from failed saves
-        const retryCount = Object.values(questionSaveStatus).filter(status => status === 'failed').length;
-        const retryDelay = Math.min(1000 * Math.pow(1.5, retryCount), 15000); // Max 15 seconds
-
-        console.log(`🔄 Auto-retrying question ${variables.questionId} in ${retryDelay}ms (retry count: ${retryCount})`);
+        const retryDelay = 2000; // 2 second delay for retries
+        console.log(`🔄 Retrying question ${variables.questionId} in ${retryDelay}ms`);
 
         setTimeout(() => {
           if (isOnline && answers[variables.questionId]) {
@@ -849,9 +847,6 @@ export default function StudentExams() {
           }
         }, retryDelay);
       }
-
-      // Log performance data for failed saves
-      console.warn(`📊 ANSWER SAVE FAILED: Question ${variables.questionId} - ${error.message}`);
     },
   });
 
@@ -1092,21 +1087,35 @@ export default function StudentExams() {
     startExamMutation.mutate(exam.id);
   };
 
+  // Debounce timer ref for answer changes
+  const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
+
   const handleAnswerChange = (questionId: number, answer: any, questionType: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
 
-    // Only submit if answer is meaningful (not empty) and different from previous
-    const validation = validateAnswer(questionType, answer);
-    if (validation.isValid) {
-      // Check if this is actually a new/changed answer to avoid duplicate submissions
-      const existingAnswer = existingAnswers.find(a => a.questionId === questionId);
-      const isNewAnswer = !existingAnswer || 
-        (questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== answer : existingAnswer.textAnswer !== answer);
-
-      if (isNewAnswer) {
-        submitAnswerMutation.mutate({ questionId, answer, questionType });
-      }
+    // Clear existing debounce timer for this question
+    if (debounceTimersRef.current[questionId]) {
+      clearTimeout(debounceTimersRef.current[questionId]);
     }
+
+    // Immediately mark as ready to save (visual feedback)
+    setQuestionSaveStatus(prev => ({ ...prev, [questionId]: 'idle' }));
+
+    // Debounce the actual save (500ms delay for typing)
+    debounceTimersRef.current[questionId] = setTimeout(() => {
+      const validation = validateAnswer(questionType, answer);
+      if (validation.isValid) {
+        // Check if this is actually a new/changed answer
+        const existingAnswer = existingAnswers.find(a => a.questionId === questionId);
+        const isNewAnswer = !existingAnswer || 
+          (questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== answer : existingAnswer.textAnswer !== answer);
+
+        if (isNewAnswer) {
+          console.log(`💾 Auto-saving answer for question ${questionId}:`, answer);
+          submitAnswerMutation.mutate({ questionId, answer, questionType });
+        }
+      }
+    }, 500); // 500ms debounce for text input, instant for MC
   };
 
   // Save session progress periodically
