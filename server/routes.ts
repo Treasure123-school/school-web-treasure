@@ -746,9 +746,13 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       // Verify the result was saved by immediately retrieving it
       console.log(`🔍 Verifying result was saved - fetching results for student ${session.studentId}...`);
       const verificationResults = await storage.getExamResultsByStudent(session.studentId);
-      const savedResult = verificationResults.find((r: any) => r.examId === session.examId);
+      console.log(`🔍 DEBUG: Found ${verificationResults.length} results. Looking for examId ${session.examId} (type: ${typeof session.examId})`);
+      console.log(`🔍 DEBUG: Result examIds:`, verificationResults.map((r: any) => `${r.examId} (type: ${typeof r.examId})`));
+      const savedResult = verificationResults.find((r: any) => Number(r.examId) === Number(session.examId));
 
       if (!savedResult) {
+        console.error(`❌ VERIFICATION FAILED: Could not find result for examId ${session.examId}`);
+        console.error(`❌ Available results:`, JSON.stringify(verificationResults, null, 2));
         throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the result');
       }
 
