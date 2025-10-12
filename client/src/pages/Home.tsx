@@ -135,8 +135,8 @@ export default function Home() {
   return (
     <PublicLayout>
       {/* Enhanced Hero Section with beautiful styling */}
-      <section className="hero-gradient py-20 md:py-28 lg:py-36">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 py-20 md:py-32 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="text-primary-foreground order-2 lg:order-1 text-center lg:text-left">
               <h1 className="school-title text-4xl sm:text-5xl lg:text-6xl xl:text-7xl mb-6 leading-tight animate-slide-down" data-testid="text-hero-title">
@@ -206,7 +206,7 @@ export default function Home() {
               We provide comprehensive education with modern facilities and experienced teachers, preparing students for academic excellence and moral development.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
             {features.map((feature, index) => (
               <Card key={index} className="card-hover bg-white/80 backdrop-blur-sm border-0 shadow-xl animate-slide-up" data-testid={`card-feature-${index}`}>
@@ -256,7 +256,7 @@ export default function Home() {
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold gradient-text mb-6 animate-slide-down">Our Mission & Vision</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-teal-500 mx-auto rounded-full"></div>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16">
             <div className="text-center md:text-left animate-slide-up">
               <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover">
@@ -266,7 +266,7 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            
+
             <div className="text-center md:text-left animate-slide-up" style={{ animationDelay: '0.2s' }}>
               <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover">
                 <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">Our Vision</h3>
@@ -290,7 +290,7 @@ export default function Home() {
               Stay informed with our latest updates and important announcements
             </p>
           </div>
-          
+
           {recentAnnouncements.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {recentAnnouncements.map((announcement: any, index: number) => (
@@ -325,7 +325,7 @@ export default function Home() {
               <p className="text-muted-foreground">No recent announcements available</p>
             </div>
           )}
-          
+
           <div className="text-center mt-8">
             <Button asChild data-testid="button-view-announcements">
               <Link href="/portal/login">View All Announcements</Link>
@@ -345,7 +345,7 @@ export default function Home() {
               Capturing moments of learning, growth, and achievement
             </p>
           </div>
-          
+
           {galleryImages.length > 0 ? (
             <div className="relative max-w-4xl mx-auto">
               {/* Main carousel with improved responsive design */}
@@ -356,7 +356,7 @@ export default function Home() {
                   className="w-full h-full object-cover transition-all duration-700 ease-in-out"
                   data-testid={`img-gallery-main-${currentImageIndex}`}
                 />
-                
+
                 {/* Enhanced navigation arrows */}
                 <div className="absolute inset-0 flex items-center justify-between p-3 sm:p-4">
                   <Button
@@ -378,7 +378,7 @@ export default function Home() {
                     <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
                   </Button>
                 </div>
-                
+
                 {/* Enhanced image counter */}
                 <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-black/60 text-white px-3 py-2 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
                   <span className="flex items-center space-x-1">
@@ -404,7 +404,7 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Enhanced thumbnail navigation */}
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3">
                 {galleryImages.map((image, index) => (
@@ -439,7 +439,7 @@ export default function Home() {
               <p className="text-muted-foreground">Gallery images will be available soon</p>
             </div>
           )}
-          
+
           <div className="text-center mt-8">
             <Button asChild data-testid="button-view-gallery">
               <Link href="/gallery">Explore Full Gallery</Link>

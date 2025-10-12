@@ -1945,14 +1945,14 @@ export default function StudentExams() {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 space-y-6">
-              {/* Exam Header with Timer */}
-              <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-                <div className="max-w-4xl mx-auto px-4 py-4">
-                  <div className="flex items-center justify-between">
+            <div className="flex-1 space-y-4 md:space-y-6">
+              {/* Exam Header with Timer - Fully Responsive */}
+              <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 sticky top-0 z-10 shadow-lg">
+                <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <h1 className="text-2xl font-bold text-gray-900">{selectedExam?.name}</h1>
-                      <p className="text-sm text-gray-600">
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{selectedExam?.name}</h1>
+                      <p className="text-xs sm:text-sm text-blue-100">
                         Question {currentQuestionIndex + 1} of {examQuestions.length}
                       </p>
                       {/* Violation Counter */}
@@ -1988,13 +1988,13 @@ export default function StudentExams() {
                         {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                       </Button>
 
-                      {/* Timer Display */}
+                      {/* Timer Display - Responsive */}
                       {timeRemaining !== null && (
                         <div className="text-right">
-                          <div className={`text-3xl font-bold ${getTimerColor(timeRemaining)}`}>
+                          <div className={`text-2xl sm:text-3xl md:text-4xl font-bold ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-200' : 'text-red-300 animate-pulse'}`}>
                             {formatTime(timeRemaining)}
                           </div>
-                          <div className="w-32 bg-gray-200 rounded-full h-2 mt-2">
+                          <div className="w-24 sm:w-32 md:w-40 bg-white/30 rounded-full h-2 mt-2">
                             <div 
                               className={`h-2 rounded-full transition-all duration-1000 ${
                                 getTimerProgress() > 50 ? 'bg-green-500' :
@@ -2010,14 +2010,14 @@ export default function StudentExams() {
                 </div>
               </div>
 
-              {/* Current Question */}
+              {/* Current Question - Responsive */}
               {currentQuestion && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg">
+                <Card className="shadow-lg border-t-4 border-blue-600">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                      <CardTitle className="text-base sm:text-lg md:text-xl">
                         Question {currentQuestionIndex + 1}
-                        <Badge variant="outline" className="ml-2">
+                        <Badge variant="outline" className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
                           {currentQuestion.points} points
                         </Badge>
                       </CardTitle>
@@ -2086,10 +2086,11 @@ export default function StudentExams() {
                       />
                     )}
 
-                    {/* Navigation */}
-                    <div className="flex justify-between pt-4">
+                    {/* Navigation - Responsive */}
+                    <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 pt-4">
                       <Button
                         variant="outline"
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0 hover:from-blue-700 hover:to-indigo-700"
                         onClick={() => {
                           // Save current answer before navigating
                           const currentAnswer = answers[currentQuestion.id];
@@ -2125,6 +2126,7 @@ export default function StudentExams() {
                       </div>
 
                       <Button
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0 hover:from-blue-700 hover:to-indigo-700"
                         onClick={() => {
                           // Save current answer before navigating
                           const currentAnswer = answers[currentQuestion.id];
@@ -2202,16 +2204,19 @@ export default function StudentExams() {
               exams
                 .filter(exam => exam.isPublished)
                 .map((exam) => (
-                  <Card key={exam.id} className="hover:shadow-md transition-shadow" data-testid={`exam-card-${exam.id}`}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{exam.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">
+                  <Card key={exam.id} className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-t-4 border-blue-600" data-testid={`exam-card-${exam.id}`}>
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                        <div className="flex-1">
+                          <CardTitle className="text-base sm:text-lg md:text-xl">{exam.name}</CardTitle>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {new Date(exam.date).toLocaleDateString()}
                           </p>
                         </div>
-                        <Badge variant={exam.isPublished ? 'default' : 'secondary'}>
+                        <Badge 
+                          variant={exam.isPublished ? 'default' : 'secondary'}
+                          className={exam.isPublished ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white' : ''}
+                        >
                           {exam.isPublished ? 'Available' : 'Draft'}
                         </Badge>
                       </div>
@@ -2240,7 +2245,7 @@ export default function StudentExams() {
                         <Button
                           onClick={() => handleStartExam(exam)}
                           disabled={startExamMutation.isPending || !exam.isPublished}
-                          className="flex-1"
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
                           data-testid={`button-start-exam-${exam.id}`}
                         >
                           {startExamMutation.isPending ? (

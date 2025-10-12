@@ -38,14 +38,17 @@
   --sidebar-border: hsl(214.3, 31.8%, 91.4%);
   --sidebar-ring: hsl(217, 91%, 60%);
   
-  /* Enhanced educational color palette */
+  /* Treasure-Home School Brand Colors - Consistent Blue-Indigo-Purple Gradient */
+  --brand-blue: hsl(217, 91%, 60%);
+  --brand-indigo: hsl(243, 75%, 59%);
+  --brand-purple: hsl(271, 91%, 65%);
   --gradient-blue-start: hsl(217, 91%, 60%);
-  --gradient-blue-middle: hsl(196, 88%, 58%);
+  --gradient-blue-middle: hsl(243, 75%, 59%);
   --gradient-teal: hsl(178, 85%, 55%);
-  --gradient-blue-end: hsl(260, 100%, 80%);
+  --gradient-blue-end: hsl(271, 91%, 65%);
   --gradient-gold: hsl(45, 100%, 65%);
   --gradient-green: hsl(142, 76%, 55%);
-  --gradient-purple: hsl(260, 100%, 80%);
+  --gradient-purple: hsl(271, 91%, 65%);
   
   /* Typography */
   --font-sans: 'Inter', sans-serif;
@@ -116,10 +119,25 @@
   }
 }
 
-/* Beautiful educational gradient backgrounds */
+/* Treasure-Home School Brand Gradient - Primary */
 .gradient-primary {
-  background: linear-gradient(135deg, var(--gradient-blue-start) 0%, var(--gradient-teal) 50%, var(--gradient-blue-middle) 100%);
-  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+  background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-indigo) 50%, var(--brand-purple) 100%);
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+}
+
+/* Brand Gradient - Consistent across all components */
+.brand-gradient {
+  background: linear-gradient(to right, var(--brand-blue), var(--brand-indigo), var(--brand-purple));
+}
+
+.brand-gradient-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-gradient-hover:hover {
+  background: linear-gradient(to right, var(--brand-indigo), var(--brand-purple), var(--brand-blue));
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.3);
 }
 
 .gradient-hero {
@@ -212,9 +230,10 @@
   font-weight: 600;
 }
 
-/* Enhanced professional buttons */
+/* Enhanced professional buttons with brand colors */
 .btn-primary {
-  @apply bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 hover:from-blue-700 hover:via-blue-800 hover:to-blue-900
+  @apply bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 
+         hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700
          text-white font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-2xl 
          transform transition-all duration-300 hover:scale-105 hover:-translate-y-1;
 }
