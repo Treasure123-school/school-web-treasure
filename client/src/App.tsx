@@ -55,6 +55,7 @@ const SettingsManagement = lazy(() => import("@/pages/portal/SettingsManagement"
 const TeacherGrades = lazy(() => import("@/pages/portal/TeacherGrades"));
 const TeacherGradingQueue = lazy(() => import("@/pages/portal/TeacherGradingQueue"));
 const TeacherClassResults = lazy(() => import("@/pages/portal/TeacherClassResults"));
+const TeacherExamResults = lazy(() => import("@/pages/portal/TeacherExamResults"));
 const ExamManagement = lazy(() => import("@/pages/portal/ExamManagement"));
 const HomepageManagement = lazy(() => import("@/pages/portal/HomepageManagement"));
 const PerformanceMonitoring = lazy(() => import("@/pages/portal/PerformanceMonitoring"));
@@ -260,6 +261,11 @@ function Router() {
       <Route path="/portal/teacher/results/class/:classId">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherClassResults />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/results/exam/:examId">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherExamResults />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/exams">

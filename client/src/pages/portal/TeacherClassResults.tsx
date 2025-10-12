@@ -7,10 +7,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Download, Users, TrendingUp, Award } from 'lucide-react';
 import { Link } from 'wouter';
+import { useAuth } from '@/lib/auth';
 
 export default function TeacherClassResults() {
+  const { user } = useAuth();
   const [, params] = useRoute('/portal/teacher/results/class/:classId');
   const classId = params?.classId ? parseInt(params.classId) : null;
+
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
+  const userName = `${user.firstName} ${user.lastName}`;
+  const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
+  const userRole = (user.role?.name?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
   // Fetch class details
   const { data: classes = [] } = useQuery({
@@ -64,7 +74,7 @@ export default function TeacherClassResults() {
     : 0;
 
   return (
-    <PortalLayout role="teacher">
+    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
