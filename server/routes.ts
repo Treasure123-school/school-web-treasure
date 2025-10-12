@@ -1216,6 +1216,147 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Exam Sessions - Student exam taking functionality
+  
+  // Start exam - Create new exam session
+  app.post('/api/exam-sessions', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const { examId } = req.body;
+      const studentId = req.user!.id;
+
+      if (!examId) {
+        return res.status(400).json({ message: 'Exam ID is required' });
+      }
+
+      console.log(`🎯 Starting exam ${examId} for student ${studentId}`);
+
+      // Get exam details to calculate end time
+      const exam = await storage.getExamById(examId);
+      
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      if (!exam.isPublished) {
+        return res.status(403).json({ message: 'Exam is not published yet' });
+      }
+
+      const now = new Date();
+      const endTime = new Date(now.getTime() + (exam.duration || 60) * 60 * 1000);
+
+      const sessionData = {
+        examId,
+        studentId,
+        startedAt: now,
+        timeRemaining: (exam.duration || 60) * 60,
+        isCompleted: false,
+        status: 'in_progress' as const,
+        endTime,
+        maxScore: exam.totalMarks || 0,
+      };
+
+      // Use idempotent session creation to prevent duplicates
+      const session = await storage.createOrGetActiveExamSession(examId, studentId, sessionData);
+      
+      console.log(`✅ Exam session ${session.wasCreated ? 'created' : 'retrieved'}:`, session.id);
+
+      res.status(201).json(session);
+    } catch (error: any) {
+      console.error('Error starting exam:', error);
+      res.status(500).json({ message: error.message || 'Failed to start exam' });
+    }
+  });
+
+  // Get active exam session for student
+  app.get('/api/exam-sessions/student/:studentId/active', authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      
+      // Ensure student can only access their own session
+      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      const session = await storage.getStudentActiveSession(studentId);
+      
+      if (!session) {
+        return res.json(null);
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error('Error fetching active session:', error);
+      res.status(500).json({ message: 'Failed to fetch active session' });
+    }
+  });
+
+  // Get exam session by ID
+  app.get('/api/exam-sessions/:id', authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session = await storage.getExamSessionById(sessionId);
+
+      if (!session) {
+        return res.status(404).json({ message: 'Session not found' });
+      }
+
+      // Ensure student can only access their own session
+      if (req.user!.id !== session.studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error('Error fetching exam session:', error);
+      res.status(500).json({ message: 'Failed to fetch exam session' });
+    }
+  });
+
+  // Update exam session metadata (tab switches, violations)
+  app.patch('/api/exam-sessions/:id/metadata', authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { metadata } = req.body;
+
+      const session = await storage.updateExamSession(sessionId, { metadata });
+
+      if (!session) {
+        return res.status(404).json({ message: 'Session not found' });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error('Error updating session metadata:', error);
+      res.status(500).json({ message: 'Failed to update session metadata' });
+    }
+  });
+
+  // Update exam session progress (current question, time remaining)
+  app.patch('/api/exam-sessions/:id/progress', authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { currentQuestionIndex, timeRemaining, tabSwitchCount, violationPenalty } = req.body;
+
+      const updates: any = {};
+      
+      if (currentQuestionIndex !== undefined) updates.currentQuestionIndex = currentQuestionIndex;
+      if (timeRemaining !== undefined) updates.timeRemaining = timeRemaining;
+      if (tabSwitchCount !== undefined) updates.tabSwitchCount = tabSwitchCount;
+      if (violationPenalty !== undefined) updates.violationPenalty = violationPenalty;
+
+      const session = await storage.updateExamSession(sessionId, updates);
+
+      if (!session) {
+        return res.status(404).json({ message: 'Session not found' });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error('Error updating session progress:', error);
+      res.status(500).json({ message: 'Failed to update session progress' });
+    }
+  });
+
   // Teacher profile setup (first-time login)
   app.post('/api/teacher/profile/setup', authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
     { name: 'profileImage', maxCount: 1 },
