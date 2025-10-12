@@ -1137,8 +1137,8 @@ export async function registerRoutes(app: Express): Server {
           studentAnswer: answer?.textAnswer || null,
           selectedOptionId: answer?.selectedOptionId || null,
           isCorrect: answer?.isCorrect || false,
-          pointsAwarded: answer?.pointsAwarded || 0,
-          feedback: answer?.feedback || null
+          pointsAwarded: answer?.pointsEarned || 0,
+          feedback: answer?.feedbackText || null
         };
       });
 
