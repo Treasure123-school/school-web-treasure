@@ -61,8 +61,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                     href={item.href}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                       isActive(item.href) 
-                        ? 'bg-gradient-to-r from-[#3B82F6] to-[#6366F1] text-white font-semibold shadow-md' 
-                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-[#6366F1] hover:scale-105'
+                        ? 'bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] text-white font-semibold shadow-md' 
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-[#1F51FF]/10 hover:to-[#3B6FFF]/10 hover:text-[#1F51FF] hover:scale-105'
                     }`}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
@@ -85,7 +85,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                   size="icon"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   data-testid="button-mobile-menu"
-                  className="h-12 w-12 text-blue-600 hover:bg-gradient-to-br hover:from-blue-50 hover:to-teal-50 hover:text-blue-700 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-110 hover:-translate-y-1 border border-transparent hover:border-blue-200"
+                  className="h-12 w-12 text-[#1F51FF] hover:bg-gradient-to-br hover:from-[#1F51FF]/10 hover:to-[#3B6FFF]/10 hover:text-[#1A47E6] rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-110 hover:-translate-y-1 border border-transparent hover:border-[#1F51FF]/20"
                 >
                   {isMobileMenuOpen ? (
                     <X className="h-6 w-6 transition-transform duration-300 hover:rotate-90" />
@@ -112,8 +112,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                       index === 0 ? 'mt-2' : ''
                     } ${
                       isActive(item.href) 
-                        ? 'bg-gradient-to-r from-[#3B82F6] to-[#6366F1] text-white font-bold shadow-lg shadow-indigo-500/25' 
-                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 hover:from-blue-100 hover:to-indigo-100 hover:text-indigo-800 hover:shadow-lg'
+                        ? 'bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] text-white font-bold shadow-lg shadow-[#1F51FF]/25' 
+                        : 'bg-gradient-to-r from-[#1F51FF]/10 to-[#3B6FFF]/10 text-[#1F51FF] hover:from-[#1F51FF]/20 hover:to-[#3B6FFF]/20 hover:text-[#1A47E6] hover:shadow-lg'
                     }`}
                     style={{ animationDelay: `${index * 0.1}s` }}
                     onClick={() => setIsMobileMenuOpen(false)}
