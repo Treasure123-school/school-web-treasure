@@ -651,24 +651,57 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       console.log(`🆕 No existing result found for exam ${session.examId} - will create new`);
     }
 
-    // Use a valid UUID for system auto-scoring - check if it exists in users table
-    let SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
+    // CRITICAL FIX: Ensure recordedBy uses a valid user ID that exists in users table
+    let SYSTEM_AUTO_SCORING_UUID: string;
 
-    // Try to find an admin user for recordedBy, fallback to session's student
+    // STRATEGY: Try multiple fallbacks to find a valid user ID
+    // 1. Try to find an admin user first (best practice)
+    // 2. Verify the student ID exists in users table
+    // 3. Find any active user as last resort
     try {
       const adminUsers = await storage.getUsersByRole(ROLES.ADMIN);
-      if (adminUsers && adminUsers.length > 0) {
+      if (adminUsers && adminUsers.length > 0 && adminUsers[0].id) {
         SYSTEM_AUTO_SCORING_UUID = adminUsers[0].id;
-        console.log(`Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
+        console.log(`✅ Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
       } else {
-        // Use the student who took the exam as fallback
-        SYSTEM_AUTO_SCORING_UUID = session.studentId;
-        console.log(`No admin found, using student ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
+        // No admin found, verify student ID exists in users table
+        console.log(`⚠️ No admin users found, verifying student ${session.studentId} exists in users table...`);
+        
+        try {
+          const studentUser = await storage.getUser(session.studentId);
+          if (studentUser && studentUser.id) {
+            SYSTEM_AUTO_SCORING_UUID = studentUser.id;
+            console.log(`✅ Verified student ${SYSTEM_AUTO_SCORING_UUID} exists in users table, using for recordedBy`);
+          } else {
+            throw new Error(`Student ${session.studentId} not found in users table`);
+          }
+        } catch (studentError) {
+          // Last resort: Find ANY active user
+          console.error(`❌ Student ${session.studentId} not found in users table:`, studentError);
+          console.log(`🔄 Last resort: Finding any active user for recordedBy...`);
+          
+          const allUsers = await storage.getAllUsers();
+          const activeUser = allUsers.find((u: any) => u.isActive && u.id);
+          
+          if (activeUser && activeUser.id) {
+            SYSTEM_AUTO_SCORING_UUID = activeUser.id;
+            console.log(`✅ Using active user ${SYSTEM_AUTO_SCORING_UUID} as fallback for recordedBy`);
+          } else {
+            throw new Error('CRITICAL: No valid user ID found for auto-scoring recordedBy - cannot save exam result');
+          }
+        }
       }
     } catch (userError) {
-      console.warn('Failed to find admin for auto-scoring, using student ID:', userError);
-      SYSTEM_AUTO_SCORING_UUID = session.studentId;
+      console.error('❌ CRITICAL ERROR: Failed to find valid user for auto-scoring recordedBy:', userError);
+      throw new Error(`Auto-scoring failed: Cannot find valid user ID for recordedBy. Error: ${userError instanceof Error ? userError.message : String(userError)}`);
     }
+
+    // Validate UUID before using
+    if (!SYSTEM_AUTO_SCORING_UUID || typeof SYSTEM_AUTO_SCORING_UUID !== 'string') {
+      throw new Error(`CRITICAL: Invalid recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
+    }
+
+    console.log(`📝 Final recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
 
     const resultData = {
       examId: session.examId,

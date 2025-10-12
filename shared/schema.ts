@@ -365,7 +365,7 @@ export const examResults = pgTable("exam_results", {
   grade: varchar("grade", { length: 5 }),
   remarks: text("remarks"),
   autoScored: boolean("auto_scored").default(false),
-  recordedBy: uuid("recorded_by").notNull(), // UUID field to match database schema
+  recordedBy: uuid("recorded_by").references(() => users.id).notNull(), // UUID field to match database schema, must be a valid user ID
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   // PERFORMANCE INDEX: Critical for fast result lookups by exam/student
