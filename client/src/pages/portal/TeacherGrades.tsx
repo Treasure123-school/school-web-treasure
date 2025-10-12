@@ -47,12 +47,16 @@ export default function TeacherGrades() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGradingTask, setSelectedGradingTask] = useState<any>(null);
   const [gradingDialogOpen, setGradingDialogOpen] = useState(false);
+  const [isGradeDialogOpen, setIsGradeDialogOpen] = useState(false);
+  const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<any>(null);
 
   if (!user) {
     return <div>Loading...</div>;
   }
-  const [isGradeDialogOpen, setIsGradeDialogOpen] = useState(false);
-  const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<any>(null);
+
+  const userName = `${user.firstName} ${user.lastName}`;
+  const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
+  const userRole = (user.role?.name?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
   // Form handlers
   const examForm = useForm<ExamFormData>({
@@ -362,9 +366,9 @@ export default function TeacherGrades() {
 
   return (
     <PortalLayout 
-      userRole="teacher" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
+      userRole={userRole} 
+      userName={userName}
+      userInitials={userInitials}
     >
       <div className="space-y-6" data-testid="teacher-grades">
         <div className="flex justify-between items-center">
