@@ -537,19 +537,24 @@ export default function StudentExams() {
 
       const response = await apiRequest('POST', '/api/exam-sessions', {
         examId: examId,
-        studentId: user.id,
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Exam start failed with status:', response.status, 'Response:', errorText);
-
         let errorMessage = 'Failed to start exam';
+        
         try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } else {
+            const errorText = await response.text();
+            console.error('❌ Non-JSON error response:', errorText);
+            errorMessage = 'Server error - please try again';
+          }
+        } catch (parseError) {
+          console.error('❌ Error parsing response:', parseError);
+          errorMessage = 'Server error - please try again';
         }
 
         throw new Error(errorMessage);

@@ -1175,17 +1175,17 @@ export async function registerRoutes(app: Express): Server {
   app.post('/api/exam-questions/bulk', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { examId, questions } = req.body;
-      
+
       if (!examId) {
         return res.status(400).json({ message: 'Exam ID is required' });
       }
-      
+
       if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return res.status(400).json({ message: 'Questions array is required and must not be empty' });
       }
 
       console.log(`📤 Bulk upload: ${questions.length} questions for exam ${examId}`);
-      
+
       // Prepare questions data with examId and order number
       const questionsData = questions.map((q, index) => ({
         question: {
@@ -1200,15 +1200,15 @@ export async function registerRoutes(app: Express): Server {
         },
         options: q.options || []
       }));
-      
+
       const result = await storage.createExamQuestionsBulk(questionsData);
-      
+
       console.log(`✅ Bulk upload complete: ${result.created} created, ${result.errors.length} errors`);
-      
+
       res.status(201).json(result);
     } catch (error: any) {
       console.error('Error in bulk question upload:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: error.message || 'Failed to upload questions',
         created: 0,
         errors: [error.message || 'Unknown error occurred']
