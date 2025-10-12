@@ -18,7 +18,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star, RefreshCw } from 'lucide-react';
+import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star, RefreshCw, BarChart3 } from 'lucide-react';
 
 const examSchema = z.object({
   name: z.string().min(1, 'Exam name is required'),
