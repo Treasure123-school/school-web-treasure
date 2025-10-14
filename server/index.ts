@@ -23,8 +23,19 @@ app.use(compression({
   }
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Request timeout middleware (30 seconds)
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    res.status(408).json({ message: 'Request timeout' });
+  });
+  res.setTimeout(30000, () => {
+    res.status(408).json({ message: 'Response timeout' });
+  });
+  next();
+});
+
+app.use(express.json({ limit: '10mb' })); // Increased limit for file uploads
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Serve uploaded files as static assets
 app.use('/uploads', express.static('uploads'));

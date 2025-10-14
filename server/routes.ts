@@ -3986,6 +3986,27 @@ Treasure-Home School Administration
     }
   });
 
+  // Health check endpoint for monitoring
+  app.get("/api/health", async (_req, res) => {
+    try {
+      // Check database connection
+      await storage.getAllRoles();
+      
+      res.json({
+        status: 'healthy',
+        database: 'connected',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+      });
+    } catch (error) {
+      res.status(503).json({
+        status: 'unhealthy',
+        database: 'disconnected',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Public contact form with 100% Supabase persistence
   app.post("/api/contact", async (req, res) => {
     try {
