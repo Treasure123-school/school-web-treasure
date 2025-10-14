@@ -50,6 +50,16 @@ export function setupGoogleAuth() {
             
             // Check if user is staff (teacher/admin)
             if (roleName === 'teacher' || roleName === 'admin') {
+              // For teachers, check if they are pre-approved
+              if (roleName === 'teacher') {
+                const approvedTeacher = await storage.getApprovedTeacherByEmail(email);
+                if (!approvedTeacher) {
+                  return done(null, false, { 
+                    message: "Access denied: Only pre-approved teachers can use Google Sign-In. Please apply through the Job Vacancy page first." 
+                  });
+                }
+              }
+              
               // Check account status
               if (user.status === 'active') {
                 // Update google_id if not set
@@ -57,7 +67,7 @@ export function setupGoogleAuth() {
                   await storage.updateUserGoogleId(user.id, googleId);
                   user.googleId = googleId;
                 }
-                // ALLOW LOGIN - Active staff member
+                // ALLOW LOGIN - Active staff member (admin or pre-approved teacher)
                 return done(null, user);
               } else if (user.status === 'pending') {
                 // DENY - Account pending approval
