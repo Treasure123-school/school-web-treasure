@@ -15,9 +15,9 @@ app.set('trust proxy', 1);
 
 // CORS configuration for Vercel frontend
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || process.env.NODE_ENV === 'development' 
+  origin: process.env.NODE_ENV === 'development'
     ? ['http://localhost:5173', 'http://localhost:5000', /\.vercel\.app$/]
-    : /\.vercel\.app$/,
+    : [process.env.FRONTEND_URL, /\.vercel\.app$/].filter(Boolean),
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
