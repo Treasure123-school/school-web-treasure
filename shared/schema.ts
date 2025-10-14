@@ -936,3 +936,91 @@ export type CreateQuestionOption = z.infer<typeof createQuestionOptionSchema>;
 export type InsertExamSession = z.infer<typeof insertExamSessionSchema>;
 export type UpdateExamSession = z.infer<typeof updateExamSessionSchema>;
 export type InsertStudentAnswer = z.infer<typeof insertStudentAnswerSchema>;
+
+// Job Vacancy System tables
+export const vacancyStatusEnum = pgEnum('vacancy_status', ['open', 'closed', 'filled']);
+export const applicationStatusEnum = pgEnum('application_status', ['pending', 'approved', 'rejected']);
+
+export const vacancies = pgTable("vacancies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  requirements: text("requirements"),
+  deadline: timestamp("deadline").notNull(),
+  status: vacancyStatusEnum("status").default('open'),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  vacanciesStatusIdx: index("vacancies_status_idx").on(table.status),
+  vacanciesDeadlineIdx: index("vacancies_deadline_idx").on(table.deadline),
+}));
+
+export const teacherApplications = pgTable("teacher_applications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  vacancyId: uuid("vacancy_id").references(() => vacancies.id, { onDelete: 'set null' }),
+  fullName: varchar("full_name", { length: 200 }).notNull(),
+  googleEmail: varchar("google_email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  subjectSpecialty: varchar("subject_specialty", { length: 100 }).notNull(),
+  qualification: varchar("qualification", { length: 200 }).notNull(),
+  experienceYears: integer("experience_years").notNull(),
+  bio: text("bio").notNull(),
+  resumeUrl: text("resume_url"),
+  status: applicationStatusEnum("status").default('pending'),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  dateApplied: timestamp("date_applied").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  teacherApplicationsStatusIdx: index("teacher_applications_status_idx").on(table.status),
+  teacherApplicationsEmailIdx: index("teacher_applications_email_idx").on(table.googleEmail),
+  teacherApplicationsVacancyIdx: index("teacher_applications_vacancy_idx").on(table.vacancyId),
+}));
+
+export const approvedTeachers = pgTable("approved_teachers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  applicationId: uuid("application_id").references(() => teacherApplications.id, { onDelete: 'set null' }),
+  googleEmail: varchar("google_email", { length: 255 }).notNull().unique(),
+  fullName: varchar("full_name", { length: 200 }).notNull(),
+  subjectSpecialty: varchar("subject_specialty", { length: 100 }),
+  approvedBy: uuid("approved_by").references(() => users.id, { onDelete: 'set null' }),
+  dateApproved: timestamp("date_approved").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail),
+}));
+
+// Job Vacancy insert schemas
+export const insertVacancySchema = createInsertSchema(vacancies).omit({ 
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTeacherApplicationSchema = createInsertSchema(teacherApplications).omit({ 
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  dateApplied: true,
+  reviewedAt: true,
+  reviewedBy: true,
+  status: true,
+});
+
+export const insertApprovedTeacherSchema = createInsertSchema(approvedTeachers).omit({ 
+  id: true,
+  createdAt: true,
+  dateApproved: true,
+});
+
+// Job Vacancy types
+export type Vacancy = typeof vacancies.$inferSelect;
+export type TeacherApplication = typeof teacherApplications.$inferSelect;
+export type ApprovedTeacher = typeof approvedTeachers.$inferSelect;
+
+export type InsertVacancy = z.infer<typeof insertVacancySchema>;
+export type InsertTeacherApplication = z.infer<typeof insertTeacherApplicationSchema>;
+export type InsertApprovedTeacher = z.infer<typeof insertApprovedTeacherSchema>;
