@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth';
 import { Link, useLocation } from 'wouter';
 import { getRoleNameById, getPortalByRoleId, isValidRoleId } from '@/lib/roles';
 import { useQueryClient } from '@tanstack/react-query';
+import { getApiUrl } from '@/config/api';
 
 
 const loginSchema = z.object({
@@ -827,7 +828,7 @@ export default function Login() {
               type="button"
               variant="outline"
               className="w-full h-11 sm:h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5 hover:text-gray-900 dark:hover:text-white transition-all duration-300 hover:scale-[1.02] shadow-md hover:shadow-lg"
-              onClick={() => window.location.href = '/api/auth/google'}
+              onClick={() => window.location.href = getApiUrl('/api/auth/google')}
               data-testid="button-google-login"
             >
               <svg className="mr-2 h-5 w-5 flex-shrink-0" viewBox="0 0 24 24">
