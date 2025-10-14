@@ -5940,6 +5940,206 @@ Treasure-Home School Administration
 
   // ==================== END STUDENT SELF-REGISTRATION ROUTES ====================
 
+  // ==================== JOB VACANCY SYSTEM ROUTES ====================
+
+  // Public routes - Job Vacancies (no auth required)
+  app.get('/api/vacancies', async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const vacancies = await storage.getAllVacancies(status);
+      res.json(vacancies);
+    } catch (error) {
+      console.error('Error fetching vacancies:', error);
+      res.status(500).json({ message: 'Failed to fetch vacancies' });
+    }
+  });
+
+  app.get('/api/vacancies/:id', async (req: Request, res: Response) => {
+    try {
+      const vacancy = await storage.getVacancy(req.params.id);
+      if (!vacancy) {
+        return res.status(404).json({ message: 'Vacancy not found' });
+      }
+      res.json(vacancy);
+    } catch (error) {
+      console.error('Error fetching vacancy:', error);
+      res.status(500).json({ message: 'Failed to fetch vacancy' });
+    }
+  });
+
+  // Teacher Application Submission (public)
+  const teacherApplicationSchema = z.object({
+    vacancyId: z.string().optional().nullable(),
+    fullName: z.string().min(1),
+    googleEmail: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
+    phone: z.string().min(1),
+    subjectSpecialty: z.string().min(1),
+    qualification: z.string().min(1),
+    experienceYears: z.number().min(0),
+    bio: z.string().min(1),
+    resumeUrl: z.string().optional().nullable(),
+  });
+
+  app.post('/api/teacher-applications', async (req: Request, res: Response) => {
+    try {
+      const validatedData = teacherApplicationSchema.parse(req.body);
+
+      // Check if email already has a pending or approved application
+      const existingApplications = await storage.getAllTeacherApplications();
+      const existingApp = existingApplications.find(
+        app => app.googleEmail === validatedData.googleEmail && 
+        (app.status === 'pending' || app.status === 'approved')
+      );
+
+      if (existingApp) {
+        return res.status(400).json({ 
+          message: existingApp.status === 'approved' 
+            ? 'This email has already been approved' 
+            : 'You already have a pending application' 
+        });
+      }
+
+      const application = await storage.createTeacherApplication(validatedData);
+      
+      // Create notification for admins
+      const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      for (const admin of admins) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: 'teacher_application',
+          title: 'New Teacher Application',
+          message: `${validatedData.fullName} has applied for a teaching position`,
+          relatedEntityType: 'teacher_application',
+          relatedEntityId: application.id,
+        });
+      }
+
+      res.status(201).json({ 
+        message: 'Application submitted successfully. You will be notified once reviewed.',
+        application 
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error('Error submitting teacher application:', error);
+      res.status(500).json({ message: 'Failed to submit application' });
+    }
+  });
+
+  // Admin-only routes for managing vacancies
+  app.post('/api/admin/vacancies', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const vacancy = await storage.createVacancy({
+        ...req.body,
+        createdBy: req.user!.id,
+      });
+      res.status(201).json(vacancy);
+    } catch (error) {
+      console.error('Error creating vacancy:', error);
+      res.status(500).json({ message: 'Failed to create vacancy' });
+    }
+  });
+
+  app.put('/api/admin/vacancies/:id', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const vacancy = await storage.updateVacancy(req.params.id, req.body);
+      if (!vacancy) {
+        return res.status(404).json({ message: 'Vacancy not found' });
+      }
+      res.json(vacancy);
+    } catch (error) {
+      console.error('Error updating vacancy:', error);
+      res.status(500).json({ message: 'Failed to update vacancy' });
+    }
+  });
+
+  app.delete('/api/admin/vacancies/:id', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deleteVacancy(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Vacancy not found' });
+      }
+      res.json({ message: 'Vacancy deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting vacancy:', error);
+      res.status(500).json({ message: 'Failed to delete vacancy' });
+    }
+  });
+
+  // Admin routes for managing teacher applications
+  app.get('/api/admin/teacher-applications', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const applications = await storage.getAllTeacherApplications(status);
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching teacher applications:', error);
+      res.status(500).json({ message: 'Failed to fetch applications' });
+    }
+  });
+
+  app.post('/api/admin/teacher-applications/:id/approve', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const result = await storage.approveTeacherApplication(req.params.id, req.user!.id);
+      
+      // Create notification for the applicant (if they have an account)
+      const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
+      if (applicantUser) {
+        await storage.createNotification({
+          userId: applicantUser.id,
+          type: 'application_approved',
+          title: 'Application Approved',
+          message: 'Your teacher application has been approved. You can now sign in with Google.',
+          relatedEntityType: 'teacher_application',
+          relatedEntityId: result.application.id,
+        });
+      }
+
+      res.json({ 
+        message: 'Application approved successfully',
+        ...result 
+      });
+    } catch (error) {
+      console.error('Error approving application:', error);
+      res.status(500).json({ message: 'Failed to approve application' });
+    }
+  });
+
+  app.post('/api/admin/teacher-applications/:id/reject', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: 'Rejection reason is required' });
+      }
+
+      const application = await storage.rejectTeacherApplication(req.params.id, req.user!.id, reason);
+      if (!application) {
+        return res.status(404).json({ message: 'Application not found' });
+      }
+
+      res.json({ 
+        message: 'Application rejected',
+        application 
+      });
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+      res.status(500).json({ message: 'Failed to reject application' });
+    }
+  });
+
+  // Get approved teachers (admin only)
+  app.get('/api/admin/approved-teachers', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+    try {
+      const approvedTeachers = await storage.getAllApprovedTeachers();
+      res.json(approvedTeachers);
+    } catch (error) {
+      console.error('Error fetching approved teachers:', error);
+      res.status(500).json({ message: 'Failed to fetch approved teachers' });
+    }
+  });
+
+  // ==================== END JOB VACANCY SYSTEM ROUTES ====================
 
   // ==================== END MODULE 1 ROUTES ====================
 
