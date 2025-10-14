@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiUrl } from "@/config/api";
 
 // Circuit Breaker Pattern for API requests
 class CircuitBreaker {
@@ -124,7 +125,7 @@ async function makeRequest(
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(getApiUrl(url), {
         method,
         headers,
         body: data ? (data instanceof FormData ? data : JSON.stringify(data)) : undefined,
@@ -200,7 +201,7 @@ export async function apiRequest(
   }
 
   try {
-    const response = await fetch(url, config);
+    const response = await fetch(getApiUrl(url), config);
 
     // For successful responses, return as-is
     if (response.ok) {
