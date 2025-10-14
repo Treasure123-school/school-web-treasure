@@ -409,6 +409,26 @@ export interface IStorage {
   getNextSequence(classCode: string, year: string): Promise<number>;
   getCounter(classCode: string, year: string): Promise<any | undefined>;
   resetCounter(classCode: string, year: string): Promise<boolean>;
+
+  // Job Vacancy System
+  createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy>;
+  getVacancy(id: string): Promise<schema.Vacancy | undefined>;
+  getAllVacancies(status?: string): Promise<schema.Vacancy[]>;
+  updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined>;
+  deleteVacancy(id: string): Promise<boolean>;
+  
+  // Teacher Applications
+  createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication>;
+  getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined>;
+  getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]>;
+  updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined>;
+  approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }>;
+  rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined>;
+  
+  // Approved Teachers
+  getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined>;
+  getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]>;
+  deleteApprovedTeacher(id: string): Promise<boolean>;
 }
 
 // Helper to normalize UUIDs from various formats
@@ -4441,6 +4461,131 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .returning();
+    return result.length > 0;
+  }
+
+  // Job Vacancy System implementations
+  async createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy> {
+    const result = await this.db.insert(schema.vacancies).values(vacancy).returning();
+    return result[0];
+  }
+
+  async getVacancy(id: string): Promise<schema.Vacancy | undefined> {
+    const result = await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getAllVacancies(status?: string): Promise<schema.Vacancy[]> {
+    if (status) {
+      return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status)).orderBy(desc(schema.vacancies.createdAt));
+    }
+    return await this.db.select().from(schema.vacancies).orderBy(desc(schema.vacancies.createdAt));
+  }
+
+  async updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined> {
+    const result = await this.db
+      .update(schema.vacancies)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.vacancies.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteVacancy(id: string): Promise<boolean> {
+    const result = await this.db.delete(schema.vacancies).where(eq(schema.vacancies.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Teacher Applications implementations
+  async createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication> {
+    const result = await this.db.insert(schema.teacherApplications).values(application).returning();
+    return result[0];
+  }
+
+  async getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined> {
+    const result = await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]> {
+    if (status) {
+      return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status)).orderBy(desc(schema.teacherApplications.dateApplied));
+    }
+    return await this.db.select().from(schema.teacherApplications).orderBy(desc(schema.teacherApplications.dateApplied));
+  }
+
+  async updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined> {
+    const result = await this.db
+      .update(schema.teacherApplications)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.teacherApplications.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }> {
+    const application = await this.getTeacherApplication(applicationId);
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Update application status
+    const updatedApplication = await this.db
+      .update(schema.teacherApplications)
+      .set({
+        status: 'approved',
+        reviewedBy: approvedBy,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.teacherApplications.id, applicationId))
+      .returning();
+
+    // Add to approved teachers
+    const approvedTeacher = await this.db
+      .insert(schema.approvedTeachers)
+      .values({
+        applicationId: applicationId,
+        googleEmail: application.googleEmail,
+        fullName: application.fullName,
+        subjectSpecialty: application.subjectSpecialty,
+        approvedBy: approvedBy,
+      })
+      .returning();
+
+    return {
+      application: updatedApplication[0],
+      approvedTeacher: approvedTeacher[0],
+    };
+  }
+
+  async rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined> {
+    const result = await this.db
+      .update(schema.teacherApplications)
+      .set({
+        status: 'rejected',
+        reviewedBy: reviewedBy,
+        reviewedAt: new Date(),
+        rejectionReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.teacherApplications.id, applicationId))
+      .returning();
+    return result[0];
+  }
+
+  // Approved Teachers implementations
+  async getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined> {
+    const result = await this.db.select().from(schema.approvedTeachers).where(eq(schema.approvedTeachers.googleEmail, email)).limit(1);
+    return result[0];
+  }
+
+  async getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]> {
+    return await this.db.select().from(schema.approvedTeachers).orderBy(desc(schema.approvedTeachers.dateApproved));
+  }
+
+  async deleteApprovedTeacher(id: string): Promise<boolean> {
+    const result = await this.db.delete(schema.approvedTeachers).where(eq(schema.approvedTeachers.id, id)).returning();
     return result.length > 0;
   }
 }
