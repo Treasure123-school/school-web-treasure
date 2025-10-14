@@ -54,6 +54,15 @@ Preferred communication style: Simple, everyday language.
     - **Scoring**: Auto-scoring for MCQs/true/false, manual grading for essays, score merging.
     - **Reporting**: Report cards combining test and exam scores, comprehensive analytics.
 
+- **Job Vacancy & Teacher Pre-Approval System**:
+    - **Public Job Portal**: Accessible at `/job-vacancy` with active vacancy listings and application form.
+    - **Teacher Applications**: Resume upload, cover letter submission, and qualification tracking.
+    - **Admin Management**: Dedicated portal at `/portal/admin/job-vacancies` for creating vacancies and reviewing applications.
+    - **Pre-Approval Security**: Google OAuth restricted to teachers approved through the application system.
+    - **Application Workflow**: Submit → Admin Review → Approve/Reject → Auto-add to approved_teachers table.
+    - **Vacancy Lifecycle**: Create (open) → Close → Remove from public listing.
+    - **Notifications**: Automated notifications for admins on new applications and applicants on approval.
+
 ## External Dependencies
 
 ### Core Framework Dependencies
