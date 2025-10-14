@@ -203,6 +203,13 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                   </Link>
                 ))}
                 <Link
+                  href="/job-vacancy"
+                  className="block text-sm text-muted-foreground hover:text-blue-600 transition-colors duration-200"
+                  data-testid="link-job-vacancy"
+                >
+                  Job Vacancy
+                </Link>
+                <Link
                   href="/login"
                   className="block text-sm text-muted-foreground hover:text-blue-600 transition-colors duration-200"
                 >
