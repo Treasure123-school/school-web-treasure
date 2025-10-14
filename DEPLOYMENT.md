@@ -42,15 +42,23 @@ git push origin main
 
 ### Step 3: Configure Environment Variables
 
-Add these environment variables in Render:
+The `render.yaml` file automatically configures most environment variables, but you need to add:
+
+**Required Variables** (add manually in Render dashboard):
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `NODE_ENV` | `production` | Required |
 | `DATABASE_URL` | `your-supabase-connection-string` | From Supabase dashboard |
-| `SESSION_SECRET` | `generate-random-64-char-string` | Use password generator |
-| `JWT_SECRET` | `generate-random-64-char-string` | Use password generator |
 | `FRONTEND_URL` | `https://your-app.vercel.app` | Add after Vercel deployment |
+
+**Auto-Generated** (by Render):
+- `SESSION_SECRET` - Automatically generated secure random value
+- `JWT_SECRET` - Automatically generated secure random value
+
+**Optional** (for Google OAuth):
+
+| Variable | Value | Notes |
+|----------|-------|-------|
 | `GOOGLE_CLIENT_ID` | `your-google-oauth-client-id` | Optional: for Google login |
 | `GOOGLE_CLIENT_SECRET` | `your-google-oauth-secret` | Optional: for Google login |
 | `GOOGLE_REDIRECT_URI` | `https://your-backend.onrender.com/api/auth/google/callback` | Optional |
