@@ -3,7 +3,7 @@
 // improving the reliability of the exam submission and auto-scoring process.
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, db } from "./storage";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createQuestionOptionSchema, createStudentSchema, InsertUser, InsertStudentAnswer, UpdateExamSessionSchema, UpdateUserStatusSchema, UpdateStudentSchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
@@ -3997,8 +3997,8 @@ Treasure-Home School Administration
   // Health check endpoint for monitoring
   app.get("/api/health", async (_req, res) => {
     try {
-      // Check database connection
-      await storage.getAllRoles();
+      // Simple database connection check using raw SQL
+      await db.execute(sql`SELECT 1`);
       
       res.json({
         status: 'healthy',
@@ -6154,13 +6154,54 @@ Treasure-Home School Administration
 
   // ==================== END MODULE 1 ROUTES ====================
 
-  // Health check endpoint for Render
-  app.get('/api/health', (req: Request, res: Response) => {
-    res.status(200).json({ 
-      status: 'healthy', 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
+  // Catch-all for non-API routes - redirect to frontend
+  app.get('*', (req: Request, res: Response) => {
+    // Only handle non-API routes
+    if (!req.path.startsWith('/api/')) {
+      const frontendUrl = process.env.FRONTEND_URL || 'https://treasurehomeschool.vercel.app';
+      res.status(200).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Treasure Home School - Backend API</title>
+            <meta http-equiv="refresh" content="3;url=${frontendUrl}">
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+              }
+              .container {
+                text-align: center;
+                padding: 2rem;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                backdrop-filter: blur(10px);
+              }
+              h1 { margin: 0 0 1rem 0; }
+              a {
+                color: #ffd700;
+                text-decoration: none;
+                font-weight: bold;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>🎓 Treasure Home School</h1>
+              <p>This is the backend API server.</p>
+              <p>Redirecting you to the main website...</p>
+              <p><a href="${frontendUrl}">Click here if not redirected automatically</a></p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
   });
 
   const httpServer = createServer(app);
