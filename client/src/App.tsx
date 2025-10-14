@@ -66,6 +66,7 @@ const ExamSessions = lazy(() => import("@/pages/portal/ExamSessions"));
 const ExamReports = lazy(() => import("@/pages/portal/ExamReports"));
 const ParentReportCards = lazy(() => import("@/pages/portal/ParentReportCards"));
 const PendingApprovals = lazy(() => import("@/pages/portal/PendingApprovals"));
+const VacancyManagement = lazy(() => import("@/pages/portal/VacancyManagement"));
 const UserManagement = lazy(() => import("@/pages/portal/UserManagement"));
 const AuditLogs = lazy(() => import("@/pages/portal/AuditLogs"));
 const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
@@ -176,6 +177,11 @@ function Router() {
       <Route path="/portal/admin/pending-approvals">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <PendingApprovals />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/job-vacancies">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <VacancyManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/users">

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye } from 'lucide-react';
+import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -99,6 +99,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
         return [
           ...baseNav,
           { name: 'Pending Approvals', href: `/portal/${userRole}/pending-approvals`, icon: UserCheck },
+          { name: 'Job Vacancies', href: `/portal/${userRole}/job-vacancies`, icon: Briefcase },
           { name: 'User Management', href: `/portal/${userRole}/users`, icon: Users },
           { name: 'Students', href: `/portal/${userRole}/students`, icon: Users },
           { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
