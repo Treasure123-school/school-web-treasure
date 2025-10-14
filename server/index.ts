@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -8,6 +9,17 @@ import { seedAcademicTerms } from "./seed-terms";
 
 
 const app = express();
+
+// CORS configuration for Vercel frontend
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || process.env.NODE_ENV === 'development' 
+    ? ['http://localhost:5173', 'http://localhost:5000', /\.vercel\.app$/]
+    : /\.vercel\.app$/,
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 // Enable gzip compression for all responses - MUST be first middleware
 app.use(compression({
