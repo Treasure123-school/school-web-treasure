@@ -139,7 +139,7 @@ export default function Login() {
 
   const handleGoogleLogin = async (token: string) => {
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(getApiUrl('/api/auth/me'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
