@@ -62,7 +62,7 @@ export default function VacancyManagement() {
   // Create vacancy mutation
   const createVacancyMutation = useMutation({
     mutationFn: async (data: VacancyFormData) => {
-      return apiRequest('POST', '/api/admin/vacancies', { ...data, status: 'active' });
+      return apiRequest('POST', '/api/admin/vacancies', { ...data, status: 'open' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/vacancies'] });
@@ -84,7 +84,7 @@ export default function VacancyManagement() {
 
   // Close vacancy mutation
   const closeVacancyMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       return apiRequest('PATCH', `/api/admin/vacancies/${id}/close`);
     },
     onSuccess: () => {
@@ -131,10 +131,12 @@ export default function VacancyManagement() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">Active</Badge>;
+      case 'open':
+        return <Badge className="bg-green-500">Open</Badge>;
       case 'closed':
         return <Badge variant="secondary">Closed</Badge>;
+      case 'filled':
+        return <Badge className="bg-blue-500">Filled</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-500">Pending</Badge>;
       case 'approved':
@@ -323,7 +325,7 @@ export default function VacancyManagement() {
                           <TableCell>{format(new Date(vacancy.deadline), 'MMM dd, yyyy')}</TableCell>
                           <TableCell>{getStatusBadge(vacancy.status)}</TableCell>
                           <TableCell>
-                            {vacancy.status === 'active' && (
+                            {vacancy.status === 'open' && (
                               <Button
                                 size="sm"
                                 variant="outline"

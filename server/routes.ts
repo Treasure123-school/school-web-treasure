@@ -6028,7 +6028,7 @@ Treasure-Home School Administration
   });
 
   // Admin-only routes for managing vacancies
-  app.post('/api/admin/vacancies', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+  app.post('/api/admin/vacancies', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
     try {
       const vacancy = await storage.createVacancy({
         ...req.body,
@@ -6041,34 +6041,21 @@ Treasure-Home School Administration
     }
   });
 
-  app.put('/api/admin/vacancies/:id', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+  app.patch('/api/admin/vacancies/:id/close', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
     try {
-      const vacancy = await storage.updateVacancy(req.params.id, req.body);
+      const vacancy = await storage.updateVacancy(req.params.id, { status: 'closed' });
       if (!vacancy) {
         return res.status(404).json({ message: 'Vacancy not found' });
       }
       res.json(vacancy);
     } catch (error) {
-      console.error('Error updating vacancy:', error);
-      res.status(500).json({ message: 'Failed to update vacancy' });
-    }
-  });
-
-  app.delete('/api/admin/vacancies/:id', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
-    try {
-      const deleted = await storage.deleteVacancy(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ message: 'Vacancy not found' });
-      }
-      res.json({ message: 'Vacancy deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting vacancy:', error);
-      res.status(500).json({ message: 'Failed to delete vacancy' });
+      console.error('Error closing vacancy:', error);
+      res.status(500).json({ message: 'Failed to close vacancy' });
     }
   });
 
   // Admin routes for managing teacher applications
-  app.get('/api/admin/teacher-applications', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+  app.get('/api/admin/applications', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
     try {
       const status = req.query.status as string | undefined;
       const applications = await storage.getAllTeacherApplications(status);
@@ -6079,57 +6066,52 @@ Treasure-Home School Administration
     }
   });
 
-  app.post('/api/admin/teacher-applications/:id/approve', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+  app.patch('/api/admin/applications/:id/status', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
     try {
-      const result = await storage.approveTeacherApplication(req.params.id, req.user!.id);
+      const { status } = req.body;
       
-      // Create notification for the applicant (if they have an account)
-      const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
-      if (applicantUser) {
-        await storage.createNotification({
-          userId: applicantUser.id,
-          type: 'application_approved',
-          title: 'Application Approved',
-          message: 'Your teacher application has been approved. You can now sign in with Google.',
-          relatedEntityType: 'teacher_application',
-          relatedEntityId: result.application.id,
+      if (status === 'approved') {
+        const result = await storage.approveTeacherApplication(req.params.id, req.user!.id);
+        
+        // Create notification for the applicant (if they have an account)
+        const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
+        if (applicantUser) {
+          await storage.createNotification({
+            userId: applicantUser.id,
+            type: 'application_approved',
+            title: 'Application Approved',
+            message: 'Your teacher application has been approved. You can now sign in with Google.',
+            relatedEntityType: 'teacher_application',
+            relatedEntityId: result.application.id,
+          });
+        }
+
+        res.json({ 
+          message: 'Application approved successfully',
+          ...result 
         });
-      }
+      } else if (status === 'rejected') {
+        const { reason } = req.body;
+        const application = await storage.rejectTeacherApplication(req.params.id, req.user!.id, reason || 'No reason provided');
+        if (!application) {
+          return res.status(404).json({ message: 'Application not found' });
+        }
 
-      res.json({ 
-        message: 'Application approved successfully',
-        ...result 
-      });
+        res.json({ 
+          message: 'Application rejected',
+          application 
+        });
+      } else {
+        res.status(400).json({ message: 'Invalid status' });
+      }
     } catch (error) {
-      console.error('Error approving application:', error);
-      res.status(500).json({ message: 'Failed to approve application' });
-    }
-  });
-
-  app.post('/api/admin/teacher-applications/:id/reject', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
-    try {
-      const { reason } = req.body;
-      if (!reason) {
-        return res.status(400).json({ message: 'Rejection reason is required' });
-      }
-
-      const application = await storage.rejectTeacherApplication(req.params.id, req.user!.id, reason);
-      if (!application) {
-        return res.status(404).json({ message: 'Application not found' });
-      }
-
-      res.json({ 
-        message: 'Application rejected',
-        application 
-      });
-    } catch (error) {
-      console.error('Error rejecting application:', error);
-      res.status(500).json({ message: 'Failed to reject application' });
+      console.error('Error updating application:', error);
+      res.status(500).json({ message: 'Failed to update application' });
     }
   });
 
   // Get approved teachers (admin only)
-  app.get('/api/admin/approved-teachers', requireAuth, requireRole([ROLES.ADMIN]), async (req: Request, res: Response) => {
+  app.get('/api/admin/approved-teachers', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
     try {
       const approvedTeachers = await storage.getAllApprovedTeachers();
       res.json(approvedTeachers);
