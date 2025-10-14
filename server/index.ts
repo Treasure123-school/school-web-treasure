@@ -233,7 +233,9 @@ function sanitizeLogData(data: any): any {
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
-  } else {
+  } else if (!process.env.FRONTEND_URL) {
+    // Only serve static frontend if FRONTEND_URL is not set (self-hosted mode)
+    // When using Vercel for frontend, FRONTEND_URL should be set and frontend won't be served from backend
     serveStatic(app);
   }
 
