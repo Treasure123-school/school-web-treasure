@@ -6146,6 +6146,15 @@ Treasure-Home School Administration
 
   // ==================== END MODULE 1 ROUTES ====================
 
+  // Health check endpoint for Render
+  app.get('/api/health', (req: Request, res: Response) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
