@@ -2333,7 +2333,7 @@ export async function registerRoutes(app: Express): Server {
       });
 
       passport.authenticate('google', async (err: any, user: any, info: any) => {
-        const frontendUrl = process.env.FRONTEND_URL || '';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://treasurehomeschool.vercel.app';
         
         if (err) {
           console.error('❌ Google OAuth error:', err);
