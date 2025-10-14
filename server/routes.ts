@@ -2289,13 +2289,21 @@ export async function registerRoutes(app: Express): Server {
   });
 
   // Initialize session middleware (required for Passport OAuth)
+  // CRITICAL: Session must support cross-domain for Render (backend) + Vercel (frontend)
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   app.use(session({
     secret: process.env.JWT_SECRET || SECRET_KEY,
     resave: false,
     saveUninitialized: false,
+    name: 'sessionId', // Custom cookie name
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      secure: isProduction, // HTTPS only in production
+      httpOnly: true, // Prevent JavaScript access (XSS protection)
+      sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-domain in production
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/', // Cookie available for all routes
+      // DO NOT set domain attribute for cross-domain (Render ↔ Vercel)
     }
   }));
 

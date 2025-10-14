@@ -4,10 +4,16 @@ import { storage } from "./storage";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-// Use full URL for OAuth callback - required for production
+
+// Google OAuth Callback URL Configuration
+// Production (Render): Use BACKEND_URL env var (e.g., https://your-backend.onrender.com)
+// Development (Replit): Use REPLIT_DEV_DOMAIN or localhost
 const REPLIT_DEV_DOMAIN = process.env.REPLIT_DEV_DOMAIN;
-const BASE_URL = REPLIT_DEV_DOMAIN ? `https://${REPLIT_DEV_DOMAIN}` : 'http://0.0.0.0:5000';
+const BACKEND_URL = process.env.BACKEND_URL; // Your Render backend URL
+const BASE_URL = BACKEND_URL || (REPLIT_DEV_DOMAIN ? `https://${REPLIT_DEV_DOMAIN}` : 'http://0.0.0.0:5000');
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || `${BASE_URL}/api/auth/google/callback`;
+
+console.log('🔐 Google OAuth Callback URL:', GOOGLE_CALLBACK_URL);
 
 export function setupGoogleAuth() {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {

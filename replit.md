@@ -43,7 +43,10 @@ Preferred communication style: Simple, everyday language.
 - **Monorepo Design**: Client, server, and shared code in a single repository.
 - **Shared Schema**: Centralized TypeScript types and Zod schemas for consistency.
 - **Environment Configuration**: Supports environment-specific configurations.
-- **Deployment**: Configured for autoscale deployment.
+- **Deployment**: Configured for autoscale deployment with Replit or production deployment to Render/Vercel.
+  - **Production Setup**: Render (backend) + Vercel (frontend) + Supabase (database)
+  - **Cross-Domain Authentication**: Configured with `sameSite: 'none'` cookies and `trust proxy` for secure session sharing
+  - **CORS**: Properly configured to allow credentials between Render and Vercel domains
 - **Database Migrations**: Automatic, idempotent application on server startup using Drizzle ORM.
 - **Data Integrity**: Strategic use of CASCADE DELETE and SET NULL foreign key constraints for efficient user deletion and audit trail preservation.
 
@@ -62,6 +65,28 @@ Preferred communication style: Simple, everyday language.
     - **Application Workflow**: Submit → Admin Review → Approve/Reject → Auto-add to approved_teachers table.
     - **Vacancy Lifecycle**: Create (open) → Close → Remove from public listing.
     - **Notifications**: Automated notifications for admins on new applications and applicants on approval.
+
+## Recent Changes (October 2025)
+
+### Authentication Fix for Render + Vercel Deployment
+- ✅ Fixed cross-domain authentication issues between Render (backend) and Vercel (frontend)
+- ✅ Added `trust proxy` setting for Render's reverse proxy
+- ✅ Configured session cookies with `sameSite: 'none'` for cross-domain support
+- ✅ Enhanced CORS configuration with explicit headers and exposed `Set-Cookie`
+- ✅ Updated Google OAuth callback URL to use `BACKEND_URL` environment variable
+- ✅ Created comprehensive deployment guides (see `RENDER_VERCEL_DEPLOYMENT_GUIDE.md` and `AUTHENTICATION_FIX_SUMMARY.md`)
+
+### Environment Variables for Production
+**Render Backend:**
+- `DATABASE_URL`: Supabase connection string
+- `JWT_SECRET`: Secure secret key for JWT tokens
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google OAuth credentials
+- `BACKEND_URL`: Render backend URL (e.g., https://your-backend.onrender.com)
+- `FRONTEND_URL`: Vercel frontend URL (e.g., https://your-app.vercel.app)
+- `NODE_ENV=production`, `PORT=10000`
+
+**Vercel Frontend:**
+- `VITE_API_URL`: Render backend URL (e.g., https://your-backend.onrender.com)
 
 ## External Dependencies
 
