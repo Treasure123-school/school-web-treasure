@@ -2333,16 +2333,18 @@ export async function registerRoutes(app: Express): Server {
       });
 
       passport.authenticate('google', async (err: any, user: any, info: any) => {
+        const frontendUrl = process.env.FRONTEND_URL || '';
+        
         if (err) {
           console.error('❌ Google OAuth error:', err);
           console.error('Error details:', { message: err.message, stack: err.stack });
-          return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent('Authentication failed. Please try again.'));
+          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent('Authentication failed. Please try again.'));
         }
 
         if (!user) {
           const message = info?.message || 'Authentication failed';
           console.error('❌ Google OAuth: No user returned. Info:', info);
-          return res.redirect('/login?error=google_auth_failed&message=' + encodeURIComponent(message));
+          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent(message));
         }
 
         // Handle new user requiring approval
@@ -2428,10 +2430,10 @@ export async function registerRoutes(app: Express): Server {
             console.log(`🔒 OAuth signup complete - user ${newUser.email} awaiting admin approval`);
             const role = await storage.getRole(roleId);
             const roleName = role?.name || 'Staff';
-            return res.redirect(`/login?status=pending_verification&role=${roleName.toLowerCase()}`);
+            return res.redirect(`${frontendUrl}/login?status=pending_verification&role=${roleName.toLowerCase()}`);
           } catch (error) {
             console.error('❌ Error creating pending account:', error);
-            return res.redirect('/login?error=account_creation_failed&message=' + encodeURIComponent('Failed to create your account. Please contact the administrator.'));
+            return res.redirect(`${frontendUrl}/login?error=account_creation_failed&message=` + encodeURIComponent('Failed to create your account. Please contact the administrator.'));
           }
         }
 
@@ -2439,11 +2441,11 @@ export async function registerRoutes(app: Express): Server {
         req.logIn(user, (loginErr) => {
           if (loginErr) {
             console.error('Login error:', loginErr);
-            return res.redirect('/login?error=login_failed&message=' + encodeURIComponent('Failed to complete login'));
+            return res.redirect(`${frontendUrl}/login?error=login_failed&message=` + encodeURIComponent('Failed to complete login'));
           }
 
           const token = jwt.sign({ userId: user.id, roleId: user.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-          res.redirect(`/login?token=${token}&provider=google`);
+          res.redirect(`${frontendUrl}/login?token=${token}&provider=google`);
         });
       })(req, res, next);
     }
