@@ -29,10 +29,15 @@ function initializeDatabase() {
       prepare: false, // Required for Supabase transaction pooler
 
       // Optimized connection pool settings
-      max: 20, // Maximum connections in pool (increased from default 10)
+      max: 30, // Maximum connections in pool (increased for better concurrency)
       idle_timeout: 300, // Close idle connections after 5 minutes
       connect_timeout: 30, // Connection timeout: 30 seconds
       max_lifetime: 3600, // Maximum connection lifetime: 1 hour
+      
+      // Enhanced performance tuning
+      statement_timeout: 60000, // 60 second statement timeout
+      keepalive: true, // Keep connections alive
+      keepalive_idle: 10000 // 10 seconds before first keepalive probe
 
       // Enhanced logging for debugging (development only)
       debug: process.env.NODE_ENV === 'development' ? (connection: any, query: any, params: any) => {
