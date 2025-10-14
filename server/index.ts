@@ -231,7 +231,12 @@ function sanitizeLogData(data: any): any {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  
+  // Check if running on Replit (development environment)
+  const isReplit = !!process.env.REPLIT_DEV_DOMAIN;
+  
+  if (app.get("env") === "development" || isReplit) {
+    // Serve Vite dev server on Replit or when NODE_ENV=development
     await setupVite(app, server);
   } else if (!process.env.FRONTEND_URL) {
     // Only serve static frontend if FRONTEND_URL is not set (self-hosted mode)
