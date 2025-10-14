@@ -12,7 +12,7 @@ const app = express();
 // Enable gzip compression for all responses - MUST be first middleware
 app.use(compression({
   level: 6, // Compression level (0-9, 6 is balanced for speed vs compression)
-  threshold: 512, // Reduced to 512 bytes for better compression coverage
+  threshold: 1024, // Only compress responses larger than 1KB
   filter: (req, res) => {
     // Don't compress responses with 'x-no-compression' header
     if (req.headers['x-no-compression']) {
@@ -20,11 +20,6 @@ app.use(compression({
     }
     // Use compression for all other responses
     return compression.filter(req, res);
-  },
-  // Add brotli compression for modern browsers (better than gzip)
-  brotli: {
-    enabled: true,
-    zlib: {}
   }
 }));
 
