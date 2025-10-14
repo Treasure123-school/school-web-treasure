@@ -64,7 +64,7 @@ export default function Login() {
             <Clock className="h-4 w-4 text-orange-500" />
             <span>Account Created - Pending Approval</span>
           </div>
-        ),
+        ) as any,
         description: (
           <div className="text-sm">
             <p className="mb-2">Welcome to THS Portal! Your account has been successfully created and is awaiting administrator verification.</p>
@@ -88,7 +88,7 @@ export default function Login() {
               <Clock className="h-4 w-4 text-orange-500" />
               <span>Account Pending Approval</span>
             </div>
-          ),
+          ) as any,
           description: (
             <div className="text-sm">
               <p className="mb-2">Welcome to THS Portal. Your account is awaiting admin verification.</p>
@@ -104,7 +104,7 @@ export default function Login() {
               <Ban className="h-4 w-4 text-red-500" />
               <span>Account Suspended</span>
             </div>
-          ),
+          ) as any,
           description: (
             <div className="text-sm">
               <p className="mb-2">Access denied. Your account has been suspended by the school administrator.</p>
@@ -120,7 +120,7 @@ export default function Login() {
               <XCircle className="h-4 w-4 text-red-500" />
               <span>Google Sign-In Failed</span>
             </div>
-          ),
+          ) as any,
           description: errorMessage || 'Unable to sign in with Google. Please try again or contact support if the problem persists.',
           variant: 'destructive',
         });
@@ -159,7 +159,7 @@ export default function Login() {
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span>Login Successful</span>
             </div>
-          ),
+          ) as any,
           description: 'Welcome back to THS Portal. Redirecting you to your dashboard...',
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
         });
@@ -213,7 +213,7 @@ export default function Login() {
                   <XCircle className="h-4 w-4 text-red-500" />
                   <span>Invalid Login</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -234,7 +234,7 @@ export default function Login() {
                   <Clock className="h-4 w-4 text-orange-500" />
                   <span>Account Awaiting Approval</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -257,7 +257,7 @@ export default function Login() {
                   <Clock className="h-4 w-4 text-orange-500" />
                   <span>Account Setup Pending</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -277,7 +277,7 @@ export default function Login() {
                   <Ban className="h-4 w-4 text-red-500" />
                   <span>Account Suspended</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -301,7 +301,7 @@ export default function Login() {
                   <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
                   <span className="font-bold text-sm sm:text-base break-words">🔒 Account Suspended - Security Alert</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
                   <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
@@ -347,7 +347,7 @@ export default function Login() {
                   <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
                   <span className="font-bold text-sm sm:text-base break-words">🔒 Account Suspended</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
                   <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
@@ -393,7 +393,7 @@ export default function Login() {
                   <Ban className="h-4 w-4 text-red-500" />
                   <span>Account Disabled</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -413,7 +413,7 @@ export default function Login() {
                   <Clock className="h-4 w-4 text-orange-500" />
                   <span>Too Many Attempts</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -434,7 +434,7 @@ export default function Login() {
                   <AlertCircle className="h-4 w-4 text-blue-500" />
                   <span>Google Sign-In Required</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -454,7 +454,7 @@ export default function Login() {
                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                   <span>Account Setup Incomplete</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -474,7 +474,7 @@ export default function Login() {
                   <XCircle className="h-4 w-4 text-red-500" />
                   <span>Login Failed</span>
                 </div>
-              ),
+              ) as any,
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
