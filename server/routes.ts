@@ -229,12 +229,14 @@ const uploadDir = 'uploads';
 const galleryDir = 'uploads/gallery';
 const profileDir = 'uploads/profiles';
 const studyResourcesDir = 'uploads/study-resources';
+const homepageDir = 'uploads/homepage';
 
 // Ensure upload directories exist
 fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
 fs.mkdir(galleryDir, { recursive: true }).catch(() => {});
 fs.mkdir(profileDir, { recursive: true }).catch(() => {});
 fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {});
+fs.mkdir(homepageDir, { recursive: true }).catch(() => {});
 
 const storage_multer = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -247,6 +249,8 @@ const storage_multer = multer.diskStorage({
       dir = profileDir;
     } else if (uploadType === 'study-resource') {
       dir = studyResourcesDir;
+    } else if (uploadType === 'homepage') {
+      dir = homepageDir;
     }
 
     cb(null, dir);
@@ -2841,6 +2845,102 @@ export async function registerRoutes(app: Express): Server {
       res.status(500).json({ message: 'Failed to upload file' });
     }
   });
+
+  // ==================== HOMEPAGE CONTENT MANAGEMENT ROUTES ====================
+  
+  // Homepage image upload endpoint
+  app.post('/api/upload/homepage', authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const { contentType, altText, caption, displayOrder } = req.body;
+
+      if (!contentType) {
+        return res.status(400).json({ message: 'Content type is required' });
+      }
+
+      const fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+
+      // Create homepage content record
+      const content = await storage.createHomePageContent({
+        contentType,
+        imageUrl: fileUrl,
+        altText: altText || '',
+        caption: caption || null,
+        displayOrder: parseInt(displayOrder) || 0,
+        isActive: true,
+        uploadedBy: req.user!.id
+      });
+
+      res.json({
+        message: 'Homepage image uploaded successfully',
+        content
+      });
+    } catch (error) {
+      console.error('Homepage image upload error:', error);
+      res.status(500).json({ message: 'Failed to upload homepage image' });
+    }
+  });
+
+  // Get all homepage content
+  app.get('/api/homepage-content', async (req, res) => {
+    try {
+      const { contentType } = req.query;
+      const content = await storage.getHomePageContent(contentType as string);
+      res.json(content);
+    } catch (error) {
+      console.error('Get homepage content error:', error);
+      res.status(500).json({ message: 'Failed to get homepage content' });
+    }
+  });
+
+  // Update homepage content
+  app.put('/api/homepage-content/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { altText, caption, displayOrder, isActive } = req.body;
+
+      const updated = await storage.updateHomePageContent(id, {
+        altText,
+        caption,
+        displayOrder,
+        isActive
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: 'Homepage content not found' });
+      }
+
+      res.json({
+        message: 'Homepage content updated successfully',
+        content: updated
+      });
+    } catch (error) {
+      console.error('Update homepage content error:', error);
+      res.status(500).json({ message: 'Failed to update homepage content' });
+    }
+  });
+
+  // Delete homepage content
+  app.delete('/api/homepage-content/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteHomePageContent(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: 'Homepage content not found' });
+      }
+
+      res.json({ message: 'Homepage content deleted successfully' });
+    } catch (error) {
+      console.error('Delete homepage content error:', error);
+      res.status(500).json({ message: 'Failed to delete homepage content' });
+    }
+  });
+
+  // ==================== END HOMEPAGE CONTENT MANAGEMENT ROUTES ====================
 
   // Secure file serving for uploads - require authentication
   app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
