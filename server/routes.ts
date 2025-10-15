@@ -1889,7 +1889,7 @@ export async function registerRoutes(app: Express): Server {
               qualification,
               yearsOfExperience,
               staffId || 'Pending',
-              `${process.env.BASE_URL || 'http://localhost:5000'}/portal/admin/teachers`
+              `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/portal/admin/teachers`
             )
           });
           console.log(`✅ Auto-verification email sent to admin: ${admin.email}`);
@@ -3491,7 +3491,7 @@ export async function registerRoutes(app: Express): Server {
       });
 
       // Send email with reset link
-      const resetLink = `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/reset-password?token=${resetToken}`;
+      const resetLink = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/reset-password?token=${resetToken}`;
 
       // Import email service
       const { sendEmail, getPasswordResetEmailHTML } = await import('./email-service');
@@ -3958,7 +3958,7 @@ Treasure-Home School Administration
 
       // In production, send email with invite link
       // For development, return the token
-      const inviteLink = `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/invite/${token}`;
+      const inviteLink = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/invite/${token}`;
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`Invite created for ${email}: ${inviteLink}`);
