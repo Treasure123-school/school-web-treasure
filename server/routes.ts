@@ -2950,9 +2950,38 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
+  // Public homepage content endpoint (no auth required for public website)
+  app.get('/api/homepage-content/:contentType', async (req, res) => {
+    try {
+      const { contentType } = req.params;
+      const content = await storage.getHomePageContent(contentType);
+      res.json(content);
+    } catch (error) {
+      console.error('Get public homepage content error:', error);
+      res.status(500).json({ message: 'Failed to get homepage content' });
+    }
+  });
+
   // ==================== END HOMEPAGE CONTENT MANAGEMENT ROUTES ====================
 
-  // Secure file serving for uploads - require authentication
+  // Public file serving for homepage uploads (no auth required)
+  app.get('/uploads/homepage/:filename', (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.resolve('uploads', 'homepage', filename);
+
+    // Security: Prevent path traversal attacks
+    if (!filePath.startsWith(path.resolve('uploads', 'homepage'))) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        res.status(404).json({ message: "File not found" });
+      }
+    });
+  });
+
+  // Secure file serving for other uploads - require authentication
   app.get('/uploads/:filename', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
     const filePath = path.resolve('uploads', filename);

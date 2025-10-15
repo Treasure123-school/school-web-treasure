@@ -33,6 +33,7 @@ export default function HomepageManagement() {
   const { data: homePageContent = [], isLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api/homepage-content'],
     refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   // Upload mutation
@@ -68,10 +69,13 @@ export default function HomepageManagement() {
         } catch {
           errorMessage = response.statusText || errorMessage;
         }
+        console.error('Upload failed:', { status: response.status, errorMessage });
         throw new Error(errorMessage);
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('Upload success:', result);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/homepage-content'] });
@@ -381,6 +385,11 @@ export default function HomepageManagement() {
                           alt={item.altText || 'Home page content'}
                           className="w-full h-full object-cover"
                           data-testid={`img-preview-${item.id}`}
+                          onError={(e) => {
+                            console.error('Image failed to load:', item.imageUrl);
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMTlWNWMwLTEuMS0uOS0yLTItMkg1Yy0xLjEgMC0yIC45LTIgMnYxNGMwIDEuMS45IDIgMiAyaDE0YzEuMSAwIDItLjkgMi0yem0tMTAtN2wtNC01djE0aDJsNC00IDQgNGgyVjZsLTgtOHoiIGZpbGw9IiM5Y2E' +
+                              'zYWYiLz48L3N2Zz4=';
+                          }}
                         />
                       ) : (
                         <ImageIcon className="h-8 w-8 text-gray-400" />
