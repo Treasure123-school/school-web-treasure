@@ -84,7 +84,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
 
-### Homepage Management Feature (October 15, 2025 - Latest)
+### Environment Configuration Fix (October 15, 2025 - Latest)
+- ✅ **CRITICAL FIX**: Resolved development environment incorrectly using Render production URLs
+- ✅ Fixed Google OAuth callback URL to prioritize Replit domain in development:
+  - Development (Replit): Uses `REPLIT_DEV_DOMAIN` for OAuth callbacks
+  - Production (Render): Uses `BACKEND_URL` for OAuth callbacks
+  - Local: Uses localhost for OAuth callbacks
+- ✅ Updated `vite.config.ts` to auto-configure VITE_API_URL:
+  - Development: Uses empty string (same-origin requests)
+  - Production: Uses VITE_API_URL env var (Render backend URL)
+- ✅ Enhanced CORS configuration to allow 127.0.0.1 origins for Replit iframe access
+- ✅ Created comprehensive environment configuration documentation
+- ✅ **Result**: Development now correctly uses Replit URLs; Production uses Vercel + Render
+
+### Homepage Image Upload Fix (October 15, 2025)
+- ✅ Fixed multer error handling to return proper JSON responses
+- ✅ Fixed authentication token validation in upload components
+- ✅ Added error handling middleware for file upload errors (size limits, file types)
+- ✅ Enhanced token validation to prevent "Bearer null/undefined" headers
+- ✅ Created comprehensive fix documentation (HOMEPAGE_IMAGE_UPLOAD_FIX.md)
+
+### Homepage Management Feature (October 15, 2025)
 - ✅ Implemented complete homepage content management system for admins
 - ✅ Added secure API endpoints with admin-only authentication:
   - POST /api/upload/homepage - Upload homepage images with metadata
