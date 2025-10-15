@@ -229,6 +229,26 @@ function sanitizeLogData(data: any): any {
 
   const server = await registerRoutes(app);
 
+  // Multer error handling middleware - must come before general error handler
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err.name === 'MulterError' || err.message?.includes('Only image files') || err.message?.includes('Only document files') || err.message?.includes('Only CSV files')) {
+      log(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
+      
+      let status = 400;
+      let message = err.message;
+      
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        message = 'File size exceeds the maximum allowed limit';
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        message = 'Unexpected file field';
+      }
+      
+      return res.status(status).json({ message });
+    }
+    next(err);
+  });
+
+  // General error handling middleware
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

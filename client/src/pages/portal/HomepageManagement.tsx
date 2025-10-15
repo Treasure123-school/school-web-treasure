@@ -38,6 +38,12 @@ export default function HomepageManagement() {
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async ({ file, data }: { file: File; data: any }) => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
       const formData = new FormData();
       formData.append('homePageImage', file);
       formData.append('contentType', data.contentType);
@@ -49,13 +55,20 @@ export default function HomepageManagement() {
         method: 'POST',
         body: formData,
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
+        let errorMessage = 'Upload failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.message || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       return response.json();
@@ -82,18 +95,31 @@ export default function HomepageManagement() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<HomePageContent> }) => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
       const response = await fetch(`/api/homepage-content/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Update failed');
+        let errorMessage = 'Update failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.message || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       return response.json();
@@ -118,16 +144,29 @@ export default function HomepageManagement() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
       const response = await fetch(`/api/homepage-content/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Delete failed');
+        let errorMessage = 'Delete failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.message || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       return response.json();
