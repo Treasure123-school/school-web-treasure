@@ -84,7 +84,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
 
-### Environment Configuration Fix (October 15, 2025 - Latest)
+### Google OAuth Frontend Redirect Fix (October 15, 2025 - Latest)
+- ✅ **CRITICAL FIX**: Fixed Google OAuth redirecting to production Vercel URL in Replit development
+- ✅ Updated OAuth callback frontend redirect to be environment-aware (`server/routes.ts` line 2343-2351):
+  - Development (Replit): Redirects to `REPLIT_DEV_DOMAIN` after OAuth success
+  - Production (Render/Vercel): Redirects to `FRONTEND_URL` (Vercel production URL)
+  - Local: Falls back to localhost
+- ✅ Added console logging to track OAuth redirect URLs for debugging
+- ✅ **Result**: Replit development now stays within Replit; Production uses proper Vercel + Render separation
+
+### Environment Configuration Fix (October 15, 2025)
 - ✅ **CRITICAL FIX**: Resolved development environment incorrectly using Render production URLs
 - ✅ Fixed Google OAuth callback URL to prioritize Replit domain in development:
   - Development (Replit): Uses `REPLIT_DEV_DOMAIN` for OAuth callbacks

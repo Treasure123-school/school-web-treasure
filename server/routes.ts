@@ -2337,7 +2337,17 @@ export async function registerRoutes(app: Express): Server {
       });
 
       passport.authenticate('google', async (err: any, user: any, info: any) => {
-        const frontendUrl = process.env.FRONTEND_URL || 'https://treasurehomeschool.vercel.app';
+        // Frontend URL Configuration - Environment-aware
+        // PRIORITY ORDER:
+        // 1. Development (Replit): Use REPLIT_DEV_DOMAIN if available
+        // 2. Production: Use FRONTEND_URL env var
+        // 3. Fallback: Default production URL
+        const REPLIT_DEV_DOMAIN = process.env.REPLIT_DEV_DOMAIN;
+        const frontendUrl = REPLIT_DEV_DOMAIN 
+          ? `https://${REPLIT_DEV_DOMAIN}` 
+          : (process.env.FRONTEND_URL || 'https://treasurehomeschool.vercel.app');
+        
+        console.log('🔄 OAuth redirect to frontend:', frontendUrl);
         
         if (err) {
           console.error('❌ Google OAuth error:', err);
