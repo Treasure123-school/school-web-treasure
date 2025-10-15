@@ -74,7 +74,27 @@ Preferred communication style: Simple, everyday language.
     - **Vacancy Lifecycle**: Create (open) → Close → Remove from public listing.
     - **Notifications**: Automated notifications for admins on new applications and applicants on approval.
 
+- **Homepage Content Management System**:
+    - **Admin Portal**: Dedicated page at `/portal/admin/homepage-management` for managing website images.
+    - **Image Upload**: Upload hero images, gallery previews, and other homepage content with alt text and captions.
+    - **Content Organization**: Set display order and toggle active/inactive status for each content item.
+    - **Secure Storage**: Images stored in `uploads/homepage/` directory with 5MB size limit.
+    - **API Endpoints**: Full CRUD operations (POST, GET, PUT, DELETE) with admin-only authentication.
+    - **Content Types**: Support for hero images, gallery previews, and other homepage sections.
+
 ## Recent Changes (October 2025)
+
+### Homepage Management Feature (October 15, 2025 - Latest)
+- ✅ Implemented complete homepage content management system for admins
+- ✅ Added secure API endpoints with admin-only authentication:
+  - POST /api/upload/homepage - Upload homepage images with metadata
+  - GET /api/homepage-content - Retrieve homepage content (admin-only)
+  - PUT /api/homepage-content/:id - Update content metadata
+  - DELETE /api/homepage-content/:id - Remove content
+- ✅ Configured multer for homepage image uploads (5MB limit, uploads/homepage directory)
+- ✅ Added "Homepage Management" link to admin navigation sidebar
+- ✅ Integrated with existing HomepageManagement.tsx page for UI
+- ✅ Security verified: All endpoints protected with authenticateUser + authorizeRoles(ROLES.ADMIN)
 
 ### Application Setup and Verification (October 15, 2025 - Latest)
 - ✅ Installed all npm dependencies (578 packages) including tsx, vite, and production dependencies
