@@ -17,6 +17,7 @@ import passport from "passport";
 import session from "express-session";
 import { setupGoogleAuth } from "./google-auth";
 import { and, eq, sql } from "drizzle-orm";
+import { initializeStorageBuckets, uploadFileToSupabase, deleteFileFromSupabase, STORAGE_BUCKETS, isSupabaseStorageEnabled, extractFilePathFromUrl } from "./supabase-storage";
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -238,30 +239,33 @@ fs.mkdir(profileDir, { recursive: true }).catch(() => {});
 fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {});
 fs.mkdir(homepageDir, { recursive: true }).catch(() => {});
 
-const storage_multer = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadType = req.body.uploadType || 'general';
-    let dir = uploadDir;
+// Use memory storage for Supabase uploads, disk storage for local filesystem
+const storage_multer = isSupabaseStorageEnabled
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadType = req.body.uploadType || 'general';
+        let dir = uploadDir;
 
-    if (uploadType === 'gallery') {
-      dir = galleryDir;
-    } else if (uploadType === 'profile') {
-      dir = profileDir;
-    } else if (uploadType === 'study-resource') {
-      dir = studyResourcesDir;
-    } else if (uploadType === 'homepage') {
-      dir = homepageDir;
-    }
+        if (uploadType === 'gallery') {
+          dir = galleryDir;
+        } else if (uploadType === 'profile') {
+          dir = profileDir;
+        } else if (uploadType === 'study-resource') {
+          dir = studyResourcesDir;
+        } else if (uploadType === 'homepage') {
+          dir = homepageDir;
+        }
 
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext);
-    cb(null, `${name}-${uniqueSuffix}${ext}`);
-  }
-});
+        cb(null, dir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        const name = path.basename(file.originalname, ext);
+        cb(null, `${name}-${uniqueSuffix}${ext}`);
+      }
+    });
 
 const upload = multer({
   storage: storage_multer,
@@ -2315,6 +2319,9 @@ export async function registerRoutes(app: Express): Server {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Initialize Supabase Storage buckets
+  await initializeStorageBuckets();
+
   // Setup Google OAuth (will only activate if credentials are provided)
   const googleOAuthEnabled = setupGoogleAuth();
   if (googleOAuthEnabled) {
@@ -2848,7 +2855,29 @@ export async function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      const fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+      let fileUrl: string;
+
+      // Use Supabase Storage if enabled, otherwise fall back to local filesystem
+      if (isSupabaseStorageEnabled) {
+        const fileName = `${Date.now()}-${req.file.originalname}`;
+        const uploadResult = await uploadFileToSupabase(
+          STORAGE_BUCKETS.PROFILES,
+          fileName,
+          req.file.buffer,
+          req.file.mimetype
+        );
+
+        if (!uploadResult) {
+          return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
+        }
+
+        fileUrl = uploadResult.publicUrl;
+        console.log(`📦 Profile image uploaded to Supabase Storage: ${fileUrl}`);
+      } else {
+        fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+        console.log(`💾 Profile image saved to local filesystem: ${fileUrl}`);
+      }
+
       res.json({ url: fileUrl });
     } catch (error) {
       console.error('File upload error:', error);
@@ -2871,7 +2900,28 @@ export async function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Content type is required' });
       }
 
-      const fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+      let fileUrl: string;
+
+      // Use Supabase Storage if enabled, otherwise fall back to local filesystem
+      if (isSupabaseStorageEnabled) {
+        const fileName = `${Date.now()}-${req.file.originalname}`;
+        const uploadResult = await uploadFileToSupabase(
+          STORAGE_BUCKETS.HOMEPAGE,
+          fileName,
+          req.file.buffer,
+          req.file.mimetype
+        );
+
+        if (!uploadResult) {
+          return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
+        }
+
+        fileUrl = uploadResult.publicUrl;
+        console.log(`📦 Uploaded to Supabase Storage: ${fileUrl}`);
+      } else {
+        fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+        console.log(`💾 Saved to local filesystem: ${fileUrl}`);
+      }
 
       // Create homepage content record
       const content = await storage.createHomePageContent({
@@ -2937,6 +2987,24 @@ export async function registerRoutes(app: Express): Server {
   app.delete('/api/homepage-content/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Get the content first to retrieve the image URL
+      const contentList = await storage.getHomePageContent();
+      const content = contentList.find((c: any) => c.id === id);
+      
+      if (!content) {
+        return res.status(404).json({ message: 'Homepage content not found' });
+      }
+
+      // Delete file from Supabase Storage if enabled
+      if (isSupabaseStorageEnabled && content.imageUrl) {
+        const filePath = extractFilePathFromUrl(content.imageUrl);
+        if (filePath) {
+          await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
+          console.log(`🗑️ Deleted from Supabase Storage: ${filePath}`);
+        }
+      }
+
       const deleted = await storage.deleteHomePageContent(id);
 
       if (!deleted) {
