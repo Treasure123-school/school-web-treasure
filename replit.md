@@ -43,10 +43,18 @@ Preferred communication style: Simple, everyday language.
 - **Monorepo Design**: Client, server, and shared code in a single repository.
 - **Shared Schema**: Centralized TypeScript types and Zod schemas for consistency.
 - **Environment Configuration**: Supports environment-specific configurations.
-- **Deployment**: Configured for autoscale deployment with Replit or production deployment to Render/Vercel.
+- **Deployment**: Configured for three deployment modes:
+  - **Replit Development**: Auto-configured with `REPLIT_DEV_DOMAIN` detection, binds to `0.0.0.0:5000`
+  - **Local Development**: Full-stack on localhost, CORS pre-configured for `localhost:5000` and `localhost:5173`
   - **Production Setup**: Render (backend) + Vercel (frontend) + Supabase (database)
   - **Cross-Domain Authentication**: Configured with `sameSite: 'none'` cookies and `trust proxy` for secure session sharing
-  - **CORS**: Properly configured to allow credentials between Render and Vercel domains
+  - **CORS**: Auto-configured for all environments:
+    - Development: Replit domains (`*.replit.dev`), localhost, Vercel preview
+    - Production: Render (`*.render.com`), Vercel (`*.vercel.app`), custom FRONTEND_URL
+- **Port Configuration**: 
+  - Vite server with `allowedHosts: true` for Replit dev URL access
+  - Express binds to `0.0.0.0:5000` for external accessibility
+  - Port 5000 → 80 mapping in `.replit` for public access
 - **Database Migrations**: Automatic, idempotent application on server startup using Drizzle ORM.
 - **Data Integrity**: Strategic use of CASCADE DELETE and SET NULL foreign key constraints for efficient user deletion and audit trail preservation.
 
@@ -67,6 +75,15 @@ Preferred communication style: Simple, everyday language.
     - **Notifications**: Automated notifications for admins on new applications and applicants on approval.
 
 ## Recent Changes (October 2025)
+
+### Deployment Configuration Update (October 15, 2025)
+- ✅ Enhanced CORS configuration to support Replit development, localhost, and production
+- ✅ Auto-detection of Replit environment using `REPLIT_DEV_DOMAIN` and `REPLIT_DOMAINS`
+- ✅ Added support for three deployment modes: Replit, localhost, and Render+Vercel
+- ✅ Updated environment variable configuration with clear separation for dev/prod
+- ✅ Created comprehensive deployment guide (see `DEPLOYMENT_SETUP_GUIDE.md`)
+- ✅ Verified Vite `allowedHosts: true` configuration for Replit dev URL access
+- ✅ Port configuration optimized for both local and Replit development
 
 ### Authentication Fix for Render + Vercel Deployment
 - ✅ Fixed cross-domain authentication issues between Render (backend) and Vercel (frontend)

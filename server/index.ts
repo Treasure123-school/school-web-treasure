@@ -13,11 +13,24 @@ const app = express();
 // Trust proxy - CRITICAL for Render deployment (enables secure cookies behind reverse proxy)
 app.set('trust proxy', 1);
 
-// CORS configuration for Vercel frontend
+// CORS configuration for Vercel frontend, Replit dev, and localhost
+const allowedOrigins = (process.env.NODE_ENV === 'development'
+  ? [
+      'http://localhost:5173',
+      'http://localhost:5000',
+      /\.vercel\.app$/,
+      /\.replit\.dev$/,
+      ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : []),
+      ...(process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',').map(d => `https://${d.trim()}`) : [])
+    ]
+  : [
+      process.env.FRONTEND_URL,
+      /\.vercel\.app$/,
+      /\.render\.com$/
+    ].filter(Boolean)) as (string | RegExp)[];
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'development'
-    ? ['http://localhost:5173', 'http://localhost:5000', /\.vercel\.app$/]
-    : [process.env.FRONTEND_URL, /\.vercel\.app$/].filter(Boolean),
+  origin: allowedOrigins,
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
