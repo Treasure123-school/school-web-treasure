@@ -2885,7 +2885,7 @@ export async function registerRoutes(app: Express): Server {
   });
 
   // Get all homepage content
-  app.get('/api/homepage-content', async (req, res) => {
+  app.get('/api/homepage-content', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { contentType } = req.query;
       const content = await storage.getHomePageContent(contentType as string);
