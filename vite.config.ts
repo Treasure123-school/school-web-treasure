@@ -37,4 +37,15 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  define: {
+    // Auto-configure API URL based on environment
+    // Development (Replit): Use Replit dev domain or localhost
+    // Production: Use VITE_API_URL env var (set in Vercel to Render backend URL)
+    'import.meta.env.VITE_API_URL': JSON.stringify(
+      process.env.VITE_API_URL || 
+      (process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000')
+    ),
+  },
 });
