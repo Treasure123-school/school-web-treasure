@@ -106,12 +106,17 @@ Preferred communication style: Simple, everyday language.
 - ✅ Created comprehensive environment configuration documentation
 - ✅ **Result**: Development now correctly uses Replit URLs; Production uses Vercel + Render
 
-### Homepage Image Upload Fix (October 15, 2025)
+### Homepage Image Upload and Public Access Fix (October 15, 2025 - Latest)
+- ✅ **CRITICAL FIX**: Added public endpoints for homepage content to allow public website access
+- ✅ Added `/api/homepage-content/:contentType` public endpoint (no auth required) for public website
+- ✅ Added `/uploads/homepage/:filename` public route for serving homepage images without authentication
+- ✅ Fixed homepage image preview in admin dashboard by ensuring correct public URL access
 - ✅ Fixed multer error handling to return proper JSON responses
 - ✅ Fixed authentication token validation in upload components
 - ✅ Added error handling middleware for file upload errors (size limits, file types)
 - ✅ Enhanced token validation to prevent "Bearer null/undefined" headers
-- ✅ Created comprehensive fix documentation (HOMEPAGE_IMAGE_UPLOAD_FIX.md)
+- ✅ **Security Design**: Separated admin endpoints (auth required) from public endpoints (no auth) for homepage content
+- ✅ **Result**: Homepage images now display correctly on public website and in admin preview
 
 ### Homepage Management Feature (October 15, 2025)
 - ✅ Implemented complete homepage content management system for admins
