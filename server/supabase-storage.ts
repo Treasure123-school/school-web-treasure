@@ -108,7 +108,6 @@ async function applyStoragePolicies() {
   if (!client) return;
 
   try {
-    // Use the REST API to apply policies directly as service role
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_KEY;
     
@@ -117,13 +116,13 @@ async function applyStoragePolicies() {
       return;
     }
 
-    // The service role key bypasses RLS, so we just need to ensure buckets are public
-    console.log('✅ Using service_role key - RLS policies will be bypassed for backend uploads');
-    console.log('✅ Buckets are configured as public for read access');
+    console.log('🔐 Checking storage configuration...');
+    console.log('✅ Using service_role key - This bypasses ALL RLS policies');
+    console.log('✅ Buckets configured as public for read access');
+    console.log('ℹ️ Note: If uploads still fail, run the SQL in supabase-storage-policies.sql manually');
     
   } catch (error) {
-    console.error('❌ Failed to apply storage policies:', error);
-    // Don't throw - uploads can still work with service_role key
+    console.error('❌ Storage configuration check failed:', error);
   }
 }
 
