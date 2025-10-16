@@ -24,9 +24,9 @@ services:
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_ANON_KEY
+      - key: SUPABASE_SERVICE_KEY
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: BACKEND_URL
         sync: false
     healthCheckPath: /api/health
     autoDeploy: true
