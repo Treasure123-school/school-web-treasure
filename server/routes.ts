@@ -2301,9 +2301,14 @@ export async function registerRoutes(app: Express): Server {
   // Initialize session middleware (required for Passport OAuth)
   // CRITICAL: Session must support cross-domain for Render (backend) + Vercel (frontend)
   const isProduction = process.env.NODE_ENV === 'production';
+  const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-session-secret-change-in-production' : process.env.JWT_SECRET || SECRET_KEY);
+  
+  if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️ WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.');
+  }
   
   app.use(session({
-    secret: process.env.JWT_SECRET || SECRET_KEY,
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     name: 'sessionId', // Custom cookie name
