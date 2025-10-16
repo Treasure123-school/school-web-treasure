@@ -59,7 +59,10 @@ uploads/
 !uploads/.gitkeep
 
 # Attached assets (may contain sensitive files)
-attached_assets/
+attached_assets/*.txt
+attached_assets/*.env
+attached_assets/**/*.env
+*.env.txt
 
 # Replit specific
 .config/

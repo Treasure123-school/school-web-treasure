@@ -4282,6 +4282,58 @@ Treasure-Home School Administration
     }
   });
 
+  // Analytics overview endpoint - Admin only
+  app.get("/api/analytics/overview", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      // Fetch all roles for ID lookups
+      const allRoles = await storage.getRoles();
+      const roleMap = new Map(allRoles.map(r => [r.name.toLowerCase(), r.id]));
+      
+      // Get role IDs
+      const studentRoleId = roleMap.get('student');
+      const teacherRoleId = roleMap.get('teacher');
+      
+      // Parallel fetch for performance
+      const [
+        allStudents,
+        allTeachers,
+        allClasses
+      ] = await Promise.all([
+        studentRoleId ? storage.getUsersByRole(studentRoleId) : [],
+        teacherRoleId ? storage.getUsersByRole(teacherRoleId) : [],
+        storage.getAllClasses()
+      ]);
+      
+      // Calculate students added this month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const newStudentsThisMonth = allStudents.filter(student => {
+        const createdAt = new Date(student.createdAt);
+        return createdAt >= startOfMonth;
+      }).length;
+      
+      // Calculate teachers added this term (approximation: last 3 months)
+      const startOfTerm = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      const newTeachersThisTerm = allTeachers.filter(teacher => {
+        const createdAt = new Date(teacher.createdAt);
+        return createdAt >= startOfTerm;
+      }).length;
+      
+      res.json({
+        totalStudents: allStudents.length,
+        totalTeachers: allTeachers.length,
+        totalClasses: allClasses.length,
+        recentActivity: {
+          newStudentsThisMonth,
+          newTeachersThisTerm
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      res.status(500).json({ message: "Failed to fetch analytics data" });
+    }
+  });
+
   // User management - Admin only - OPTIMIZED for speed
   app.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
