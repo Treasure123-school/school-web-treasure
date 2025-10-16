@@ -15,6 +15,7 @@ import PDFDocument from "pdfkit";
 import { generateUsername, generatePassword, getNextUserNumber, generateStudentUsername, generateStudentPassword } from "./auth-utils";
 import passport from "passport";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { setupGoogleAuth } from "./google-auth";
 import { and, eq, sql } from "drizzle-orm";
 import { initializeStorageBuckets, uploadFileToSupabase, deleteFileFromSupabase, STORAGE_BUCKETS, isSupabaseStorageEnabled, extractFilePathFromUrl } from "./supabase-storage";
@@ -2307,7 +2308,16 @@ export async function registerRoutes(app: Express): Server {
     console.warn('⚠️ WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.');
   }
   
+  // Configure PostgreSQL session store for production persistence
+  const PgStore = connectPgSimple(session);
+  const sessionStore = new PgStore({
+    conString: process.env.DATABASE_URL,
+    tableName: 'session',
+    createTableIfMissing: true,
+  });
+  
   app.use(session({
+    store: sessionStore, // Use PostgreSQL instead of MemoryStore
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,

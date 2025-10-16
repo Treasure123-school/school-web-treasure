@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 ### Technical Implementations
 - **Backend**: Node.js with Express.js and TypeScript for full-stack type safety.
 - **API Design**: RESTful API endpoints with structured error handling.
-- **Session Management**: Express sessions with PostgreSQL session store.
+- **Session Management**: Express sessions with PostgreSQL session store (`connect-pg-simple`) for production persistence across server restarts and load balancers.
 - **Database ORM**: Drizzle ORM for type-safe operations.
 - **Authentication**: Strict role-based hybrid system supporting THS-branded username/password for students/parents and Google OAuth (or password) for Admin/Teacher. Features JWT tokens, bcrypt hashing, rate limiting, first-login password change enforcement, account lockout, staff onboarding via invite, and admin approval for new Google OAuth users. Includes comprehensive user management and audit logs.
 - **Authorization**: Role-Based Access Control (RBAC) for student, teacher, admin, and parent roles.

@@ -3454,19 +3454,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getAcademicTerm(id: number): Promise<AcademicTerm | undefined> {
-    try {
-      const result = await db.select()
-        .from(schema.academicTerms)
-        .where(eq(schema.academicTerms.id, id))
-        .limit(1);
-      return result[0];
-    } catch (error) {
-      console.error('Error fetching academic term:', error);
-      return undefined;
-    }
-  }
-
   // Analytics and Reports
   async getAnalyticsOverview(): Promise<any> {
     try {
@@ -4360,16 +4347,6 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(50);
-  }
-
-  async updateExam(examId: number, updates: Partial<InsertExam>): Promise<Exam | undefined> {
-    const result = await this.db
-      .update(schema.exams)
-      .set(updates)
-      .where(eq(schema.exams.id, examId))
-      .returning();
-
-    return result[0];
   }
 
   // Settings management methods (Module 1)
