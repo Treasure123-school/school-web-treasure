@@ -49,6 +49,38 @@ Preferred communication style: Simple, everyday language.
 - **Job Vacancy & Teacher Pre-Approval System**: Public job portal, application submission and tracking, admin review and approval, and secure onboarding for approved teachers.
 - **Homepage Content Management System**: Admin-managed content for the public website, including image uploads, organization, and display settings.
 
+## Production Deployment Requirements
+
+### Critical Environment Variables for Render Backend
+**See PRODUCTION_DEPLOYMENT.md for complete setup guide**
+
+Required variables (10 total):
+1. `NODE_ENV=production`
+2. `FRONTEND_URL` - Your Vercel frontend URL (CRITICAL for CORS)
+3. `BACKEND_URL` - Your Render backend URL (for OAuth callbacks)
+4. `DATABASE_URL` - PostgreSQL connection string
+5. `JWT_SECRET` - Generate with `openssl rand -base64 48`
+6. `SESSION_SECRET` - Generate with `openssl rand -base64 48`
+7. `SUPABASE_URL` - From Supabase Dashboard
+8. `SUPABASE_SERVICE_KEY` - From Supabase Dashboard (service_role key)
+9. `GOOGLE_CLIENT_ID` - From Google Cloud Console
+10. `GOOGLE_CLIENT_SECRET` - From Google Cloud Console
+
+### Vercel Frontend Configuration
+- `VITE_API_URL` - Set to your Render backend URL
+
+### Google OAuth Setup
+- Add authorized redirect URI in Google Cloud Console:
+  `https://your-render-backend.onrender.com/api/auth/google/callback`
+
+### Common Production Issues & Solutions
+- **Authentication fails**: Missing Google OAuth credentials in Render
+- **File uploads fail**: Missing Supabase credentials in Render  
+- **CORS errors**: Missing or incorrect FRONTEND_URL in Render
+- **Dashboard not loading**: Check browser console for CORS/auth errors
+
+**Quick Reference**: See `RENDER_ENV_CHECKLIST.md` for copy-paste checklist
+
 ## External Dependencies
 
 ### Core Framework Dependencies
