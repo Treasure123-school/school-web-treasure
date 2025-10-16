@@ -1,4 +1,0 @@
-QuestionText,Type,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points
-"What is 3 + 3?",multiple_choice,"4","5","6","7","C",1
-"What is the capital of Nigeria?",multiple_choice,"Lagos","Abuja","Kano","Port Harcourt","B",1
-"Explain photosynthesis process.",essay,"","","","","",5

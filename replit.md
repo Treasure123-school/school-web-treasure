@@ -28,14 +28,16 @@ Preferred communication style: Simple, everyday language.
 - **Exam Security**: Tab switch detection, enhanced session recovery, question and option randomization, time-based auto-submit, and robust answer saving with validation.
 - **User Provisioning**: CSV bulk provisioning for students and parents with automatic username generation and PDF login slips.
 - **Teacher Profile Onboarding**: Compulsory 3-step wizard (Personal, Academic, Operational) with progress meter, auto-save, validation, and admin verification.
-- **Homepage Content Management System**: Admin portal for managing website images (hero, gallery), with upload, organization, and secure storage in `uploads/homepage/`. Public endpoints for content access.
+- **Homepage Content Management System**: Admin portal for managing website images (hero, gallery), with upload, organization, and secure storage using Supabase Storage in production. Public endpoints for content access.
 - **Job Vacancy & Teacher Pre-Approval System**: Public job portal, teacher application workflow (resume, cover letter), admin management of vacancies and applications, and pre-approval security for Google OAuth access.
 
 ### System Design Choices
 - **Monorepo Design**: Client, server, and shared code in a single repository.
 - **Shared Schema**: Centralized TypeScript types and Zod schemas.
 - **Environment Configuration**: Supports environment-specific configurations and auto-detection for Replit development.
-- **Deployment**: Configured for Replit Development, Local Development, and Production (Render backend + Vercel frontend + Supabase database).
+- **Deployment**: Configured for Replit Development, Local Development, and Production (Render backend + Vercel frontend + Supabase database + Supabase Storage).
+- **File Storage**: Development uses local `uploads/` directory; Production uses Supabase Storage buckets (homepage-images, gallery-images, profile-images, study-resources, general-uploads).
+- **Build Configuration**: Build tools (vite, esbuild, typescript, tailwindcss) in dependencies for Render deployment compatibility.
 - **Cross-Domain Authentication**: Configured with `sameSite: 'none'` cookies and `trust proxy` for secure session sharing.
 - **CORS**: Auto-configured for development (Replit domains, localhost, Vercel preview) and production (Render, Vercel, custom `FRONTEND_URL`).
 - **Port Configuration**: Vite server with `allowedHosts: true`; Express binds to `0.0.0.0:5000` for external accessibility.
@@ -56,6 +58,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Services
 - **Database**: Neon PostgreSQL, Supabase PostgreSQL.
+- **File Storage**: Supabase Storage (production), local filesystem (development).
 - **Session Store**: `connect-pg-simple` for PostgreSQL session storage.
 - **Authentication**: Passport.js with `passport-google-oauth20`.
 
