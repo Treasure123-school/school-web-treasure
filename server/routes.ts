@@ -3035,7 +3035,18 @@ export async function registerRoutes(app: Express): Server {
     }
   });
 
-  // Public homepage content endpoint (no auth required for public website)
+  // Public endpoint to get all active homepage content (no auth required)
+  app.get('/api/public/homepage-content', async (req, res) => {
+    try {
+      const content = await storage.getHomePageContent();
+      res.json(content);
+    } catch (error) {
+      console.error('Get public homepage content error:', error);
+      res.status(500).json({ message: 'Failed to get homepage content' });
+    }
+  });
+
+  // Public homepage content endpoint by type (no auth required for public website)
   app.get('/api/homepage-content/:contentType', async (req, res) => {
     try {
       const { contentType } = req.params;

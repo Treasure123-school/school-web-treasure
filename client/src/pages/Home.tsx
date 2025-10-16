@@ -12,15 +12,22 @@ import type { HomePageContent } from '@shared/schema';
 export default function Home() {
   // Fetch dynamic content from database with optimized caching
   // Uses global queryFn which joins array: ['/api', 'path'] -> '/api/path'
-  const { data: heroImages = [], isLoading: heroLoading } = useQuery<HomePageContent[]>({
-    queryKey: ['/api', 'homepage-content', 'hero_image'],
+  // Fetch all active homepage content once and filter client-side for better caching
+  const { data: allHomePageContent = [], isLoading: contentLoading } = useQuery<HomePageContent[]>({
+    queryKey: ['/api', 'public', 'homepage-content'],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: galleryPreviewImages = [], isLoading: galleryLoading } = useQuery<HomePageContent[]>({
-    queryKey: ['/api', 'homepage-content?contentType=gallery_preview_1&contentType=gallery_preview_2&contentType=gallery_preview_3'],
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  // Filter content by type
+  const heroImages = allHomePageContent.filter(content => content.contentType === 'hero_image');
+  const galleryPreviewImages = allHomePageContent.filter(content => 
+    content.contentType === 'gallery_preview_1' || 
+    content.contentType === 'gallery_preview_2' || 
+    content.contentType === 'gallery_preview_3'
+  );
+  
+  const heroLoading = contentLoading;
+  const galleryLoading = contentLoading;
 
   // Fetch latest published announcements for homepage preview
   const { data: allAnnouncements = [], isLoading: announcementsLoading } = useQuery<any[]>({

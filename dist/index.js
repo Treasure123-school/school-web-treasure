@@ -14,18 +14,4086 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  academicTerms: () => academicTerms,
+  adminProfiles: () => adminProfiles,
+  announcements: () => announcements,
+  applicationStatusEnum: () => applicationStatusEnum,
+  approvedTeachers: () => approvedTeachers,
+  attendance: () => attendance,
+  attendanceStatusEnum: () => attendanceStatusEnum,
+  auditLogs: () => auditLogs,
+  classes: () => classes,
+  contactMessages: () => contactMessages,
+  counters: () => counters,
+  createQuestionOptionSchema: () => createQuestionOptionSchema,
+  createStudentSchema: () => createStudentSchema,
+  createStudentWithAutoCredsSchema: () => createStudentWithAutoCredsSchema,
+  createdViaEnum: () => createdViaEnum,
+  csvStudentSchema: () => csvStudentSchema,
+  examQuestions: () => examQuestions,
+  examResults: () => examResults,
+  examSessions: () => examSessions,
+  examTypeEnum: () => examTypeEnum,
+  exams: () => exams,
+  gallery: () => gallery,
+  galleryCategories: () => galleryCategories,
+  genderEnum: () => genderEnum,
+  gradingTasks: () => gradingTasks,
+  homePageContent: () => homePageContent,
+  insertAcademicTermSchema: () => insertAcademicTermSchema,
+  insertAdminProfileSchema: () => insertAdminProfileSchema,
+  insertAnnouncementSchema: () => insertAnnouncementSchema,
+  insertApprovedTeacherSchema: () => insertApprovedTeacherSchema,
+  insertAttendanceSchema: () => insertAttendanceSchema,
+  insertAuditLogSchema: () => insertAuditLogSchema,
+  insertClassSchema: () => insertClassSchema,
+  insertContactMessageSchema: () => insertContactMessageSchema,
+  insertCounterSchema: () => insertCounterSchema,
+  insertExamQuestionSchema: () => insertExamQuestionSchema,
+  insertExamResultSchema: () => insertExamResultSchema,
+  insertExamSchema: () => insertExamSchema,
+  insertExamSessionSchema: () => insertExamSessionSchema,
+  insertGalleryCategorySchema: () => insertGalleryCategorySchema,
+  insertGallerySchema: () => insertGallerySchema,
+  insertGradingTaskSchema: () => insertGradingTaskSchema,
+  insertHomePageContentSchema: () => insertHomePageContentSchema,
+  insertInviteSchema: () => insertInviteSchema,
+  insertMessageSchema: () => insertMessageSchema,
+  insertNotificationSchema: () => insertNotificationSchema,
+  insertParentProfileSchema: () => insertParentProfileSchema,
+  insertPasswordResetAttemptSchema: () => insertPasswordResetAttemptSchema,
+  insertPasswordResetTokenSchema: () => insertPasswordResetTokenSchema,
+  insertPerformanceEventSchema: () => insertPerformanceEventSchema,
+  insertQuestionOptionSchema: () => insertQuestionOptionSchema,
+  insertReportCardItemSchema: () => insertReportCardItemSchema,
+  insertReportCardSchema: () => insertReportCardSchema,
+  insertRoleSchema: () => insertRoleSchema,
+  insertSettingSchema: () => insertSettingSchema,
+  insertStudentAnswerSchema: () => insertStudentAnswerSchema,
+  insertStudentSchema: () => insertStudentSchema,
+  insertStudyResourceSchema: () => insertStudyResourceSchema,
+  insertSubjectSchema: () => insertSubjectSchema,
+  insertTeacherApplicationSchema: () => insertTeacherApplicationSchema,
+  insertTeacherClassAssignmentSchema: () => insertTeacherClassAssignmentSchema,
+  insertTeacherProfileSchema: () => insertTeacherProfileSchema,
+  insertUserSchema: () => insertUserSchema,
+  insertVacancySchema: () => insertVacancySchema,
+  invites: () => invites,
+  messages: () => messages,
+  notifications: () => notifications,
+  parentProfiles: () => parentProfiles,
+  passwordResetAttempts: () => passwordResetAttempts,
+  passwordResetTokens: () => passwordResetTokens,
+  performanceEvents: () => performanceEvents,
+  questionOptions: () => questionOptions,
+  reportCardItems: () => reportCardItems,
+  reportCardStatusEnum: () => reportCardStatusEnum,
+  reportCards: () => reportCards,
+  roles: () => roles,
+  settings: () => settings,
+  studentAnswers: () => studentAnswers,
+  students: () => students,
+  studyResources: () => studyResources,
+  subjects: () => subjects,
+  teacherApplications: () => teacherApplications,
+  teacherClassAssignments: () => teacherClassAssignments,
+  teacherProfiles: () => teacherProfiles,
+  updateExamSessionSchema: () => updateExamSessionSchema,
+  userStatusEnum: () => userStatusEnum,
+  users: () => users,
+  vacancies: () => vacancies,
+  vacancyStatusEnum: () => vacancyStatusEnum
+});
+import { sql, eq } from "drizzle-orm";
+import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+var genderEnum, attendanceStatusEnum, reportCardStatusEnum, examTypeEnum, userStatusEnum, createdViaEnum, roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, performanceEvents, teacherClassAssignments, gradingTasks, auditLogs, settings, counters, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, vacancyStatusEnum, applicationStatusEnum, vacancies, teacherApplications, approvedTeachers, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema;
+var init_schema = __esm({
+  "shared/schema.ts"() {
+    "use strict";
+    genderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
+    attendanceStatusEnum = pgEnum("attendance_status", ["Present", "Absent", "Late", "Excused"]);
+    reportCardStatusEnum = pgEnum("report_card_status", ["draft", "finalized", "published"]);
+    examTypeEnum = pgEnum("exam_type", ["test", "exam"]);
+    userStatusEnum = pgEnum("user_status", ["pending", "active", "suspended", "disabled"]);
+    createdViaEnum = pgEnum("created_via", ["bulk", "invite", "self", "google", "admin"]);
+    roles = pgTable("roles", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 50 }).notNull().unique(),
+      permissions: text("permissions").array().default(sql`'{}'::text[]`),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    users = pgTable("users", {
+      id: uuid("id").defaultRandom().primaryKey(),
+      username: varchar("username", { length: 100 }).unique(),
+      email: varchar("email", { length: 255 }).notNull(),
+      recoveryEmail: varchar("recovery_email", { length: 255 }),
+      // For password recovery
+      passwordHash: text("password_hash"),
+      mustChangePassword: boolean("must_change_password").default(true),
+      roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
+      firstName: varchar("first_name", { length: 100 }).notNull(),
+      lastName: varchar("last_name", { length: 100 }).notNull(),
+      phone: varchar("phone", { length: 20 }),
+      address: text("address"),
+      dateOfBirth: date("date_of_birth"),
+      gender: genderEnum("gender"),
+      nationalId: varchar("national_id", { length: 50 }),
+      profileImageUrl: text("profile_image_url"),
+      isActive: boolean("is_active").default(true),
+      authProvider: varchar("auth_provider", { length: 20 }).default("local"),
+      googleId: varchar("google_id", { length: 255 }).unique(),
+      // Security & audit fields
+      status: userStatusEnum("status").default("pending"),
+      // New accounts require approval
+      createdVia: createdViaEnum("created_via").default("admin"),
+      createdBy: uuid("created_by"),
+      approvedBy: uuid("approved_by"),
+      approvedAt: timestamp("approved_at"),
+      lastLoginAt: timestamp("last_login_at"),
+      lastLoginIp: varchar("last_login_ip", { length: 45 }),
+      mfaEnabled: boolean("mfa_enabled").default(false),
+      mfaSecret: text("mfa_secret"),
+      accountLockedUntil: timestamp("account_locked_until"),
+      // For suspicious activity lock
+      // Profile completion fields
+      profileCompleted: boolean("profile_completed").default(false),
+      profileCompletionPercentage: integer("profile_completion_percentage").default(0),
+      state: varchar("state", { length: 100 }),
+      country: varchar("country", { length: 100 }),
+      securityQuestion: text("security_question"),
+      securityAnswerHash: text("security_answer_hash"),
+      dataPolicyAgreed: boolean("data_policy_agreed").default(false),
+      dataPolicyAgreedAt: timestamp("data_policy_agreed_at"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      usersEmailIdx: index("users_email_idx").on(table.email),
+      usersStatusIdx: index("users_status_idx").on(table.status),
+      usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId),
+      usersRoleIdIdx: index("users_role_id_idx").on(table.roleId),
+      usersUsernameIdx: index("users_username_idx").on(table.username)
+    }));
+    passwordResetTokens = pgTable("password_reset_tokens", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+      token: varchar("token", { length: 255 }).notNull().unique(),
+      expiresAt: timestamp("expires_at").notNull(),
+      usedAt: timestamp("used_at"),
+      ipAddress: varchar("ip_address", { length: 45 }),
+      // Track IP for security
+      resetBy: uuid("reset_by").references(() => users.id, { onDelete: "set null" }),
+      // Admin who initiated reset, null if self-service
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
+      passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token)
+    }));
+    passwordResetAttempts = pgTable("password_reset_attempts", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      identifier: varchar("identifier", { length: 255 }).notNull(),
+      // Email or username
+      ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+      attemptedAt: timestamp("attempted_at").defaultNow(),
+      success: boolean("success").default(false)
+    }, (table) => ({
+      passwordResetAttemptsIdentifierIdx: index("password_reset_attempts_identifier_idx").on(table.identifier),
+      passwordResetAttemptsIpIdx: index("password_reset_attempts_ip_idx").on(table.ipAddress),
+      passwordResetAttemptsTimeIdx: index("password_reset_attempts_time_idx").on(table.attemptedAt)
+    }));
+    invites = pgTable("invites", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      token: varchar("token", { length: 255 }).notNull().unique(),
+      email: varchar("email", { length: 255 }).notNull(),
+      roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
+      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+      expiresAt: timestamp("expires_at").notNull(),
+      acceptedAt: timestamp("accepted_at"),
+      acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      invitesTokenIdx: index("invites_token_idx").on(table.token),
+      invitesEmailIdx: index("invites_email_idx").on(table.email)
+    }));
+    notifications = pgTable("notifications", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+      // Admin receiving the notification
+      type: varchar("type", { length: 50 }).notNull(),
+      // 'pending_user', 'approval_request', etc.
+      title: varchar("title", { length: 200 }).notNull(),
+      message: text("message").notNull(),
+      relatedEntityType: varchar("related_entity_type", { length: 50 }),
+      // 'user', 'student', etc.
+      relatedEntityId: varchar("related_entity_id", { length: 255 }),
+      // ID of the related entity
+      isRead: boolean("is_read").default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      notificationsUserIdIdx: index("notifications_user_id_idx").on(table.userId),
+      notificationsIsReadIdx: index("notifications_is_read_idx").on(table.isRead)
+    }));
+    academicTerms = pgTable("academic_terms", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 50 }).notNull(),
+      year: varchar("year", { length: 9 }).notNull(),
+      startDate: date("start_date").notNull(),
+      endDate: date("end_date").notNull(),
+      isCurrent: boolean("is_current").default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    classes = pgTable("classes", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 50 }).notNull().unique(),
+      level: varchar("level", { length: 20 }).notNull(),
+      capacity: integer("capacity").default(30),
+      classTeacherId: uuid("class_teacher_id").references(() => users.id, { onDelete: "set null" }),
+      currentTermId: integer("current_term_id").references(() => academicTerms.id),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    subjects = pgTable("subjects", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 100 }).notNull(),
+      code: varchar("code", { length: 20 }).notNull().unique(),
+      description: text("description"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    students = pgTable("students", {
+      id: uuid("id").references(() => users.id, { onDelete: "cascade" }).primaryKey(),
+      admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
+      classId: integer("class_id").references(() => classes.id),
+      parentId: uuid("parent_id").references(() => users.id, { onDelete: "set null" }),
+      admissionDate: date("admission_date").defaultNow(),
+      emergencyContact: varchar("emergency_contact", { length: 20 }),
+      medicalInfo: text("medical_info"),
+      guardianName: varchar("guardian_name", { length: 200 }),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    teacherProfiles = pgTable("teacher_profiles", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+      staffId: varchar("staff_id", { length: 50 }).unique(),
+      subjects: integer("subjects").array(),
+      assignedClasses: integer("assigned_classes").array(),
+      qualification: varchar("qualification", { length: 100 }),
+      yearsOfExperience: integer("years_of_experience").default(0),
+      specialization: varchar("specialization", { length: 200 }),
+      department: varchar("department", { length: 100 }),
+      signatureUrl: text("signature_url"),
+      gradingMode: varchar("grading_mode", { length: 50 }).default("manual"),
+      autoGradeTheoryQuestions: boolean("auto_grade_theory_questions").default(false),
+      theoryGradingInstructions: text("theory_grading_instructions"),
+      notificationPreference: varchar("notification_preference", { length: 50 }).default("all"),
+      availability: varchar("availability", { length: 50 }),
+      firstLogin: boolean("first_login").default(true),
+      verified: boolean("verified").default(false),
+      verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+      verifiedAt: timestamp("verified_at"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    adminProfiles = pgTable("admin_profiles", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+      department: varchar("department", { length: 100 }),
+      roleDescription: text("role_description"),
+      accessLevel: varchar("access_level", { length: 50 }),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    parentProfiles = pgTable("parent_profiles", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+      occupation: varchar("occupation", { length: 100 }),
+      contactPreference: varchar("contact_preference", { length: 50 }),
+      linkedStudents: uuid("linked_students").array(),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    attendance = pgTable("attendance", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
+      classId: integer("class_id").references(() => classes.id).notNull(),
+      date: date("date").notNull(),
+      status: attendanceStatusEnum("status"),
+      recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: "set null" }),
+      notes: text("notes"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    exams = pgTable("exams", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 100 }).notNull(),
+      classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+      totalMarks: integer("total_marks").notNull(),
+      date: text("date").notNull(),
+      // Store as YYYY-MM-DD string to avoid Date object conversion
+      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
+      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+      teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id, { onDelete: "set null" }),
+      // Teacher responsible for grading
+      createdAt: timestamp("created_at").defaultNow(),
+      // Exam type: 'test' (40 marks) or 'exam' (60 marks)
+      examType: examTypeEnum("exam_type").notNull().default("exam"),
+      // Timer mode: 'global' (fixed start/end times) or 'individual' (duration per student)
+      timerMode: varchar("timer_mode", { length: 20 }).default("individual"),
+      // 'global' or 'individual'
+      // Enhanced exam delivery fields
+      timeLimit: integer("time_limit"),
+      // in minutes (used for individual timer mode)
+      startTime: timestamp("start_time"),
+      endTime: timestamp("end_time"),
+      instructions: text("instructions"),
+      isPublished: boolean("is_published").default(false),
+      allowRetakes: boolean("allow_retakes").default(false),
+      shuffleQuestions: boolean("shuffle_questions").default(false),
+      // Enhanced auto-grading features (will be added via migration)
+      autoGradingEnabled: boolean("auto_grading_enabled").default(true),
+      instantFeedback: boolean("instant_feedback").default(false),
+      // Show correct/incorrect immediately
+      showCorrectAnswers: boolean("show_correct_answers").default(false),
+      // Show answers after submission
+      passingScore: integer("passing_score"),
+      // Minimum score to pass (percentage)
+      gradingScale: text("grading_scale").default("standard")
+      // 'standard', 'custom'
+    });
+    examQuestions = pgTable("exam_questions", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+      questionText: text("question_text").notNull(),
+      questionType: varchar("question_type", { length: 50 }).notNull(),
+      // 'multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'
+      points: integer("points").default(1),
+      orderNumber: integer("order_number").notNull(),
+      imageUrl: text("image_url"),
+      // for questions with images
+      // Enhanced auto-grading features
+      autoGradable: boolean("auto_gradable").default(true),
+      // Can this question be auto-graded?
+      expectedAnswers: text("expected_answers").array(),
+      // For text questions - expected answer variations
+      caseSensitive: boolean("case_sensitive").default(false),
+      // For text answers
+      allowPartialCredit: boolean("allow_partial_credit").default(false),
+      partialCreditRules: text("partial_credit_rules"),
+      // JSON config for partial credit
+      explanationText: text("explanation_text"),
+      // Explanation shown after answering
+      hintText: text("hint_text"),
+      // Optional hint for students
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // PERFORMANCE INDEX: Critical for scoring JOIN queries
+      examQuestionsExamIdIdx: index("exam_questions_exam_id_idx").on(table.examId),
+      examQuestionsOrderIdx: index("exam_questions_order_idx").on(table.examId, table.orderNumber)
+    }));
+    questionOptions = pgTable("question_options", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
+      optionText: text("option_text").notNull(),
+      isCorrect: boolean("is_correct").default(false),
+      orderNumber: integer("order_number").notNull(),
+      // Enhanced auto-grading features
+      partialCreditValue: integer("partial_credit_value").default(0),
+      // Points if selected (for partial credit)
+      explanationText: text("explanation_text"),
+      // Why this option is correct/incorrect
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // PERFORMANCE INDEX: Critical for scoring JOIN queries - find correct options fast
+      questionOptionsQuestionIdIdx: index("question_options_question_id_idx").on(table.questionId),
+      questionOptionsCorrectIdx: index("question_options_correct_idx").on(table.questionId, table.isCorrect)
+    }));
+    examSessions = pgTable("exam_sessions", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
+      startedAt: timestamp("started_at").defaultNow(),
+      submittedAt: timestamp("submitted_at"),
+      timeRemaining: integer("time_remaining"),
+      // in seconds
+      isCompleted: boolean("is_completed").default(false),
+      score: integer("score"),
+      maxScore: integer("max_score"),
+      status: varchar("status", { length: 20 }).default("in_progress"),
+      // 'in_progress', 'submitted', 'graded'
+      metadata: text("metadata"),
+      // JSON string for violation tracking, progress saving, etc.
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // PERFORMANCE INDEX: Critical for session lookups
+      examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
+      examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
+      examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
+      // UNIQUE CONSTRAINT: Prevent duplicate active sessions (critical for circuit breaker fix)
+      examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(eq(table.isCompleted, false))
+    }));
+    studentAnswers = pgTable("student_answers", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id).notNull(),
+      questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
+      selectedOptionId: bigint("selected_option_id", { mode: "number" }).references(() => questionOptions.id),
+      // for multiple choice
+      textAnswer: text("text_answer"),
+      // for text/essay questions
+      isCorrect: boolean("is_correct"),
+      pointsEarned: integer("points_earned").default(0),
+      answeredAt: timestamp("answered_at").defaultNow(),
+      // Enhanced auto-grading features
+      autoScored: boolean("auto_scored").default(false),
+      // Was this answer auto-scored?
+      manualOverride: boolean("manual_override").default(false),
+      // Teacher manually adjusted score
+      feedbackText: text("feedback_text"),
+      // Instant feedback shown to student
+      partialCreditReason: text("partial_credit_reason")
+      // Why partial credit was given
+    }, (table) => ({
+      // PERFORMANCE INDEX: Critical for scoring JOIN queries - fetch all answers for a session fast
+      studentAnswersSessionIdIdx: index("student_answers_session_id_idx").on(table.sessionId),
+      studentAnswersSessionQuestionIdx: index("student_answers_session_question_idx").on(table.sessionId, table.questionId),
+      studentAnswersQuestionIdx: index("student_answers_question_id_idx").on(table.questionId)
+    }));
+    examResults = pgTable("exam_results", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
+      score: integer("score"),
+      maxScore: integer("max_score"),
+      marksObtained: integer("marks_obtained"),
+      // Legacy field for backward compatibility
+      grade: varchar("grade", { length: 5 }),
+      remarks: text("remarks"),
+      autoScored: boolean("auto_scored").default(false),
+      recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
+      // UUID field to match database schema, must be a valid user ID
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // PERFORMANCE INDEX: Critical for fast result lookups by exam/student
+      examResultsExamIdIdx: index("exam_results_exam_id_idx").on(table.examId),
+      examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
+      examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
+      examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
+    }));
+    announcements = pgTable("announcements", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      title: varchar("title", { length: 200 }).notNull(),
+      content: text("content").notNull(),
+      authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+      targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
+      targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
+      isPublished: boolean("is_published").default(false),
+      publishedAt: timestamp("published_at"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    messages = pgTable("messages", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      senderId: uuid("sender_id").references(() => users.id, { onDelete: "set null" }),
+      recipientId: uuid("recipient_id").references(() => users.id, { onDelete: "set null" }),
+      subject: varchar("subject", { length: 200 }).notNull(),
+      content: text("content").notNull(),
+      isRead: boolean("is_read").default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    galleryCategories = pgTable("gallery_categories", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 100 }).notNull(),
+      description: text("description"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    gallery = pgTable("gallery", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      imageUrl: text("image_url").notNull(),
+      caption: text("caption"),
+      categoryId: integer("category_id").references(() => galleryCategories.id),
+      uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    homePageContent = pgTable("home_page_content", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      contentType: varchar("content_type", { length: 50 }).notNull(),
+      // 'hero_image', 'gallery_preview_1', 'gallery_preview_2', etc.
+      imageUrl: text("image_url"),
+      altText: text("alt_text"),
+      caption: text("caption"),
+      isActive: boolean("is_active").default(true).notNull(),
+      displayOrder: integer("display_order").default(0).notNull(),
+      uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull()
+    });
+    contactMessages = pgTable("contact_messages", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 100 }).notNull(),
+      email: varchar("email", { length: 255 }).notNull(),
+      subject: varchar("subject", { length: 200 }),
+      message: text("message").notNull(),
+      isRead: boolean("is_read").default(false),
+      respondedAt: timestamp("responded_at"),
+      respondedBy: uuid("responded_by").references(() => users.id, { onDelete: "set null" }),
+      response: text("response"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    reportCards = pgTable("report_cards", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
+      classId: integer("class_id").references(() => classes.id).notNull(),
+      termId: integer("term_id").references(() => academicTerms.id).notNull(),
+      averagePercentage: integer("average_percentage"),
+      // Overall percentage
+      overallGrade: varchar("overall_grade", { length: 5 }),
+      // A+, A, B+, etc.
+      teacherRemarks: text("teacher_remarks"),
+      status: reportCardStatusEnum("status").default("draft"),
+      locked: boolean("locked").default(false),
+      generatedAt: timestamp("generated_at").defaultNow(),
+      finalizedAt: timestamp("finalized_at"),
+      publishedAt: timestamp("published_at"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    reportCardItems = pgTable("report_card_items", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      reportCardId: integer("report_card_id").references(() => reportCards.id).notNull(),
+      subjectId: integer("subject_id").references(() => subjects.id).notNull(),
+      // Test and Exam scores with their respective exam IDs for reference
+      testExamId: bigint("test_exam_id", { mode: "number" }).references(() => exams.id),
+      testScore: integer("test_score"),
+      // Score obtained in test (out of testMaxScore)
+      testMaxScore: integer("test_max_score"),
+      // Maximum marks for test
+      testWeightedScore: integer("test_weighted_score"),
+      // Normalized to 40
+      examExamId: bigint("exam_exam_id", { mode: "number" }).references(() => exams.id),
+      examScore: integer("exam_score"),
+      // Score obtained in exam (out of examMaxScore)
+      examMaxScore: integer("exam_max_score"),
+      // Maximum marks for exam
+      examWeightedScore: integer("exam_weighted_score"),
+      // Normalized to 60
+      // Combined scores
+      totalMarks: integer("total_marks").notNull().default(100),
+      // Always 100 for the weighted system
+      obtainedMarks: integer("obtained_marks").notNull(),
+      // testWeightedScore + examWeightedScore
+      percentage: integer("percentage").notNull(),
+      grade: varchar("grade", { length: 5 }),
+      // A+, A, B+, etc.
+      teacherRemarks: text("teacher_remarks"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    studyResources = pgTable("study_resources", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      title: varchar("title", { length: 200 }).notNull(),
+      description: text("description"),
+      fileUrl: text("file_url").notNull(),
+      fileName: varchar("file_name", { length: 255 }).notNull(),
+      fileSize: integer("file_size"),
+      // in bytes
+      resourceType: varchar("resource_type", { length: 50 }).notNull(),
+      // 'past_paper', 'study_guide', 'notes', 'assignment'
+      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
+      classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
+      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+      uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+      isPublished: boolean("is_published").default(true),
+      downloads: integer("downloads").default(0),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    performanceEvents = pgTable("performance_events", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id),
+      eventType: varchar("event_type", { length: 50 }).notNull(),
+      // 'submission', 'auto_submit', 'timeout_cleanup', 'answer_save'
+      duration: integer("duration").notNull(),
+      // in milliseconds
+      goalAchieved: boolean("goal_achieved").notNull(),
+      // whether it met the < 2000ms goal
+      metadata: text("metadata"),
+      // JSON string for additional data
+      clientSide: boolean("client_side").default(false),
+      // whether logged from client or server
+      userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+      // for attribution
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // Performance indexes for analytics queries
+      performanceEventsTypeIdx: index("performance_events_type_idx").on(table.eventType),
+      performanceEventsDateIdx: index("performance_events_date_idx").on(table.createdAt),
+      performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType)
+    }));
+    teacherClassAssignments = pgTable("teacher_class_assignments", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      teacherId: uuid("teacher_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+      classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // Performance indexes for quick teacher assignment lookups
+      teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
+      teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId)
+    }));
+    gradingTasks = pgTable("grading_tasks", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id, { onDelete: "cascade" }).notNull(),
+      answerId: bigint("answer_id", { mode: "number" }).references(() => studentAnswers.id, { onDelete: "cascade" }).notNull(),
+      assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id, { onDelete: "set null" }),
+      // Teacher assigned to grade this
+      status: varchar("status", { length: 20 }).default("pending"),
+      // 'pending', 'in_progress', 'completed', 'skipped'
+      priority: integer("priority").default(0),
+      // Higher number = higher priority
+      assignedAt: timestamp("assigned_at"),
+      startedAt: timestamp("started_at"),
+      completedAt: timestamp("completed_at"),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // Performance indexes for grading queue management
+      gradingTasksAssignedIdx: index("grading_tasks_assigned_idx").on(table.assignedTeacherId, table.status),
+      gradingTasksStatusIdx: index("grading_tasks_status_idx").on(table.status, table.priority),
+      gradingTasksSessionIdx: index("grading_tasks_session_idx").on(table.sessionId),
+      // Unique constraint to prevent duplicate tasks for the same answer
+      gradingTasksAnswerUniqueIdx: uniqueIndex("grading_tasks_answer_unique_idx").on(table.answerId)
+    }));
+    auditLogs = pgTable("audit_logs", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+      // Who made the change - PRESERVE audit trail
+      action: varchar("action", { length: 100 }).notNull(),
+      // 'grade_change', 'manual_override', 'report_publish', etc.
+      entityType: varchar("entity_type", { length: 50 }).notNull(),
+      // 'exam_result', 'student_answer', 'report_card'
+      entityId: bigint("entity_id", { mode: "number" }).notNull(),
+      // ID of the affected entity
+      oldValue: text("old_value"),
+      // JSON of old values
+      newValue: text("new_value"),
+      // JSON of new values
+      reason: text("reason"),
+      // Why the change was made
+      ipAddress: varchar("ip_address", { length: 45 }),
+      // IPv4 or IPv6
+      userAgent: text("user_agent"),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // Performance indexes for audit queries
+      auditLogsUserIdx: index("audit_logs_user_idx").on(table.userId),
+      auditLogsEntityIdx: index("audit_logs_entity_idx").on(table.entityType, table.entityId),
+      auditLogsDateIdx: index("audit_logs_date_idx").on(table.createdAt),
+      auditLogsActionIdx: index("audit_logs_action_idx").on(table.action)
+    }));
+    settings = pgTable("settings", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      key: varchar("key", { length: 100 }).notNull().unique(),
+      value: text("value").notNull(),
+      description: text("description"),
+      dataType: varchar("data_type", { length: 20 }).notNull().default("string"),
+      // 'string', 'number', 'boolean', 'json'
+      updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      settingsKeyIdx: index("settings_key_idx").on(table.key)
+    }));
+    counters = pgTable("counters", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      classCode: varchar("class_code", { length: 50 }).notNull(),
+      year: varchar("year", { length: 9 }).notNull(),
+      sequence: integer("sequence").notNull().default(0),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      countersClassYearIdx: uniqueIndex("counters_class_year_idx").on(table.classCode, table.year)
+    }));
+    insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
+    insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+    insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+    insertPasswordResetAttemptSchema = createInsertSchema(passwordResetAttempts).omit({ id: true, attemptedAt: true });
+    insertInviteSchema = createInsertSchema(invites).omit({ id: true, createdAt: true });
+    insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
+    insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
+    insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
+    insertAcademicTermSchema = createInsertSchema(academicTerms).omit({ id: true, createdAt: true });
+    insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
+    insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
+      // Required fields - coerce to numbers with clear error messages
+      classId: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
+        z.number().positive("Please select a valid class")
+      ),
+      subjectId: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
+        z.number().positive("Please select a valid subject")
+      ),
+      termId: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
+        z.number().positive("Please select a valid term")
+      ),
+      totalMarks: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
+        z.number().positive("Total marks must be a positive number")
+      ),
+      // Exam name is required
+      name: z.string().min(1, "Exam name is required"),
+      // Handle date string from frontend - keep as string for database
+      date: z.string().min(1, "Exam date is required").regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").refine((dateStr) => {
+        const date2 = new Date(dateStr);
+        return !isNaN(date2.getTime()) && date2.toISOString().startsWith(dateStr);
+      }, "Please enter a valid date"),
+      // Exam type with default
+      examType: z.enum(["test", "exam"]).default("exam"),
+      // Timer mode with default
+      timerMode: z.string().default("individual"),
+      // Optional numeric fields - handle empty strings properly
+      timeLimit: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
+        z.number().int().min(1, "Time limit must be at least 1 minute").optional()
+      ),
+      passingScore: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
+        z.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()
+      ),
+      // Optional timestamp fields - handle empty strings and convert to Date
+      startTime: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : new Date(val),
+        z.date().optional()
+      ),
+      endTime: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : new Date(val),
+        z.date().optional()
+      ),
+      // Optional text fields - handle empty strings
+      instructions: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : val,
+        z.string().optional()
+      ),
+      gradingScale: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? "standard" : val,
+        z.string().default("standard")
+      ),
+      // Optional teacher in charge
+      teacherInChargeId: z.preprocess(
+        (val) => val === "" || val === null || val === void 0 ? void 0 : val,
+        z.string().uuid().optional()
+      ),
+      // Boolean fields with defaults
+      isPublished: z.boolean().default(false),
+      allowRetakes: z.boolean().default(false),
+      shuffleQuestions: z.boolean().default(false),
+      autoGradingEnabled: z.boolean().default(true),
+      instantFeedback: z.boolean().default(false),
+      showCorrectAnswers: z.boolean().default(false)
+    });
+    insertExamResultSchema = createInsertSchema(examResults).omit({ id: true, createdAt: true });
+    insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
+    insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
+    insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
+    insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
+    insertHomePageContentSchema = createInsertSchema(homePageContent).omit({ id: true, createdAt: true, updatedAt: true });
+    insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
+    insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
+    insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
+    insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
+    insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
+    insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
+    insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
+    insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+    insertSettingSchema = createInsertSchema(settings).omit({ id: true, createdAt: true, updatedAt: true });
+    insertCounterSchema = createInsertSchema(counters).omit({ id: true, createdAt: true, updatedAt: true });
+    createStudentWithAutoCredsSchema = z.object({
+      // User fields - email/password/username auto-generated
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"),
+      phone: z.string().optional(),
+      address: z.string().optional(),
+      dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
+      gender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required" }),
+      profileImageUrl: z.string().optional(),
+      // Student-specific fields
+      admissionNumber: z.string().min(1, "Admission number is required"),
+      classId: z.coerce.number().positive("Please select a valid class"),
+      parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
+      admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
+      emergencyContact: z.string().min(1, "Emergency contact is required"),
+      medicalInfo: z.string().optional(),
+      parentEmail: z.string().email("Invalid parent email").optional(),
+      // For linking/creating parent accounts
+      parentPhone: z.string().optional()
+      // For linking/creating parent accounts
+    });
+    createStudentSchema = z.object({
+      // User fields - password, username, and email auto-generated
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"),
+      phone: z.string().optional(),
+      address: z.string().optional(),
+      dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
+      gender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required" }),
+      profileImageUrl: z.string().optional(),
+      // Student-specific fields - admissionNumber auto-generated
+      classId: z.coerce.number().positive("Please select a valid class"),
+      parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
+      parentPhone: z.string().optional(),
+      // For parent linking/creation by phone only
+      admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
+      emergencyContact: z.string().optional(),
+      medicalInfo: z.string().optional(),
+      guardianName: z.string().optional()
+    });
+    csvStudentSchema = z.object({
+      fullName: z.string().min(1, "Full name is required"),
+      class: z.string().min(1, "Class is required"),
+      gender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required" }),
+      dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
+      parentEmail: z.string().email("Invalid parent email").optional(),
+      parentPhone: z.string().optional(),
+      emergencyContact: z.string().min(1, "Emergency contact is required"),
+      admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format").optional(),
+      medicalInfo: z.string().optional(),
+      guardianName: z.string().optional()
+    });
+    insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
+      // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
+      examId: z.coerce.number().positive("Please select a valid exam"),
+      questionText: z.string().min(1, "Question text is required"),
+      questionType: z.enum(["multiple_choice", "text", "essay", "true_false", "fill_blank"], { required_error: "Question type is required" }),
+      points: z.preprocess((val) => val === "" ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
+      orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
+      // Handle optional text fields - convert empty strings to undefined
+      imageUrl: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
+      expectedAnswers: z.preprocess((val) => {
+        if (val === "" || val === null || val === void 0) return void 0;
+        if (Array.isArray(val)) return val;
+        if (typeof val === "string") return val.split(",").map((s) => s.trim()).filter((s) => s !== "");
+        return void 0;
+      }, z.array(z.string()).optional()),
+      explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
+      hintText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
+      partialCreditRules: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
+      // Added fields for theory questions
+      instructions: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
+      sampleAnswer: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
+    });
+    insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
+      // Coerce string IDs and numeric values to numbers
+      questionId: z.coerce.number().positive("Please select a valid question"),
+      orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
+      // Handle optional numeric fields - convert empty strings to undefined or 0
+      partialCreditValue: z.preprocess((val) => val === "" ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
+      // Handle optional text fields - convert empty strings to undefined
+      explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
+    });
+    createQuestionOptionSchema = insertQuestionOptionSchema.omit({ questionId: true, orderNumber: true }).extend({
+      // Optional fields that can be provided during creation
+      partialCreditValue: z.preprocess((val) => val === "" ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
+      explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
+    });
+    insertExamSessionSchema = createInsertSchema(examSessions).omit({
+      id: true,
+      createdAt: true,
+      startedAt: true,
+      studentId: true
+      // Server sets this from authenticated user
+    }).partial().required({
+      examId: true
+    }).extend({
+      // Handle date strings from frontend (JSON serialization converts Date objects to strings)
+      submittedAt: z.union([z.date(), z.string()]).optional().transform((val) => {
+        if (typeof val === "string") {
+          return new Date(val);
+        }
+        return val;
+      })
+    });
+    updateExamSessionSchema = z.object({
+      // Students can only update these specific fields when submitting exams
+      isCompleted: z.boolean().optional(),
+      submittedAt: z.coerce.date().refine((d) => !isNaN(d.getTime()), "Invalid date").optional(),
+      timeRemaining: z.number().int().min(0).optional(),
+      // Only allow valid status transitions for student updates
+      status: z.enum(["in_progress", "submitted"]).optional(),
+      // Server-side fields for auto-submission and tracking
+      submissionMethod: z.string().optional(),
+      autoSubmitted: z.boolean().optional()
+    }).strict();
+    insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
+    insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+    insertTeacherProfileSchema = createInsertSchema(teacherProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+    insertAdminProfileSchema = createInsertSchema(adminProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+    insertParentProfileSchema = createInsertSchema(parentProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+    vacancyStatusEnum = pgEnum("vacancy_status", ["open", "closed", "filled"]);
+    applicationStatusEnum = pgEnum("application_status", ["pending", "approved", "rejected"]);
+    vacancies = pgTable("vacancies", {
+      id: uuid("id").defaultRandom().primaryKey(),
+      title: varchar("title", { length: 200 }).notNull(),
+      description: text("description").notNull(),
+      requirements: text("requirements"),
+      deadline: timestamp("deadline").notNull(),
+      status: vacancyStatusEnum("status").default("open"),
+      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      vacanciesStatusIdx: index("vacancies_status_idx").on(table.status),
+      vacanciesDeadlineIdx: index("vacancies_deadline_idx").on(table.deadline)
+    }));
+    teacherApplications = pgTable("teacher_applications", {
+      id: uuid("id").defaultRandom().primaryKey(),
+      vacancyId: uuid("vacancy_id").references(() => vacancies.id, { onDelete: "set null" }),
+      fullName: varchar("full_name", { length: 200 }).notNull(),
+      googleEmail: varchar("google_email", { length: 255 }).notNull(),
+      phone: varchar("phone", { length: 20 }).notNull(),
+      subjectSpecialty: varchar("subject_specialty", { length: 100 }).notNull(),
+      qualification: varchar("qualification", { length: 200 }).notNull(),
+      experienceYears: integer("experience_years").notNull(),
+      bio: text("bio").notNull(),
+      resumeUrl: text("resume_url"),
+      status: applicationStatusEnum("status").default("pending"),
+      reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+      reviewedAt: timestamp("reviewed_at"),
+      rejectionReason: text("rejection_reason"),
+      dateApplied: timestamp("date_applied").defaultNow(),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      teacherApplicationsStatusIdx: index("teacher_applications_status_idx").on(table.status),
+      teacherApplicationsEmailIdx: index("teacher_applications_email_idx").on(table.googleEmail),
+      teacherApplicationsVacancyIdx: index("teacher_applications_vacancy_idx").on(table.vacancyId)
+    }));
+    approvedTeachers = pgTable("approved_teachers", {
+      id: uuid("id").defaultRandom().primaryKey(),
+      applicationId: uuid("application_id").references(() => teacherApplications.id, { onDelete: "set null" }),
+      googleEmail: varchar("google_email", { length: 255 }).notNull().unique(),
+      fullName: varchar("full_name", { length: 200 }).notNull(),
+      subjectSpecialty: varchar("subject_specialty", { length: 100 }),
+      approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
+      dateApproved: timestamp("date_approved").defaultNow(),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail)
+    }));
+    insertVacancySchema = createInsertSchema(vacancies).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    insertTeacherApplicationSchema = createInsertSchema(teacherApplications).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      dateApplied: true,
+      reviewedAt: true,
+      reviewedBy: true,
+      status: true
+    });
+    insertApprovedTeacherSchema = createInsertSchema(approvedTeachers).omit({
+      id: true,
+      createdAt: true,
+      dateApproved: true
+    });
+  }
+});
+
+// server/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  DatabaseStorage: () => DatabaseStorage,
+  db: () => exportDb,
+  storage: () => storage
+});
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
+function initializeDatabase() {
+  if (!pg && process.env.DATABASE_URL) {
+    console.log("\u{1F517} CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ":***@"));
+    const connectionConfig = {
+      ssl: { rejectUnauthorized: false },
+      // Supabase handles SSL certificates properly
+      prepare: false,
+      // Required for Supabase transaction pooler
+      // Optimized connection pool settings
+      max: 20,
+      // Maximum connections in pool (increased from default 10)
+      idle_timeout: 300,
+      // Close idle connections after 5 minutes
+      connect_timeout: 30,
+      // Connection timeout: 30 seconds
+      max_lifetime: 3600,
+      // Maximum connection lifetime: 1 hour
+      // Enhanced logging for debugging (development only)
+      debug: process.env.NODE_ENV === "development" ? (connection, query, params) => {
+        const queryString = typeof query === "string" ? query : query?.text || String(query);
+        if (queryString?.includes("ERROR") || queryString?.includes("TIMEOUT")) {
+          console.warn(`\u{1F50D} Database Debug - Query: ${queryString.slice(0, 100)}...`);
+        }
+      } : false,
+      // Connection health checks
+      onnotice: (notice) => {
+        if (notice.severity === "WARNING" || notice.severity === "ERROR") {
+          console.warn(`\u{1F4CA} Database Notice [${notice.severity}]: ${notice.message}`);
+        }
+      },
+      // Connection parameter logging
+      onparameter: (key, value) => {
+        if (key === "server_version") {
+          console.log(`\u{1F5C4}\uFE0F Connected to PostgreSQL version: ${value}`);
+        } else if (key === "application_name") {
+          console.log(`\u{1F4F1} Application name set: ${value}`);
+        }
+      },
+      // Connection lifecycle events
+      onconnect: async (connection) => {
+        try {
+          await connection.query("SET application_name = $1", ["treasure_home_school"]);
+          await connection.query("SET statement_timeout = $1", ["60s"]);
+          await connection.query("SET lock_timeout = $1", ["30s"]);
+        } catch (error) {
+          console.warn("\u26A0\uFE0F Failed to set connection parameters:", error);
+        }
+      }
+    };
+    pg = postgres(process.env.DATABASE_URL, connectionConfig);
+    db = drizzle(pg, { schema: schema_exports });
+    console.log("\u2705 POSTGRESQL DATABASE CONNECTION ESTABLISHED");
+    console.log(`\u{1F4CA} Connection Pool: max=${connectionConfig.max}, idle_timeout=${connectionConfig.idle_timeout}s`);
+  } else if (!process.env.DATABASE_URL) {
+    console.log("\u26A0\uFE0F  WARNING: DATABASE_URL not set - falling back to memory storage");
+  }
+  return { pg, db };
+}
+function normalizeUuid(raw) {
+  if (!raw) return void 0;
+  if (typeof raw === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
+    return raw;
+  }
+  let bytes;
+  if (typeof raw === "string" && raw.includes(",")) {
+    const parts = raw.split(",").map((s) => parseInt(s.trim()));
+    if (parts.length === 16 && parts.every((n) => n >= 0 && n <= 255)) {
+      bytes = parts;
+    }
+  }
+  if (Array.isArray(raw) && raw.length === 16) {
+    bytes = raw;
+  } else if (raw instanceof Uint8Array && raw.length === 16) {
+    bytes = Array.from(raw);
+  }
+  if (bytes) {
+    const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+  console.warn("Failed to normalize UUID:", raw);
+  return void 0;
+}
+function initializeStorageSync() {
+  if (!process.env.DATABASE_URL) {
+    console.error("\u{1F6A8} CRITICAL: DATABASE_URL environment variable is required");
+    console.error("\u{1F6A8} This application ONLY stores data in Supabase database");
+    console.error("\u{1F6A8} Please ensure your Supabase DATABASE_URL is properly configured");
+    process.exit(1);
+  }
+  try {
+    const dbStorage = new DatabaseStorage();
+    console.log("\u2705 STORAGE: Using SUPABASE PostgreSQL Database - ALL DATA STORED IN SUPABASE");
+    return dbStorage;
+  } catch (error) {
+    console.error("\u{1F6A8} CRITICAL: Failed to connect to Supabase database");
+    console.error("\u{1F6A8} All data MUST be stored in Supabase database as requested");
+    console.error("\u{1F6A8} Database connection error:", error instanceof Error ? error.message : "Unknown error");
+    console.error("\u{1F6A8} Application cannot continue without Supabase database connection");
+    process.exit(1);
+  }
+}
+var pg, db, exportDb, DatabaseStorage, storage;
+var init_storage = __esm({
+  "server/storage.ts"() {
+    "use strict";
+    init_schema();
+    ({ db: exportDb } = initializeDatabase());
+    DatabaseStorage = class {
+      db;
+      constructor() {
+        const { db: db2 } = initializeDatabase();
+        this.db = db2;
+        if (!this.db) {
+          throw new Error("Database not available - DATABASE_URL not set or invalid");
+        }
+      }
+      // User management
+      async getUser(id) {
+        const result = await this.db.select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          recoveryEmail: users.recoveryEmail,
+          passwordHash: users.passwordHash,
+          roleId: users.roleId,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          phone: users.phone,
+          address: users.address,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          nationalId: users.nationalId,
+          profileImageUrl: users.profileImageUrl,
+          isActive: users.isActive,
+          authProvider: users.authProvider,
+          googleId: users.googleId,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        }).from(users).where(eq2(users.id, id)).limit(1);
+        const user = result[0];
+        if (user && user.id) {
+          const normalizedId = normalizeUuid(user.id);
+          if (normalizedId) {
+            user.id = normalizedId;
+          }
+        }
+        return user;
+      }
+      async getUserByEmail(email) {
+        const result = await this.db.select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          recoveryEmail: users.recoveryEmail,
+          passwordHash: users.passwordHash,
+          roleId: users.roleId,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          phone: users.phone,
+          address: users.address,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          nationalId: users.nationalId,
+          profileImageUrl: users.profileImageUrl,
+          isActive: users.isActive,
+          authProvider: users.authProvider,
+          googleId: users.googleId,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        }).from(users).where(eq2(users.email, email)).limit(1);
+        const user = result[0];
+        if (user && user.id) {
+          const normalizedId = normalizeUuid(user.id);
+          if (normalizedId) {
+            user.id = normalizedId;
+          }
+        }
+        return user;
+      }
+      async getUserByUsername(username) {
+        const result = await this.db.select().from(users).where(eq2(users.username, username)).limit(1);
+        const user = result[0];
+        if (user && user.id) {
+          const normalizedId = normalizeUuid(user.id);
+          if (normalizedId) {
+            user.id = normalizedId;
+          }
+        }
+        return user;
+      }
+      async getUserByGoogleId(googleId) {
+        const result = await this.db.select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          recoveryEmail: users.recoveryEmail,
+          passwordHash: users.passwordHash,
+          roleId: users.roleId,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          phone: users.phone,
+          address: users.address,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          nationalId: users.nationalId,
+          profileImageUrl: users.profileImageUrl,
+          isActive: users.isActive,
+          authProvider: users.authProvider,
+          googleId: users.googleId,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        }).from(users).where(eq2(users.googleId, googleId)).limit(1);
+        const user = result[0];
+        if (user && user.id) {
+          const normalizedId = normalizeUuid(user.id);
+          if (normalizedId) {
+            user.id = normalizedId;
+          }
+        }
+        return user;
+      }
+      async createPasswordResetToken(userId, token, expiresAt, ipAddress, resetBy) {
+        const result = await this.db.insert(passwordResetTokens).values({
+          userId,
+          token,
+          expiresAt,
+          ipAddress,
+          resetBy
+        }).returning();
+        return result[0];
+      }
+      async getPasswordResetToken(token) {
+        const result = await this.db.select().from(passwordResetTokens).where(and(
+          eq2(passwordResetTokens.token, token),
+          dsql`${passwordResetTokens.expiresAt} > NOW()`,
+          dsql`${passwordResetTokens.usedAt} IS NULL`
+        )).limit(1);
+        return result[0];
+      }
+      async markPasswordResetTokenAsUsed(token) {
+        const result = await this.db.update(passwordResetTokens).set({ usedAt: dsql`NOW()` }).where(eq2(passwordResetTokens.token, token)).returning();
+        return result.length > 0;
+      }
+      async deleteExpiredPasswordResetTokens() {
+        await this.db.delete(passwordResetTokens).where(dsql`${passwordResetTokens.expiresAt} < NOW()`);
+        return true;
+      }
+      async createUser(user) {
+        const result = await this.db.insert(users).values(user).returning();
+        const createdUser = result[0];
+        if (createdUser && createdUser.id) {
+          const normalizedId = normalizeUuid(createdUser.id);
+          if (normalizedId) {
+            createdUser.id = normalizedId;
+          }
+        }
+        return createdUser;
+      }
+      async updateUser(id, user) {
+        try {
+          const result = await this.db.update(users).set(user).where(eq2(users.id, id)).returning();
+          const updatedUser = result[0];
+          if (updatedUser && updatedUser.id) {
+            const normalizedId = normalizeUuid(updatedUser.id);
+            if (normalizedId) {
+              updatedUser.id = normalizedId;
+            }
+          }
+          return updatedUser;
+        } catch (error) {
+          if (error?.cause?.code === "42703") {
+            const missingColumn = error?.cause?.message?.match(/column "(\w+)" does not exist/)?.[1];
+            console.warn(`\u26A0\uFE0F Column "${missingColumn}" does not exist, retrying without it`);
+            const { [missingColumn]: removed, ...safeUser } = user;
+            if (Object.keys(safeUser).length > 0) {
+              const result = await this.db.update(users).set(safeUser).where(eq2(users.id, id)).returning();
+              const updatedUser = result[0];
+              if (updatedUser && updatedUser.id) {
+                const normalizedId = normalizeUuid(updatedUser.id);
+                if (normalizedId) {
+                  updatedUser.id = normalizedId;
+                }
+              }
+              return updatedUser;
+            }
+          }
+          throw error;
+        }
+      }
+      async updateUserGoogleId(userId, googleId) {
+        return await this.updateUser(userId, { googleId });
+      }
+      async deleteUser(id) {
+        try {
+          console.log(`\u{1F5D1}\uFE0F Starting cascade delete for user ${id}...`);
+          await this.db.delete(teacherProfiles).where(eq2(teacherProfiles.userId, id));
+          console.log(`\u2705 Deleted teacher profile for user ${id}`);
+          await this.db.delete(adminProfiles).where(eq2(adminProfiles.userId, id));
+          console.log(`\u2705 Deleted admin profile for user ${id}`);
+          await this.db.delete(parentProfiles).where(eq2(parentProfiles.userId, id));
+          console.log(`\u2705 Deleted parent profile for user ${id}`);
+          await this.db.delete(passwordResetTokens).where(eq2(passwordResetTokens.userId, id));
+          console.log(`\u2705 Deleted password reset tokens for user ${id}`);
+          await this.db.delete(invites).where(eq2(invites.acceptedBy, id));
+          console.log(`\u2705 Deleted invites for user ${id}`);
+          await this.db.delete(notifications).where(eq2(notifications.userId, id));
+          console.log(`\u2705 Deleted notifications for user ${id}`);
+          try {
+            if (teacherClassAssignments) {
+              await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.teacherId, id));
+              console.log(`\u2705 Deleted teacher assignments for user ${id}`);
+            }
+          } catch (assignmentError) {
+            if (assignmentError?.cause?.code === "42P01") {
+              console.log(`\u26A0\uFE0F Skipped teacher_class_assignments (table doesn't exist)`);
+            } else {
+              throw assignmentError;
+            }
+          }
+          const examSessions2 = await this.db.select({ id: examSessions.id }).from(examSessions).where(eq2(examSessions.studentId, id));
+          const sessionIds = examSessions2.map((s) => s.id);
+          if (sessionIds.length > 0) {
+            await this.db.delete(studentAnswers).where(inArray(studentAnswers.sessionId, sessionIds));
+            console.log(`\u2705 Deleted student answers for user ${id}`);
+            await this.db.delete(examSessions).where(inArray(examSessions.id, sessionIds));
+            console.log(`\u2705 Deleted exam sessions for user ${id}`);
+          }
+          await this.db.delete(examResults).where(eq2(examResults.studentId, id));
+          console.log(`\u2705 Deleted exam results for user ${id}`);
+          await this.db.delete(attendance).where(eq2(attendance.studentId, id));
+          console.log(`\u2705 Deleted attendance records for user ${id}`);
+          await this.db.update(students).set({ parentId: null }).where(eq2(students.parentId, id));
+          console.log(`\u2705 Unlinked parent relationship for user ${id}`);
+          await this.db.delete(students).where(eq2(students.id, id));
+          console.log(`\u2705 Deleted student record for user ${id}`);
+          const result = await this.db.delete(users).where(eq2(users.id, id)).returning();
+          console.log(`\u2705 Successfully deleted user ${id} and all related records`);
+          return result.length > 0;
+        } catch (error) {
+          console.error(`\u274C Error deleting user ${id}:`, error);
+          throw error;
+        }
+      }
+      async getUsersByRole(roleId) {
+        const result = await this.db.select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          passwordHash: users.passwordHash,
+          roleId: users.roleId,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          phone: users.phone,
+          address: users.address,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          profileImageUrl: users.profileImageUrl,
+          isActive: users.isActive,
+          authProvider: users.authProvider,
+          googleId: users.googleId,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        }).from(users).where(eq2(users.roleId, roleId));
+        return result.map((user) => {
+          if (user && user.id) {
+            const normalizedId = normalizeUuid(user.id);
+            if (normalizedId) {
+              user.id = normalizedId;
+            }
+          }
+          return user;
+        });
+      }
+      async getUsersByStatus(status) {
+        const result = await this.db.select().from(users).where(sql2`${users.status} = ${status}`);
+        return result.map((user) => {
+          if (user && user.id) {
+            const normalizedId = normalizeUuid(user.id);
+            if (normalizedId) {
+              user.id = normalizedId;
+            }
+          }
+          return user;
+        });
+      }
+      async getAllUsers() {
+        const result = await this.db.select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          passwordHash: users.passwordHash,
+          roleId: users.roleId,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          phone: users.phone,
+          address: users.address,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          profileImageUrl: users.profileImageUrl,
+          isActive: users.isActive,
+          authProvider: users.authProvider,
+          googleId: users.googleId,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        }).from(users);
+        return result.map((user) => {
+          if (user && user.id) {
+            const normalizedId = normalizeUuid(user.id);
+            if (normalizedId) {
+              user.id = normalizedId;
+            }
+          }
+          return user;
+        });
+      }
+      async approveUser(userId, approvedBy) {
+        const result = await this.db.update(users).set({
+          status: "active",
+          approvedBy,
+          approvedAt: /* @__PURE__ */ new Date()
+        }).where(eq2(users.id, userId)).returning();
+        const user = result[0];
+        if (user && user.id) {
+          const normalizedId = normalizeUuid(user.id);
+          if (normalizedId) {
+            user.id = normalizedId;
+          }
+        }
+        return user;
+      }
+      async updateUserStatus(userId, status, updatedBy, reason) {
+        console.log(`\u{1F504} UPDATE USER STATUS CALLED: User ID: ${userId}, New Status: ${status}, Updated By: ${updatedBy}`);
+        const updates = { status };
+        if (status === "active") {
+          updates.approvedBy = updatedBy;
+          updates.approvedAt = /* @__PURE__ */ new Date();
+        }
+        console.log(`\u{1F504} UPDATE USER STATUS: About to update with:`, updates);
+        const result = await this.db.update(users).set(updates).where(eq2(users.id, userId)).returning();
+        console.log(`\u{1F504} UPDATE USER STATUS RESULT: Updated ${result.length} user record(s)`, result[0]);
+        const user = result[0];
+        if (user && user.id) {
+          const normalizedId = normalizeUuid(user.id);
+          if (normalizedId) {
+            user.id = normalizedId;
+          }
+        }
+        return user;
+      }
+      // Role management
+      async getRoles() {
+        return await this.db.select().from(roles);
+      }
+      async getRoleByName(name) {
+        const result = await this.db.select().from(roles).where(eq2(roles.name, name)).limit(1);
+        return result[0];
+      }
+      async getRole(roleId) {
+        const result = await this.db.select().from(roles).where(eq2(roles.id, roleId)).limit(1);
+        return result[0];
+      }
+      // Invite management
+      async createInvite(invite) {
+        const result = await this.db.insert(invites).values(invite).returning();
+        return result[0];
+      }
+      async getInviteByToken(token) {
+        const result = await this.db.select().from(invites).where(and(
+          eq2(invites.token, token),
+          isNull(invites.acceptedAt),
+          dsql`${invites.expiresAt} > NOW()`
+        )).limit(1);
+        return result[0];
+      }
+      async getPendingInviteByEmail(email) {
+        const result = await this.db.select().from(invites).where(and(
+          eq2(invites.email, email),
+          isNull(invites.acceptedAt)
+        )).limit(1);
+        return result[0];
+      }
+      async getAllInvites() {
+        return await this.db.select().from(invites).orderBy(desc(invites.createdAt));
+      }
+      async getPendingInvites() {
+        return await this.db.select().from(invites).where(isNull(invites.acceptedAt)).orderBy(desc(invites.createdAt));
+      }
+      async markInviteAsAccepted(inviteId, acceptedBy) {
+        await this.db.update(invites).set({ acceptedAt: /* @__PURE__ */ new Date(), acceptedBy }).where(eq2(invites.id, inviteId));
+      }
+      async deleteInvite(inviteId) {
+        const result = await this.db.delete(invites).where(eq2(invites.id, inviteId)).returning();
+        return result.length > 0;
+      }
+      async deleteExpiredInvites() {
+        const result = await this.db.delete(invites).where(and(
+          dsql`${invites.expiresAt} < NOW()`,
+          isNull(invites.acceptedAt)
+        )).returning();
+        return result.length > 0;
+      }
+      // Profile management
+      async updateUserProfile(userId, profileData) {
+        const result = await this.db.update(users).set({ ...profileData, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, userId)).returning();
+        return result[0];
+      }
+      async getTeacherProfile(userId) {
+        const [profile] = await db.select().from(teacherProfiles).where(eq2(teacherProfiles.userId, userId));
+        return profile || null;
+      }
+      async updateTeacherProfile(userId, profile) {
+        const result = await this.db.update(teacherProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(teacherProfiles.userId, userId)).returning();
+        return result[0];
+      }
+      async getTeacherProfileByStaffId(staffId) {
+        const [profile] = await db.select().from(teacherProfiles).where(eq2(teacherProfiles.staffId, staffId));
+        return profile || null;
+      }
+      async getAllTeacherProfiles() {
+        const profiles = await db.select().from(teacherProfiles);
+        return profiles;
+      }
+      async createTeacherProfile(profile) {
+        const result = await this.db.insert(teacherProfiles).values(profile).returning();
+        return result[0];
+      }
+      async getAdminProfile(userId) {
+        const result = await this.db.select().from(adminProfiles).where(eq2(adminProfiles.userId, userId)).limit(1);
+        return result[0];
+      }
+      async createAdminProfile(profile) {
+        const result = await this.db.insert(adminProfiles).values(profile).returning();
+        return result[0];
+      }
+      async updateAdminProfile(userId, profile) {
+        const result = await this.db.update(adminProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(adminProfiles.userId, userId)).returning();
+        return result[0];
+      }
+      async getParentProfile(userId) {
+        const result = await this.db.select().from(parentProfiles).where(eq2(parentProfiles.userId, userId)).limit(1);
+        return result[0];
+      }
+      async createParentProfile(profile) {
+        const result = await this.db.insert(parentProfiles).values(profile).returning();
+        return result[0];
+      }
+      async updateParentProfile(userId, profile) {
+        const result = await this.db.update(parentProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(parentProfiles.userId, userId)).returning();
+        return result[0];
+      }
+      async calculateProfileCompletion(userId, roleId) {
+        const user = await this.getUser(userId);
+        if (!user) return 0;
+        const requiredFields = [
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "address",
+          "dateOfBirth",
+          "gender",
+          "profileImageUrl",
+          "state",
+          "country",
+          "securityQuestion",
+          "securityAnswerHash",
+          "dataPolicyAgreed"
+        ];
+        let completedFields = 0;
+        requiredFields.forEach((field) => {
+          if (user[field]) {
+            completedFields++;
+          }
+        });
+        if (roleId === 1) {
+          const adminProfile = await this.getAdminProfile(userId);
+          if (adminProfile?.department) completedFields++;
+          if (adminProfile?.roleDescription) completedFields++;
+          if (adminProfile?.accessLevel) completedFields++;
+        } else if (roleId === 2) {
+          const teacherProfile = await this.getTeacherProfile(userId);
+          if (teacherProfile?.subjects && teacherProfile.subjects.length > 0) completedFields++;
+          if (teacherProfile?.assignedClasses && teacherProfile.assignedClasses.length > 0) completedFields++;
+          if (teacherProfile?.qualification) completedFields++;
+          if (teacherProfile?.yearsOfExperience) completedFields++;
+        } else if (roleId === 3) {
+          const student = await this.getStudent(userId);
+          if (student?.classId) completedFields++;
+          if (student?.guardianName) completedFields++;
+          if (student?.emergencyContact) completedFields++;
+        } else if (roleId === 4) {
+          const parentProfile = await this.getParentProfile(userId);
+          if (parentProfile?.occupation) completedFields++;
+          if (parentProfile?.contactPreference) completedFields++;
+          if (parentProfile?.linkedStudents && parentProfile.linkedStudents.length > 0) completedFields++;
+        }
+        const totalFields = requiredFields.length + 3;
+        return Math.round(completedFields / totalFields * 100);
+      }
+      // Student management
+      async getStudent(id) {
+        const result = await this.db.select().from(students).where(eq2(students.id, id)).limit(1);
+        const student = result[0];
+        if (student && student.id) {
+          const normalizedId = normalizeUuid(student.id);
+          if (normalizedId) {
+            student.id = normalizedId;
+          }
+        }
+        return student;
+      }
+      async getAllUsernames() {
+        const result = await this.db.select({ username: users.username }).from(users).where(sql2`${users.username} IS NOT NULL`);
+        return result.map((r) => r.username).filter((u) => u !== null);
+      }
+      async createStudent(student) {
+        const result = await db.insert(students).values(student).returning();
+        return result[0];
+      }
+      async updateStudent(id, updates) {
+        return await this.db.transaction(async (tx) => {
+          let updatedUser;
+          let updatedStudent;
+          if (updates.userPatch && Object.keys(updates.userPatch).length > 0) {
+            const userResult = await tx.update(users).set(updates.userPatch).where(eq2(users.id, id)).returning();
+            updatedUser = userResult[0];
+          } else {
+            const userResult = await tx.select().from(users).where(eq2(users.id, id)).limit(1);
+            updatedUser = userResult[0];
+          }
+          if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
+            const studentResult = await tx.update(students).set(updates.studentPatch).where(eq2(students.id, id)).returning();
+            updatedStudent = studentResult[0];
+          } else {
+            const studentResult = await tx.select().from(students).where(eq2(students.id, id)).limit(1);
+            updatedStudent = studentResult[0];
+          }
+          if (updatedUser && updatedStudent) {
+            return { user: updatedUser, student: updatedStudent };
+          }
+          return void 0;
+        });
+      }
+      async setUserActive(id, isActive) {
+        const result = await this.db.update(users).set({ isActive }).where(eq2(users.id, id)).returning();
+        return result[0];
+      }
+      async deleteStudent(id) {
+        const result = await this.db.update(users).set({ isActive: false }).where(eq2(users.id, id)).returning();
+        return result.length > 0;
+      }
+      async hardDeleteStudent(id) {
+        return await this.db.transaction(async (tx) => {
+          try {
+            const examSessions2 = await tx.select({ id: examSessions.id }).from(examSessions).where(eq2(examSessions.studentId, id));
+            const sessionIds = examSessions2.map((session2) => session2.id);
+            if (sessionIds.length > 0) {
+              await tx.delete(studentAnswers).where(inArray(studentAnswers.sessionId, sessionIds));
+            }
+            await tx.delete(examSessions).where(eq2(examSessions.studentId, id));
+            await tx.delete(examResults).where(eq2(examResults.studentId, id));
+            await tx.delete(attendance).where(eq2(attendance.studentId, id));
+            await tx.delete(students).where(eq2(students.id, id));
+            const userResult = await tx.delete(users).where(eq2(users.id, id)).returning();
+            return userResult.length > 0;
+          } catch (error) {
+            console.error("Error in hard delete transaction:", error);
+            throw error;
+          }
+        });
+      }
+      async getStudentsByClass(classId) {
+        return await db.select().from(students).where(eq2(students.classId, classId));
+      }
+      async getAllStudents(includeInactive = false) {
+        if (includeInactive) {
+          return await this.db.select().from(students).orderBy(asc(students.createdAt));
+        } else {
+          return await this.db.select({
+            id: students.id,
+            admissionNumber: students.admissionNumber,
+            classId: students.classId,
+            parentId: students.parentId,
+            admissionDate: students.admissionDate,
+            emergencyContact: students.emergencyContact,
+            medicalInfo: students.medicalInfo,
+            createdAt: students.createdAt
+          }).from(students).innerJoin(users, eq2(students.id, users.id)).where(eq2(users.isActive, true)).orderBy(asc(students.createdAt));
+        }
+      }
+      async getStudentByAdmissionNumber(admissionNumber) {
+        const result = await db.select().from(students).where(eq2(students.admissionNumber, admissionNumber)).limit(1);
+        return result[0];
+      }
+      // Class management
+      async getClasses() {
+        return await db.select().from(classes).where(eq2(classes.isActive, true)).orderBy(asc(classes.name));
+      }
+      async getClass(id) {
+        const result = await db.select().from(classes).where(eq2(classes.id, id)).limit(1);
+        return result[0];
+      }
+      async createClass(classData) {
+        const result = await db.insert(classes).values(classData).returning();
+        return result[0];
+      }
+      async updateClass(id, classData) {
+        const result = await db.update(classes).set(classData).where(eq2(classes.id, id)).returning();
+        return result[0];
+      }
+      async deleteClass(id) {
+        const result = await db.delete(classes).where(eq2(classes.id, id));
+        return result.length > 0;
+      }
+      // Subject management
+      async getSubjects() {
+        return await db.select().from(subjects).orderBy(asc(subjects.name));
+      }
+      async getSubject(id) {
+        const result = await db.select().from(subjects).where(eq2(subjects.id, id)).limit(1);
+        return result[0];
+      }
+      async createSubject(subject) {
+        const result = await db.insert(subjects).values(subject).returning();
+        return result[0];
+      }
+      async updateSubject(id, subject) {
+        const result = await db.update(subjects).set(subject).where(eq2(subjects.id, id)).returning();
+        return result[0];
+      }
+      async deleteSubject(id) {
+        const result = await db.delete(subjects).where(eq2(subjects.id, id));
+        return result.length > 0;
+      }
+      // Academic terms
+      async getCurrentTerm() {
+        const result = await db.select().from(academicTerms).where(eq2(academicTerms.isCurrent, true)).limit(1);
+        return result[0];
+      }
+      async getTerms() {
+        return await db.select().from(academicTerms).orderBy(desc(academicTerms.startDate));
+      }
+      async getAcademicTerms() {
+        try {
+          const terms = await db.select().from(academicTerms).orderBy(desc(academicTerms.startDate));
+          console.log(`\u{1F4C5} Retrieved ${terms.length} academic terms from database`);
+          return terms;
+        } catch (error) {
+          console.error("\u274C Error fetching academic terms:", error);
+          throw error;
+        }
+      }
+      async getAcademicTerm(id) {
+        try {
+          const result = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error(`\u274C Error fetching academic term ${id}:`, error);
+          throw error;
+        }
+      }
+      async createAcademicTerm(term) {
+        try {
+          const result = await db.insert(academicTerms).values(term).returning();
+          console.log(`\u2705 Created academic term: ${result[0].name} (${result[0].year})`);
+          return result[0];
+        } catch (error) {
+          console.error("\u274C Error creating academic term:", error);
+          throw error;
+        }
+      }
+      async updateAcademicTerm(id, term) {
+        try {
+          const result = await db.update(academicTerms).set(term).where(eq2(academicTerms.id, id)).returning();
+          if (result[0]) {
+            console.log(`\u2705 Updated academic term: ${result[0].name} (${result[0].year})`);
+          }
+          return result[0];
+        } catch (error) {
+          console.error(`\u274C Error updating academic term ${id}:`, error);
+          throw error;
+        }
+      }
+      async deleteAcademicTerm(id) {
+        try {
+          console.log(`\u{1F5D1}\uFE0F Attempting to delete academic term ${id}...`);
+          const existingTerm = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
+          if (!existingTerm || existingTerm.length === 0) {
+            console.error(`\u274C Term ${id} not found in database`);
+            return false;
+          }
+          console.log(`\u{1F4CB} Found term to delete: ${existingTerm[0].name} (${existingTerm[0].year})`);
+          const examsUsingTerm = await db.select({ id: exams.id }).from(exams).where(eq2(exams.termId, id));
+          if (examsUsingTerm && examsUsingTerm.length > 0) {
+            console.error(`\u274C Cannot delete term ${id}: ${examsUsingTerm.length} exams are linked to it`);
+            throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
+          }
+          const result = await db.delete(academicTerms).where(eq2(academicTerms.id, id)).returning();
+          const success = result && result.length > 0;
+          if (success) {
+            console.log(`\u2705 Successfully deleted academic term ${id}: ${result[0].name} (${result[0].year})`);
+          } else {
+            console.error(`\u274C Delete operation failed for term ${id} - no rows affected`);
+          }
+          return success;
+        } catch (error) {
+          console.error(`\u274C Error deleting academic term ${id}:`, error);
+          if (error?.code === "23503") {
+            throw new Error("Cannot delete this term because it is being used by other records (exams, classes, etc.). Please remove those associations first.");
+          }
+          throw error;
+        }
+      }
+      async markTermAsCurrent(id) {
+        try {
+          await db.update(academicTerms).set({ isCurrent: false });
+          const result = await db.update(academicTerms).set({ isCurrent: true }).where(eq2(academicTerms.id, id)).returning();
+          if (result[0]) {
+            console.log(`\u2705 Marked term as current: ${result[0].name} (${result[0].year})`);
+          }
+          return result[0];
+        } catch (error) {
+          console.error(`\u274C Error marking term ${id} as current:`, error);
+          throw error;
+        }
+      }
+      // Helper method to check if a term is being used
+      async getExamsByTerm(termId) {
+        try {
+          const result = await db.select().from(exams).where(eq2(exams.termId, termId));
+          return result;
+        } catch (error) {
+          console.error(`\u274C Error fetching exams for term ${termId}:`, error);
+          return [];
+        }
+      }
+      // Attendance management
+      async recordAttendance(attendance2) {
+        const result = await db.insert(attendance).values(attendance2).returning();
+        return result[0];
+      }
+      async getAttendanceByStudent(studentId, date2) {
+        if (date2) {
+          return await db.select().from(attendance).where(and(eq2(attendance.studentId, studentId), eq2(attendance.date, date2)));
+        }
+        return await db.select().from(attendance).where(eq2(attendance.studentId, studentId)).orderBy(desc(attendance.date));
+      }
+      async getAttendanceByClass(classId, date2) {
+        return await db.select().from(attendance).where(and(eq2(attendance.classId, classId), eq2(attendance.date, date2)));
+      }
+      // Exam management
+      async createExam(exam) {
+        const result = await db.insert(exams).values(exam).returning();
+        return result[0];
+      }
+      async getAllExams() {
+        try {
+          const result = await db.select().from(exams).orderBy(desc(exams.date));
+          return result || [];
+        } catch (error) {
+          console.error("Error in getAllExams:", error);
+          return [];
+        }
+      }
+      async getExamById(id) {
+        const result = await db.select().from(exams).where(eq2(exams.id, id)).limit(1);
+        return result[0];
+      }
+      async getExamsByClass(classId) {
+        try {
+          const result = await db.select().from(exams).where(eq2(exams.classId, classId)).orderBy(desc(exams.date));
+          return result || [];
+        } catch (error) {
+          console.error("Error in getExamsByClass:", error);
+          return [];
+        }
+      }
+      async updateExam(id, exam) {
+        const result = await db.update(exams).set(exam).where(eq2(exams.id, id)).returning();
+        return result[0];
+      }
+      async deleteExam(id) {
+        try {
+          await db.delete(studentAnswers).where(sql2`${studentAnswers.questionId} IN (SELECT id FROM ${examQuestions} WHERE exam_id = ${id})`);
+          await db.delete(questionOptions).where(sql2`${questionOptions.questionId} IN (SELECT id FROM ${examQuestions} WHERE exam_id = ${id})`);
+          await db.delete(examQuestions).where(eq2(examQuestions.examId, id));
+          await db.delete(examResults).where(eq2(examResults.examId, id));
+          await db.delete(examSessions).where(eq2(examSessions.examId, id));
+          const result = await db.delete(exams).where(eq2(exams.id, id)).returning();
+          return result.length > 0;
+        } catch (error) {
+          console.error("Error in deleteExam:", error);
+          throw error;
+        }
+      }
+      async recordExamResult(result) {
+        try {
+          const examResult = await db.insert(examResults).values(result).returning();
+          return examResult[0];
+        } catch (error) {
+          if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
+            console.log("\u26A0\uFE0F Database schema mismatch detected - auto_scored column missing, using fallback insert");
+            const { autoScored, ...resultWithoutAutoScored } = result;
+            const compatibleResult = {
+              ...resultWithoutAutoScored,
+              marksObtained: result.score || 0
+            };
+            const examResult = await db.insert(examResults).values(compatibleResult).returning();
+            return {
+              ...examResult[0],
+              autoScored: result.recordedBy === "00000000-0000-0000-0000-000000000001",
+              score: examResult[0].marksObtained || 0
+            };
+          }
+          throw error;
+        }
+      }
+      async updateExamResult(id, result) {
+        try {
+          const updated = await db.update(examResults).set(result).where(eq2(examResults.id, id)).returning();
+          return updated[0];
+        } catch (error) {
+          if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
+            console.log("\u26A0\uFE0F Database schema mismatch detected - auto_scored column missing, using fallback update");
+            const { autoScored, ...resultWithoutAutoScored } = result;
+            const compatibleResult = {
+              ...resultWithoutAutoScored,
+              marksObtained: result.score || 0
+            };
+            const updated = await db.update(examResults).set(compatibleResult).where(eq2(examResults.id, id)).returning();
+            return {
+              ...updated[0],
+              autoScored: result.recordedBy === "00000000-0000-0000-0000-000000000001",
+              score: updated[0].marksObtained || 0
+            };
+          }
+          throw error;
+        }
+      }
+      async getExamResultsByStudent(studentId) {
+        try {
+          console.log(`\u{1F50D} Fetching exam results for student: ${studentId}`);
+          const SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
+          try {
+            const results = await this.db.select({
+              id: examResults.id,
+              examId: examResults.examId,
+              studentId: examResults.studentId,
+              score: examResults.marksObtained,
+              maxScore: exams.totalMarks,
+              marksObtained: examResults.marksObtained,
+              grade: examResults.grade,
+              remarks: examResults.remarks,
+              recordedBy: examResults.recordedBy,
+              createdAt: examResults.createdAt,
+              autoScored: sql2`COALESCE(${examResults.autoScored}, ${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
+            }).from(examResults).leftJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
+            console.log(`\u{1F4CA} Found ${results.length} exam results for student ${studentId}`);
+            return results;
+          } catch (mainError) {
+            console.warn("Main query failed, trying fallback:", mainError);
+            const fallbackResults = await this.db.select({
+              id: examResults.id,
+              examId: examResults.examId,
+              studentId: examResults.studentId,
+              marksObtained: examResults.marksObtained,
+              grade: examResults.grade,
+              remarks: examResults.remarks,
+              recordedBy: examResults.recordedBy,
+              createdAt: examResults.createdAt,
+              score: examResults.marksObtained,
+              maxScore: sql2`100`.as("maxScore"),
+              // Default to 100 if join fails
+              autoScored: sql2`(${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
+            }).from(examResults).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
+            for (const result of fallbackResults) {
+              try {
+                const exam = await this.db.select({ totalMarks: exams.totalMarks }).from(exams).where(eq2(exams.id, result.examId)).limit(1);
+                if (exam[0]?.totalMarks) {
+                  result.maxScore = exam[0].totalMarks;
+                }
+              } catch (examError) {
+                console.warn(`Failed to get exam details for examId ${result.examId}:`, examError);
+              }
+            }
+            console.log(`\u2705 Fallback query successful, found ${fallbackResults.length} results`);
+            return fallbackResults;
+          }
+        } catch (error) {
+          console.error(`\u274C Error fetching exam results for student ${studentId}:`, error);
+          return [];
+        }
+      }
+      async getExamResultsByExam(examId) {
+        try {
+          return await db.select().from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
+        } catch (error) {
+          if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
+            console.log("\u26A0\uFE0F Database schema mismatch detected, using fallback query with existing columns only");
+            try {
+              return await db.select({
+                id: examResults.id,
+                examId: examResults.examId,
+                studentId: examResults.studentId,
+                marksObtained: examResults.marksObtained,
+                // Use legacy field
+                grade: examResults.grade,
+                remarks: examResults.remarks,
+                recordedBy: examResults.recordedBy,
+                createdAt: examResults.createdAt,
+                // Map marksObtained to score for compatibility
+                score: examResults.marksObtained,
+                maxScore: dsql`null`.as("maxScore"),
+                // Since auto_scored column doesn't exist, determine from recordedBy
+                autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
+              }).from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
+            } catch (fallbackError) {
+              console.error("\u274C Fallback query also failed:", fallbackError);
+              return [];
+            }
+          }
+          throw error;
+        }
+      }
+      async getExamResultByExamAndStudent(examId, studentId) {
+        const result = await db.select().from(examResults).where(
+          sql2`${examResults.examId} = ${examId} AND ${examResults.studentId} = ${studentId}`
+        ).limit(1);
+        return result[0];
+      }
+      async getExamResultsByClass(classId) {
+        try {
+          const results = await db.select({
+            id: examResults.id,
+            examId: examResults.examId,
+            studentId: examResults.studentId,
+            score: examResults.score,
+            maxScore: examResults.maxScore,
+            marksObtained: examResults.marksObtained,
+            grade: examResults.grade,
+            remarks: examResults.remarks,
+            recordedBy: examResults.recordedBy,
+            autoScored: examResults.autoScored,
+            createdAt: examResults.createdAt,
+            examName: exams.name,
+            examType: exams.examType,
+            examDate: exams.date,
+            totalMarks: exams.totalMarks,
+            admissionNumber: students.admissionNumber,
+            studentName: sql2`${users.firstName} || ' ' || ${users.lastName}`.as("studentName"),
+            className: classes.name,
+            subjectName: subjects.name
+          }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).innerJoin(students, eq2(examResults.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).leftJoin(classes, eq2(exams.classId, classes.id)).leftJoin(subjects, eq2(exams.subjectId, subjects.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
+          return results;
+        } catch (error) {
+          console.error("Error in getExamResultsByClass:", error);
+          if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
+            console.log("\u26A0\uFE0F Database schema mismatch detected, using fallback query for getExamResultsByClass");
+            try {
+              const results = await db.select({
+                id: examResults.id,
+                examId: examResults.examId,
+                studentId: examResults.studentId,
+                marksObtained: examResults.marksObtained,
+                grade: examResults.grade,
+                remarks: examResults.remarks,
+                recordedBy: examResults.recordedBy,
+                createdAt: examResults.createdAt,
+                // Map marksObtained to score for compatibility
+                score: examResults.marksObtained,
+                maxScore: dsql`null`.as("maxScore"),
+                // Infer autoScored based on recordedBy
+                autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
+              }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
+              return results;
+            } catch (fallbackError) {
+              console.error("\u274C Fallback query also failed for getExamResultsByClass:", fallbackError);
+              return [];
+            }
+          }
+          throw error;
+        }
+      }
+      // Exam questions management
+      async createExamQuestion(question) {
+        const questionData = {
+          examId: question.examId,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          points: question.points,
+          orderNumber: question.orderNumber,
+          imageUrl: question.imageUrl,
+          autoGradable: question.autoGradable ?? true,
+          expectedAnswers: question.expectedAnswers,
+          caseSensitive: question.caseSensitive ?? false,
+          allowPartialCredit: question.allowPartialCredit ?? false,
+          partialCreditRules: question.partialCreditRules,
+          explanationText: question.explanationText,
+          hintText: question.hintText
+        };
+        const result = await db.insert(examQuestions).values(questionData).returning();
+        return result[0];
+      }
+      async createExamQuestionWithOptions(question, options) {
+        return await db.transaction(async (tx) => {
+          try {
+            const questionData = {
+              examId: question.examId,
+              questionText: question.questionText,
+              questionType: question.questionType,
+              points: question.points,
+              orderNumber: question.orderNumber,
+              imageUrl: question.imageUrl,
+              autoGradable: question.autoGradable ?? true,
+              expectedAnswers: question.expectedAnswers,
+              caseSensitive: question.caseSensitive ?? false,
+              allowPartialCredit: question.allowPartialCredit ?? false,
+              partialCreditRules: question.partialCreditRules,
+              explanationText: question.explanationText,
+              hintText: question.hintText
+            };
+            const questionResult = await tx.insert(examQuestions).values(questionData).returning();
+            const createdQuestion = questionResult[0];
+            if (Array.isArray(options) && options.length > 0) {
+              const optionsToInsert = options.map((option, index2) => ({
+                questionId: createdQuestion.id,
+                optionText: option.optionText,
+                orderNumber: index2 + 1,
+                isCorrect: option.isCorrect
+              }));
+              const BATCH_SIZE = 5;
+              for (let i = 0; i < optionsToInsert.length; i += BATCH_SIZE) {
+                const batch = optionsToInsert.slice(i, i + BATCH_SIZE);
+                for (const optionData of batch) {
+                  await tx.insert(questionOptions).values(optionData);
+                }
+              }
+            }
+            return createdQuestion;
+          } catch (error) {
+            console.error("\u274C Failed to create exam question with options:", error);
+            throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
+        });
+      }
+      async createExamQuestionsBulk(questionsData) {
+        const createdQuestions = [];
+        const errors = [];
+        console.log(`\u{1F504} Starting SEQUENTIAL bulk creation of ${questionsData.length} questions`);
+        for (let i = 0; i < questionsData.length; i++) {
+          const { question, options } = questionsData[i];
+          try {
+            console.log(`\u{1F4DD} Creating question ${i + 1}/${questionsData.length}: "${question.questionText.substring(0, 50)}..."`);
+            const createdQuestion = await this.createExamQuestionWithOptions(question, options);
+            createdQuestions.push(createdQuestion);
+            console.log(`\u2705 Successfully created question ${i + 1}`);
+            if (i < questionsData.length - 1) {
+              await new Promise((resolve) => setTimeout(resolve, 150));
+            }
+          } catch (error) {
+            const errorMsg = `Question ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`;
+            console.error(`\u274C Failed to create question ${i + 1}:`, errorMsg);
+            errors.push(errorMsg);
+            if (error instanceof Error && (error.message.includes("circuit") || error.message.includes("breaker") || error.message.includes("pool") || error.message.includes("connection"))) {
+              console.warn(`\u26A0\uFE0F Detected potential circuit breaker issue. Implementing backoff...`);
+              await new Promise((resolve) => setTimeout(resolve, 1e3));
+            } else {
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+          }
+        }
+        console.log(`\u2705 SEQUENTIAL bulk creation completed: ${createdQuestions.length} created, ${errors.length} errors`);
+        return {
+          created: createdQuestions.length,
+          questions: createdQuestions,
+          errors
+        };
+      }
+      async getExamQuestions(examId) {
+        return await db.select({
+          id: examQuestions.id,
+          examId: examQuestions.examId,
+          questionText: examQuestions.questionText,
+          questionType: examQuestions.questionType,
+          points: examQuestions.points,
+          orderNumber: examQuestions.orderNumber,
+          imageUrl: examQuestions.imageUrl,
+          createdAt: examQuestions.createdAt
+        }).from(examQuestions).where(eq2(examQuestions.examId, examId)).orderBy(asc(examQuestions.orderNumber));
+      }
+      async getExamQuestionById(id) {
+        const result = await db.select({
+          id: examQuestions.id,
+          examId: examQuestions.examId,
+          questionText: examQuestions.questionText,
+          questionType: examQuestions.questionType,
+          points: examQuestions.points,
+          orderNumber: examQuestions.orderNumber,
+          imageUrl: examQuestions.imageUrl,
+          createdAt: examQuestions.createdAt
+        }).from(examQuestions).where(eq2(examQuestions.id, id)).limit(1);
+        return result[0];
+      }
+      async getExamQuestionCount(examId) {
+        const result = await db.select({ count: dsql`count(*)` }).from(examQuestions).where(eq2(examQuestions.examId, examId));
+        return Number(result[0]?.count || 0);
+      }
+      // Get question counts for multiple exams
+      async getExamQuestionCounts(examIds) {
+        const counts = {};
+        for (const examId of examIds) {
+          try {
+            const count = await this.getExamQuestionCount(examId);
+            counts[examId] = count;
+          } catch (error) {
+            console.warn(`Failed to get question count for exam ${examId}:`, error);
+            counts[examId] = 0;
+          }
+        }
+        return counts;
+      }
+      async updateExamQuestion(id, question) {
+        const result = await db.update(examQuestions).set(question).where(eq2(examQuestions.id, id)).returning();
+        return result[0];
+      }
+      async deleteExamQuestion(id) {
+        try {
+          await db.delete(questionOptions).where(eq2(questionOptions.questionId, id));
+          await db.delete(studentAnswers).where(eq2(studentAnswers.questionId, id));
+          const result = await db.delete(examQuestions).where(eq2(examQuestions.id, id)).returning();
+          return result.length > 0;
+        } catch (error) {
+          console.error("Error in deleteExamQuestion:", error);
+          throw error;
+        }
+      }
+      // Question options management
+      async createQuestionOption(option) {
+        const result = await db.insert(questionOptions).values(option).returning();
+        return result[0];
+      }
+      async getQuestionOptions(questionId) {
+        return await db.select({
+          id: questionOptions.id,
+          questionId: questionOptions.questionId,
+          optionText: questionOptions.optionText,
+          isCorrect: questionOptions.isCorrect,
+          orderNumber: questionOptions.orderNumber,
+          createdAt: questionOptions.createdAt
+        }).from(questionOptions).where(eq2(questionOptions.questionId, questionId)).orderBy(asc(questionOptions.orderNumber));
+      }
+      // PERFORMANCE: Bulk fetch question options to eliminate N+1 queries
+      async getQuestionOptionsBulk(questionIds) {
+        if (questionIds.length === 0) {
+          return [];
+        }
+        return await db.select({
+          id: questionOptions.id,
+          questionId: questionOptions.questionId,
+          optionText: questionOptions.optionText,
+          isCorrect: questionOptions.isCorrect,
+          orderNumber: questionOptions.orderNumber,
+          createdAt: questionOptions.createdAt
+        }).from(questionOptions).where(inArray(questionOptions.questionId, questionIds)).orderBy(asc(questionOptions.questionId), asc(questionOptions.orderNumber));
+      }
+      // Get AI-suggested grading tasks for teacher review
+      async getAISuggestedGradingTasks(teacherId, status) {
+        try {
+          const assignments = await this.db.select().from(teacherClassAssignments).where(and(
+            eq2(teacherClassAssignments.teacherId, teacherId),
+            eq2(teacherClassAssignments.isActive, true)
+          ));
+          if (assignments.length === 0) {
+            return [];
+          }
+          const classIds = assignments.map((a) => a.classId);
+          const subjectIds = assignments.map((a) => a.subjectId);
+          const exams2 = await this.db.select().from(exams).where(and(
+            inArray(exams.classId, classIds),
+            inArray(exams.subjectId, subjectIds)
+          ));
+          const examIds = exams2.map((e) => e.id);
+          if (examIds.length === 0) {
+            return [];
+          }
+          const sessions = await this.db.select().from(examSessions).where(and(
+            inArray(examSessions.examId, examIds),
+            eq2(examSessions.isCompleted, true)
+          ));
+          const sessionIds = sessions.map((s) => s.id);
+          if (sessionIds.length === 0) {
+            return [];
+          }
+          let query = this.db.select({
+            id: studentAnswers.id,
+            sessionId: studentAnswers.sessionId,
+            questionId: studentAnswers.questionId,
+            textAnswer: studentAnswers.textAnswer,
+            pointsEarned: studentAnswers.pointsEarned,
+            feedbackText: studentAnswers.feedbackText,
+            autoScored: studentAnswers.autoScored,
+            manualOverride: studentAnswers.manualOverride,
+            answeredAt: studentAnswers.answeredAt,
+            questionText: examQuestions.questionText,
+            questionType: examQuestions.questionType,
+            points: examQuestions.points,
+            expectedAnswers: examQuestions.expectedAnswers,
+            studentId: examSessions.studentId,
+            examId: examSessions.examId,
+            examName: exams.name
+          }).from(studentAnswers).innerJoin(examQuestions, eq2(studentAnswers.questionId, examQuestions.id)).innerJoin(examSessions, eq2(studentAnswers.sessionId, examSessions.id)).innerJoin(exams, eq2(examSessions.examId, exams.id)).where(and(
+            inArray(studentAnswers.sessionId, sessionIds),
+            sql2`(${examQuestions.questionType} = 'text' OR ${examQuestions.questionType} = 'essay')`,
+            sql2`${studentAnswers.textAnswer} IS NOT NULL`
+          ));
+          if (status === "pending") {
+            query = query.where(sql2`${studentAnswers.autoScored} = false AND ${studentAnswers.manualOverride} = false`);
+          } else if (status === "reviewed") {
+            query = query.where(sql2`(${studentAnswers.autoScored} = true OR ${studentAnswers.manualOverride} = true)`);
+          }
+          const results = await query;
+          const studentIds = [...new Set(results.map((r) => r.studentId))];
+          const students3 = await this.db.select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName
+          }).from(users).where(inArray(users.id, studentIds));
+          return results.map((r) => ({
+            ...r,
+            studentName: `${students3.find((s) => s.id === r.studentId)?.firstName} ${students3.find((s) => s.id === r.studentId)?.lastName}`,
+            status: r.autoScored || r.manualOverride ? "reviewed" : "pending",
+            aiSuggested: r.pointsEarned > 0 && !r.autoScored && !r.manualOverride
+          }));
+        } catch (error) {
+          console.error("Error fetching AI-suggested tasks:", error);
+          return [];
+        }
+      }
+      // Exam sessions management
+      async createExamSession(session2) {
+        const result = await db.insert(examSessions).values(session2).returning();
+        return result[0];
+      }
+      async getExamSessionById(id) {
+        const result = await db.select({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        }).from(examSessions).where(eq2(examSessions.id, id)).limit(1);
+        return result[0];
+      }
+      async getExamSessionsByExam(examId) {
+        return await db.select({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        }).from(examSessions).where(eq2(examSessions.examId, examId)).orderBy(desc(examSessions.startedAt));
+      }
+      async getExamSessionsByStudent(studentId) {
+        return await db.select({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        }).from(examSessions).where(eq2(examSessions.studentId, studentId)).orderBy(desc(examSessions.startedAt));
+      }
+      async updateExamSession(id, session2) {
+        const allowedFields = {};
+        const existingColumns = ["examId", "studentId", "startedAt", "submittedAt", "timeRemaining", "isCompleted", "score", "maxScore", "status"];
+        for (const [key, value] of Object.entries(session2)) {
+          if (existingColumns.includes(key) && value !== void 0) {
+            allowedFields[key] = value;
+          }
+        }
+        const result = await db.update(examSessions).set(allowedFields).where(eq2(examSessions.id, id)).returning({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        });
+        return result[0];
+      }
+      async deleteExamSession(id) {
+        const result = await db.delete(examSessions).where(eq2(examSessions.id, id));
+        return result.length > 0;
+      }
+      async getActiveExamSession(examId, studentId) {
+        const result = await db.select().from(examSessions).where(and(
+          eq2(examSessions.examId, examId),
+          eq2(examSessions.studentId, studentId),
+          eq2(examSessions.isCompleted, false)
+        )).limit(1);
+        return result[0];
+      }
+      // Get all active exam sessions for background cleanup service
+      async getActiveExamSessions() {
+        return await db.select({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        }).from(examSessions).where(eq2(examSessions.isCompleted, false)).orderBy(desc(examSessions.startedAt));
+      }
+      // PERFORMANCE: Get only expired sessions directly from database
+      async getExpiredExamSessions(now, limit = 100) {
+        return await db.select({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        }).from(examSessions).where(and(
+          eq2(examSessions.isCompleted, false),
+          // Fallback: Use startedAt + reasonable timeout estimate for expired sessions
+          dsql`${examSessions.startedAt} + interval '2 hours' < ${now.toISOString()}`
+        )).orderBy(asc(examSessions.startedAt)).limit(limit);
+      }
+      // CIRCUIT BREAKER FIX: Idempotent session creation using UPSERT to prevent connection pool exhaustion
+      async createOrGetActiveExamSession(examId, studentId, sessionData) {
+        try {
+          const insertResult = await db.insert(examSessions).values({
+            examId: sessionData.examId,
+            studentId,
+            startedAt: /* @__PURE__ */ new Date(),
+            timeRemaining: sessionData.timeRemaining,
+            isCompleted: false,
+            status: "in_progress"
+          }).onConflictDoNothing().returning({
+            id: examSessions.id,
+            examId: examSessions.examId,
+            studentId: examSessions.studentId,
+            startedAt: examSessions.startedAt,
+            submittedAt: examSessions.submittedAt,
+            timeRemaining: examSessions.timeRemaining,
+            isCompleted: examSessions.isCompleted,
+            score: examSessions.score,
+            maxScore: examSessions.maxScore,
+            status: examSessions.status,
+            createdAt: examSessions.createdAt
+          });
+          if (insertResult.length > 0) {
+            console.log(`Created new exam session ${insertResult[0].id} for student ${studentId} exam ${examId}`);
+            return { ...insertResult[0], wasCreated: true };
+          }
+          const existingSession = await db.select({
+            id: examSessions.id,
+            examId: examSessions.examId,
+            studentId: examSessions.studentId,
+            startedAt: examSessions.startedAt,
+            submittedAt: examSessions.submittedAt,
+            timeRemaining: examSessions.timeRemaining,
+            isCompleted: examSessions.isCompleted,
+            score: examSessions.score,
+            maxScore: examSessions.maxScore,
+            status: examSessions.status,
+            createdAt: examSessions.createdAt
+          }).from(examSessions).where(and(
+            eq2(examSessions.examId, examId),
+            eq2(examSessions.studentId, studentId),
+            eq2(examSessions.isCompleted, false)
+          )).limit(1);
+          if (existingSession.length > 0) {
+            console.log(`Retrieved existing exam session ${existingSession[0].id} for student ${studentId} exam ${examId}`);
+            return { ...existingSession[0], wasCreated: false };
+          }
+          throw new Error(`Unable to create or retrieve exam session for student ${studentId} exam ${examId}`);
+        } catch (error) {
+          console.error("Error in createOrGetActiveExamSession:", error);
+          throw error;
+        }
+      }
+      // Enhanced session management for students
+      async getStudentActiveSession(studentId) {
+        const result = await this.db.select({
+          id: examSessions.id,
+          examId: examSessions.examId,
+          studentId: examSessions.studentId,
+          startedAt: examSessions.startedAt,
+          submittedAt: examSessions.submittedAt,
+          timeRemaining: examSessions.timeRemaining,
+          isCompleted: examSessions.isCompleted,
+          score: examSessions.score,
+          maxScore: examSessions.maxScore,
+          status: examSessions.status,
+          createdAt: examSessions.createdAt
+        }).from(examSessions).where(and(
+          eq2(examSessions.studentId, studentId),
+          eq2(examSessions.isCompleted, false)
+        )).orderBy(desc(examSessions.createdAt)).limit(1);
+        return result[0];
+      }
+      async updateSessionProgress(sessionId, progress) {
+        const updates = {};
+        if (typeof progress.timeRemaining === "number") {
+          updates.timeRemaining = progress.timeRemaining;
+        }
+        if (typeof progress.currentQuestionIndex === "number") {
+          updates.metadata = JSON.stringify({ currentQuestionIndex: progress.currentQuestionIndex });
+        }
+        if (Object.keys(updates).length > 0) {
+          await this.db.update(examSessions).set(updates).where(eq2(examSessions.id, sessionId));
+        }
+      }
+      // Student answers management
+      async createStudentAnswer(answer) {
+        const result = await db.insert(studentAnswers).values(answer).returning();
+        return result[0];
+      }
+      async getStudentAnswers(sessionId) {
+        return await db.select().from(studentAnswers).where(eq2(studentAnswers.sessionId, sessionId)).orderBy(asc(studentAnswers.answeredAt));
+      }
+      async getStudentAnswerById(id) {
+        const result = await db.select().from(studentAnswers).where(eq2(studentAnswers.id, id)).limit(1);
+        return result[0];
+      }
+      async updateStudentAnswer(id, answer) {
+        const result = await db.update(studentAnswers).set(answer).where(eq2(studentAnswers.id, id)).returning();
+        return result[0];
+      }
+      async getStudentAnswerBySessionAndQuestion(sessionId, questionId) {
+        const result = await db.select().from(studentAnswers).where(and(
+          eq2(studentAnswers.sessionId, sessionId),
+          eq2(studentAnswers.questionId, questionId)
+        )).limit(1);
+        return result[0];
+      }
+      async upsertStudentAnswer(sessionId, questionId, answer) {
+        const existing = await this.getStudentAnswerBySessionAndQuestion(sessionId, questionId);
+        if (existing) {
+          const updated = await this.updateStudentAnswer(existing.id, answer);
+          return updated;
+        } else {
+          return await this.createStudentAnswer({
+            sessionId,
+            questionId,
+            ...answer
+          });
+        }
+      }
+      async getQuestionOptionById(optionId) {
+        const result = await db.select().from(questionOptions).where(eq2(questionOptions.id, optionId)).limit(1);
+        return result[0];
+      }
+      // OPTIMIZED SCORING: Get all scoring data in a single query for <2s performance
+      async getExamScoringData(sessionId) {
+        try {
+          console.log(`\u{1F50D} DIAGNOSTIC: Starting scoring data fetch for session ${sessionId}`);
+          const sessionResult = await this.db.select({
+            id: examSessions.id,
+            examId: examSessions.examId,
+            studentId: examSessions.studentId,
+            startedAt: examSessions.startedAt,
+            submittedAt: examSessions.submittedAt,
+            timeRemaining: examSessions.timeRemaining,
+            isCompleted: examSessions.isCompleted,
+            score: examSessions.score,
+            maxScore: examSessions.maxScore,
+            status: examSessions.status,
+            createdAt: examSessions.createdAt
+          }).from(examSessions).where(eq2(examSessions.id, sessionId)).limit(1);
+          if (!sessionResult[0]) {
+            throw new Error(`Exam session ${sessionId} not found`);
+          }
+          const session2 = sessionResult[0];
+          console.log(`\u{1F50D} DIAGNOSTIC: Found session for exam ${session2.examId}, student ${session2.studentId}`);
+          const questionsQuery = await this.db.select({
+            questionId: examQuestions.id,
+            questionType: examQuestions.questionType,
+            points: examQuestions.points,
+            autoGradable: examQuestions.autoGradable,
+            expectedAnswers: examQuestions.expectedAnswers,
+            caseSensitive: examQuestions.caseSensitive,
+            allowPartialCredit: examQuestions.allowPartialCredit,
+            partialCreditRules: examQuestions.partialCreditRules,
+            studentSelectedOptionId: studentAnswers.selectedOptionId,
+            textAnswer: studentAnswers.textAnswer
+          }).from(examQuestions).leftJoin(studentAnswers, and(
+            eq2(studentAnswers.questionId, examQuestions.id),
+            eq2(studentAnswers.sessionId, sessionId)
+          )).where(eq2(examQuestions.examId, session2.examId)).orderBy(asc(examQuestions.orderNumber));
+          const correctOptionsQuery = await this.db.select({
+            questionId: questionOptions.questionId,
+            correctOptionId: questionOptions.id
+          }).from(questionOptions).innerJoin(examQuestions, eq2(questionOptions.questionId, examQuestions.id)).where(
+            and(
+              eq2(examQuestions.examId, session2.examId),
+              eq2(questionOptions.isCorrect, true)
+            )
+          );
+          const selectedOptionsQuery = await this.db.select({
+            questionId: questionOptions.questionId,
+            optionId: questionOptions.id,
+            partialCreditValue: questionOptions.partialCreditValue,
+            isCorrect: questionOptions.isCorrect
+          }).from(questionOptions).innerJoin(studentAnswers, eq2(questionOptions.id, studentAnswers.selectedOptionId)).where(eq2(studentAnswers.sessionId, sessionId));
+          const correctOptionsMap = /* @__PURE__ */ new Map();
+          for (const option of correctOptionsQuery) {
+            correctOptionsMap.set(option.questionId, option.correctOptionId);
+          }
+          const selectedOptionsMap = /* @__PURE__ */ new Map();
+          for (const option of selectedOptionsQuery) {
+            selectedOptionsMap.set(option.questionId, {
+              optionId: option.optionId,
+              partialCreditValue: option.partialCreditValue,
+              isCorrect: option.isCorrect
+            });
+          }
+          const questionMap = /* @__PURE__ */ new Map();
+          for (const question of questionsQuery) {
+            const correctOptionId = correctOptionsMap.get(question.questionId) || null;
+            const selectedOptionData = selectedOptionsMap.get(question.questionId);
+            questionMap.set(question.questionId, {
+              questionType: question.questionType,
+              points: question.points || 1,
+              autoGradable: question.autoGradable,
+              expectedAnswers: question.expectedAnswers,
+              caseSensitive: question.caseSensitive,
+              allowPartialCredit: question.allowPartialCredit,
+              partialCreditRules: question.partialCreditRules,
+              studentSelectedOptionId: question.studentSelectedOptionId,
+              textAnswer: question.textAnswer,
+              correctOptionId,
+              isCorrect: false,
+              partialCreditEarned: 0
+            });
+            if ((question.questionType === "multiple_choice" || question.questionType === "true_false" || question.questionType === "true/false") && correctOptionId && question.studentSelectedOptionId === correctOptionId) {
+              questionMap.get(question.questionId).isCorrect = true;
+            }
+            if (question.allowPartialCredit && selectedOptionData && selectedOptionData.partialCreditValue) {
+              const questionData = questionMap.get(question.questionId);
+              if (!questionData.isCorrect && selectedOptionData.partialCreditValue > 0) {
+                questionData.partialCreditEarned = Math.min(
+                  questionData.points,
+                  selectedOptionData.partialCreditValue
+                );
+                console.log(`\u{1F524} OPTION PARTIAL CREDIT: Question ${question.questionId} awarded ${questionData.partialCreditEarned}/${questionData.points} pts for selected option`);
+              }
+            }
+          }
+          for (const [questionId, question] of Array.from(questionMap.entries())) {
+            if (!question.autoGradable) continue;
+            if ((question.questionType === "text" || question.questionType === "fill_blank") && question.expectedAnswers && question.textAnswer) {
+              const studentAnswer = question.textAnswer.trim();
+              if (!studentAnswer) continue;
+              console.log(`\u{1F524} AUTO-SCORING TEXT: Question ${questionId} - Student: "${studentAnswer}", Expected: [${question.expectedAnswers.join(", ")}]`);
+              for (const expectedAnswer of question.expectedAnswers) {
+                const normalizedExpected = question.caseSensitive ? expectedAnswer.trim() : expectedAnswer.trim().toLowerCase();
+                const normalizedStudent = question.caseSensitive ? studentAnswer : studentAnswer.toLowerCase();
+                if (normalizedStudent === normalizedExpected) {
+                  question.isCorrect = true;
+                  console.log(`\u2705 TEXT MATCH: Exact match found for question ${questionId}`);
+                  break;
+                }
+                if (question.allowPartialCredit && !question.isCorrect) {
+                  const similarity = this.calculateTextSimilarity(normalizedStudent, normalizedExpected);
+                  try {
+                    const partialRules = question.partialCreditRules ? JSON.parse(question.partialCreditRules) : { minSimilarity: 0.8, partialPercentage: 0.5 };
+                    if (similarity >= (partialRules.minSimilarity || 0.8)) {
+                      question.partialCreditEarned = Math.ceil(question.points * (partialRules.partialPercentage || 0.5));
+                      console.log(`\u{1F524} PARTIAL CREDIT: Question ${questionId} similarity ${similarity.toFixed(2)} awarded ${question.partialCreditEarned}/${question.points} points`);
+                      break;
+                    }
+                  } catch (err) {
+                    console.warn(`\u26A0\uFE0F Invalid partial credit rules for question ${questionId}:`, err);
+                  }
+                }
+              }
+            }
+          }
+          const scoringData = Array.from(questionMap.entries()).map(([questionId, data]) => ({
+            questionId,
+            ...data
+          }));
+          let totalQuestions = scoringData.length;
+          let maxScore = 0;
+          let studentScore = 0;
+          let autoScoredQuestions = 0;
+          console.log(`\u{1F50D} DIAGNOSTIC: Found ${totalQuestions} total questions for scoring`);
+          const questionTypeCount = {};
+          for (const question of scoringData) {
+            maxScore += question.points;
+            questionTypeCount[question.questionType] = (questionTypeCount[question.questionType] || 0) + 1;
+            if (question.autoGradable === true) {
+              autoScoredQuestions++;
+              if (question.isCorrect) {
+                studentScore += question.points;
+                console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): CORRECT (+${question.points} pts) - Full credit awarded`);
+              } else if (question.partialCreditEarned > 0) {
+                studentScore += question.partialCreditEarned;
+                console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): PARTIAL CREDIT (+${question.partialCreditEarned}/${question.points} pts)`);
+              } else {
+                console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): INCORRECT (0 pts)`);
+              }
+            } else {
+              console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): MANUAL GRADING REQUIRED`);
+            }
+          }
+          console.log(`\u{1F50D} DIAGNOSTIC: Question type breakdown:`, questionTypeCount);
+          console.log(`\u{1F50D} DIAGNOSTIC: Auto-scored questions: ${autoScoredQuestions}/${totalQuestions}`);
+          console.log(`\u{1F50D} DIAGNOSTIC: Student score: ${studentScore}/${maxScore}`);
+          return {
+            session: session2,
+            scoringData,
+            summary: {
+              totalQuestions,
+              maxScore,
+              studentScore,
+              autoScoredQuestions
+            }
+          };
+        } catch (error) {
+          console.error("\u{1F6A8} OPTIMIZED SCORING ERROR:", error);
+          throw error;
+        }
+      }
+      // Text similarity calculation for partial credit scoring
+      calculateTextSimilarity(str1, str2) {
+        const longer = str1.length > str2.length ? str1 : str2;
+        const shorter = str1.length > str2.length ? str2 : str1;
+        if (longer.length === 0) return 1;
+        const editDistance = this.getEditDistance(longer, shorter);
+        return (longer.length - editDistance) / longer.length;
+      }
+      getEditDistance(str1, str2) {
+        const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+        for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+        for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+        for (let j = 1; j <= str2.length; j++) {
+          for (let i = 1; i <= str1.length; i++) {
+            const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+            matrix[j][i] = Math.min(
+              matrix[j][i - 1] + 1,
+              // deletion
+              matrix[j - 1][i] + 1,
+              // insertion
+              matrix[j - 1][i - 1] + indicator
+              // substitution
+            );
+          }
+        }
+        return matrix[str2.length][str1.length];
+      }
+      // Announcements
+      async createAnnouncement(announcement) {
+        const result = await db.insert(announcements).values(announcement).returning();
+        return result[0];
+      }
+      async getAnnouncements(targetRole) {
+        const query = db.select().from(announcements).where(eq2(announcements.isPublished, true)).orderBy(desc(announcements.publishedAt));
+        if (targetRole) {
+        }
+        return await query;
+      }
+      async getAnnouncementById(id) {
+        const result = await db.select().from(announcements).where(eq2(announcements.id, id)).limit(1);
+        return result[0];
+      }
+      async updateAnnouncement(id, announcement) {
+        const result = await db.update(announcements).set(announcement).where(eq2(announcements.id, id)).returning();
+        return result[0];
+      }
+      async deleteAnnouncement(id) {
+        const result = await db.delete(announcements).where(eq2(announcements.id, id));
+        return result.length > 0;
+      }
+      // Messages
+      async sendMessage(message) {
+        const result = await db.insert(messages).values(message).returning();
+        return result[0];
+      }
+      async getMessagesByUser(userId) {
+        return await db.select().from(messages).where(eq2(messages.recipientId, userId)).orderBy(desc(messages.createdAt));
+      }
+      async markMessageAsRead(id) {
+        await db.update(messages).set({ isRead: true }).where(eq2(messages.id, id));
+      }
+      // Gallery
+      async createGalleryCategory(category) {
+        const result = await db.insert(galleryCategories).values(category).returning();
+        return result[0];
+      }
+      async getGalleryCategories() {
+        return await db.select().from(galleryCategories).orderBy(asc(galleryCategories.name));
+      }
+      async uploadGalleryImage(image) {
+        const result = await db.insert(gallery).values(image).returning();
+        return result[0];
+      }
+      async getGalleryImages(categoryId) {
+        if (categoryId) {
+          return await db.select().from(gallery).where(eq2(gallery.categoryId, categoryId)).orderBy(desc(gallery.createdAt));
+        }
+        return await db.select().from(gallery).orderBy(desc(gallery.createdAt));
+      }
+      async getGalleryImageById(id) {
+        const result = await db.select().from(gallery).where(eq2(gallery.id, parseInt(id))).limit(1);
+        return result[0];
+      }
+      async deleteGalleryImage(id) {
+        const result = await db.delete(gallery).where(eq2(gallery.id, parseInt(id))).returning();
+        return result.length > 0;
+      }
+      // Study resources management
+      async createStudyResource(resource) {
+        const result = await db.insert(studyResources).values(resource).returning();
+        return result[0];
+      }
+      async getStudyResources(filters) {
+        let query = db.select().from(studyResources).where(eq2(studyResources.isPublished, true));
+        if (filters?.classId) {
+          query = query.where(eq2(studyResources.classId, filters.classId));
+        }
+        if (filters?.subjectId) {
+          query = query.where(eq2(studyResources.subjectId, filters.subjectId));
+        }
+        if (filters?.termId) {
+          query = query.where(eq2(studyResources.termId, filters.termId));
+        }
+        if (filters?.resourceType) {
+          query = query.where(eq2(studyResources.resourceType, filters.resourceType));
+        }
+        return await query.orderBy(desc(studyResources.createdAt));
+      }
+      async getStudyResourceById(id) {
+        const result = await db.select().from(studyResources).where(eq2(studyResources.id, id)).limit(1);
+        return result[0];
+      }
+      async incrementStudyResourceDownloads(id) {
+        await db.update(studyResources).set({ downloads: dsql`${studyResources.downloads} + 1` }).where(eq2(studyResources.id, id));
+      }
+      async deleteStudyResource(id) {
+        const result = await db.delete(studyResources).where(eq2(studyResources.id, id)).returning();
+        return result.length > 0;
+      }
+      // Home page content management
+      async createHomePageContent(content) {
+        const result = await db.insert(homePageContent).values(content).returning();
+        return result[0];
+      }
+      // Manual Grading System Methods
+      async getGradingTasks(teacherId, status) {
+        try {
+          let query = `
+        SELECT
+          sa.id,
+          es.student_id,
+          u.first_name || ' ' || u.last_name as student_name,
+          es.exam_id,
+          e.name as exam_title,
+          eq.id as question_id,
+          eq.question_text,
+          eq.question_type,
+          eq.points as max_marks,
+          sa.text_answer as student_answer,
+          es.submitted_at,
+          CASE
+            WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
+            ELSE 'pending'
+          END as status,
+          ms.awarded_marks as current_score,
+          ms.comment as grader_comment
+        FROM student_answers sa
+        JOIN exam_sessions es ON sa.session_id = es.id
+        JOIN exams e ON es.exam_id = e.id
+        JOIN exam_questions eq ON sa.question_id = eq.id
+        JOIN users u ON es.student_id = u.id
+        LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
+        WHERE e.created_by = $1
+        AND eq.question_type IN ('text', 'essay')
+        AND es.is_completed = true
+      `;
+          const pgClient = await initializeDatabase().pg;
+          const params = [teacherId];
+          if (status && status !== "all") {
+            if (status === "pending") {
+              query += " AND sa.id NOT IN (SELECT answer_id FROM manual_scores)";
+            } else if (status === "graded") {
+              query += " AND sa.id IN (SELECT answer_id FROM manual_scores)";
+            }
+          }
+          query += " ORDER BY es.submitted_at DESC";
+          const result = await pgClient.unsafe(query, params);
+          return result;
+        } catch (error) {
+          console.error("Error fetching grading tasks:", error);
+          throw error;
+        }
+      }
+      async submitManualGrade(gradeData) {
+        try {
+          const { taskId, score, comment, graderId } = gradeData;
+          const pgClient = await initializeDatabase().pg;
+          const result = await pgClient`
+        INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
+        VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
+        ON CONFLICT (answer_id)
+        DO UPDATE SET
+          awarded_marks = EXCLUDED.awarded_marks,
+          comment = EXCLUDED.comment,
+          graded_at = EXCLUDED.graded_at,
+          grader_id = EXCLUDED.grader_id
+        RETURNING *
+      `;
+          await pgClient`
+        UPDATE student_answers
+        SET points_earned = ${score}
+        WHERE id = ${taskId}
+      `;
+          return result[0];
+        } catch (error) {
+          console.error("Error submitting manual grade:", error);
+          throw error;
+        }
+      }
+      async getAllExamSessions() {
+        try {
+          const pgClient = await initializeDatabase().pg;
+          const result = await pgClient`
+        SELECT
+          es.*,
+          e.name as exam_title,
+          u.first_name || ' ' || u.last_name as student_name,
+          (
+            SELECT COUNT(*)
+            FROM student_answers sa
+            WHERE sa.session_id = es.id
+            AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
+          ) as answered_questions,
+          (
+            SELECT COUNT(*)
+            FROM exam_questions eq
+            WHERE eq.exam_id = es.exam_id
+          ) as total_questions
+        FROM exam_sessions es
+        JOIN exams e ON es.exam_id = e.id
+        JOIN users u ON es.student_id = u.id
+        ORDER BY es.started_at DESC
+      `;
+          return result;
+        } catch (error) {
+          console.error("Error fetching exam sessions:", error);
+          throw error;
+        }
+      }
+      async getExamReports(filters) {
+        try {
+          let query = `
+        SELECT
+          e.id as exam_id,
+          e.name as exam_title,
+          c.name as class_name,
+          s.name as subject_name,
+          e.date as exam_date,
+          e.total_marks as max_score,
+          COUNT(DISTINCT es.student_id) as total_students,
+          COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
+          COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
+          COALESCE(
+            COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 /
+            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
+            0
+          ) as pass_rate,
+          COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
+          COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
+          CASE
+            WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
+            ELSE 'completed'
+          END as status,
+          COALESCE(
+            COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 /
+            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
+            0
+          ) as grading_progress
+        FROM exams e
+        JOIN classes c ON e.class_id = c.id
+        JOIN subjects s ON e.subject_id = s.id
+        LEFT JOIN exam_sessions es ON e.id = es.exam_id
+        LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
+        WHERE e.is_published = true
+      `;
+          const params = [];
+          let paramIndex = 1;
+          if (filters.classId) {
+            query += ` AND e.class_id = $${paramIndex}`;
+            params.push(filters.classId);
+            paramIndex++;
+          }
+          if (filters.subjectId) {
+            query += ` AND e.subject_id = $${paramIndex}`;
+            params.push(filters.subjectId);
+            paramIndex++;
+          }
+          query += `
+        GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
+        ORDER BY e.date DESC
+      `;
+          const pgClient = await initializeDatabase().pg;
+          const result = await pgClient.unsafe(query, params);
+          return result;
+        } catch (error) {
+          console.error("Error fetching exam reports:", error);
+          throw error;
+        }
+      }
+      async getExamStudentReports(examId) {
+        try {
+          const pgClient = await initializeDatabase().pg;
+          const result = await pgClient`
+        SELECT
+          u.id as student_id,
+          u.first_name || ' ' || u.last_name as student_name,
+          st.admission_number,
+          COALESCE(er.marks_obtained, 0) as score,
+          COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
+          CASE
+            WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
+            WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
+            WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
+            WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
+            ELSE 'F'
+          END as grade,
+          ROW_NUMBER() OVER (ORDER BY er.marks_obtained DESC) as rank,
+          EXTRACT(EPOCH FROM (es.submitted_at - es.started_at)) as time_spent,
+          es.submitted_at,
+          er.auto_scored,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM manual_scores ms
+            JOIN student_answers sa ON ms.answer_id = sa.id
+            WHERE sa.session_id = es.id
+          ) THEN true ELSE false END as manual_scored
+        FROM users u
+        JOIN students st ON u.id = st.id
+        JOIN exam_sessions es ON u.id = es.student_id
+        JOIN exams e ON es.exam_id = e.id
+        LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
+        WHERE e.id = ${examId} AND es.is_completed = true
+        ORDER BY er.marks_obtained DESC
+      `;
+          return result;
+        } catch (error) {
+          console.error("Error fetching student reports:", error);
+          throw error;
+        }
+      }
+      // Home page content management
+      async getHomePageContent(contentType) {
+        if (contentType) {
+          return await db.select().from(homePageContent).where(and(eq2(homePageContent.contentType, contentType), eq2(homePageContent.isActive, true))).orderBy(asc(homePageContent.displayOrder));
+        }
+        return await db.select().from(homePageContent).where(eq2(homePageContent.isActive, true)).orderBy(asc(homePageContent.displayOrder), asc(homePageContent.contentType));
+      }
+      async getHomePageContentById(id) {
+        const result = await db.select().from(homePageContent).where(eq2(homePageContent.id, id)).limit(1);
+        return result[0];
+      }
+      async updateHomePageContent(id, content) {
+        const result = await db.update(homePageContent).set({ ...content, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(homePageContent.id, id)).returning();
+        return result[0];
+      }
+      async deleteHomePageContent(id) {
+        const result = await db.delete(homePageContent).where(eq2(homePageContent.id, id)).returning();
+        return result.length > 0;
+      }
+      // Comprehensive grade management
+      async recordComprehensiveGrade(gradeData) {
+        try {
+          let reportCard = await db.select().from(reportCards).where(and(
+            eq2(reportCards.studentId, gradeData.studentId),
+            eq2(reportCards.termId, gradeData.termId)
+          )).limit(1);
+          let reportCardId;
+          if (reportCard.length === 0) {
+            const newReportCard = await db.insert(reportCards).values({
+              studentId: gradeData.studentId,
+              classId: gradeData.classId || 1,
+              // Should be provided
+              termId: gradeData.termId,
+              status: "draft"
+            }).returning();
+            reportCardId = newReportCard[0].id;
+          } else {
+            reportCardId = reportCard[0].id;
+          }
+          const existingItem = await db.select().from(reportCardItems).where(and(
+            eq2(reportCardItems.reportCardId, reportCardId),
+            eq2(reportCardItems.subjectId, gradeData.subjectId)
+          )).limit(1);
+          const comprehensiveGradeData = {
+            reportCardId,
+            subjectId: gradeData.subjectId,
+            testScore: gradeData.testScore,
+            testMaxScore: gradeData.testMaxScore,
+            testWeightedScore: gradeData.testWeightedScore || Math.round(gradeData.testScore / gradeData.testMaxScore * 40),
+            examScore: gradeData.examScore,
+            examMaxScore: gradeData.examMaxScore,
+            examWeightedScore: gradeData.examWeightedScore || Math.round(gradeData.examScore / gradeData.examMaxScore * 60),
+            obtainedMarks: gradeData.testWeightedScore + gradeData.examWeightedScore || Math.round(gradeData.testScore / gradeData.testMaxScore * 40 + gradeData.examScore / gradeData.examMaxScore * 60),
+            percentage: gradeData.percentage || Math.round(gradeData.testScore / gradeData.testMaxScore * 40 + gradeData.examScore / gradeData.examMaxScore * 60),
+            grade: gradeData.grade,
+            teacherRemarks: gradeData.teacherRemarks
+          };
+          if (existingItem.length > 0) {
+            const result = await db.update(reportCardItems).set(comprehensiveGradeData).where(eq2(reportCardItems.id, existingItem[0].id)).returning();
+            return result[0];
+          } else {
+            const result = await db.insert(reportCardItems).values(comprehensiveGradeData).returning();
+            return result[0];
+          }
+        } catch (error) {
+          console.error("Error recording comprehensive grade:", error);
+          throw error;
+        }
+      }
+      async getComprehensiveGradesByStudent(studentId, termId) {
+        try {
+          let query = db.select({
+            id: reportCardItems.id,
+            subjectId: reportCardItems.subjectId,
+            subjectName: subjects.name,
+            testScore: reportCardItems.testScore,
+            testMaxScore: reportCardItems.testMaxScore,
+            testWeightedScore: reportCardItems.testWeightedScore,
+            examScore: reportCardItems.examScore,
+            examMaxScore: reportCardItems.examMaxScore,
+            examWeightedScore: reportCardItems.examWeightedScore,
+            obtainedMarks: reportCardItems.obtainedMarks,
+            percentage: reportCardItems.percentage,
+            grade: reportCardItems.grade,
+            teacherRemarks: reportCardItems.teacherRemarks,
+            termId: reportCards.termId,
+            createdAt: reportCardItems.createdAt
+          }).from(reportCardItems).innerJoin(reportCards, eq2(reportCardItems.reportCardId, reportCards.id)).innerJoin(subjects, eq2(reportCardItems.subjectId, subjects.id)).where(eq2(reportCards.studentId, studentId));
+          if (termId) {
+            query = query.where(and(
+              eq2(reportCards.studentId, studentId),
+              eq2(reportCards.termId, termId)
+            ));
+          }
+          return await query.orderBy(subjects.name);
+        } catch (error) {
+          console.error("Error fetching comprehensive grades by student:", error);
+          return [];
+        }
+      }
+      async getComprehensiveGradesByClass(classId, termId) {
+        try {
+          let query = db.select({
+            studentId: reportCards.studentId,
+            studentName: sql2`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as("studentName"),
+            admissionNumber: students.admissionNumber,
+            subjectName: subjects.name,
+            testScore: reportCardItems.testScore,
+            examScore: reportCardItems.examScore,
+            obtainedMarks: reportCardItems.obtainedMarks,
+            grade: reportCardItems.grade,
+            teacherRemarks: reportCardItems.teacherRemarks
+          }).from(reportCardItems).innerJoin(reportCards, eq2(reportCardItems.reportCardId, reportCards.id)).innerJoin(students, eq2(reportCards.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).innerJoin(subjects, eq2(reportCardItems.subjectId, subjects.id)).where(eq2(students.classId, classId));
+          if (termId) {
+            query = query.where(and(
+              eq2(students.classId, classId),
+              eq2(reportCards.termId, termId)
+            ));
+          }
+          return await query.orderBy(users.firstName, users.lastName, subjects.name);
+        } catch (error) {
+          console.error("Error fetching comprehensive grades by class:", error);
+          return [];
+        }
+      }
+      async createReportCard(reportCardData, grades) {
+        return await this.db.transaction(async (tx) => {
+          try {
+            const reportCard = await tx.insert(reportCards).values(reportCardData).returning();
+            if (grades.length > 0) {
+              const gradeUpdates = grades.map(
+                (grade) => tx.update(reportCardItems).set({ reportCardId: reportCard[0].id }).where(eq2(reportCardItems.id, grade.id))
+              );
+              await Promise.all(gradeUpdates);
+            }
+            return {
+              reportCard: reportCard[0],
+              grades
+            };
+          } catch (error) {
+            console.error("Error creating report card:", error);
+            throw error;
+          }
+        });
+      }
+      async getReportCard(id) {
+        try {
+          const result = await db.select().from(reportCards).where(eq2(reportCards.id, id)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error fetching report card:", error);
+          return void 0;
+        }
+      }
+      async getReportCardsByStudentId(studentId) {
+        try {
+          return await db.select().from(reportCards).where(eq2(reportCards.studentId, studentId)).orderBy(desc(reportCards.generatedAt));
+        } catch (error) {
+          console.error("Error fetching student report cards:", error);
+          return [];
+        }
+      }
+      async getReportCardItems(reportCardId) {
+        try {
+          return await db.select().from(reportCardItems).where(eq2(reportCardItems.reportCardId, reportCardId));
+        } catch (error) {
+          console.error("Error fetching report card items:", error);
+          return [];
+        }
+      }
+      async getStudentsByParentId(parentId2) {
+        try {
+          return await db.select().from(students).where(eq2(students.parentId, parentId2));
+        } catch (error) {
+          console.error("Error fetching students by parent:", error);
+          return [];
+        }
+      }
+      // Analytics and Reports
+      async getAnalyticsOverview() {
+        try {
+          const [students3, teachers, admins, parents] = await Promise.all([
+            db.select().from(users).where(eq2(users.roleId, 1)),
+            db.select().from(users).where(eq2(users.roleId, 2)),
+            db.select().from(users).where(eq2(users.roleId, 4)),
+            db.select().from(users).where(eq2(users.roleId, 3))
+          ]);
+          const [classes2, subjects2, exams2, examResults2] = await Promise.all([
+            db.select().from(classes),
+            db.select().from(subjects),
+            db.select().from(exams),
+            db.select().from(examResults)
+          ]);
+          const gradeDistribution = this.calculateGradeDistribution(examResults2);
+          const subjectPerformance = await this.calculateSubjectPerformance(examResults2, subjects2);
+          return {
+            totalUsers: students3.length + teachers.length + admins.length + parents.length,
+            totalStudents: students3.length,
+            totalTeachers: teachers.length,
+            totalAdmins: admins.length,
+            totalParents: parents.length,
+            totalClasses: classes2.length,
+            totalSubjects: subjects2.length,
+            totalExams: exams2.length,
+            totalExamResults: examResults2.length,
+            averageClassSize: classes2.length > 0 ? Math.round(students3.length / classes2.length) : 0,
+            gradeDistribution,
+            subjectPerformance,
+            recentActivity: {
+              newStudentsThisMonth: students3.filter(
+                (s) => s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
+              ).length,
+              examsThisMonth: exams2.filter(
+                (e) => e.createdAt && new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
+              ).length
+            }
+          };
+        } catch (error) {
+          console.error("Error in getAnalyticsOverview:", error);
+          return this.getFallbackAnalytics();
+        }
+      }
+      async getPerformanceAnalytics(filters) {
+        try {
+          let examResults2 = await db.select().from(examResults);
+          if (filters.classId) {
+            const studentsInClass = await db.select().from(students).where(eq2(students.classId, filters.classId));
+            const studentIds = studentsInClass.map((s) => s.id);
+            examResults2 = examResults2.filter((r) => studentIds.includes(r.studentId));
+          }
+          if (filters.subjectId) {
+            const examsForSubject = await db.select().from(exams).where(eq2(exams.subjectId, filters.subjectId));
+            const examIds = examsForSubject.map((e) => e.id);
+            examResults2 = examResults2.filter((r) => examIds.includes(r.examId));
+          }
+          const totalExams = examResults2.length;
+          const averageScore = totalExams > 0 ? examResults2.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
+          const gradeDistribution = this.calculateGradeDistribution(examResults2);
+          const performanceTrends = this.calculatePerformanceTrends(examResults2);
+          const studentPerformance = this.calculateStudentPerformance(examResults2);
+          return {
+            totalExams,
+            averageScore: Math.round(averageScore * 100) / 100,
+            averagePercentage: Math.round(averageScore / 100 * 100),
+            // Assuming 100 is typical total marks
+            gradeDistribution,
+            performanceTrends,
+            topPerformers: studentPerformance.slice(0, 5),
+            strugglingStudents: studentPerformance.slice(-5),
+            passRate: Math.round(examResults2.filter((r) => (r.marksObtained || 0) >= 50).length / totalExams * 100)
+          };
+        } catch (error) {
+          console.error("Error in getPerformanceAnalytics:", error);
+          return { error: "Failed to calculate performance analytics" };
+        }
+      }
+      async getTrendAnalytics(months = 6) {
+        try {
+          const cutoffDate = /* @__PURE__ */ new Date();
+          cutoffDate.setMonth(cutoffDate.getMonth() - months);
+          const [students3, exams2, examResults2] = await Promise.all([
+            db.select().from(users).where(and(
+              eq2(users.roleId, 1)
+              // Note: In a real implementation, you'd filter by createdAt >= cutoffDate
+            )),
+            db.select().from(exams),
+            db.select().from(examResults)
+          ]);
+          const monthlyData = [];
+          for (let i = months - 1; i >= 0; i--) {
+            const month = /* @__PURE__ */ new Date();
+            month.setMonth(month.getMonth() - i);
+            const monthName = month.toLocaleString("default", { month: "short" });
+            const year = month.getFullYear();
+            monthlyData.push({
+              month: monthName,
+              year,
+              students: students3.length + Math.floor(Math.random() * 10) - 5,
+              // Simulated variance
+              exams: Math.floor(exams2.length / months) + Math.floor(Math.random() * 3),
+              averageScore: 75 + Math.floor(Math.random() * 20) - 10,
+              attendance: 85 + Math.floor(Math.random() * 15)
+            });
+          }
+          return {
+            monthlyTrends: monthlyData,
+            summary: {
+              studentsGrowth: monthlyData.length > 1 ? ((monthlyData[monthlyData.length - 1].students - monthlyData[0].students) / monthlyData[0].students * 100).toFixed(1) : 0,
+              examsTrend: "stable",
+              scoresTrend: "improving",
+              attendanceTrend: "stable"
+            }
+          };
+        } catch (error) {
+          console.error("Error in getTrendAnalytics:", error);
+          return { error: "Failed to calculate trend analytics" };
+        }
+      }
+      async getAttendanceAnalytics(filters) {
+        try {
+          let attendance2 = await db.select().from(attendance);
+          if (filters.classId) {
+            const studentsInClass = await db.select().from(students).where(eq2(students.classId, filters.classId));
+            const studentIds = studentsInClass.map((s) => s.id);
+            attendance2 = attendance2.filter((a) => studentIds.includes(a.studentId));
+          }
+          if (filters.startDate && filters.endDate) {
+            attendance2 = attendance2.filter((a) => {
+              const attendanceDate = new Date(a.date);
+              return attendanceDate >= new Date(filters.startDate) && attendanceDate <= new Date(filters.endDate);
+            });
+          }
+          const totalRecords = attendance2.length;
+          const presentCount = attendance2.filter((a) => a.status === "Present").length;
+          const absentCount = attendance2.filter((a) => a.status === "Absent").length;
+          const lateCount = attendance2.filter((a) => a.status === "Late").length;
+          const excusedCount = attendance2.filter((a) => a.status === "Excused").length;
+          const attendanceRate = totalRecords > 0 ? Math.round(presentCount / totalRecords * 100) : 0;
+          return {
+            totalRecords,
+            attendanceRate,
+            statusBreakdown: {
+              present: presentCount,
+              absent: absentCount,
+              late: lateCount,
+              excused: excusedCount
+            },
+            dailyTrends: this.calculateDailyAttendanceTrends(attendance2),
+            classComparison: await this.calculateClassAttendanceComparison()
+          };
+        } catch (error) {
+          console.error("Error in getAttendanceAnalytics:", error);
+          return { error: "Failed to calculate attendance analytics" };
+        }
+      }
+      calculateGradeDistribution(examResults2) {
+        const grades = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+        examResults2.forEach((result) => {
+          const percentage = result.obtainedMarks / result.totalMarks * 100;
+          if (percentage >= 90) grades.A++;
+          else if (percentage >= 80) grades.B++;
+          else if (percentage >= 70) grades.C++;
+          else if (percentage >= 60) grades.D++;
+          else grades.F++;
+        });
+        return Object.entries(grades).map(([grade, count]) => ({ grade, count }));
+      }
+      async calculateSubjectPerformance(examResults2, subjects2) {
+        const subjectMap = /* @__PURE__ */ new Map();
+        subjects2.forEach((s) => subjectMap.set(s.id, s.name));
+        const performance = /* @__PURE__ */ new Map();
+        examResults2.forEach((result) => {
+          const examSubject = result.examId;
+          if (!performance.has(examSubject)) {
+            performance.set(examSubject, { total: 0, count: 0 });
+          }
+          const current = performance.get(examSubject);
+          current.total += result.obtainedMarks;
+          current.count += 1;
+        });
+        return Array.from(performance.entries()).map(([subjectId, data]) => ({
+          subject: subjectMap.get(subjectId) || "Unknown",
+          average: Math.round(data.total / data.count * 100) / 100,
+          examCount: data.count
+        }));
+      }
+      calculatePerformanceTrends(examResults2) {
+        const trends = /* @__PURE__ */ new Map();
+        examResults2.forEach((result) => {
+          const month = new Date(result.createdAt).toLocaleString("default", { month: "short" });
+          if (!trends.has(month)) {
+            trends.set(month, { total: 0, count: 0 });
+          }
+          const current = trends.get(month);
+          current.total += result.obtainedMarks;
+          current.count += 1;
+        });
+        return Array.from(trends.entries()).map(([month, data]) => ({
+          month,
+          average: Math.round(data.total / data.count * 100) / 100
+        }));
+      }
+      calculateStudentPerformance(examResults2) {
+        const performance = /* @__PURE__ */ new Map();
+        examResults2.forEach((result) => {
+          if (!performance.has(result.studentId)) {
+            performance.set(result.studentId, { total: 0, count: 0 });
+          }
+          const current = performance.get(result.studentId);
+          current.total += result.obtainedMarks;
+          current.count += 1;
+        });
+        return Array.from(performance.entries()).map(([studentId, data]) => ({
+          studentId,
+          average: Math.round(data.total / data.count * 100) / 100,
+          examCount: data.count
+        })).sort((a, b) => b.average - a.average);
+      }
+      calculateDailyAttendanceTrends(attendance2) {
+        const trends = /* @__PURE__ */ new Map();
+        attendance2.forEach((record) => {
+          const date2 = record.date;
+          if (!trends.has(date2)) {
+            trends.set(date2, { present: 0, total: 0 });
+          }
+          const current = trends.get(date2);
+          current.total += 1;
+          if (record.status === "Present") current.present += 1;
+        });
+        return Array.from(trends.entries()).map(([date2, data]) => ({
+          date: date2,
+          rate: Math.round(data.present / data.total * 100)
+        }));
+      }
+      async calculateClassAttendanceComparison() {
+        try {
+          const classes2 = await db.select().from(classes);
+          return classes2.map((cls) => ({
+            className: cls.name,
+            attendanceRate: 85 + Math.floor(Math.random() * 15),
+            // Simplified for demo
+            level: cls.level
+          }));
+        } catch (error) {
+          return [];
+        }
+      }
+      getFallbackAnalytics() {
+        return {
+          totalUsers: 0,
+          totalStudents: 0,
+          totalTeachers: 0,
+          totalClasses: 0,
+          totalSubjects: 0,
+          error: "Unable to calculate analytics - database unavailable"
+        };
+      }
+      // Contact messages management - ensuring 100% Supabase persistence
+      async createContactMessage(message) {
+        const result = await this.db.insert(contactMessages).values(message).returning();
+        return result[0];
+      }
+      async getContactMessages() {
+        return await this.db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
+      }
+      // Report finalization methods
+      async getExamResultById(id) {
+        try {
+          const result = await this.db.select().from(examResults).where(eq2(examResults.id, id)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error fetching exam result by ID:", error);
+          return void 0;
+        }
+      }
+      async getFinalizedReportsByExams(examIds, filters) {
+        try {
+          const results = await this.db.select().from(examResults).where(and(
+            inArray(examResults.examId, examIds)
+            // Add teacherFinalized field check when column exists
+            // eq(schema.examResults.teacherFinalized, true)
+          )).orderBy(desc(examResults.createdAt));
+          return results;
+        } catch (error) {
+          console.error("Error fetching finalized reports by exams:", error);
+          return [];
+        }
+      }
+      async getAllFinalizedReports(filters) {
+        try {
+          const results = await this.db.select().from(examResults).orderBy(desc(examResults.createdAt));
+          return results;
+        } catch (error) {
+          console.error("Error fetching all finalized reports:", error);
+          return [];
+        }
+      }
+      async getContactMessageById(id) {
+        const result = await this.db.select().from(contactMessages).where(eq2(contactMessages.id, id)).limit(1);
+        return result[0];
+      }
+      async markContactMessageAsRead(id) {
+        const result = await this.db.update(contactMessages).set({ isRead: true }).where(eq2(contactMessages.id, id)).returning();
+        return result.length > 0;
+      }
+      async respondToContactMessage(id, response, respondedBy) {
+        const result = await this.db.update(contactMessages).set({
+          response,
+          respondedBy,
+          respondedAt: /* @__PURE__ */ new Date(),
+          isRead: true
+        }).where(eq2(contactMessages.id, id)).returning();
+        return result[0];
+      }
+      // Performance monitoring implementation
+      async logPerformanceEvent(event) {
+        const result = await this.db.insert(performanceEvents).values(event).returning();
+        return result[0];
+      }
+      async getPerformanceMetrics(hours = 24) {
+        try {
+          const since = new Date(Date.now() - hours * 60 * 60 * 1e3);
+          const sinceISO = since.toISOString();
+          const events = await this.db.select().from(performanceEvents).where(sql2`${performanceEvents.createdAt} >= ${sinceISO}`);
+          const totalEvents = events.length;
+          const goalAchievedCount = events.filter((e) => e.goalAchieved).length;
+          const goalAchievementRate = totalEvents > 0 ? goalAchievedCount / totalEvents * 100 : 0;
+          const averageDuration = totalEvents > 0 ? events.reduce((sum, e) => sum + e.duration, 0) / totalEvents : 0;
+          const slowSubmissions = events.filter((e) => e.duration > 2e3).length;
+          const eventsByType = {};
+          events.forEach((e) => {
+            eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
+          });
+          return {
+            totalEvents,
+            goalAchievementRate: Math.round(goalAchievementRate * 100) / 100,
+            averageDuration: Math.round(averageDuration),
+            slowSubmissions,
+            eventsByType
+          };
+        } catch (error) {
+          console.error("Error in getPerformanceMetrics:", error);
+          return {
+            totalEvents: 0,
+            goalAchievementRate: 0,
+            averageDuration: 0,
+            slowSubmissions: 0,
+            eventsByType: {}
+          };
+        }
+      }
+      async getRecentPerformanceAlerts(hours = 24) {
+        try {
+          const since = new Date(Date.now() - hours * 60 * 60 * 1e3);
+          const sinceISO = since.toISOString();
+          const alerts = await this.db.select().from(performanceEvents).where(and(
+            sql2`${performanceEvents.createdAt} >= ${sinceISO}`,
+            eq2(performanceEvents.goalAchieved, false)
+          )).orderBy(desc(performanceEvents.createdAt)).limit(50);
+          return alerts;
+        } catch (error) {
+          console.error("Error in getRecentPerformanceAlerts:", error);
+          return [];
+        }
+      }
+      // Teacher class assignments implementation
+      async createTeacherClassAssignment(assignment) {
+        const result = await this.db.insert(teacherClassAssignments).values(assignment).returning();
+        return result[0];
+      }
+      async getTeacherClassAssignments(teacherId) {
+        return await this.db.select().from(teacherClassAssignments).where(and(
+          eq2(teacherClassAssignments.teacherId, teacherId),
+          eq2(teacherClassAssignments.isActive, true)
+        )).orderBy(teacherClassAssignments.createdAt);
+      }
+      async getTeachersForClassSubject(classId, subjectId) {
+        const assignments = await this.db.select({
+          user: users
+        }).from(teacherClassAssignments).innerJoin(users, eq2(teacherClassAssignments.teacherId, users.id)).where(and(
+          eq2(teacherClassAssignments.classId, classId),
+          eq2(teacherClassAssignments.subjectId, subjectId),
+          eq2(teacherClassAssignments.isActive, true)
+        ));
+        return assignments.map((a) => a.user);
+      }
+      async updateTeacherClassAssignment(id, assignment) {
+        const result = await this.db.update(teacherClassAssignments).set(assignment).where(eq2(teacherClassAssignments.id, id)).returning();
+        return result[0];
+      }
+      async deleteTeacherClassAssignment(id) {
+        const result = await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.id, id)).returning();
+        return result.length > 0;
+      }
+      // Manual grading task queue
+      async createGradingTask(task) {
+        try {
+          const result = await this.db.insert(gradingTasks).values(task).returning();
+          return result[0];
+        } catch (error) {
+          if (error?.cause?.code === "42P01") {
+            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet - skipping task creation");
+            return { id: 0, ...task };
+          }
+          throw error;
+        }
+      }
+      async assignGradingTask(taskId, teacherId) {
+        try {
+          const result = await this.db.update(gradingTasks).set({
+            assignedTeacherId: teacherId,
+            assignedAt: /* @__PURE__ */ new Date(),
+            status: "in_progress"
+          }).where(eq2(gradingTasks.id, taskId)).returning();
+          return result[0];
+        } catch (error) {
+          if (error?.cause?.code === "42P01") {
+            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet");
+            return void 0;
+          }
+          throw error;
+        }
+      }
+      async getGradingTasksByTeacher(teacherId, status) {
+        try {
+          let query = this.db.select().from(gradingTasks).where(eq2(gradingTasks.assignedTeacherId, teacherId)).orderBy(desc(gradingTasks.priority), asc(gradingTasks.createdAt));
+          if (status) {
+            query = query.where(and(
+              eq2(gradingTasks.assignedTeacherId, teacherId),
+              eq2(gradingTasks.status, status)
+            ));
+          }
+          return await query;
+        } catch (error) {
+          if (error?.cause?.code === "42P01") {
+            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet - returning empty array");
+            return [];
+          }
+          throw error;
+        }
+      }
+      async getGradingTasksBySession(sessionId) {
+        try {
+          return await this.db.select().from(gradingTasks).where(eq2(gradingTasks.sessionId, sessionId)).orderBy(desc(gradingTasks.priority), asc(gradingTasks.createdAt));
+        } catch (error) {
+          if (error?.cause?.code === "42P01") {
+            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet - returning empty array");
+            return [];
+          }
+          throw error;
+        }
+      }
+      async updateGradingTaskStatus(taskId, status, completedAt) {
+        try {
+          const updateData = { status };
+          if (completedAt) {
+            updateData.completedAt = completedAt;
+          }
+          const result = await this.db.update(gradingTasks).set(updateData).where(eq2(gradingTasks.id, taskId)).returning();
+          return result[0];
+        } catch (error) {
+          if (error?.cause?.code === "42P01") {
+            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet");
+            return void 0;
+          }
+          throw error;
+        }
+      }
+      async completeGradingTask(taskId, pointsEarned, feedbackText) {
+        try {
+          return await this.db.transaction(async (tx) => {
+            const tasks = await tx.select().from(gradingTasks).where(eq2(gradingTasks.id, taskId)).limit(1);
+            if (tasks.length === 0) {
+              return void 0;
+            }
+            const task = tasks[0];
+            const answers = await tx.update(studentAnswers).set({
+              pointsEarned,
+              feedbackText,
+              autoScored: false,
+              manualOverride: true
+            }).where(eq2(studentAnswers.id, task.answerId)).returning();
+            const updatedTasks = await tx.update(gradingTasks).set({
+              status: "completed",
+              completedAt: /* @__PURE__ */ new Date()
+            }).where(eq2(gradingTasks.id, taskId)).returning();
+            return {
+              task: updatedTasks[0],
+              answer: answers[0]
+            };
+          });
+        } catch (error) {
+          if (error?.cause?.code === "42P01") {
+            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet");
+            return void 0;
+          }
+          throw error;
+        }
+      }
+      // Audit logging implementation
+      async createAuditLog(log3) {
+        const result = await this.db.insert(auditLogs).values(log3).returning();
+        return result[0];
+      }
+      async getAuditLogs(filters) {
+        const conditions = [];
+        if (filters?.userId) {
+          conditions.push(eq2(auditLogs.userId, filters.userId));
+        }
+        if (filters?.entityType) {
+          conditions.push(eq2(auditLogs.entityType, filters.entityType));
+        }
+        if (filters?.entityId) {
+          conditions.push(eq2(auditLogs.entityId, filters.entityId));
+        }
+        if (filters?.action) {
+          conditions.push(eq2(auditLogs.action, filters.action));
+        }
+        if (filters?.startDate) {
+          conditions.push(dsql`${auditLogs.createdAt} >= ${filters.startDate}`);
+        }
+        if (filters?.endDate) {
+          conditions.push(dsql`${auditLogs.createdAt} <= ${filters.endDate}`);
+        }
+        let query = this.db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+        if (filters?.limit) {
+          query = query.limit(filters.limit);
+        }
+        return await query;
+      }
+      async getAuditLogsByEntity(entityType, entityId) {
+        return await this.db.select().from(auditLogs).where(and(
+          eq2(auditLogs.entityType, entityType),
+          eq2(auditLogs.entityId, entityId)
+        )).orderBy(desc(auditLogs.createdAt));
+      }
+      // Notification management implementation
+      async createNotification(notification) {
+        const result = await this.db.insert(notifications).values(notification).returning();
+        return result[0];
+      }
+      async getNotificationsByUserId(userId) {
+        return await this.db.select().from(notifications).where(eq2(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+      }
+      async getUnreadNotificationCount(userId) {
+        const result = await this.db.select({ count: dsql`count(*)::int` }).from(notifications).where(and(
+          eq2(notifications.userId, userId),
+          eq2(notifications.isRead, false)
+        ));
+        return result[0]?.count || 0;
+      }
+      async markNotificationAsRead(notificationId) {
+        const result = await this.db.update(notifications).set({ isRead: true }).where(eq2(notifications.id, notificationId)).returning();
+        return result[0];
+      }
+      async markAllNotificationsAsRead(userId) {
+        await this.db.update(notifications).set({ isRead: true }).where(and(
+          eq2(notifications.userId, userId),
+          eq2(notifications.isRead, false)
+        ));
+      }
+      // Password reset attempt tracking for rate limiting
+      async createPasswordResetAttempt(identifier, ipAddress, success) {
+        const result = await this.db.insert(passwordResetAttempts).values({
+          identifier,
+          ipAddress,
+          success
+        }).returning();
+        return result[0];
+      }
+      async getRecentPasswordResetAttempts(identifier, minutesAgo) {
+        const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1e3);
+        return await this.db.select().from(passwordResetAttempts).where(and(
+          eq2(passwordResetAttempts.identifier, identifier),
+          dsql`${passwordResetAttempts.attemptedAt} > ${cutoffTime}`
+        )).orderBy(desc(passwordResetAttempts.attemptedAt));
+      }
+      async deleteOldPasswordResetAttempts(hoursAgo) {
+        const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1e3);
+        await this.db.delete(passwordResetAttempts).where(dsql`${passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
+        return true;
+      }
+      // Account security methods
+      async lockAccount(userId, lockUntil) {
+        const result = await this.db.update(users).set({ accountLockedUntil: lockUntil }).where(eq2(users.id, userId)).returning();
+        return result.length > 0;
+      }
+      async unlockAccount(userId) {
+        const result = await this.db.update(users).set({ accountLockedUntil: null }).where(eq2(users.id, userId)).returning();
+        return result.length > 0;
+      }
+      async isAccountLocked(userId) {
+        const user = await this.db.select({ accountLockedUntil: users.accountLockedUntil }).from(users).where(eq2(users.id, userId)).limit(1);
+        if (!user[0] || !user[0].accountLockedUntil) {
+          return false;
+        }
+        return new Date(user[0].accountLockedUntil) > /* @__PURE__ */ new Date();
+      }
+      // Admin recovery powers
+      async adminResetUserPassword(userId, newPasswordHash, resetBy, forceChange) {
+        const result = await this.db.update(users).set({
+          passwordHash: newPasswordHash,
+          mustChangePassword: forceChange
+        }).where(eq2(users.id, userId)).returning();
+        if (result.length > 0) {
+          await this.createAuditLog({
+            userId: resetBy,
+            action: "admin_password_reset",
+            entityType: "user",
+            entityId: 0,
+            oldValue: null,
+            newValue: JSON.stringify({ targetUserId: userId, forceChange }),
+            reason: "Admin initiated password reset",
+            ipAddress: null,
+            userAgent: null
+          });
+        }
+        return result.length > 0;
+      }
+      async updateRecoveryEmail(userId, recoveryEmail, updatedBy) {
+        const oldUser = await this.getUser(userId);
+        const result = await this.db.update(users).set({ recoveryEmail }).where(eq2(users.id, userId)).returning();
+        if (result.length > 0) {
+          await this.createAuditLog({
+            userId: updatedBy,
+            action: "recovery_email_updated",
+            entityType: "user",
+            entityId: 0,
+            oldValue: oldUser?.recoveryEmail || null,
+            newValue: recoveryEmail,
+            reason: "Recovery email updated by admin",
+            ipAddress: null,
+            userAgent: null
+          });
+        }
+        return result.length > 0;
+      }
+      // NEW METHODS FOR EXAM PUBLISHING
+      async getScheduledExamsToPublish(now) {
+        const nowISO = now.toISOString();
+        return await this.db.select().from(exams).where(
+          and(
+            eq2(exams.isPublished, false),
+            dsql`${exams.startTime} <= ${nowISO}`,
+            eq2(exams.timerMode, "global")
+            // Only publish global timer exams automatically
+          )
+        ).limit(50);
+      }
+      // Settings management methods (Module 1)
+      async getSetting(key) {
+        const result = await this.db.select().from(settings).where(eq2(settings.key, key)).limit(1);
+        return result[0];
+      }
+      async getAllSettings() {
+        return await this.db.select().from(settings).orderBy(asc(settings.key));
+      }
+      async createSetting(setting) {
+        const result = await this.db.insert(settings).values(setting).returning();
+        return result[0];
+      }
+      async updateSetting(key, value, updatedBy) {
+        const result = await this.db.update(settings).set({ value, updatedBy, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(settings.key, key)).returning();
+        return result[0];
+      }
+      async deleteSetting(key) {
+        const result = await this.db.delete(settings).where(eq2(settings.key, key)).returning();
+        return result.length > 0;
+      }
+      // Counters for atomic sequence generation (Module 1)
+      async getNextSequence(classCode, year) {
+        const result = await this.db.insert(counters).values({
+          classCode,
+          year,
+          sequence: 1
+        }).onConflictDoUpdate({
+          target: [counters.classCode, counters.year],
+          set: {
+            sequence: dsql`${counters.sequence} + 1`,
+            updatedAt: /* @__PURE__ */ new Date()
+          }
+        }).returning();
+        return result[0].sequence;
+      }
+      async getCounter(classCode, year) {
+        const result = await this.db.select().from(counters).where(
+          and(
+            eq2(counters.classCode, classCode),
+            eq2(counters.year, year)
+          )
+        ).limit(1);
+        return result[0];
+      }
+      async resetCounter(classCode, year) {
+        const result = await this.db.update(counters).set({ sequence: 0, updatedAt: /* @__PURE__ */ new Date() }).where(
+          and(
+            eq2(counters.classCode, classCode),
+            eq2(counters.year, year)
+          )
+        ).returning();
+        return result.length > 0;
+      }
+      // Job Vacancy System implementations
+      async createVacancy(vacancy) {
+        const result = await this.db.insert(vacancies).values(vacancy).returning();
+        return result[0];
+      }
+      async getVacancy(id) {
+        const result = await this.db.select().from(vacancies).where(eq2(vacancies.id, id)).limit(1);
+        return result[0];
+      }
+      async getAllVacancies(status) {
+        if (status) {
+          return await this.db.select().from(vacancies).where(eq2(vacancies.status, status)).orderBy(desc(vacancies.createdAt));
+        }
+        return await this.db.select().from(vacancies).orderBy(desc(vacancies.createdAt));
+      }
+      async updateVacancy(id, updates) {
+        const result = await this.db.update(vacancies).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(vacancies.id, id)).returning();
+        return result[0];
+      }
+      async deleteVacancy(id) {
+        const result = await this.db.delete(vacancies).where(eq2(vacancies.id, id)).returning();
+        return result.length > 0;
+      }
+      // Teacher Applications implementations
+      async createTeacherApplication(application) {
+        const result = await this.db.insert(teacherApplications).values(application).returning();
+        return result[0];
+      }
+      async getTeacherApplication(id) {
+        const result = await this.db.select().from(teacherApplications).where(eq2(teacherApplications.id, id)).limit(1);
+        return result[0];
+      }
+      async getAllTeacherApplications(status) {
+        if (status) {
+          return await this.db.select().from(teacherApplications).where(eq2(teacherApplications.status, status)).orderBy(desc(teacherApplications.dateApplied));
+        }
+        return await this.db.select().from(teacherApplications).orderBy(desc(teacherApplications.dateApplied));
+      }
+      async updateTeacherApplication(id, updates) {
+        const result = await this.db.update(teacherApplications).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(teacherApplications.id, id)).returning();
+        return result[0];
+      }
+      async approveTeacherApplication(applicationId, approvedBy) {
+        const application = await this.getTeacherApplication(applicationId);
+        if (!application) {
+          throw new Error("Application not found");
+        }
+        const updatedApplication = await this.db.update(teacherApplications).set({
+          status: "approved",
+          reviewedBy: approvedBy,
+          reviewedAt: /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq2(teacherApplications.id, applicationId)).returning();
+        const approvedTeacher = await this.db.insert(approvedTeachers).values({
+          applicationId,
+          googleEmail: application.googleEmail,
+          fullName: application.fullName,
+          subjectSpecialty: application.subjectSpecialty,
+          approvedBy
+        }).returning();
+        return {
+          application: updatedApplication[0],
+          approvedTeacher: approvedTeacher[0]
+        };
+      }
+      async rejectTeacherApplication(applicationId, reviewedBy, reason) {
+        const result = await this.db.update(teacherApplications).set({
+          status: "rejected",
+          reviewedBy,
+          reviewedAt: /* @__PURE__ */ new Date(),
+          rejectionReason: reason,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq2(teacherApplications.id, applicationId)).returning();
+        return result[0];
+      }
+      // Approved Teachers implementations
+      async getApprovedTeacherByEmail(email) {
+        const result = await this.db.select().from(approvedTeachers).where(eq2(approvedTeachers.googleEmail, email)).limit(1);
+        return result[0];
+      }
+      async getAllApprovedTeachers() {
+        return await this.db.select().from(approvedTeachers).orderBy(desc(approvedTeachers.dateApproved));
+      }
+      async deleteApprovedTeacher(id) {
+        const result = await this.db.delete(approvedTeachers).where(eq2(approvedTeachers.id, id)).returning();
+        return result.length > 0;
+      }
+    };
+    storage = initializeStorageSync();
+  }
+});
+
 // server/auth-utils.ts
 var auth_utils_exports = {};
 __export(auth_utils_exports, {
   generatePassword: () => generatePassword,
+  generateStudentPassword: () => generateStudentPassword,
+  generateStudentUsername: () => generateStudentUsername,
   generateUsername: () => generateUsername,
   getNextUserNumber: () => getNextUserNumber,
   getRoleIdFromCode: () => getRoleIdFromCode,
   isValidThsUsername: () => isValidThsUsername,
   parseUsername: () => parseUsername
 });
+import crypto from "crypto";
 function generateRandomString(length) {
-  const crypto = __require("crypto");
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*";
   const bytes = crypto.randomBytes(length);
   let result = "";
@@ -45,6 +4113,14 @@ function generateUsername(roleId, year, optional = "", number) {
 function generatePassword(year) {
   const randomPart = generateRandomString(12);
   return `THS@${year}#${randomPart}`;
+}
+function generateStudentUsername(className, currentYear, nextNumber) {
+  const classCode = className.replace(/\s+/g, "").toUpperCase().slice(0, 4);
+  return `THS-STU-${currentYear}-${classCode}-${nextNumber.toString().padStart(3, "0")}`;
+}
+function generateStudentPassword(currentYear) {
+  const randomHex = crypto.randomBytes(2).toString("hex").toUpperCase();
+  return `THS@${currentYear}#${randomHex}`;
 }
 function parseUsername(username) {
   const parts = username.split("-");
@@ -118,3128 +4194,712 @@ var init_auth_utils = __esm({
   }
 });
 
-// server/index.ts
-import express2 from "express";
-
-// server/routes.ts
-import { createServer } from "http";
-
-// server/storage.ts
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-
-// shared/schema.ts
-var schema_exports = {};
-__export(schema_exports, {
-  academicTerms: () => academicTerms,
-  announcements: () => announcements,
-  attendance: () => attendance,
-  attendanceStatusEnum: () => attendanceStatusEnum,
-  auditLogs: () => auditLogs,
-  classes: () => classes,
-  contactMessages: () => contactMessages,
-  createQuestionOptionSchema: () => createQuestionOptionSchema,
-  createStudentSchema: () => createStudentSchema,
-  createdViaEnum: () => createdViaEnum,
-  examQuestions: () => examQuestions,
-  examResults: () => examResults,
-  examSessions: () => examSessions,
-  examTypeEnum: () => examTypeEnum,
-  exams: () => exams,
-  gallery: () => gallery,
-  galleryCategories: () => galleryCategories,
-  genderEnum: () => genderEnum,
-  gradingTasks: () => gradingTasks,
-  homePageContent: () => homePageContent,
-  insertAnnouncementSchema: () => insertAnnouncementSchema,
-  insertAttendanceSchema: () => insertAttendanceSchema,
-  insertAuditLogSchema: () => insertAuditLogSchema,
-  insertClassSchema: () => insertClassSchema,
-  insertContactMessageSchema: () => insertContactMessageSchema,
-  insertExamQuestionSchema: () => insertExamQuestionSchema,
-  insertExamResultSchema: () => insertExamResultSchema,
-  insertExamSchema: () => insertExamSchema,
-  insertExamSessionSchema: () => insertExamSessionSchema,
-  insertGalleryCategorySchema: () => insertGalleryCategorySchema,
-  insertGallerySchema: () => insertGallerySchema,
-  insertGradingTaskSchema: () => insertGradingTaskSchema,
-  insertHomePageContentSchema: () => insertHomePageContentSchema,
-  insertInviteSchema: () => insertInviteSchema,
-  insertMessageSchema: () => insertMessageSchema,
-  insertNotificationSchema: () => insertNotificationSchema,
-  insertPasswordResetAttemptSchema: () => insertPasswordResetAttemptSchema,
-  insertPasswordResetTokenSchema: () => insertPasswordResetTokenSchema,
-  insertPerformanceEventSchema: () => insertPerformanceEventSchema,
-  insertQuestionOptionSchema: () => insertQuestionOptionSchema,
-  insertReportCardItemSchema: () => insertReportCardItemSchema,
-  insertReportCardSchema: () => insertReportCardSchema,
-  insertRoleSchema: () => insertRoleSchema,
-  insertStudentAnswerSchema: () => insertStudentAnswerSchema,
-  insertStudentSchema: () => insertStudentSchema,
-  insertStudyResourceSchema: () => insertStudyResourceSchema,
-  insertSubjectSchema: () => insertSubjectSchema,
-  insertTeacherClassAssignmentSchema: () => insertTeacherClassAssignmentSchema,
-  insertUserSchema: () => insertUserSchema,
-  invites: () => invites,
-  messages: () => messages,
-  notifications: () => notifications,
-  passwordResetAttempts: () => passwordResetAttempts,
-  passwordResetTokens: () => passwordResetTokens,
-  performanceEvents: () => performanceEvents,
-  questionOptions: () => questionOptions,
-  reportCardItems: () => reportCardItems,
-  reportCardStatusEnum: () => reportCardStatusEnum,
-  reportCards: () => reportCards,
-  roles: () => roles,
-  studentAnswers: () => studentAnswers,
-  students: () => students,
-  studyResources: () => studyResources,
-  subjects: () => subjects,
-  teacherClassAssignments: () => teacherClassAssignments,
-  updateExamSessionSchema: () => updateExamSessionSchema,
-  userStatusEnum: () => userStatusEnum,
-  users: () => users
+// server/email-service.ts
+var email_service_exports = {};
+__export(email_service_exports, {
+  getPasswordChangedEmailHTML: () => getPasswordChangedEmailHTML,
+  getPasswordResetEmailHTML: () => getPasswordResetEmailHTML,
+  sendEmail: () => sendEmail
 });
-import { sql, eq } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
-var genderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
-var attendanceStatusEnum = pgEnum("attendance_status", ["Present", "Absent", "Late", "Excused"]);
-var reportCardStatusEnum = pgEnum("report_card_status", ["draft", "finalized", "published"]);
-var examTypeEnum = pgEnum("exam_type", ["test", "exam"]);
-var userStatusEnum = pgEnum("user_status", ["pending", "active", "suspended", "disabled"]);
-var createdViaEnum = pgEnum("created_via", ["bulk", "invite", "self", "google", "admin"]);
-var roles = pgTable("roles", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 50 }).notNull().unique(),
-  permissions: text("permissions").array().default(sql`'{}'::text[]`),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: varchar("username", { length: 100 }).unique(),
-  email: varchar("email", { length: 255 }).notNull(),
-  recoveryEmail: varchar("recovery_email", { length: 255 }),
-  // For password recovery
-  passwordHash: text("password_hash"),
-  mustChangePassword: boolean("must_change_password").default(true),
-  roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-  firstName: varchar("first_name", { length: 100 }).notNull(),
-  lastName: varchar("last_name", { length: 100 }).notNull(),
-  phone: varchar("phone", { length: 20 }),
-  address: text("address"),
-  dateOfBirth: date("date_of_birth"),
-  gender: genderEnum("gender"),
-  profileImageUrl: text("profile_image_url"),
-  isActive: boolean("is_active").default(true),
-  authProvider: varchar("auth_provider", { length: 20 }).default("local"),
-  googleId: varchar("google_id", { length: 255 }).unique(),
-  // Security & audit fields
-  status: userStatusEnum("status").default("pending"),
-  // New accounts require approval
-  createdVia: createdViaEnum("created_via").default("admin"),
-  createdBy: uuid("created_by"),
-  approvedBy: uuid("approved_by"),
-  approvedAt: timestamp("approved_at"),
-  lastLoginAt: timestamp("last_login_at"),
-  lastLoginIp: varchar("last_login_ip", { length: 45 }),
-  mfaEnabled: boolean("mfa_enabled").default(false),
-  mfaSecret: text("mfa_secret"),
-  accountLockedUntil: timestamp("account_locked_until"),
-  // For suspicious activity lock
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-}, (table) => ({
-  usersEmailIdx: index("users_email_idx").on(table.email),
-  usersStatusIdx: index("users_status_idx").on(table.status),
-  usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId)
-}));
-var passwordResetTokens = pgTable("password_reset_tokens", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  token: varchar("token", { length: 255 }).notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"),
-  ipAddress: varchar("ip_address", { length: 45 }),
-  // Track IP for security
-  resetBy: uuid("reset_by").references(() => users.id),
-  // Admin who initiated reset, null if self-service
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
-  passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token)
-}));
-var passwordResetAttempts = pgTable("password_reset_attempts", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  identifier: varchar("identifier", { length: 255 }).notNull(),
-  // Email or username
-  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
-  attemptedAt: timestamp("attempted_at").defaultNow(),
-  success: boolean("success").default(false)
-}, (table) => ({
-  passwordResetAttemptsIdentifierIdx: index("password_reset_attempts_identifier_idx").on(table.identifier),
-  passwordResetAttemptsIpIdx: index("password_reset_attempts_ip_idx").on(table.ipAddress),
-  passwordResetAttemptsTimeIdx: index("password_reset_attempts_time_idx").on(table.attemptedAt)
-}));
-var invites = pgTable("invites", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  token: varchar("token", { length: 255 }).notNull().unique(),
-  email: varchar("email", { length: 255 }).notNull(),
-  roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  acceptedAt: timestamp("accepted_at"),
-  acceptedBy: uuid("accepted_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  invitesTokenIdx: index("invites_token_idx").on(table.token),
-  invitesEmailIdx: index("invites_email_idx").on(table.email)
-}));
-var notifications = pgTable("notifications", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  // Admin receiving the notification
-  type: varchar("type", { length: 50 }).notNull(),
-  // 'pending_user', 'approval_request', etc.
-  title: varchar("title", { length: 200 }).notNull(),
-  message: text("message").notNull(),
-  relatedEntityType: varchar("related_entity_type", { length: 50 }),
-  // 'user', 'student', etc.
-  relatedEntityId: varchar("related_entity_id", { length: 255 }),
-  // ID of the related entity
-  isRead: boolean("is_read").default(false),
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  notificationsUserIdIdx: index("notifications_user_id_idx").on(table.userId),
-  notificationsIsReadIdx: index("notifications_is_read_idx").on(table.isRead)
-}));
-var academicTerms = pgTable("academic_terms", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 50 }).notNull(),
-  year: varchar("year", { length: 9 }).notNull(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
-  isCurrent: boolean("is_current").default(false),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var classes = pgTable("classes", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 50 }).notNull().unique(),
-  level: varchar("level", { length: 20 }).notNull(),
-  capacity: integer("capacity").default(30),
-  classTeacherId: uuid("class_teacher_id").references(() => users.id),
-  currentTermId: integer("current_term_id").references(() => academicTerms.id),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var subjects = pgTable("subjects", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  code: varchar("code", { length: 20 }).notNull().unique(),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var students = pgTable("students", {
-  id: uuid("id").references(() => users.id).primaryKey(),
-  admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
-  classId: integer("class_id").references(() => classes.id),
-  parentId: uuid("parent_id").references(() => users.id),
-  admissionDate: date("admission_date").defaultNow(),
-  emergencyContact: varchar("emergency_contact", { length: 20 }),
-  medicalInfo: text("medical_info"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var attendance = pgTable("attendance", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
-  classId: integer("class_id").references(() => classes.id).notNull(),
-  date: date("date").notNull(),
-  status: attendanceStatusEnum("status"),
-  recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var exams = pgTable("exams", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-  totalMarks: integer("total_marks").notNull(),
-  date: text("date").notNull(),
-  // Store as YYYY-MM-DD string to avoid Date object conversion
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  // Exam type: 'test' (40 marks) or 'exam' (60 marks)
-  examType: examTypeEnum("exam_type").notNull().default("exam"),
-  // Enhanced exam delivery fields
-  timeLimit: integer("time_limit"),
-  // in minutes
-  startTime: timestamp("start_time"),
-  endTime: timestamp("end_time"),
-  instructions: text("instructions"),
-  isPublished: boolean("is_published").default(false),
-  allowRetakes: boolean("allow_retakes").default(false),
-  shuffleQuestions: boolean("shuffle_questions").default(false),
-  // Enhanced auto-grading features (will be added via migration)
-  autoGradingEnabled: boolean("auto_grading_enabled").default(true),
-  instantFeedback: boolean("instant_feedback").default(false),
-  // Show correct/incorrect immediately
-  showCorrectAnswers: boolean("show_correct_answers").default(false),
-  // Show answers after submission
-  passingScore: integer("passing_score"),
-  // Minimum score to pass (percentage)
-  gradingScale: text("grading_scale").default("standard")
-  // 'standard', 'custom'
-});
-var examQuestions = pgTable("exam_questions", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  questionText: text("question_text").notNull(),
-  questionType: varchar("question_type", { length: 50 }).notNull(),
-  // 'multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'
-  points: integer("points").default(1),
-  orderNumber: integer("order_number").notNull(),
-  imageUrl: text("image_url"),
-  // for questions with images
-  // Enhanced auto-grading features
-  autoGradable: boolean("auto_gradable").default(true),
-  // Can this question be auto-graded?
-  expectedAnswers: text("expected_answers").array(),
-  // For text questions - expected answer variations
-  caseSensitive: boolean("case_sensitive").default(false),
-  // For text answers
-  allowPartialCredit: boolean("allow_partial_credit").default(false),
-  partialCreditRules: text("partial_credit_rules"),
-  // JSON config for partial credit
-  explanationText: text("explanation_text"),
-  // Explanation shown after answering
-  hintText: text("hint_text"),
-  // Optional hint for students
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // PERFORMANCE INDEX: Critical for scoring JOIN queries
-  examQuestionsExamIdIdx: index("exam_questions_exam_id_idx").on(table.examId),
-  examQuestionsOrderIdx: index("exam_questions_order_idx").on(table.examId, table.orderNumber)
-}));
-var questionOptions = pgTable("question_options", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
-  optionText: text("option_text").notNull(),
-  isCorrect: boolean("is_correct").default(false),
-  orderNumber: integer("order_number").notNull(),
-  // Enhanced auto-grading features
-  partialCreditValue: integer("partial_credit_value").default(0),
-  // Points if selected (for partial credit)
-  explanationText: text("explanation_text"),
-  // Why this option is correct/incorrect
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // PERFORMANCE INDEX: Critical for scoring JOIN queries - find correct options fast
-  questionOptionsQuestionIdIdx: index("question_options_question_id_idx").on(table.questionId),
-  questionOptionsCorrectIdx: index("question_options_correct_idx").on(table.questionId, table.isCorrect)
-}));
-var examSessions = pgTable("exam_sessions", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
-  startedAt: timestamp("started_at").defaultNow(),
-  submittedAt: timestamp("submitted_at"),
-  timeRemaining: integer("time_remaining"),
-  // in seconds
-  isCompleted: boolean("is_completed").default(false),
-  score: integer("score"),
-  maxScore: integer("max_score"),
-  status: varchar("status", { length: 20 }).default("in_progress"),
-  // 'in_progress', 'submitted', 'graded'
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // PERFORMANCE INDEX: Critical for session lookups
-  examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
-  examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
-  examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
-  // UNIQUE CONSTRAINT: Prevent duplicate active sessions (critical for circuit breaker fix)
-  examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(eq(table.isCompleted, false))
-}));
-var studentAnswers = pgTable("student_answers", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id).notNull(),
-  questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
-  selectedOptionId: bigint("selected_option_id", { mode: "number" }).references(() => questionOptions.id),
-  // for multiple choice
-  textAnswer: text("text_answer"),
-  // for text/essay questions
-  isCorrect: boolean("is_correct"),
-  pointsEarned: integer("points_earned").default(0),
-  answeredAt: timestamp("answered_at").defaultNow(),
-  // Enhanced auto-grading features
-  autoScored: boolean("auto_scored").default(false),
-  // Was this answer auto-scored?
-  manualOverride: boolean("manual_override").default(false),
-  // Teacher manually adjusted score
-  feedbackText: text("feedback_text"),
-  // Instant feedback shown to student
-  partialCreditReason: text("partial_credit_reason")
-  // Why partial credit was given
-}, (table) => ({
-  // PERFORMANCE INDEX: Critical for scoring JOIN queries - fetch all answers for a session fast
-  studentAnswersSessionIdIdx: index("student_answers_session_id_idx").on(table.sessionId),
-  studentAnswersSessionQuestionIdx: index("student_answers_session_question_idx").on(table.sessionId, table.questionId),
-  studentAnswersQuestionIdx: index("student_answers_question_id_idx").on(table.questionId)
-}));
-var examResults = pgTable("exam_results", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
-  score: integer("score"),
-  maxScore: integer("max_score"),
-  marksObtained: integer("marks_obtained"),
-  // Legacy field for backward compatibility
-  grade: varchar("grade", { length: 5 }),
-  remarks: text("remarks"),
-  autoScored: boolean("auto_scored").default(false),
-  recordedBy: uuid("recorded_by").notNull(),
-  // UUID field to match database schema
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // PERFORMANCE INDEX: Critical for fast result lookups by exam/student
-  examResultsExamIdIdx: index("exam_results_exam_id_idx").on(table.examId),
-  examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
-  examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
-  examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
-}));
-var announcements = pgTable("announcements", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
-  content: text("content").notNull(),
-  authorId: uuid("author_id").references(() => users.id).notNull(),
-  targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
-  targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
-  isPublished: boolean("is_published").default(false),
-  publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var messages = pgTable("messages", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  senderId: uuid("sender_id").references(() => users.id).notNull(),
-  recipientId: uuid("recipient_id").references(() => users.id).notNull(),
-  subject: varchar("subject", { length: 200 }).notNull(),
-  content: text("content").notNull(),
-  isRead: boolean("is_read").default(false),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var galleryCategories = pgTable("gallery_categories", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var gallery = pgTable("gallery", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  imageUrl: text("image_url").notNull(),
-  caption: text("caption"),
-  categoryId: integer("category_id").references(() => galleryCategories.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var homePageContent = pgTable("home_page_content", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  contentType: varchar("content_type", { length: 50 }).notNull(),
-  // 'hero_image', 'gallery_preview_1', 'gallery_preview_2', etc.
-  imageUrl: text("image_url"),
-  altText: text("alt_text"),
-  caption: text("caption"),
-  isActive: boolean("is_active").default(true).notNull(),
-  displayOrder: integer("display_order").default(0).notNull(),
-  uploadedBy: uuid("uploaded_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
-var contactMessages = pgTable("contact_messages", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull(),
-  subject: varchar("subject", { length: 200 }),
-  message: text("message").notNull(),
-  isRead: boolean("is_read").default(false),
-  respondedAt: timestamp("responded_at"),
-  respondedBy: uuid("responded_by").references(() => users.id),
-  response: text("response"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var reportCards = pgTable("report_cards", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  studentId: uuid("student_id").references(() => students.id).notNull(),
-  classId: integer("class_id").references(() => classes.id).notNull(),
-  termId: integer("term_id").references(() => academicTerms.id).notNull(),
-  averagePercentage: integer("average_percentage"),
-  // Overall percentage
-  overallGrade: varchar("overall_grade", { length: 5 }),
-  // A+, A, B+, etc.
-  teacherRemarks: text("teacher_remarks"),
-  status: reportCardStatusEnum("status").default("draft"),
-  locked: boolean("locked").default(false),
-  generatedAt: timestamp("generated_at").defaultNow(),
-  finalizedAt: timestamp("finalized_at"),
-  publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var reportCardItems = pgTable("report_card_items", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  reportCardId: integer("report_card_id").references(() => reportCards.id).notNull(),
-  subjectId: integer("subject_id").references(() => subjects.id).notNull(),
-  // Test and Exam scores with their respective exam IDs for reference
-  testExamId: bigint("test_exam_id", { mode: "number" }).references(() => exams.id),
-  testScore: integer("test_score"),
-  // Score obtained in test (out of testMaxScore)
-  testMaxScore: integer("test_max_score"),
-  // Maximum marks for test
-  testWeightedScore: integer("test_weighted_score"),
-  // Normalized to 40
-  examExamId: bigint("exam_exam_id", { mode: "number" }).references(() => exams.id),
-  examScore: integer("exam_score"),
-  // Score obtained in exam (out of examMaxScore)
-  examMaxScore: integer("exam_max_score"),
-  // Maximum marks for exam
-  examWeightedScore: integer("exam_weighted_score"),
-  // Normalized to 60
-  // Combined scores
-  totalMarks: integer("total_marks").notNull().default(100),
-  // Always 100 for the weighted system
-  obtainedMarks: integer("obtained_marks").notNull(),
-  // testWeightedScore + examWeightedScore
-  percentage: integer("percentage").notNull(),
-  grade: varchar("grade", { length: 5 }),
-  // A+, A, B+, etc.
-  teacherRemarks: text("teacher_remarks"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var studyResources = pgTable("study_resources", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
-  description: text("description"),
-  fileUrl: text("file_url").notNull(),
-  fileName: varchar("file_name", { length: 255 }).notNull(),
-  fileSize: integer("file_size"),
-  // in bytes
-  resourceType: varchar("resource_type", { length: 50 }).notNull(),
-  // 'past_paper', 'study_guide', 'notes', 'assignment'
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id).notNull(),
-  isPublished: boolean("is_published").default(true),
-  downloads: integer("downloads").default(0),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var performanceEvents = pgTable("performance_events", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id),
-  eventType: varchar("event_type", { length: 50 }).notNull(),
-  // 'submission', 'auto_submit', 'timeout_cleanup', 'answer_save'
-  duration: integer("duration").notNull(),
-  // in milliseconds
-  goalAchieved: boolean("goal_achieved").notNull(),
-  // whether it met the < 2000ms goal
-  metadata: text("metadata"),
-  // JSON string for additional data
-  clientSide: boolean("client_side").default(false),
-  // whether logged from client or server
-  userId: uuid("user_id").references(() => users.id),
-  // for attribution
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // Performance indexes for analytics queries
-  performanceEventsTypeIdx: index("performance_events_type_idx").on(table.eventType),
-  performanceEventsDateIdx: index("performance_events_date_idx").on(table.createdAt),
-  performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType)
-}));
-var teacherClassAssignments = pgTable("teacher_class_assignments", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  teacherId: uuid("teacher_id").references(() => users.id).notNull(),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // Performance indexes for quick teacher assignment lookups
-  teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
-  teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId)
-}));
-var gradingTasks = pgTable("grading_tasks", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id, { onDelete: "cascade" }).notNull(),
-  answerId: bigint("answer_id", { mode: "number" }).references(() => studentAnswers.id, { onDelete: "cascade" }).notNull(),
-  assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id),
-  // Teacher assigned to grade this
-  status: varchar("status", { length: 20 }).default("pending"),
-  // 'pending', 'in_progress', 'completed', 'skipped'
-  priority: integer("priority").default(0),
-  // Higher number = higher priority
-  assignedAt: timestamp("assigned_at"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // Performance indexes for grading queue management
-  gradingTasksAssignedIdx: index("grading_tasks_assigned_idx").on(table.assignedTeacherId, table.status),
-  gradingTasksStatusIdx: index("grading_tasks_status_idx").on(table.status, table.priority),
-  gradingTasksSessionIdx: index("grading_tasks_session_idx").on(table.sessionId),
-  // Unique constraint to prevent duplicate tasks for the same answer
-  gradingTasksAnswerUniqueIdx: uniqueIndex("grading_tasks_answer_unique_idx").on(table.answerId)
-}));
-var auditLogs = pgTable("audit_logs", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  // Who made the change
-  action: varchar("action", { length: 100 }).notNull(),
-  // 'grade_change', 'manual_override', 'report_publish', etc.
-  entityType: varchar("entity_type", { length: 50 }).notNull(),
-  // 'exam_result', 'student_answer', 'report_card'
-  entityId: bigint("entity_id", { mode: "number" }).notNull(),
-  // ID of the affected entity
-  oldValue: text("old_value"),
-  // JSON of old values
-  newValue: text("new_value"),
-  // JSON of new values
-  reason: text("reason"),
-  // Why the change was made
-  ipAddress: varchar("ip_address", { length: 45 }),
-  // IPv4 or IPv6
-  userAgent: text("user_agent"),
-  createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  // Performance indexes for audit queries
-  auditLogsUserIdx: index("audit_logs_user_idx").on(table.userId),
-  auditLogsEntityIdx: index("audit_logs_entity_idx").on(table.entityType, table.entityId),
-  auditLogsDateIdx: index("audit_logs_date_idx").on(table.createdAt),
-  auditLogsActionIdx: index("audit_logs_action_idx").on(table.action)
-}));
-var insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
-var insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
-var insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
-var insertPasswordResetAttemptSchema = createInsertSchema(passwordResetAttempts).omit({ id: true, attemptedAt: true });
-var insertInviteSchema = createInsertSchema(invites).omit({ id: true, createdAt: true });
-var insertStudentSchema = createInsertSchema(students).omit({ createdAt: true });
-var insertClassSchema = createInsertSchema(classes).omit({ id: true, createdAt: true });
-var insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
-var insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
-var insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
-  // Coerce string IDs to numbers (forms often send IDs as strings)
-  classId: z.coerce.number().positive("Please select a valid class"),
-  subjectId: z.coerce.number().positive("Please select a valid subject"),
-  termId: z.coerce.number().positive("Please select a valid term"),
-  totalMarks: z.coerce.number().positive("Total marks must be a positive number"),
-  // Handle date string from frontend - keep as string for database with improved validation
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").refine((dateStr) => {
-    const date2 = new Date(dateStr);
-    return !isNaN(date2.getTime()) && date2.toISOString().startsWith(dateStr);
-  }, "Please enter a valid date"),
-  // Optional numeric fields - convert empty strings to undefined
-  timeLimit: z.preprocess((val) => val === "" ? void 0 : val, z.coerce.number().int().min(1, "Time limit must be at least 1 minute").optional()),
-  passingScore: z.preprocess((val) => val === "" ? void 0 : val, z.coerce.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()),
-  // Optional timestamp fields - convert empty strings to undefined
-  startTime: z.preprocess((val) => val === "" ? void 0 : val, z.coerce.date().optional()),
-  endTime: z.preprocess((val) => val === "" ? void 0 : val, z.coerce.date().optional()),
-  // Text fields - convert empty strings to undefined for optional fields
-  instructions: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-  gradingScale: z.preprocess((val) => val === "" ? "standard" : val, z.string().default("standard"))
-});
-var insertExamResultSchema = createInsertSchema(examResults).omit({ id: true, createdAt: true });
-var insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
-var insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
-var insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
-var insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
-var insertHomePageContentSchema = createInsertSchema(homePageContent).omit({ id: true, createdAt: true, updatedAt: true });
-var insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
-var insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
-var insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
-var insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
-var insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
-var insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
-var insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
-var insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
-var createStudentSchema = z.object({
-  // User fields  
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
-  gender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required" }),
-  profileImageUrl: z.string().optional(),
-  // Student-specific fields
-  admissionNumber: z.string().min(1, "Admission number is required"),
-  classId: z.coerce.number().positive("Please select a valid class"),
-  parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
-  admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
-  emergencyContact: z.string().min(1, "Emergency contact is required"),
-  medicalInfo: z.string().optional()
-});
-var insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
-  // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
-  examId: z.coerce.number().positive("Please select a valid exam"),
-  questionText: z.string().min(1, "Question text is required"),
-  questionType: z.enum(["multiple_choice", "text", "essay", "true_false", "fill_blank"], { required_error: "Question type is required" }),
-  points: z.preprocess((val) => val === "" ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
-  orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-  // Handle optional text fields - convert empty strings to undefined
-  imageUrl: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-  expectedAnswers: z.preprocess((val) => {
-    if (val === "" || val === null || val === void 0) return void 0;
-    if (Array.isArray(val)) return val;
-    if (typeof val === "string") return val.split(",").map((s) => s.trim()).filter((s) => s !== "");
-    return void 0;
-  }, z.array(z.string()).optional()),
-  explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-  hintText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-  partialCreditRules: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-  // Added fields for theory questions
-  instructions: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-  sampleAnswer: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
-});
-var insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
-  // Coerce string IDs and numeric values to numbers
-  questionId: z.coerce.number().positive("Please select a valid question"),
-  orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-  // Handle optional numeric fields - convert empty strings to undefined or 0
-  partialCreditValue: z.preprocess((val) => val === "" ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
-  // Handle optional text fields - convert empty strings to undefined
-  explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
-});
-var createQuestionOptionSchema = insertQuestionOptionSchema.omit({ questionId: true, orderNumber: true }).extend({
-  // Optional fields that can be provided during creation
-  partialCreditValue: z.preprocess((val) => val === "" ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
-  explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
-});
-var insertExamSessionSchema = createInsertSchema(examSessions).omit({
-  id: true,
-  createdAt: true,
-  startedAt: true,
-  studentId: true
-  // Server sets this from authenticated user
-}).partial().required({
-  examId: true
-}).extend({
-  // Handle date strings from frontend (JSON serialization converts Date objects to strings)
-  submittedAt: z.union([z.date(), z.string()]).optional().transform((val) => {
-    if (typeof val === "string") {
-      return new Date(val);
+import { Resend } from "resend";
+async function sendEmail({ to, subject, html }) {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.log("\n\u{1F4E7} EMAIL (Development Mode - No API Key):");
+      console.log(`To: ${to}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`Body: ${html}
+`);
+      return true;
     }
-    return val;
-  })
-});
-var updateExamSessionSchema = z.object({
-  // Students can only update these specific fields when submitting exams
-  isCompleted: z.boolean().optional(),
-  submittedAt: z.coerce.date().refine((d) => !isNaN(d.getTime()), "Invalid date").optional(),
-  timeRemaining: z.number().int().min(0).optional(),
-  // Only allow valid status transitions for student updates
-  status: z.enum(["in_progress", "submitted"]).optional(),
-  // Server-side fields for auto-submission and tracking
-  submissionMethod: z.string().optional(),
-  autoSubmitted: z.boolean().optional()
-}).strict();
-var insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
-var insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
-
-// server/storage.ts
-import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
-var pg;
-var db;
-function initializeDatabase() {
-  if (!pg && process.env.DATABASE_URL) {
-    console.log("\u{1F517} CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ":***@"));
-    const connectionConfig = {
-      ssl: { rejectUnauthorized: false },
-      // Supabase handles SSL certificates properly
-      prepare: false,
-      // Required for Supabase transaction pooler
-      // Optimized connection pool settings
-      max: 20,
-      // Maximum connections in pool (increased from default 10)
-      idle_timeout: 300,
-      // Close idle connections after 5 minutes
-      connect_timeout: 30,
-      // Connection timeout: 30 seconds
-      max_lifetime: 3600,
-      // Maximum connection lifetime: 1 hour
-      // Enhanced logging for debugging (development only)
-      debug: process.env.NODE_ENV === "development" ? (connection, query, params) => {
-        const queryString = typeof query === "string" ? query : query?.text || String(query);
-        if (queryString?.includes("ERROR") || queryString?.includes("TIMEOUT")) {
-          console.warn(`\u{1F50D} Database Debug - Query: ${queryString.slice(0, 100)}...`);
-        }
-      } : false,
-      // Connection health checks
-      onnotice: (notice) => {
-        if (notice.severity === "WARNING" || notice.severity === "ERROR") {
-          console.warn(`\u{1F4CA} Database Notice [${notice.severity}]: ${notice.message}`);
-        }
-      },
-      // Connection parameter logging
-      onparameter: (key, value) => {
-        if (key === "server_version") {
-          console.log(`\u{1F5C4}\uFE0F Connected to PostgreSQL version: ${value}`);
-        } else if (key === "application_name") {
-          console.log(`\u{1F4F1} Application name set: ${value}`);
-        }
-      },
-      // Connection lifecycle events
-      onconnect: async (connection) => {
-        try {
-          await connection.query("SET application_name = $1", ["treasure_home_school"]);
-          await connection.query("SET statement_timeout = $1", ["60s"]);
-          await connection.query("SET lock_timeout = $1", ["30s"]);
-        } catch (error) {
-          console.warn("\u26A0\uFE0F Failed to set connection parameters:", error);
-        }
-      }
-    };
-    pg = postgres(process.env.DATABASE_URL, connectionConfig);
-    db = drizzle(pg, { schema: schema_exports });
-    console.log("\u2705 POSTGRESQL DATABASE CONNECTION ESTABLISHED");
-    console.log(`\u{1F4CA} Connection Pool: max=${connectionConfig.max}, idle_timeout=${connectionConfig.idle_timeout}s`);
-  } else if (!process.env.DATABASE_URL) {
-    console.log("\u26A0\uFE0F  WARNING: DATABASE_URL not set - falling back to memory storage");
-  }
-  return { pg, db };
-}
-var { db: exportDb } = initializeDatabase();
-function normalizeUuid(raw) {
-  if (!raw) return void 0;
-  if (typeof raw === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
-    return raw;
-  }
-  let bytes;
-  if (typeof raw === "string" && raw.includes(",")) {
-    const parts = raw.split(",").map((s) => parseInt(s.trim()));
-    if (parts.length === 16 && parts.every((n) => n >= 0 && n <= 255)) {
-      bytes = parts;
-    }
-  }
-  if (Array.isArray(raw) && raw.length === 16) {
-    bytes = raw;
-  } else if (raw instanceof Uint8Array && raw.length === 16) {
-    bytes = Array.from(raw);
-  }
-  if (bytes) {
-    const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-  }
-  console.warn("Failed to normalize UUID:", raw);
-  return void 0;
-}
-var DatabaseStorage = class {
-  db;
-  constructor() {
-    const { db: db2 } = initializeDatabase();
-    this.db = db2;
-    if (!this.db) {
-      throw new Error("Database not available - DATABASE_URL not set or invalid");
-    }
-  }
-  // User management
-  async getUser(id) {
-    const result = await this.db.select().from(users).where(eq2(users.id, id)).limit(1);
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user;
-  }
-  async getUserByEmail(email) {
-    const result = await this.db.select().from(users).where(eq2(users.email, email)).limit(1);
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user;
-  }
-  async getUserByUsername(username) {
-    const result = await this.db.select().from(users).where(eq2(users.username, username)).limit(1);
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user;
-  }
-  async getUserByGoogleId(googleId) {
-    const result = await this.db.select().from(users).where(eq2(users.googleId, googleId)).limit(1);
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user;
-  }
-  async createPasswordResetToken(userId, token, expiresAt, ipAddress, resetBy) {
-    const result = await this.db.insert(passwordResetTokens).values({
-      userId,
-      token,
-      expiresAt,
-      ipAddress,
-      resetBy
-    }).returning();
-    return result[0];
-  }
-  async getPasswordResetToken(token) {
-    const result = await this.db.select().from(passwordResetTokens).where(and(
-      eq2(passwordResetTokens.token, token),
-      dsql`${passwordResetTokens.expiresAt} > NOW()`,
-      dsql`${passwordResetTokens.usedAt} IS NULL`
-    )).limit(1);
-    return result[0];
-  }
-  async markPasswordResetTokenAsUsed(token) {
-    const result = await this.db.update(passwordResetTokens).set({ usedAt: dsql`NOW()` }).where(eq2(passwordResetTokens.token, token)).returning();
-    return result.length > 0;
-  }
-  async deleteExpiredPasswordResetTokens() {
-    await this.db.delete(passwordResetTokens).where(dsql`${passwordResetTokens.expiresAt} < NOW()`);
-    return true;
-  }
-  async createUser(user) {
-    const result = await this.db.insert(users).values(user).returning();
-    const createdUser = result[0];
-    if (createdUser && createdUser.id) {
-      const normalizedId = normalizeUuid(createdUser.id);
-      if (normalizedId) {
-        createdUser.id = normalizedId;
-      }
-    }
-    return createdUser;
-  }
-  async updateUser(id, user) {
-    const result = await this.db.update(users).set(user).where(eq2(users.id, id)).returning();
-    const updatedUser = result[0];
-    if (updatedUser && updatedUser.id) {
-      const normalizedId = normalizeUuid(updatedUser.id);
-      if (normalizedId) {
-        updatedUser.id = normalizedId;
-      }
-    }
-    return updatedUser;
-  }
-  async updateUserGoogleId(userId, googleId) {
-    return await this.updateUser(userId, { googleId });
-  }
-  async deleteUser(id) {
-    const result = await this.db.delete(users).where(eq2(users.id, id)).returning();
-    return result.length > 0;
-  }
-  async getUsersByRole(roleId) {
-    const result = await this.db.select().from(users).where(eq2(users.roleId, roleId));
-    return result.map((user) => {
-      if (user && user.id) {
-        const normalizedId = normalizeUuid(user.id);
-        if (normalizedId) {
-          user.id = normalizedId;
-        }
-      }
-      return user;
+    const { data, error } = await resend.emails.send({
+      from: "THS Portal <noreply@your-domain.com>",
+      // Change this to your verified domain
+      to: [to],
+      subject,
+      html
     });
-  }
-  async getUsersByStatus(status) {
-    const result = await this.db.select().from(users).where(sql2`${users.status} = ${status}`);
-    return result.map((user) => {
-      if (user && user.id) {
-        const normalizedId = normalizeUuid(user.id);
-        if (normalizedId) {
-          user.id = normalizedId;
-        }
-      }
-      return user;
-    });
-  }
-  async approveUser(userId, approvedBy) {
-    const result = await this.db.update(users).set({
-      status: "active",
-      approvedBy,
-      approvedAt: /* @__PURE__ */ new Date()
-    }).where(eq2(users.id, userId)).returning();
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user;
-  }
-  async updateUserStatus(userId, status, updatedBy, reason) {
-    const updates = { status };
-    if (status === "active") {
-      updates.approvedBy = updatedBy;
-      updates.approvedAt = /* @__PURE__ */ new Date();
-    }
-    const result = await this.db.update(users).set(updates).where(eq2(users.id, userId)).returning();
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user;
-  }
-  // Role management
-  async getRoles() {
-    return await this.db.select().from(roles);
-  }
-  async getRoleByName(name) {
-    const result = await this.db.select().from(roles).where(eq2(roles.name, name)).limit(1);
-    return result[0];
-  }
-  async getRole(roleId) {
-    const result = await this.db.select().from(roles).where(eq2(roles.id, roleId)).limit(1);
-    return result[0];
-  }
-  // Invite management
-  async createInvite(invite) {
-    const result = await this.db.insert(invites).values(invite).returning();
-    return result[0];
-  }
-  async getInviteByToken(token) {
-    const result = await this.db.select().from(invites).where(and(
-      eq2(invites.token, token),
-      isNull(invites.acceptedAt),
-      dsql`${invites.expiresAt} > NOW()`
-    )).limit(1);
-    return result[0];
-  }
-  async getPendingInviteByEmail(email) {
-    const result = await this.db.select().from(invites).where(and(
-      eq2(invites.email, email),
-      isNull(invites.acceptedAt)
-    )).limit(1);
-    return result[0];
-  }
-  async getAllInvites() {
-    return await this.db.select().from(invites).orderBy(desc(invites.createdAt));
-  }
-  async getPendingInvites() {
-    return await this.db.select().from(invites).where(isNull(invites.acceptedAt)).orderBy(desc(invites.createdAt));
-  }
-  async markInviteAsAccepted(inviteId, acceptedBy) {
-    await this.db.update(invites).set({ acceptedAt: /* @__PURE__ */ new Date(), acceptedBy }).where(eq2(invites.id, inviteId));
-  }
-  async deleteInvite(inviteId) {
-    const result = await this.db.delete(invites).where(eq2(invites.id, inviteId)).returning();
-    return result.length > 0;
-  }
-  async deleteExpiredInvites() {
-    const result = await this.db.delete(invites).where(and(
-      dsql`${invites.expiresAt} < NOW()`,
-      isNull(invites.acceptedAt)
-    )).returning();
-    return result.length > 0;
-  }
-  // Student management
-  async getStudent(id) {
-    const result = await this.db.select().from(students).where(eq2(students.id, id)).limit(1);
-    const student = result[0];
-    if (student && student.id) {
-      const normalizedId = normalizeUuid(student.id);
-      if (normalizedId) {
-        student.id = normalizedId;
-      }
-    }
-    return student;
-  }
-  async getAllUsernames() {
-    const result = await this.db.select({ username: users.username }).from(users).where(sql2`${users.username} IS NOT NULL`);
-    return result.map((r) => r.username).filter((u) => u !== null);
-  }
-  async createStudent(student) {
-    const result = await db.insert(students).values(student).returning();
-    return result[0];
-  }
-  async updateStudent(id, updates) {
-    return await this.db.transaction(async (tx) => {
-      let updatedUser;
-      let updatedStudent;
-      if (updates.userPatch && Object.keys(updates.userPatch).length > 0) {
-        const userResult = await tx.update(users).set(updates.userPatch).where(eq2(users.id, id)).returning();
-        updatedUser = userResult[0];
-      } else {
-        const userResult = await tx.select().from(users).where(eq2(users.id, id)).limit(1);
-        updatedUser = userResult[0];
-      }
-      if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
-        const studentResult = await tx.update(students).set(updates.studentPatch).where(eq2(students.id, id)).returning();
-        updatedStudent = studentResult[0];
-      } else {
-        const studentResult = await tx.select().from(students).where(eq2(students.id, id)).limit(1);
-        updatedStudent = studentResult[0];
-      }
-      if (updatedUser && updatedStudent) {
-        return { user: updatedUser, student: updatedStudent };
-      }
-      return void 0;
-    });
-  }
-  async setUserActive(id, isActive) {
-    const result = await this.db.update(users).set({ isActive }).where(eq2(users.id, id)).returning();
-    return result[0];
-  }
-  async deleteStudent(id) {
-    const result = await this.db.update(users).set({ isActive: false }).where(eq2(users.id, id)).returning();
-    return result.length > 0;
-  }
-  async hardDeleteStudent(id) {
-    return await this.db.transaction(async (tx) => {
-      try {
-        const examSessions2 = await tx.select({ id: examSessions.id }).from(examSessions).where(eq2(examSessions.studentId, id));
-        const sessionIds = examSessions2.map((session2) => session2.id);
-        if (sessionIds.length > 0) {
-          await tx.delete(studentAnswers).where(inArray(studentAnswers.sessionId, sessionIds));
-        }
-        await tx.delete(examSessions).where(eq2(examSessions.studentId, id));
-        await tx.delete(examResults).where(eq2(examResults.studentId, id));
-        await tx.delete(attendance).where(eq2(attendance.studentId, id));
-        await tx.delete(students).where(eq2(students.id, id));
-        const userResult = await tx.delete(users).where(eq2(users.id, id)).returning();
-        return userResult.length > 0;
-      } catch (error) {
-        console.error("Error in hard delete transaction:", error);
-        throw error;
-      }
-    });
-  }
-  async getStudentsByClass(classId) {
-    return await db.select().from(students).where(eq2(students.classId, classId));
-  }
-  async getAllStudents(includeInactive = false) {
-    if (includeInactive) {
-      return await this.db.select().from(students).orderBy(asc(students.createdAt));
-    } else {
-      return await this.db.select({
-        id: students.id,
-        admissionNumber: students.admissionNumber,
-        classId: students.classId,
-        parentId: students.parentId,
-        admissionDate: students.admissionDate,
-        emergencyContact: students.emergencyContact,
-        medicalInfo: students.medicalInfo,
-        createdAt: students.createdAt
-      }).from(students).innerJoin(users, eq2(students.id, users.id)).where(eq2(users.isActive, true)).orderBy(asc(students.createdAt));
-    }
-  }
-  async getStudentByAdmissionNumber(admissionNumber) {
-    const result = await db.select().from(students).where(eq2(students.admissionNumber, admissionNumber)).limit(1);
-    return result[0];
-  }
-  // Class management
-  async getClasses() {
-    return await db.select().from(classes).where(eq2(classes.isActive, true)).orderBy(asc(classes.name));
-  }
-  async getClass(id) {
-    const result = await db.select().from(classes).where(eq2(classes.id, id)).limit(1);
-    return result[0];
-  }
-  async createClass(classData) {
-    const result = await db.insert(classes).values(classData).returning();
-    return result[0];
-  }
-  async updateClass(id, classData) {
-    const result = await db.update(classes).set(classData).where(eq2(classes.id, id)).returning();
-    return result[0];
-  }
-  async deleteClass(id) {
-    const result = await db.delete(classes).where(eq2(classes.id, id));
-    return result.length > 0;
-  }
-  // Subject management
-  async getSubjects() {
-    return await db.select().from(subjects).orderBy(asc(subjects.name));
-  }
-  async getSubject(id) {
-    const result = await db.select().from(subjects).where(eq2(subjects.id, id)).limit(1);
-    return result[0];
-  }
-  async createSubject(subject) {
-    const result = await db.insert(subjects).values(subject).returning();
-    return result[0];
-  }
-  async updateSubject(id, subject) {
-    const result = await db.update(subjects).set(subject).where(eq2(subjects.id, id)).returning();
-    return result[0];
-  }
-  async deleteSubject(id) {
-    const result = await db.delete(subjects).where(eq2(subjects.id, id));
-    return result.length > 0;
-  }
-  // Academic terms
-  async getCurrentTerm() {
-    const result = await db.select().from(academicTerms).where(eq2(academicTerms.isCurrent, true)).limit(1);
-    return result[0];
-  }
-  async getTerms() {
-    return await db.select().from(academicTerms).orderBy(desc(academicTerms.startDate));
-  }
-  // Attendance management
-  async recordAttendance(attendance2) {
-    const result = await db.insert(attendance).values(attendance2).returning();
-    return result[0];
-  }
-  async getAttendanceByStudent(studentId, date2) {
-    if (date2) {
-      return await db.select().from(attendance).where(and(eq2(attendance.studentId, studentId), eq2(attendance.date, date2)));
-    }
-    return await db.select().from(attendance).where(eq2(attendance.studentId, studentId)).orderBy(desc(attendance.date));
-  }
-  async getAttendanceByClass(classId, date2) {
-    return await db.select().from(attendance).where(and(eq2(attendance.classId, classId), eq2(attendance.date, date2)));
-  }
-  // Exam management
-  async createExam(exam) {
-    const result = await db.insert(exams).values(exam).returning();
-    return result[0];
-  }
-  async getAllExams() {
-    try {
-      const result = await db.select().from(exams).orderBy(desc(exams.date));
-      return result || [];
-    } catch (error) {
-      console.error("Error in getAllExams:", error);
-      return [];
-    }
-  }
-  async getExamById(id) {
-    const result = await db.select().from(exams).where(eq2(exams.id, id)).limit(1);
-    return result[0];
-  }
-  async getExamsByClass(classId) {
-    try {
-      const result = await db.select().from(exams).where(eq2(exams.classId, classId)).orderBy(desc(exams.date));
-      return result || [];
-    } catch (error) {
-      console.error("Error in getExamsByClass:", error);
-      return [];
-    }
-  }
-  async updateExam(id, exam) {
-    const result = await db.update(exams).set(exam).where(eq2(exams.id, id)).returning();
-    return result[0];
-  }
-  async deleteExam(id) {
-    try {
-      await db.delete(studentAnswers).where(sql2`${studentAnswers.questionId} IN (SELECT id FROM ${examQuestions} WHERE exam_id = ${id})`);
-      await db.delete(questionOptions).where(sql2`${questionOptions.questionId} IN (SELECT id FROM ${examQuestions} WHERE exam_id = ${id})`);
-      await db.delete(examQuestions).where(eq2(examQuestions.examId, id));
-      await db.delete(examResults).where(eq2(examResults.examId, id));
-      await db.delete(examSessions).where(eq2(examSessions.examId, id));
-      const result = await db.delete(exams).where(eq2(exams.id, id)).returning();
-      return result.length > 0;
-    } catch (error) {
-      console.error("Error in deleteExam:", error);
-      throw error;
-    }
-  }
-  async recordExamResult(result) {
-    try {
-      const examResult = await db.insert(examResults).values(result).returning();
-      return examResult[0];
-    } catch (error) {
-      if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
-        console.log("\u26A0\uFE0F Database schema mismatch detected - auto_scored column missing, using fallback insert");
-        const { autoScored, ...resultWithoutAutoScored } = result;
-        const compatibleResult = {
-          ...resultWithoutAutoScored,
-          marksObtained: result.score || 0
-        };
-        const examResult = await db.insert(examResults).values(compatibleResult).returning();
-        return {
-          ...examResult[0],
-          autoScored: result.recordedBy === "00000000-0000-0000-0000-000000000001",
-          score: examResult[0].marksObtained || 0
-        };
-      }
-      throw error;
-    }
-  }
-  async updateExamResult(id, result) {
-    try {
-      const updated = await db.update(examResults).set(result).where(eq2(examResults.id, id)).returning();
-      return updated[0];
-    } catch (error) {
-      if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
-        console.log("\u26A0\uFE0F Database schema mismatch detected - auto_scored column missing, using fallback update");
-        const { autoScored, ...resultWithoutAutoScored } = result;
-        const compatibleResult = {
-          ...resultWithoutAutoScored,
-          marksObtained: result.score || 0
-        };
-        const updated = await db.update(examResults).set(compatibleResult).where(eq2(examResults.id, id)).returning();
-        return {
-          ...updated[0],
-          autoScored: result.recordedBy === "00000000-0000-0000-0000-000000000001",
-          score: updated[0].marksObtained || 0
-        };
-      }
-      throw error;
-    }
-  }
-  async getExamResultsByStudent(studentId) {
-    try {
-      console.log(`\u{1F50D} Fetching exam results for student: ${studentId}`);
-      const SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
-      try {
-        const results = await this.db.select({
-          id: examResults.id,
-          examId: examResults.examId,
-          studentId: examResults.studentId,
-          score: examResults.marksObtained,
-          maxScore: exams.totalMarks,
-          marksObtained: examResults.marksObtained,
-          grade: examResults.grade,
-          remarks: examResults.remarks,
-          recordedBy: examResults.recordedBy,
-          createdAt: examResults.createdAt,
-          autoScored: sql2`COALESCE(${examResults.autoScored}, ${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
-        }).from(examResults).leftJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
-        console.log(`\u{1F4CA} Found ${results.length} exam results for student ${studentId}`);
-        return results;
-      } catch (mainError) {
-        console.warn("Main query failed, trying fallback:", mainError);
-        const fallbackResults = await this.db.select({
-          id: examResults.id,
-          examId: examResults.examId,
-          studentId: examResults.studentId,
-          marksObtained: examResults.marksObtained,
-          grade: examResults.grade,
-          remarks: examResults.remarks,
-          recordedBy: examResults.recordedBy,
-          createdAt: examResults.createdAt,
-          score: examResults.marksObtained,
-          maxScore: sql2`100`.as("maxScore"),
-          // Default to 100 if join fails
-          autoScored: sql2`(${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
-        }).from(examResults).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
-        for (const result of fallbackResults) {
-          try {
-            const exam = await this.db.select({ totalMarks: exams.totalMarks }).from(exams).where(eq2(exams.id, result.examId)).limit(1);
-            if (exam[0]?.totalMarks) {
-              result.maxScore = exam[0].totalMarks;
-            }
-          } catch (examError) {
-            console.warn(`Failed to get exam details for examId ${result.examId}:`, examError);
-          }
-        }
-        console.log(`\u2705 Fallback query successful, found ${fallbackResults.length} results`);
-        return fallbackResults;
-      }
-    } catch (error) {
-      console.error(`\u274C Error fetching exam results for student ${studentId}:`, error);
-      return [];
-    }
-  }
-  async getExamResultsByExam(examId) {
-    try {
-      return await db.select().from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
-    } catch (error) {
-      if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
-        console.log("\u26A0\uFE0F Database schema mismatch detected, using fallback query with existing columns only");
-        try {
-          return await db.select({
-            id: examResults.id,
-            examId: examResults.examId,
-            studentId: examResults.studentId,
-            marksObtained: examResults.marksObtained,
-            // Use legacy field
-            grade: examResults.grade,
-            remarks: examResults.remarks,
-            recordedBy: examResults.recordedBy,
-            createdAt: examResults.createdAt,
-            // Map marksObtained to score for compatibility
-            score: examResults.marksObtained,
-            maxScore: dsql`null`.as("maxScore"),
-            // Since auto_scored column doesn't exist, determine from recordedBy
-            autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
-          }).from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
-        } catch (fallbackError) {
-          console.error("\u274C Fallback query also failed:", fallbackError);
-          return [];
-        }
-      }
-      throw error;
-    }
-  }
-  async getExamResultByExamAndStudent(examId, studentId) {
-    const result = await db.select().from(examResults).where(
-      sql2`${examResults.examId} = ${examId} AND ${examResults.studentId} = ${studentId}`
-    ).limit(1);
-    return result[0];
-  }
-  async getExamResultsByClass(classId) {
-    try {
-      const results = await db.select({
-        id: examResults.id,
-        examId: examResults.examId,
-        studentId: examResults.studentId,
-        score: examResults.score,
-        maxScore: examResults.maxScore,
-        marksObtained: examResults.marksObtained,
-        grade: examResults.grade,
-        remarks: examResults.remarks,
-        recordedBy: examResults.recordedBy,
-        autoScored: examResults.autoScored,
-        createdAt: examResults.createdAt,
-        examName: exams.name,
-        examType: exams.examType,
-        examDate: exams.date,
-        totalMarks: exams.totalMarks,
-        admissionNumber: students.admissionNumber,
-        studentName: sql2`${users.firstName} || ' ' || ${users.lastName}`.as("studentName"),
-        className: classes.name,
-        subjectName: subjects.name
-      }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).innerJoin(students, eq2(examResults.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).leftJoin(classes, eq2(exams.classId, classes.id)).leftJoin(subjects, eq2(exams.subjectId, subjects.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
-      return results;
-    } catch (error) {
-      console.error("Error in getExamResultsByClass:", error);
-      if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
-        console.log("\u26A0\uFE0F Database schema mismatch detected, using fallback query for getExamResultsByClass");
-        try {
-          const results = await db.select({
-            id: examResults.id,
-            examId: examResults.examId,
-            studentId: examResults.studentId,
-            marksObtained: examResults.marksObtained,
-            grade: examResults.grade,
-            remarks: examResults.remarks,
-            recordedBy: examResults.recordedBy,
-            createdAt: examResults.createdAt,
-            // Map marksObtained to score for compatibility
-            score: examResults.marksObtained,
-            maxScore: dsql`null`.as("maxScore"),
-            // Infer autoScored based on recordedBy
-            autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
-          }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
-          return results;
-        } catch (fallbackError) {
-          console.error("\u274C Fallback query also failed for getExamResultsByClass:", fallbackError);
-          return [];
-        }
-      }
-      throw error;
-    }
-  }
-  // Exam questions management
-  async createExamQuestion(question) {
-    const questionData = {
-      examId: question.examId,
-      questionText: question.questionText,
-      questionType: question.questionType,
-      points: question.points,
-      orderNumber: question.orderNumber,
-      imageUrl: question.imageUrl,
-      autoGradable: question.autoGradable ?? true,
-      expectedAnswers: question.expectedAnswers,
-      caseSensitive: question.caseSensitive ?? false,
-      allowPartialCredit: question.allowPartialCredit ?? false,
-      partialCreditRules: question.partialCreditRules,
-      explanationText: question.explanationText,
-      hintText: question.hintText
-    };
-    const result = await db.insert(examQuestions).values(questionData).returning();
-    return result[0];
-  }
-  async createExamQuestionWithOptions(question, options) {
-    return await db.transaction(async (tx) => {
-      try {
-        const questionData = {
-          examId: question.examId,
-          questionText: question.questionText,
-          questionType: question.questionType,
-          points: question.points,
-          orderNumber: question.orderNumber,
-          imageUrl: question.imageUrl,
-          autoGradable: question.autoGradable ?? true,
-          expectedAnswers: question.expectedAnswers,
-          caseSensitive: question.caseSensitive ?? false,
-          allowPartialCredit: question.allowPartialCredit ?? false,
-          partialCreditRules: question.partialCreditRules,
-          explanationText: question.explanationText,
-          hintText: question.hintText
-        };
-        const questionResult = await tx.insert(examQuestions).values(questionData).returning();
-        const createdQuestion = questionResult[0];
-        if (Array.isArray(options) && options.length > 0) {
-          const optionsToInsert = options.map((option, index2) => ({
-            questionId: createdQuestion.id,
-            optionText: option.optionText,
-            orderNumber: index2 + 1,
-            isCorrect: option.isCorrect
-          }));
-          const BATCH_SIZE = 5;
-          for (let i = 0; i < optionsToInsert.length; i += BATCH_SIZE) {
-            const batch = optionsToInsert.slice(i, i + BATCH_SIZE);
-            for (const optionData of batch) {
-              await tx.insert(questionOptions).values(optionData);
-            }
-          }
-        }
-        return createdQuestion;
-      } catch (error) {
-        console.error("\u274C Failed to create exam question with options:", error);
-        throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : "Unknown error"}`);
-      }
-    });
-  }
-  async createExamQuestionsBulk(questionsData) {
-    const createdQuestions = [];
-    const errors = [];
-    console.log(`\u{1F504} Starting SEQUENTIAL bulk creation of ${questionsData.length} questions`);
-    for (let i = 0; i < questionsData.length; i++) {
-      const { question, options } = questionsData[i];
-      try {
-        console.log(`\u{1F4DD} Creating question ${i + 1}/${questionsData.length}: "${question.questionText.substring(0, 50)}..."`);
-        const createdQuestion = await this.createExamQuestionWithOptions(question, options);
-        createdQuestions.push(createdQuestion);
-        console.log(`\u2705 Successfully created question ${i + 1}`);
-        if (i < questionsData.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 150));
-        }
-      } catch (error) {
-        const errorMsg = `Question ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`;
-        console.error(`\u274C Failed to create question ${i + 1}:`, errorMsg);
-        errors.push(errorMsg);
-        if (error instanceof Error && (error.message.includes("circuit") || error.message.includes("breaker") || error.message.includes("pool") || error.message.includes("connection"))) {
-          console.warn(`\u26A0\uFE0F Detected potential circuit breaker issue. Implementing backoff...`);
-          await new Promise((resolve) => setTimeout(resolve, 1e3));
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-      }
-    }
-    console.log(`\u2705 SEQUENTIAL bulk creation completed: ${createdQuestions.length} created, ${errors.length} errors`);
-    return {
-      created: createdQuestions.length,
-      questions: createdQuestions,
-      errors
-    };
-  }
-  async getExamQuestions(examId) {
-    return await db.select({
-      id: examQuestions.id,
-      examId: examQuestions.examId,
-      questionText: examQuestions.questionText,
-      questionType: examQuestions.questionType,
-      points: examQuestions.points,
-      orderNumber: examQuestions.orderNumber,
-      imageUrl: examQuestions.imageUrl,
-      createdAt: examQuestions.createdAt
-    }).from(examQuestions).where(eq2(examQuestions.examId, examId)).orderBy(asc(examQuestions.orderNumber));
-  }
-  async getExamQuestionCount(examId) {
-    const result = await db.select({ count: dsql`count(*)` }).from(examQuestions).where(eq2(examQuestions.examId, examId));
-    return Number(result[0]?.count || 0);
-  }
-  // Get question counts for multiple exams
-  async getExamQuestionCounts(examIds) {
-    const counts = {};
-    for (const examId of examIds) {
-      try {
-        const count = await this.getExamQuestionCount(examId);
-        counts[examId] = count;
-      } catch (error) {
-        console.warn(`Failed to get question count for exam ${examId}:`, error);
-        counts[examId] = 0;
-      }
-    }
-    return counts;
-  }
-  async updateExamQuestion(id, question) {
-    const result = await db.update(examQuestions).set(question).where(eq2(examQuestions.id, id)).returning();
-    return result[0];
-  }
-  async deleteExamQuestion(id) {
-    try {
-      await db.delete(questionOptions).where(eq2(questionOptions.questionId, id));
-      await db.delete(studentAnswers).where(eq2(studentAnswers.questionId, id));
-      const result = await db.delete(examQuestions).where(eq2(examQuestions.id, id)).returning();
-      return result.length > 0;
-    } catch (error) {
-      console.error("Error in deleteExamQuestion:", error);
-      throw error;
-    }
-  }
-  // Question options management
-  async createQuestionOption(option) {
-    const result = await db.insert(questionOptions).values(option).returning();
-    return result[0];
-  }
-  async getQuestionOptions(questionId) {
-    return await db.select({
-      id: questionOptions.id,
-      questionId: questionOptions.questionId,
-      optionText: questionOptions.optionText,
-      isCorrect: questionOptions.isCorrect,
-      orderNumber: questionOptions.orderNumber,
-      createdAt: questionOptions.createdAt
-    }).from(questionOptions).where(eq2(questionOptions.questionId, questionId)).orderBy(asc(questionOptions.orderNumber));
-  }
-  // PERFORMANCE: Bulk fetch question options to eliminate N+1 queries
-  async getQuestionOptionsBulk(questionIds) {
-    if (questionIds.length === 0) {
-      return [];
-    }
-    return await db.select({
-      id: questionOptions.id,
-      questionId: questionOptions.questionId,
-      optionText: questionOptions.optionText,
-      isCorrect: questionOptions.isCorrect,
-      orderNumber: questionOptions.orderNumber,
-      createdAt: questionOptions.createdAt
-    }).from(questionOptions).where(inArray(questionOptions.questionId, questionIds)).orderBy(asc(questionOptions.questionId), asc(questionOptions.orderNumber));
-  }
-  // Exam sessions management
-  async createExamSession(session2) {
-    const result = await db.insert(examSessions).values(session2).returning();
-    return result[0];
-  }
-  async getExamSessionById(id) {
-    const result = await db.select({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    }).from(examSessions).where(eq2(examSessions.id, id)).limit(1);
-    return result[0];
-  }
-  async getExamSessionsByExam(examId) {
-    return await db.select({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    }).from(examSessions).where(eq2(examSessions.examId, examId)).orderBy(desc(examSessions.startedAt));
-  }
-  async getExamSessionsByStudent(studentId) {
-    return await db.select({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    }).from(examSessions).where(eq2(examSessions.studentId, studentId)).orderBy(desc(examSessions.startedAt));
-  }
-  async updateExamSession(id, session2) {
-    const allowedFields = {};
-    const existingColumns = ["examId", "studentId", "startedAt", "submittedAt", "timeRemaining", "isCompleted", "score", "maxScore", "status"];
-    for (const [key, value] of Object.entries(session2)) {
-      if (existingColumns.includes(key) && value !== void 0) {
-        allowedFields[key] = value;
-      }
-    }
-    const result = await db.update(examSessions).set(allowedFields).where(eq2(examSessions.id, id)).returning({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    });
-    return result[0];
-  }
-  async deleteExamSession(id) {
-    const result = await db.delete(examSessions).where(eq2(examSessions.id, id));
-    return result.length > 0;
-  }
-  async getActiveExamSession(examId, studentId) {
-    const result = await db.select().from(examSessions).where(and(
-      eq2(examSessions.examId, examId),
-      eq2(examSessions.studentId, studentId),
-      eq2(examSessions.isCompleted, false)
-    )).limit(1);
-    return result[0];
-  }
-  // Get all active exam sessions for background cleanup service
-  async getActiveExamSessions() {
-    return await db.select({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    }).from(examSessions).where(eq2(examSessions.isCompleted, false)).orderBy(desc(examSessions.startedAt));
-  }
-  // PERFORMANCE OPTIMIZED: Get only expired sessions directly from database
-  async getExpiredExamSessions(now, limit = 100) {
-    return await db.select({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    }).from(examSessions).where(and(
-      eq2(examSessions.isCompleted, false),
-      // Fallback: Use startedAt + reasonable timeout estimate for expired sessions
-      dsql`${examSessions.startedAt} + interval '2 hours' < ${now.toISOString()}`
-    )).orderBy(asc(examSessions.startedAt)).limit(limit);
-  }
-  // CIRCUIT BREAKER FIX: Idempotent session creation using UPSERT to prevent connection pool exhaustion
-  async createOrGetActiveExamSession(examId, studentId, sessionData) {
-    try {
-      const insertResult = await db.insert(examSessions).values({
-        examId: sessionData.examId,
-        studentId,
-        startedAt: /* @__PURE__ */ new Date(),
-        timeRemaining: sessionData.timeRemaining,
-        isCompleted: false,
-        status: "in_progress"
-      }).onConflictDoNothing().returning({
-        id: examSessions.id,
-        examId: examSessions.examId,
-        studentId: examSessions.studentId,
-        startedAt: examSessions.startedAt,
-        submittedAt: examSessions.submittedAt,
-        timeRemaining: examSessions.timeRemaining,
-        isCompleted: examSessions.isCompleted,
-        score: examSessions.score,
-        maxScore: examSessions.maxScore,
-        status: examSessions.status,
-        createdAt: examSessions.createdAt
-      });
-      if (insertResult.length > 0) {
-        console.log(`Created new exam session ${insertResult[0].id} for student ${studentId} exam ${examId}`);
-        return { ...insertResult[0], wasCreated: true };
-      }
-      const existingSession = await db.select({
-        id: examSessions.id,
-        examId: examSessions.examId,
-        studentId: examSessions.studentId,
-        startedAt: examSessions.startedAt,
-        submittedAt: examSessions.submittedAt,
-        timeRemaining: examSessions.timeRemaining,
-        isCompleted: examSessions.isCompleted,
-        score: examSessions.score,
-        maxScore: examSessions.maxScore,
-        status: examSessions.status,
-        createdAt: examSessions.createdAt
-      }).from(examSessions).where(and(
-        eq2(examSessions.examId, examId),
-        eq2(examSessions.studentId, studentId),
-        eq2(examSessions.isCompleted, false)
-      )).limit(1);
-      if (existingSession.length > 0) {
-        console.log(`Retrieved existing exam session ${existingSession[0].id} for student ${studentId} exam ${examId}`);
-        return { ...existingSession[0], wasCreated: false };
-      }
-      throw new Error(`Unable to create or retrieve exam session for student ${studentId} exam ${examId}`);
-    } catch (error) {
-      console.error("Error in createOrGetActiveExamSession:", error);
-      throw error;
-    }
-  }
-  // Enhanced session management for students
-  async getStudentActiveSession(studentId) {
-    const result = await this.db.select({
-      id: examSessions.id,
-      examId: examSessions.examId,
-      studentId: examSessions.studentId,
-      startedAt: examSessions.startedAt,
-      submittedAt: examSessions.submittedAt,
-      timeRemaining: examSessions.timeRemaining,
-      isCompleted: examSessions.isCompleted,
-      score: examSessions.score,
-      maxScore: examSessions.maxScore,
-      status: examSessions.status,
-      createdAt: examSessions.createdAt
-    }).from(examSessions).where(and(
-      eq2(examSessions.studentId, studentId),
-      eq2(examSessions.isCompleted, false)
-    )).orderBy(desc(examSessions.createdAt)).limit(1);
-    return result[0];
-  }
-  async updateSessionProgress(sessionId, progress) {
-    const updates = {};
-    if (typeof progress.timeRemaining === "number") {
-      updates.timeRemaining = progress.timeRemaining;
-    }
-    if (typeof progress.currentQuestionIndex === "number") {
-      updates.metadata = JSON.stringify({ currentQuestionIndex: progress.currentQuestionIndex });
-    }
-    if (Object.keys(updates).length > 0) {
-      await this.db.update(examSessions).set(updates).where(eq2(examSessions.id, sessionId));
-    }
-  }
-  // Student answers management
-  async createStudentAnswer(answer) {
-    const result = await db.insert(studentAnswers).values(answer).returning();
-    return result[0];
-  }
-  async getStudentAnswers(sessionId) {
-    return await db.select().from(studentAnswers).where(eq2(studentAnswers.sessionId, sessionId)).orderBy(asc(studentAnswers.answeredAt));
-  }
-  async getStudentAnswerById(id) {
-    const result = await db.select().from(studentAnswers).where(eq2(studentAnswers.id, id)).limit(1);
-    return result[0];
-  }
-  async updateStudentAnswer(id, answer) {
-    const result = await db.update(studentAnswers).set(answer).where(eq2(studentAnswers.id, id)).returning();
-    return result[0];
-  }
-  // OPTIMIZED SCORING: Get all scoring data in a single query for <2s performance
-  async getExamScoringData(sessionId) {
-    try {
-      console.log(`\u{1F50D} DIAGNOSTIC: Starting scoring data fetch for session ${sessionId}`);
-      const sessionResult = await this.db.select({
-        id: examSessions.id,
-        examId: examSessions.examId,
-        studentId: examSessions.studentId,
-        startedAt: examSessions.startedAt,
-        submittedAt: examSessions.submittedAt,
-        timeRemaining: examSessions.timeRemaining,
-        isCompleted: examSessions.isCompleted,
-        score: examSessions.score,
-        maxScore: examSessions.maxScore,
-        status: examSessions.status,
-        createdAt: examSessions.createdAt
-      }).from(examSessions).where(eq2(examSessions.id, sessionId)).limit(1);
-      if (!sessionResult[0]) {
-        throw new Error(`Exam session ${sessionId} not found`);
-      }
-      const session2 = sessionResult[0];
-      console.log(`\u{1F50D} DIAGNOSTIC: Found session for exam ${session2.examId}, student ${session2.studentId}`);
-      const questionsQuery = await this.db.select({
-        questionId: examQuestions.id,
-        questionType: examQuestions.questionType,
-        points: examQuestions.points,
-        autoGradable: examQuestions.autoGradable,
-        expectedAnswers: examQuestions.expectedAnswers,
-        caseSensitive: examQuestions.caseSensitive,
-        allowPartialCredit: examQuestions.allowPartialCredit,
-        partialCreditRules: examQuestions.partialCreditRules,
-        studentSelectedOptionId: studentAnswers.selectedOptionId,
-        textAnswer: studentAnswers.textAnswer
-      }).from(examQuestions).leftJoin(studentAnswers, and(
-        eq2(studentAnswers.questionId, examQuestions.id),
-        eq2(studentAnswers.sessionId, sessionId)
-      )).where(eq2(examQuestions.examId, session2.examId)).orderBy(asc(examQuestions.orderNumber));
-      const correctOptionsQuery = await this.db.select({
-        questionId: questionOptions.questionId,
-        correctOptionId: questionOptions.id
-      }).from(questionOptions).innerJoin(examQuestions, eq2(questionOptions.questionId, examQuestions.id)).where(
-        and(
-          eq2(examQuestions.examId, session2.examId),
-          eq2(questionOptions.isCorrect, true)
-        )
-      );
-      const selectedOptionsQuery = await this.db.select({
-        questionId: questionOptions.questionId,
-        optionId: questionOptions.id,
-        partialCreditValue: questionOptions.partialCreditValue,
-        isCorrect: questionOptions.isCorrect
-      }).from(questionOptions).innerJoin(studentAnswers, eq2(questionOptions.id, studentAnswers.selectedOptionId)).where(eq2(studentAnswers.sessionId, sessionId));
-      const correctOptionsMap = /* @__PURE__ */ new Map();
-      for (const option of correctOptionsQuery) {
-        correctOptionsMap.set(option.questionId, option.correctOptionId);
-      }
-      const selectedOptionsMap = /* @__PURE__ */ new Map();
-      for (const option of selectedOptionsQuery) {
-        selectedOptionsMap.set(option.questionId, {
-          optionId: option.optionId,
-          partialCreditValue: option.partialCreditValue,
-          isCorrect: option.isCorrect
-        });
-      }
-      const questionMap = /* @__PURE__ */ new Map();
-      for (const question of questionsQuery) {
-        const correctOptionId = correctOptionsMap.get(question.questionId) || null;
-        const selectedOptionData = selectedOptionsMap.get(question.questionId);
-        questionMap.set(question.questionId, {
-          questionType: question.questionType,
-          points: question.points || 1,
-          autoGradable: question.autoGradable,
-          expectedAnswers: question.expectedAnswers,
-          caseSensitive: question.caseSensitive,
-          allowPartialCredit: question.allowPartialCredit,
-          partialCreditRules: question.partialCreditRules,
-          studentSelectedOptionId: question.studentSelectedOptionId,
-          textAnswer: question.textAnswer,
-          correctOptionId,
-          isCorrect: false,
-          partialCreditEarned: 0
-        });
-        if ((question.questionType === "multiple_choice" || question.questionType === "true_false" || question.questionType === "true/false") && correctOptionId && question.studentSelectedOptionId === correctOptionId) {
-          questionMap.get(question.questionId).isCorrect = true;
-        }
-        if (question.allowPartialCredit && selectedOptionData && selectedOptionData.partialCreditValue) {
-          const questionData = questionMap.get(question.questionId);
-          if (!questionData.isCorrect && selectedOptionData.partialCreditValue > 0) {
-            questionData.partialCreditEarned = Math.min(
-              questionData.points,
-              selectedOptionData.partialCreditValue
-            );
-            console.log(`\u{1F524} OPTION PARTIAL CREDIT: Question ${question.questionId} awarded ${questionData.partialCreditEarned}/${questionData.points} pts for selected option`);
-          }
-        }
-      }
-      for (const [questionId, question] of Array.from(questionMap.entries())) {
-        if (!question.autoGradable) continue;
-        if ((question.questionType === "text" || question.questionType === "fill_blank") && question.expectedAnswers && question.textAnswer) {
-          const studentAnswer = question.textAnswer.trim();
-          if (!studentAnswer) continue;
-          console.log(`\u{1F524} AUTO-SCORING TEXT: Question ${questionId} - Student: "${studentAnswer}", Expected: [${question.expectedAnswers.join(", ")}]`);
-          for (const expectedAnswer of question.expectedAnswers) {
-            const normalizedExpected = question.caseSensitive ? expectedAnswer.trim() : expectedAnswer.trim().toLowerCase();
-            const normalizedStudent = question.caseSensitive ? studentAnswer : studentAnswer.toLowerCase();
-            if (normalizedStudent === normalizedExpected) {
-              question.isCorrect = true;
-              console.log(`\u2705 TEXT MATCH: Exact match found for question ${questionId}`);
-              break;
-            }
-            if (question.allowPartialCredit && !question.isCorrect) {
-              const similarity = this.calculateTextSimilarity(normalizedStudent, normalizedExpected);
-              try {
-                const partialRules = question.partialCreditRules ? JSON.parse(question.partialCreditRules) : { minSimilarity: 0.8, partialPercentage: 0.5 };
-                if (similarity >= (partialRules.minSimilarity || 0.8)) {
-                  question.partialCreditEarned = Math.ceil(question.points * (partialRules.partialPercentage || 0.5));
-                  console.log(`\u{1F524} PARTIAL CREDIT: Question ${questionId} similarity ${similarity.toFixed(2)} awarded ${question.partialCreditEarned}/${question.points} points`);
-                  break;
-                }
-              } catch (err) {
-                console.warn(`\u26A0\uFE0F Invalid partial credit rules for question ${questionId}:`, err);
-              }
-            }
-          }
-        }
-      }
-      const scoringData = Array.from(questionMap.entries()).map(([questionId, data]) => ({
-        questionId,
-        ...data
-      }));
-      let totalQuestions = scoringData.length;
-      let maxScore = 0;
-      let studentScore = 0;
-      let autoScoredQuestions = 0;
-      console.log(`\u{1F50D} DIAGNOSTIC: Found ${totalQuestions} total questions for scoring`);
-      const questionTypeCount = {};
-      for (const question of scoringData) {
-        maxScore += question.points;
-        questionTypeCount[question.questionType] = (questionTypeCount[question.questionType] || 0) + 1;
-        if (question.autoGradable === true) {
-          autoScoredQuestions++;
-          if (question.isCorrect) {
-            studentScore += question.points;
-            console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): CORRECT (+${question.points} pts) - Full credit awarded`);
-          } else if (question.partialCreditEarned > 0) {
-            studentScore += question.partialCreditEarned;
-            console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): PARTIAL CREDIT (+${question.partialCreditEarned}/${question.points} pts)`);
-          } else {
-            console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): INCORRECT (0 pts)`);
-          }
-        } else {
-          console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): MANUAL GRADING REQUIRED`);
-        }
-      }
-      console.log(`\u{1F50D} DIAGNOSTIC: Question type breakdown:`, questionTypeCount);
-      console.log(`\u{1F50D} DIAGNOSTIC: Auto-scored questions: ${autoScoredQuestions}/${totalQuestions}`);
-      console.log(`\u{1F50D} DIAGNOSTIC: Student score: ${studentScore}/${maxScore}`);
-      return {
-        session: session2,
-        scoringData,
-        summary: {
-          totalQuestions,
-          maxScore,
-          studentScore,
-          autoScoredQuestions
-        }
-      };
-    } catch (error) {
-      console.error("\u{1F6A8} OPTIMIZED SCORING ERROR:", error);
-      throw error;
-    }
-  }
-  // Text similarity calculation for partial credit scoring
-  calculateTextSimilarity(str1, str2) {
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
-    if (longer.length === 0) return 1;
-    const editDistance = this.getEditDistance(longer, shorter);
-    return (longer.length - editDistance) / longer.length;
-  }
-  getEditDistance(str1, str2) {
-    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-    for (let j = 1; j <= str2.length; j++) {
-      for (let i = 1; i <= str1.length; i++) {
-        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1,
-          // deletion
-          matrix[j - 1][i] + 1,
-          // insertion
-          matrix[j - 1][i - 1] + indicator
-          // substitution
-        );
-      }
-    }
-    return matrix[str2.length][str1.length];
-  }
-  // Announcements
-  async createAnnouncement(announcement) {
-    const result = await db.insert(announcements).values(announcement).returning();
-    return result[0];
-  }
-  async getAnnouncements(targetRole) {
-    const query = db.select().from(announcements).where(eq2(announcements.isPublished, true)).orderBy(desc(announcements.publishedAt));
-    if (targetRole) {
-    }
-    return await query;
-  }
-  async getAnnouncementById(id) {
-    const result = await db.select().from(announcements).where(eq2(announcements.id, id)).limit(1);
-    return result[0];
-  }
-  async updateAnnouncement(id, announcement) {
-    const result = await db.update(announcements).set(announcement).where(eq2(announcements.id, id)).returning();
-    return result[0];
-  }
-  async deleteAnnouncement(id) {
-    const result = await db.delete(announcements).where(eq2(announcements.id, id));
-    return result.length > 0;
-  }
-  // Messages
-  async sendMessage(message) {
-    const result = await db.insert(messages).values(message).returning();
-    return result[0];
-  }
-  async getMessagesByUser(userId) {
-    return await db.select().from(messages).where(eq2(messages.recipientId, userId)).orderBy(desc(messages.createdAt));
-  }
-  async markMessageAsRead(id) {
-    await db.update(messages).set({ isRead: true }).where(eq2(messages.id, id));
-  }
-  // Gallery
-  async createGalleryCategory(category) {
-    const result = await db.insert(galleryCategories).values(category).returning();
-    return result[0];
-  }
-  async getGalleryCategories() {
-    return await db.select().from(galleryCategories).orderBy(asc(galleryCategories.name));
-  }
-  async uploadGalleryImage(image) {
-    const result = await db.insert(gallery).values(image).returning();
-    return result[0];
-  }
-  async getGalleryImages(categoryId) {
-    if (categoryId) {
-      return await db.select().from(gallery).where(eq2(gallery.categoryId, categoryId)).orderBy(desc(gallery.createdAt));
-    }
-    return await db.select().from(gallery).orderBy(desc(gallery.createdAt));
-  }
-  async getGalleryImageById(id) {
-    const result = await db.select().from(gallery).where(eq2(gallery.id, parseInt(id))).limit(1);
-    return result[0];
-  }
-  async deleteGalleryImage(id) {
-    const result = await db.delete(gallery).where(eq2(gallery.id, parseInt(id))).returning();
-    return result.length > 0;
-  }
-  // Study resources management
-  async createStudyResource(resource) {
-    const result = await db.insert(studyResources).values(resource).returning();
-    return result[0];
-  }
-  async getStudyResources(filters) {
-    let query = db.select().from(studyResources).where(eq2(studyResources.isPublished, true));
-    if (filters?.classId) {
-      query = query.where(eq2(studyResources.classId, filters.classId));
-    }
-    if (filters?.subjectId) {
-      query = query.where(eq2(studyResources.subjectId, filters.subjectId));
-    }
-    if (filters?.termId) {
-      query = query.where(eq2(studyResources.termId, filters.termId));
-    }
-    if (filters?.resourceType) {
-      query = query.where(eq2(studyResources.resourceType, filters.resourceType));
-    }
-    return await query.orderBy(desc(studyResources.createdAt));
-  }
-  async getStudyResourceById(id) {
-    const result = await db.select().from(studyResources).where(eq2(studyResources.id, id)).limit(1);
-    return result[0];
-  }
-  async incrementStudyResourceDownloads(id) {
-    await db.update(studyResources).set({ downloads: dsql`${studyResources.downloads} + 1` }).where(eq2(studyResources.id, id));
-  }
-  async deleteStudyResource(id) {
-    const result = await db.delete(studyResources).where(eq2(studyResources.id, id)).returning();
-    return result.length > 0;
-  }
-  // Home page content management
-  async createHomePageContent(content) {
-    const result = await db.insert(homePageContent).values(content).returning();
-    return result[0];
-  }
-  // Manual Grading System Methods
-  async getGradingTasks(teacherId, status) {
-    try {
-      let query = `
-        SELECT 
-          sa.id,
-          es.student_id,
-          u.first_name || ' ' || u.last_name as student_name,
-          es.exam_id,
-          e.name as exam_title,
-          eq.id as question_id,
-          eq.question_text,
-          eq.question_type,
-          eq.points as max_marks,
-          sa.text_answer as student_answer,
-          es.submitted_at,
-          CASE 
-            WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
-            ELSE 'pending'
-          END as status,
-          ms.awarded_marks as current_score,
-          ms.comment as grader_comment
-        FROM student_answers sa
-        JOIN exam_sessions es ON sa.session_id = es.id
-        JOIN exams e ON es.exam_id = e.id
-        JOIN exam_questions eq ON sa.question_id = eq.id
-        JOIN users u ON es.student_id = u.id
-        LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
-        WHERE e.created_by = $1
-        AND eq.question_type IN ('text', 'essay')
-        AND es.is_completed = true
-      `;
-      const pgClient = await initializeDatabase().pg;
-      const params = [teacherId];
-      if (status && status !== "all") {
-        if (status === "pending") {
-          query += " AND sa.id NOT IN (SELECT answer_id FROM manual_scores)";
-        } else if (status === "graded") {
-          query += " AND sa.id IN (SELECT answer_id FROM manual_scores)";
-        }
-      }
-      query += " ORDER BY es.submitted_at DESC";
-      const result = await pgClient.unsafe(query, params);
-      return result;
-    } catch (error) {
-      console.error("Error fetching grading tasks:", error);
-      throw error;
-    }
-  }
-  async submitManualGrade(gradeData) {
-    try {
-      const { taskId, score, comment, graderId } = gradeData;
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient`
-        INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
-        VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
-        ON CONFLICT (answer_id) 
-        DO UPDATE SET 
-          awarded_marks = EXCLUDED.awarded_marks,
-          comment = EXCLUDED.comment,
-          graded_at = EXCLUDED.graded_at,
-          grader_id = EXCLUDED.grader_id
-        RETURNING *
-      `;
-      await pgClient`
-        UPDATE student_answers 
-        SET points_earned = ${score}
-        WHERE id = ${taskId}
-      `;
-      return result[0];
-    } catch (error) {
-      console.error("Error submitting manual grade:", error);
-      throw error;
-    }
-  }
-  async getAllExamSessions() {
-    try {
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient`
-        SELECT 
-          es.*,
-          e.name as exam_title,
-          u.first_name || ' ' || u.last_name as student_name,
-          (
-            SELECT COUNT(*) 
-            FROM student_answers sa 
-            WHERE sa.session_id = es.id 
-            AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
-          ) as answered_questions,
-          (
-            SELECT COUNT(*) 
-            FROM exam_questions eq 
-            WHERE eq.exam_id = es.exam_id
-          ) as total_questions
-        FROM exam_sessions es
-        JOIN exams e ON es.exam_id = e.id
-        JOIN users u ON es.student_id = u.id
-        ORDER BY es.started_at DESC
-      `;
-      return result;
-    } catch (error) {
-      console.error("Error fetching exam sessions:", error);
-      throw error;
-    }
-  }
-  async getExamReports(filters) {
-    try {
-      let query = `
-        SELECT 
-          e.id as exam_id,
-          e.name as exam_title,
-          c.name as class_name,
-          s.name as subject_name,
-          e.date as exam_date,
-          e.total_marks as max_score,
-          COUNT(DISTINCT es.student_id) as total_students,
-          COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
-          COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
-          COALESCE(
-            COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 / 
-            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0), 
-            0
-          ) as pass_rate,
-          COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
-          COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
-          CASE 
-            WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
-            ELSE 'completed'
-          END as status,
-          COALESCE(
-            COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 / 
-            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0), 
-            0
-          ) as grading_progress
-        FROM exams e
-        JOIN classes c ON e.class_id = c.id
-        JOIN subjects s ON e.subject_id = s.id
-        LEFT JOIN exam_sessions es ON e.id = es.exam_id
-        LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
-        WHERE e.is_published = true
-      `;
-      const params = [];
-      let paramIndex = 1;
-      if (filters.classId) {
-        query += ` AND e.class_id = $${paramIndex}`;
-        params.push(filters.classId);
-        paramIndex++;
-      }
-      if (filters.subjectId) {
-        query += ` AND e.subject_id = $${paramIndex}`;
-        params.push(filters.subjectId);
-        paramIndex++;
-      }
-      query += `
-        GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
-        ORDER BY e.date DESC
-      `;
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient.unsafe(query, params);
-      return result;
-    } catch (error) {
-      console.error("Error fetching exam reports:", error);
-      throw error;
-    }
-  }
-  async getExamStudentReports(examId) {
-    try {
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient`
-        SELECT 
-          u.id as student_id,
-          u.first_name || ' ' || u.last_name as student_name,
-          st.admission_number,
-          COALESCE(er.marks_obtained, 0) as score,
-          COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
-          CASE 
-            WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
-            WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
-            WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
-            WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
-            ELSE 'F'
-          END as grade,
-          ROW_NUMBER() OVER (ORDER BY er.marks_obtained DESC) as rank,
-          EXTRACT(EPOCH FROM (es.submitted_at - es.started_at)) as time_spent,
-          es.submitted_at,
-          er.auto_scored,
-          CASE WHEN EXISTS (
-            SELECT 1 FROM manual_scores ms 
-            JOIN student_answers sa ON ms.answer_id = sa.id 
-            WHERE sa.session_id = es.id
-          ) THEN true ELSE false END as manual_scored
-        FROM users u
-        JOIN students st ON u.id = st.id
-        JOIN exam_sessions es ON u.id = es.student_id
-        JOIN exams e ON es.exam_id = e.id
-        LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
-        WHERE e.id = ${examId} AND es.is_completed = true
-        ORDER BY er.marks_obtained DESC
-      `;
-      return result;
-    } catch (error) {
-      console.error("Error fetching student reports:", error);
-      throw error;
-    }
-  }
-  // Home page content management
-  async getHomePageContent(contentType) {
-    if (contentType) {
-      return await db.select().from(homePageContent).where(and(eq2(homePageContent.contentType, contentType), eq2(homePageContent.isActive, true))).orderBy(asc(homePageContent.displayOrder));
-    }
-    return await db.select().from(homePageContent).where(eq2(homePageContent.isActive, true)).orderBy(asc(homePageContent.displayOrder), asc(homePageContent.contentType));
-  }
-  async getHomePageContentById(id) {
-    const result = await db.select().from(homePageContent).where(eq2(homePageContent.id, id)).limit(1);
-    return result[0];
-  }
-  async updateHomePageContent(id, content) {
-    const result = await db.update(homePageContent).set({ ...content, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(homePageContent.id, id)).returning();
-    return result[0];
-  }
-  async deleteHomePageContent(id) {
-    const result = await db.delete(homePageContent).where(eq2(homePageContent.id, id)).returning();
-    return result.length > 0;
-  }
-  // Comprehensive grade management
-  async recordComprehensiveGrade(gradeData) {
-    try {
-      let reportCard = await db.select().from(reportCards).where(and(
-        eq2(reportCards.studentId, gradeData.studentId),
-        eq2(reportCards.termId, gradeData.termId)
-      )).limit(1);
-      let reportCardId;
-      if (reportCard.length === 0) {
-        const newReportCard = await db.insert(reportCards).values({
-          studentId: gradeData.studentId,
-          classId: gradeData.classId || 1,
-          // Should be provided
-          termId: gradeData.termId,
-          status: "draft"
-        }).returning();
-        reportCardId = newReportCard[0].id;
-      } else {
-        reportCardId = reportCard[0].id;
-      }
-      const existingItem = await db.select().from(reportCardItems).where(and(
-        eq2(reportCardItems.reportCardId, reportCardId),
-        eq2(reportCardItems.subjectId, gradeData.subjectId)
-      )).limit(1);
-      const comprehensiveGradeData = {
-        reportCardId,
-        subjectId: gradeData.subjectId,
-        testScore: gradeData.testScore,
-        testMaxScore: gradeData.testMaxScore,
-        testWeightedScore: gradeData.testWeightedScore || Math.round(gradeData.testScore / gradeData.testMaxScore * 40),
-        examScore: gradeData.examScore,
-        examMaxScore: gradeData.examMaxScore,
-        examWeightedScore: gradeData.examWeightedScore || Math.round(gradeData.examScore / gradeData.examMaxScore * 60),
-        obtainedMarks: gradeData.testWeightedScore + gradeData.examWeightedScore || Math.round(gradeData.testScore / gradeData.testMaxScore * 40 + gradeData.examScore / gradeData.examMaxScore * 60),
-        percentage: gradeData.percentage || Math.round(gradeData.testScore / gradeData.testMaxScore * 40 + gradeData.examScore / gradeData.examMaxScore * 60),
-        grade: gradeData.grade,
-        teacherRemarks: gradeData.teacherRemarks
-      };
-      if (existingItem.length > 0) {
-        const result = await db.update(reportCardItems).set(comprehensiveGradeData).where(eq2(reportCardItems.id, existingItem[0].id)).returning();
-        return result[0];
-      } else {
-        const result = await db.insert(reportCardItems).values(comprehensiveGradeData).returning();
-        return result[0];
-      }
-    } catch (error) {
-      console.error("Error recording comprehensive grade:", error);
-      throw error;
-    }
-  }
-  async getComprehensiveGradesByStudent(studentId, termId) {
-    try {
-      let query = db.select({
-        id: reportCardItems.id,
-        subjectId: reportCardItems.subjectId,
-        subjectName: subjects.name,
-        testScore: reportCardItems.testScore,
-        testMaxScore: reportCardItems.testMaxScore,
-        testWeightedScore: reportCardItems.testWeightedScore,
-        examScore: reportCardItems.examScore,
-        examMaxScore: reportCardItems.examMaxScore,
-        examWeightedScore: reportCardItems.examWeightedScore,
-        obtainedMarks: reportCardItems.obtainedMarks,
-        percentage: reportCardItems.percentage,
-        grade: reportCardItems.grade,
-        teacherRemarks: reportCardItems.teacherRemarks,
-        termId: reportCards.termId,
-        createdAt: reportCardItems.createdAt
-      }).from(reportCardItems).innerJoin(reportCards, eq2(reportCardItems.reportCardId, reportCards.id)).innerJoin(subjects, eq2(reportCardItems.subjectId, subjects.id)).where(eq2(reportCards.studentId, studentId));
-      if (termId) {
-        query = query.where(and(
-          eq2(reportCards.studentId, studentId),
-          eq2(reportCards.termId, termId)
-        ));
-      }
-      return await query.orderBy(subjects.name);
-    } catch (error) {
-      console.error("Error fetching comprehensive grades by student:", error);
-      return [];
-    }
-  }
-  async getComprehensiveGradesByClass(classId, termId) {
-    try {
-      let query = db.select({
-        studentId: reportCards.studentId,
-        studentName: sql2`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as("studentName"),
-        admissionNumber: students.admissionNumber,
-        subjectName: subjects.name,
-        testScore: reportCardItems.testScore,
-        examScore: reportCardItems.examScore,
-        obtainedMarks: reportCardItems.obtainedMarks,
-        grade: reportCardItems.grade,
-        teacherRemarks: reportCardItems.teacherRemarks
-      }).from(reportCardItems).innerJoin(reportCards, eq2(reportCardItems.reportCardId, reportCards.id)).innerJoin(students, eq2(reportCards.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).innerJoin(subjects, eq2(reportCardItems.subjectId, subjects.id)).where(eq2(students.classId, classId));
-      if (termId) {
-        query = query.where(and(
-          eq2(students.classId, classId),
-          eq2(reportCards.termId, termId)
-        ));
-      }
-      return await query.orderBy(users.firstName, users.lastName, subjects.name);
-    } catch (error) {
-      console.error("Error fetching comprehensive grades by class:", error);
-      return [];
-    }
-  }
-  async createReportCard(reportCardData, grades) {
-    return await this.db.transaction(async (tx) => {
-      try {
-        const reportCard = await tx.insert(reportCards).values(reportCardData).returning();
-        if (grades.length > 0) {
-          const gradeUpdates = grades.map(
-            (grade) => tx.update(reportCardItems).set({ reportCardId: reportCard[0].id }).where(eq2(reportCardItems.id, grade.id))
-          );
-          await Promise.all(gradeUpdates);
-        }
-        return {
-          reportCard: reportCard[0],
-          grades
-        };
-      } catch (error) {
-        console.error("Error creating report card:", error);
-        throw error;
-      }
-    });
-  }
-  async getReportCard(id) {
-    try {
-      const result = await db.select().from(reportCards).where(eq2(reportCards.id, id)).limit(1);
-      return result[0];
-    } catch (error) {
-      console.error("Error fetching report card:", error);
-      return void 0;
-    }
-  }
-  async getReportCardsByStudentId(studentId) {
-    try {
-      return await db.select().from(reportCards).where(eq2(reportCards.studentId, studentId)).orderBy(desc(reportCards.generatedAt));
-    } catch (error) {
-      console.error("Error fetching student report cards:", error);
-      return [];
-    }
-  }
-  async getReportCardItems(reportCardId) {
-    try {
-      return await db.select().from(reportCardItems).where(eq2(reportCardItems.reportCardId, reportCardId));
-    } catch (error) {
-      console.error("Error fetching report card items:", error);
-      return [];
-    }
-  }
-  async getStudentsByParentId(parentId) {
-    try {
-      return await db.select().from(students).where(eq2(students.parentId, parentId));
-    } catch (error) {
-      console.error("Error fetching students by parent:", error);
-      return [];
-    }
-  }
-  async getAcademicTerm(id) {
-    try {
-      const result = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
-      return result[0];
-    } catch (error) {
-      console.error("Error fetching academic term:", error);
-      return void 0;
-    }
-  }
-  // Analytics and Reports
-  async getAnalyticsOverview() {
-    try {
-      const [students2, teachers, admins, parents] = await Promise.all([
-        db.select().from(users).where(eq2(users.roleId, 1)),
-        db.select().from(users).where(eq2(users.roleId, 2)),
-        db.select().from(users).where(eq2(users.roleId, 4)),
-        db.select().from(users).where(eq2(users.roleId, 3))
-      ]);
-      const [classes2, subjects2, exams2, examResults2] = await Promise.all([
-        db.select().from(classes),
-        db.select().from(subjects),
-        db.select().from(exams),
-        db.select().from(examResults)
-      ]);
-      const gradeDistribution = this.calculateGradeDistribution(examResults2);
-      const subjectPerformance = await this.calculateSubjectPerformance(examResults2, subjects2);
-      return {
-        totalUsers: students2.length + teachers.length + admins.length + parents.length,
-        totalStudents: students2.length,
-        totalTeachers: teachers.length,
-        totalAdmins: admins.length,
-        totalParents: parents.length,
-        totalClasses: classes2.length,
-        totalSubjects: subjects2.length,
-        totalExams: exams2.length,
-        totalExamResults: examResults2.length,
-        averageClassSize: classes2.length > 0 ? Math.round(students2.length / classes2.length) : 0,
-        gradeDistribution,
-        subjectPerformance,
-        recentActivity: {
-          newStudentsThisMonth: students2.filter(
-            (s) => s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
-          ).length,
-          examsThisMonth: exams2.filter(
-            (e) => e.createdAt && new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
-          ).length
-        }
-      };
-    } catch (error) {
-      console.error("Error in getAnalyticsOverview:", error);
-      return this.getFallbackAnalytics();
-    }
-  }
-  async getPerformanceAnalytics(filters) {
-    try {
-      let examResults2 = await db.select().from(examResults);
-      if (filters.classId) {
-        const studentsInClass = await db.select().from(students).where(eq2(students.classId, filters.classId));
-        const studentIds = studentsInClass.map((s) => s.id);
-        examResults2 = examResults2.filter((r) => studentIds.includes(r.studentId));
-      }
-      if (filters.subjectId) {
-        const examsForSubject = await db.select().from(exams).where(eq2(exams.subjectId, filters.subjectId));
-        const examIds = examsForSubject.map((e) => e.id);
-        examResults2 = examResults2.filter((r) => examIds.includes(r.examId));
-      }
-      const totalExams = examResults2.length;
-      const averageScore = totalExams > 0 ? examResults2.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
-      const gradeDistribution = this.calculateGradeDistribution(examResults2);
-      const performanceTrends = this.calculatePerformanceTrends(examResults2);
-      const studentPerformance = this.calculateStudentPerformance(examResults2);
-      return {
-        totalExams,
-        averageScore: Math.round(averageScore * 100) / 100,
-        averagePercentage: Math.round(averageScore / 100 * 100),
-        // Assuming 100 is typical total marks
-        gradeDistribution,
-        performanceTrends,
-        topPerformers: studentPerformance.slice(0, 5),
-        strugglingStudents: studentPerformance.slice(-5),
-        passRate: Math.round(examResults2.filter((r) => (r.marksObtained || 0) >= 50).length / totalExams * 100)
-      };
-    } catch (error) {
-      console.error("Error in getPerformanceAnalytics:", error);
-      return { error: "Failed to calculate performance analytics" };
-    }
-  }
-  async getTrendAnalytics(months = 6) {
-    try {
-      const cutoffDate = /* @__PURE__ */ new Date();
-      cutoffDate.setMonth(cutoffDate.getMonth() - months);
-      const [students2, exams2, examResults2] = await Promise.all([
-        db.select().from(users).where(and(
-          eq2(users.roleId, 1)
-          // Note: In a real implementation, you'd filter by createdAt >= cutoffDate
-        )),
-        db.select().from(exams),
-        db.select().from(examResults)
-      ]);
-      const monthlyData = [];
-      for (let i = months - 1; i >= 0; i--) {
-        const month = /* @__PURE__ */ new Date();
-        month.setMonth(month.getMonth() - i);
-        const monthName = month.toLocaleString("default", { month: "short" });
-        const year = month.getFullYear();
-        monthlyData.push({
-          month: monthName,
-          year,
-          students: students2.length + Math.floor(Math.random() * 10) - 5,
-          // Simulated variance
-          exams: Math.floor(exams2.length / months) + Math.floor(Math.random() * 3),
-          averageScore: 75 + Math.floor(Math.random() * 20) - 10,
-          attendance: 85 + Math.floor(Math.random() * 15)
-        });
-      }
-      return {
-        monthlyTrends: monthlyData,
-        summary: {
-          studentsGrowth: monthlyData.length > 1 ? ((monthlyData[monthlyData.length - 1].students - monthlyData[0].students) / monthlyData[0].students * 100).toFixed(1) : 0,
-          examsTrend: "stable",
-          scoresTrend: "improving",
-          attendanceTrend: "stable"
-        }
-      };
-    } catch (error) {
-      console.error("Error in getTrendAnalytics:", error);
-      return { error: "Failed to calculate trend analytics" };
-    }
-  }
-  async getAttendanceAnalytics(filters) {
-    try {
-      let attendance2 = await db.select().from(attendance);
-      if (filters.classId) {
-        const studentsInClass = await db.select().from(students).where(eq2(students.classId, filters.classId));
-        const studentIds = studentsInClass.map((s) => s.id);
-        attendance2 = attendance2.filter((a) => studentIds.includes(a.studentId));
-      }
-      if (filters.startDate && filters.endDate) {
-        attendance2 = attendance2.filter((a) => {
-          const attendanceDate = new Date(a.date);
-          return attendanceDate >= new Date(filters.startDate) && attendanceDate <= new Date(filters.endDate);
-        });
-      }
-      const totalRecords = attendance2.length;
-      const presentCount = attendance2.filter((a) => a.status === "Present").length;
-      const absentCount = attendance2.filter((a) => a.status === "Absent").length;
-      const lateCount = attendance2.filter((a) => a.status === "Late").length;
-      const excusedCount = attendance2.filter((a) => a.status === "Excused").length;
-      const attendanceRate = totalRecords > 0 ? Math.round(presentCount / totalRecords * 100) : 0;
-      return {
-        totalRecords,
-        attendanceRate,
-        statusBreakdown: {
-          present: presentCount,
-          absent: absentCount,
-          late: lateCount,
-          excused: excusedCount
-        },
-        dailyTrends: this.calculateDailyAttendanceTrends(attendance2),
-        classComparison: await this.calculateClassAttendanceComparison()
-      };
-    } catch (error) {
-      console.error("Error in getAttendanceAnalytics:", error);
-      return { error: "Failed to calculate attendance analytics" };
-    }
-  }
-  calculateGradeDistribution(examResults2) {
-    const grades = { A: 0, B: 0, C: 0, D: 0, F: 0 };
-    examResults2.forEach((result) => {
-      const percentage = result.obtainedMarks / result.totalMarks * 100;
-      if (percentage >= 90) grades.A++;
-      else if (percentage >= 80) grades.B++;
-      else if (percentage >= 70) grades.C++;
-      else if (percentage >= 60) grades.D++;
-      else grades.F++;
-    });
-    return Object.entries(grades).map(([grade, count]) => ({ grade, count }));
-  }
-  async calculateSubjectPerformance(examResults2, subjects2) {
-    const subjectMap = /* @__PURE__ */ new Map();
-    subjects2.forEach((s) => subjectMap.set(s.id, s.name));
-    const performance = /* @__PURE__ */ new Map();
-    examResults2.forEach((result) => {
-      const examSubject = result.examId;
-      if (!performance.has(examSubject)) {
-        performance.set(examSubject, { total: 0, count: 0 });
-      }
-      const current = performance.get(examSubject);
-      current.total += result.obtainedMarks;
-      current.count += 1;
-    });
-    return Array.from(performance.entries()).map(([subjectId, data]) => ({
-      subject: subjectMap.get(subjectId) || "Unknown",
-      average: Math.round(data.total / data.count * 100) / 100,
-      examCount: data.count
-    }));
-  }
-  calculatePerformanceTrends(examResults2) {
-    const trends = /* @__PURE__ */ new Map();
-    examResults2.forEach((result) => {
-      const month = new Date(result.createdAt).toLocaleString("default", { month: "short" });
-      if (!trends.has(month)) {
-        trends.set(month, { total: 0, count: 0 });
-      }
-      const current = trends.get(month);
-      current.total += result.obtainedMarks;
-      current.count += 1;
-    });
-    return Array.from(trends.entries()).map(([month, data]) => ({
-      month,
-      average: Math.round(data.total / data.count * 100) / 100
-    }));
-  }
-  calculateStudentPerformance(examResults2) {
-    const performance = /* @__PURE__ */ new Map();
-    examResults2.forEach((result) => {
-      if (!performance.has(result.studentId)) {
-        performance.set(result.studentId, { total: 0, count: 0 });
-      }
-      const current = performance.get(result.studentId);
-      current.total += result.obtainedMarks;
-      current.count += 1;
-    });
-    return Array.from(performance.entries()).map(([studentId, data]) => ({
-      studentId,
-      average: Math.round(data.total / data.count * 100) / 100,
-      examCount: data.count
-    })).sort((a, b) => b.average - a.average);
-  }
-  calculateDailyAttendanceTrends(attendance2) {
-    const trends = /* @__PURE__ */ new Map();
-    attendance2.forEach((record) => {
-      const date2 = record.date;
-      if (!trends.has(date2)) {
-        trends.set(date2, { present: 0, total: 0 });
-      }
-      const current = trends.get(date2);
-      current.total += 1;
-      if (record.status === "Present") current.present += 1;
-    });
-    return Array.from(trends.entries()).map(([date2, data]) => ({
-      date: date2,
-      rate: Math.round(data.present / data.total * 100)
-    }));
-  }
-  async calculateClassAttendanceComparison() {
-    try {
-      const classes2 = await db.select().from(classes);
-      return classes2.map((cls) => ({
-        className: cls.name,
-        attendanceRate: 85 + Math.floor(Math.random() * 15),
-        // Simplified for demo
-        level: cls.level
-      }));
-    } catch (error) {
-      return [];
-    }
-  }
-  getFallbackAnalytics() {
-    return {
-      totalUsers: 0,
-      totalStudents: 0,
-      totalTeachers: 0,
-      totalClasses: 0,
-      totalSubjects: 0,
-      error: "Unable to calculate analytics - database unavailable"
-    };
-  }
-  // Contact messages management - ensuring 100% Supabase persistence
-  async createContactMessage(message) {
-    const result = await this.db.insert(contactMessages).values(message).returning();
-    return result[0];
-  }
-  async getContactMessages() {
-    return await this.db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
-  }
-  // Report finalization methods
-  async getExamResultById(id) {
-    try {
-      const result = await this.db.select().from(examResults).where(eq2(examResults.id, id)).limit(1);
-      return result[0];
-    } catch (error) {
-      console.error("Error fetching exam result by ID:", error);
-      return void 0;
-    }
-  }
-  async getFinalizedReportsByExams(examIds, filters) {
-    try {
-      const results = await this.db.select().from(examResults).where(and(
-        inArray(examResults.examId, examIds)
-        // Add teacherFinalized field check when column exists
-        // eq(schema.examResults.teacherFinalized, true)
-      )).orderBy(desc(examResults.createdAt));
-      return results;
-    } catch (error) {
-      console.error("Error fetching finalized reports by exams:", error);
-      return [];
-    }
-  }
-  async getAllFinalizedReports(filters) {
-    try {
-      const results = await this.db.select().from(examResults).orderBy(desc(examResults.createdAt));
-      return results;
-    } catch (error) {
-      console.error("Error fetching all finalized reports:", error);
-      return [];
-    }
-  }
-  async getContactMessageById(id) {
-    const result = await this.db.select().from(contactMessages).where(eq2(contactMessages.id, id)).limit(1);
-    return result[0];
-  }
-  async markContactMessageAsRead(id) {
-    const result = await this.db.update(contactMessages).set({ isRead: true }).where(eq2(contactMessages.id, id)).returning();
-    return result.length > 0;
-  }
-  async respondToContactMessage(id, response, respondedBy) {
-    const result = await this.db.update(contactMessages).set({
-      response,
-      respondedBy,
-      respondedAt: /* @__PURE__ */ new Date(),
-      isRead: true
-    }).where(eq2(contactMessages.id, id)).returning();
-    return result[0];
-  }
-  // Performance monitoring implementation
-  async logPerformanceEvent(event) {
-    const result = await this.db.insert(performanceEvents).values(event).returning();
-    return result[0];
-  }
-  async getPerformanceMetrics(hours = 24) {
-    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1e3);
-    const events = await this.db.select().from(performanceEvents).where(dsql`${performanceEvents.createdAt} >= ${cutoffTime}`);
-    const totalEvents = events.length;
-    const goalAchievedCount = events.filter((e) => e.goalAchieved).length;
-    const goalAchievementRate = totalEvents > 0 ? goalAchievedCount / totalEvents * 100 : 0;
-    const averageDuration = totalEvents > 0 ? events.reduce((sum, e) => sum + e.duration, 0) / totalEvents : 0;
-    const slowSubmissions = events.filter((e) => e.duration > 2e3).length;
-    const eventsByType = {};
-    events.forEach((e) => {
-      eventsByType[e.eventType] = (eventsByType[e.eventType] || 0) + 1;
-    });
-    return {
-      totalEvents,
-      goalAchievementRate: Math.round(goalAchievementRate * 100) / 100,
-      averageDuration: Math.round(averageDuration),
-      slowSubmissions,
-      eventsByType
-    };
-  }
-  async getRecentPerformanceAlerts(hours = 24) {
-    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1e3);
-    return await this.db.select().from(performanceEvents).where(
-      and(
-        dsql`${performanceEvents.createdAt} >= ${cutoffTime}`,
-        eq2(performanceEvents.goalAchieved, false)
-      )
-    ).orderBy(desc(performanceEvents.createdAt)).limit(50);
-  }
-  // Teacher class assignments implementation
-  async createTeacherClassAssignment(assignment) {
-    const result = await this.db.insert(teacherClassAssignments).values(assignment).returning();
-    return result[0];
-  }
-  async getTeacherClassAssignments(teacherId) {
-    return await this.db.select().from(teacherClassAssignments).where(and(
-      eq2(teacherClassAssignments.teacherId, teacherId),
-      eq2(teacherClassAssignments.isActive, true)
-    )).orderBy(teacherClassAssignments.createdAt);
-  }
-  async getTeachersForClassSubject(classId, subjectId) {
-    const assignments = await this.db.select({
-      user: users
-    }).from(teacherClassAssignments).innerJoin(users, eq2(teacherClassAssignments.teacherId, users.id)).where(and(
-      eq2(teacherClassAssignments.classId, classId),
-      eq2(teacherClassAssignments.subjectId, subjectId),
-      eq2(teacherClassAssignments.isActive, true)
-    ));
-    return assignments.map((a) => a.user);
-  }
-  async updateTeacherClassAssignment(id, assignment) {
-    const result = await this.db.update(teacherClassAssignments).set(assignment).where(eq2(teacherClassAssignments.id, id)).returning();
-    return result[0];
-  }
-  async deleteTeacherClassAssignment(id) {
-    const result = await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.id, id)).returning();
-    return result.length > 0;
-  }
-  // Manual grading task queue implementation
-  async createGradingTask(task) {
-    const result = await this.db.insert(gradingTasks).values(task).returning();
-    return result[0];
-  }
-  async assignGradingTask(taskId, teacherId) {
-    const result = await this.db.update(gradingTasks).set({
-      assignedTeacherId: teacherId,
-      assignedAt: /* @__PURE__ */ new Date(),
-      status: "in_progress"
-    }).where(eq2(gradingTasks.id, taskId)).returning();
-    return result[0];
-  }
-  async getGradingTasksByTeacher(teacherId, status) {
-    const conditions = [eq2(gradingTasks.assignedTeacherId, teacherId)];
-    if (status) {
-      conditions.push(eq2(gradingTasks.status, status));
-    }
-    return await this.db.select().from(gradingTasks).where(and(...conditions)).orderBy(desc(gradingTasks.priority), gradingTasks.createdAt);
-  }
-  async getGradingTasksBySession(sessionId) {
-    return await this.db.select().from(gradingTasks).where(eq2(gradingTasks.sessionId, sessionId)).orderBy(gradingTasks.createdAt);
-  }
-  async updateGradingTaskStatus(taskId, status, completedAt) {
-    const updates = { status };
-    if (status === "in_progress" && !completedAt) {
-      updates.startedAt = /* @__PURE__ */ new Date();
-    }
-    if (status === "completed" || completedAt) {
-      updates.completedAt = completedAt || /* @__PURE__ */ new Date();
-    }
-    const result = await this.db.update(gradingTasks).set(updates).where(eq2(gradingTasks.id, taskId)).returning();
-    return result[0];
-  }
-  async completeGradingTask(taskId, pointsEarned, feedbackText) {
-    try {
-      const task = await this.db.select().from(gradingTasks).where(eq2(gradingTasks.id, taskId)).limit(1);
-      if (!task || task.length === 0) return void 0;
-      const answerResult = await this.db.update(studentAnswers).set({
-        pointsEarned,
-        feedbackText,
-        manualOverride: true
-      }).where(eq2(studentAnswers.id, task[0].answerId)).returning();
-      if (!answerResult || answerResult.length === 0) return void 0;
-      const taskResult = await this.db.update(gradingTasks).set({
-        status: "completed",
-        completedAt: /* @__PURE__ */ new Date()
-      }).where(eq2(gradingTasks.id, taskId)).returning();
-      return {
-        task: taskResult[0],
-        answer: answerResult[0]
-      };
-    } catch (error) {
-      console.error("Error completing grading task:", error);
-      throw error;
-    }
-  }
-  // Audit logging implementation
-  async createAuditLog(log3) {
-    const result = await this.db.insert(auditLogs).values(log3).returning();
-    return result[0];
-  }
-  async getAuditLogs(filters) {
-    const conditions = [];
-    if (filters?.userId) {
-      conditions.push(eq2(auditLogs.userId, filters.userId));
-    }
-    if (filters?.entityType) {
-      conditions.push(eq2(auditLogs.entityType, filters.entityType));
-    }
-    if (filters?.entityId) {
-      conditions.push(eq2(auditLogs.entityId, filters.entityId));
-    }
-    if (filters?.action) {
-      conditions.push(eq2(auditLogs.action, filters.action));
-    }
-    if (filters?.startDate) {
-      conditions.push(dsql`${auditLogs.createdAt} >= ${filters.startDate}`);
-    }
-    if (filters?.endDate) {
-      conditions.push(dsql`${auditLogs.createdAt} <= ${filters.endDate}`);
-    }
-    let query = this.db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    return await query;
-  }
-  async getAuditLogsByEntity(entityType, entityId) {
-    return await this.db.select().from(auditLogs).where(and(
-      eq2(auditLogs.entityType, entityType),
-      eq2(auditLogs.entityId, entityId)
-    )).orderBy(desc(auditLogs.createdAt));
-  }
-  // Notification management implementation
-  async createNotification(notification) {
-    const result = await this.db.insert(notifications).values(notification).returning();
-    return result[0];
-  }
-  async getNotificationsByUserId(userId) {
-    return await this.db.select().from(notifications).where(eq2(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
-  }
-  async getUnreadNotificationCount(userId) {
-    const result = await this.db.select({ count: dsql`count(*)::int` }).from(notifications).where(and(
-      eq2(notifications.userId, userId),
-      eq2(notifications.isRead, false)
-    ));
-    return result[0]?.count || 0;
-  }
-  async markNotificationAsRead(notificationId) {
-    const result = await this.db.update(notifications).set({ isRead: true }).where(eq2(notifications.id, notificationId)).returning();
-    return result[0];
-  }
-  async markAllNotificationsAsRead(userId) {
-    await this.db.update(notifications).set({ isRead: true }).where(and(
-      eq2(notifications.userId, userId),
-      eq2(notifications.isRead, false)
-    ));
-  }
-  // Password reset attempt tracking for rate limiting
-  async createPasswordResetAttempt(identifier, ipAddress, success) {
-    const result = await this.db.insert(passwordResetAttempts).values({
-      identifier,
-      ipAddress,
-      success
-    }).returning();
-    return result[0];
-  }
-  async getRecentPasswordResetAttempts(identifier, minutesAgo) {
-    const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1e3);
-    return await this.db.select().from(passwordResetAttempts).where(and(
-      eq2(passwordResetAttempts.identifier, identifier),
-      dsql`${passwordResetAttempts.attemptedAt} > ${cutoffTime}`
-    )).orderBy(desc(passwordResetAttempts.attemptedAt));
-  }
-  async deleteOldPasswordResetAttempts(hoursAgo) {
-    const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1e3);
-    await this.db.delete(passwordResetAttempts).where(dsql`${passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
-    return true;
-  }
-  // Account security methods
-  async lockAccount(userId, lockUntil) {
-    const result = await this.db.update(users).set({ accountLockedUntil: lockUntil }).where(eq2(users.id, userId)).returning();
-    return result.length > 0;
-  }
-  async unlockAccount(userId) {
-    const result = await this.db.update(users).set({ accountLockedUntil: null }).where(eq2(users.id, userId)).returning();
-    return result.length > 0;
-  }
-  async isAccountLocked(userId) {
-    const user = await this.db.select({ accountLockedUntil: users.accountLockedUntil }).from(users).where(eq2(users.id, userId)).limit(1);
-    if (!user[0] || !user[0].accountLockedUntil) {
+    if (error) {
+      console.error("\u274C Email sending failed:", error);
       return false;
     }
-    return new Date(user[0].accountLockedUntil) > /* @__PURE__ */ new Date();
-  }
-  // Admin recovery powers
-  async adminResetUserPassword(userId, newPasswordHash, resetBy, forceChange) {
-    const result = await this.db.update(users).set({
-      passwordHash: newPasswordHash,
-      mustChangePassword: forceChange
-    }).where(eq2(users.id, userId)).returning();
-    if (result.length > 0) {
-      await this.createAuditLog({
-        userId: resetBy,
-        action: "admin_password_reset",
-        entityType: "user",
-        entityId: 0,
-        oldValue: null,
-        newValue: JSON.stringify({ targetUserId: userId, forceChange }),
-        reason: "Admin initiated password reset",
-        ipAddress: null,
-        userAgent: null
-      });
-    }
-    return result.length > 0;
-  }
-  async updateRecoveryEmail(userId, recoveryEmail, updatedBy) {
-    const oldUser = await this.getUser(userId);
-    const result = await this.db.update(users).set({ recoveryEmail }).where(eq2(users.id, userId)).returning();
-    if (result.length > 0) {
-      await this.createAuditLog({
-        userId: updatedBy,
-        action: "recovery_email_updated",
-        entityType: "user",
-        entityId: 0,
-        oldValue: oldUser?.recoveryEmail || null,
-        newValue: recoveryEmail,
-        reason: "Recovery email updated by admin",
-        ipAddress: null,
-        userAgent: null
-      });
-    }
-    return result.length > 0;
-  }
-};
-function initializeStorageSync() {
-  if (!process.env.DATABASE_URL) {
-    console.error("\u{1F6A8} CRITICAL: DATABASE_URL environment variable is required");
-    console.error("\u{1F6A8} This application ONLY stores data in Supabase database");
-    console.error("\u{1F6A8} Please ensure your Supabase DATABASE_URL is properly configured");
-    process.exit(1);
-  }
-  try {
-    const dbStorage = new DatabaseStorage();
-    console.log("\u2705 STORAGE: Using SUPABASE PostgreSQL Database - ALL DATA STORED IN SUPABASE");
-    return dbStorage;
+    console.log("\u2705 Email sent successfully:", data?.id);
+    return true;
   } catch (error) {
-    console.error("\u{1F6A8} CRITICAL: Failed to connect to Supabase database");
-    console.error("\u{1F6A8} All data MUST be stored in Supabase database as requested");
-    console.error("\u{1F6A8} Database connection error:", error instanceof Error ? error.message : "Unknown error");
-    console.error("\u{1F6A8} Application cannot continue without Supabase database connection");
-    process.exit(1);
+    console.error("\u274C Email service error:", error);
+    return false;
   }
 }
-var storage = initializeStorageSync();
+function getPasswordResetEmailHTML(userName, resetLink, resetCode) {
+  const token = resetCode || resetLink.split("token=")[1] || "";
+  const shortCode = token.substring(0, 8).toUpperCase();
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6; 
+      color: #1f2937; 
+      background: #f3f4f6;
+      padding: 20px;
+    }
+    .email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .header { 
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white; 
+      padding: 40px 30px; 
+      text-align: center; 
+    }
+    .header h1 { font-size: 28px; margin-bottom: 8px; font-weight: 700; }
+    .header p { font-size: 14px; opacity: 0.9; }
+    .content { padding: 40px 30px; background: white; }
+    .greeting { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #111827; }
+    .message { color: #4b5563; margin-bottom: 24px; font-size: 15px; }
+    .code-section { 
+      background: #eff6ff; 
+      border: 2px dashed #3b82f6; 
+      padding: 24px; 
+      text-align: center; 
+      border-radius: 8px; 
+      margin: 24px 0; 
+    }
+    .code-label { color: #6b7280; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .code { 
+      font-size: 32px; 
+      font-weight: 700; 
+      color: #1e40af; 
+      letter-spacing: 4px; 
+      font-family: 'Courier New', Courier, monospace;
+      background: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .button-container { text-align: center; margin: 32px 0; }
+    .button { 
+      display: inline-block; 
+      background: #1e40af; 
+      color: white !important; 
+      padding: 14px 36px; 
+      text-decoration: none; 
+      border-radius: 8px; 
+      font-weight: 600;
+      font-size: 15px;
+      transition: background 0.3s ease;
+    }
+    .button:hover { background: #1e3a8a; }
+    .alt-link { 
+      margin-top: 20px; 
+      padding: 16px; 
+      background: #f9fafb; 
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    .alt-link-label { font-size: 13px; color: #6b7280; margin-bottom: 8px; font-weight: 500; }
+    .alt-link-url { 
+      word-break: break-all; 
+      color: #3b82f6; 
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .warning { 
+      background: #fef3c7; 
+      border-left: 4px solid #f59e0b; 
+      padding: 16px; 
+      margin: 24px 0;
+      border-radius: 4px;
+    }
+    .warning-title { color: #92400e; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .warning-text { color: #78350f; font-size: 14px; }
+    .info-box { 
+      background: #f0f9ff; 
+      border: 1px solid #bfdbfe; 
+      padding: 16px; 
+      border-radius: 6px; 
+      margin: 24px 0;
+    }
+    .info-title { color: #1e40af; font-weight: 600; margin-bottom: 12px; font-size: 15px; }
+    .info-list { padding-left: 20px; color: #1e3a8a; }
+    .info-list li { margin-bottom: 8px; font-size: 14px; }
+    .footer { 
+      background: #f9fafb; 
+      padding: 24px 30px; 
+      text-align: center; 
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer-text { color: #6b7280; font-size: 13px; line-height: 1.8; }
+    .footer-link { color: #3b82f6; text-decoration: none; }
+    .divider { height: 1px; background: #e5e7eb; margin: 24px 0; }
+    @media only screen and (max-width: 600px) {
+      .content { padding: 24px 20px; }
+      .code { font-size: 24px; letter-spacing: 2px; }
+      .button { padding: 12px 24px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="header">
+      <h1>\u{1F510} Password Reset</h1>
+      <p>Treasure-Home School Portal</p>
+    </div>
+    
+    <div class="content">
+      <div class="greeting">Hello ${userName},</div>
+      
+      <p class="message">
+        We received a request to reset your password for your THS Portal account. 
+        Use the code or link below to create a new password.
+      </p>
+      
+      <div class="code-section">
+        <div class="code-label">Your Reset Code</div>
+        <div class="code">${shortCode}</div>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">Valid for 15 minutes</p>
+      </div>
+      
+      <div class="button-container">
+        <a href="${resetLink}" class="button">Reset Your Password</a>
+      </div>
+      
+      <div class="alt-link">
+        <div class="alt-link-label">Or copy this link:</div>
+        <div class="alt-link-url">${resetLink}</div>
+      </div>
+      
+      <div class="warning">
+        <div class="warning-title">
+          <span>\u23F0</span>
+          <span>Time-Sensitive Request</span>
+        </div>
+        <div class="warning-text">
+          This reset link expires in 15 minutes for your security. 
+          If it expires, you'll need to request a new one.
+        </div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="info-box">
+        <div class="info-title">\u{1F512} Security Tips</div>
+        <ul class="info-list">
+          <li>Never share your password or reset code with anyone</li>
+          <li>Create a strong password with uppercase, lowercase, numbers, and symbols</li>
+          <li>Avoid using personal information in your password</li>
+          <li>Don't reuse passwords from other accounts</li>
+        </ul>
+      </div>
+      
+      <p class="message" style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        If you didn't request this password reset, please ignore this email. 
+        Your account remains secure and no changes were made.
+      </p>
+      
+      <p class="message" style="font-size: 14px; color: #6b7280;">
+        Need help? Contact our administrator at 
+        <a href="mailto:treasurehomeschool@gmail.com" style="color: #3b82f6;">treasurehomeschool@gmail.com</a>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <div class="footer-text">
+        <strong>Treasure-Home School</strong><br>
+        "Honesty and Success"<br>
+        Seriki-Soyinka Ifo, Ogun State, Nigeria<br>
+        <a href="mailto:treasurehomeschool@gmail.com" class="footer-link">treasurehomeschool@gmail.com</a>
+      </div>
+      <div style="margin-top: 12px; color: #9ca3af; font-size: 12px;">
+        \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Treasure-Home School. All rights reserved.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+function getPasswordChangedEmailHTML(userName, ipAddress) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+    .alert { background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; margin: 20px 0; }
+    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Password Changed</h1>
+    </div>
+    <div class="content">
+      <h2>Password Successfully Changed</h2>
+      <p>Hello ${userName},</p>
+      <p>Your password was successfully changed on THS Portal.</p>
+      <p><strong>Details:</strong></p>
+      <ul>
+        <li>Changed at: ${(/* @__PURE__ */ new Date()).toLocaleString()}</li>
+        <li>IP Address: ${ipAddress}</li>
+      </ul>
+      <div class="alert">
+        <strong>\u26A0\uFE0F Didn't make this change?</strong><br>
+        If you didn't change your password, contact the school administration immediately:<br>
+        Email: admin@treasurehomeschool.edu.ng
+      </div>
+    </div>
+    <div class="footer">
+      <p>\xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Treasure-Home School</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+var resend;
+var init_email_service = __esm({
+  "server/email-service.ts"() {
+    "use strict";
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+});
+
+// server/username-generator.ts
+import { sql as sql3 } from "drizzle-orm";
+async function generateStudentUsername2(classCode, year) {
+  const yearStr = year.toString();
+  const result = await exportDb.insert(counters).values({
+    classCode,
+    year: yearStr,
+    sequence: 1
+  }).onConflictDoUpdate({
+    target: [counters.classCode, counters.year],
+    set: {
+      sequence: sql3`${counters.sequence} + 1`,
+      updatedAt: /* @__PURE__ */ new Date()
+    }
+  }).returning();
+  const sequence = result[0].sequence;
+  return `THS-STU-${yearStr}-${classCode.toUpperCase()}-${String(sequence).padStart(3, "0")}`;
+}
+async function generateParentUsername(year) {
+  const yearStr = year.toString();
+  const classCode = "PARENT";
+  const result = await exportDb.insert(counters).values({
+    classCode,
+    year: yearStr,
+    sequence: 1
+  }).onConflictDoUpdate({
+    target: [counters.classCode, counters.year],
+    set: {
+      sequence: sql3`${counters.sequence} + 1`,
+      updatedAt: /* @__PURE__ */ new Date()
+    }
+  }).returning();
+  const sequence = result[0].sequence;
+  return `THS-PAR-${yearStr}-${String(sequence).padStart(3, "0")}`;
+}
+function generateTempPassword(year) {
+  const random4 = Math.floor(1e3 + Math.random() * 9e3);
+  return `THS@${year}#${random4}`;
+}
+var init_username_generator = __esm({
+  "server/username-generator.ts"() {
+    "use strict";
+    init_storage();
+    init_schema();
+  }
+});
+
+// server/csv-import-service.ts
+var csv_import_service_exports = {};
+__export(csv_import_service_exports, {
+  commitCSVImport: () => commitCSVImport,
+  previewCSVImport: () => previewCSVImport
+});
+import { parse } from "csv-parse/sync";
+import { eq as eq4, and as and3 } from "drizzle-orm";
+import bcrypt from "bcrypt";
+async function previewCSVImport(csvContent) {
+  const rows = parse(csvContent, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true
+  });
+  const validResults = [];
+  const invalidResults = [];
+  let newParentCount = 0;
+  let existingParentCount = 0;
+  const classes2 = await exportDb.select().from(classes);
+  const validClassCodes = classes2.map((c) => c.name);
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const errors = [];
+    const warnings = [];
+    if (!row.fullName || row.fullName.trim() === "") {
+      errors.push("Full name is required");
+    }
+    if (!row.classCode || row.classCode.trim() === "") {
+      errors.push("Class code is required");
+    } else if (!validClassCodes.includes(row.classCode)) {
+      errors.push(`Invalid class code: ${row.classCode}. Valid codes: ${validClassCodes.join(", ")}`);
+    }
+    if (!row.dob) {
+      errors.push("Date of birth is required");
+    } else if (isNaN(Date.parse(row.dob))) {
+      errors.push("Invalid date of birth format (use YYYY-MM-DD)");
+    }
+    if (!row.gender || !["Male", "Female", "Other"].includes(row.gender)) {
+      errors.push("Gender must be Male, Female, or Other");
+    }
+    let parentExists = false;
+    if (row.parentPhone) {
+      const existingParent = await exportDb.select().from(users).where(and3(
+        eq4(users.phone, row.parentPhone),
+        eq4(users.roleId, 4)
+        // Parent role
+      )).limit(1);
+      parentExists = existingParent.length > 0;
+      if (parentExists) {
+        existingParentCount++;
+      } else {
+        newParentCount++;
+      }
+    } else {
+      warnings.push("No parent phone provided - student will have no parent link");
+    }
+    const result = {
+      row: i + 1,
+      data: {
+        fullName: row.fullName,
+        classCode: row.classCode,
+        dob: row.dob,
+        gender: row.gender,
+        parentEmail: row.parentEmail,
+        parentPhone: row.parentPhone,
+        admissionNo: row.admissionNo
+      },
+      parentExists,
+      errors,
+      warnings
+    };
+    if (errors.length === 0) {
+      const year = (/* @__PURE__ */ new Date()).getFullYear();
+      const classInfo = classes2.find((c) => c.name === row.classCode);
+      result.username = `THS-STU-${year}-${classInfo?.id || "X"}-XXX`;
+      validResults.push(result);
+    } else {
+      invalidResults.push(result);
+    }
+  }
+  return {
+    valid: validResults,
+    invalid: invalidResults,
+    summary: {
+      total: rows.length,
+      validCount: validResults.length,
+      invalidCount: invalidResults.length,
+      newParents: newParentCount,
+      existingParents: existingParentCount
+    }
+  };
+}
+async function commitCSVImport(validRows, adminUserId) {
+  const credentials = [];
+  const failedRows = [];
+  let successCount = 0;
+  const classes2 = await exportDb.select().from(classes);
+  for (const item of validRows) {
+    try {
+      await exportDb.transaction(async (tx) => {
+        const year = (/* @__PURE__ */ new Date()).getFullYear();
+        const classInfo = classes2.find((c) => c.name === item.data.classCode);
+        if (!classInfo) {
+          throw new Error(`Class not found: ${item.data.classCode}`);
+        }
+        const nameParts = item.data.fullName.trim().split(" ");
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(" ") || nameParts[0];
+        const studentUsername = await generateStudentUsername2(item.data.classCode, year);
+        const studentPassword = generateTempPassword(year);
+        const passwordHash = await bcrypt.hash(studentPassword, 10);
+        const [studentUser] = await tx.insert(users).values({
+          username: studentUsername,
+          email: `${studentUsername}@ths.edu`,
+          // Auto-generate email
+          passwordHash,
+          roleId: 3,
+          // Student
+          firstName,
+          lastName,
+          gender: item.data.gender,
+          dateOfBirth: item.data.dob,
+          isActive: true,
+          status: "active",
+          createdVia: "bulk",
+          createdBy: adminUserId,
+          mustChangePassword: true
+        }).returning();
+        const admissionNumber = item.data.admissionNo || `THS/${year}/${String(successCount + 1).padStart(4, "0")}`;
+        await tx.insert(students).values({
+          id: studentUser.id,
+          admissionNumber,
+          classId: classInfo.id,
+          admissionDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+          emergencyContact: item.data.parentPhone || null
+        });
+        let parentUserId = null;
+        let parentCredentials = null;
+        if (item.data.parentPhone) {
+          if (item.parentExists) {
+            const [existingParent] = await tx.select().from(users).where(and3(
+              eq4(users.phone, item.data.parentPhone),
+              eq4(users.roleId, 4)
+            )).limit(1);
+            if (existingParent) {
+              parentUserId = existingParent.id;
+              await tx.update(students).set({ parentId: parentUserId }).where(eq4(students.id, studentUser.id));
+            }
+          } else {
+            const parentUsername = await generateParentUsername(year);
+            const parentPassword = generateTempPassword(year);
+            const parentHash = await bcrypt.hash(parentPassword, 10);
+            const [parentUser] = await tx.insert(users).values({
+              username: parentUsername,
+              email: item.data.parentEmail || `${parentUsername}@ths.edu`,
+              passwordHash: parentHash,
+              roleId: 4,
+              // Parent
+              firstName: `Parent of ${firstName}`,
+              lastName,
+              phone: item.data.parentPhone,
+              isActive: true,
+              status: "active",
+              createdVia: "bulk",
+              createdBy: adminUserId,
+              mustChangePassword: true
+            }).returning();
+            parentUserId = parentUser.id;
+            await tx.update(students).set({ parentId: parentUserId }).where(eq4(students.id, studentUser.id));
+            parentCredentials = {
+              username: parentUsername,
+              password: parentPassword
+            };
+          }
+        }
+        credentials.push({
+          row: item.row,
+          student: {
+            id: studentUser.id,
+            name: item.data.fullName,
+            username: studentUsername,
+            password: studentPassword,
+            classCode: item.data.classCode
+          },
+          parent: parentCredentials
+        });
+        successCount++;
+      });
+    } catch (error) {
+      console.error(`Failed to import row ${item.row}:`, error);
+      failedRows.push(item.row);
+    }
+  }
+  return { successCount, failedRows, credentials };
+}
+var init_csv_import_service = __esm({
+  "server/csv-import-service.ts"() {
+    "use strict";
+    init_storage();
+    init_schema();
+    init_schema();
+    init_username_generator();
+  }
+});
+
+// server/registration-utils.ts
+var registration_utils_exports = {};
+__export(registration_utils_exports, {
+  checkParentExists: () => checkParentExists,
+  generateParentUsername: () => generateParentUsername2,
+  generateStudentUsername: () => generateStudentUsername3,
+  generateTempPassword: () => generateTempPassword2,
+  validateRegistrationData: () => validateRegistrationData
+});
+import crypto2 from "crypto";
+async function generateStudentUsername3(classCode) {
+  const year = (/* @__PURE__ */ new Date()).getFullYear();
+  const sequence = await storage.getNextSequence(classCode, year.toString());
+  const paddedSequence = sequence.toString().padStart(3, "0");
+  return `THS-STU-${year}-${classCode}-${paddedSequence}`;
+}
+function generateParentUsername2() {
+  const year = (/* @__PURE__ */ new Date()).getFullYear();
+  const randomPart = crypto2.randomBytes(2).toString("hex").toUpperCase();
+  return `THS-PAR-${year}-${randomPart}`;
+}
+function generateTempPassword2() {
+  const year = (/* @__PURE__ */ new Date()).getFullYear();
+  const randomPart = crypto2.randomBytes(2).toString("hex").toUpperCase();
+  return `THS@${year}#${randomPart}`;
+}
+function validateRegistrationData(data) {
+  const errors = [];
+  if (!data.fullName || data.fullName.trim().length < 2) {
+    errors.push("Full name must be at least 2 characters");
+  }
+  if (!data.classCode || data.classCode.trim().length === 0) {
+    errors.push("Class code is required");
+  }
+  if (!data.gender || !["Male", "Female", "Other"].includes(data.gender)) {
+    errors.push("Valid gender is required");
+  }
+  if (!data.dateOfBirth) {
+    errors.push("Date of birth is required");
+  } else {
+    const dob = new Date(data.dateOfBirth);
+    const age = ((/* @__PURE__ */ new Date()).getTime() - dob.getTime()) / (1e3 * 60 * 60 * 24 * 365);
+    if (age < 2 || age > 25) {
+      errors.push("Student age must be between 2 and 25 years");
+    }
+  }
+  if (!data.parentEmail && !data.parentPhone) {
+    errors.push("At least one parent contact (email or phone) is required");
+  }
+  if (data.parentEmail && !isValidEmail(data.parentEmail)) {
+    errors.push("Parent email is invalid");
+  }
+  if (data.parentPhone && !isValidPhone(data.parentPhone)) {
+    errors.push("Parent phone number is invalid");
+  }
+  return errors;
+}
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+function isValidPhone(phone) {
+  const phoneRegex = /^[\d\s\+\-\(\)]{10,}$/;
+  return phoneRegex.test(phone);
+}
+async function checkParentExists(email) {
+  if (!email) {
+    return { exists: false };
+  }
+  const parentRole = await storage.getRoleByName("parent");
+  if (!parentRole) {
+    return { exists: false };
+  }
+  const users3 = await storage.getAllUsers();
+  const parent = users3.find((u) => u.email === email && u.roleId === parentRole.id);
+  if (parent) {
+    return { exists: true, userId: parent.id };
+  }
+  return { exists: false };
+}
+var init_registration_utils = __esm({
+  "server/registration-utils.ts"() {
+    "use strict";
+    init_storage();
+  }
+});
+
+// server/email-notifications.ts
+var email_notifications_exports = {};
+__export(email_notifications_exports, {
+  sendParentNotificationEmail: () => sendParentNotificationEmail,
+  sendParentNotificationSMS: () => sendParentNotificationSMS
+});
+async function sendParentNotificationEmail(data) {
+  console.log("\n\u{1F4E7} ========== PARENT NOTIFICATION EMAIL ==========");
+  console.log(`\u{1F4EC} To: ${data.parentEmail}`);
+  console.log(`\u{1F4CB} Subject: THS Portal \u2014 Parent Account Created for ${data.studentName}`);
+  console.log("\n\u{1F4DD} Email Body:");
+  console.log(`
+Dear Parent/Guardian,
+
+A student account has been successfully created for ${data.studentName} at Treasure-Home School.
+
+Your parent portal account has been created with the following credentials:
+
+Username: ${data.parentUsername}
+Temporary Password: ${data.parentPassword}
+
+IMPORTANT SECURITY NOTICE:
+- This is a one-time password. Please change it immediately upon first login.
+- Keep your credentials secure and do not share them with anyone.
+
+To access the parent portal:
+1. Visit: ${process.env.REPLIT_DOMAINS?.split(",")[0] || "https://your-school-portal.com"}
+2. Click on "Portal Login"
+3. Enter your username and temporary password
+4. You will be prompted to change your password
+
+Your student's username is: ${data.studentUsername}
+
+If you have any questions or need assistance, please contact the school administration.
+
+Best regards,
+Treasure-Home School Administration
+
+---
+This is an automated message. Please do not reply to this email.
+  `);
+  console.log("==================================================\n");
+}
+async function sendParentNotificationSMS(phone, username, password) {
+  console.log("\n\u{1F4F1} ========== PARENT NOTIFICATION SMS ==========");
+  console.log(`\u{1F4DE} To: ${phone}`);
+  console.log(`\u{1F4DD} Message: Your THS parent account: Username: ${username}, Password: ${password}. Change password on first login.`);
+  console.log("==================================================\n");
+}
+var init_email_notifications = __esm({
+  "server/email-notifications.ts"() {
+    "use strict";
+  }
+});
+
+// server/index.ts
+import express2 from "express";
+import compression from "compression";
+import cors from "cors";
 
 // server/routes.ts
+init_storage();
+init_schema();
 init_auth_utils();
+import { createServer } from "http";
 import { z as z2, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import bcrypt2 from "bcrypt";
 import PDFDocument from "pdfkit";
 import passport2 from "passport";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 
 // server/google-auth.ts
+init_storage();
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 var GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 var GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 var REPLIT_DEV_DOMAIN = process.env.REPLIT_DEV_DOMAIN;
-var BASE_URL = REPLIT_DEV_DOMAIN ? `https://${REPLIT_DEV_DOMAIN}` : "http://0.0.0.0:5000";
+var BACKEND_URL = process.env.BACKEND_URL;
+var BASE_URL = REPLIT_DEV_DOMAIN ? `https://${REPLIT_DEV_DOMAIN}` : BACKEND_URL || "http://localhost:5000";
 var GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || `${BASE_URL}/api/auth/google/callback`;
+console.log("\u{1F510} Google OAuth Callback URL:", GOOGLE_CALLBACK_URL);
+console.log("\u{1F310} Environment:", REPLIT_DEV_DOMAIN ? "Replit Development" : BACKEND_URL ? "Production" : "Local Development");
 function setupGoogleAuth() {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     console.warn("Google OAuth not configured: Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
@@ -3270,6 +4930,14 @@ function setupGoogleAuth() {
             const role = await storage.getRole(user.roleId);
             const roleName = role?.name?.toLowerCase();
             if (roleName === "teacher" || roleName === "admin") {
+              if (roleName === "teacher") {
+                const approvedTeacher = await storage.getApprovedTeacherByEmail(email);
+                if (!approvedTeacher) {
+                  return done(null, false, {
+                    message: "Access denied: Only pre-approved teachers can use Google Sign-In. Please apply through the Job Vacancy page first."
+                  });
+                }
+              }
               if (user.status === "active") {
                 if (!user.googleId) {
                   await storage.updateUserGoogleId(user.id, googleId);
@@ -3278,7 +4946,7 @@ function setupGoogleAuth() {
                 return done(null, user);
               } else if (user.status === "pending") {
                 return done(null, false, {
-                  message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
+                  message: "Your account is awaiting Admin approval. You will be notified once verified."
                 });
               } else if (user.status === "suspended" || user.status === "disabled") {
                 return done(null, false, {
@@ -3327,6 +4995,132 @@ function setupGoogleAuth() {
 }
 
 // server/routes.ts
+import { sql as sql4 } from "drizzle-orm";
+
+// server/supabase-storage.ts
+import { createClient } from "@supabase/supabase-js";
+var supabaseUrl = process.env.SUPABASE_URL;
+var supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+function isValidUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+var supabase = null;
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn("\u26A0\uFE0F Supabase Storage not configured: Missing SUPABASE_URL or SUPABASE_SERVICE_KEY");
+} else if (!isValidUrl(supabaseUrl)) {
+  console.warn(`\u26A0\uFE0F Supabase Storage not configured: Invalid SUPABASE_URL format: ${supabaseUrl}`);
+} else {
+  try {
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log("\u2705 Supabase Storage client initialized");
+  } catch (error) {
+    console.error("\u274C Failed to initialize Supabase Storage client:", error);
+    supabase = null;
+  }
+}
+var STORAGE_BUCKETS = {
+  HOMEPAGE: "homepage-images",
+  GALLERY: "gallery-images",
+  PROFILES: "profile-images",
+  STUDY_RESOURCES: "study-resources",
+  GENERAL: "general-uploads"
+};
+async function initializeStorageBuckets() {
+  if (!supabase) {
+    console.log("\u{1F4E6} Supabase Storage: Not configured, using local filesystem");
+    return false;
+  }
+  try {
+    console.log("\u{1F4E6} Initializing Supabase Storage buckets...");
+    const bucketsToCreate = Object.values(STORAGE_BUCKETS);
+    for (const bucketName of bucketsToCreate) {
+      const { data: existingBucket } = await supabase.storage.getBucket(bucketName);
+      if (!existingBucket) {
+        const { error } = await supabase.storage.createBucket(bucketName, {
+          public: true,
+          fileSizeLimit: 10485760,
+          // 10MB
+          allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
+        });
+        if (error) {
+          if (error.message.includes("already exists")) {
+            console.log(`  \u2705 Bucket "${bucketName}" already exists`);
+          } else {
+            console.error(`  \u274C Failed to create bucket "${bucketName}":`, error.message);
+          }
+        } else {
+          console.log(`  \u2705 Created bucket: ${bucketName}`);
+        }
+      } else {
+        console.log(`  \u2705 Bucket "${bucketName}" already exists`);
+      }
+    }
+    console.log("\u2705 Supabase Storage initialization complete");
+    return true;
+  } catch (error) {
+    console.error("\u274C Supabase Storage initialization failed:", error);
+    return false;
+  }
+}
+async function uploadFileToSupabase(bucket, filePath, fileBuffer, contentType) {
+  if (!supabase) {
+    throw new Error("Supabase Storage not configured");
+  }
+  try {
+    const { data, error } = await supabase.storage.from(bucket).upload(filePath, fileBuffer, {
+      contentType,
+      upsert: true
+    });
+    if (error) {
+      console.error("Supabase upload error:", error);
+      throw error;
+    }
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    return {
+      publicUrl,
+      path: data.path
+    };
+  } catch (error) {
+    console.error("Failed to upload to Supabase:", error);
+    return null;
+  }
+}
+async function deleteFileFromSupabase(bucket, filePath) {
+  if (!supabase) {
+    throw new Error("Supabase Storage not configured");
+  }
+  try {
+    const { error } = await supabase.storage.from(bucket).remove([filePath]);
+    if (error) {
+      console.error("Supabase delete error:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Failed to delete from Supabase:", error);
+    return false;
+  }
+}
+function extractFilePathFromUrl(url) {
+  if (!url) return null;
+  const supabaseMatch = url.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
+  if (supabaseMatch) {
+    return supabaseMatch[1];
+  }
+  const localMatch = url.match(/\/uploads\/(.+)$/);
+  if (localMatch) {
+    return localMatch[1];
+  }
+  return null;
+}
+var isSupabaseStorageEnabled = !!supabase;
+
+// server/routes.ts
 var loginSchema = z2.object({
   identifier: z2.string().min(1),
   // Can be username or email
@@ -3341,11 +5135,14 @@ var contactSchema = z2.object({
   email: z2.string().email(),
   message: z2.string().min(1)
 });
-var JWT_SECRET = process.env.JWT_SECRET;
+var JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "development" ? "dev-secret-key-change-in-production" : void 0);
 if (!JWT_SECRET) {
   console.error("CRITICAL: JWT_SECRET environment variable is required but not set!");
   console.error("Please set a secure JWT_SECRET environment variable before starting the server.");
   process.exit(1);
+}
+if (process.env.NODE_ENV === "development" && JWT_SECRET === "dev-secret-key-change-in-production") {
+  console.warn("\u26A0\uFE0F WARNING: Using default JWT_SECRET for development. Set JWT_SECRET environment variable for production!");
 }
 var SECRET_KEY = JWT_SECRET;
 var JWT_EXPIRES_IN = "24h";
@@ -3388,12 +5185,12 @@ var MAX_RATE_LIMIT_VIOLATIONS = 3;
 var BCRYPT_ROUNDS = 12;
 setInterval(() => {
   const now = Date.now();
-  for (const [key, data] of loginAttempts.entries()) {
+  for (const [key, data] of Array.from(loginAttempts.entries())) {
     if (now - data.lastAttempt > RATE_LIMIT_WINDOW) {
       loginAttempts.delete(key);
     }
   }
-  for (const [identifier, data] of lockoutViolations.entries()) {
+  for (const [identifier, data] of Array.from(lockoutViolations.entries())) {
     const recentViolations = data.timestamps.filter((ts) => now - ts < LOCKOUT_VIOLATION_WINDOW);
     if (recentViolations.length === 0) {
       lockoutViolations.delete(identifier);
@@ -3458,6 +5255,7 @@ var uploadDir = "uploads";
 var galleryDir = "uploads/gallery";
 var profileDir = "uploads/profiles";
 var studyResourcesDir = "uploads/study-resources";
+var homepageDir = "uploads/homepage";
 fs.mkdir(uploadDir, { recursive: true }).catch(() => {
 });
 fs.mkdir(galleryDir, { recursive: true }).catch(() => {
@@ -3466,7 +5264,9 @@ fs.mkdir(profileDir, { recursive: true }).catch(() => {
 });
 fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {
 });
-var storage_multer = multer.diskStorage({
+fs.mkdir(homepageDir, { recursive: true }).catch(() => {
+});
+var storage_multer = isSupabaseStorageEnabled ? multer.memoryStorage() : multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadType = req.body.uploadType || "general";
     let dir = uploadDir;
@@ -3476,6 +5276,8 @@ var storage_multer = multer.diskStorage({
       dir = profileDir;
     } else if (uploadType === "study-resource") {
       dir = studyResourcesDir;
+    } else if (uploadType === "homepage") {
+      dir = homepageDir;
     }
     cb(null, dir);
   },
@@ -3547,6 +5349,29 @@ var uploadCSV = multer({
     }
   }
 });
+async function autoPublishScheduledExams() {
+  try {
+    console.log("\u{1F4C5} AUTO-PUBLISH: Checking for scheduled exams...");
+    const now = /* @__PURE__ */ new Date();
+    const scheduledExams = await storage.getScheduledExamsToPublish(now);
+    if (scheduledExams.length > 0) {
+      console.log(`\u{1F4C5} Found ${scheduledExams.length} exams ready to publish`);
+      for (const exam of scheduledExams) {
+        try {
+          console.log(`\u{1F680} AUTO-PUBLISH: Publishing exam ${exam.id} - ${exam.name}`);
+          await storage.updateExam(exam.id, {
+            isPublished: true
+          });
+          console.log(`\u2705 Successfully published exam ${exam.id}`);
+        } catch (error) {
+          console.error(`\u274C Failed to auto-publish exam ${exam.id}:`, error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("\u274C Auto-publish service error:", error);
+  }
+}
 async function cleanupExpiredExamSessions() {
   try {
     console.log("\u{1F9F9} TIMEOUT CLEANUP: Checking for expired exam sessions...");
@@ -3572,6 +5397,10 @@ async function cleanupExpiredExamSessions() {
     console.error("\u274C Background cleanup service error:", error);
   }
 }
+var autoPublishInterval = 60 * 1e3;
+setInterval(autoPublishScheduledExams, autoPublishInterval);
+autoPublishScheduledExams();
+console.log("\u{1F4C5} AUTO-PUBLISH: Background service started (runs every 1 minute)");
 var cleanupInterval = 3 * 60 * 1e3;
 var jitter = Math.random() * 3e4;
 setTimeout(() => {
@@ -3579,6 +5408,70 @@ setTimeout(() => {
   cleanupExpiredExamSessions();
 }, jitter);
 console.log(`\u{1F9F9} TIMEOUT PROTECTION: Background cleanup service started (every ${cleanupInterval / 1e3 / 60} minutes with jitter)`);
+async function scoreTheoryAnswer(studentAnswer, expectedAnswers, sampleAnswer, points) {
+  if (!studentAnswer || studentAnswer.trim().length === 0) {
+    return {
+      score: 0,
+      confidence: 1,
+      feedback: "No answer provided.",
+      autoScored: true
+    };
+  }
+  const studentText = studentAnswer.toLowerCase().trim();
+  let keywordScore = 0;
+  const matchedKeywords = [];
+  const missedKeywords = [];
+  if (expectedAnswers && expectedAnswers.length > 0) {
+    expectedAnswers.forEach((keyword) => {
+      const keywordLower = keyword.toLowerCase().trim();
+      if (studentText.includes(keywordLower)) {
+        matchedKeywords.push(keyword);
+      } else {
+        missedKeywords.push(keyword);
+      }
+    });
+    keywordScore = matchedKeywords.length / expectedAnswers.length;
+  }
+  let semanticScore = 0;
+  if (sampleAnswer && sampleAnswer.trim().length > 0) {
+    const sampleWords = sampleAnswer.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    const studentWords = studentText.split(/\s+/).filter((w) => w.length > 3);
+    const commonWords = studentWords.filter((word) => sampleWords.includes(word));
+    semanticScore = sampleWords.length > 0 ? commonWords.length / sampleWords.length : 0;
+  } else {
+    semanticScore = keywordScore;
+  }
+  const hybridScore = keywordScore * 0.6 + semanticScore * 0.4;
+  const calculatedPoints = Math.round(hybridScore * points * 100) / 100;
+  const confidence = Math.min(
+    keywordScore > 0.8 ? 0.9 : keywordScore > 0.5 ? 0.7 : 0.5,
+    1
+  );
+  let feedback = "";
+  if (hybridScore >= 0.8) {
+    feedback = `Excellent answer! Key points identified: ${matchedKeywords.join(", ")}. `;
+  } else if (hybridScore >= 0.5) {
+    feedback = `Good effort. You covered: ${matchedKeywords.join(", ")}. `;
+    if (missedKeywords.length > 0) {
+      feedback += `Consider including: ${missedKeywords.slice(0, 3).join(", ")}. `;
+    }
+  } else {
+    feedback = `Needs improvement. `;
+    if (missedKeywords.length > 0) {
+      feedback += `Missing key points: ${missedKeywords.slice(0, 3).join(", ")}. `;
+    }
+  }
+  const shouldAutoScore = confidence >= 0.7 && hybridScore >= 0.3;
+  if (!shouldAutoScore) {
+    feedback += "This answer has been flagged for teacher review.";
+  }
+  return {
+    score: shouldAutoScore ? calculatedPoints : 0,
+    confidence,
+    feedback,
+    autoScored: shouldAutoScore
+  };
+}
 async function autoScoreExamSession(sessionId, storage2) {
   const startTime = Date.now();
   try {
@@ -3587,71 +5480,96 @@ async function autoScoreExamSession(sessionId, storage2) {
     const { session: session2, summary, scoringData } = scoringResult;
     const databaseQueryTime = Date.now() - startTime;
     console.log(`\u26A1 PERFORMANCE: Database query completed in ${databaseQueryTime}ms (was 3000-8000ms before)`);
-    const { totalQuestions, maxScore, studentScore, autoScoredQuestions } = summary;
-    const totalScore = studentScore;
-    const maxPossibleScore = maxScore;
+    const { totalQuestions, maxScore: maxPossibleScore, studentScore, autoScoredQuestions } = summary;
+    const studentAnswers2 = await storage2.getStudentAnswers(sessionId);
+    const examQuestions2 = await storage2.getExamQuestions(session2.examId);
+    let totalAutoScore = studentScore;
     const hasMultipleChoiceQuestions = autoScoredQuestions > 0;
     const hasEssayQuestions = totalQuestions > autoScoredQuestions;
     console.log(`\u2705 OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + " MC" : "no MC"}, ${hasEssayQuestions ? totalQuestions - autoScoredQuestions + " Essays" : "no Essays"})`);
-    const questionDetails = scoringData.map((q) => {
-      const questionDetail = {
+    const questionDetails = [];
+    for (const q of scoringData) {
+      const question = examQuestions2.find((eq6) => eq6.id === q.questionId);
+      const studentAnswer = studentAnswers2.find((sa) => sa.questionId === q.questionId);
+      let questionDetail = {
         questionId: q.questionId,
         questionType: q.questionType,
         points: q.points,
         maxPoints: q.points,
-        pointsEarned: q.isCorrect ? q.points : 0,
-        isCorrect: q.questionType === "multiple_choice" ? q.isCorrect : null,
-        // null for manual review needed
-        autoScored: q.questionType === "multiple_choice",
-        feedback: null
+        pointsEarned: 0,
+        isCorrect: null,
+        autoScored: false,
+        feedback: null,
+        aiSuggested: false,
+        confidence: 0
       };
       if (q.questionType === "multiple_choice") {
-        if (q.isCorrect) {
-          questionDetail.feedback = `Correct! You earned ${q.points} point${q.points !== 1 ? "s" : ""}.`;
+        questionDetail.pointsEarned = q.isCorrect ? q.points : 0;
+        questionDetail.isCorrect = q.isCorrect;
+        questionDetail.autoScored = true;
+        questionDetail.feedback = q.isCorrect ? `Correct! You earned ${q.points} point${q.points !== 1 ? "s" : ""}.` : `Incorrect. This question was worth ${q.points} point${q.points !== 1 ? "s" : ""}.`;
+      } else if (q.questionType === "text" || q.questionType === "essay") {
+        if (studentAnswer && studentAnswer.textAnswer && question) {
+          const aiResult = await scoreTheoryAnswer(
+            studentAnswer.textAnswer,
+            question.expectedAnswers || [],
+            question.sampleAnswer || null,
+            q.points
+          );
+          questionDetail.pointsEarned = aiResult.score;
+          questionDetail.autoScored = aiResult.autoScored;
+          questionDetail.aiSuggested = !aiResult.autoScored;
+          questionDetail.confidence = aiResult.confidence;
+          questionDetail.feedback = aiResult.feedback;
+          if (aiResult.autoScored) {
+            totalAutoScore += aiResult.score;
+            questionDetail.isCorrect = aiResult.score >= q.points * 0.5;
+          }
         } else {
-          questionDetail.feedback = `Incorrect. This question was worth ${q.points} point${q.points !== 1 ? "s" : ""}.`;
+          questionDetail.feedback = "This question requires manual review by your instructor.";
+          questionDetail.aiSuggested = true;
         }
-      } else {
-        questionDetail.feedback = `This ${q.questionType} question will be manually reviewed by your instructor.`;
       }
-      return questionDetail;
-    });
-    console.log("\u{1F4BE} Persisting MCQ scores to student_answers for score merging...");
-    const studentAnswers2 = await storage2.getStudentAnswers(sessionId);
+      questionDetails.push(questionDetail);
+    }
+    console.log("\u{1F4BE} Persisting scores to student_answers for score merging...");
     for (const detail of questionDetails) {
-      if (detail.autoScored && detail.questionId) {
+      if (detail.questionId) {
         const studentAnswer = studentAnswers2.find((sa) => sa.questionId === detail.questionId);
         if (studentAnswer) {
           try {
             await storage2.updateStudentAnswer(studentAnswer.id, {
               pointsEarned: detail.pointsEarned,
               isCorrect: detail.isCorrect,
-              autoScored: true
+              autoScored: detail.autoScored,
+              feedbackText: detail.feedback
             });
-            console.log(`\u2705 Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points`);
+            console.log(`\u2705 Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points (auto: ${detail.autoScored})`);
           } catch (updateError) {
             console.error(`\u274C Failed to update answer ${studentAnswer.id}:`, updateError);
           }
         }
       }
     }
+    const aiSuggestedCount = questionDetails.filter((q) => q.aiSuggested === true).length;
     const breakdown = {
       totalQuestions,
-      autoScoredQuestions,
+      autoScoredQuestions: questionDetails.filter((q) => q.autoScored === true).length,
+      aiSuggestedQuestions: aiSuggestedCount,
       correctAnswers: questionDetails.filter((q) => q.isCorrect === true).length,
       incorrectAnswers: questionDetails.filter((q) => q.isCorrect === false).length,
-      pendingManualReview: questionDetails.filter((q) => q.isCorrect === null).length,
+      pendingManualReview: questionDetails.filter((q) => q.isCorrect === null || q.aiSuggested === true).length,
       maxScore: maxPossibleScore,
-      earnedScore: totalScore
+      earnedScore: totalAutoScore
     };
     if (process.env.NODE_ENV === "development") {
       console.log(`\u{1F4CA} DETAILED BREAKDOWN:`, breakdown);
       questionDetails.forEach((q, index2) => {
-        console.log(`Question ${index2 + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? q.isCorrect ? "Correct!" : "Incorrect" : "Manual Review"} - ${q.pointsEarned}/${q.points} points`);
+        console.log(`Question ${index2 + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? q.isCorrect ? "Correct!" : "Incorrect" : "Manual Review"} - ${q.pointsEarned}/${q.points}`);
       });
     }
     console.log(`\u{1F3AF} Preparing exam result for student ${session2.studentId}, exam ${session2.examId}`);
-    console.log(`\u{1F4CA} Score calculation: ${totalScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
+    console.log(`\u{1F4CA} Score calculation: ${totalAutoScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
     if (!session2.studentId) {
       throw new Error("CRITICAL: Session missing studentId - cannot create exam result");
     }
@@ -3669,29 +5587,52 @@ async function autoScoreExamSession(sessionId, storage2) {
     } else {
       console.log(`\u{1F195} No existing result found for exam ${session2.examId} - will create new`);
     }
-    let SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
+    let SYSTEM_AUTO_SCORING_UUID;
     try {
       const adminUsers = await storage2.getUsersByRole(ROLES.ADMIN);
-      if (adminUsers && adminUsers.length > 0) {
+      if (adminUsers && adminUsers.length > 0 && adminUsers[0].id) {
         SYSTEM_AUTO_SCORING_UUID = adminUsers[0].id;
-        console.log(`Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
+        console.log(`\u2705 Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
       } else {
-        SYSTEM_AUTO_SCORING_UUID = session2.studentId;
-        console.log(`No admin found, using student ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
+        console.log(`\u26A0\uFE0F No admin users found, verifying student ${session2.studentId} exists in users table...`);
+        try {
+          const studentUser = await storage2.getUser(session2.studentId);
+          if (studentUser && studentUser.id) {
+            SYSTEM_AUTO_SCORING_UUID = studentUser.id;
+            console.log(`\u2705 Verified student ${SYSTEM_AUTO_SCORING_UUID} exists in users table, using for recordedBy`);
+          } else {
+            throw new Error(`Student ${session2.studentId} not found in users table`);
+          }
+        } catch (studentError) {
+          console.error(`\u274C Student ${session2.studentId} not found in users table:`, studentError);
+          console.log(`\u{1F504} Last resort: Finding any active user for recordedBy...`);
+          const allUsers = await storage2.getAllUsers();
+          const activeUser = allUsers.find((u) => u.isActive && u.id);
+          if (activeUser && activeUser.id) {
+            SYSTEM_AUTO_SCORING_UUID = activeUser.id;
+            console.log(`\u2705 Using active user ${SYSTEM_AUTO_SCORING_UUID} as fallback for recordedBy`);
+          } else {
+            throw new Error("CRITICAL: No valid user ID found for auto-scoring recordedBy - cannot save exam result");
+          }
+        }
       }
     } catch (userError) {
-      console.warn("Failed to find admin for auto-scoring, using student ID:", userError);
-      SYSTEM_AUTO_SCORING_UUID = session2.studentId;
+      console.error("\u274C CRITICAL ERROR: Failed to find valid user for auto-scoring recordedBy:", userError);
+      throw new Error(`Auto-scoring failed: Cannot find valid user ID for recordedBy. Error: ${userError instanceof Error ? userError.message : String(userError)}`);
     }
+    if (!SYSTEM_AUTO_SCORING_UUID || typeof SYSTEM_AUTO_SCORING_UUID !== "string") {
+      throw new Error(`CRITICAL: Invalid recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
+    }
+    console.log(`\u{1F4DD} Final recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
     const resultData = {
       examId: session2.examId,
       studentId: session2.studentId,
-      score: totalScore,
+      score: totalAutoScore,
       maxScore: maxPossibleScore,
-      marksObtained: totalScore,
+      marksObtained: totalAutoScore,
       // ✅ CRITICAL FIX: Ensure database constraint compatibility
-      autoScored: true,
-      // Always true when auto-scoring pass completes
+      autoScored: breakdown.pendingManualReview === 0,
+      // Only fully auto-scored if no pending reviews
       recordedBy: SYSTEM_AUTO_SCORING_UUID,
       // Special UUID for auto-generated results
       // Include detailed feedback in the result data
@@ -3710,7 +5651,7 @@ async function autoScoreExamSession(sessionId, storage2) {
         if (!updatedResult) {
           throw new Error(`Failed to update exam result ID: ${existingResult.id} - updateExamResult returned null/undefined`);
         }
-        console.log(`\u2705 Updated exam result for student ${session2.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
+        console.log(`\u2705 Updated exam result for student ${session2.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
         console.log(`\u{1F389} INSTANT FEEDBACK READY: Result updated successfully!`);
       } else {
         console.log("\u{1F195} Creating new exam result...");
@@ -3718,14 +5659,18 @@ async function autoScoreExamSession(sessionId, storage2) {
         if (!newResult || !newResult.id) {
           throw new Error("Failed to create exam result - recordExamResult returned null/undefined or missing ID");
         }
-        console.log(`\u2705 Created new exam result for student ${session2.studentId}: ${totalScore}/${maxPossibleScore} (ID: ${newResult.id})`);
+        console.log(`\u2705 Created new exam result for student ${session2.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${newResult.id})`);
         console.log(`\u{1F389} INSTANT FEEDBACK READY: New result created successfully!`);
       }
       console.log(`\u{1F50D} Verifying result was saved - fetching results for student ${session2.studentId}...`);
       const verificationResults = await storage2.getExamResultsByStudent(session2.studentId);
-      const savedResult = verificationResults.find((r) => r.examId === session2.examId && r.autoScored === true);
+      console.log(`\u{1F50D} DEBUG: Found ${verificationResults.length} results. Looking for examId ${session2.examId} (type: ${typeof session2.examId})`);
+      console.log(`\u{1F50D} DEBUG: Result examIds:`, verificationResults.map((r) => `${r.examId} (type: ${typeof r.examId})`));
+      const savedResult = verificationResults.find((r) => Number(r.examId) === Number(session2.examId));
       if (!savedResult) {
-        throw new Error("CRITICAL: Result was not properly saved - verification fetch failed to find the auto-scored result");
+        console.error(`\u274C VERIFICATION FAILED: Could not find result for examId ${session2.examId}`);
+        console.error(`\u274C Available results:`, JSON.stringify(verificationResults, null, 2));
+        throw new Error("CRITICAL: Result was not properly saved - verification fetch failed to find the result");
       }
       console.log(`\u2705 Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
       const totalResponseTime = Date.now() - startTime;
@@ -3847,18 +5792,1043 @@ async function mergeExamScores(answerId, storage2) {
   }
 }
 async function registerRoutes(app2) {
+  app2.get("/api/grading/tasks/ai-suggested", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user.id;
+      const status = req.query.status;
+      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching AI-suggested tasks:", error);
+      res.status(500).json({ message: "Failed to fetch AI-suggested tasks" });
+    }
+  });
+  app2.get("/api/exams", authenticateUser, async (req, res) => {
+    try {
+      const exams2 = await storage.getAllExams();
+      res.json(exams2);
+    } catch (error) {
+      console.error("Error fetching exams:", error);
+      res.status(500).json({ message: "Failed to fetch exams" });
+    }
+  });
+  app2.post("/api/exams", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examData = insertExamSchema.parse({
+        ...req.body,
+        createdBy: req.user.id
+      });
+      const exam = await storage.createExam(examData);
+      res.status(201).json(exam);
+    } catch (error) {
+      console.error("Error creating exam:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid exam data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create exam" });
+    }
+  });
+  app2.get("/api/exams/:id", authenticateUser, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.json(exam);
+    } catch (error) {
+      console.error("Error fetching exam:", error);
+      res.status(500).json({ message: "Failed to fetch exam" });
+    }
+  });
+  app2.patch("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const exam = await storage.updateExam(examId, req.body);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.json(exam);
+    } catch (error) {
+      console.error("Error updating exam:", error);
+      res.status(500).json({ message: "Failed to update exam" });
+    }
+  });
+  app2.delete("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const success = await storage.deleteExam(examId);
+      if (!success) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting exam:", error);
+      res.status(500).json({ message: "Failed to delete exam" });
+    }
+  });
+  app2.patch("/api/exams/:id/publish", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const { isPublished } = req.body;
+      const exam = await storage.updateExam(examId, { isPublished });
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      res.json(exam);
+    } catch (error) {
+      console.error("Error updating exam publish status:", error);
+      res.status(500).json({ message: "Failed to update exam publish status" });
+    }
+  });
+  app2.post("/api/exams/:examId/submit", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const studentId = req.user.id;
+      const startTime = Date.now();
+      console.log(`\u{1F680} SUBMIT EXAM: Student ${studentId} submitting exam ${examId}`);
+      const sessions = await storage.getExamSessionsByStudent(studentId);
+      const activeSession = sessions.find((s) => s.examId === examId && !s.isCompleted);
+      if (!activeSession) {
+        return res.status(404).json({ message: "No active exam session found" });
+      }
+      if (activeSession.isCompleted) {
+        return res.status(409).json({ message: "Exam already submitted" });
+      }
+      const now = /* @__PURE__ */ new Date();
+      await storage.updateExamSession(activeSession.id, {
+        isCompleted: true,
+        submittedAt: now,
+        status: "submitted"
+      });
+      console.log(`\u2705 SUBMIT: Session ${activeSession.id} marked as submitted`);
+      const scoringStartTime = Date.now();
+      await autoScoreExamSession(activeSession.id, storage);
+      const scoringTime = Date.now() - scoringStartTime;
+      console.log(`\u26A1 SCORING: Completed in ${scoringTime}ms`);
+      const updatedSession = await storage.getExamSessionById(activeSession.id);
+      const studentAnswers2 = await storage.getStudentAnswers(activeSession.id);
+      const examQuestions2 = await storage.getExamQuestions(examId);
+      const questionDetails = examQuestions2.map((q) => {
+        const answer = studentAnswers2.find((a) => a.questionId === q.id);
+        return {
+          questionId: q.id,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          points: q.points,
+          studentAnswer: answer?.textAnswer || null,
+          selectedOptionId: answer?.selectedOptionId || null,
+          isCorrect: answer?.isCorrect || false,
+          pointsAwarded: answer?.pointsEarned || 0,
+          feedback: answer?.feedbackText || null
+        };
+      });
+      const totalTime = Date.now() - startTime;
+      console.log(`\u{1F4CA} TOTAL SUBMISSION TIME: ${totalTime}ms`);
+      res.json({
+        submitted: true,
+        result: {
+          sessionId: activeSession.id,
+          score: updatedSession?.score || 0,
+          maxScore: updatedSession?.maxScore || 0,
+          percentage: updatedSession?.maxScore ? (updatedSession?.score || 0) / updatedSession.maxScore * 100 : 0,
+          submittedAt: now.toISOString(),
+          questionDetails,
+          breakdown: {
+            totalQuestions: examQuestions2.length,
+            answered: studentAnswers2.filter((a) => a.textAnswer || a.selectedOptionId).length,
+            correct: studentAnswers2.filter((a) => a.isCorrect).length,
+            autoScored: studentAnswers2.filter((a) => a.isCorrect !== null).length
+          }
+        },
+        performance: {
+          totalTime,
+          scoringTime
+        }
+      });
+    } catch (error) {
+      console.error("\u274C SUBMIT ERROR:", error);
+      res.status(500).json({ message: error.message || "Failed to submit exam" });
+    }
+  });
+  app2.get("/api/exams/question-counts", authenticateUser, async (req, res) => {
+    try {
+      const examIdsParam = req.query.examIds;
+      let examIds = [];
+      if (typeof examIdsParam === "string") {
+        examIds = [parseInt(examIdsParam)];
+      } else if (Array.isArray(examIdsParam)) {
+        examIds = examIdsParam.map((id) => parseInt(id));
+      }
+      const counts = {};
+      for (const examId of examIds) {
+        const questions = await storage.getExamQuestions(examId);
+        counts[examId] = questions.length;
+      }
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching question counts:", error);
+      res.status(500).json({ message: "Failed to fetch question counts" });
+    }
+  });
+  app2.get("/api/exam-questions/:examId", authenticateUser, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const questions = await storage.getExamQuestions(examId);
+      res.json(questions);
+    } catch (error) {
+      console.error("Error fetching exam questions:", error);
+      res.status(500).json({ message: "Failed to fetch exam questions" });
+    }
+  });
+  app2.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { options, ...questionData } = req.body;
+      if (options && Array.isArray(options)) {
+        const question = await storage.createExamQuestionWithOptions(questionData, options);
+        res.status(201).json(question);
+      } else {
+        const question = await storage.createExamQuestion(questionData);
+        res.status(201).json(question);
+      }
+    } catch (error) {
+      console.error("Error creating exam question:", error);
+      res.status(500).json({ message: error.message || "Failed to create exam question" });
+    }
+  });
+  app2.patch("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      const question = await storage.updateExamQuestion(questionId, req.body);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.json(question);
+    } catch (error) {
+      console.error("Error updating exam question:", error);
+      res.status(500).json({ message: "Failed to update exam question" });
+    }
+  });
+  app2.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.id);
+      const success = await storage.deleteExamQuestion(questionId);
+      if (!success) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting exam question:", error);
+      res.status(500).json({ message: "Failed to delete exam question" });
+    }
+  });
+  app2.get("/api/question-options/:questionId", authenticateUser, async (req, res) => {
+    try {
+      const questionId = parseInt(req.params.questionId);
+      const options = await storage.getQuestionOptions(questionId);
+      res.json(options);
+    } catch (error) {
+      console.error("Error fetching question options:", error);
+      res.status(500).json({ message: "Failed to fetch question options" });
+    }
+  });
+  app2.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const { examId, questions } = req.body;
+      if (!examId) {
+        return res.status(400).json({ message: "Exam ID is required" });
+      }
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        return res.status(400).json({ message: "Questions array is required and must not be empty" });
+      }
+      console.log(`\u{1F4E4} Bulk upload: ${questions.length} questions for exam ${examId}`);
+      const questionsData = questions.map((q, index2) => ({
+        question: {
+          examId,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          points: q.points || 1,
+          orderNumber: index2 + 1,
+          instructions: q.instructions,
+          sampleAnswer: q.sampleAnswer,
+          expectedAnswers: q.expectedAnswers
+        },
+        options: q.options || []
+      }));
+      const result = await storage.createExamQuestionsBulk(questionsData);
+      console.log(`\u2705 Bulk upload complete: ${result.created} created, ${result.errors.length} errors`);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error in bulk question upload:", error);
+      res.status(500).json({
+        message: error.message || "Failed to upload questions",
+        created: 0,
+        errors: [error.message || "Unknown error occurred"]
+      });
+    }
+  });
+  app2.post("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const { examId } = req.body;
+      const studentId = req.user.id;
+      if (!examId) {
+        return res.status(400).json({ message: "Exam ID is required" });
+      }
+      console.log(`\u{1F3AF} Starting exam ${examId} for student ${studentId}`);
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      if (!exam.isPublished) {
+        return res.status(403).json({ message: "Exam is not published yet" });
+      }
+      const now = /* @__PURE__ */ new Date();
+      const endTime = new Date(now.getTime() + (exam.duration || 60) * 60 * 1e3);
+      const sessionData = {
+        examId,
+        studentId,
+        startedAt: now,
+        timeRemaining: (exam.duration || 60) * 60,
+        isCompleted: false,
+        status: "in_progress",
+        endTime,
+        maxScore: exam.totalMarks || 0
+      };
+      const session2 = await storage.createOrGetActiveExamSession(examId, studentId, sessionData);
+      console.log(`\u2705 Exam session ${session2.wasCreated ? "created" : "retrieved"}:`, session2.id);
+      res.status(201).json(session2);
+    } catch (error) {
+      console.error("Error starting exam:", error);
+      res.status(500).json({ message: error.message || "Failed to start exam" });
+    }
+  });
+  app2.get("/api/exam-sessions/student/:studentId/active", authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      const session2 = await storage.getStudentActiveSession(studentId);
+      if (!session2) {
+        return res.json(null);
+      }
+      res.json(session2);
+    } catch (error) {
+      console.error("Error fetching active session:", error);
+      res.status(500).json({ message: "Failed to fetch active session" });
+    }
+  });
+  app2.get("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session2 = await storage.getExamSessionById(sessionId);
+      if (!session2) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      if (req.user.id !== session2.studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      res.json(session2);
+    } catch (error) {
+      console.error("Error fetching exam session:", error);
+      res.status(500).json({ message: "Failed to fetch exam session" });
+    }
+  });
+  app2.patch("/api/exam-sessions/:id/metadata", authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { metadata } = req.body;
+      const session2 = await storage.updateExamSession(sessionId, { metadata });
+      if (!session2) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      res.json(session2);
+    } catch (error) {
+      console.error("Error updating session metadata:", error);
+      res.status(500).json({ message: "Failed to update session metadata" });
+    }
+  });
+  app2.patch("/api/exam-sessions/:id/progress", authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { currentQuestionIndex, timeRemaining, tabSwitchCount, violationPenalty } = req.body;
+      const updates = {};
+      if (currentQuestionIndex !== void 0) updates.currentQuestionIndex = currentQuestionIndex;
+      if (timeRemaining !== void 0) updates.timeRemaining = timeRemaining;
+      if (tabSwitchCount !== void 0) updates.tabSwitchCount = tabSwitchCount;
+      if (violationPenalty !== void 0) updates.violationPenalty = violationPenalty;
+      const session2 = await storage.updateExamSession(sessionId, updates);
+      if (!session2) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      res.json(session2);
+    } catch (error) {
+      console.error("Error updating session progress:", error);
+      res.status(500).json({ message: "Failed to update session progress" });
+    }
+  });
+  app2.post("/api/student-answers", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const { sessionId, questionId, selectedOptionId, textAnswer } = req.body;
+      const studentId = req.user.id;
+      if (!sessionId || !questionId) {
+        return res.status(400).json({ message: "Missing required fields: sessionId and questionId" });
+      }
+      const session2 = await storage.getExamSessionById(sessionId);
+      if (!session2) {
+        return res.status(404).json({ message: "Exam session not found" });
+      }
+      if (session2.studentId !== studentId) {
+        return res.status(403).json({ message: "Unauthorized access to this exam session" });
+      }
+      if (session2.isCompleted) {
+        return res.status(409).json({ message: "Cannot save answer - exam is already completed" });
+      }
+      const question = await storage.getExamQuestionById(questionId);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      if (question.examId !== session2.examId) {
+        return res.status(403).json({ message: "Question does not belong to this exam" });
+      }
+      let answerData = {};
+      if (selectedOptionId !== void 0 && selectedOptionId !== null) {
+        if (question.questionType !== "multiple_choice") {
+          return res.status(400).json({ message: "Cannot submit multiple choice answer for non-MCQ question" });
+        }
+        const optionId = typeof selectedOptionId === "number" ? selectedOptionId : parseInt(selectedOptionId);
+        const option = await storage.getQuestionOptionById(optionId);
+        if (!option) {
+          return res.status(400).json({ message: "Invalid option selected" });
+        }
+        if (option.questionId !== questionId) {
+          return res.status(400).json({ message: "Selected option does not belong to this question" });
+        }
+        answerData.selectedOptionId = optionId;
+        answerData.textAnswer = null;
+      } else if (textAnswer !== void 0) {
+        if (question.questionType === "multiple_choice") {
+          return res.status(400).json({ message: "Cannot submit text answer for multiple choice question" });
+        }
+        answerData.textAnswer = textAnswer || "";
+        answerData.selectedOptionId = null;
+      } else {
+        return res.status(400).json({ message: "No answer provided" });
+      }
+      const savedAnswer = await storage.upsertStudentAnswer(
+        sessionId,
+        questionId,
+        answerData
+      );
+      res.json({
+        success: true,
+        data: {
+          answerId: savedAnswer.id,
+          questionId: savedAnswer.questionId,
+          sessionId: savedAnswer.sessionId,
+          status: "saved"
+        }
+      });
+    } catch (error) {
+      console.error("Error saving student answer:", error);
+      res.status(500).json({ message: error.message || "Failed to save answer" });
+    }
+  });
+  app2.get("/api/student-answers/session/:sessionId", authenticateUser, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      const session2 = await storage.getExamSessionById(sessionId);
+      if (!session2) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      if (req.user.id !== session2.studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      const answers = await storage.getStudentAnswers(sessionId);
+      res.json(answers);
+    } catch (error) {
+      console.error("Error fetching student answers:", error);
+      res.status(500).json({ message: "Failed to fetch student answers" });
+    }
+  });
+  app2.post("/api/teacher/profile/setup", authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "signature", maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const teacherId = req.user.id;
+      const files = req.files;
+      console.log("\u{1F4E5} RECEIVED PROFILE SETUP REQUEST:", {
+        teacherId,
+        hasFiles: Object.keys(files || {}).length,
+        fileFields: Object.keys(files || {}),
+        profileImageExists: !!files["profileImage"]?.[0],
+        signatureExists: !!files["signature"]?.[0],
+        bodyKeys: Object.keys(req.body),
+        staffId: req.body.staffId,
+        subjects: req.body.subjects,
+        assignedClasses: req.body.assignedClasses
+      });
+      if (files["profileImage"]?.[0]) {
+        console.log("\u{1F4F8} Profile Image Details:", {
+          filename: files["profileImage"][0].filename,
+          originalname: files["profileImage"][0].originalname,
+          mimetype: files["profileImage"][0].mimetype,
+          size: files["profileImage"][0].size,
+          path: files["profileImage"][0].path
+        });
+      } else {
+        console.log("\u26A0\uFE0F No profile image received in upload");
+      }
+      if (files["signature"]?.[0]) {
+        console.log("\u270D\uFE0F Signature Details:", {
+          filename: files["signature"][0].filename,
+          originalname: files["signature"][0].originalname,
+          mimetype: files["signature"][0].mimetype,
+          size: files["signature"][0].size,
+          path: files["signature"][0].path
+        });
+      }
+      const {
+        gender,
+        dateOfBirth,
+        staffId,
+        nationalId,
+        phoneNumber,
+        recoveryEmail,
+        qualification,
+        specialization,
+        yearsOfExperience,
+        subjects: subjects2,
+        assignedClasses,
+        department,
+        gradingMode,
+        notificationPreference,
+        availability,
+        agreement
+      } = req.body;
+      const parsedSubjects = typeof subjects2 === "string" ? JSON.parse(subjects2) : subjects2;
+      const parsedClasses = typeof assignedClasses === "string" ? JSON.parse(assignedClasses) : assignedClasses;
+      const profilePhotoPath = files["profileImage"]?.[0]?.path;
+      const signaturePath = files["signature"]?.[0]?.path;
+      const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
+      const existingTeacherProfile = await storage.getTeacherProfile(teacherId);
+      if (existingTeacherProfile) {
+        return res.status(409).json({
+          message: "Profile already exists. Please update your existing profile instead.",
+          existingProfile: true
+        });
+      }
+      const user = await storage.getUser(teacherId);
+      if (!user) {
+        return res.status(404).json({
+          message: "User account not found. Please contact support.",
+          code: "USER_NOT_FOUND"
+        });
+      }
+      let finalStaffId = null;
+      if (staffId && staffId.trim() !== "" && staffId.trim() !== "undefined" && staffId.trim() !== "null") {
+        try {
+          const existingProfile = await storage.getTeacherProfileByStaffId(staffId.trim());
+          if (existingProfile && existingProfile.userId !== teacherId) {
+            return res.status(409).json({
+              message: "Staff ID already exists. Please use a unique Staff ID or leave it blank for auto-generation.",
+              code: "STAFF_ID_EXISTS"
+            });
+          }
+          finalStaffId = staffId.trim();
+        } catch (staffIdError) {
+          console.error("\u274C Staff ID validation error:", staffIdError);
+          finalStaffId = null;
+        }
+      }
+      if (!finalStaffId) {
+        try {
+          const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+          const allTeacherProfiles = await storage.getAllTeacherProfiles();
+          const teacherProfilesThisYear = allTeacherProfiles.filter(
+            (p) => p.staffId && p.staffId.startsWith(`THS/TCH/${currentYear}/`)
+          );
+          const existingNumbers = teacherProfilesThisYear.map((p) => {
+            const match = p.staffId?.match(/THS\/TCH\/\d{4}\/(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          }).filter((n) => !isNaN(n));
+          const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+          finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, "0")}`;
+          console.log(`\u2705 Auto-generated Staff ID: ${finalStaffId}`);
+        } catch (autoGenError) {
+          console.error("\u274C Auto-generation error:", autoGenError);
+          finalStaffId = `THS/TCH/${(/* @__PURE__ */ new Date()).getFullYear()}/${Date.now().toString().slice(-3)}`;
+        }
+      }
+      const profileData = {
+        userId: teacherId,
+        staffId: finalStaffId,
+        // Use validated staffId or null
+        subjects: parsedSubjects,
+        assignedClasses: parsedClasses,
+        qualification,
+        yearsOfExperience: parseInt(yearsOfExperience) || 0,
+        specialization,
+        department,
+        signatureUrl: signaturePath ? `/${signaturePath}` : null,
+        gradingMode,
+        notificationPreference,
+        availability: availability || null,
+        firstLogin: false,
+        verified: true,
+        // Auto-verify on completion
+        verifiedAt: /* @__PURE__ */ new Date()
+      };
+      const userUpdateData = {
+        phone: phoneNumber,
+        gender: normalizedGender,
+        dateOfBirth,
+        profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
+      };
+      if (nationalId && nationalId.trim() !== "" && nationalId !== "undefined") {
+        userUpdateData.nationalId = nationalId.trim();
+      }
+      if (recoveryEmail && recoveryEmail.trim() !== "" && recoveryEmail !== "undefined") {
+        userUpdateData.recoveryEmail = recoveryEmail.trim();
+      }
+      await storage.updateUser(teacherId, userUpdateData);
+      const isSuspicious = parsedSubjects.length === 0 || parsedClasses.length === 0 || !department || yearsOfExperience === 0;
+      const profile = await storage.createTeacherProfile({
+        ...profileData,
+        firstLogin: false,
+        autoGradeTheoryQuestions: req.body.autoGradeTheoryQuestions === "true",
+        theoryGradingInstructions: req.body.theoryGradingInstructions || null
+      });
+      if (isSuspicious) {
+        const teacher2 = await storage.getUser(teacherId);
+        const teacherFullName2 = teacher2 ? `${teacher2.firstName} ${teacher2.lastName}` : "Teacher";
+        const missingFields = [];
+        if (parsedSubjects.length === 0) missingFields.push("subjects");
+        if (parsedClasses.length === 0) missingFields.push("classes");
+        if (!department) missingFields.push("department");
+        if (yearsOfExperience === 0) missingFields.push("experience");
+        await storage.createNotification({
+          userId: (await storage.getUsersByRole(ROLES.ADMIN))[0]?.id,
+          type: "teacher_profile_review_required",
+          title: "\u26A0\uFE0F Teacher Profile Has Incomplete Data",
+          message: `${teacherFullName2}'s profile was auto-verified but has incomplete data (missing: ${missingFields.join(", ")}). Please review and update if needed.`,
+          relatedEntityType: "teacher_profile",
+          relatedEntityId: profile.id.toString(),
+          isRead: false
+        });
+      }
+      await storage.updateUser(teacherId, {
+        profileCompleted: true,
+        profileCompletionPercentage: 100
+      });
+      const teacher = await storage.getUser(teacherId);
+      const teacherFullName = teacher ? `${teacher.firstName} ${teacher.lastName}` : "Teacher";
+      const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      for (const admin of admins) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: "teacher_profile_created",
+          title: "\u{1F389} New Teacher Auto-Verified",
+          message: `${teacherFullName} completed profile setup and has been automatically verified. Department: ${department}, Subjects: ${parsedSubjects.length}, Classes: ${parsedClasses.length}`,
+          relatedEntityType: "teacher_profile",
+          relatedEntityId: profile.id.toString(),
+          isRead: false
+        });
+        try {
+          const { sendEmail: sendEmail2, getTeacherVerifiedEmailHTML } = await Promise.resolve().then(() => (init_email_service(), email_service_exports));
+          let subjectNames = [];
+          let classNames = [];
+          try {
+            const subjects3 = await storage.getSubjects();
+            subjectNames = parsedSubjects.map((subjectId) => {
+              const subject = subjects3.find((s) => s.id === subjectId);
+              return subject?.name || `Subject #${subjectId}`;
+            });
+          } catch (error) {
+            console.error("Failed to fetch subject names:", error);
+            subjectNames = parsedSubjects.map((id) => `Subject #${id}`);
+          }
+          try {
+            const classes2 = await storage.getClasses();
+            classNames = parsedClasses.map((classId) => {
+              const cls = classes2.find((c) => c.id === classId);
+              return cls?.name || `Class #${classId}`;
+            });
+          } catch (error) {
+            console.error("Failed to fetch class names:", error);
+            classNames = parsedClasses.map((id) => `Class #${id}`);
+          }
+          await sendEmail2({
+            to: admin.email,
+            subject: "\u{1F389} New Teacher Auto-Verified - THS Portal",
+            html: getTeacherVerifiedEmailHTML(
+              teacherFullName,
+              department,
+              subjectNames.join(", "),
+              classNames.join(", "),
+              qualification,
+              yearsOfExperience,
+              staffId || "Pending",
+              `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/portal/admin/teachers`
+            )
+          });
+          console.log(`\u2705 Auto-verification email sent to admin: ${admin.email}`);
+        } catch (emailError) {
+          console.error("Failed to send admin notification email:", emailError);
+        }
+      }
+      await storage.createAuditLog({
+        userId: teacherId,
+        action: "teacher_profile_setup_completed",
+        entityType: "teacher_profile",
+        entityId: profile.id,
+        // Already a number from database
+        newValue: JSON.stringify({ staffId: finalStaffId, subjects: parsedSubjects, classes: parsedClasses }),
+        reason: "Teacher completed first-time profile setup",
+        ipAddress: req.ip || "unknown",
+        userAgent: req.headers["user-agent"] || null
+      });
+      const completeProfileResponse = {
+        id: profile.id,
+        userId: profile.userId,
+        staffId: profile.staffId,
+        subjects: profile.subjects,
+        assignedClasses: profile.assignedClasses,
+        // FIX: Use correct field name
+        department: profile.department,
+        qualification: profile.qualification,
+        yearsOfExperience: profile.yearsOfExperience,
+        specialization: profile.specialization,
+        verified: profile.verified,
+        firstLogin: profile.firstLogin
+      };
+      console.log("\u{1F4E4} Sending profile response to frontend:", completeProfileResponse);
+      res.json({
+        message: "Profile setup completed successfully! You can now access your dashboard.",
+        hasProfile: true,
+        verified: profile.verified,
+        profile: completeProfileResponse
+      });
+    } catch (error) {
+      console.error("\u274C TEACHER PROFILE SETUP ERROR - Full Details:", {
+        error,
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : void 0,
+        errorName: error instanceof Error ? error.name : void 0,
+        errorCode: error?.code,
+        errorDetail: error?.detail,
+        errorConstraint: error?.constraint,
+        errorSeverity: error?.severity,
+        errorTable: error?.table,
+        errorColumn: error?.column,
+        teacherId: req.user?.id,
+        requestBody: {
+          ...req.body,
+          // Redact sensitive data in logs
+          password: req.body.password ? "[REDACTED]" : void 0
+        },
+        files: Object.keys(req.files || {})
+      });
+      let errorMessage = "Failed to setup teacher profile";
+      let statusCode = 500;
+      let errorCode = "UNKNOWN_ERROR";
+      if (error instanceof Error) {
+        const dbError = error;
+        if (dbError.code === "23505" || dbError.constraint) {
+          errorMessage = `A profile with this ${dbError.constraint?.includes("staff_id") ? "Staff ID" : "information"} already exists.`;
+          statusCode = 409;
+          errorCode = "DUPLICATE_ENTRY";
+        } else if (dbError.code === "23503") {
+          errorMessage = "Invalid reference data provided. Please check your selections.";
+          statusCode = 400;
+          errorCode = "INVALID_REFERENCE";
+        } else if (dbError.code === "23502") {
+          errorMessage = `Required field missing: ${dbError.column || "unknown"}`;
+          statusCode = 400;
+          errorCode = "MISSING_REQUIRED_FIELD";
+        } else if (dbError.code === "23514") {
+          errorMessage = "Invalid data provided. Please check your input values.";
+          statusCode = 400;
+          errorCode = "INVALID_DATA";
+        } else if (error.message) {
+          errorMessage = error.message;
+          if (error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("duplicate")) {
+            statusCode = 409;
+            errorCode = "DUPLICATE_ENTRY";
+          } else if (error.message.toLowerCase().includes("not found")) {
+            statusCode = 404;
+            errorCode = "NOT_FOUND";
+          } else if (error.message.toLowerCase().includes("invalid") || error.message.toLowerCase().includes("validation")) {
+            statusCode = 400;
+            errorCode = "VALIDATION_ERROR";
+          }
+        }
+      }
+      res.status(statusCode).json({
+        message: errorMessage,
+        code: errorCode,
+        details: error instanceof Error ? error.message : void 0,
+        constraint: error?.constraint
+      });
+    }
+  });
+  app2.get("/api/teacher/profile/status", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user.id;
+      const profile = await storage.getTeacherProfile(teacherId);
+      const status = {
+        hasProfile: !!profile,
+        verified: profile?.verified || false,
+        firstLogin: profile?.firstLogin !== false
+      };
+      console.log("\u{1F4CB} Profile status check:", { teacherId, ...status });
+      res.json(status);
+    } catch (error) {
+      console.error("\u274C Get teacher profile status error:", error);
+      res.status(500).json({ message: "Failed to check profile status" });
+    }
+  });
+  app2.get("/api/teacher/profile/me", authenticateUser, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const profile = await storage.getTeacherProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const completeProfile = {
+        // Profile fields
+        id: profile.id,
+        userId: profile.userId,
+        staffId: profile.staffId,
+        subjects: Array.isArray(profile.subjects) ? profile.subjects : profile.subjects ? [profile.subjects] : [],
+        assignedClasses: Array.isArray(profile.assignedClasses) ? profile.assignedClasses : profile.assignedClasses ? [profile.assignedClasses] : [],
+        department: profile.department,
+        qualification: profile.qualification,
+        yearsOfExperience: profile.yearsOfExperience,
+        specialization: profile.specialization,
+        verified: profile.verified,
+        firstLogin: profile.firstLogin,
+        // CRITICAL FIX: Include ALL user fields from users table
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        gender: user.gender || "",
+        dateOfBirth: user.dateOfBirth || "",
+        nationalId: user.nationalId || "",
+        // ✅ FIX: From users.national_id column
+        address: user.address || "",
+        recoveryEmail: user.recoveryEmail || "",
+        // ✅ FIX: From users.recovery_email column
+        profileImageUrl: user.profileImageUrl || "",
+        // ✅ FIX: From users.profile_image_url column
+        // Additional profile fields
+        gradingMode: profile.gradingMode,
+        notificationPreference: profile.notificationPreference,
+        availability: profile.availability,
+        signatureUrl: profile.signatureUrl,
+        updatedAt: profile.updatedAt
+      };
+      console.log("\u2705 Teacher profile API response:", {
+        userId,
+        staffId: completeProfile.staffId,
+        hasNationalId: !!completeProfile.nationalId,
+        nationalId: completeProfile.nationalId,
+        hasProfileImage: !!completeProfile.profileImageUrl,
+        profileImageUrl: completeProfile.profileImageUrl
+      });
+      res.json(completeProfile);
+    } catch (error) {
+      console.error("\u274C Error fetching teacher profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile", error: error.message });
+    }
+  });
+  app2.put("/api/teacher/profile/me", authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "signature", maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const teacherId = req.user.id;
+      const files = req.files;
+      console.log("\u{1F4DD} PROFILE UPDATE REQUEST:", {
+        teacherId,
+        hasFiles: Object.keys(files || {}).length,
+        fileFields: Object.keys(files || {}),
+        hasProfileImage: !!files["profileImage"]?.[0],
+        hasSignature: !!files["signature"]?.[0],
+        bodyKeys: Object.keys(req.body)
+      });
+      const updateData = req.body;
+      let profileImageUrl = updateData.profileImageUrl;
+      let signatureUrl = updateData.signatureUrl;
+      if (files["profileImage"]?.[0]) {
+        profileImageUrl = `/${files["profileImage"][0].path.replace(/\\/g, "/")}`;
+        console.log("\u{1F4F8} New profile image uploaded:", profileImageUrl);
+      }
+      if (files["signature"]?.[0]) {
+        signatureUrl = `/${files["signature"][0].path.replace(/\\/g, "/")}`;
+        console.log("\u270D\uFE0F New signature uploaded:", signatureUrl);
+      }
+      const subjects2 = typeof updateData.subjects === "string" ? JSON.parse(updateData.subjects) : updateData.subjects;
+      const assignedClasses = typeof updateData.assignedClasses === "string" ? JSON.parse(updateData.assignedClasses) : updateData.assignedClasses;
+      const userUpdateData = {
+        firstName: updateData.firstName,
+        lastName: updateData.lastName,
+        phone: updateData.phone || null,
+        address: updateData.address || null,
+        recoveryEmail: updateData.recoveryEmail || null,
+        gender: updateData.gender || null,
+        dateOfBirth: updateData.dateOfBirth || null,
+        nationalId: updateData.nationalId || null
+      };
+      if (profileImageUrl) {
+        userUpdateData.profileImageUrl = profileImageUrl;
+      }
+      await storage.updateUser(teacherId, userUpdateData);
+      console.log("\u2705 User data updated successfully");
+      const profileUpdateData = {
+        qualification: updateData.qualification || null,
+        specialization: updateData.specialization || null,
+        yearsOfExperience: parseInt(updateData.yearsOfExperience) || 0,
+        department: updateData.department || null,
+        gradingMode: updateData.gradingMode || "manual",
+        notificationPreference: updateData.notificationPreference || "all",
+        availability: updateData.availability || "full-time",
+        subjects: subjects2 || [],
+        assignedClasses: assignedClasses || [],
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+      if (signatureUrl) {
+        profileUpdateData.signatureUrl = signatureUrl;
+      }
+      await storage.updateTeacherProfile(teacherId, profileUpdateData);
+      console.log("\u2705 Teacher profile updated successfully");
+      const updatedProfile = await storage.getTeacherProfile(teacherId);
+      const updatedUser = await storage.getUser(teacherId);
+      const completeProfile = {
+        ...updatedProfile,
+        firstName: updatedUser?.firstName,
+        lastName: updatedUser?.lastName,
+        email: updatedUser?.email,
+        phone: updatedUser?.phone,
+        gender: updatedUser?.gender,
+        dateOfBirth: updatedUser?.dateOfBirth,
+        nationalId: updatedUser?.nationalId,
+        address: updatedUser?.address,
+        recoveryEmail: updatedUser?.recoveryEmail,
+        profileImageUrl: updatedUser?.profileImageUrl
+      };
+      res.json({
+        message: "Profile updated successfully",
+        profile: completeProfile
+      });
+    } catch (error) {
+      console.error("\u274C PROFILE UPDATE ERROR:", error);
+      res.status(500).json({
+        message: "Failed to update profile",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.get("/api/admin/teachers/overview", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const teachers = await storage.getUsersByRole(ROLES.TEACHER);
+      const overview = await Promise.all(teachers.map(async (teacher) => {
+        const profile = await storage.getTeacherProfile(teacher.id);
+        return {
+          id: teacher.id,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          phone: teacher.phone,
+          staffId: profile?.staffId || null,
+          department: profile?.department || null,
+          subjects: profile?.subjects || [],
+          classes: profile?.assignedClasses || [],
+          verified: profile?.verified || false,
+          hasProfile: !!profile,
+          createdAt: teacher.createdAt
+        };
+      }));
+      res.json(overview);
+    } catch (error) {
+      console.error("Get teacher overview error:", error);
+      res.status(500).json({ message: "Failed to fetch teacher overview" });
+    }
+  });
+  app2.post("/api/grading/ai-suggested/:answerId/review", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+    try {
+      const answerId = parseInt(req.params.answerId);
+      const { approved, overrideScore, comment } = req.body;
+      const answer = await storage.getStudentAnswerById(answerId);
+      if (!answer) {
+        return res.status(404).json({ message: "Answer not found" });
+      }
+      if (approved) {
+        await storage.updateStudentAnswer(answerId, {
+          autoScored: true,
+          manualOverride: false,
+          feedbackText: comment || answer.feedbackText
+        });
+      } else {
+        await storage.updateStudentAnswer(answerId, {
+          pointsEarned: overrideScore,
+          autoScored: false,
+          manualOverride: true,
+          feedbackText: comment
+        });
+      }
+      await mergeExamScores(answerId, storage);
+      res.json({
+        message: approved ? "AI score approved" : "Score overridden successfully",
+        answer: await storage.getStudentAnswerById(answerId)
+      });
+    } catch (error) {
+      console.error("Error reviewing AI-suggested score:", error);
+      res.status(500).json({ message: "Failed to review AI-suggested score" });
+    }
+  });
+  const isProduction = process.env.NODE_ENV === "production";
+  const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "development" ? "dev-session-secret-change-in-production" : process.env.JWT_SECRET || SECRET_KEY);
+  if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+    console.warn("\u26A0\uFE0F WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.");
+  }
+  const PgStore = connectPgSimple(session);
+  const sessionStore = new PgStore({
+    conString: process.env.DATABASE_URL,
+    tableName: "session",
+    createTableIfMissing: true
+  });
   app2.use(session({
-    secret: process.env.JWT_SECRET || SECRET_KEY,
+    store: sessionStore,
+    // Use PostgreSQL instead of MemoryStore
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    name: "sessionId",
+    // Custom cookie name
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1e3
+      secure: isProduction,
+      // HTTPS only in production
+      httpOnly: true,
+      // Prevent JavaScript access (XSS protection)
+      sameSite: isProduction ? "none" : "lax",
+      // 'none' required for cross-domain in production
+      maxAge: 24 * 60 * 60 * 1e3,
       // 24 hours
+      path: "/"
+      // Cookie available for all routes
+      // DO NOT set domain attribute for cross-domain (Render ↔ Vercel)
     }
   }));
   app2.use(passport2.initialize());
   app2.use(passport2.session());
+  await initializeStorageBuckets();
   const googleOAuthEnabled = setupGoogleAuth();
   if (googleOAuthEnabled) {
     console.log("\u2705 Google OAuth authentication enabled");
@@ -3877,15 +6847,18 @@ async function registerRoutes(app2) {
         hasError: !!req.query.error
       });
       passport2.authenticate("google", async (err, user, info) => {
+        const REPLIT_DEV_DOMAIN2 = process.env.REPLIT_DEV_DOMAIN;
+        const frontendUrl = REPLIT_DEV_DOMAIN2 ? `https://${REPLIT_DEV_DOMAIN2}` : process.env.FRONTEND_URL || "https://treasurehomeschool.vercel.app";
+        console.log("\u{1F504} OAuth redirect to frontend:", frontendUrl);
         if (err) {
           console.error("\u274C Google OAuth error:", err);
           console.error("Error details:", { message: err.message, stack: err.stack });
-          return res.redirect("/login?error=google_auth_failed&message=" + encodeURIComponent("Authentication failed. Please try again."));
+          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent("Authentication failed. Please try again."));
         }
         if (!user) {
           const message = info?.message || "Authentication failed";
           console.error("\u274C Google OAuth: No user returned. Info:", info);
-          return res.redirect("/login?error=google_auth_failed&message=" + encodeURIComponent(message));
+          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent(message));
         }
         if (user.isNewUser && user.requiresApproval) {
           console.log("\u{1F4DD} Creating pending staff account for:", user.email);
@@ -3922,45 +6895,51 @@ async function registerRoutes(app2) {
               action: "account_created_pending_approval",
               entityType: "user",
               entityId: BigInt(1),
-              newValue: JSON.stringify({ email: user.email, googleId: user.googleId }),
+              // Placeholder, needs proper entity ID if applicable
+              newValue: JSON.stringify({ email: user.email, googleId: user.googleId, username, roleId }),
               reason: invite ? "OAuth signup via invite" : "OAuth signup without invite",
               ipAddress: req.ip,
               userAgent: req.headers["user-agent"]
             });
             try {
-              const adminRole = await storage.getRoleByName("Admin");
-              if (adminRole) {
-                const admins = await storage.getUsersByRole(adminRole.id);
-                const roleName = await storage.getRole(roleId);
+              const admins = await storage.getUsersByRole(ROLES.ADMIN);
+              if (admins && admins.length > 0) {
+                const role2 = await storage.getRole(roleId);
+                const roleName2 = role2?.name || (roleId === ROLES.ADMIN ? "Admin" : "Teacher");
                 for (const admin of admins) {
                   await storage.createNotification({
                     userId: admin.id,
                     type: "pending_user",
                     title: "New User Pending Approval",
-                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up as ${roleName?.name || "staff"} and is awaiting approval.`,
+                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up via Google as ${roleName2} and is awaiting approval.`,
                     relatedEntityType: "user",
                     relatedEntityId: newUser.id,
                     isRead: false
                   });
                 }
                 console.log(`\u{1F4EC} Notified ${admins.length} admin(s) about pending user: ${newUser.email}`);
+              } else {
+                console.warn("\u26A0\uFE0F No admins found to notify about pending user:", newUser.email);
               }
             } catch (notifError) {
-              console.error("Failed to create admin notifications:", notifError);
+              console.error("\u274C Failed to create admin notifications:", notifError);
             }
-            return res.redirect("/login?oauth_status=pending_approval&message=" + encodeURIComponent("Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."));
+            console.log(`\u{1F512} OAuth signup complete - user ${newUser.email} awaiting admin approval`);
+            const role = await storage.getRole(roleId);
+            const roleName = role?.name || "Staff";
+            return res.redirect(`${frontendUrl}/login?status=pending_verification&role=${roleName.toLowerCase()}`);
           } catch (error) {
             console.error("\u274C Error creating pending account:", error);
-            return res.redirect("/login?error=google_auth_failed&message=" + encodeURIComponent("Failed to create account"));
+            return res.redirect(`${frontendUrl}/login?error=account_creation_failed&message=` + encodeURIComponent("Failed to create your account. Please contact the administrator."));
           }
         }
         req.logIn(user, (loginErr) => {
           if (loginErr) {
             console.error("Login error:", loginErr);
-            return res.redirect("/login?error=google_auth_failed&message=" + encodeURIComponent("Failed to complete login"));
+            return res.redirect(`${frontendUrl}/login?error=login_failed&message=` + encodeURIComponent("Failed to complete login"));
           }
           const token = jwt.sign({ userId: user.id, roleId: user.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-          res.redirect(`/login?token=${token}&provider=google`);
+          res.redirect(`${frontendUrl}/login?token=${token}&provider=google`);
         });
       })(req, res, next);
     }
@@ -3979,6 +6958,20 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error in /api/auth/me:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  app2.get("/api/parents/children/:parentId", authenticateUser, async (req, res) => {
+    try {
+      const parentId2 = req.params.parentId;
+      const user = req.user;
+      if (user?.roleId !== ROLES.PARENT && user?.roleId !== ROLES.ADMIN && user?.id !== parentId2) {
+        return res.status(403).json({ message: "Unauthorized access to parent records" });
+      }
+      const children = await storage.getStudentsByParentId(parentId2);
+      res.json(children);
+    } catch (error) {
+      console.error("Error fetching parent children:", error);
+      res.status(500).json({ message: "Failed to fetch children records" });
     }
   });
   app2.get("/api/notifications", authenticateUser, async (req, res) => {
@@ -4039,6 +7032,155 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to update notifications" });
     }
   });
+  app2.get("/api/classes", authenticateUser, async (req, res) => {
+    try {
+      const classes2 = await storage.getClasses();
+      res.json(classes2);
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+      res.status(500).json({ message: "Failed to fetch classes" });
+    }
+  });
+  app2.get("/api/subjects", authenticateUser, async (req, res) => {
+    try {
+      const subjects2 = await storage.getSubjects();
+      res.json(subjects2);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      res.status(500).json({ message: "Failed to fetch subjects" });
+    }
+  });
+  app2.get("/api/terms", authenticateUser, async (req, res) => {
+    try {
+      console.log("\u{1F4C5} Fetching academic terms for user:", req.user?.email);
+      const terms = await storage.getAcademicTerms();
+      console.log(`\u2705 Found ${terms.length} academic terms`);
+      res.json(terms);
+    } catch (error) {
+      console.error("\u274C Error fetching academic terms:", error);
+      res.status(500).json({ message: "Failed to fetch academic terms" });
+    }
+  });
+  app2.post("/api/terms", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      console.log("\u{1F4C5} Creating academic term:", req.body);
+      if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
+        return res.status(400).json({ message: "Missing required fields: name, year, startDate, endDate" });
+      }
+      const term = await storage.createAcademicTerm(req.body);
+      console.log("\u2705 Academic term created successfully:", term.id);
+      res.json(term);
+    } catch (error) {
+      console.error("\u274C Error creating academic term:", error);
+      res.status(500).json({ message: error.message || "Failed to create academic term" });
+    }
+  });
+  app2.put("/api/terms/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: "Invalid term ID" });
+      }
+      console.log("\u{1F4C5} Updating academic term:", termId, req.body);
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        console.warn(`\u26A0\uFE0F Term ${termId} not found for update`);
+        return res.status(404).json({ message: "Academic term not found" });
+      }
+      const term = await storage.updateAcademicTerm(termId, req.body);
+      console.log("\u2705 Academic term updated successfully:", term?.id);
+      res.json(term);
+    } catch (error) {
+      console.error("\u274C Error updating academic term:", error);
+      res.status(500).json({ message: error.message || "Failed to update academic term" });
+    }
+  });
+  app2.delete("/api/terms/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: "Invalid term ID" });
+      }
+      console.log("\u{1F4C5} DELETE REQUEST: Attempting to delete academic term:", termId);
+      const success = await storage.deleteAcademicTerm(termId);
+      if (!success) {
+        console.error(`\u274C DELETE FAILED: Term ${termId} deletion returned false`);
+        return res.status(500).json({
+          message: "Failed to delete academic term. The term may not exist or could not be removed from the database."
+        });
+      }
+      console.log("\u2705 DELETE SUCCESS: Academic term deleted:", termId);
+      res.json({
+        message: "Academic term deleted successfully",
+        id: termId,
+        success: true
+      });
+    } catch (error) {
+      console.error("\u274C DELETE ERROR:", error);
+      if (error.code === "23503" || error.message?.includes("linked to it")) {
+        return res.status(400).json({
+          message: error.message || "Cannot delete this term because it is being used by other records."
+        });
+      }
+      res.status(500).json({
+        message: error.message || "Failed to delete academic term",
+        error: process.env.NODE_ENV === "development" ? error.toString() : void 0
+      });
+    }
+  });
+  app2.put("/api/terms/:id/mark-current", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: "Invalid term ID" });
+      }
+      console.log("\u{1F4C5} Marking term as current:", termId);
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        console.warn(`\u26A0\uFE0F Term ${termId} not found`);
+        return res.status(404).json({ message: "Academic term not found" });
+      }
+      const term = await storage.markTermAsCurrent(termId);
+      console.log("\u2705 Term marked as current successfully:", term?.id);
+      res.json(term);
+    } catch (error) {
+      console.error("\u274C Error marking term as current:", error);
+      res.status(500).json({ message: error.message || "Failed to mark term as current" });
+    }
+  });
+  app2.post("/api/admin/delete-demo-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const demoEmails = ["admin@demo.com", "teacher@demo.com", "admin@treasure.com"];
+      const deletedUsers = [];
+      const errors = [];
+      for (const email of demoEmails) {
+        try {
+          const user = await storage.getUserByEmail(email);
+          if (user) {
+            await storage.deleteUser(user.id);
+            deletedUsers.push(email);
+            console.log(`\u2705 Deleted demo account: ${email}`);
+          } else {
+            console.log(`\u26A0\uFE0F Demo account not found: ${email}`);
+          }
+        } catch (error) {
+          console.error(`\u274C Failed to delete ${email}:`, error);
+          errors.push(`${email}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+      }
+      res.json({
+        message: `Deleted ${deletedUsers.length} demo accounts`,
+        deletedUsers,
+        errors: errors.length > 0 ? errors : void 0
+      });
+    } catch (error) {
+      console.error("Delete demo accounts error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Failed to delete demo accounts"
+      });
+    }
+  });
   app2.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       console.log("Admin password reset requested by:", req.user?.email);
@@ -4052,7 +7194,7 @@ async function registerRoutes(app2) {
       for (const user of allUsers) {
         if (user.passwordHash) {
           try {
-            const hasWeakPassword = await bcrypt.compare("password123", user.passwordHash);
+            const hasWeakPassword = await bcrypt2.compare("password123", user.passwordHash);
             if (hasWeakPassword) {
               usersToUpdate.push(user);
             }
@@ -4073,7 +7215,7 @@ async function registerRoutes(app2) {
       for (const user of usersToUpdate) {
         try {
           const strongPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12).toUpperCase() + Math.floor(Math.random() * 100);
-          const hashedPassword = await bcrypt.hash(strongPassword, BCRYPT_ROUNDS);
+          const hashedPassword = await bcrypt2.hash(strongPassword, BCRYPT_ROUNDS);
           const updatedUser = await storage.updateUser(user.id, { passwordHash: hashedPassword });
           if (updatedUser) {
             passwordUpdates.push({
@@ -4101,6 +7243,168 @@ async function registerRoutes(app2) {
         message: "Failed to reset passwords"
       });
     }
+  });
+  app2.post("/api/upload", authenticateUser, upload.single("profileImage"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      let fileUrl;
+      if (isSupabaseStorageEnabled) {
+        const fileName = `${Date.now()}-${req.file.originalname}`;
+        const uploadResult = await uploadFileToSupabase(
+          STORAGE_BUCKETS.PROFILES,
+          fileName,
+          req.file.buffer,
+          req.file.mimetype
+        );
+        if (!uploadResult) {
+          return res.status(500).json({ message: "Failed to upload file to cloud storage" });
+        }
+        fileUrl = uploadResult.publicUrl;
+        console.log(`\u{1F4E6} Profile image uploaded to Supabase Storage: ${fileUrl}`);
+      } else {
+        fileUrl = `/${req.file.path.replace(/\\/g, "/")}`;
+        console.log(`\u{1F4BE} Profile image saved to local filesystem: ${fileUrl}`);
+      }
+      res.json({ url: fileUrl });
+    } catch (error) {
+      console.error("File upload error:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+  app2.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single("homePageImage"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const { contentType, altText, caption, displayOrder } = req.body;
+      if (!contentType) {
+        return res.status(400).json({ message: "Content type is required" });
+      }
+      let fileUrl;
+      if (isSupabaseStorageEnabled) {
+        const fileName = `${Date.now()}-${req.file.originalname}`;
+        const uploadResult = await uploadFileToSupabase(
+          STORAGE_BUCKETS.HOMEPAGE,
+          fileName,
+          req.file.buffer,
+          req.file.mimetype
+        );
+        if (!uploadResult) {
+          return res.status(500).json({ message: "Failed to upload file to cloud storage" });
+        }
+        fileUrl = uploadResult.publicUrl;
+        console.log(`\u{1F4E6} Uploaded to Supabase Storage: ${fileUrl}`);
+      } else {
+        fileUrl = `/${req.file.path.replace(/\\/g, "/")}`;
+        console.log(`\u{1F4BE} Saved to local filesystem: ${fileUrl}`);
+      }
+      const content = await storage.createHomePageContent({
+        contentType,
+        imageUrl: fileUrl,
+        altText: altText || "",
+        caption: caption || null,
+        displayOrder: parseInt(displayOrder) || 0,
+        isActive: true,
+        uploadedBy: req.user.id
+      });
+      res.json({
+        message: "Homepage image uploaded successfully",
+        content
+      });
+    } catch (error) {
+      console.error("Homepage image upload error:", error);
+      res.status(500).json({ message: "Failed to upload homepage image" });
+    }
+  });
+  app2.get("/api/homepage-content", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { contentType } = req.query;
+      const content = await storage.getHomePageContent(contentType);
+      res.json(content);
+    } catch (error) {
+      console.error("Get homepage content error:", error);
+      res.status(500).json({ message: "Failed to get homepage content" });
+    }
+  });
+  app2.put("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { altText, caption, displayOrder, isActive } = req.body;
+      const updated = await storage.updateHomePageContent(id, {
+        altText,
+        caption,
+        displayOrder,
+        isActive
+      });
+      if (!updated) {
+        return res.status(404).json({ message: "Homepage content not found" });
+      }
+      res.json({
+        message: "Homepage content updated successfully",
+        content: updated
+      });
+    } catch (error) {
+      console.error("Update homepage content error:", error);
+      res.status(500).json({ message: "Failed to update homepage content" });
+    }
+  });
+  app2.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const contentList = await storage.getHomePageContent();
+      const content = contentList.find((c) => c.id === id);
+      if (!content) {
+        return res.status(404).json({ message: "Homepage content not found" });
+      }
+      if (isSupabaseStorageEnabled && content.imageUrl) {
+        const filePath = extractFilePathFromUrl(content.imageUrl);
+        if (filePath) {
+          await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
+          console.log(`\u{1F5D1}\uFE0F Deleted from Supabase Storage: ${filePath}`);
+        }
+      }
+      const deleted = await storage.deleteHomePageContent(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Homepage content not found" });
+      }
+      res.json({ message: "Homepage content deleted successfully" });
+    } catch (error) {
+      console.error("Delete homepage content error:", error);
+      res.status(500).json({ message: "Failed to delete homepage content" });
+    }
+  });
+  app2.get("/api/public/homepage-content", async (req, res) => {
+    try {
+      const content = await storage.getHomePageContent();
+      res.json(content);
+    } catch (error) {
+      console.error("Get public homepage content error:", error);
+      res.status(500).json({ message: "Failed to get homepage content" });
+    }
+  });
+  app2.get("/api/homepage-content/:contentType", async (req, res) => {
+    try {
+      const { contentType } = req.params;
+      const content = await storage.getHomePageContent(contentType);
+      res.json(content);
+    } catch (error) {
+      console.error("Get public homepage content error:", error);
+      res.status(500).json({ message: "Failed to get homepage content" });
+    }
+  });
+  app2.get("/uploads/homepage/:filename", (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.resolve("uploads", "homepage", filename);
+    if (!filePath.startsWith(path.resolve("uploads", "homepage"))) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        res.status(404).json({ message: "File not found" });
+      }
+    });
   });
   app2.get("/uploads/:filename", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
@@ -4221,23 +7525,41 @@ async function registerRoutes(app2) {
                 const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
                 const isStaffForSuspension = roleNameForSuspension === "admin" || roleNameForSuspension === "teacher";
-                return res.status(403).json({
-                  message: isStaffForSuspension ? "Access denied: Your account has been suspended by THS Admin." : "Your account is suspended. Contact your class teacher or Admin."
-                });
+                const isParentForSuspension = roleNameForSuspension === "parent";
+                if (isStaffForSuspension) {
+                  return res.status(403).json({
+                    message: "Account Suspended",
+                    description: "Access denied. Your account has been suspended by the school administrator due to security concerns.",
+                    statusType: "suspended_staff"
+                  });
+                } else if (isParentForSuspension) {
+                  return res.status(403).json({
+                    message: "Account Suspended - Security Alert",
+                    description: "Your parent account has been automatically suspended due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.\n\n\u{1F4DE} To Restore Your Account:\nContact School Administrator:\n\u{1F4E7} Email: treasurehomeschool@gmail.com\n\u{1F4DE} Call: School office during working hours\n\n\u{1F4A1} Have your child's information ready for verification.",
+                    statusType: "suspended_parent"
+                  });
+                } else {
+                  return res.status(403).json({
+                    message: "Account Suspended",
+                    description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
+                    statusType: "suspended_student"
+                  });
+                }
               }
             } catch (err) {
               console.error("Failed to suspend account:", err);
             }
           }
         }
-        return res.status(429).json({
-          message: "Too many login attempts. Please try again in 15 minutes."
-        });
+        const currentViolations = lockoutViolations.get(identifier);
+        if (currentViolations && currentViolations.count < MAX_RATE_LIMIT_VIOLATIONS) {
+          return res.status(429).json({
+            message: "Account Temporarily Locked",
+            description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again, or use 'Forgot Password' to reset.",
+            statusType: "rate_limited"
+          });
+        }
       }
-      loginAttempts.set(attemptKey, {
-        count: attempts.count + 1,
-        lastAttempt: now
-      });
       let user;
       if (identifier.includes("@")) {
         user = await storage.getUserByEmail(identifier);
@@ -4248,47 +7570,100 @@ async function registerRoutes(app2) {
         }
       }
       if (!user) {
+        loginAttempts.set(attemptKey, {
+          count: attempts.count + 1,
+          lastAttempt: now
+        });
         console.log(`Login failed: User not found for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
+        return res.status(401).json({
+          message: "Invalid username or password. Please check your credentials and try again.",
+          hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
+        });
       }
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
       const isStaffAccount = roleName === "admin" || roleName === "teacher";
+      if (user.status === "suspended") {
+        console.warn(`Login blocked: Account ${identifier} is suspended (showing detailed message)`);
+        if (isStaffAccount) {
+          return res.status(403).json({
+            message: "Account Suspended",
+            description: "Access denied. Your account has been suspended by the school administrator due to security concerns. Please contact the school administrator to resolve this issue.",
+            statusType: "suspended_staff"
+          });
+        } else if (roleName === "parent") {
+          return res.status(403).json({
+            message: "Account Suspended - Security Alert",
+            description: "Your parent account has been automatically suspended due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.\n\n\u{1F4DE} To Restore Your Account:\nContact School Administrator:\n\u{1F4E7} Email: treasurehomeschool@gmail.com\n\u{1F4DE} Call: School office during working hours\n\n\u{1F4A1} Have your child's information ready for verification.",
+            statusType: "suspended_parent"
+          });
+        } else {
+          return res.status(403).json({
+            message: "Account Suspended",
+            description: "Your account has been suspended. Please contact your class teacher or the school administrator to resolve this issue.",
+            statusType: "suspended_student"
+          });
+        }
+      }
+      loginAttempts.set(attemptKey, {
+        count: attempts.count + 1,
+        lastAttempt: now
+      });
       if (user.status === "pending") {
         console.warn(`Login blocked: Account ${identifier} is pending approval`);
-        return res.status(403).json({
-          message: "Welcome to THS Portal. Your account is awaiting Admin approval. You will be notified once verified."
-        });
-      }
-      if (user.status === "suspended") {
-        console.warn(`Login blocked: Account ${identifier} is suspended`);
-        return res.status(403).json({
-          message: isStaffAccount ? "Access denied: Your account has been suspended by THS Admin." : "Your account is suspended. Contact your class teacher or Admin."
-        });
+        if (isStaffAccount) {
+          return res.status(403).json({
+            message: "Account Pending Approval",
+            description: "Your Admin/Teacher account has been created and is awaiting approval by the school administrator. You will be notified via email once your account is verified. For urgent access needs, please contact the school administrator.",
+            statusType: "pending_staff"
+          });
+        } else {
+          return res.status(403).json({
+            message: "Account Pending Setup",
+            description: "Your account is being set up by the school administrator. You will receive a notification once your account is ready. Please check back soon.",
+            statusType: "pending_setup"
+          });
+        }
       }
       if (user.status === "disabled") {
         console.warn(`Login blocked: Account ${identifier} is disabled`);
         return res.status(403).json({
-          message: isStaffAccount ? "Access denied: Your account has been disabled by THS Admin." : "Your account has been disabled. Please contact administrator."
+          message: "Account Disabled",
+          description: "Your account has been disabled and is no longer active. Please contact the school administrator if you believe this is an error.",
+          statusType: "disabled"
         });
       }
       if ((roleName === "admin" || roleName === "teacher") && user.authProvider === "google") {
         console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
         return res.status(401).json({
-          message: "Admins and teachers must use Google Sign-In. Please use the 'Sign in with Google' button below."
+          message: "Google Sign-In Required",
+          description: "Admins and Teachers must sign in using their authorized Google account. Please click the 'Sign in with Google' button below to access your account.",
+          statusType: "google_required"
         });
       }
       if (!user.passwordHash) {
         if ((roleName === "admin" || roleName === "teacher") && user.authProvider === "google") {
-          return res.status(401).json({ message: "Please use Google Sign-In for admin/teacher accounts." });
+          return res.status(401).json({
+            message: "Google Sign-In Required",
+            description: "Please use Google Sign-In for admin/teacher accounts.",
+            statusType: "google_required"
+          });
         }
         console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
-        return res.status(401).json({ message: "Account setup incomplete. Please contact administrator." });
+        return res.status(401).json({
+          message: "Account Setup Incomplete",
+          description: "Your account setup is incomplete. Please contact the school administrator for assistance.",
+          statusType: "setup_incomplete"
+        });
       }
-      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      const isPasswordValid = await bcrypt2.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         console.log(`Login failed: Invalid password for identifier ${identifier}`);
-        return res.status(401).json({ message: "Invalid login. Please check your username or password." });
+        return res.status(401).json({
+          message: "Invalid Credentials",
+          description: "Invalid username or password. Please check your credentials and try again. Make sure CAPS LOCK is off and you're using the correct username and password.",
+          statusType: "invalid_credentials"
+        });
       }
       loginAttempts.delete(attemptKey);
       if (identifier) {
@@ -4330,11 +7705,11 @@ async function registerRoutes(app2) {
       if (!user || !user.passwordHash) {
         return res.status(404).json({ message: "User not found" });
       }
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      const isCurrentPasswordValid = await bcrypt2.compare(currentPassword, user.passwordHash);
       if (!isCurrentPasswordValid) {
         return res.status(401).json({ message: "Current password is incorrect" });
       }
-      const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      const newPasswordHash = await bcrypt2.hash(newPassword, BCRYPT_ROUNDS);
       await storage.updateUser(userId, {
         passwordHash: newPasswordHash,
         mustChangePassword: false
@@ -4397,8 +7772,8 @@ async function registerRoutes(app2) {
           message: "Your account is temporarily locked. Please contact the administrator or try again later."
         });
       }
-      const crypto = __require("crypto");
-      const resetToken = crypto.randomBytes(32).toString("hex");
+      const crypto3 = __require("crypto");
+      const resetToken = crypto3.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 15 * 60 * 1e3);
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt, ipAddress);
       const recoveryEmail = user.recoveryEmail || user.email;
@@ -4413,39 +7788,31 @@ async function registerRoutes(app2) {
         ipAddress,
         userAgent: req.headers["user-agent"] || null
       });
-      const resetLink = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000"}/reset-password?token=${resetToken}`;
-      const emailSubject = "THS Portal - Password Reset Request";
-      const emailBody = `
-Hello ${user.firstName} ${user.lastName},
-
-You requested a password reset for THS Portal. Click the link below to set a new password. 
-This link expires in 15 minutes.
-
-Reset Link: ${resetLink}
-
-If you didn't request this, please ignore this email or contact the school administrator immediately.
-
-Security Note: This password reset was requested from IP address: ${ipAddress}
-
-Thank you,
-Treasure-Home School Administration
-`;
-      if (process.env.NODE_ENV === "development") {
-        console.log(`
-\u{1F4E7} PASSWORD RESET EMAIL:`);
-        console.log(`To: ${recoveryEmail}`);
-        console.log(`Subject: ${emailSubject}`);
-        console.log(`Body:
-${emailBody}`);
-        console.log(`
-Direct reset link: ${resetLink}
-`);
+      const resetLink = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/reset-password?token=${resetToken}`;
+      const { sendEmail: sendEmail2, getPasswordResetEmailHTML: getPasswordResetEmailHTML2 } = await Promise.resolve().then(() => (init_email_service(), email_service_exports));
+      const emailSent = await sendEmail2({
+        to: recoveryEmail,
+        subject: "THS Portal - Password Reset Request",
+        html: getPasswordResetEmailHTML2(`${user.firstName} ${user.lastName}`, resetLink)
+      });
+      if (!emailSent && process.env.NODE_ENV === "production") {
+        log(`\u274C Failed to send password reset email to ${recoveryEmail}`);
+        return res.status(500).json({
+          message: "Failed to send password reset email. Please try again later or contact administrator."
+        });
+      }
+      if (process.env.NODE_ENV === "development" && !process.env.RESEND_API_KEY) {
+        log(`\u{1F4E7} DEV MODE - Password Reset Token: ${resetToken}`);
+        log(`\u{1F4E7} DEV MODE - Reset Link: ${resetLink}`);
         return res.json({
-          message: "Password reset token generated. Check server console for email content.",
-          token: resetToken,
+          message: "Password reset code generated (Development Mode).",
+          developmentMode: true,
+          resetToken,
+          // The actual code
           resetLink,
-          developmentOnly: true,
-          email: recoveryEmail
+          email: recoveryEmail,
+          expiresIn: "15 minutes",
+          instructions: "Use the resetToken as your reset code, or click the resetLink"
         });
       }
       log(`\u2705 Password reset email sent to ${recoveryEmail} for user ${user.id}`);
@@ -4480,7 +7847,7 @@ Direct reset link: ${resetLink}
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      const newPasswordHash = await bcrypt2.hash(newPassword, BCRYPT_ROUNDS);
       await storage.updateUser(resetToken.userId, {
         passwordHash: newPasswordHash,
         mustChangePassword: false
@@ -4498,38 +7865,12 @@ Direct reset link: ${resetLink}
         userAgent: req.headers["user-agent"] || null
       });
       const recoveryEmail = user.recoveryEmail || user.email;
-      const notificationSubject = "THS Portal - Password Changed";
-      const notificationBody = `
-Hello ${user.firstName} ${user.lastName},
-
-\u26A0\uFE0F Your password was reset on THS Portal by ${resetToken.resetBy ? "Admin" : "yourself"}.
-
-Details:
-- Changed at: ${(/* @__PURE__ */ new Date()).toLocaleString()}
-- IP Address: ${ipAddress}
-- Method: ${resetToken.resetBy ? "Admin Reset" : "Self-Service Reset Link"}
-
-If this wasn't you, contact the school administration immediately at:
-Email: admin@treasurehomeschool.edu.ng
-Phone: [School Contact Number]
-
-For security:
-- Never share your password with anyone
-- Use a strong, unique password
-- Change your password if you suspect any unauthorized access
-
-Thank you,
-Treasure-Home School Administration
-`;
-      if (process.env.NODE_ENV === "development") {
-        console.log(`
-\u{1F4E7} PASSWORD CHANGE NOTIFICATION:`);
-        console.log(`To: ${recoveryEmail}`);
-        console.log(`Subject: ${notificationSubject}`);
-        console.log(`Body:
-${notificationBody}
-`);
-      }
+      const { sendEmail: sendEmail2, getPasswordChangedEmailHTML: getPasswordChangedEmailHTML2 } = await Promise.resolve().then(() => (init_email_service(), email_service_exports));
+      await sendEmail2({
+        to: recoveryEmail,
+        subject: "THS Portal - Password Changed",
+        html: getPasswordChangedEmailHTML2(`${user.firstName} ${user.lastName}`, ipAddress)
+      });
       log(`\u2705 Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
@@ -4547,7 +7888,7 @@ ${notificationBody}
     try {
       const { userId, newPassword, forceChange } = z2.object({
         userId: z2.string().uuid(),
-        newPassword: z2.string().min(6).max(100).optional(),
+        newPassword: z2.string().min(6, "Password must be at least 6 characters").optional(),
         forceChange: z2.boolean().optional().default(true)
       }).parse(req.body);
       const user = await storage.getUser(userId);
@@ -4557,7 +7898,7 @@ ${notificationBody}
       const { generatePassword: generatePassword2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
       const password = newPassword || generatePassword2(currentYear);
-      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
       await storage.adminResetUserPassword(userId, passwordHash, req.user.id, forceChange);
       const recoveryEmail = user.recoveryEmail || user.email;
       const notificationSubject = "THS Portal - Password Reset by Administrator";
@@ -4614,7 +7955,7 @@ ${notificationBody}
       if (!success) {
         return res.status(500).json({ message: "Failed to update recovery email" });
       }
-      log(`\u2705 Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
+      console.log(`\u2705 Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
       res.json({
         message: "Recovery email updated successfully",
         oldEmail: user.recoveryEmail || user.email,
@@ -4624,6 +7965,55 @@ ${notificationBody}
       console.error("Update recovery email error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid email format" });
+      }
+      res.status(500).json({ message: "Failed to update recovery email" });
+    }
+  });
+  app2.post("/api/users/:id/recovery-email", authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { recoveryEmail } = z2.object({
+        recoveryEmail: z2.string().email()
+      }).parse(req.body);
+      const userId = req.user.id;
+      if (id !== userId && req.user.roleId !== ROLES.ADMIN) {
+        return res.status(403).json({ message: "You can only update your own recovery email" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const updatedUser = await storage.updateUser(id, {
+        recoveryEmail
+      });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update recovery email" });
+      }
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "recovery_email_updated",
+        entityType: "user",
+        entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
+        oldValue: JSON.stringify({ userId: user.id, recoveryEmail: user.recoveryEmail }),
+        newValue: JSON.stringify({ userId: user.id, recoveryEmail }),
+        reason: `User ${req.user.email} updated recovery email`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      });
+      console.log(`\u2705 User ${req.user?.email} updated recovery email for account ${id}`);
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "Recovery email updated successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error updating recovery email:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
+        });
       }
       res.status(500).json({ message: "Failed to update recovery email" });
     }
@@ -4726,8 +8116,8 @@ ${notificationBody}
       if (existingInvite) {
         return res.status(400).json({ message: "Pending invite already exists for this email" });
       }
-      const crypto = __require("crypto");
-      const token = crypto.randomBytes(32).toString("hex");
+      const crypto3 = __require("crypto");
+      const token = crypto3.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
       const invite = await storage.createInvite({
         email,
@@ -4736,7 +8126,7 @@ ${notificationBody}
         createdBy: req.user.id,
         expiresAt
       });
-      const inviteLink = `${process.env.REPLIT_DOMAINS || "http://localhost:5000"}/invite/${token}`;
+      const inviteLink = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/invite/${token}`;
       if (process.env.NODE_ENV === "development") {
         console.log(`Invite created for ${email}: ${inviteLink}`);
         return res.json({
@@ -4826,7 +8216,7 @@ ${notificationBody}
       const { getNextUserNumber: getNextUserNumber2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
       const nextNumber = getNextUserNumber2(existingUsernames, invite.roleId, currentYear);
       const username = generateUsername2(invite.roleId, currentYear, "", nextNumber);
-      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
       const user = await storage.createUser({
         email: invite.email,
         username,
@@ -4879,6 +8269,23 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to delete invite" });
     }
   });
+  app2.get("/api/health", async (_req, res) => {
+    try {
+      await exportDb.execute(sql4`SELECT 1`);
+      res.json({
+        status: "healthy",
+        database: "connected",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        uptime: process.uptime()
+      });
+    } catch (error) {
+      res.status(503).json({
+        status: "unhealthy",
+        database: "disconnected",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   app2.post("/api/contact", async (req, res) => {
     try {
       const data = contactSchema.parse(req.body);
@@ -4907,42 +8314,47 @@ ${notificationBody}
   app2.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { role } = req.query;
-      let users2 = [];
+      let users3 = [];
       if (role && typeof role === "string") {
         const userRole = await storage.getRoleByName(role);
         if (userRole) {
-          users2 = await storage.getUsersByRole(userRole.id);
+          users3 = await storage.getUsersByRole(userRole.id);
         } else {
-          users2 = [];
+          users3 = [];
         }
       } else {
-        const allRoles = await storage.getRoles();
-        users2 = [];
-        for (const userRole of allRoles) {
-          const roleUsers = await storage.getUsersByRole(userRole.id);
-          users2.push(...roleUsers);
-        }
+        const allRoles2 = await storage.getRoles();
+        const userPromises = allRoles2.map((userRole) => storage.getUsersByRole(userRole.id));
+        const userArrays = await Promise.all(userPromises);
+        users3 = userArrays.flat();
       }
-      const sanitizedUsers = users2.map((user) => {
+      const allRoles = await storage.getRoles();
+      const roleMap = new Map(allRoles.map((r) => [r.id, r.name]));
+      const sanitizedUsers = users3.map((user) => {
         const { passwordHash, ...safeUser } = user;
-        return safeUser;
+        return {
+          ...safeUser,
+          roleName: roleMap.get(user.roleId) || "Unknown"
+        };
       });
       res.json(sanitizedUsers);
     } catch (error) {
+      console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
   app2.get("/api/users/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const pendingUsers = await storage.getUsersByStatus("pending");
-      const enrichedUsers = await Promise.all(pendingUsers.map(async (user) => {
+      const allRoles = await storage.getRoles();
+      const roleMap = new Map(allRoles.map((r) => [r.id, r.name]));
+      const enrichedUsers = pendingUsers.map((user) => {
         const { passwordHash, ...safeUser } = user;
-        const role = await storage.getRole(user.roleId);
         return {
           ...safeUser,
-          roleName: role?.name || "Unknown"
+          roleName: roleMap.get(user.roleId) || "Unknown"
         };
-      }));
+      });
       res.json(enrichedUsers);
     } catch (error) {
       console.error("Error fetching pending users:", error);
@@ -4964,17 +8376,18 @@ ${notificationBody}
         return res.status(400).json({ message: `Cannot approve user with status: ${user.status}` });
       }
       const approvedUser = await storage.approveUser(id, adminUser.id);
-      await storage.createAuditLog({
+      storage.createAuditLog({
         userId: adminUser.id,
         action: "user_approved",
         entityType: "user",
         entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: "pending" }),
         newValue: JSON.stringify({ userId: user.id, status: "active" }),
         reason: `Admin ${adminUser.email} approved user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      });
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
       const { passwordHash, ...safeUser } = approvedUser;
       res.json({
         message: "User approved successfully",
@@ -4983,6 +8396,147 @@ ${notificationBody}
     } catch (error) {
       console.error("Error approving user:", error);
       res.status(500).json({ message: "Failed to approve user" });
+    }
+  });
+  app2.post("/api/users/:id/verify", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldStatus = user.status;
+      const updatedUser = await storage.updateUserStatus(id, "active", adminUser.id, "User verified by admin");
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_verified",
+        entityType: "user",
+        entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: "active" }),
+        reason: `Admin ${adminUser.email} verified user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "User verified and activated successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error verifying user:", error);
+      res.status(500).json({ message: "Failed to verify user" });
+    }
+  });
+  app2.post("/api/users/:id/unverify", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldStatus = user.status;
+      const updatedUser = await storage.updateUserStatus(id, "pending", adminUser.id, "User unverified by admin - awaiting approval");
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_unverified",
+        entityType: "user",
+        entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: "pending" }),
+        reason: `Admin ${adminUser.email} unverified user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "User unverified and moved to pending status",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error unverifying user:", error);
+      res.status(500).json({ message: "Failed to unverify user" });
+    }
+  });
+  app2.post("/api/users/:id/suspend", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldStatus = user.status;
+      const updatedUser = await storage.updateUserStatus(id, "suspended", adminUser.id, reason || "Account suspended by admin");
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_suspended",
+        entityType: "user",
+        entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: "suspended" }),
+        reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "User suspended successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error suspending user:", error);
+      res.status(500).json({ message: "Failed to suspend user" });
+    }
+  });
+  app2.post("/api/users/:id/unsuspend", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldStatus = user.status;
+      const updatedUser = await storage.updateUserStatus(id, "active", adminUser.id, "Suspension lifted by admin");
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: "user_unsuspended",
+        entityType: "user",
+        entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
+        oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
+        newValue: JSON.stringify({ userId: user.id, status: "active" }),
+        reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "User unsuspended successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      console.error("Error unsuspending user:", error);
+      res.status(500).json({ message: "Failed to unsuspend user" });
     }
   });
   app2.post("/api/users/:id/status", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -5003,17 +8557,18 @@ ${notificationBody}
       }
       const oldStatus = user.status;
       const updatedUser = await storage.updateUserStatus(id, status, adminUser.id, reason);
-      await storage.createAuditLog({
+      storage.createAuditLog({
         userId: adminUser.id,
         action: "user_status_changed",
         entityType: "user",
         entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status }),
-        reason: reason || `Admin ${adminUser.email} changed status of user ${user.email}`,
+        reason: reason || `Admin ${adminUser.email} changed status of user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      });
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: `User status updated to ${status}`,
@@ -5025,24 +8580,82 @@ ${notificationBody}
     }
   });
   app2.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    const startTime = Date.now();
     try {
       const { id } = req.params;
       const adminUser = req.user;
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+      console.log(`\u{1F5D1}\uFE0F DELETE REQUEST: Admin ${adminUser.email} attempting to delete user ${id}`);
       const user = await storage.getUser(id);
       if (!user) {
+        console.warn(`\u274C DELETE FAILED: User ${id} not found`);
         return res.status(404).json({ message: "User not found" });
       }
       if (user.id === adminUser.id) {
+        console.warn(`\u274C DELETE BLOCKED: Admin attempted to delete own account`);
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
-      const deleted = await storage.deleteUser(id);
-      if (!deleted) {
-        return res.status(500).json({ message: "Failed to delete user" });
+      console.log(`\u{1F4CB} DELETING USER: ${user.email || user.username} (ID: ${id}, Role: ${user.roleId})`);
+      let deleted = false;
+      let lastError = null;
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`\u{1F504} DELETE ATTEMPT ${attempt}/${maxRetries} for user ${id}`);
+          deleted = await storage.deleteUser(id);
+          if (deleted) {
+            console.log(`\u2705 DELETE SUCCESS on attempt ${attempt}: User ${id} deleted in ${Date.now() - startTime}ms`);
+            break;
+          } else {
+            console.warn(`\u26A0\uFE0F DELETE RETURNED FALSE on attempt ${attempt}: User ${id}`);
+          }
+        } catch (deleteError) {
+          lastError = deleteError;
+          console.error(`\u274C DELETE ERROR on attempt ${attempt}:`, deleteError);
+          if (deleteError?.code === "42501" || deleteError?.message?.includes("permission denied")) {
+            console.error(`\u{1F6AB} RLS/PERMISSION ERROR: Supabase Row Level Security may be blocking delete for user ${id}`);
+            return res.status(403).json({
+              message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
+              technicalDetails: "RLS_PERMISSION_DENIED"
+            });
+          }
+          if (deleteError?.code !== "ECONNRESET" && !deleteError?.message?.includes("timeout")) {
+            break;
+          }
+          if (attempt < maxRetries) {
+            const backoffMs = 100 * Math.pow(2, attempt - 1);
+            console.log(`\u23F1\uFE0F RETRY BACKOFF: Waiting ${backoffMs}ms before attempt ${attempt + 1}`);
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          }
+        }
       }
-      await storage.createAuditLog({
+      if (!deleted) {
+        const errorMsg = lastError?.message || "Unknown error";
+        console.error(`\u274C DELETE FAILED AFTER ${maxRetries} ATTEMPTS: ${errorMsg}`);
+        if (lastError?.cause?.code === "23503" || errorMsg.includes("foreign key")) {
+          const relatedTable = lastError?.cause?.table_name || "related records";
+          return res.status(409).json({
+            message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead.`,
+            technicalDetails: "FOREIGN_KEY_CONSTRAINT"
+          });
+        }
+        return res.status(500).json({
+          message: "Failed to delete user after multiple attempts",
+          technicalDetails: errorMsg
+        });
+      }
+      const verifyUser = await storage.getUser(id);
+      if (verifyUser) {
+        console.error(`\u{1F6A8} CRITICAL: User ${id} still exists after delete operation! Possible RLS issue.`);
+        return res.status(500).json({
+          message: "Delete operation completed but user still exists. This may be a database policy issue.",
+          technicalDetails: "DELETE_VERIFICATION_FAILED"
+        });
+      }
+      console.log(`\u2705 DELETE VERIFIED: User ${id} successfully removed from database`);
+      storage.createAuditLog({
         userId: adminUser.id,
         action: "user_deleted",
         entityType: "user",
@@ -5057,13 +8670,22 @@ ${notificationBody}
         reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      });
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      const totalTime = Date.now() - startTime;
+      console.log(`\u26A1 DELETE COMPLETED in ${totalTime}ms`);
       res.json({
-        message: "User deleted successfully"
+        message: "User deleted successfully",
+        deletedUserId: id,
+        executionTime: `${totalTime}ms`
       });
     } catch (error) {
-      console.error("Error deleting user:", error);
-      res.status(500).json({ message: "Failed to delete user" });
+      const totalTime = Date.now() - startTime;
+      console.error(`\u{1F4A5} UNEXPECTED DELETE ERROR after ${totalTime}ms:`, error);
+      console.error("Error stack:", error.stack);
+      res.status(500).json({
+        message: "An unexpected error occurred while deleting user",
+        technicalDetails: error.message
+      });
     }
   });
   app2.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -5081,29 +8703,28 @@ ${notificationBody}
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-      const updatedUser = await storage.updateUser(id, {
+      const passwordHash = await bcrypt2.hash(newPassword, BCRYPT_ROUNDS);
+      await storage.updateUser(id, {
         passwordHash,
         mustChangePassword: forceChange
       });
-      if (!updatedUser) {
-        return res.status(500).json({ message: "Failed to reset password" });
-      }
       await storage.createAuditLog({
         userId: adminUser.id,
         action: "password_reset",
         entityType: "user",
         entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
         newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
         reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? " (force change on next login)" : ""}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       });
-      const { passwordHash: _, ...safeUser } = updatedUser;
+      const { passwordHash: _, ...safeUser } = user;
       res.json({
         message: `Password reset successfully${forceChange ? ". User must change password on next login." : ""}`,
-        user: safeUser
+        user: { ...safeUser, email: user.email, username: user.username }
+        // Include email/username for response
       });
     } catch (error) {
       console.error("Error resetting password:", error);
@@ -5147,6 +8768,7 @@ ${notificationBody}
         action: "role_changed",
         entityType: "user",
         entityId: BigInt(0),
+        // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, roleId: user.roleId, roleName: oldRole?.name }),
         newValue: JSON.stringify({ userId: user.id, roleId, roleName: newRole.name }),
         reason: `Admin ${adminUser.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
@@ -5209,7 +8831,7 @@ ${notificationBody}
       if (!password || typeof password !== "string" || password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
       }
-      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
       const userData = insertUserSchema.parse({
         ...otherUserData,
         passwordHash
@@ -5228,9 +8850,13 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to create user" });
     }
   });
-  app2.put("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app2.put("/api/users/:id", authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
+      const requestUser = req.user;
+      if (requestUser.id !== id && requestUser.roleId !== ROLES.ADMIN) {
+        return res.status(403).json({ message: "You can only update your own profile" });
+      }
       const { password, passwordHash, ...otherUserData } = req.body;
       if (passwordHash) {
         return res.status(400).json({ message: "Direct password hash modification not allowed" });
@@ -5240,7 +8866,7 @@ ${notificationBody}
         if (typeof password !== "string" || password.length < 6) {
           return res.status(400).json({ message: "Password must be at least 6 characters long" });
         }
-        const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        const hashedPassword = await bcrypt2.hash(password, BCRYPT_ROUNDS);
         updateData = { ...otherUserData, passwordHash: hashedPassword };
       }
       const userData = insertUserSchema.partial().parse(updateData);
@@ -5251,19 +8877,14 @@ ${notificationBody}
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
     } catch (error) {
-      res.status(400).json({ message: "Invalid user data" });
-    }
-  });
-  app2.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteUser(id);
-      if (!success) {
-        return res.status(404).json({ message: "User not found" });
+      console.error("User update error:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Invalid user data",
+          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
+        });
       }
-      res.json({ message: "User deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete user" });
+      res.status(400).json({ message: "Invalid user data" });
     }
   });
   app2.post("/api/admin/upload-users-csv", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single("csvFile"), async (req, res) => {
@@ -5289,10 +8910,10 @@ ${notificationBody}
       const existingUsernames = await storage.getAllUsernames();
       const createdUsers = [];
       const errors = [];
-      const studentRole = await storage.getRoleByName("Student");
-      const parentRole = await storage.getRoleByName("Parent");
-      if (!studentRole || !parentRole) {
-        return res.status(500).json({ message: "Required roles not found in database" });
+      const studentRoleData = await storage.getRoleByName("Student");
+      const parentRoleData = await storage.getRoleByName("Parent");
+      if (!studentRoleData || !parentRoleData) {
+        return res.status(500).json({ message: "Required roles (Student, Parent) not found in database" });
       }
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(",").map((v) => v.trim());
@@ -5315,27 +8936,27 @@ ${notificationBody}
           const [parentFirstName, ...parentLastParts] = parentName.split(" ");
           const parentLastName = parentLastParts.join(" ") || parentFirstName;
           let parent = await storage.getUserByEmail(parentEmail);
-          let parentId;
+          let parentId2;
           let parentCredentials = null;
           if (!parent) {
             const parentCount = existingUsernames.filter((u) => u.startsWith(`THS-PAR-${currentYear}-`)).length + 1;
-            const parentUsername = generateUsername2(parentRole.id, currentYear, "", parentCount);
+            const parentUsername = generateUsername2(parentRoleData.id, currentYear, "", parentCount);
             const parentPassword = generatePassword2(currentYear);
-            const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
+            const parentPasswordHash = await bcrypt2.hash(parentPassword, BCRYPT_ROUNDS);
             parent = await storage.createUser({
               username: parentUsername,
               email: parentEmail,
               passwordHash: parentPasswordHash,
-              roleId: parentRole.id,
+              roleId: parentRoleData.id,
               firstName: parentFirstName,
               lastName: parentLastName,
               mustChangePassword: true
             });
             existingUsernames.push(parentUsername);
             parentCredentials = { username: parentUsername, password: parentPassword };
-            parentId = parent.id;
+            parentId2 = parent.id;
           } else {
-            parentId = parent.id;
+            parentId2 = parent.id;
           }
           const classObj = await storage.getClasses();
           const studentClass = classObj.find((c) => c.name.toLowerCase() === className.toLowerCase());
@@ -5345,14 +8966,14 @@ ${notificationBody}
           }
           const classPrefix = `THS-STU-${currentYear}-${className.toUpperCase()}-`;
           const studentCount = existingUsernames.filter((u) => u.startsWith(classPrefix)).length + 1;
-          const studentUsername = generateUsername2(studentRole.id, currentYear, className.toUpperCase(), studentCount);
+          const studentUsername = generateUsername2(studentRoleData.id, currentYear, className.toUpperCase(), studentCount);
           const studentPassword = generatePassword2(currentYear);
-          const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
+          const studentPasswordHash = await bcrypt2.hash(studentPassword, BCRYPT_ROUNDS);
           const studentUser = await storage.createUser({
             username: studentUsername,
             email: `${studentUsername.toLowerCase()}@ths.edu`,
+            // Auto-generated email
             passwordHash: studentPasswordHash,
-            roleId: studentRole.id,
             firstName: studentFirstName,
             lastName: studentLastName,
             mustChangePassword: true
@@ -5363,7 +8984,7 @@ ${notificationBody}
             id: studentUser.id,
             admissionNumber,
             classId: studentClass.id,
-            parentId
+            parentId: parentId2
           });
           createdUsers.push({
             type: "student",
@@ -5401,8 +9022,8 @@ ${notificationBody}
   });
   app2.post("/api/users/generate-login-slips", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const { users: users2 } = req.body;
-      if (!Array.isArray(users2) || users2.length === 0) {
+      const { users: users3, createdCredentials } = req.body;
+      if (!users3 || !Array.isArray(users3) || users3.length === 0) {
         return res.status(400).json({ message: "Users array is required and must not be empty" });
       }
       const doc = new PDFDocument({ size: "A4", margin: 50 });
@@ -5412,7 +9033,7 @@ ${notificationBody}
       doc.fontSize(20).font("Helvetica-Bold").text("Treasure-Home School", { align: "center" });
       doc.fontSize(12).font("Helvetica").text("Login Credentials", { align: "center" });
       doc.moveDown(2);
-      users2.forEach((user, index2) => {
+      users3.forEach((user, index2) => {
         if (index2 > 0) {
           doc.addPage();
         }
@@ -5440,10 +9061,10 @@ ${notificationBody}
         doc.text("3. You will be prompted to create a new secure password", 90, startY + 240);
         doc.text("4. Keep your new password safe and do not share it with anyone", 90, startY + 260);
         doc.fontSize(9).font("Helvetica-Oblique").text(
-          `Generated on ${(/* @__PURE__ */ new Date()).toLocaleDateString()} at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}`,
+          '\xA9 2024 Treasure-Home School | "Honesty and Success" | treasurehomeschool@gmail.com',
           50,
           doc.page.height - 80,
-          { align: "center" }
+          { align: "center", width: 495 }
         );
         doc.fontSize(10).font("Helvetica-Bold").text(
           "For assistance, contact the school administrator",
@@ -5460,96 +9081,16 @@ ${notificationBody}
       }
     }
   });
-  app2.post("/api/users/bulk-import", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { users: users2, year } = req.body;
-      if (!Array.isArray(users2) || users2.length === 0) {
-        return res.status(400).json({ message: "Users array is required and must not be empty" });
-      }
-      if (!year || typeof year !== "string") {
-        return res.status(400).json({ message: "Year is required (e.g., '2025')" });
-      }
-      const existingUsernames = await storage.getAllUsernames();
-      const results = [];
-      const errors = [];
-      for (const userData of users2) {
-        try {
-          const { roleId, firstName, lastName, email, phone, address, dateOfBirth, gender, classLevel, subject, parentId } = userData;
-          if (!roleId || !firstName || !lastName) {
-            errors.push({
-              user: `${firstName} ${lastName}`,
-              error: "Missing required fields (roleId, firstName, lastName)"
-            });
-            continue;
-          }
-          const optional = roleId === ROLES.STUDENT ? classLevel || "" : roleId === ROLES.TEACHER ? subject || "" : "";
-          const nextNumber = getNextUserNumber(existingUsernames, roleId, year, optional);
-          const username = generateUsername(roleId, year, optional, nextNumber);
-          const password = generatePassword(year);
-          const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-          const newUser = await storage.createUser({
-            username,
-            email: email || `${username.toLowerCase()}@ths.edu`,
-            passwordHash,
-            mustChangePassword: true,
-            roleId,
-            firstName,
-            lastName,
-            phone: phone || null,
-            address: address || null,
-            dateOfBirth: dateOfBirth || null,
-            gender: gender || null,
-            isActive: true
-          });
-          existingUsernames.push(username);
-          if (roleId === ROLES.STUDENT) {
-            const admissionNumber = username;
-            await storage.createStudent({
-              id: newUser.id,
-              admissionNumber,
-              classId: userData.classId || null,
-              parentId: parentId || null,
-              emergencyContact: phone || null,
-              medicalInfo: null
-            });
-          }
-          results.push({
-            userId: newUser.id,
-            username,
-            password,
-            // Return plain password for login slip generation
-            firstName,
-            lastName,
-            roleId,
-            email: newUser.email
-          });
-        } catch (error) {
-          errors.push({
-            user: `${userData.firstName} ${userData.lastName}`,
-            error: error instanceof Error ? error.message : "Unknown error"
-          });
-        }
-      }
-      res.json({
-        message: `Provisioned ${results.length} users successfully`,
-        results,
-        errors: errors.length > 0 ? errors : void 0
-      });
-    } catch (error) {
-      console.error("Bulk import error:", error);
-      res.status(500).json({ message: "Bulk import failed. Please try again." });
-    }
-  });
   app2.get("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const { classId } = req.query;
-      let students2 = [];
+      let students3 = [];
       if (classId && typeof classId === "string") {
-        students2 = await storage.getStudentsByClass(parseInt(classId));
+        students3 = await storage.getStudentsByClass(parseInt(classId));
       } else {
-        students2 = await storage.getAllStudents(true);
+        students3 = await storage.getAllStudents(true);
       }
-      res.json(students2);
+      res.json(students3);
     } catch (error) {
       console.error("Error fetching students:", error);
       res.status(500).json({ message: "Failed to fetch students" });
@@ -5557,7 +9098,7 @@ ${notificationBody}
   });
   app2.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
-      console.log("Creating student for email:", req.body.email);
+      console.log("Creating student with auto-generated credentials");
       const isValidDate = (dateString) => {
         const regex = /^\d{4}-\d{2}-\d{2}$/;
         if (!regex.test(dateString)) return false;
@@ -5574,23 +9115,42 @@ ${notificationBody}
         return true;
       };
       const sharedCreateStudentSchema = createStudentSchema.extend({
+        email: z2.string().email().optional(),
+        password: z2.string().min(6).optional(),
         dateOfBirth: createStudentSchema.shape.dateOfBirth.refine(isValidDate, "Invalid date of birth"),
         admissionDate: createStudentSchema.shape.admissionDate.refine(isValidDate, "Invalid admission date"),
         medicalInfo: z2.string().nullable().optional().transform((val) => val === null ? "" : val)
       });
-      for (const field of ["phone", "address", "medicalInfo", "parentId"]) {
+      for (const field of ["phone", "address", "medicalInfo", "parentId", "email", "password"]) {
         if (req.body[field] == null || req.body[field] === "") {
           delete req.body[field];
         }
       }
       const validatedData = sharedCreateStudentSchema.parse(req.body);
-      const existingUser = await storage.getUserByEmail(validatedData.email);
-      if (existingUser) {
-        return res.status(409).json({ message: "Email address already exists" });
+      const classInfo = await storage.getClass(validatedData.classId);
+      if (!classInfo) {
+        return res.status(400).json({ message: "Invalid class ID" });
       }
-      const passwordHash = await bcrypt.hash(validatedData.password, BCRYPT_ROUNDS);
+      const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
+      const { generateStudentUsername: generateStudentUsername6, generateStudentPassword: generateStudentPassword2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
+      const existingStudents = await storage.getAllStudents(true);
+      const existingUsernames = existingStudents.map((s) => s.admissionNumber).filter(Boolean);
+      const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear);
+      const generatedUsername = generateStudentUsername6(classInfo.name, currentYear, nextNumber);
+      const generatedPassword = generateStudentPassword2(currentYear);
+      let finalUsername = generatedUsername;
+      let attemptNumber = nextNumber;
+      let existingUser = await storage.getUserByUsername(finalUsername);
+      while (existingUser) {
+        attemptNumber++;
+        finalUsername = generateStudentUsername6(classInfo.name, currentYear, attemptNumber);
+        existingUser = await storage.getUserByUsername(finalUsername);
+      }
+      const passwordHash = await bcrypt2.hash(generatedPassword, BCRYPT_ROUNDS);
       const userData = {
-        email: validatedData.email,
+        email: `${finalUsername.toLowerCase()}@internal.ths`,
+        // Internal placeholder only - not used for login
+        username: finalUsername,
         passwordHash,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
@@ -5602,36 +9162,100 @@ ${notificationBody}
         profileImageUrl: validatedData.profileImageUrl || null,
         roleId: ROLES.STUDENT,
         // Always set to student role
-        isActive: true
+        isActive: true,
+        mustChangePassword: true,
+        // ✅ Student must change password on first login
+        status: "active",
+        authProvider: "local"
       };
-      console.log("Creating user for student...");
+      console.log("Creating user for student with username:", generatedUsername);
       const user = await storage.createUser(userData);
       console.log("User created with ID:", user.id);
       try {
+        let parentId2 = validatedData.parentId || null;
+        let parentCredentials = null;
+        let parentCreated = false;
+        if (validatedData.parentPhone && !parentId2) {
+          console.log("\u{1F50D} Checking for existing parent account by phone...");
+          let existingParent = null;
+          const allParents = await storage.getUsersByRole(ROLES.PARENT);
+          existingParent = allParents.find((p) => p.phone === validatedData.parentPhone);
+          if (existingParent) {
+            console.log("\u2705 Found existing parent by phone, linking to student");
+            parentId2 = existingParent.id;
+          } else {
+            console.log("\u{1F195} No existing parent found, auto-creating parent account");
+            const parentUsername = generateUsername(
+              ROLES.PARENT,
+              currentYear,
+              "",
+              getNextUserNumber(await storage.getAllUsernames(), ROLES.PARENT, currentYear)
+            );
+            const parentPassword = generatePassword(currentYear);
+            const parentPasswordHash = await bcrypt2.hash(parentPassword, BCRYPT_ROUNDS);
+            const parentData = {
+              username: parentUsername,
+              email: `${parentUsername.toLowerCase()}@internal.ths`,
+              // Internal placeholder - not used for login
+              passwordHash: parentPasswordHash,
+              firstName: validatedData.guardianName?.split(" ")[0] || validatedData.firstName,
+              lastName: validatedData.guardianName?.split(" ").slice(1).join(" ") || `Parent`,
+              phone: validatedData.parentPhone || null,
+              roleId: ROLES.PARENT,
+              isActive: true,
+              mustChangePassword: true,
+              status: "active",
+              authProvider: "local",
+              createdVia: "admin",
+              createdBy: req.user?.id
+            };
+            const parentUser = await storage.createUser(parentData);
+            parentId2 = parentUser.id;
+            parentCreated = true;
+            parentCredentials = {
+              username: parentUsername,
+              password: parentPassword
+            };
+            console.log("\u2705 Parent account created:", parentUsername);
+          }
+        }
         const studentData = {
           id: user.id,
           // Use the same ID as the user
-          admissionNumber: validatedData.admissionNumber,
+          admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, "0")}`,
+          // THS/25/001 format
           classId: validatedData.classId,
-          parentId: validatedData.parentId || null,
+          parentId: parentId2,
           admissionDate: validatedData.admissionDate,
-          // Store exact YYYY-MM-DD string
           emergencyContact: validatedData.emergencyContact,
-          medicalInfo: validatedData.medicalInfo || null
+          medicalInfo: validatedData.medicalInfo || null,
+          guardianName: validatedData.guardianName || null
         };
         console.log("Creating student record...");
         const student = await storage.createStudent(studentData);
-        console.log("Student created successfully");
-        res.json({
-          message: "Student created successfully",
+        console.log("Student created successfully with credentials");
+        const response = {
+          message: parentCreated ? "Student and Parent accounts created successfully" : "Student created successfully",
           student,
           user: {
             id: user.id,
             email: user.email,
+            username: finalUsername,
             firstName: user.firstName,
             lastName: user.lastName
+          },
+          credentials: {
+            student: {
+              username: finalUsername,
+              password: generatedPassword
+            }
           }
-        });
+        };
+        if (parentCreated && parentCredentials) {
+          response.credentials.parent = parentCredentials;
+          response.parentCreated = true;
+        }
+        res.json(response);
       } catch (studentError) {
         console.error("Student creation failed, rolling back user:", studentError);
         try {
@@ -5687,2317 +9311,669 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to create student" });
     }
   });
-  app2.patch("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log(`Updating student ${id}`);
-      const { password, email, firstName, lastName, phone, address, dateOfBirth, gender, profileImageUrl, ...studentData } = req.body;
-      let userPatch = {};
-      if (email !== void 0) userPatch.email = email;
-      if (firstName !== void 0) userPatch.firstName = firstName;
-      if (lastName !== void 0) userPatch.lastName = lastName;
-      if (phone !== void 0) userPatch.phone = phone;
-      if (address !== void 0) userPatch.address = address;
-      if (dateOfBirth !== void 0) userPatch.dateOfBirth = dateOfBirth;
-      if (gender !== void 0) userPatch.gender = gender;
-      if (profileImageUrl !== void 0) userPatch.profileImageUrl = profileImageUrl;
-      if (password && password.length >= 6) {
-        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-        userPatch.passwordHash = passwordHash;
-      }
-      let studentPatch = {};
-      if (studentData.admissionNumber !== void 0) studentPatch.admissionNumber = studentData.admissionNumber;
-      if (studentData.classId !== void 0) studentPatch.classId = studentData.classId;
-      if (studentData.parentId !== void 0) studentPatch.parentId = studentData.parentId;
-      if (studentData.admissionDate !== void 0) studentPatch.admissionDate = studentData.admissionDate;
-      if (studentData.emergencyContact !== void 0) studentPatch.emergencyContact = studentData.emergencyContact;
-      if (studentData.medicalInfo !== void 0) studentPatch.medicalInfo = studentData.medicalInfo;
-      if (email) {
-        const existingUser = await storage.getUserByEmail(email);
-        if (existingUser && existingUser.id !== id) {
-          return res.status(409).json({ message: "Email address already exists" });
-        }
-      }
-      if (studentPatch.admissionNumber) {
-        const existingStudent = await storage.getStudentByAdmissionNumber(studentPatch.admissionNumber);
-        if (existingStudent && existingStudent.id !== id) {
-          return res.status(409).json({ message: "Admission number already exists" });
-        }
-      }
-      const result = await storage.updateStudent(id, {
-        userPatch: Object.keys(userPatch).length > 0 ? userPatch : void 0,
-        studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : void 0
-      });
-      if (!result) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-      const { passwordHash: _, ...userResponse } = result.user;
-      res.json({
-        message: "Student updated successfully",
-        user: userResponse,
-        student: result.student
-      });
-    } catch (error) {
-      console.error("Error updating student:", error);
-      if (error?.code) {
-        switch (error.code) {
-          case "23503":
-            if (error.message.includes("class_id")) {
-              return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
-            } else if (error.message.includes("parent_id")) {
-              return res.status(400).json({ message: "Selected parent does not exist. Please select a valid parent." });
-            }
-            return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
-          case "23505":
-            if (error.message.includes("email")) {
-              return res.status(409).json({ message: "Email address already exists" });
-            } else if (error.message.includes("admission_number")) {
-              return res.status(409).json({ message: "Admission number already exists" });
-            }
-            return res.status(409).json({ message: "Duplicate value detected" });
-          default:
-            console.error("Database error:", error.code, error.message);
-        }
-      }
-      res.status(500).json({ message: "Failed to update student" });
-    }
-  });
-  app2.patch("/api/students/:id/block", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { isActive } = req.body;
-      if (typeof isActive !== "boolean") {
-        return res.status(400).json({ message: "isActive must be a boolean value" });
-      }
-      console.log(`${isActive ? "Unblocking" : "Blocking"} student ${id}`);
-      const result = await storage.setUserActive(id, isActive);
-      if (!result) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-      res.json({
-        message: `Student ${isActive ? "unblocked" : "blocked"} successfully`,
-        user: { id: result.id, isActive: result.isActive }
-      });
-    } catch (error) {
-      console.error("Error blocking/unblocking student:", error);
-      res.status(500).json({ message: "Failed to update student status" });
-    }
-  });
-  app2.delete("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log(`Hard deleting student ${id}`);
-      const success = await storage.hardDeleteStudent(id);
-      if (!success) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-      res.json({
-        message: "Student deleted successfully",
-        status: "deleted"
-      });
-    } catch (error) {
-      console.error("Error deleting student:", error);
-      res.status(500).json({ message: "Failed to delete student" });
-    }
-  });
-  app2.get("/api/classes", authenticateUser, async (req, res) => {
-    try {
-      const classes2 = await storage.getClasses();
-      res.json(classes2);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch classes" });
-    }
-  });
-  app2.post("/api/classes", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const classData = {
-        name: req.body.name,
-        level: req.body.level,
-        classTeacherId: req.body.classTeacherId,
-        capacity: req.body.capacity
-      };
-      const classObj = await storage.createClass(classData);
-      res.json(classObj);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid class data" });
-    }
-  });
-  app2.put("/api/classes/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const classData = {
-        name: req.body.name,
-        level: req.body.level,
-        classTeacherId: req.body.classTeacherId,
-        capacity: req.body.capacity
-      };
-      const classObj = await storage.updateClass(parseInt(id), classData);
-      if (!classObj) {
-        return res.status(404).json({ message: "Class not found" });
-      }
-      res.json(classObj);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid class data" });
-    }
-  });
-  app2.delete("/api/classes/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteClass(parseInt(id));
-      if (!success) {
-        return res.status(404).json({ message: "Class not found" });
-      }
-      res.json({ message: "Class deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete class" });
-    }
-  });
-  app2.get("/api/subjects", authenticateUser, async (req, res) => {
-    try {
-      const subjects2 = await storage.getSubjects();
-      res.json(subjects2);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch subjects" });
-    }
-  });
-  app2.post("/api/subjects", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const subjectData = {
-        name: req.body.name,
-        code: req.body.code,
-        description: req.body.description
-      };
-      const subject = await storage.createSubject(subjectData);
-      res.json(subject);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid subject data" });
-    }
-  });
-  app2.put("/api/subjects/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const subjectData = {
-        name: req.body.name,
-        code: req.body.code,
-        description: req.body.description
-      };
-      const subject = await storage.updateSubject(parseInt(id), subjectData);
-      if (!subject) {
-        return res.status(404).json({ message: "Subject not found" });
-      }
-      res.json(subject);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid subject data" });
-    }
-  });
-  app2.delete("/api/subjects/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteSubject(parseInt(id));
-      if (!success) {
-        return res.status(404).json({ message: "Subject not found" });
-      }
-      res.json({ message: "Subject deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete subject" });
-    }
-  });
-  app2.post("/api/attendance", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const attendanceData = insertAttendanceSchema.parse(req.body);
-      const attendance2 = await storage.recordAttendance(attendanceData);
-      res.json(attendance2);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid attendance data" });
-    }
-  });
-  app2.get("/api/attendance/:studentId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const { date: date2 } = req.query;
-      const attendance2 = await storage.getAttendanceByStudent(
-        studentId,
-        typeof date2 === "string" ? date2 : void 0
-      );
-      res.json(attendance2);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch attendance" });
-    }
-  });
-  app2.get("/api/attendance/class/:classId", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { classId } = req.params;
-      const { date: date2 } = req.query;
-      if (!date2 || typeof date2 !== "string") {
-        return res.status(400).json({ message: "Date parameter is required" });
-      }
-      const attendance2 = await storage.getAttendanceByClass(parseInt(classId), date2);
-      res.json(attendance2);
-    } catch (error) {
-      console.error("Error fetching class attendance:", error);
-      res.status(500).json({ message: "Failed to fetch class attendance" });
-    }
-  });
-  app2.get("/api/student/attendance", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-      const studentId = req.user.id;
-      const { month, year } = req.query;
-      const attendance2 = await storage.getAttendanceByStudent(studentId, void 0);
-      let filteredAttendance = attendance2;
-      if (month !== void 0 && year !== void 0) {
-        filteredAttendance = attendance2.filter((record) => {
-          const recordDate = new Date(record.date);
-          return recordDate.getMonth() === parseInt(month) && recordDate.getFullYear() === parseInt(year);
-        });
-      }
-      res.json(filteredAttendance);
-    } catch (error) {
-      console.error("Error fetching student attendance:", error);
-      res.status(500).json({ message: "Failed to fetch attendance" });
-    }
-  });
-  app2.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      console.log("Exam creation request body:", JSON.stringify(req.body, null, 2));
-      const sanitizedBody = { ...req.body };
-      const optionalNumericFields = ["timeLimit", "passingScore"];
-      const optionalDateFields = ["startTime", "endTime"];
-      const optionalTextFields = ["instructions"];
-      [...optionalNumericFields, ...optionalDateFields, ...optionalTextFields].forEach((field) => {
-        if (sanitizedBody[field] === "") {
-          sanitizedBody[field] = void 0;
-        }
-      });
-      if (sanitizedBody.classId) sanitizedBody.classId = Number(sanitizedBody.classId);
-      if (sanitizedBody.subjectId) sanitizedBody.subjectId = Number(sanitizedBody.subjectId);
-      if (sanitizedBody.termId) sanitizedBody.termId = Number(sanitizedBody.termId);
-      if (sanitizedBody.totalMarks) sanitizedBody.totalMarks = Number(sanitizedBody.totalMarks);
-      console.log("Sanitized exam data:", JSON.stringify(sanitizedBody, null, 2));
-      const examData = insertExamSchema.omit({ createdBy: true }).parse(sanitizedBody);
-      console.log("Parsed exam data:", JSON.stringify(examData, null, 2));
-      const examWithCreator = { ...examData, createdBy: req.user.id };
-      console.log("Final exam data with creator:", JSON.stringify(examWithCreator, null, 2));
-      const exam = await storage.createExam(examWithCreator);
-      res.json(exam);
-    } catch (error) {
-      console.error("Exam creation error:", error);
-      if (error instanceof Error) {
-        let message = "Invalid exam data";
-        let details = error.message;
-        if (error.message.includes("positive")) {
-          message = "Please check required fields: class, subject, term, and total marks must be selected/filled";
-        } else if (error.message.includes("date")) {
-          message = "Invalid date format - please use a valid date in YYYY-MM-DD format";
-        } else if (error.message.includes("foreign key")) {
-          message = "Invalid reference data - please ensure valid class, subject, and term are selected";
-        }
-        res.status(400).json({ message, details });
-      } else {
-        res.status(400).json({ message: "Invalid exam data" });
-      }
-    }
-  });
-  app2.get("/api/exams", authenticateUser, async (req, res) => {
-    try {
-      const user = req.user;
-      let exams2 = [];
-      console.log(`Fetching exams for user: ${user.email} (role: ${user.roleId})`);
-      if (user.roleId === ROLES.STUDENT) {
-        const student = await storage.getStudent(user.id);
-        console.log(`Student data:`, student);
-        if (student && student.classId) {
-          const classExams = await storage.getExamsByClass(student.classId);
-          console.log(`Found ${classExams.length} exams for class ${student.classId}`);
-          exams2 = classExams.filter((exam) => exam.isPublished);
-          console.log(`Filtered to ${exams2.length} published exams for student`);
-        } else {
-          console.log("Student not found or has no class assigned");
-        }
-      } else {
-        if (user.roleId === ROLES.TEACHER) {
-          const allExams = await storage.getAllExams();
-          exams2 = allExams.filter((exam) => exam.createdBy === user.id);
-          console.log(`Teacher sees ${exams2.length} exams they created`);
-        } else {
-          exams2 = await storage.getAllExams();
-          console.log(`Admin sees all ${exams2.length} exams`);
-        }
-      }
-      res.json(exams2);
-    } catch (error) {
-      console.error("Error fetching exams:", error);
-      res.status(500).json({ message: "Failed to fetch exams" });
-    }
-  });
-  app2.get("/api/exams/class/:classId", authenticateUser, async (req, res) => {
-    try {
-      const { classId } = req.params;
-      const exams2 = await storage.getExamsByClass(parseInt(classId));
-      res.json(exams2);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exams for class" });
-    }
-  });
-  app2.get("/api/exams/:id", authenticateUser, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const exam = await storage.getExamById(parseInt(id));
-      if (!exam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      res.json(exam);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exam" });
-    }
-  });
-  app2.put("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const existingExam = await storage.getExamById(parseInt(id));
-      if (!existingExam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      if (req.user.roleId === ROLES.TEACHER && existingExam.createdBy !== req.user.id) {
-        return res.status(403).json({ message: "You can only modify exams you created" });
-      }
-      const examData = insertExamSchema.partial().parse(req.body);
-      const exam = await storage.updateExam(parseInt(id), examData);
-      if (!exam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      res.json(exam);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid exam data" });
-    }
-  });
-  app2.delete("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const existingExam = await storage.getExamById(parseInt(id));
-      if (!existingExam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      if (req.user.roleId === ROLES.TEACHER && existingExam.createdBy !== req.user.id) {
-        return res.status(403).json({ message: "You can only delete exams you created" });
-      }
-      const success = await storage.deleteExam(parseInt(id));
-      if (!success) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting exam:", error);
-      res.status(500).json({ message: "Failed to delete exam", error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-  app2.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { options, ...questionData } = req.body;
-      if (questionData.questionType) {
-        questionData.questionType = String(questionData.questionType).toLowerCase().replace(/[-\s]/g, "_");
-      }
-      const validatedQuestion = insertExamQuestionSchema.parse(questionData);
-      let validatedOptions = [];
-      if (validatedQuestion.questionType === "multiple_choice") {
-        if (!options || !Array.isArray(options) || options.length < 2) {
-          return res.status(400).json({ message: "Multiple choice questions require at least 2 options" });
-        }
-        const hasCorrectAnswer = options.some((option) => option.isCorrect === true);
-        if (!hasCorrectAnswer) {
-          return res.status(400).json({ message: "Multiple choice questions require at least one correct answer" });
-        }
-        try {
-          validatedOptions = options.map((option) => createQuestionOptionSchema.parse(option));
-        } catch (optionError) {
-          return res.status(400).json({
-            message: "Invalid option data",
-            details: optionError instanceof ZodError ? optionError.errors : optionError
-          });
-        }
-      }
-      const question = await storage.createExamQuestionWithOptions(validatedQuestion, validatedOptions);
-      res.json(question);
-    } catch (error) {
-      console.error("Question creation error:", error);
-      let message = "Invalid question data";
-      let details = "";
-      if (error instanceof Error) {
-        details = error.message;
-        if (error.message.includes("options")) {
-          message = "Invalid question options - multiple choice questions need at least 2 options with one marked as correct";
-        } else if (error.message.includes("questionText")) {
-          message = "Question text is required and must be at least 5 characters";
-        } else if (error.message.includes("questionType")) {
-          message = "Invalid question type - must be multiple_choice, text, or essay";
-        } else if (error.message.includes("foreign key")) {
-          message = "Invalid exam reference - please ensure the exam exists and you have permission to add questions";
-        }
-      }
-      res.status(400).json({ message, details });
-    }
-  });
-  app2.get("/api/exam-questions/:examId", authenticateUser, async (req, res) => {
-    try {
-      const user = req.user;
-      const { examId } = req.params;
-      if (user.roleId === ROLES.STUDENT) {
-        const activeSession = await storage.getActiveExamSession(parseInt(examId), user.id);
-        if (!activeSession) {
-          return res.status(403).json({ message: "No active exam session. Start the exam first." });
-        }
-        if (activeSession.isCompleted) {
-          return res.status(403).json({ message: "Exam session has been completed" });
-        }
-      } else {
-        if (user.roleId === ROLES.TEACHER) {
-          const exam = await storage.getExamById(parseInt(examId));
-          if (!exam || exam.createdBy !== user.id) {
-            return res.status(403).json({ message: "Teachers can only view questions for their own exams" });
-          }
-        }
-      }
-      const questions = await storage.getExamQuestions(parseInt(examId));
-      if (user.roleId === ROLES.STUDENT) {
-        const studentQuestions = questions.map((q) => ({
-          ...q,
-          correctAnswer: void 0,
-          // Hide correct answers during exam
-          explanation: void 0
-          // Hide explanations during exam
-        }));
-        res.json(studentQuestions);
-      } else {
-        res.json(questions);
-      }
-    } catch (error) {
-      console.error("Error fetching exam questions:", error);
-      res.status(500).json({ message: "Failed to fetch exam questions" });
-    }
-  });
-  app2.put("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const questionData = insertExamQuestionSchema.partial().parse(req.body);
-      const question = await storage.updateExamQuestion(parseInt(id), questionData);
-      if (!question) {
-        return res.status(404).json({ message: "Question not found" });
-      }
-      res.json(question);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid question data" });
-    }
-  });
-  app2.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteExamQuestion(parseInt(id));
-      if (!deleted) {
-        return res.status(404).json({ message: "Question not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting exam question:", error);
-      res.status(500).json({ message: "Failed to delete question", error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-  app2.get("/api/exams/question-counts", authenticateUser, async (req, res) => {
-    try {
-      const raw = req.query.examIds;
-      if (!raw) {
-        return res.status(400).json({ message: "examIds parameter is required" });
-      }
-      const ids = (Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : []).map((x) => parseInt(String(x), 10)).filter(Number.isFinite);
-      if (ids.length === 0) {
-        return res.status(400).json({ message: "No valid exam IDs provided" });
-      }
-      console.log("Fetching question counts for exam IDs:", ids);
-      const questionCounts = {};
-      for (const examId of ids) {
-        try {
-          const count = await storage.getExamQuestionCount(examId);
-          questionCounts[examId] = count;
-        } catch (examError) {
-          console.warn(`Failed to get count for exam ${examId}:`, examError);
-          questionCounts[examId] = 0;
-        }
-      }
-      console.log("Question counts result:", questionCounts);
-      res.json(questionCounts);
-    } catch (error) {
-      console.error("Error fetching question counts:", error);
-      res.status(500).json({ message: "Failed to fetch question counts" });
-    }
-  });
-  app2.patch("/api/exams/:id/publish", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const user = req.user;
-      const { id } = req.params;
-      const { isPublished } = req.body;
-      const exam = await storage.getExamById(parseInt(id));
-      if (!exam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      if (user.roleId === ROLES.TEACHER && exam.createdBy !== user.id) {
-        return res.status(403).json({ message: "You can only publish exams you created" });
-      }
-      const updatedExam = await storage.updateExam(parseInt(id), { isPublished });
-      if (!updatedExam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      res.json(updatedExam);
-    } catch (error) {
-      console.error("Error updating exam publish status:", error);
-      res.status(500).json({ message: "Failed to update exam publish status" });
-    }
-  });
-  app2.get("/api/grading/tasks", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { teacher_id, status } = req.query;
-      if (!teacher_id) {
-        return res.status(400).json({ message: "teacher_id parameter is required" });
-      }
-      const gradingTasks2 = await storage.getGradingTasks(teacher_id, status);
-      res.json(gradingTasks2);
-    } catch (error) {
-      console.error("Error fetching grading tasks:", error);
-      res.status(500).json({ message: "Failed to fetch grading tasks" });
-    }
-  });
-  app2.post("/api/grading/tasks/:taskId/grade", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { taskId } = req.params;
-      const { score, comment, graderId } = req.body;
-      if (!score && score !== 0) {
-        return res.status(400).json({ message: "Score is required" });
-      }
-      if (!comment || comment.trim().length < 5) {
-        return res.status(400).json({ message: "Comment must be at least 5 characters" });
-      }
-      const result = await storage.submitManualGrade({
-        taskId: parseInt(taskId),
-        score: parseFloat(score),
-        comment: comment.trim(),
-        graderId: graderId || req.user?.id
-      });
-      console.log("\u{1F504} SCORE MERGE: Manual grade submitted for answer", taskId);
-      mergeExamScores(parseInt(taskId), storage).catch((error) => {
-        console.error("\u274C SCORE MERGE: Failed to merge scores (non-blocking):", error);
-      });
-      res.json(result);
-    } catch (error) {
-      console.error("Error submitting grade:", error);
-      res.status(500).json({ message: "Failed to submit grade" });
-    }
-  });
-  app2.get("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const sessions = await storage.getAllExamSessions();
-      res.json(sessions);
-    } catch (error) {
-      console.error("Error fetching exam sessions:", error);
-      res.status(500).json({ message: "Failed to fetch exam sessions" });
-    }
-  });
-  app2.get("/api/exam-reports", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const { subject, class: classId } = req.query;
-      const reports = await storage.getExamReports({
-        subjectId: subject ? parseInt(subject) : void 0,
-        classId: classId ? parseInt(classId) : void 0
-      });
-      res.json(reports);
-    } catch (error) {
-      console.error("Error fetching exam reports:", error);
-      res.status(500).json({ message: "Failed to fetch exam reports" });
-    }
-  });
-  app2.get("/api/exam-reports/:examId/students", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const { examId } = req.params;
-      const studentReports = await storage.getExamStudentReports(parseInt(examId));
-      res.json(studentReports);
-    } catch (error) {
-      console.error("Error fetching student reports:", error);
-      res.status(500).json({ message: "Failed to fetch student reports" });
-    }
-  });
-  app2.get("/api/exam-reports/filters", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const classes2 = await storage.getClasses();
-      const subjects2 = await storage.getSubjects();
-      res.json({ classes: classes2, subjects: subjects2 });
-    } catch (error) {
-      console.error("Error fetching filter options:", error);
-      res.status(500).json({ message: "Failed to fetch filter options" });
-    }
-  });
-  app2.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const user = req.user;
-      const { examId, questions } = req.body;
-      if (!examId || !questions || !Array.isArray(questions)) {
-        return res.status(400).json({ message: "Exam ID and questions array are required" });
-      }
-      if (questions.length > 100) {
-        return res.status(400).json({ message: "Too many questions - maximum 100 questions per upload" });
-      }
-      if (questions.length === 0) {
-        return res.status(400).json({ message: "No questions provided for upload" });
-      }
-      const exam = await storage.getExamById(examId);
-      if (!exam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      if (user.roleId === ROLES.TEACHER && exam.createdBy !== user.id) {
-        return res.status(403).json({ message: "You can only add questions to exams you created" });
-      }
-      const existingQuestions = await storage.getExamQuestions(examId);
-      const maxOrder = existingQuestions.length > 0 ? Math.max(...existingQuestions.map((q) => q.orderNumber || 0)) : 0;
-      let createdQuestions = [];
-      let validationErrors = [];
-      for (let i = 0; i < questions.length; i++) {
-        const questionData = questions[i];
-        try {
-          if (questionData.questionType) {
-            questionData.questionType = String(questionData.questionType).toLowerCase().replace(/[-\s]/g, "_");
-          }
-          const validatedQuestion = insertExamQuestionSchema.parse({
-            examId,
-            questionText: questionData.questionText,
-            questionType: questionData.questionType,
-            points: questionData.points || 1,
-            orderNumber: maxOrder + i + 1
-          });
-          if (validatedQuestion.questionType === "multiple_choice") {
-            if (!questionData.options || !Array.isArray(questionData.options) || questionData.options.length < 2) {
-              validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least 2 options`);
-              continue;
-            }
-            const hasCorrectAnswer = questionData.options.some((option) => option.isCorrect === true);
-            if (!hasCorrectAnswer) {
-              validationErrors.push(`Question ${i + 1}: Multiple choice questions require at least one correct answer`);
-              continue;
-            }
-            try {
-              questionData.options = questionData.options.map((option) => createQuestionOptionSchema.parse(option));
-            } catch (optionError) {
-              if (optionError instanceof ZodError) {
-                const fieldErrors = optionError.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ");
-                validationErrors.push(`Question ${i + 1} options: ${fieldErrors}`);
-              } else {
-                validationErrors.push(`Question ${i + 1} options: Invalid option data`);
-              }
-              continue;
-            }
-          }
-          questions[i] = { ...questionData, validatedQuestion };
-        } catch (error) {
-          console.log(`Question ${i + 1} validation error:`, error);
-          if (error instanceof ZodError) {
-            const fieldErrors = error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ");
-            validationErrors.push(`Question ${i + 1}: ${fieldErrors}`);
-          } else {
-            validationErrors.push(`Question ${i + 1}: ${error instanceof Error ? error.message : "Invalid question data"}`);
-          }
-        }
-      }
-      if (validationErrors.length > 0) {
-        return res.status(400).json({
-          message: "Validation errors found",
-          errors: validationErrors
-        });
-      }
-      const questionsData = questions.map((questionData) => ({
-        question: questionData.validatedQuestion,
-        options: questionData.options || []
-      }));
-      const result = await storage.createExamQuestionsBulk(questionsData);
-      createdQuestions = result.questions;
-      if (result.errors.length > 0) {
-        console.warn("\u26A0\uFE0F Some questions failed during bulk upload:", result.errors);
-      }
-      res.json({
-        message: `Successfully created ${result.created} questions${result.errors.length > 0 ? ` (${result.errors.length} failed)` : ""}`,
-        created: result.created,
-        questions: result.questions,
-        errors: result.errors.length > 0 ? result.errors : void 0
-      });
-    } catch (error) {
-      console.error("Bulk question upload error:", error);
-      res.status(500).json({ message: "Failed to upload questions" });
-    }
-  });
-  app2.post("/api/question-options", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const optionData = insertQuestionOptionSchema.parse(req.body);
-      const option = await storage.createQuestionOption(optionData);
-      res.json(option);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid option data" });
-    }
-  });
-  app2.get("/api/question-options/bulk", authenticateUser, async (req, res) => {
-    try {
-      const user = req.user;
-      const { questionIds } = req.query;
-      if (!questionIds) {
-        return res.status(400).json({ message: "questionIds parameter is required" });
-      }
-      const questionIdArray = questionIds.split(",").map((id) => parseInt(id.trim())).filter((id) => !isNaN(id));
-      if (questionIdArray.length === 0) {
-        return res.status(400).json({ message: "Valid questionIds are required" });
-      }
-      if (user.roleId === ROLES.STUDENT) {
-        const allActiveSession = await storage.getExamSessionsByStudent(user.id);
-        const hasActiveSession = allActiveSession.some((session2) => !session2.isCompleted);
-        if (!hasActiveSession) {
-          return res.status(403).json({ message: "No active exam session. Start an exam first." });
-        }
-      }
-      const allOptions = await storage.getQuestionOptionsBulk(questionIdArray);
-      const isStudentOrParent = user.roleId >= 3;
-      if (isStudentOrParent) {
-        const sanitizedOptions = allOptions.map((option) => {
-          const { isCorrect, ...sanitizedOption } = option;
-          return sanitizedOption;
-        });
-        res.json(sanitizedOptions);
-      } else {
-        res.json(allOptions);
-      }
-    } catch (error) {
-      console.error("Error in bulk question options:", error);
-      res.status(500).json({ message: "Failed to fetch question options" });
-    }
-  });
-  app2.get("/api/question-options/:questionId", authenticateUser, async (req, res) => {
-    try {
-      const user = req.user;
-      const { questionId } = req.params;
-      if (user.roleId === ROLES.STUDENT) {
-        const questions = await storage.getExamQuestions(0);
-        const allActiveSession = await storage.getExamSessionsByStudent(user.id);
-        const hasActiveSession = allActiveSession.some((session2) => !session2.isCompleted);
-        if (!hasActiveSession) {
-          return res.status(403).json({ message: "No active exam session. Start an exam first." });
-        }
-      } else {
-        if (user.roleId === ROLES.TEACHER) {
-        }
-      }
-      const options = await storage.getQuestionOptions(parseInt(questionId));
-      const isStudentOrParent = user.roleId >= 3;
-      if (isStudentOrParent) {
-        const sanitizedOptions = options.map((option) => {
-          const { isCorrect, ...sanitizedOption } = option;
-          return sanitizedOption;
-        });
-        res.json(sanitizedOptions);
-      } else {
-        res.json(options);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch question options" });
-    }
-  });
-  app2.post("/api/comprehensive-grades", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const {
-        studentId,
-        subjectId,
-        termId,
-        testScore,
-        testMaxScore = 40,
-        // Default to 40 for test marks
-        examScore,
-        examMaxScore = 60,
-        // Default to 60 for exam marks
-        totalScore,
-        grade,
-        teacherRemarks,
-        recordedBy
-      } = req.body;
-      if (!studentId || !subjectId || !termId) {
-        return res.status(400).json({ message: "Student, subject, and term are required" });
-      }
-      if (testScore !== null && testScore < 0 || testScore > testMaxScore) {
-        return res.status(400).json({ message: "Invalid test score. Score must be between 0 and max test score." });
-      }
-      if (examScore !== null && examScore < 0 || examScore > examMaxScore) {
-        return res.status(400).json({ message: "Invalid exam score. Score must be between 0 and max exam score." });
-      }
-      if (totalScore !== null && (totalScore < 0 || totalScore > testMaxScore + examMaxScore)) {
-        return res.status(400).json({ message: "Invalid total score. Score must be between 0 and max total score." });
-      }
-      if (grade && !["A+", "A", "B+", "B", "C", "F"].includes(grade)) {
-        return res.status(400).json({ message: "Invalid grade. Allowed grades are A+, A, B+, B, C, F." });
-      }
-      const gradeData = {
-        studentId,
-        subjectId: parseInt(subjectId),
-        // Ensure IDs are numbers
-        termId: parseInt(termId),
-        testScore: testScore === null ? null : Number(testScore),
-        // Handle null scores
-        testMaxScore: Number(testMaxScore),
-        examScore: examScore === null ? null : Number(examScore),
-        examMaxScore: Number(examMaxScore),
-        totalScore: totalScore === null ? null : Number(totalScore),
-        grade: grade || null,
-        teacherRemarks: teacherRemarks || null,
-        recordedBy: recordedBy || req.user.id,
-        isFinalized: true,
-        // Assuming this endpoint is for finalized grades
-        recordedAt: /* @__PURE__ */ new Date()
-      };
-      const result = await storage.recordComprehensiveGrade(gradeData);
-      res.json({
-        message: "Comprehensive grade recorded successfully",
-        grade: result
-      });
-    } catch (error) {
-      console.error("Comprehensive grade recording error:", error);
-      res.status(500).json({
-        message: "Failed to record comprehensive grade",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.get("/api/comprehensive-grades/student/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const { termId } = req.query;
-      const numericTermId = termId ? parseInt(termId) : void 0;
-      if (termId && isNaN(numericTermId)) {
-        return res.status(400).json({ message: "Invalid termId format. Must be a number." });
-      }
-      const grades = await storage.getComprehensiveGradesByStudent(studentId, numericTermId);
-      res.json(grades);
-    } catch (error) {
-      console.error("Error fetching comprehensive grades:", error);
-      res.status(500).json({ message: "Failed to fetch comprehensive grades" });
-    }
-  });
-  app2.post("/api/report-cards/generate", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { studentId, termId, classId } = req.body;
-      if (!studentId || !termId || !classId) {
-        return res.status(400).json({ message: "Student ID, Term ID, and Class ID are required" });
-      }
-      const grades = await storage.getComprehensiveGradesByStudent(studentId, parseInt(termId));
-      const totalMarks = grades.reduce((sum, grade) => sum + (grade.totalScore || 0), 0);
-      const totalPossibleMarks = grades.reduce((sum, grade) => sum + (grade.testMaxScore || 0) + (grade.examMaxScore || 0), 0);
-      const averagePercentage = totalPossibleMarks > 0 ? Math.round(totalMarks / totalPossibleMarks * 100) : 0;
-      let overallGrade = "F";
-      if (averagePercentage >= 90) overallGrade = "A+";
-      else if (averagePercentage >= 80) overallGrade = "A";
-      else if (averagePercentage >= 70) overallGrade = "B+";
-      else if (averagePercentage >= 60) overallGrade = "B";
-      else if (averagePercentage >= 50) overallGrade = "C";
-      const student = await storage.getStudent(studentId);
-      const studentUser = student ? await storage.getUser(student.id) : null;
-      const classData = await storage.getClass(parseInt(classId));
-      const terms = await storage.getTerms();
-      const term = terms.find((t) => t.id === parseInt(termId));
-      const reportCardData = {
-        studentId,
-        classId: parseInt(classId),
-        termId: parseInt(termId),
-        averagePercentage,
-        overallGrade,
-        // Enhanced teacher remarks
-        teacherRemarks: `Overall performance: ${overallGrade}. Keep up the excellent work!`,
-        status: "finalized",
-        finalizedAt: /* @__PURE__ */ new Date(),
-        generatedBy: req.user.id,
-        // Add student and class details for context if needed, or fetch dynamically on display
-        studentName: studentUser ? `${studentUser.firstName} ${studentUser.lastName}` : "Unknown Student",
-        className: classData ? classData.name : "Unknown Class",
-        termName: term ? `${term.name} (${term.year})` : "Unknown Term"
-      };
-      const reportCard = await storage.createReportCard(reportCardData, grades);
-      res.json({
-        message: "Report card generated successfully",
-        reportCard,
-        grades
-        // Also return the grades used for generation
-      });
-    } catch (error) {
-      console.error("Report card generation error:", error);
-      res.status(500).json({
-        message: "Failed to generate report card",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.post("/api/exam-results", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { examId, studentId, score, maxScore, marksObtained, autoScored, recordedBy, questionDetails, breakdown, immediateResults } = req.body;
-      if (!examId || !studentId || score === void 0 || maxScore === void 0) {
-        return res.status(400).json({ message: "examId, studentId, score, and maxScore are required." });
-      }
-      const resultData = insertExamResultSchema.parse({
-        examId,
-        studentId,
-        score: Number(score),
-        maxScore: Number(maxScore),
-        marksObtained: marksObtained !== void 0 ? Number(marksObtained) : Number(score),
-        // Use score if marksObtained is not provided
-        autoScored: autoScored || false,
-        recordedBy: recordedBy || req.user.id,
-        questionDetails: questionDetails || [],
-        breakdown: breakdown || {},
-        immediateResults: immediateResults || {},
-        createdAt: /* @__PURE__ */ new Date(),
-        updatedAt: /* @__PURE__ */ new Date()
-      });
-      const existingResults = await storage.getExamResultsByStudent(studentId);
-      const existingResult = existingResults.find((r) => r.examId === examId);
-      let result;
-      if (existingResult) {
-        result = await storage.updateExamResult(existingResult.id, resultData);
-      } else {
-        result = await storage.recordExamResult(resultData);
-      }
-      if (!result) {
-        throw new Error("Failed to save exam result.");
-      }
-      res.json({
-        message: "Exam result saved successfully",
-        result
-      });
-    } catch (error) {
-      console.error("Error saving exam result:", error);
-      if (error instanceof z2.ZodError) {
-        return res.status(400).json({
-          message: "Invalid input data",
-          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
-        });
-      }
-      res.status(500).json({ message: "Failed to save exam result" });
-    }
-  });
-  app2.get("/api/exam-results/student/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const user = req.user;
-      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
-        return res.status(403).json({ message: "Students can only view their own exam results" });
-      }
-      const results = await storage.getExamResultsByStudent(studentId);
-      res.json(results);
-    } catch (error) {
-      console.error("Error fetching exam results for student:", error);
-      res.status(500).json({ message: "Failed to fetch exam results" });
-    }
-  });
-  app2.get("/api/exam-results/:id", authenticateUser, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const user = req.user;
-      const result = await storage.getExamResultById(parseInt(id));
-      if (!result) {
-        return res.status(404).json({ message: "Exam result not found" });
-      }
-      if (user.roleId === ROLES.STUDENT && user.id !== result.studentId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      res.json(result);
-    } catch (error) {
-      console.error("Error fetching exam result:", error);
-      res.status(500).json({ message: "Failed to fetch exam result" });
-    }
-  });
-  app2.put("/api/exam-results/:id", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { score, maxScore, remarks, questionDetails, breakdown, immediateResults, teacherFinalized, finalizedAt, finalizedBy, ...otherUpdates } = req.body;
-      const updateData = {};
-      if (score !== void 0) updateData.score = Number(score);
-      if (maxScore !== void 0) updateData.maxScore = Number(maxScore);
-      if (remarks !== void 0) updateData.remarks = remarks;
-      if (questionDetails !== void 0) updateData.questionDetails = questionDetails;
-      if (breakdown !== void 0) updateData.breakdown = breakdown;
-      if (immediateResults !== void 0) updateData.immediateResults = immediateResults;
-      if (teacherFinalized !== void 0) updateData.teacherFinalized = teacherFinalized;
-      if (finalizedAt !== void 0) updateData.finalizedAt = finalizedAt;
-      if (finalizedBy !== void 0) updateData.finalizedBy = finalizedBy;
-      Object.assign(updateData, otherUpdates);
-      if (updateData.score !== void 0) updateData.score = Number(updateData.score);
-      if (updateData.maxScore !== void 0) updateData.maxScore = Number(updateData.maxScore);
-      if (updateData.marksObtained !== void 0) updateData.marksObtained = Number(updateData.marksObtained);
-      const updatedResult = await storage.updateExamResult(parseInt(id), updateData);
-      if (!updatedResult) {
-        return res.status(404).json({ message: "Exam result not found" });
-      }
-      res.json(updatedResult);
-    } catch (error) {
-      console.error("Error updating exam result:", error);
-      res.status(500).json({ message: "Failed to update exam result" });
-    }
-  });
-  app2.get("/api/study-resources", authenticateUser, async (req, res) => {
-    try {
-      const { classId, subjectId, termId, resourceType } = req.query;
-      const user = req.user;
-      let filters = {};
-      if (user.roleId === ROLES.STUDENT) {
-        const student = await storage.getStudent(user.id);
-        if (student?.classId) {
-          filters.classId = student.classId;
-        }
-      } else {
-        if (classId) filters.classId = parseInt(classId);
-      }
-      if (subjectId) filters.subjectId = parseInt(subjectId);
-      if (termId) filters.termId = parseInt(termId);
-      if (resourceType) filters.resourceType = resourceType;
-      const resources = await storage.getStudyResources(filters);
-      res.json(resources);
-    } catch (error) {
-      console.error("Study resources fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch study resources" });
-    }
-  });
-  app2.get("/api/study-resources/:id", authenticateUser, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const resourceId = parseInt(id);
-      if (isNaN(resourceId)) {
-        return res.status(400).json({ message: "Invalid resource ID" });
-      }
-      const resource = await storage.getStudyResourceById(resourceId);
-      if (!resource) {
-        return res.status(404).json({ message: "Study resource not found" });
-      }
-      res.json(resource);
-    } catch (error) {
-      console.error("Study resource fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch study resource" });
-    }
-  });
-  app2.get("/api/study-resources/:id/download", authenticateUser, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const resource = await storage.getStudyResourceById(parseInt(id));
-      if (!resource) {
-        return res.status(404).json({ message: "Study resource not found" });
-      }
-      await storage.incrementStudyResourceDownloads(parseInt(id));
-      const filePath = path.join(process.cwd(), resource.fileUrl);
-      res.download(filePath, resource.fileName);
-    } catch (error) {
-      console.error("Study resource download error:", error);
-      res.status(500).json({ message: "Failed to download study resource" });
-    }
-  });
-  app2.delete("/api/study-resources/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const resource = await storage.getStudyResourceById(parseInt(id));
-      if (!resource) {
-        return res.status(404).json({ message: "Study resource not found" });
-      }
-      const filePath = path.join(process.cwd(), resource.fileUrl);
-      try {
-        await fs.unlink(filePath);
-      } catch (fileError) {
-        console.error("File deletion error:", fileError);
-      }
-      const success = await storage.deleteStudyResource(parseInt(id));
-      if (!success) {
-        return res.status(404).json({ message: "Failed to delete study resource record" });
-      }
-      res.json({ message: "Study resource deleted successfully" });
-    } catch (error) {
-      console.error("Study resource deletion error:", error);
-      res.status(500).json({ message: "Failed to delete study resource" });
-    }
-  });
-  app2.get("/api/homepage-content", async (req, res) => {
-    try {
-      const { contentType } = req.query;
-      let contentTypes = [];
-      if (contentType) {
-        if (Array.isArray(contentType)) {
-          contentTypes = contentType;
-        } else {
-          contentTypes = [contentType];
-        }
-      }
-      if (contentTypes.length === 0) {
-        const content = await storage.getHomePageContent();
-        return res.json(content);
-      }
-      const allContent = [];
-      for (const type of contentTypes) {
-        const content = await storage.getHomePageContent(type);
-        if (content && Array.isArray(content)) {
-          allContent.push(...content);
-        }
-      }
-      const uniqueContent = allContent.filter(
-        (item, index2, self) => index2 === self.findIndex((t) => t.id === item.id)
-      );
-      res.json(uniqueContent);
-    } catch (error) {
-      console.error("Home page content fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch home page content" });
-    }
-  });
-  app2.post("/api/homepage-content", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const contentData = insertHomePageContentSchema.parse(req.body);
-      const content = await storage.createHomePageContent(contentData);
-      res.json(content);
-    } catch (error) {
-      console.error("Home page content creation error:", error);
-      if (error instanceof z2.ZodError) {
-        return res.status(400).json({
-          message: "Invalid content data",
-          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
-        });
-      }
-      res.status(500).json({ message: "Failed to create home page content" });
-    }
-  });
-  app2.put("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const contentData = insertHomePageContentSchema.partial().parse(req.body);
-      const content = await storage.updateHomePageContent(parseInt(id), contentData);
-      if (!content) {
-        return res.status(404).json({ message: "Content not found" });
-      }
-      res.json(content);
-    } catch (error) {
-      console.error("Home page content update error:", error);
-      if (error instanceof z2.ZodError) {
-        return res.status(400).json({
-          message: "Invalid content data",
-          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
-        });
-      }
-      res.status(500).json({ message: "Failed to update home page content" });
-    }
-  });
-  app2.delete("/api/homepage-content/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const content = await storage.getHomePageContentById(parseInt(id));
-      if (!content) {
-        return res.status(404).json({ message: "Content not found" });
-      }
-      const deleted = await storage.deleteHomePageContent(parseInt(id));
-      if (!deleted) {
-        return res.status(404).json({ message: "Content not found" });
-      }
-      if (content.imageUrl) {
-        try {
-          const filePath = content.imageUrl.startsWith("/") ? content.imageUrl.substring(1) : content.imageUrl;
-          const fullPath = path.resolve(filePath);
-          try {
-            await fs.access(fullPath);
-            await fs.unlink(fullPath);
-            console.log(`Successfully deleted file: ${fullPath}`);
-          } catch (fileError) {
-            if (fileError.code === "ENOENT") {
-              console.warn(`File not found (already deleted?): ${fullPath}`);
-            } else {
-              console.error(`Failed to delete file ${fullPath}:`, fileError);
-            }
-          }
-        } catch (pathError) {
-          console.error("Error processing file path for deletion:", pathError);
-        }
-      }
-      res.json({ message: "Home page content deleted successfully" });
-    } catch (error) {
-      console.error("Home page content delete error:", error);
-      res.status(500).json({ message: "Failed to delete home page content" });
-    }
-  });
-  app2.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single("homePageImage"), async (req, res) => {
+  app2.post("/api/students/bulk-upload", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      const { contentType, altText, caption, displayOrder } = req.body;
-      if (!contentType) {
-        return res.status(400).json({ message: "Content type is required" });
+      const fileContent = await fs.readFile(req.file.path, "utf-8");
+      const lines = fileContent.split("\n").filter((line) => line.trim());
+      if (lines.length < 2) {
+        await fs.unlink(req.file.path);
+        return res.status(400).json({ message: "CSV file is empty or invalid" });
       }
-      const imageUrl = `/uploads/homepage/${req.file.filename}`;
-      const homePageContent2 = await storage.createHomePageContent({
-        contentType,
-        imageUrl,
-        altText: altText || null,
-        caption: caption || null,
-        displayOrder: displayOrder ? parseInt(displayOrder) : 0,
-        isActive: true,
-        uploadedBy: req.user.id
-      });
-      res.json({
-        message: "Home page image uploaded successfully",
-        content: homePageContent2
-      });
-    } catch (error) {
-      console.error("Home page upload error:", error);
-      res.status(500).json({ message: "Failed to upload home page image" });
-    }
-  });
-  app2.get("/api/debug/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const allRoles = await storage.getRoles();
-      const allUsers = [];
-      for (const role of allRoles) {
-        const users2 = await storage.getUsersByRole(role.id);
-        for (const user of users2) {
-          allUsers.push({
-            id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            roleId: user.roleId,
-            roleName: role.name
-          });
-        }
-      }
-      res.json(allUsers);
-    } catch (error) {
-      console.error("Debug users error:", error);
-      res.status(500).json({ message: "Failed to get users" });
-    }
-  });
-  app2.patch("/api/users/:id/role", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { roleId } = req.body;
-      if (!roleId || ![ROLES.STUDENT, ROLES.TEACHER, ROLES.PARENT, ROLES.ADMIN].includes(roleId)) {
-        return res.status(400).json({ message: "Invalid role ID" });
-      }
-      const updatedUser = await storage.updateUser(id, { roleId });
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      console.log(`Admin ${req.user.email} updated user ${id} roleId to ${roleId}`);
-      res.json({ message: "User role updated successfully", user: updatedUser });
-    } catch (error) {
-      console.error("User role update error:", error);
-      res.status(500).json({ message: "Failed to update user role" });
-    }
-  });
-  app2.get("/api/admin/performance-metrics", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { hours = 24 } = req.query;
-      const hoursNumber = parseInt(hours);
-      const metrics = await storage.getPerformanceMetrics(hoursNumber);
-      const recentAlerts = await storage.getRecentPerformanceAlerts(hoursNumber);
-      let currentStatus = "optimal";
-      let recommendations = ["System performing optimally"];
-      if (metrics.goalAchievementRate < 80) {
-        currentStatus = "critical";
-        recommendations = [
-          "Performance below acceptable threshold",
-          "Consider database optimization",
-          "Review exam submission timeouts"
-        ];
-      } else if (metrics.goalAchievementRate < 95) {
-        currentStatus = "warning";
-        recommendations = [
-          "Performance needs attention",
-          "Monitor slow submissions",
-          "Background cleanup active"
-        ];
-      }
-      const performanceStatus = {
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        submissionGoal: 2e3,
-        // 2 seconds in milliseconds
-        currentStatus,
-        systemHealth: {
-          database: "connected",
-          backgroundCleanup: "running",
-          averageSubmissionTime: `${metrics.averageDuration}ms`
-        },
-        metrics: {
-          totalSubmissionsToday: metrics.totalEvents,
-          goalAchievementRate: `${metrics.goalAchievementRate}%`,
-          averageQueryTime: `${metrics.averageDuration}ms`,
-          slowSubmissions: metrics.slowSubmissions,
-          eventsByType: metrics.eventsByType
-        },
-        recentPerformanceAlerts: recentAlerts,
-        recommendations
-      };
-      res.json(performanceStatus);
-    } catch (error) {
-      console.error("Performance metrics error:", error);
-      res.status(500).json({ message: "Failed to retrieve performance metrics" });
-    }
-  });
-  app2.get("/api/admin/performance-alerts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { hours = 24 } = req.query;
-      const hoursNumber = parseInt(hours);
-      const alerts = await storage.getRecentPerformanceAlerts(hoursNumber);
-      res.json({
-        alerts,
-        summary: {
-          totalAlerts: alerts.length,
-          timeframe: `${hoursNumber} hours`,
-          timestamp: (/* @__PURE__ */ new Date()).toISOString()
-        }
-      });
-    } catch (error) {
-      console.error("Performance alerts error:", error);
-      res.status(500).json({ message: "Failed to retrieve performance alerts" });
-    }
-  });
-  app2.post("/api/test-auto-scoring", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { sessionId } = req.body;
-      if (!sessionId) {
-        return res.status(400).json({ message: "sessionId is required" });
-      }
-      console.log(`\u{1F9EA} ADMIN TEST: Testing auto-scoring for session ${sessionId}`);
-      const session2 = await storage.getExamSessionById(sessionId);
-      if (!session2) {
-        return res.status(404).json({ message: `Exam session ${sessionId} not found` });
-      }
-      console.log(`\u{1F4CA} Testing session: ${session2.id}, Student: ${session2.studentId}, Exam: ${session2.examId}, Completed: ${session2.isCompleted}`);
-      const startTime = Date.now();
-      try {
-        await autoScoreExamSession(sessionId, storage);
-        const totalTime = Date.now() - startTime;
-        console.log(`\u2705 AUTO-SCORING TEST SUCCESS: Completed in ${totalTime}ms`);
-        const results = await storage.getExamResultsByStudent(session2.studentId);
-        const testResult = results.find((r) => r.examId === session2.examId && r.autoScored === true);
-        if (testResult) {
-          console.log(`\u{1F389} VERIFIED: Auto-scored result found - ${testResult.score}/${testResult.maxScore}`);
-          return res.json({
-            success: true,
-            message: "Auto-scoring test completed successfully",
-            testDetails: {
-              sessionId,
-              studentId: session2.studentId,
-              examId: session2.examId,
-              duration: totalTime,
-              result: {
-                score: testResult.score,
-                maxScore: testResult.maxScore,
-                autoScored: testResult.autoScored,
-                resultId: testResult.id
-              }
-            }
-          });
-        } else {
-          console.warn(`\u26A0\uFE0F AUTO-SCORING COMPLETED but no auto-scored result found`);
-          return res.json({
-            success: false,
-            message: "Auto-scoring completed but no auto-scored result was found",
-            testDetails: {
-              sessionId,
-              duration: totalTime,
-              allResults: results.filter((r) => r.examId === session2.examId)
-            }
-          });
-        }
-      } catch (scoringError) {
-        const totalTime = Date.now() - startTime;
-        console.error(`\u274C AUTO-SCORING TEST FAILED after ${totalTime}ms:`, scoringError);
-        return res.status(500).json({
-          success: false,
-          message: "Auto-scoring test failed",
-          error: scoringError instanceof Error ? scoringError.message : String(scoringError),
-          testDetails: {
-            sessionId,
-            duration: totalTime,
-            errorType: scoringError instanceof Error ? scoringError.constructor.name : "UnknownError"
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Test auto-scoring endpoint error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to run auto-scoring test",
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-  app2.post("/api/performance-events", authenticateUser, async (req, res) => {
-    try {
-      const { sessionId, eventType, duration, metadata } = req.body;
-      const user = req.user;
-      if (!eventType || typeof duration !== "number") {
-        return res.status(400).json({ message: "eventType and duration are required" });
-      }
-      const sanitizedMetadata = metadata ? JSON.stringify(metadata).substring(0, 2e3) : null;
-      const performanceEvent = {
-        sessionId: sessionId || null,
-        eventType,
-        duration: Math.max(0, duration),
-        // Ensure positive duration
-        goalAchieved: duration <= 2e3,
-        metadata: sanitizedMetadata,
-        userId: user.id,
-        // Track which user generated the event
-        clientSide: true,
-        // Flag this as client-side telemetry
-        createdAt: /* @__PURE__ */ new Date()
-      };
-      const savedEvent = await storage.logPerformanceEvent(performanceEvent);
-      if (process.env.NODE_ENV === "development") {
-        console.log("\u{1F4CA} PERFORMANCE EVENT STORED:", JSON.stringify(savedEvent, null, 2));
-      }
-      if (duration > 2e3) {
-        console.warn(`\u{1F6A8} PERFORMANCE ALERT: ${eventType} took ${duration}ms (exceeded 2-second goal)`);
-        if (metadata) {
-          console.warn(`\u{1F50D} METADATA:`, JSON.stringify(metadata, null, 2));
-        }
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Performance event logging error:", error);
-      res.status(500).json({ message: "Failed to log performance event" });
-    }
-  });
-  app2.patch("/api/exam-results/:id/finalize", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { teacherRemarks, teacherFinalized, finalizedAt, finalizedBy } = req.body;
-      const existingResult = await storage.getExamResultById(parseInt(id));
-      if (!existingResult) {
-        return res.status(404).json({ message: "Exam result not found" });
-      }
-      const exam = await storage.getExamById(existingResult.examId);
-      if (!exam) {
-        return res.status(404).json({ message: "Associated exam not found" });
-      }
-      if (req.user.roleId === ROLES.TEACHER && exam.createdBy !== req.user.id) {
-        return res.status(403).json({ message: "You can only finalize results for exams you created" });
-      }
-      const updateData = {
-        remarks: teacherRemarks || existingResult.remarks
-      };
-      const updatedResult = await storage.updateExamResult(parseInt(id), updateData);
-      if (!updatedResult) {
-        return res.status(404).json({ message: "Failed to update exam result" });
-      }
-      res.json({
-        message: "Report finalized successfully",
-        result: updatedResult
-      });
-    } catch (error) {
-      console.error("Error finalizing report:", error);
-      res.status(500).json({ message: "Failed to finalize report" });
-    }
-  });
-  app2.get("/api/reports/finalized", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { classId, subjectId, termId } = req.query;
-      const user = req.user;
-      let results = [];
-      if (user.roleId === ROLES.TEACHER) {
-        const teacherExams = await storage.getAllExams();
-        const teacherExamIds = teacherExams.filter((exam) => exam.createdBy === user.id).map((exam) => exam.id);
-        if (teacherExamIds.length > 0) {
-          results = await storage.getFinalizedReportsByExams(teacherExamIds, {
-            classId: classId ? parseInt(classId) : void 0,
-            subjectId: subjectId ? parseInt(subjectId) : void 0,
-            termId: termId ? parseInt(termId) : void 0
-          });
-        }
-      } else {
-        results = await storage.getAllFinalizedReports({
-          classId: classId ? parseInt(classId) : void 0,
-          subjectId: subjectId ? parseInt(subjectId) : void 0,
-          termId: termId ? parseInt(termId) : void 0
-        });
-      }
-      res.json(results);
-    } catch (error) {
-      console.error("Error fetching finalized reports:", error);
-      res.status(500).json({ message: "Failed to fetch finalized reports" });
-    }
-  });
-  app2.post("/api/exam-sessions", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      const { examId, studentId } = req.body;
-      const user = req.user;
-      console.log("\u{1F4DD} Creating exam session:", { examId, studentId, userFromToken: user.id });
-      if (!examId || !studentId) {
-        return res.status(400).json({ message: "examId and studentId are required" });
-      }
-      if (studentId !== user.id) {
-        console.error("\u274C Authorization failure: Student trying to create session for another student:", { requestedStudentId: studentId, authenticatedUserId: user.id });
-        return res.status(403).json({ message: "Students can only create exam sessions for themselves" });
-      }
-      const exam = await storage.getExamById(examId);
-      if (!exam) {
-        console.error("\u274C Exam not found:", examId);
-        return res.status(404).json({ message: "Exam not found" });
-      }
-      console.log("\u{1F4CB} Exam details:", { id: exam.id, name: exam.name, isPublished: exam.isPublished, timeLimit: exam.timeLimit });
-      if (!exam.isPublished) {
-        console.error("\u274C Exam not published:", examId);
-        return res.status(403).json({ message: "Exam is not published" });
-      }
-      const existingSession = await storage.getActiveExamSession(examId, studentId);
-      if (existingSession && !existingSession.isCompleted) {
-        console.error("\u274C Student already has active session:", { sessionId: existingSession.id, examId, studentId });
-        return res.status(409).json({
-          message: "You already have an active session for this exam",
-          sessionId: existingSession.id
-        });
-      }
-      const sessionData = {
-        examId: parseInt(examId),
-        studentId,
-        startedAt: /* @__PURE__ */ new Date(),
-        isCompleted: false,
-        status: "active",
-        timeRemaining: exam.timeLimit ? exam.timeLimit * 60 : null
-        // Convert minutes to seconds
-      };
-      console.log("\u{1F4BE} Creating session with data:", sessionData);
-      const session2 = await storage.createExamSession(sessionData);
-      if (!session2) {
-        console.error("\u274C Failed to create session - storage returned null");
-        return res.status(500).json({ message: "Failed to create exam session" });
-      }
-      console.log("\u2705 Exam session created successfully:", { sessionId: session2.id, examId, studentId });
-      res.json(session2);
-    } catch (error) {
-      console.error("\u274C Exam session creation error:", error);
-      if (error instanceof z2.ZodError) {
-        console.error("\u274C Validation error:", error.errors);
-        return res.status(400).json({
-          message: "Invalid session data",
-          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
-        });
-      }
-      if (error?.code) {
-        const dbError = error;
-        console.error("\u274C Database error:", { code: dbError.code, message: dbError.message });
-        if (dbError.code === "23503") {
-          return res.status(400).json({ message: "Invalid exam or student reference" });
-        }
-        if (dbError.code === "23505") {
-          return res.status(409).json({ message: "Session already exists for this exam" });
-        }
-      }
-      res.status(500).json({
-        message: "Failed to create exam session",
-        error: process.env.NODE_ENV === "development" ? error.message : void 0
-      });
-    }
-  });
-  app2.get("/api/exam-sessions/student/:studentId", authenticateUser, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const user = req.user;
-      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
-        return res.status(403).json({ message: "Students can only view their own exam sessions" });
-      }
-      const sessions = await storage.getExamSessionsByStudent(studentId);
-      res.json(sessions);
-    } catch (error) {
-      console.error("Error fetching exam sessions:", error);
-      res.status(500).json({ message: "Failed to fetch exam sessions" });
-    }
-  });
-  app2.get("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const user = req.user;
-      const session2 = await storage.getExamSessionById(parseInt(id));
-      if (!session2) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      if (user.roleId === ROLES.STUDENT && user.id !== session2.studentId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      res.json(session2);
-    } catch (error) {
-      console.error("Error fetching exam session:", error);
-      res.status(500).json({ message: "Failed to fetch exam session" });
-    }
-  });
-  app2.patch("/api/exam-sessions/:id", authenticateUser, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const user = req.user;
-      const updateData = req.body;
-      const session2 = await storage.getExamSessionById(parseInt(id));
-      if (!session2) {
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      if (user.roleId === ROLES.STUDENT && user.id !== session2.studentId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const validatedData = updateExamSessionSchema.parse(updateData);
-      const updatedSession = await storage.updateExamSession(parseInt(id), validatedData);
-      if (!updatedSession) {
-        return res.status(404).json({ message: "Failed to update exam session" });
-      }
-      res.json(updatedSession);
-    } catch (error) {
-      console.error("Error updating exam session:", error);
-      if (error instanceof z2.ZodError) {
-        return res.status(400).json({
-          message: "Invalid update data",
-          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
-        });
-      }
-      res.status(500).json({ message: "Failed to update exam session" });
-    }
-  });
-  app2.get("/api/exam-sessions/student/:studentId/active", authenticateUser, async (req, res) => {
-    try {
-      const user = req.user;
-      const { studentId } = req.params;
-      if (user.roleId === ROLES.STUDENT && studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const sessions = await storage.getExamSessionsByStudent(studentId);
-      const activeSession = sessions.find((session2) => !session2.isCompleted);
-      if (activeSession) {
-        const exam = await storage.getExamById(activeSession.examId);
-        res.json({
-          ...activeSession,
-          examName: exam?.name,
-          examTimeLimit: exam?.timeLimit,
-          examQuestionCount: await storage.getExamQuestionCount(activeSession.examId)
-        });
-      } else {
-        res.json(null);
-      }
-    } catch (error) {
-      console.error("Error checking active session:", error);
-      res.status(500).json({ message: "Failed to check active session" });
-    }
-  });
-  app2.patch("/api/exam-sessions/:id/progress", authenticateUser, async (req, res) => {
-    try {
-      const user = req.user;
-      const { id } = req.params;
-      const { currentQuestionIndex, timeRemaining } = req.body;
-      const session2 = await storage.getExamSessionById(parseInt(id));
-      if (!session2) {
-        return res.status(404).json({ message: "Session not found" });
-      }
-      if (user.roleId === ROLES.STUDENT && session2.studentId !== user.id) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const updates = {};
-      if (typeof timeRemaining === "number") updates.timeRemaining = timeRemaining;
-      if (typeof currentQuestionIndex === "number") {
-        updates.metadata = JSON.stringify({ currentQuestionIndex });
-      }
-      if (Object.keys(updates).length > 0) {
-        await storage.updateExamSession(parseInt(id), updates);
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error updating session progress:", error);
-      res.status(500).json({ message: "Failed to update session progress" });
-    }
-  });
-  app2.post("/api/student-answers", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      const user = req.user;
-      if (user.roleId !== ROLES.STUDENT) {
-        return res.status(403).json({ message: "Only students can submit answers" });
-      }
-      const answerData = insertStudentAnswerSchema.parse(req.body);
-      const session2 = await storage.getExamSessionById(answerData.sessionId);
-      if (!session2) {
-        console.error(`\u274C Session not found: ${answerData.sessionId}`);
-        return res.status(404).json({ message: "Exam session not found" });
-      }
-      if (session2.studentId !== user.id) {
-        console.error(`\u274C Student ${user.id} trying to submit for session ${answerData.sessionId} belonging to ${session2.studentId}`);
-        return res.status(403).json({ message: "You can only submit answers for your own exam session" });
-      }
-      if (session2.isCompleted) {
-        console.error(`\u274C Attempt to submit answer for completed session: ${answerData.sessionId}`);
-        return res.status(400).json({ message: "Cannot submit answers for a completed exam" });
-      }
-      const existingAnswers = await storage.getStudentAnswers(answerData.sessionId);
-      const existingAnswer = existingAnswers.find((a) => a.questionId === answerData.questionId);
-      let answer;
-      if (existingAnswer) {
-        console.log(`Updating existing answer for question ${answerData.questionId}`);
-        answer = await storage.updateStudentAnswer(existingAnswer.id, {
-          selectedOptionId: answerData.selectedOptionId,
-          textAnswer: answerData.textAnswer,
-          answeredAt: /* @__PURE__ */ new Date()
-        });
-        if (!answer) {
-          throw new Error("Failed to update existing answer");
-        }
-      } else {
-        console.log(`Creating new answer for question ${answerData.questionId}`);
-        answer = await storage.createStudentAnswer(answerData);
-      }
-      res.json(answer);
-    } catch (error) {
-      console.error("Student answer submission error:", error);
-      if (error instanceof z2.ZodError) {
-        return res.status(400).json({
-          message: "Invalid answer data",
-          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`)
-        });
-      }
-      if (error?.code === "23503") {
-        return res.status(400).json({ message: "Invalid question or session reference" });
-      } else if (error?.code === "23505") {
-        return res.status(409).json({ message: "Answer already exists for this question" });
-      } else if (error?.code === "ECONNRESET" || error?.code === "ETIMEDOUT") {
-        return res.status(408).json({ message: "Database connection timeout. Please try again." });
-      }
-      res.status(500).json({
-        message: "Failed to submit answer. Please try again.",
-        error: process.env.NODE_ENV === "development" ? error.message : void 0
-      });
-    }
-  });
-  async function createGradingTasksForSession(sessionId, examId, storage2) {
-    try {
-      console.log(`\u{1F4DD} Creating grading tasks for session ${sessionId}, exam ${examId}`);
-      const exam = await storage2.getExamById(examId);
-      if (!exam) {
-        throw new Error(`Exam ${examId} not found`);
-      }
-      const examQuestions2 = await storage2.getExamQuestions(examId);
-      const manualGradingQuestions = examQuestions2.filter((q) => {
-        return q.questionType !== "multiple_choice" && q.questionType !== "true_false";
-      });
-      if (manualGradingQuestions.length === 0) {
-        console.log(`\u2705 No manual grading questions found for exam ${examId}`);
-        return;
-      }
-      console.log(`\u{1F4DD} Found ${manualGradingQuestions.length} questions requiring manual grading`);
-      const studentAnswers2 = await storage2.getStudentAnswers(sessionId);
-      let assignedTeacherId = exam.createdBy;
-      if (exam.classId && exam.subjectId) {
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const createdStudents = [];
+      const errors = [];
+      for (let i = 1; i < lines.length; i++) {
         try {
-          const teachers = await storage2.getTeachersForClassSubject(exam.classId, exam.subjectId);
-          if (teachers && teachers.length > 0) {
-            assignedTeacherId = teachers[0].id;
-            console.log(`\u{1F468}\u200D\u{1F3EB} Assigning grading tasks to class-subject teacher: ${assignedTeacherId}`);
-          }
-        } catch (error) {
-          console.warn(`\u26A0\uFE0F Could not find class-subject teacher, using exam creator: ${error}`);
-        }
-      }
-      let tasksCreated = 0;
-      for (const question of manualGradingQuestions) {
-        const studentAnswer = studentAnswers2.find((a) => a.questionId === question.id);
-        if (studentAnswer) {
-          const existingTasks = await storage2.getGradingTasksBySession(sessionId);
-          const taskExists = existingTasks.some((t) => t.answerId === studentAnswer.id);
-          if (!taskExists) {
-            await storage2.createGradingTask({
-              sessionId,
-              answerId: studentAnswer.id,
-              assignedTeacherId,
-              status: "pending",
-              priority: 0
-              // Default priority
-            });
-            tasksCreated++;
-          }
-        }
-      }
-      console.log(`\u2705 Created ${tasksCreated} grading tasks for session ${sessionId}`);
-    } catch (error) {
-      console.error(`\u274C Error creating grading tasks for session ${sessionId}:`, error);
-      throw error;
-    }
-  }
-  app2.post("/api/exams/:examId/submit", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      const user = req.user;
-      const { examId } = req.params;
-      const examIdNum = parseInt(examId);
-      console.log(`\u{1F680} EXAM SUBMISSION: Student ${user.id} submitting exam ${examIdNum}`);
-      if (isNaN(examIdNum)) {
-        return res.status(400).json({ message: "Invalid exam ID" });
-      }
-      const activeSession = await storage.getActiveExamSession(examIdNum, user.id);
-      if (!activeSession) {
-        console.log(`\u274C No active session found for student ${user.id} exam ${examIdNum}`);
-        return res.status(404).json({ message: "No active exam session found" });
-      }
-      if (activeSession.isCompleted) {
-        console.log(`\u26A0\uFE0F Session ${activeSession.id} already completed`);
-        const existingResults = await storage.getExamResultsByStudent(user.id);
-        const examResult2 = existingResults.find((r) => r.examId === examIdNum);
-        if (examResult2) {
-          const maxScore = examResult2.maxScore || 100;
-          const score = examResult2.score || examResult2.marksObtained || 0;
-          return res.json({
-            submitted: true,
-            alreadySubmitted: true,
-            message: "Exam already submitted",
-            result: {
-              score,
-              maxScore,
-              percentage: maxScore > 0 ? Math.round(score / maxScore * 100) : 0,
-              autoScored: examResult2.autoScored || false
-            }
+          const values = lines[i].split(",").map((v) => v.trim());
+          const row = {};
+          headers.forEach((header, index2) => {
+            row[header] = values[index2] || "";
           });
-        }
-        return res.status(409).json({ message: "Exam session already completed" });
-      }
-      const now = /* @__PURE__ */ new Date();
-      await storage.updateExamSession(activeSession.id, {
-        isCompleted: true,
-        submittedAt: now,
-        status: "submitted"
-      });
-      console.log(`\u2705 Session ${activeSession.id} marked as completed`);
-      try {
-        await autoScoreExamSession(activeSession.id, storage);
-        console.log(`\u2705 Auto-scoring completed for session ${activeSession.id}`);
-      } catch (scoringError) {
-        console.error(`\u274C Auto-scoring failed for session ${activeSession.id}:`, scoringError);
-      }
-      try {
-        await createGradingTasksForSession(activeSession.id, examIdNum, storage);
-        console.log(`\u2705 Grading tasks created for session ${activeSession.id}`);
-      } catch (taskError) {
-        console.error(`\u274C Failed to create grading tasks for session ${activeSession.id}:`, taskError);
-      }
-      const results = await storage.getExamResultsByStudent(user.id);
-      const examResult = results.find((r) => r.examId === examIdNum);
-      if (examResult) {
-        const maxScore = examResult.maxScore || 100;
-        const score = examResult.score || examResult.marksObtained || 0;
-        const percentage = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
-        const response = {
-          submitted: true,
-          result: {
-            score,
-            totalScore: score,
-            // Dual field for compatibility
-            maxScore,
-            percentage,
-            sessionId: activeSession.id,
-            submittedAt: now,
-            autoScored: examResult.autoScored || false
+          const firstName = row["first name"] || row["firstname"];
+          const lastName = row["last name"] || row["lastname"];
+          const className = row["class"];
+          const gender = row["gender"];
+          const dateOfBirth = row["date of birth"] || row["dob"];
+          const parentEmail = row["parent email"] || row["parentemail"];
+          const parentPhone = row["parent phone"] || row["parentphone"];
+          if (!firstName || !lastName || !className) {
+            errors.push(`Row ${i + 1}: Missing required fields (first name, last name, or class)`);
+            continue;
           }
-        };
-        res.json(response);
-      } else {
-        res.json({
-          submitted: true,
-          message: "Exam submitted successfully. Results pending manual grading."
-        });
+          const classInfo = await storage.getClasses();
+          const matchingClass = classInfo.find(
+            (c) => c.name.toLowerCase() === className.toLowerCase()
+          );
+          if (!matchingClass) {
+            errors.push(`Row ${i + 1}: Class "${className}" not found`);
+            continue;
+          }
+          const classCode = matchingClass.name.replace(/\s+/g, "").toUpperCase().substring(0, 4);
+          const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
+          const nextNumber = await storage.getNextSequence(matchingClass.name, currentYear);
+          const username = generateStudentUsername5(matchingClass.name, currentYear, nextNumber);
+          const password = generateStudentPassword(currentYear);
+          const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
+          const userData = {
+            username,
+            email: `${username.toLowerCase()}@ths.edu.ng`,
+            // Auto-generated email
+            passwordHash,
+            mustChangePassword: true,
+            firstName,
+            lastName,
+            phone: null,
+            address: null,
+            dateOfBirth: dateOfBirth || null,
+            gender: gender?.toLowerCase() === "male" || gender?.toLowerCase() === "female" || gender?.toLowerCase() === "other" ? gender : null,
+            profileImageUrl: null,
+            roleId: ROLES.STUDENT,
+            isActive: true,
+            status: "active",
+            createdVia: "bulk",
+            createdBy: req.user?.id
+          };
+          const user = await storage.createUser(userData);
+          const studentData = {
+            id: user.id,
+            admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, "0")}`,
+            // THS/25/001 format
+            classId: matchingClass.id,
+            parentId: null,
+            // Will be updated below if parent is found or created
+            admissionDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+            // Current date as admission date
+            emergencyContact: parentPhone || null,
+            medicalInfo: null,
+            guardianName: parentId ? `${firstName} (Parent)` : null
+            // Placeholder for guardian name
+          };
+          await storage.createStudent(studentData);
+          createdStudents.push({
+            id: user.id,
+            firstName,
+            lastName,
+            username,
+            password,
+            // Return plaintext password for admin to share
+            email: userData.email,
+            class: matchingClass.name,
+            parentEmail: parentEmail || null
+          });
+        } catch (error) {
+          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
       }
-    } catch (error) {
-      console.error("\u274C Exam submission error:", error);
-      res.status(500).json({
-        message: "Failed to submit exam",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.get("/api/teacher-assignments", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
-    try {
-      const user = req.user;
-      const assignments = await storage.getTeacherClassAssignments(user.id);
-      res.json(assignments);
-    } catch (error) {
-      console.error("Error fetching teacher assignments:", error);
-      res.status(500).json({ message: "Failed to fetch assignments" });
-    }
-  });
-  app2.post("/api/teacher-assignments", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const assignment = await storage.createTeacherClassAssignment(req.body);
-      res.json(assignment);
-    } catch (error) {
-      console.error("Error creating teacher assignment:", error);
-      res.status(500).json({ message: "Failed to create assignment" });
-    }
-  });
-  app2.delete("/api/teacher-assignments/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const success = await storage.deleteTeacherClassAssignment(parseInt(req.params.id));
-      if (success) {
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ message: "Assignment not found" });
-      }
-    } catch (error) {
-      console.error("Error deleting teacher assignment:", error);
-      res.status(500).json({ message: "Failed to delete assignment" });
-    }
-  });
-  app2.get("/api/grading-tasks", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
-    try {
-      const user = req.user;
-      const status = req.query.status;
-      const tasks = await storage.getGradingTasksByTeacher(user.id, status);
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching grading tasks:", error);
-      res.status(500).json({ message: "Failed to fetch grading tasks" });
-    }
-  });
-  app2.post("/api/grading-tasks/:taskId/assign", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const taskId = parseInt(req.params.taskId);
-      const { teacherId } = req.body;
-      const task = await storage.assignGradingTask(taskId, teacherId);
-      if (task) {
-        res.json(task);
-      } else {
-        res.status(404).json({ message: "Task not found" });
-      }
-    } catch (error) {
-      console.error("Error assigning grading task:", error);
-      res.status(500).json({ message: "Failed to assign task" });
-    }
-  });
-  app2.patch("/api/grading-tasks/:taskId/status", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
-    try {
-      const taskId = parseInt(req.params.taskId);
-      const { status, completedAt } = req.body;
-      const task = await storage.updateGradingTaskStatus(taskId, status, completedAt);
-      if (task) {
-        res.json(task);
-      } else {
-        res.status(404).json({ message: "Task not found" });
-      }
-    } catch (error) {
-      console.error("Error updating task status:", error);
-      res.status(500).json({ message: "Failed to update task status" });
-    }
-  });
-  app2.post("/api/grading-tasks/:taskId/complete", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
-    try {
-      const taskId = parseInt(req.params.taskId);
-      const { pointsEarned, feedbackText } = req.body;
-      const user = req.user;
-      const result = await storage.completeGradingTask(taskId, pointsEarned, feedbackText);
-      if (result) {
-        await storage.createAuditLog({
-          userId: user.id,
-          entityType: "student_answer",
-          entityId: result.answer.id,
-          action: "manual_grade",
-          description: `Teacher manually graded question with ${pointsEarned} points`,
-          ipAddress: req.ip,
-          userAgent: req.get("user-agent")
-        });
-        res.json(result);
-      } else {
-        res.status(404).json({ message: "Task not found" });
-      }
-    } catch (error) {
-      console.error("Error completing grading task:", error);
-      res.status(500).json({ message: "Failed to complete grading task" });
-    }
-  });
-  app2.get("/api/exam-sessions/:sessionId/scores", authenticateUser, async (req, res) => {
-    try {
-      const sessionId = parseInt(req.params.sessionId);
-      const scoringData = await storage.getExamScoringData(sessionId);
+      await fs.unlink(req.file.path);
       res.json({
-        sessionId,
-        maxScore: scoringData.summary.maxScore,
-        studentScore: scoringData.summary.studentScore,
-        autoScoredQuestions: scoringData.summary.autoScoredQuestions,
-        totalQuestions: scoringData.summary.totalQuestions,
-        scoringData: scoringData.scoringData
+        message: `Successfully created ${createdStudents.length} students`,
+        students: createdStudents,
+        errors: errors.length > 0 ? errors : void 0
       });
     } catch (error) {
-      console.error("Error fetching merged scores:", error);
-      res.status(500).json({ message: "Failed to fetch scores" });
+      console.error("CSV upload error:", error);
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch {
+        }
+      }
+      res.status(500).json({ message: "Failed to process CSV file" });
     }
   });
-  app2.post("/api/report-cards/generate", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  app2.post("/api/admin/import/preview", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single("file"), async (req, res) => {
     try {
-      const { studentId, termId, examIds } = req.body;
-      const examResults2 = await storage.getExamResultsByStudent(studentId);
-      let filteredResults = examResults2;
-      if (termId) {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
       }
-      const reportData = filteredResults.map((result) => ({
-        ...result
-        // This is a simplified version - actual implementation would need to:
-        // 1. Identify if it's a test or exam
-        // 2. Apply appropriate weighting
-        // 3. Merge scores across test and exam
-      }));
+      const csvContent = await fs.readFile(req.file.path, "utf-8");
+      const { previewCSVImport: previewCSVImport2 } = await Promise.resolve().then(() => (init_csv_import_service(), csv_import_service_exports));
+      const preview = await previewCSVImport2(csvContent);
+      await fs.unlink(req.file.path);
+      res.json(preview);
+    } catch (error) {
+      console.error("CSV preview error:", error);
+      res.status(500).json({ message: error.message || "Failed to preview CSV" });
+    }
+  });
+  app2.post("/api/students/csv-preview", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const csvContent = await fs.readFile(req.file.path, "utf-8");
+      const { previewCSVImport: previewCSVImport2 } = await Promise.resolve().then(() => (init_csv_import_service(), csv_import_service_exports));
+      const preview = await previewCSVImport2(csvContent);
+      await fs.unlink(req.file.path);
+      res.json(preview);
+    } catch (error) {
+      console.error("CSV preview error:", error);
+      res.status(500).json({ message: error.message || "Failed to preview CSV" });
+    }
+  });
+  app2.post("/api/students/csv-commit", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { validRows } = req.body;
+      if (!validRows || !Array.isArray(validRows) || validRows.length === 0) {
+        return res.status(400).json({ message: "No valid rows to import" });
+      }
+      const { commitCSVImport: commitCSVImport2 } = await Promise.resolve().then(() => (init_csv_import_service(), csv_import_service_exports));
+      const adminUserId = req.user.id;
+      const result = await commitCSVImport2(validRows, adminUserId);
+      await storage.createAuditLog({
+        userId: adminUserId,
+        action: "bulk_student_import",
+        entityType: "student",
+        entityId: BigInt(0),
+        // Bulk operation
+        newValue: JSON.stringify({ count: result.successCount, failed: result.failedRows.length }),
+        reason: `Bulk imported ${result.successCount} students via CSV`,
+        ipAddress: req.ip || "unknown",
+        userAgent: req.headers["user-agent"] || null
+      });
       res.json({
-        studentId,
-        termId,
-        reportData
+        message: `Successfully imported ${result.successCount} students`,
+        successCount: result.successCount,
+        failedRows: result.failedRows,
+        credentials: result.credentials
       });
     } catch (error) {
-      console.error("Error generating report card:", error);
-      res.status(500).json({ message: "Failed to generate report card" });
+      console.error("CSV commit error:", error);
+      res.status(500).json({ message: error.message || "Failed to import students" });
     }
   });
-  app2.get("/api/report-cards/student/:studentId", authenticateUser, async (req, res) => {
+  app2.get("/api/students/:id", authenticateUser, async (req, res) => {
     try {
-      const studentId = req.params.studentId;
-      const user = req.user;
-      if (user.roleId === ROLES.STUDENT && user.id !== studentId) {
-        return res.status(403).json({ message: "Access denied" });
+      const studentId = req.params.id;
+      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: "Unauthorized" });
       }
-      const examResults2 = await storage.getExamResultsByStudent(studentId);
-      res.json(examResults2);
-    } catch (error) {
-      console.error("Error fetching report cards:", error);
-      res.status(500).json({ message: "Failed to fetch report cards" });
-    }
-  });
-  app2.get("/api/parent/:parentId/children", authenticateUser, authorizeRoles(ROLES.PARENT), async (req, res) => {
-    try {
-      const parentId = req.params.parentId;
-      const user = req.user;
-      if (user.id !== parentId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const children = await storage.getStudentsByParentId(parentId);
-      const childrenData = await Promise.all(children.map(async (student) => {
-        const user2 = await storage.getUser(student.id);
-        const classInfo = student.classId ? await storage.getClass(student.classId) : null;
-        return {
-          id: student.id,
-          name: `${user2?.firstName} ${user2?.lastName}`,
-          admissionNumber: student.admissionNumber,
-          className: classInfo?.name || "Not assigned"
-        };
-      }));
-      res.json(childrenData);
-    } catch (error) {
-      console.error("Error fetching parent children:", error);
-      res.status(500).json({ message: "Failed to fetch children" });
-    }
-  });
-  app2.get("/api/parent/child-reports/:studentId", authenticateUser, authorizeRoles(ROLES.PARENT), async (req, res) => {
-    try {
-      const studentId = req.params.studentId;
-      const user = req.user;
       const student = await storage.getStudent(studentId);
       if (!student) {
-        console.warn(`\u{1F512} Security: Parent ${user.id} attempted to access non-existent student ${studentId}`);
         return res.status(404).json({ message: "Student not found" });
       }
-      if (student.parentId !== user.id) {
-        console.warn(`\u{1F512} Security Alert: Parent ${user.id} attempted unauthorized access to student ${studentId} (belongs to ${student.parentId})`);
-        await storage.createAuditLog({
-          userId: user.id,
-          action: "unauthorized_access_attempt",
-          entityType: "student_report_cards",
-          entityId: 0,
-          newValue: `Attempted to access student ${studentId}`,
-          ipAddress: req.ip,
-          userAgent: req.get("user-agent")
-        });
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const reportCards2 = await storage.getReportCardsByStudentId(studentId);
-      const reportCardsData = await Promise.all(reportCards2.map(async (report) => {
-        const term = await storage.getAcademicTerm(report.termId);
-        const classInfo = await storage.getClass(report.classId);
-        const studentUser = await storage.getUser(studentId);
-        const items = await storage.getReportCardItems(report.id);
-        const itemsData = await Promise.all(items.map(async (item) => {
-          const subject = await storage.getSubject(item.subjectId);
-          return {
-            subjectName: subject?.name || "Unknown",
-            testScore: item.testScore,
-            testMaxScore: item.testMaxScore,
-            testWeightedScore: item.testWeightedScore,
-            examScore: item.examScore,
-            examMaxScore: item.examMaxScore,
-            examWeightedScore: item.examWeightedScore,
-            obtainedMarks: item.obtainedMarks,
-            percentage: item.percentage,
-            grade: item.grade,
-            teacherRemarks: item.teacherRemarks
-          };
-        }));
-        return {
-          id: report.id,
-          studentId,
-          studentName: `${studentUser?.firstName} ${studentUser?.lastName}`,
-          className: classInfo?.name || "Unknown",
-          termName: term?.name || "Unknown",
-          termYear: term?.year || "",
-          averagePercentage: report.averagePercentage,
-          overallGrade: report.overallGrade,
-          teacherRemarks: report.teacherRemarks,
-          status: report.status,
-          generatedAt: report.generatedAt,
-          items: itemsData
-        };
-      }));
-      res.json(reportCardsData);
+      res.json(student);
     } catch (error) {
-      console.error("Error fetching child report cards:", error);
-      res.status(500).json({ message: "Failed to fetch report cards" });
+      console.error("Error fetching student:", error);
+      res.status(500).json({ message: "Failed to fetch student data" });
     }
   });
-  app2.get("/api/report-cards/:reportId/pdf", authenticateUser, async (req, res) => {
+  app2.get("/api/students/:id/classes", authenticateUser, async (req, res) => {
     try {
-      const reportId = parseInt(req.params.reportId);
-      const user = req.user;
-      const report = await storage.getReportCard(reportId);
-      if (!report) {
-        return res.status(404).json({ message: "Report card not found" });
+      const studentId = req.params.id;
+      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+        return res.status(403).json({ message: "Unauthorized" });
       }
-      if (user.roleId === ROLES.PARENT) {
-        const student = await storage.getStudent(report.studentId);
-        if (!student) {
-          console.warn(`\u{1F512} Security: Parent ${user.id} attempted to access PDF for non-existent student ${report.studentId}`);
-          return res.status(404).json({ message: "Student not found" });
-        }
-        if (student.parentId !== user.id) {
-          console.warn(`\u{1F512} Security Alert: Parent ${user.id} attempted unauthorized PDF access to report ${reportId} for student ${report.studentId} (belongs to ${student.parentId})`);
-          await storage.createAuditLog({
-            userId: user.id,
-            action: "unauthorized_pdf_access_attempt",
-            entityType: "report_card",
-            entityId: reportId,
-            newValue: `Attempted to access student ${report.studentId}`,
-            ipAddress: req.ip,
-            userAgent: req.get("user-agent")
-          });
-          return res.status(403).json({ message: "Access denied" });
-        }
-      } else if (user.roleId === ROLES.STUDENT) {
-        if (user.id !== report.studentId) {
-          return res.status(403).json({ message: "Access denied" });
-        }
-      } else if (user.roleId !== ROLES.ADMIN && user.roleId !== ROLES.TEACHER) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const term = await storage.getAcademicTerm(report.termId);
-      const classInfo = await storage.getClass(report.classId);
-      const studentUser = await storage.getUser(report.studentId);
-      const items = await storage.getReportCardItems(report.id);
-      const itemsWithSubjects = await Promise.all(items.map(async (item) => {
-        const subject = await storage.getSubject(item.subjectId);
-        return {
-          ...item,
-          subjectName: subject?.name || "Unknown"
-        };
-      }));
-      const doc = new PDFDocument({
-        size: "A4",
-        margins: { top: 50, bottom: 50, left: 50, right: 50 }
-      });
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="report-card-${studentUser?.firstName}-${studentUser?.lastName}-${term?.name}-${term?.year}.pdf"`);
-      doc.pipe(res);
-      doc.fontSize(24).font("Helvetica-Bold").fillColor("#1e40af").text("Treasure-Home School", { align: "center" });
-      doc.fontSize(16).fillColor("#666666").text("Seriki-Soyinka Ifo, Ogun State, Nigeria", { align: "center" });
-      doc.moveDown(0.5);
-      doc.fontSize(20).fillColor("#1e40af").text("Student Report Card", { align: "center" });
-      doc.moveDown(1.5);
-      const infoBoxY = doc.y;
-      doc.fontSize(11).font("Helvetica").fillColor("#000000");
-      doc.text(`Student: ${studentUser?.firstName} ${studentUser?.lastName}`, 50, infoBoxY);
-      doc.text(`Class: ${classInfo?.name || "N/A"}`, 50, infoBoxY + 20);
-      doc.text(`Term: ${term?.name || "N/A"} ${term?.year || ""}`, 350, infoBoxY);
-      doc.text(`Date Generated: ${(/* @__PURE__ */ new Date()).toLocaleDateString()}`, 350, infoBoxY + 20);
-      doc.moveDown(2);
-      const summaryBoxY = doc.y;
-      doc.roundedRect(50, summaryBoxY, 495, 60, 5).fillAndStroke("#f0f9ff", "#3b82f6");
-      doc.fontSize(12).font("Helvetica-Bold").fillColor("#1e40af").text("Overall Performance", 60, summaryBoxY + 10);
-      doc.fontSize(11).font("Helvetica").fillColor("#000000");
-      doc.text(`Average: ${report.averagePercentage || 0}%`, 60, summaryBoxY + 30);
-      doc.text(`Grade: ${report.overallGrade || "N/A"}`, 250, summaryBoxY + 30);
-      doc.text(`Status: ${report.status}`, 400, summaryBoxY + 30);
-      doc.moveDown(3);
-      doc.fontSize(14).font("Helvetica-Bold").fillColor("#1e40af").text("Subject Performance", 50, doc.y);
-      doc.moveDown(0.5);
-      const tableTop = doc.y;
-      const colWidths = [180, 70, 70, 70, 80];
-      const colPositions = [50, 230, 300, 370, 440];
-      doc.fontSize(10).font("Helvetica-Bold").fillColor("#ffffff");
-      doc.rect(50, tableTop, 495, 25).fill("#3b82f6");
-      doc.text("Subject", colPositions[0] + 5, tableTop + 8);
-      doc.text("Test (40)", colPositions[1] + 5, tableTop + 8);
-      doc.text("Exam (60)", colPositions[2] + 5, tableTop + 8);
-      doc.text("Total (100)", colPositions[3] + 5, tableTop + 8);
-      doc.text("Grade", colPositions[4] + 5, tableTop + 8);
-      let rowY = tableTop + 30;
-      doc.fontSize(10).font("Helvetica").fillColor("#000000");
-      itemsWithSubjects.forEach((item, index2) => {
-        if (index2 % 2 === 0) {
-          doc.rect(50, rowY - 5, 495, 25).fill("#f8fafc");
-        }
-        doc.fillColor("#000000");
-        doc.text(item.subjectName, colPositions[0] + 5, rowY, { width: colWidths[0] - 10, lineBreak: false, ellipsis: true });
-        doc.text(`${item.testWeightedScore || 0}/40`, colPositions[1] + 5, rowY);
-        doc.text(`${item.examWeightedScore || 0}/60`, colPositions[2] + 5, rowY);
-        doc.text(`${item.obtainedMarks || 0}/100`, colPositions[3] + 5, rowY);
-        doc.text(item.grade || "N/A", colPositions[4] + 5, rowY);
-        rowY += 25;
-      });
-      doc.rect(50, tableTop, 495, rowY - tableTop).stroke("#cbd5e1");
-      if (report.teacherRemarks) {
-        doc.moveDown(2);
-        doc.fontSize(12).font("Helvetica-Bold").fillColor("#1e40af").text("Teacher's Remarks", 50, doc.y);
-        doc.fontSize(10).font("Helvetica").fillColor("#000000");
-        const remarksBoxY = doc.y + 10;
-        doc.roundedRect(50, remarksBoxY, 495, 60, 5).stroke("#cbd5e1");
-        doc.text(report.teacherRemarks, 60, remarksBoxY + 10, {
-          width: 475,
-          align: "left"
-        });
-      }
-      doc.fontSize(8).fillColor("#666666").text(
-        '\xA9 2024 Treasure-Home School | "Honesty and Success" | treasurehomeschool@gmail.com',
-        50,
-        doc.page.height - 30,
-        { align: "center", width: 495 }
-      );
-      doc.end();
+      const classes2 = await storage.getStudentClasses(studentId);
+      res.json(classes2);
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      res.status(500).json({ message: "Failed to generate PDF" });
+      console.error("Error fetching student classes:", error);
+      res.status(500).json({ message: "Failed to fetch classes" });
     }
   });
-  app2.get("/api/audit-logs", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app2.patch("/api/students/:id", authenticateUser, async (req, res) => {
     try {
-      const filters = {
-        userId: req.query.userId,
-        entityType: req.query.entityType,
-        entityId: req.query.entityId ? parseInt(req.query.entityId) : void 0,
-        action: req.query.action,
-        limit: req.query.limit ? parseInt(req.query.limit) : 100
+      const studentId = req.params.id;
+      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      const updates = req.body;
+      const updatedStudent = await storage.updateStudent(studentId, updates);
+      if (!updatedStudent) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      res.json(updatedStudent);
+    } catch (error) {
+      console.error("Error updating student:", error);
+      res.status(500).json({ message: "Failed to update student profile" });
+    }
+  });
+  app2.get("/api/student/profile/status", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const student = await storage.getStudent(studentId);
+      const status = {
+        hasProfile: !!student,
+        isComplete: !!(student?.phone && student?.address),
+        firstLogin: student?.firstLogin !== false
       };
-      const logs = await storage.getAuditLogs(filters);
-      res.json(logs);
+      res.json(status);
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
-      res.status(500).json({ message: "Failed to fetch audit logs" });
+      console.error("Error checking student profile status:", error);
+      res.status(500).json({ message: "Failed to check profile status" });
     }
   });
-  app2.get("/api/audit-logs/:entityType/:entityId", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.post("/api/student/profile/setup", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const { entityType, entityId } = req.params;
-      const logs = await storage.getAuditLogsByEntity(entityType, parseInt(entityId));
-      res.json(logs);
+      const studentId = req.user.id;
+      const profileData = req.body;
+      const updatedStudent = await storage.updateStudent(studentId, {
+        ...profileData,
+        firstLogin: false
+      });
+      if (!updatedStudent) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      res.json({
+        message: "Profile setup completed successfully",
+        student: updatedStudent
+      });
     } catch (error) {
-      console.error("Error fetching entity audit logs:", error);
-      res.status(500).json({ message: "Failed to fetch audit logs" });
+      console.error("Error setting up student profile:", error);
+      res.status(500).json({ message: "Failed to setup profile" });
     }
   });
+  const {
+    validateRegistrationData: validateRegistrationData2,
+    checkParentExists: checkParentExists2,
+    generateStudentUsername: generateStudentUsername5,
+    generateParentUsername: generateParentUsername3,
+    generateTempPassword: generateTempPassword3
+  } = await Promise.resolve().then(() => (init_registration_utils(), registration_utils_exports));
+  const { sendParentNotificationEmail: sendParentNotificationEmail2, sendParentNotificationSMS: sendParentNotificationSMS2 } = await Promise.resolve().then(() => (init_email_notifications(), email_notifications_exports));
+  const registrationAttempts = /* @__PURE__ */ new Map();
+  function checkRegistrationRateLimit(req, res, next) {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1e3;
+    const maxAttempts = 5;
+    const attempts = registrationAttempts.get(ip);
+    if (attempts) {
+      if (now - attempts.lastAttempt > windowMs) {
+        registrationAttempts.set(ip, { count: 1, lastAttempt: now });
+        return next();
+      }
+      if (attempts.count >= maxAttempts) {
+        return res.status(429).json({
+          message: "Too many registration attempts. Please try again in 10 minutes."
+        });
+      }
+      attempts.count++;
+      attempts.lastAttempt = now;
+    } else {
+      registrationAttempts.set(ip, { count: 1, lastAttempt: now });
+    }
+    next();
+  }
+  app2.post("/api/self-register/student/preview", checkRegistrationRateLimit, async (req, res) => {
+    try {
+      const data = req.body;
+      const errors = validateRegistrationData2(data);
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+      const suggestedUsername = await generateStudentUsername5(data.classCode);
+      const parentCheck = await checkParentExists2(data.parentEmail);
+      res.json({
+        suggestedUsername,
+        parentExists: parentCheck.exists,
+        errors: []
+      });
+    } catch (error) {
+      console.error("Error in registration preview:", error);
+      res.status(500).json({
+        errors: ["Failed to generate preview. Please try again."]
+      });
+    }
+  });
+  app2.post("/api/self-register/student/commit", checkRegistrationRateLimit, async (req, res) => {
+    try {
+      const { fullName, classCode, gender, dateOfBirth, parentEmail, parentPhone, password } = req.body;
+      const errors = validateRegistrationData2({ fullName, classCode, gender, dateOfBirth, parentEmail, parentPhone });
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+      if (!password || password.length < 6) {
+        return res.status(400).json({ errors: ["Password must be at least 6 characters"] });
+      }
+      try {
+        const setting = await storage.getSetting("allow_student_self_registration");
+        if (setting && setting.value === "false") {
+          return res.status(403).json({
+            errors: ["Student self-registration is currently disabled"]
+          });
+        }
+      } catch (error) {
+        console.warn("Could not check registration setting, allowing by default:", error);
+      }
+      const studentRole = await storage.getRoleByName("student");
+      const parentRole = await storage.getRoleByName("parent");
+      if (!studentRole || !parentRole) {
+        return res.status(500).json({ errors: ["System configuration error"] });
+      }
+      const nameParts = fullName.trim().split(" ");
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ") || firstName;
+      const studentUsername = await generateStudentUsername5(classCode);
+      let parentUserId;
+      let parentCreated = false;
+      let parentUsername;
+      let parentPassword;
+      const parentCheck = await checkParentExists2(parentEmail);
+      if (parentCheck.exists && parentCheck.userId) {
+        parentUserId = parentCheck.userId;
+      } else {
+        parentUsername = generateParentUsername3();
+        parentPassword = generateTempPassword3();
+        const parentPasswordHash = await bcrypt2.hash(parentPassword, 10);
+        const parentUser = await storage.createUser({
+          username: parentUsername,
+          email: parentEmail,
+          passwordHash: parentPasswordHash,
+          mustChangePassword: true,
+          roleId: parentRole.id,
+          firstName: `Parent of ${firstName}`,
+          lastName,
+          phone: parentPhone || "",
+          isActive: true,
+          status: "active",
+          createdVia: "self",
+          profileCompleted: false
+        });
+        parentUserId = parentUser.id;
+        parentCreated = true;
+        await storage.createParentProfile({
+          userId: parentUserId,
+          linkedStudents: []
+        });
+      }
+      const studentPasswordHash = await bcrypt2.hash(password, 10);
+      const studentUser = await storage.createUser({
+        username: studentUsername,
+        email: parentEmail,
+        // Use parent email for recovery
+        passwordHash: studentPasswordHash,
+        mustChangePassword: true,
+        roleId: studentRole.id,
+        firstName,
+        lastName,
+        dateOfBirth,
+        gender,
+        isActive: true,
+        status: "active",
+        createdVia: "self",
+        profileCompleted: false
+      });
+      const classes2 = await storage.getAllClasses();
+      const studentClass = classes2.find((c) => c.name === classCode);
+      await storage.createStudent({
+        id: studentUser.id,
+        admissionNumber: `ADM-${(/* @__PURE__ */ new Date()).getFullYear()}-${studentUsername.split("-").pop()}`,
+        classId: studentClass?.id || null,
+        parentId: parentUserId
+      });
+      const parentProfile = await storage.getParentProfile(parentUserId);
+      if (parentProfile) {
+        const linkedStudents = parentProfile.linkedStudents || [];
+        await storage.updateParentProfile(parentUserId, {
+          linkedStudents: [...linkedStudents, studentUser.id]
+        });
+      }
+      if (parentCreated && parentUsername && parentPassword) {
+        try {
+          if (parentEmail) {
+            await sendParentNotificationEmail2({
+              parentEmail,
+              parentUsername,
+              parentPassword,
+              studentName: fullName,
+              studentUsername
+            });
+          }
+          if (parentPhone) {
+            await sendParentNotificationSMS2(parentPhone, parentUsername, parentPassword);
+          }
+        } catch (error) {
+          console.error("Failed to send parent notification:", error);
+        }
+      }
+      await storage.createAuditLog({
+        userId: null,
+        action: "student_self_register",
+        entityType: "student",
+        entityId: 0,
+        oldValue: null,
+        newValue: JSON.stringify({ studentUsername, parentCreated, classCode }),
+        reason: "Student self-registration",
+        ipAddress: req.ip || req.socket.remoteAddress || "unknown"
+      });
+      res.json({
+        studentUsername,
+        parentCreated,
+        parentUsername: parentCreated ? parentUsername : void 0,
+        parentPassword: parentCreated ? parentPassword : void 0,
+        message: "Registration successful! Please save your credentials."
+      });
+    } catch (error) {
+      console.error("Error in registration commit:", error);
+      res.status(500).json({
+        errors: ["Registration failed. Please try again."]
+      });
+    }
+  });
+  app2.get("/api/self-register/status/:username", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({
+          exists: false,
+          message: "User not found"
+        });
+      }
+      res.json({
+        exists: true,
+        status: user.status,
+        mustChangePassword: user.mustChangePassword,
+        isActive: user.isActive
+      });
+    } catch (error) {
+      console.error("Error checking registration status:", error);
+      res.status(500).json({ message: "Failed to check status" });
+    }
+  });
+  app2.get("/api/vacancies", async (req, res) => {
+    try {
+      const status = req.query.status;
+      const vacancies2 = await storage.getAllVacancies(status);
+      res.json(vacancies2);
+    } catch (error) {
+      console.error("Error fetching vacancies:", error);
+      res.status(500).json({ message: "Failed to fetch vacancies" });
+    }
+  });
+  app2.get("/api/vacancies/:id", async (req, res) => {
+    try {
+      const vacancy = await storage.getVacancy(req.params.id);
+      if (!vacancy) {
+        return res.status(404).json({ message: "Vacancy not found" });
+      }
+      res.json(vacancy);
+    } catch (error) {
+      console.error("Error fetching vacancy:", error);
+      res.status(500).json({ message: "Failed to fetch vacancy" });
+    }
+  });
+  const teacherApplicationSchema = z2.object({
+    vacancyId: z2.string().optional().nullable(),
+    fullName: z2.string().min(1),
+    googleEmail: z2.string().email().regex(/@gmail\.com$/, "Must be a Gmail address"),
+    phone: z2.string().min(1),
+    subjectSpecialty: z2.string().min(1),
+    qualification: z2.string().min(1),
+    experienceYears: z2.number().min(0),
+    bio: z2.string().min(1),
+    resumeUrl: z2.string().optional().nullable()
+  });
+  app2.post("/api/teacher-applications", async (req, res) => {
+    try {
+      const validatedData = teacherApplicationSchema.parse(req.body);
+      const existingApplications = await storage.getAllTeacherApplications();
+      const existingApp = existingApplications.find(
+        (app3) => app3.googleEmail === validatedData.googleEmail && (app3.status === "pending" || app3.status === "approved")
+      );
+      if (existingApp) {
+        return res.status(400).json({
+          message: existingApp.status === "approved" ? "This email has already been approved" : "You already have a pending application"
+        });
+      }
+      const application = await storage.createTeacherApplication(validatedData);
+      const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      for (const admin of admins) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: "teacher_application",
+          title: "New Teacher Application",
+          message: `${validatedData.fullName} has applied for a teaching position`,
+          relatedEntityType: "teacher_application",
+          relatedEntityId: application.id
+        });
+      }
+      res.status(201).json({
+        message: "Application submitted successfully. You will be notified once reviewed.",
+        application
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Error submitting teacher application:", error);
+      res.status(500).json({ message: "Failed to submit application" });
+    }
+  });
+  app2.post("/api/admin/vacancies", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const vacancy = await storage.createVacancy({
+        ...req.body,
+        createdBy: req.user.id
+      });
+      res.status(201).json(vacancy);
+    } catch (error) {
+      console.error("Error creating vacancy:", error);
+      res.status(500).json({ message: "Failed to create vacancy" });
+    }
+  });
+  app2.patch("/api/admin/vacancies/:id/close", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const vacancy = await storage.updateVacancy(req.params.id, { status: "closed" });
+      if (!vacancy) {
+        return res.status(404).json({ message: "Vacancy not found" });
+      }
+      res.json(vacancy);
+    } catch (error) {
+      console.error("Error closing vacancy:", error);
+      res.status(500).json({ message: "Failed to close vacancy" });
+    }
+  });
+  app2.get("/api/admin/applications", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const status = req.query.status;
+      const applications = await storage.getAllTeacherApplications(status);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching teacher applications:", error);
+      res.status(500).json({ message: "Failed to fetch applications" });
+    }
+  });
+  app2.patch("/api/admin/applications/:id/status", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (status === "approved") {
+        const result = await storage.approveTeacherApplication(req.params.id, req.user.id);
+        const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
+        if (applicantUser) {
+          await storage.createNotification({
+            userId: applicantUser.id,
+            type: "application_approved",
+            title: "Application Approved",
+            message: "Your teacher application has been approved. You can now sign in with Google.",
+            relatedEntityType: "teacher_application",
+            relatedEntityId: result.application.id
+          });
+        }
+        res.json({
+          message: "Application approved successfully",
+          ...result
+        });
+      } else if (status === "rejected") {
+        const { reason } = req.body;
+        const application = await storage.rejectTeacherApplication(req.params.id, req.user.id, reason || "No reason provided");
+        if (!application) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+        res.json({
+          message: "Application rejected",
+          application
+        });
+      } else {
+        res.status(400).json({ message: "Invalid status" });
+      }
+    } catch (error) {
+      console.error("Error updating application:", error);
+      res.status(500).json({ message: "Failed to update application" });
+    }
+  });
+  app2.get("/api/admin/approved-teachers", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const approvedTeachers2 = await storage.getAllApprovedTeachers();
+      res.json(approvedTeachers2);
+    } catch (error) {
+      console.error("Error fetching approved teachers:", error);
+      res.status(500).json({ message: "Failed to fetch approved teachers" });
+    }
+  });
+  if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
+    app2.get("*", (req, res) => {
+      if (!req.path.startsWith("/api/") && !req.path.startsWith("/uploads/")) {
+        const frontendUrl = process.env.FRONTEND_URL;
+        res.status(200).send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Treasure Home School - Backend API</title>
+              <meta http-equiv="refresh" content="3;url=${frontendUrl}">
+              <style>
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  min-height: 100vh;
+                  margin: 0;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                }
+                .container {
+                  text-align: center;
+                  padding: 2rem;
+                  background: rgba(255, 255, 255, 0.1);
+                  border-radius: 12px;
+                  backdrop-filter: blur(10px);
+                }
+                h1 { margin: 0 0 1rem 0; }
+                a {
+                  color: #ffd700;
+                  text-decoration: none;
+                  font-weight: bold;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>\u{1F393} Treasure Home School</h1>
+                <p>This is the backend API server.</p>
+                <p>Redirecting you to the main website...</p>
+                <p><a href="${frontendUrl}">Click here if not redirected automatically</a></p>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+    });
+  }
   const httpServer = createServer(app2);
   return httpServer;
 }
@@ -8033,7 +10009,47 @@ var vite_config_default = defineConfig({
   root: path2.resolve(import.meta.dirname, "client"),
   build: {
     outDir: path2.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1e3,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          "query-vendor": ["@tanstack/react-query"],
+          "radix-ui": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-scroll-area"
+          ],
+          "radix-ui-forms": [
+            "@radix-ui/react-label",
+            "@radix-ui/react-checkbox",
+            "@radix-ui/react-radio-group",
+            "@radix-ui/react-slider",
+            "@radix-ui/react-switch"
+          ],
+          "radix-ui-misc": [
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-hover-card",
+            "@radix-ui/react-navigation-menu",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-tooltip"
+          ],
+          "supabase": ["@supabase/supabase-js"],
+          "form-vendor": ["react-hook-form", "@hookform/resolvers", "zod"],
+          "icons": ["lucide-react", "react-icons"],
+          "animation": ["framer-motion", "canvas-confetti"],
+          "charts": ["recharts"]
+        }
+      }
+    }
   },
   server: {
     host: "0.0.0.0",
@@ -8043,6 +10059,14 @@ var vite_config_default = defineConfig({
       strict: true,
       deny: ["**/.*"]
     }
+  },
+  define: {
+    // Auto-configure API URL based on environment
+    // Development (Replit/Localhost): Use empty string for same-origin requests
+    // Production (Vercel): Use VITE_API_URL env var (set to Render backend URL)
+    "import.meta.env.VITE_API_URL": JSON.stringify(
+      process.env.VITE_API_URL || ""
+    )
   }
 });
 
@@ -8107,22 +10131,298 @@ function serveStatic(app2) {
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
-  app2.use(express.static(distPath));
+  app2.use(express.static(distPath, {
+    maxAge: "1y",
+    // 1 year for versioned assets (Vite adds hashes to filenames)
+    etag: true,
+    lastModified: true,
+    immutable: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+      } else if (filePath.match(/\.(js|css|woff2?|ttf|eot)$/)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.match(/\.(jpg|jpeg|png|gif|svg|webp|ico)$/)) {
+        res.setHeader("Cache-Control", "public, max-age=86400");
+      }
+    }
+  }));
   app2.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.sendFile(path3.resolve(distPath, "index.html"));
   });
 }
 
 // server/index.ts
+init_storage();
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+
+// server/seed-terms.ts
+init_storage();
+init_schema();
+async function seedAcademicTerms() {
+  try {
+    console.log("\u{1F393} Checking for academic terms...");
+    const existingTerms = await exportDb.select().from(academicTerms);
+    if (existingTerms.length === 0) {
+      console.log("\u{1F4DA} No terms found. Creating default academic terms...");
+      const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+      const nextYear = currentYear + 1;
+      const academicYear = `${currentYear}/${nextYear}`;
+      const defaultTerms = [
+        {
+          name: "First Term",
+          year: academicYear,
+          startDate: `${currentYear}-09-01`,
+          endDate: `${currentYear}-12-15`,
+          isCurrent: true
+        },
+        {
+          name: "Second Term",
+          year: academicYear,
+          startDate: `${nextYear}-01-06`,
+          endDate: `${nextYear}-04-10`,
+          isCurrent: false
+        },
+        {
+          name: "Third Term",
+          year: academicYear,
+          startDate: `${nextYear}-04-21`,
+          endDate: `${nextYear}-07-18`,
+          isCurrent: false
+        }
+      ];
+      for (const term of defaultTerms) {
+        await exportDb.insert(academicTerms).values(term);
+        console.log(`\u2705 Created term: ${term.name} (${term.year})`);
+      }
+      console.log("\u{1F393} Academic terms seeded successfully!");
+    } else {
+      console.log(`\u2705 Found ${existingTerms.length} existing academic terms`);
+    }
+  } catch (error) {
+    console.error("\u274C Failed to seed academic terms:", error);
+    throw error;
+  }
+}
+
+// server/validate-env.ts
+var ENV_VARS = [
+  // Critical - Always Required
+  {
+    name: "DATABASE_URL",
+    required: "always",
+    description: "PostgreSQL connection string",
+    validateFn: (val) => val.startsWith("postgresql://") || val.startsWith("postgres://"),
+    suggestion: "postgresql://user:password@host:port/database"
+  },
+  // Critical - Production Required
+  {
+    name: "NODE_ENV",
+    required: "production",
+    description: "Environment mode (production/development)",
+    validateFn: (val) => ["production", "development"].includes(val),
+    suggestion: "production"
+  },
+  {
+    name: "JWT_SECRET",
+    required: "production",
+    description: "Secret for JWT token signing",
+    validateFn: (val) => val.length >= 32,
+    suggestion: "Generate with: openssl rand -base64 48"
+  },
+  {
+    name: "SESSION_SECRET",
+    required: "production",
+    description: "Secret for session encryption",
+    validateFn: (val) => val.length >= 32,
+    suggestion: "Generate with: openssl rand -base64 48"
+  },
+  {
+    name: "FRONTEND_URL",
+    required: "production",
+    description: "Frontend URL for CORS",
+    validateFn: (val) => val.startsWith("http://") || val.startsWith("https://"),
+    suggestion: "https://your-app.vercel.app"
+  },
+  {
+    name: "BACKEND_URL",
+    required: "production",
+    description: "Backend URL for redirects",
+    validateFn: (val) => val.startsWith("http://") || val.startsWith("https://"),
+    suggestion: "https://your-backend.onrender.com"
+  },
+  // Critical - Supabase Storage
+  {
+    name: "SUPABASE_URL",
+    required: "production",
+    description: "Supabase project URL for file storage",
+    validateFn: (val) => val.includes("supabase.co"),
+    suggestion: "https://your-project.supabase.co"
+  },
+  {
+    name: "SUPABASE_SERVICE_KEY",
+    required: "production",
+    description: "Supabase service role key for file storage",
+    validateFn: (val) => val.length > 50,
+    suggestion: "Get from Supabase Dashboard \u2192 Settings \u2192 API"
+  },
+  // Optional - Google OAuth
+  {
+    name: "GOOGLE_CLIENT_ID",
+    required: "optional",
+    description: "Google OAuth client ID",
+    suggestion: "Get from Google Cloud Console"
+  },
+  {
+    name: "GOOGLE_CLIENT_SECRET",
+    required: "optional",
+    description: "Google OAuth client secret",
+    suggestion: "Get from Google Cloud Console"
+  }
+];
+function validateEnvironment(exitOnError = false) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const result = {
+    missing: [],
+    invalid: [],
+    warnings: [],
+    passed: []
+  };
+  console.log("\n\u{1F50D} Validating Environment Variables...\n");
+  ENV_VARS.forEach((config) => {
+    const value = process.env[config.name];
+    const isRequired = config.required === "always" || config.required === "production" && isProduction;
+    if (!value) {
+      if (isRequired) {
+        result.missing.push(config.name);
+        console.error(`\u274C MISSING (${config.required.toUpperCase()}): ${config.name}`);
+        console.error(`   ${config.description}`);
+        if (config.suggestion) {
+          console.error(`   Suggestion: ${config.suggestion}`);
+        }
+      } else if (config.required === "optional") {
+        result.warnings.push(config.name);
+        console.warn(`\u26A0\uFE0F  OPTIONAL: ${config.name} not set`);
+        console.warn(`   ${config.description}`);
+      }
+      return;
+    }
+    if (config.validateFn && !config.validateFn(value)) {
+      result.invalid.push(config.name);
+      console.error(`\u274C INVALID: ${config.name}`);
+      console.error(`   ${config.description}`);
+      if (config.suggestion) {
+        console.error(`   Expected format: ${config.suggestion}`);
+      }
+      return;
+    }
+    result.passed.push(config.name);
+    const displayValue = config.name.includes("SECRET") || config.name.includes("KEY") || config.name.includes("PASSWORD") ? "***" + value.slice(-4) : value.slice(0, 50) + (value.length > 50 ? "..." : "");
+    console.log(`\u2705 ${config.name}: ${displayValue}`);
+  });
+  console.log("\n\u{1F4CA} Validation Summary:");
+  console.log(`   \u2705 Passed: ${result.passed.length}`);
+  console.log(`   \u274C Missing: ${result.missing.length}`);
+  console.log(`   \u274C Invalid: ${result.invalid.length}`);
+  console.log(`   \u26A0\uFE0F  Warnings: ${result.warnings.length}`);
+  const hasErrors = result.missing.length > 0 || result.invalid.length > 0;
+  if (hasErrors) {
+    console.error("\n\u{1F6A8} CRITICAL: Missing or invalid environment variables detected!");
+    console.error("   Fix these issues before deploying to production.\n");
+    if (isProduction && exitOnError) {
+      console.error("   Exiting due to production environment validation failure...\n");
+      process.exit(1);
+    }
+  } else {
+    console.log("\n\u2705 All required environment variables are properly configured!\n");
+  }
+  return result;
+}
+
+// server/index.ts
+validateEnvironment(false);
 var app = express2();
-app.use(express2.json());
-app.use(express2.urlencoded({ extended: false }));
+app.set("trust proxy", 1);
+var allowedOrigins = process.env.NODE_ENV === "development" ? [
+  "http://localhost:5173",
+  "http://localhost:5000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5000",
+  /^https:\/\/.*\.vercel\.app$/,
+  /^https:\/\/.*\.replit\.dev$/,
+  ...process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : [],
+  ...process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",").map((d) => `https://${d.trim()}`) : []
+] : [
+  process.env.FRONTEND_URL,
+  /^https:\/\/.*\.vercel\.app$/,
+  // All Vercel deployments (production + preview)
+  /^https:\/\/.*\.render\.com$/,
+  /^https:\/\/.*\.onrender\.com$/,
+  ...process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, "")] : []
+].filter(Boolean);
+var corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+    const isAllowed = allowedOrigins.some((allowed) => {
+      if (typeof allowed === "string") {
+        return origin === allowed || origin === allowed.replace(/\/$/, "");
+      }
+      return allowed.test(origin);
+    });
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`\u26A0\uFE0F CORS: Rejected origin: ${origin}`);
+      console.warn(`   Allowed origins:`, allowedOrigins);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Set-Cookie"]
+};
+app.use(cors(corsOptions));
+app.use(compression({
+  level: 6,
+  // Compression level (0-9, 6 is balanced for speed vs compression)
+  threshold: 1024,
+  // Only compress responses larger than 1KB
+  filter: (req, res) => {
+    if (req.headers["x-no-compression"]) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
+app.use((req, res, next) => {
+  req.setTimeout(3e4, () => {
+    res.status(408).json({ message: "Request timeout" });
+  });
+  res.setTimeout(3e4, () => {
+    res.status(408).json({ message: "Response timeout" });
+  });
+  next();
+});
+app.use(express2.json({ limit: "10mb" }));
+app.use(express2.urlencoded({ extended: false, limit: "10mb" }));
+app.use("/uploads", express2.static("uploads"));
 app.use((req, res, next) => {
   const start = Date.now();
   const path4 = req.path;
   const isProduction = process.env.NODE_ENV === "production";
   let capturedJsonResponse = void 0;
+  if (req.method === "GET" && path4.startsWith("/api/")) {
+    if (path4.includes("/homepage-content") || path4.includes("/announcements")) {
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+    } else if (!path4.includes("/auth")) {
+      res.setHeader("Cache-Control", "private, max-age=30");
+    }
+  }
   if (!isProduction) {
     const originalResJson = res.json;
     res.json = function(bodyJson, ...args) {
@@ -8188,11 +10488,52 @@ function sanitizeLogData(data) {
       }
     }
   }
+  try {
+    log2("Seeding academic terms if needed...");
+    await seedAcademicTerms();
+    log2("\u2705 Academic terms seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u{1F6A8} ACADEMIC TERMS SEEDING ERROR: ${errorMessage}`);
+    console.error(error);
+    log2(`\u26A0\uFE0F Academic terms seeding failed: ${errorMessage}`);
+  }
+  try {
+    const { storage: storage2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
+    const existingSetting = await storage2.getSetting("allow_student_self_registration");
+    if (!existingSetting) {
+      await storage2.createSetting({
+        key: "allow_student_self_registration",
+        value: "true",
+        description: "Allow students to self-register with automatic parent account creation",
+        dataType: "boolean"
+      });
+      log2("\u2705 Student self-registration setting initialized");
+    } else {
+      log2("\u2139\uFE0F Student self-registration setting already exists");
+    }
+  } catch (error) {
+    log2(`\u2139\uFE0F Registration setting initialization skipped (table may not exist): ${error instanceof Error ? error.message : error}`);
+  }
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
     log2(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
     res.status(410).json({ message: "Gone - Route disabled for security" });
   });
   const server = await registerRoutes(app);
+  app.use((err, req, res, next) => {
+    if (err.name === "MulterError" || err.message?.includes("Only image files") || err.message?.includes("Only document files") || err.message?.includes("Only CSV files")) {
+      log2(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
+      let status = 400;
+      let message = err.message;
+      if (err.code === "LIMIT_FILE_SIZE") {
+        message = "File size exceeds the maximum allowed limit";
+      } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
+        message = "Unexpected file field";
+      }
+      return res.status(status).json({ message });
+    }
+    next(err);
+  });
   app.use((err, req, res, _next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -8202,9 +10543,10 @@ function sanitizeLogData(data) {
       res.status(status).json({ message });
     }
   });
-  if (app.get("env") === "development") {
+  const isReplit = !!process.env.REPLIT_DEV_DOMAIN;
+  if (app.get("env") === "development" || isReplit) {
     await setupVite(app, server);
-  } else {
+  } else if (!process.env.FRONTEND_URL) {
     serveStatic(app);
   }
   const port = parseInt(process.env.PORT || "5000", 10);
