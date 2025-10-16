@@ -6,11 +6,9 @@ Your production environment (Vercel + Render + Supabase) is experiencing image u
 
 ## ✅ Root Cause
 
-Even though your backend uses the `SUPABASE_SERVICE_KEY` (which should bypass RLS), Supabase Storage requires explicit RLS policies on the `storage.objects` table for:
-- INSERT (uploads)
-- SELECT (reading/viewing)
-- UPDATE (updating files)
-- DELETE (removing files)
+Even though your backend uses the `SUPABASE_SERVICE_KEY` (which should bypass RLS), Supabase Storage requires explicit RLS policies on the `storage.objects` table. The policies must restrict write operations (INSERT/UPDATE/DELETE) to the `service_role` only, while allowing public read access.
+
+**Security Note:** Only the backend (using service_role key) should be able to upload, update, or delete files. Direct client uploads are blocked for security.
 
 ## 🛠️ Complete Fix (3 Steps)
 
@@ -22,12 +20,19 @@ Even though your backend uses the `SUPABASE_SERVICE_KEY` (which should bypass RL
 4. **Copy and paste the SQL from `supabase-storage-policies.sql`**
 5. **Click "Run"** to execute the policies
 
-The SQL file contains all necessary policies for:
+The SQL file contains secure policies that:
+- ✅ Allow **service_role ONLY** to INSERT/UPDATE/DELETE (backend uploads via API)
+- ✅ Allow **public** to SELECT/read (anyone can view images)
+- ❌ Block **anonymous/direct client** uploads (prevents unauthorized file uploads)
+
+Buckets protected:
 - `homepage-images`
 - `gallery-images`
 - `profile-images`
 - `study-resources`
 - `general-uploads`
+
+**This ensures all uploads go through your authenticated backend API endpoints, not directly from browsers.**
 
 ### Step 2: Verify Environment Variables
 

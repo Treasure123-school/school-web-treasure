@@ -19,58 +19,59 @@ USING (true)
 WITH CHECK (true);
 
 -- =====================================================
--- Policy 2: Allow authenticated uploads to homepage-images
+-- Policy 2: Allow ONLY service role uploads to homepage-images
+-- (Backend uses service key - no direct client uploads)
 -- =====================================================
-CREATE POLICY "Allow authenticated uploads to homepage-images"
+CREATE POLICY "Service role can upload to homepage-images"
 ON storage.objects
 FOR INSERT
-TO authenticated, anon, service_role
+TO service_role
 WITH CHECK (bucket_id = 'homepage-images');
 
 -- =====================================================
--- Policy 3: Allow authenticated uploads to gallery-images
+-- Policy 3: Allow ONLY service role uploads to gallery-images
 -- =====================================================
-CREATE POLICY "Allow authenticated uploads to gallery-images"
+CREATE POLICY "Service role can upload to gallery-images"
 ON storage.objects
 FOR INSERT
-TO authenticated, anon, service_role
+TO service_role
 WITH CHECK (bucket_id = 'gallery-images');
 
 -- =====================================================
--- Policy 4: Allow authenticated uploads to profile-images
+-- Policy 4: Allow ONLY service role uploads to profile-images
 -- =====================================================
-CREATE POLICY "Allow authenticated uploads to profile-images"
+CREATE POLICY "Service role can upload to profile-images"
 ON storage.objects
 FOR INSERT
-TO authenticated, anon, service_role
+TO service_role
 WITH CHECK (bucket_id = 'profile-images');
 
 -- =====================================================
--- Policy 5: Allow authenticated uploads to study-resources
+-- Policy 5: Allow ONLY service role uploads to study-resources
 -- =====================================================
-CREATE POLICY "Allow authenticated uploads to study-resources"
+CREATE POLICY "Service role can upload to study-resources"
 ON storage.objects
 FOR INSERT
-TO authenticated, anon, service_role
+TO service_role
 WITH CHECK (bucket_id = 'study-resources');
 
 -- =====================================================
--- Policy 6: Allow authenticated uploads to general-uploads
+-- Policy 6: Allow ONLY service role uploads to general-uploads
 -- =====================================================
-CREATE POLICY "Allow authenticated uploads to general-uploads"
+CREATE POLICY "Service role can upload to general-uploads"
 ON storage.objects
 FOR INSERT
-TO authenticated, anon, service_role
+TO service_role
 WITH CHECK (bucket_id = 'general-uploads');
 
 -- =====================================================
 -- Policy 7: Public read access for all buckets
--- (Since buckets are public, allow anyone to view)
+-- (Buckets are public so anyone can VIEW, but NOT upload)
 -- =====================================================
 CREATE POLICY "Public read access to all school buckets"
 ON storage.objects
 FOR SELECT
-TO public, authenticated, anon, service_role
+TO public
 USING (
   bucket_id IN (
     'homepage-images',
@@ -82,12 +83,13 @@ USING (
 );
 
 -- =====================================================
--- Policy 8: Allow authenticated users to update files
+-- Policy 8: Allow ONLY service role to update files
+-- (Backend handles all updates via API endpoints)
 -- =====================================================
-CREATE POLICY "Allow authenticated updates to school buckets"
+CREATE POLICY "Service role can update school bucket files"
 ON storage.objects
 FOR UPDATE
-TO authenticated, service_role
+TO service_role
 USING (
   bucket_id IN (
     'homepage-images',
@@ -108,12 +110,13 @@ WITH CHECK (
 );
 
 -- =====================================================
--- Policy 9: Allow authenticated users to delete files
+-- Policy 9: Allow ONLY service role to delete files
+-- (Backend handles all deletions via API endpoints)
 -- =====================================================
-CREATE POLICY "Allow authenticated deletes from school buckets"
+CREATE POLICY "Service role can delete from school buckets"
 ON storage.objects
 FOR DELETE
-TO authenticated, service_role
+TO service_role
 USING (
   bucket_id IN (
     'homepage-images',
