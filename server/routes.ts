@@ -68,14 +68,16 @@ const contactSchema = z.object({
   message: z.string().min(1)
 });
 
-// JWT secret - MUST be provided via environment variable for security
-const JWT_SECRET = process.env.JWT_SECRET;
+// JWT secret - use environment variable for production, fallback for development
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-secret-key-change-in-production' : undefined);
 if (!JWT_SECRET) {
   console.error('CRITICAL: JWT_SECRET environment variable is required but not set!');
   console.error('Please set a secure JWT_SECRET environment variable before starting the server.');
   process.exit(1);
 }
-// Type assertion since we've already checked for existence
+if (process.env.NODE_ENV === 'development' && JWT_SECRET === 'dev-secret-key-change-in-production') {
+  console.warn('⚠️ WARNING: Using default JWT_SECRET for development. Set JWT_SECRET environment variable for production!');
+}
 const SECRET_KEY = JWT_SECRET as string;
 const JWT_EXPIRES_IN = '24h';
 
