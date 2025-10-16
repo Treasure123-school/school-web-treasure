@@ -53,3 +53,12 @@ temp/
 
 # OS
 Thumbs.db
+
+# Uploads (production uses Supabase Storage)
+uploads/
+!uploads/.gitkeep
+
+# Replit specific
+.config/
+.upm/
+.cache/
