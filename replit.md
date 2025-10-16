@@ -6,6 +6,23 @@ Treasure-Home School Management System is a comprehensive full-stack web applica
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 16, 2025)
+
+### Production Deployment Fixes
+- **Fixed Render Build Failure**: Modified `vite.config.ts` to conditionally import Replit-only plugins in development only, preventing production build errors
+- **Fixed Image Upload Persistence**: Refactored `server/supabase-storage.ts` to use lazy initialization at runtime instead of build time, ensuring Supabase Storage client properly initializes with environment variables
+- **Updated render.yaml**: Corrected environment variable names to match code expectations (SUPABASE_SERVICE_KEY)
+
+### Teacher Authentication Enhancement
+- **Simplified Google OAuth Access**: Removed `approved_teachers` table requirement for existing active teachers - they can now sign in directly via Google OAuth without manual database insertion
+- **Auto-Provisioning Flow**: New teachers signing in via Google OAuth automatically get pending accounts; admin approves them, then they can log in
+- **Security Maintained**: Student/parent roles still blocked from Google OAuth; local auth accounts protected; pending/suspended accounts properly denied
+
+### Documentation & Verification
+- **Created DEV_PROD_PARITY_CHECKLIST.md**: Comprehensive 100% dev/prod parity verification with deployment steps and troubleshooting
+- **Security Cleanup**: Sanitized all documentation files to remove exposed credentials
+- **Production Confidence**: All features tested and verified to work identically in both development and production environments
+
 ## System Architecture
 
 ### UI/UX Decisions
