@@ -28,11 +28,35 @@ const allowedOrigins = (process.env.NODE_ENV === 'development'
   : [
       process.env.FRONTEND_URL,
       /\.vercel\.app$/,
-      /\.render\.com$/
+      /\.render\.com$/,
+      /\.onrender\.com$/,
+      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, '')] : [])
     ].filter(Boolean)) as (string | RegExp)[];
 
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed || origin === allowed.replace(/\/$/, '');
+      }
+      return allowed.test(origin);
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      // Log rejected origins to help debug CORS issues
+      console.warn(`⚠️ CORS: Rejected origin: ${origin}`);
+      console.warn(`   Allowed origins:`, allowedOrigins);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
