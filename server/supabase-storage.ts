@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
 // Validate URL format
 function isValidUrl(url: string): boolean {
   try {
@@ -13,23 +10,42 @@ function isValidUrl(url: string): boolean {
   }
 }
 
-let supabase: ReturnType<typeof createClient> | null = null;
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+let initializationAttempted = false;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn('⚠️ Supabase Storage not configured: Missing SUPABASE_URL or SUPABASE_SERVICE_KEY');
-} else if (!isValidUrl(supabaseUrl)) {
-  console.warn(`⚠️ Supabase Storage not configured: Invalid SUPABASE_URL format: ${supabaseUrl}`);
-} else {
+// Lazy initialization getter - ensures Supabase client is created at runtime, not build time
+function getSupabaseClient(): ReturnType<typeof createClient> | null {
+  if (initializationAttempted) {
+    return supabaseClient;
+  }
+
+  initializationAttempted = true;
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('⚠️ Supabase Storage not configured: Missing SUPABASE_URL or SUPABASE_SERVICE_KEY');
+    return null;
+  }
+
+  if (!isValidUrl(supabaseUrl)) {
+    console.warn(`⚠️ Supabase Storage not configured: Invalid SUPABASE_URL format: ${supabaseUrl}`);
+    return null;
+  }
+
   try {
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
+    supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     console.log('✅ Supabase Storage client initialized');
+    return supabaseClient;
   } catch (error) {
     console.error('❌ Failed to initialize Supabase Storage client:', error);
-    supabase = null;
+    return null;
   }
 }
 
-export { supabase };
+// Export a getter instead of the client directly
+export const supabase = { get: () => getSupabaseClient() };
 
 export const STORAGE_BUCKETS = {
   HOMEPAGE: 'homepage-images',
@@ -40,7 +56,8 @@ export const STORAGE_BUCKETS = {
 } as const;
 
 export async function initializeStorageBuckets() {
-  if (!supabase) {
+  const client = supabase.get();
+  if (!client) {
     console.log('📦 Supabase Storage: Not configured, using local filesystem');
     return false;
   }
@@ -51,10 +68,10 @@ export async function initializeStorageBuckets() {
     const bucketsToCreate = Object.values(STORAGE_BUCKETS);
     
     for (const bucketName of bucketsToCreate) {
-      const { data: existingBucket } = await supabase.storage.getBucket(bucketName);
+      const { data: existingBucket } = await client.storage.getBucket(bucketName);
       
       if (!existingBucket) {
-        const { error } = await supabase.storage.createBucket(bucketName, {
+        const { error } = await client.storage.createBucket(bucketName, {
           public: true,
           fileSizeLimit: 10485760, // 10MB
           allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
@@ -88,12 +105,13 @@ export async function uploadFileToSupabase(
   fileBuffer: Buffer,
   contentType: string
 ): Promise<{ publicUrl: string; path: string } | null> {
-  if (!supabase) {
+  const client = supabase.get();
+  if (!client) {
     throw new Error('Supabase Storage not configured');
   }
 
   try {
-    const { data, error } = await supabase.storage
+    const { data, error } = await client.storage
       .from(bucket)
       .upload(filePath, fileBuffer, {
         contentType,
@@ -105,7 +123,7 @@ export async function uploadFileToSupabase(
       throw error;
     }
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = client.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
@@ -123,12 +141,13 @@ export async function deleteFileFromSupabase(
   bucket: string,
   filePath: string
 ): Promise<boolean> {
-  if (!supabase) {
+  const client = supabase.get();
+  if (!client) {
     throw new Error('Supabase Storage not configured');
   }
 
   try {
-    const { error } = await supabase.storage
+    const { error } = await client.storage
       .from(bucket)
       .remove([filePath]);
 
@@ -145,11 +164,12 @@ export async function deleteFileFromSupabase(
 }
 
 export function getSupabaseFileUrl(bucket: string, filePath: string): string {
-  if (!supabase || !supabaseUrl) {
+  const client = supabase.get();
+  if (!client || !process.env.SUPABASE_URL) {
     return `/uploads/${filePath}`;
   }
 
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = client.storage
     .from(bucket)
     .getPublicUrl(filePath);
 
@@ -174,4 +194,4 @@ export function extractFilePathFromUrl(url: string): string | null {
   return null;
 }
 
-export const isSupabaseStorageEnabled = !!supabase;
+export const isSupabaseStorageEnabled = () => !!supabase.get();

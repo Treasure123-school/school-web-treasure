@@ -243,7 +243,7 @@ fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {});
 fs.mkdir(homepageDir, { recursive: true }).catch(() => {});
 
 // Use memory storage for Supabase uploads, disk storage for local filesystem
-const storage_multer = isSupabaseStorageEnabled
+const storage_multer = isSupabaseStorageEnabled()
   ? multer.memoryStorage()
   : multer.diskStorage({
       destination: (req, file, cb) => {
@@ -2875,7 +2875,7 @@ export async function registerRoutes(app: Express): Server {
       let fileUrl: string;
 
       // Use Supabase Storage if enabled, otherwise fall back to local filesystem
-      if (isSupabaseStorageEnabled) {
+      if (isSupabaseStorageEnabled()) {
         const fileName = `${Date.now()}-${req.file.originalname}`;
         const uploadResult = await uploadFileToSupabase(
           STORAGE_BUCKETS.PROFILES,
@@ -2920,7 +2920,7 @@ export async function registerRoutes(app: Express): Server {
       let fileUrl: string;
 
       // Use Supabase Storage if enabled, otherwise fall back to local filesystem
-      if (isSupabaseStorageEnabled) {
+      if (isSupabaseStorageEnabled()) {
         const fileName = `${Date.now()}-${req.file.originalname}`;
         const uploadResult = await uploadFileToSupabase(
           STORAGE_BUCKETS.HOMEPAGE,
@@ -3014,7 +3014,7 @@ export async function registerRoutes(app: Express): Server {
       }
 
       // Delete file from Supabase Storage if enabled
-      if (isSupabaseStorageEnabled && content.imageUrl) {
+      if (isSupabaseStorageEnabled() && content.imageUrl) {
         const filePath = extractFilePathFromUrl(content.imageUrl);
         if (filePath) {
           await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
