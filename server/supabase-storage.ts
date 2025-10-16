@@ -107,32 +107,69 @@ export async function uploadFileToSupabase(
 ): Promise<{ publicUrl: string; path: string } | null> {
   const client = supabase.get();
   if (!client) {
-    throw new Error('Supabase Storage not configured');
+    const errorMsg = 'Supabase Storage not configured - missing client';
+    console.error(`❌ ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   try {
+    console.log(`📤 Uploading to Supabase: bucket="${bucket}", path="${filePath}", size=${fileBuffer.length} bytes, type="${contentType}"`);
+    
+    // Verify bucket exists first
+    const { data: bucketData, error: bucketError } = await client.storage.getBucket(bucket);
+    if (bucketError || !bucketData) {
+      console.error(`❌ Bucket "${bucket}" not found or inaccessible:`, bucketError);
+      throw new Error(`Storage bucket "${bucket}" not found. Please check Supabase configuration.`);
+    }
+
     const { data, error } = await client.storage
       .from(bucket)
       .upload(filePath, fileBuffer, {
         contentType,
-        upsert: true
+        upsert: true,
+        cacheControl: '3600'
       });
 
     if (error) {
-      console.error('Supabase upload error:', error);
-      throw error;
+      console.error(`❌ Supabase upload error for "${filePath}":`, {
+        message: error.message,
+        statusCode: error.cause,
+        bucket,
+        contentType,
+        bufferSize: fileBuffer.length
+      });
+      
+      // Provide more specific error messages
+      if (error.message.includes('new row violates row-level security policy')) {
+        throw new Error('Storage permission denied. Please check Supabase RLS policies for bucket: ' + bucket);
+      } else if (error.message.includes('Bucket not found')) {
+        throw new Error('Storage bucket not found: ' + bucket);
+      } else if (error.message.includes('The object exceeded the maximum allowed size')) {
+        throw new Error('File size exceeds maximum allowed size (10MB)');
+      } else if (error.message.includes('Invalid JWT')) {
+        throw new Error('Storage authentication failed. Please check SUPABASE_SERVICE_KEY.');
+      }
+      
+      throw new Error(`Upload failed: ${error.message}`);
     }
 
     const { data: { publicUrl } } = client.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
+    console.log(`✅ Successfully uploaded to Supabase: ${publicUrl}`);
+
     return {
       publicUrl,
       path: data.path
     };
-  } catch (error) {
-    console.error('Failed to upload to Supabase:', error);
+  } catch (error: any) {
+    console.error('❌ Failed to upload to Supabase:', {
+      error: error.message,
+      stack: error.stack,
+      bucket,
+      filePath
+    });
     return null;
   }
 }

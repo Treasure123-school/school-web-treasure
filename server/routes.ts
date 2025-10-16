@@ -2907,13 +2907,25 @@ export async function registerRoutes(app: Express): Server {
   // Homepage image upload endpoint
   app.post('/api/upload/homepage', authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
     try {
+      console.log('🎯 Homepage upload request received:', {
+        user: req.user?.email,
+        roleId: req.user?.roleId,
+        hasFile: !!req.file,
+        fileName: req.file?.originalname,
+        fileSize: req.file?.size,
+        contentType: req.body.contentType,
+        supabaseEnabled: isSupabaseStorageEnabled()
+      });
+
       if (!req.file) {
+        console.error('❌ Upload rejected: No file in request');
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
       const { contentType, altText, caption, displayOrder } = req.body;
 
       if (!contentType) {
+        console.error('❌ Upload rejected: Missing contentType');
         return res.status(400).json({ message: 'Content type is required' });
       }
 
@@ -2921,26 +2933,42 @@ export async function registerRoutes(app: Express): Server {
 
       // Use Supabase Storage if enabled, otherwise fall back to local filesystem
       if (isSupabaseStorageEnabled()) {
+        console.log('📦 Using Supabase Storage for upload');
         const fileName = `${Date.now()}-${req.file.originalname}`;
-        const uploadResult = await uploadFileToSupabase(
-          STORAGE_BUCKETS.HOMEPAGE,
-          fileName,
-          req.file.buffer,
-          req.file.mimetype
-        );
+        
+        try {
+          const uploadResult = await uploadFileToSupabase(
+            STORAGE_BUCKETS.HOMEPAGE,
+            fileName,
+            req.file.buffer,
+            req.file.mimetype
+          );
 
-        if (!uploadResult) {
-          return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
+          if (!uploadResult) {
+            console.error('❌ Supabase upload returned null result');
+            return res.status(500).json({ 
+              message: 'Failed to upload file to cloud storage. Please check server logs for details.' 
+            });
+          }
+
+          fileUrl = uploadResult.publicUrl;
+          console.log(`✅ Successfully uploaded to Supabase: ${fileUrl}`);
+        } catch (uploadError: any) {
+          console.error('❌ Supabase upload exception:', {
+            error: uploadError.message,
+            stack: uploadError.stack
+          });
+          return res.status(500).json({ 
+            message: uploadError.message || 'Failed to upload file to cloud storage' 
+          });
         }
-
-        fileUrl = uploadResult.publicUrl;
-        console.log(`📦 Uploaded to Supabase Storage: ${fileUrl}`);
       } else {
         fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
         console.log(`💾 Saved to local filesystem: ${fileUrl}`);
       }
 
       // Create homepage content record
+      console.log('📝 Creating homepage content record in database...');
       const content = await storage.createHomePageContent({
         contentType,
         imageUrl: fileUrl,
@@ -2951,13 +2979,21 @@ export async function registerRoutes(app: Express): Server {
         uploadedBy: req.user!.id
       });
 
+      console.log('✅ Homepage content created successfully:', content.id);
       res.json({
         message: 'Homepage image uploaded successfully',
         content
       });
-    } catch (error) {
-      console.error('Homepage image upload error:', error);
-      res.status(500).json({ message: 'Failed to upload homepage image' });
+    } catch (error: any) {
+      console.error('❌ Homepage image upload error:', {
+        message: error.message,
+        stack: error.stack,
+        user: req.user?.email,
+        fileName: req.file?.originalname
+      });
+      res.status(500).json({ 
+        message: error.message || 'Failed to upload homepage image. Please try again.' 
+      });
     }
   });
 
