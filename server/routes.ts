@@ -677,7 +677,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       } else {
         // No admin found, verify student ID exists in users table
         console.log(`⚠️ No admin users found, verifying student ${session.studentId} exists in users table...`);
-        
+
         try {
           const studentUser = await storage.getUser(session.studentId);
           if (studentUser && studentUser.id) {
@@ -690,10 +690,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
           // Last resort: Find ANY active user
           console.error(`❌ Student ${session.studentId} not found in users table:`, studentError);
           console.log(`🔄 Last resort: Finding any active user for recordedBy...`);
-          
+
           const allUsers = await storage.getAllUsers();
           const activeUser = allUsers.find((u: any) => u.isActive && u.id);
-          
+
           if (activeUser && activeUser.id) {
             SYSTEM_AUTO_SCORING_UUID = activeUser.id;
             console.log(`✅ Using active user ${SYSTEM_AUTO_SCORING_UUID} as fallback for recordedBy`);
@@ -1169,7 +1169,7 @@ export async function registerRoutes(app: Express): Server {
 
       // Get the updated session with scores
       const updatedSession = await storage.getExamSessionById(activeSession.id);
-      
+
       // Get detailed results for student
       const studentAnswers = await storage.getStudentAnswers(activeSession.id);
       const examQuestions = await storage.getExamQuestions(examId);
@@ -1427,7 +1427,7 @@ export async function registerRoutes(app: Express): Server {
 
       // Ensure student can only access their own session
       if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
-        return res.status(403).json({ message: 'Unauthorized' });
+        return res.status(403).json({ message: 'Unauthorized access to parent records' });
       }
 
       const session = await storage.getStudentActiveSession(studentId);
@@ -1923,8 +1923,8 @@ export async function registerRoutes(app: Express): Server {
         id: profile.id,
         userId: profile.userId,
         staffId: profile.staffId,
-        subjects: profile.subjects,
-        assignedClasses: profile.assignedClasses, // FIX: Use correct field name
+        subjects: Array.isArray(profile.subjects) ? profile.subjects : (profile.subjects ? [profile.subjects] : []),
+        assignedClasses: Array.isArray(profile.assignedClasses) ? profile.assignedClasses : (profile.assignedClasses ? [profile.assignedClasses] : []), // FIX: Use correct field name
         department: profile.department,
         qualification: profile.qualification,
         yearsOfExperience: profile.yearsOfExperience,
@@ -2303,11 +2303,11 @@ export async function registerRoutes(app: Express): Server {
   // CRITICAL: Session must support cross-domain for Render (backend) + Vercel (frontend)
   const isProduction = process.env.NODE_ENV === 'production';
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-session-secret-change-in-production' : process.env.JWT_SECRET || SECRET_KEY);
-  
+
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
     console.warn('⚠️ WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.');
   }
-  
+
   // Configure PostgreSQL session store for production persistence
   const PgStore = connectPgSimple(session);
   const sessionStore = new PgStore({
@@ -2315,7 +2315,7 @@ export async function registerRoutes(app: Express): Server {
     tableName: 'session',
     createTableIfMissing: true,
   });
-  
+
   app.use(session({
     store: sessionStore, // Use PostgreSQL instead of MemoryStore
     secret: SESSION_SECRET,
@@ -2370,9 +2370,9 @@ export async function registerRoutes(app: Express): Server {
         const frontendUrl = REPLIT_DEV_DOMAIN 
           ? `https://${REPLIT_DEV_DOMAIN}` 
           : (process.env.FRONTEND_URL || 'https://treasurehomeschool.vercel.app');
-        
+
         console.log('🔄 OAuth redirect to frontend:', frontendUrl);
-        
+
         if (err) {
           console.error('❌ Google OAuth error:', err);
           console.error('Error details:', { message: err.message, stack: err.stack });
@@ -2903,96 +2903,99 @@ export async function registerRoutes(app: Express): Server {
   });
 
   // ==================== HOMEPAGE CONTENT MANAGEMENT ROUTES ====================
-  
+
   // Homepage image upload endpoint
   app.post('/api/upload/homepage', authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
     try {
       console.log('🎯 Homepage upload request received:', {
-        user: req.user?.email,
-        roleId: req.user?.roleId,
-        hasFile: !!req.file,
-        fileName: req.file?.originalname,
-        fileSize: req.file?.size,
+        file: req.file?.originalname,
         contentType: req.body.contentType,
+        userId: req.user!.id,
         supabaseEnabled: isSupabaseStorageEnabled()
       });
 
       if (!req.file) {
-        console.error('❌ Upload rejected: No file in request');
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      const { contentType, altText, caption, displayOrder } = req.body;
-
-      if (!contentType) {
-        console.error('❌ Upload rejected: Missing contentType');
+      if (!req.body.contentType) {
         return res.status(400).json({ message: 'Content type is required' });
       }
 
-      let fileUrl: string;
+      let imageUrl: string;
+      let storedFilePath: string;
 
-      // Use Supabase Storage if enabled, otherwise fall back to local filesystem
       if (isSupabaseStorageEnabled()) {
         console.log('📦 Using Supabase Storage for upload');
-        const fileName = `${Date.now()}-${req.file.originalname}`;
-        
+        const timestamp = Date.now();
+        const filename = `${req.body.contentType}-${timestamp}${path.extname(req.file.originalname)}`;
+        const filePath = `homepage/${filename}`;
+
+        console.log('📤 Uploading to Supabase:', {
+          bucket: STORAGE_BUCKETS.HOMEPAGE,
+          path: filePath,
+          size: req.file.buffer.length,
+          contentType: req.file.mimetype
+        });
+
         try {
           const uploadResult = await uploadFileToSupabase(
             STORAGE_BUCKETS.HOMEPAGE,
-            fileName,
+            filePath,
             req.file.buffer,
             req.file.mimetype
           );
 
           if (!uploadResult) {
-            console.error('❌ Supabase upload returned null result');
-            return res.status(500).json({ 
-              message: 'Failed to upload file to cloud storage. Please check server logs for details.' 
-            });
+            throw new Error('Upload returned null - check Supabase configuration');
           }
 
-          fileUrl = uploadResult.publicUrl;
-          console.log(`✅ Successfully uploaded to Supabase: ${fileUrl}`);
+          imageUrl = uploadResult.publicUrl;
+          storedFilePath = uploadResult.path;
+          console.log('✅ Successfully uploaded to Supabase:', imageUrl);
         } catch (uploadError: any) {
-          console.error('❌ Supabase upload exception:', {
-            error: uploadError.message,
-            stack: uploadError.stack
-          });
-          return res.status(500).json({ 
-            message: uploadError.message || 'Failed to upload file to cloud storage' 
-          });
+          console.error('❌ Supabase upload failed:', uploadError);
+
+          // Provide detailed error information
+          if (uploadError.message?.includes('new row violates row-level security policy')) {
+            throw new Error('Storage permission denied. RLS policies are not configured correctly in Supabase. Please contact your administrator.');
+          } else if (uploadError.message?.includes('Bucket not found')) {
+            throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in Supabase. Please verify bucket exists.`);
+          } else if (uploadError.message?.includes('Invalid JWT')) {
+            throw new Error('Storage authentication failed. SUPABASE_SERVICE_KEY may be invalid or expired.');
+          } else {
+            throw new Error(`Storage upload failed: ${uploadError.message}`);
+          }
         }
       } else {
-        fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
-        console.log(`💾 Saved to local filesystem: ${fileUrl}`);
+        console.log('📁 Using local filesystem for upload');
+        imageUrl = `/uploads/homepage/${req.file.filename}`;
+        storedFilePath = req.file.filename;
+        console.log('✅ Successfully uploaded to local filesystem:', imageUrl);
       }
 
-      // Create homepage content record
       console.log('📝 Creating homepage content record in database...');
       const content = await storage.createHomePageContent({
-        contentType,
-        imageUrl: fileUrl,
-        altText: altText || '',
-        caption: caption || null,
-        displayOrder: parseInt(displayOrder) || 0,
+        contentType: req.body.contentType,
+        imageUrl,
+        altText: req.body.altText || '',
+        caption: req.body.caption || null,
+        displayOrder: parseInt(req.body.displayOrder) || 0,
         isActive: true,
-        uploadedBy: req.user!.id
       });
 
       console.log('✅ Homepage content created successfully:', content.id);
-      res.json({
-        message: 'Homepage image uploaded successfully',
-        content
-      });
+      res.json(content);
     } catch (error: any) {
-      console.error('❌ Homepage image upload error:', {
+      console.error('❌ Homepage upload error:', {
         message: error.message,
         stack: error.stack,
-        user: req.user?.email,
-        fileName: req.file?.originalname
+        name: error.name
       });
+
       res.status(500).json({ 
-        message: error.message || 'Failed to upload homepage image. Please try again.' 
+        message: error.message || 'Failed to upload homepage image',
+        error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       });
     }
   });
@@ -3040,11 +3043,11 @@ export async function registerRoutes(app: Express): Server {
   app.delete('/api/homepage-content/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      
+
       // Get the content first to retrieve the image URL
       const contentList = await storage.getHomePageContent();
       const content = contentList.find((c: any) => c.id === id);
-      
+
       if (!content) {
         return res.status(404).json({ message: 'Homepage content not found' });
       }
@@ -3093,8 +3096,6 @@ export async function registerRoutes(app: Express): Server {
       res.status(500).json({ message: 'Failed to get homepage content' });
     }
   });
-
-  // ==================== END HOMEPAGE CONTENT MANAGEMENT ROUTES ====================
 
   // Public file serving for homepage uploads (no auth required)
   app.get('/uploads/homepage/:filename', (req, res) => {
@@ -3911,12 +3912,9 @@ Treasure-Home School Administration
 
       console.log(`✅ User ${req.user?.email} updated recovery email for account ${id}`);
 
-      // Remove sensitive data
-      const { passwordHash, ...safeUser } = updatedUser;
-
       res.json({
         message: "Recovery email updated successfully",
-        user: safeUser
+        user: { ...updatedUser, recoveryEmail: updatedUser.recoveryEmail } // Explicitly return updated recoveryEmail
       });
     } catch (error) {
       console.error('Error updating recovery email:', error);
@@ -4272,7 +4270,7 @@ Treasure-Home School Administration
     try {
       // Simple database connection check using raw SQL
       await db.execute(sql`SELECT 1`);
-      
+
       res.json({
         status: 'healthy',
         database: 'connected',
@@ -4324,11 +4322,11 @@ Treasure-Home School Administration
       // Fetch all roles for ID lookups
       const allRoles = await storage.getRoles();
       const roleMap = new Map(allRoles.map(r => [r.name.toLowerCase(), r.id]));
-      
+
       // Get role IDs
       const studentRoleId = roleMap.get('student');
       const teacherRoleId = roleMap.get('teacher');
-      
+
       // Parallel fetch for performance
       const [
         allStudents,
@@ -4339,7 +4337,7 @@ Treasure-Home School Administration
         teacherRoleId ? storage.getUsersByRole(teacherRoleId) : [],
         storage.getAllClasses()
       ]);
-      
+
       // Calculate students added this month
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -4347,14 +4345,14 @@ Treasure-Home School Administration
         const createdAt = new Date(student.createdAt);
         return createdAt >= startOfMonth;
       }).length;
-      
+
       // Calculate teachers added this term (approximation: last 3 months)
       const startOfTerm = new Date(now.getFullYear(), now.getMonth() - 3, 1);
       const newTeachersThisTerm = allTeachers.filter(teacher => {
         const createdAt = new Date(teacher.createdAt);
         return createdAt >= startOfTerm;
       }).length;
-      
+
       res.json({
         totalStudents: allStudents.length,
         totalTeachers: allTeachers.length,
@@ -4873,7 +4871,7 @@ Treasure-Home School Administration
     try {
       const { id } = req.params;
       const { newPassword, forceChange } = z.object({
-        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+        newPassword:z.string().min(6, "Password must be at least 6 characters").optional(),
         forceChange: z.boolean().optional().default(true)
       }).parse(req.body);
       const adminUser = req.user;
@@ -5250,6 +5248,7 @@ Treasure-Home School Administration
             username: studentUsername,
             email: `${studentUsername.toLowerCase()}@ths.edu`, // Auto-generated email
             passwordHash: studentPasswordHash,
+            roleId: studentRoleData.id,
             firstName: studentFirstName,
             lastName: studentLastName,
             mustChangePassword: true
@@ -5351,7 +5350,6 @@ Treasure-Home School Administration
         doc.font('Helvetica').text(`${user.firstName} ${user.lastName}`, 200, startY);
 
         doc.font('Helvetica-Bold').text('Role:', 70, startY + 30);
-        const roleNames = { 1: 'Admin', 2: 'Teacher', 3: 'Student', 4: 'Parent' };
         doc.font('Helvetica').text(roleNames[user.roleId as keyof typeof roleNames] || 'Unknown', 200, startY + 30);
 
         doc.font('Helvetica-Bold').text('Username:', 70, startY + 60);
@@ -5899,14 +5897,14 @@ Treasure-Home School Administration
   app.get('/api/students/:id', authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.id;
-      
+
       // Ensure student can only access their own profile (or admin/teacher can access)
       if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
       const student = await storage.getStudent(studentId);
-      
+
       if (!student) {
         return res.status(404).json({ message: 'Student not found' });
       }
@@ -5922,7 +5920,7 @@ Treasure-Home School Administration
   app.get('/api/students/:id/classes', authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.id;
-      
+
       // Ensure student can only access their own classes (or admin/teacher can access)
       if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
         return res.status(403).json({ message: 'Unauthorized' });
@@ -5940,17 +5938,17 @@ Treasure-Home School Administration
   app.patch('/api/students/:id', authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.id;
-      
+
       // Ensure student can only update their own profile (or admin can update)
       if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
       const updates = req.body;
-      
+
       // Update student record
       const updatedStudent = await storage.updateStudent(studentId, updates);
-      
+
       if (!updatedStudent) {
         return res.status(404).json({ message: 'Student not found' });
       }
@@ -6020,7 +6018,7 @@ Treasure-Home School Administration
     generateParentUsername,
     generateTempPassword
   } = await import('./registration-utils');
-  
+
   // Import email notifications
   const { sendParentNotificationEmail, sendParentNotificationSMS } = await import('./email-notifications');
 
@@ -6035,7 +6033,7 @@ Treasure-Home School Administration
     const maxAttempts = 5;
 
     const attempts = registrationAttempts.get(ip);
-    
+
     if (attempts) {
       // Reset if window expired
       if (now - attempts.lastAttempt > windowMs) {
@@ -6227,7 +6225,7 @@ Treasure-Home School Administration
               studentUsername
             });
           }
-          
+
           // Send SMS notification if phone is provided
           if (parentPhone) {
             await sendParentNotificationSMS(parentPhone, parentUsername, parentPassword);
@@ -6354,7 +6352,7 @@ Treasure-Home School Administration
       }
 
       const application = await storage.createTeacherApplication(validatedData);
-      
+
       // Create notification for admins
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
       for (const admin of admins) {
@@ -6423,10 +6421,10 @@ Treasure-Home School Administration
   app.patch('/api/admin/applications/:id/status', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
     try {
       const { status } = req.body;
-      
+
       if (status === 'approved') {
         const result = await storage.approveTeacherApplication(req.params.id, req.user!.id);
-        
+
         // Create notification for the applicant (if they have an account)
         const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
         if (applicantUser) {
