@@ -6,7 +6,10 @@ import { setupVite, serveStatic, log } from "./vite";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { db } from "./storage";
 import { seedAcademicTerms } from "./seed-terms";
+import { validateEnvironment } from "./validate-env";
 
+// Validate environment variables at startup
+validateEnvironment(false);
 
 const app = express();
 
@@ -20,16 +23,16 @@ const allowedOrigins = (process.env.NODE_ENV === 'development'
       'http://localhost:5000',
       'http://127.0.0.1:5173',
       'http://127.0.0.1:5000',
-      /\.vercel\.app$/,
-      /\.replit\.dev$/,
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.replit\.dev$/,
       ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : []),
       ...(process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',').map(d => `https://${d.trim()}`) : [])
     ]
   : [
       process.env.FRONTEND_URL,
-      /\.vercel\.app$/,
-      /\.render\.com$/,
-      /\.onrender\.com$/,
+      /^https:\/\/.*\.vercel\.app$/,  // All Vercel deployments (production + preview)
+      /^https:\/\/.*\.render\.com$/,
+      /^https:\/\/.*\.onrender\.com$/,
       ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, '')] : [])
     ].filter(Boolean)) as (string | RegExp)[];
 
