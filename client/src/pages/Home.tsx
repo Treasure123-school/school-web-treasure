@@ -174,8 +174,10 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[75vh]">
             {/* Left Content */}
             <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" data-testid="text-hero-tagline">
-                Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">Integrity</span>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal min-h-[120px] sm:min-h-[140px] lg:min-h-[160px] flex items-center justify-center lg:justify-start" data-testid="text-hero-tagline">
+                <span className="inline-block">
+                  Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent inline-block min-w-[200px] sm:min-w-[240px] lg:min-w-[280px] text-center lg:text-left">Integrity</span>
+                </span>
               </h1>
 
               <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }} data-testid="text-hero-description">

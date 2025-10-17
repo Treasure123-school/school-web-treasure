@@ -301,6 +301,13 @@
   animation: slideDown 0.4s ease-out forwards;
 }
 
+/* Changing text animation with no layout shift */
+.changing-text {
+  transition: all 0.3s ease-in-out;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
