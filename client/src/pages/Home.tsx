@@ -175,20 +175,20 @@ export default function Home() {
             </div>
             <div className="order-1 lg:order-2 lg:text-right animate-fade-in">
               <div className="relative max-w-lg mx-auto lg:max-w-none">
-                <img 
-                  src={heroImage?.imageUrl || "/uploads/hero-classroom-compressed.jpg"} 
-                  alt={heroImage?.altText || "Students engaged in active learning at Treasure-Home School"} 
-                  className="rounded-3xl shadow-2xl w-full h-auto aspect-[4/3] object-cover transform transition-all duration-500 hover:scale-105"
-                  width="600"
-                  height="450"
-                  loading="eager"
-                  decoding="async"
-                  data-testid="img-hero-school"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80";
-                  }}
-                />
+                {heroLoading || !heroImage?.imageUrl ? (
+                  <Skeleton className="rounded-3xl w-full aspect-[4/3]" />
+                ) : (
+                  <img 
+                    src={heroImage.imageUrl} 
+                    alt={heroImage.altText || "Students engaged in active learning at Treasure-Home School"} 
+                    className="rounded-3xl shadow-2xl w-full h-auto aspect-[4/3] object-cover transform transition-all duration-500 hover:scale-105"
+                    width="600"
+                    height="450"
+                    loading="eager"
+                    decoding="async"
+                    data-testid="img-hero-school"
+                  />
+                )}
                 <div className="absolute -bottom-6 -left-6 sm:-bottom-8 sm:-left-8 bg-white/95 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20">
                   <div className="flex items-center space-x-3 sm:space-x-4">
                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
