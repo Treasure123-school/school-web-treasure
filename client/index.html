@@ -75,5 +75,27 @@
     <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    
+    <!-- Typed.js for dynamic text animation -->
+    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
+    <script>
+      // Wait for DOM to load before initializing Typed.js
+      window.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          const element = document.querySelector(".changing-text");
+          if (element && !element.dataset.typedInitialized) {
+            element.dataset.typedInitialized = "true";
+            new Typed(".changing-text", {
+              strings: ["Integrity", "Excellence", "Confidence", "Creativity", "Compassion"],
+              typeSpeed: 60,
+              backSpeed: 40,
+              loop: true,
+              backDelay: 1500,
+              startDelay: 500
+            });
+          }
+        }, 500);
+      });
+    </script>
   </body>
 </html>

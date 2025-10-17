@@ -184,12 +184,12 @@ export default function Home() {
                 </p>
               </div>
 
-              <p className="text-lg sm:text-xl lg:text-2xl text-blue-50 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-light" style={{ animationDelay: '0.2s' }} data-testid="text-hero-description">
-                Qualitative Education & Moral Excellence
-              </p>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" style={{ animationDelay: '0.2s' }} data-testid="text-hero-tagline">
+                Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">Integrity</span>
+              </h2>
 
-              <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-                Located in Seriki-Soyinka Ifo, Ogun State. Providing comprehensive education from playgroup to senior secondary school.
+              <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }} data-testid="text-hero-description">
+                At Treasure-Home School, we provide qualitative education anchored on moral values and lifelong learning. Located in Seriki-Soyinka, Ifo, Ogun State, we offer comprehensive education from Playgroup to Senior Secondary School — shaping confident, responsible, and successful learners.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center lg:justify-start animate-slide-up pt-4" style={{ animationDelay: '0.4s' }}>
