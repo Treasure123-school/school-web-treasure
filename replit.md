@@ -8,6 +8,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 17, 2025)
 
+### Student Profile Skip Feature
+- **Skip Onboarding Flow**: Students can now defer initial profile completion on first login instead of being forced to complete it immediately
+- **Smart Access Control**: Implemented RequireCompleteProfile guard component that restricts access to exams, grades, and study resources until profile is complete
+- **Profile Status Tracking**: Added `profileSkipped` field to users table; updated profile status endpoint to return completion state
+- **User Experience**: Dashboard shows a prominent banner for incomplete profiles with a direct link to complete the profile setup
+- **Backend Endpoints**: New POST /api/student/profile/skip endpoint; updated GET /api/student/profile/status and POST /api/student/profile/setup
+- **Protected Features**: StudentExams, StudentGrades, and StudentStudyResources pages now wrapped with profile completion guards
+- **Seamless Flow**: Students can explore the dashboard and announcements, but must complete profile to access academic features
+
 ### Production Image Upload COMPLETE FIX - Frontend API Routing
 - **REAL Root Cause**: Frontend (Vercel) was trying to upload images to itself instead of Render backend due to hardcoded relative URLs
 - **Fixed Frontend API Calls**: Updated `client/src/pages/portal/HomepageManagement.tsx` to use `getApiUrl()` helper for all API calls (upload, update, delete)
