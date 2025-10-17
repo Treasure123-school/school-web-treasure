@@ -205,7 +205,7 @@ export default function Home() {
                   asChild
                   size="lg"
                   variant="outline" 
-                  className="border-2 border-white/80 bg-white/10 backdrop-blur-md text-white hover:bg-gradient-to-r hover:from-green-500 hover:to-emerald-600 hover:border-green-400 font-bold h-14 px-10 text-lg rounded-full shadow-xl transition-all duration-300 hover:scale-105"
+                  className="border-2 border-white/80 bg-white/10 backdrop-blur-md text-white hover:bg-white/10 hover:border-white/80 font-bold h-14 px-10 text-lg rounded-full shadow-xl transition-all duration-300 hover:scale-105"
                   data-testid="button-contact-us"
                 >
                   <Link href="/contact">Contact Us</Link>
