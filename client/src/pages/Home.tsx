@@ -11,15 +11,13 @@ import type { HomePageContent } from '@shared/schema';
 
 export default function Home() {
   // Fetch dynamic content from database with optimized caching
-  // Uses global queryFn which joins array: ['/api', 'path'] -> '/api/path'
-  // Fetch all active homepage content once and filter client-side for better caching
   const { data: allHomePageContent = [], isLoading: contentLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api', 'public', 'homepage-content'],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Filter content by type
-  const heroImages = allHomePageContent.filter(content => content.contentType === 'hero_image');
+  const heroImages = allHomePageContent.filter(content => content.contentType === 'hero_image' && content.isActive);
   const galleryPreviewImages = allHomePageContent.filter(content => 
     content.contentType === 'gallery_preview_1' || 
     content.contentType === 'gallery_preview_2' || 
@@ -42,10 +40,29 @@ export default function Home() {
     .slice(0, 3);
 
   // Gallery carousel state
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
+  
+  // Hero carousel state - cycling through all active hero images
+  const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Get the primary hero image (first active hero image)
-  const heroImage = Array.isArray(heroImages) ? heroImages.find(img => img.isActive) || null : null;
+  // Auto-rotate hero images every 5 seconds
+  useEffect(() => {
+    if (heroImages.length > 1 && !heroLoading) {
+      const timer = setInterval(() => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setCurrentHeroIndex((prev) => (prev + 1) % heroImages.length);
+          setIsTransitioning(false);
+        }, 300);
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [heroImages.length, heroLoading]);
+
+  // Get current hero image
+  const currentHeroImage = heroImages[currentHeroIndex];
+
   const features = [
     {
       icon: GraduationCap,
@@ -108,18 +125,18 @@ export default function Home() {
   const galleryImages = dynamicGalleryImages.length > 0 ? dynamicGalleryImages : fallbackGalleryImages;
 
   // Gallery carousel navigation
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
+  const nextGalleryImage = () => {
+    setCurrentGalleryIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  const prevGalleryImage = () => {
+    setCurrentGalleryIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
   };
 
-  // Auto-advance carousel
+  // Auto-advance gallery carousel
   useEffect(() => {
     if (galleryImages.length > 1) {
-      const timer = setInterval(nextImage, 5000);
+      const timer = setInterval(nextGalleryImage, 5000);
       return () => clearInterval(timer);
     }
   }, [galleryImages.length]);
@@ -141,72 +158,159 @@ export default function Home() {
 
   return (
     <PublicLayout>
-      {/* Enhanced Hero Section with beautiful styling */}
-      <section className="hero-gradient py-20 md:py-32 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <div className="text-primary-foreground order-2 lg:order-1 text-center lg:text-left">
-              <h1 className="school-title text-4xl sm:text-5xl lg:text-6xl xl:text-7xl mb-6 leading-tight animate-slide-down" data-testid="text-hero-title">
-                Treasure-Home School
-              </h1>
-              <p className="school-motto text-xl sm:text-2xl lg:text-3xl mb-8 font-medium animate-slide-down" data-testid="text-hero-motto">
-                Motto: "Honesty and Success"
+      {/* Advanced Hero Section with Image Carousel */}
+      <section className="relative min-h-[85vh] lg:min-h-[90vh] overflow-hidden">
+        {/* Background gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 z-0"></div>
+        
+        {/* Animated background patterns */}
+        <div className="absolute inset-0 opacity-10 z-0">
+          <div className="absolute top-0 -left-4 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>
+          <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-blue-300 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-4000"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-16 lg:py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[75vh]">
+            {/* Left Content */}
+            <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
+              <div className="space-y-4">
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold leading-tight animate-slide-down tracking-tight" data-testid="text-hero-title">
+                  <span className="block">Treasure-Home</span>
+                  <span className="block bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">School</span>
+                </h1>
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-yellow-300 animate-slide-down" style={{ animationDelay: '0.1s' }} data-testid="text-hero-motto">
+                  "Honesty and Success"
+                </p>
+              </div>
+
+              <p className="text-lg sm:text-xl lg:text-2xl text-blue-50 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-light" style={{ animationDelay: '0.2s' }} data-testid="text-hero-description">
+                Qualitative Education & Moral Excellence
               </p>
-              <p className="text-lg sm:text-xl text-primary-foreground/95 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" data-testid="text-hero-description">
-                Located in Seriki-Soyinka Ifo, Ogun State, we provide comprehensive education from playgroup to senior secondary school, nurturing students with our core values of honesty and success through quality education and moral excellence.
+
+              <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                Located in Seriki-Soyinka Ifo, Ogun State. Providing comprehensive education from playgroup to senior secondary school.
               </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start animate-slide-up">
+
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center lg:justify-start animate-slide-up pt-4" style={{ animationDelay: '0.4s' }}>
                 <Button 
                   asChild 
-                  className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold h-14 px-10 text-lg rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-110 hover:-translate-y-2"
+                  size="lg"
+                  className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold h-14 px-10 text-lg rounded-full shadow-2xl hover:shadow-3xl transform transition-all duration-300 hover:scale-105 border-0"
                   data-testid="button-apply-admission"
                 >
                   <Link href="/admissions">Apply for Admission</Link>
                 </Button>
                 <Button 
                   asChild
+                  size="lg"
                   variant="outline" 
-                  className="border-2 border-white bg-white/20 backdrop-blur-sm text-white hover:bg-white/40 hover:text-white hover:border-white/80 font-bold h-14 px-10 text-lg rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:-translate-y-2"
+                  className="border-2 border-white/80 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white font-bold h-14 px-10 text-lg rounded-full shadow-xl transition-all duration-300 hover:scale-105"
                   data-testid="button-contact-us"
                 >
                   <Link href="/contact">Contact Us</Link>
                 </Button>
               </div>
             </div>
-            <div className="order-1 lg:order-2 lg:text-right animate-fade-in">
+
+            {/* Right Content - Image Carousel */}
+            <div className="order-1 lg:order-2 animate-fade-in" style={{ animationDelay: '0.2s' }}>
               <div className="relative max-w-lg mx-auto lg:max-w-none">
-                {heroLoading || !heroImage?.imageUrl ? (
-                  <Skeleton className="rounded-3xl w-full aspect-[4/3]" />
-                ) : (
-                  <img 
-                    src={heroImage.imageUrl} 
-                    alt={heroImage.altText || "Students engaged in active learning at Treasure-Home School"} 
-                    className="rounded-3xl shadow-2xl w-full h-auto aspect-[4/3] object-cover transform transition-all duration-500 hover:scale-105"
-                    width="600"
-                    height="450"
-                    loading="eager"
-                    decoding="async"
-                    data-testid="img-hero-school"
-                  />
-                )}
-                <div className="absolute -bottom-6 -left-6 sm:-bottom-8 sm:-left-8 bg-white/95 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20">
-                  <div className="flex items-center space-x-3 sm:space-x-4">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
-                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm sm:text-base font-bold text-gray-900" data-testid="text-student-count">500+ Students</p>
-                      <p className="text-xs sm:text-sm text-gray-600 font-medium">Enrolled</p>
+                {heroLoading || heroImages.length === 0 ? (
+                  // Loading state with marketing text
+                  <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] bg-gradient-to-br from-blue-500/20 to-indigo-600/20 backdrop-blur-sm border border-white/20">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-6">
+                      <div className="space-y-3">
+                        <h3 className="text-3xl lg:text-4xl font-bold text-white animate-pulse">
+                          Treasure-Home School
+                        </h3>
+                        <p className="text-xl lg:text-2xl text-yellow-300 font-semibold animate-pulse" style={{ animationDelay: '0.2s' }}>
+                          Qualitative Education
+                        </p>
+                        <p className="text-lg lg:text-xl text-blue-100 animate-pulse" style={{ animationDelay: '0.4s' }}>
+                          & Moral Excellence
+                        </p>
+                      </div>
+                      <div className="flex space-x-2 mt-4">
+                        <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce"></div>
+                        <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
+                    {/* Hero Image with transition */}
+                    <div className="relative aspect-[4/3]">
+                      <img 
+                        src={currentHeroImage?.imageUrl || ''} 
+                        alt={currentHeroImage?.altText || "Treasure-Home School"} 
+                        className={`w-full h-full object-cover transition-all duration-500 ${isTransitioning ? 'opacity-70 scale-105' : 'opacity-100 scale-100'}`}
+                        loading="eager"
+                        decoding="async"
+                        data-testid="img-hero-school"
+                      />
+                      
+                      {/* Gradient overlay for better text visibility */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+                    </div>
+
+                    {/* Navigation dots - only show if multiple images */}
+                    {heroImages.length > 1 && (
+                      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 z-10">
+                        {heroImages.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setIsTransitioning(true);
+                              setTimeout(() => {
+                                setCurrentHeroIndex(index);
+                                setIsTransitioning(false);
+                              }, 300);
+                            }}
+                            className={`transition-all duration-300 rounded-full ${
+                              currentHeroIndex === index 
+                                ? 'w-8 h-3 bg-white' 
+                                : 'w-3 h-3 bg-white/50 hover:bg-white/75'
+                            }`}
+                            aria-label={`View image ${index + 1}`}
+                            data-testid={`button-hero-dot-${index}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Image counter badge */}
+                    {heroImages.length > 1 && (
+                      <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+                        {currentHeroIndex + 1} / {heroImages.length}
+                      </div>
+                    )}
+
+                    {/* Caption overlay if available */}
+                    {currentHeroImage?.caption && (
+                      <div className="absolute bottom-16 left-6 right-6 text-white">
+                        <p className="text-sm lg:text-base font-medium bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg">
+                          {currentHeroImage.caption}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Decorative bottom wave */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg className="w-full h-16 lg:h-24 fill-current text-white" viewBox="0 0 1440 74" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0,32L48,37.3C96,43,192,53,288,48C384,43,480,21,576,16C672,11,768,21,864,26.7C960,32,1056,32,1152,26.7C1248,21,1344,11,1392,5.3L1440,0L1440,74L1392,74C1344,74,1248,74,1152,74C1056,74,960,74,864,74C768,74,672,74,576,74C480,74,384,74,288,74C192,74,96,74,48,74L0,74Z"></path>
+          </svg>
+        </div>
       </section>
 
-      {/* Enhanced Key Features Section with beautiful styling */}
+      {/* Enhanced Key Features Section */}
       <section className="section-gradient-light py-20 md:py-24 lg:py-32 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16 lg:mb-20">
@@ -362,10 +466,10 @@ export default function Home() {
               {/* Main carousel with improved responsive design */}
               <div className="relative h-60 sm:h-72 md:h-80 lg:h-96 rounded-2xl overflow-hidden mb-6 shadow-2xl">
                 <img
-                  src={galleryImages[currentImageIndex]?.src}
-                  alt={galleryImages[currentImageIndex]?.alt}
+                  src={galleryImages[currentGalleryIndex]?.src}
+                  alt={galleryImages[currentGalleryIndex]?.alt}
                   className="w-full h-full object-cover transition-all duration-700 ease-in-out"
-                  data-testid={`img-gallery-main-${currentImageIndex}`}
+                  data-testid={`img-gallery-main-${currentGalleryIndex}`}
                 />
 
                 {/* Enhanced navigation arrows */}
@@ -374,7 +478,7 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:scale-110"
-                    onClick={prevImage}
+                    onClick={prevGalleryImage}
                     data-testid="button-gallery-prev"
                   >
                     <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -383,7 +487,7 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:scale-110"
-                    onClick={nextImage}
+                    onClick={nextGalleryImage}
                     data-testid="button-gallery-next"
                   >
                     <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -393,7 +497,7 @@ export default function Home() {
                 {/* Enhanced image counter */}
                 <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-black/60 text-white px-3 py-2 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
                   <span className="flex items-center space-x-1">
-                    <span>{currentImageIndex + 1}</span>
+                    <span>{currentGalleryIndex + 1}</span>
                     <span className="text-white/60">/</span>
                     <span>{galleryImages.length}</span>
                   </span>
@@ -404,9 +508,9 @@ export default function Home() {
                   {galleryImages.map((_, index) => (
                     <button
                       key={index}
-                      onClick={() => setCurrentImageIndex(index)}
+                      onClick={() => setCurrentGalleryIndex(index)}
                       className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                        currentImageIndex === index 
+                        currentGalleryIndex === index 
                           ? 'bg-white scale-125' 
                           : 'bg-white/50 hover:bg-white/75'
                       }`}
@@ -421,9 +525,9 @@ export default function Home() {
                 {galleryImages.map((image, index) => (
                   <button
                     key={index}
-                    onClick={() => setCurrentImageIndex(index)}
+                    onClick={() => setCurrentGalleryIndex(index)}
                     className={`relative h-16 sm:h-20 rounded-xl overflow-hidden transition-all duration-300 transform ${
-                      currentImageIndex === index 
+                      currentGalleryIndex === index 
                         ? 'ring-2 ring-primary ring-offset-2 scale-105 shadow-lg' 
                         : 'hover:opacity-80 hover:scale-105 hover:shadow-md'
                     }`}
@@ -434,10 +538,10 @@ export default function Home() {
                       alt={image.alt}
                       className="w-full h-full object-cover"
                     />
-                    {currentImageIndex !== index && (
+                    {currentGalleryIndex !== index && (
                       <div className="absolute inset-0 bg-black/40" />
                     )}
-                    {currentImageIndex === index && (
+                    {currentGalleryIndex === index && (
                       <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent" />
                     )}
                   </button>
