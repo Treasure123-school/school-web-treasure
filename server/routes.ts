@@ -3340,6 +3340,17 @@ export async function registerRoutes(app: Express): Server {
         });
       }
 
+      // 🔧 DEBUG: Log profile status for troubleshooting
+      console.log('🔐 LOGIN ATTEMPT:', {
+        identifier,
+        userId: user.id,
+        roleId: user.roleId,
+        isActive: user.isActive,
+        status: user.status,
+        profileCompleted: user.profileCompleted,
+        profileSkipped: user.profileSkipped,
+      });
+
       // Get user role for various checks
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
@@ -5994,6 +6005,17 @@ Treasure-Home School Administration
         percentage: user?.profileCompletionPercentage || completionPercentage,
         firstLogin: student?.firstLogin !== false
       };
+
+      // 🔧 DEBUG: Log profile status for troubleshooting
+      console.log('📊 PROFILE STATUS CHECK:', {
+        userId,
+        hasProfile: status.hasProfile,
+        completed: status.completed,
+        skipped: status.skipped,
+        percentage: status.percentage,
+        rawProfileCompleted: user?.profileCompleted,
+        rawProfileSkipped: user?.profileSkipped,
+      });
 
       res.json(status);
     } catch (error) {
