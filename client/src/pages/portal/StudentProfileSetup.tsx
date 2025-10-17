@@ -22,8 +22,19 @@ import {
   Mail,
   Users,
   Save,
-  AlertCircle
+  AlertCircle,
+  SkipForward
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface StudentProfileData {
   phone: string;
@@ -42,6 +53,7 @@ export default function StudentProfileSetup() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showSkipDialog, setShowSkipDialog] = useState(false);
 
   const [formData, setFormData] = useState<StudentProfileData>({
     phone: '',
@@ -121,6 +133,49 @@ export default function StudentProfileSetup() {
       });
     },
   });
+
+  const skipProfileMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/student/profile/skip', {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to skip profile setup');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile Skipped",
+        description: "You can complete your profile later in Settings. Some features will be limited until you do.",
+        variant: "default",
+      });
+
+      // Invalidate profile queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/student/profile/status'] });
+      queryClient.invalidateQueries({ queryKey: ['student', user.id] });
+
+      // Redirect to dashboard
+      setTimeout(() => {
+        navigate('/portal/student');
+      }, 1000);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Skip Failed",
+        description: error.message || "Failed to skip profile setup. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSkip = () => {
+    setShowSkipDialog(true);
+  };
+
+  const confirmSkip = () => {
+    setShowSkipDialog(false);
+    skipProfileMutation.mutate();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -369,6 +424,16 @@ export default function StudentProfileSetup() {
 
               <div className="flex gap-4 pt-6">
                 <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSkip}
+                  disabled={createProfileMutation.isPending || skipProfileMutation.isPending}
+                  data-testid="button-skip-profile"
+                >
+                  <SkipForward className="w-4 h-4 mr-2" />
+                  Skip for Now
+                </Button>
+                <Button
                   type="submit"
                   className="flex-1"
                   disabled={createProfileMutation.isPending || completeness < 100}
@@ -399,6 +464,38 @@ export default function StudentProfileSetup() {
             </form>
           </CardContent>
         </Card>
+
+        {/* Skip Confirmation Dialog */}
+        <AlertDialog open={showSkipDialog} onOpenChange={setShowSkipDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Skip Profile Setup?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You can complete your profile later in Settings, but some features will be limited until you do.
+                <br /><br />
+                <strong>Restricted features:</strong>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Taking exams</li>
+                  <li>Viewing grades and report cards</li>
+                  <li>Accessing study resources</li>
+                  <li>Messaging teachers and students</li>
+                </ul>
+                <br />
+                Are you sure you want to skip for now?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-skip">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmSkip}
+                disabled={skipProfileMutation.isPending}
+                data-testid="button-confirm-skip"
+              >
+                {skipProfileMutation.isPending ? 'Skipping...' : 'Skip for Now'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

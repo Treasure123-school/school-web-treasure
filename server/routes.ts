@@ -5963,12 +5963,31 @@ Treasure-Home School Administration
   // Get student profile status (check if profile is complete)
   app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const studentId = req.user!.id;
-      const student = await storage.getStudent(studentId);
+      const userId = req.user!.id;
+      const user = await storage.getUserById(userId);
+      const student = await storage.getStudent(userId);
+
+      // Calculate profile completion percentage
+      let completionPercentage = 0;
+      if (student) {
+        const fields = [
+          user?.phone,
+          user?.address,
+          user?.dateOfBirth,
+          user?.gender,
+          student?.emergencyContact,
+          student?.medicalInfo,
+          user?.recoveryEmail,
+        ];
+        const filledFields = fields.filter(field => field !== null && field !== undefined && field !== '').length;
+        completionPercentage = Math.round((filledFields / fields.length) * 100);
+      }
 
       const status = {
         hasProfile: !!student,
-        isComplete: !!(student?.phone && student?.address),
+        completed: user?.profileCompleted || false,
+        skipped: user?.profileSkipped || false,
+        percentage: user?.profileCompletionPercentage || completionPercentage,
         firstLogin: student?.firstLogin !== false
       };
 
@@ -5982,13 +6001,30 @@ Treasure-Home School Administration
   // Student profile setup (first-time login)
   app.post('/api/student/profile/setup', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const studentId = req.user!.id;
+      const userId = req.user!.id;
       const profileData = req.body;
 
-      // Update student record with profile information
-      const updatedStudent = await storage.updateStudent(studentId, {
-        ...profileData,
-        firstLogin: false
+      // Extract user-level fields
+      const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, agreement, ...studentFields } = profileData;
+
+      // Update user record with profile information
+      await storage.updateUser(userId, {
+        phone,
+        address,
+        dateOfBirth,
+        gender,
+        recoveryEmail,
+        profileCompleted: true,
+        profileSkipped: false,
+        profileCompletionPercentage: 100,
+      });
+
+      // Update student record
+      const updatedStudent = await storage.updateStudent(userId, {
+        emergencyContact: profileData.emergencyContact,
+        emergencyPhone: profileData.emergencyPhone,
+        guardianName: profileData.emergencyContact,
+        medicalInfo: bloodGroup ? `Blood Group: ${bloodGroup}` : null,
       });
 
       if (!updatedStudent) {
@@ -6002,6 +6038,32 @@ Treasure-Home School Administration
     } catch (error) {
       console.error('Error setting up student profile:', error);
       res.status(500).json({ message: 'Failed to setup profile' });
+    }
+  });
+
+  // Skip student profile setup
+  app.post('/api/student/profile/skip', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const user = await storage.getUserById(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Mark profile as skipped
+      await storage.updateUser(userId, {
+        profileSkipped: true,
+        profileCompleted: false,
+      });
+
+      res.json({ 
+        message: 'Profile setup skipped. You can complete it later in Settings.',
+        skipped: true
+      });
+    } catch (error) {
+      console.error('Error skipping student profile:', error);
+      res.status(500).json({ message: 'Failed to skip profile setup' });
     }
   });
 

@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
+import RequireCompleteProfile from '@/components/RequireCompleteProfile';
 
 // Constants for violation tracking and penalties
 const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
@@ -1305,13 +1306,14 @@ export default function StudentExams() {
   };
 
   return (
-    <PortalLayout
-      userRole={getRoleName(user.roleId)}
-      userName={user.firstName + ' ' + user.lastName}
-      userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-    >
-      {/* Scoring Screen */}
-      {isScoring ? (
+    <RequireCompleteProfile feature="exams">
+      <PortalLayout
+        userRole={getRoleName(user.roleId)}
+        userName={user.firstName + ' ' + user.lastName}
+        userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
+      >
+        {/* Scoring Screen */}
+        {isScoring ? (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center space-y-4">
             <Loader className="w-8 h-8 animate-spin mx-auto text-primary" />
@@ -2289,5 +2291,6 @@ export default function StudentExams() {
         </div>
       )}
     </PortalLayout>
+    </RequireCompleteProfile>
   );
 }

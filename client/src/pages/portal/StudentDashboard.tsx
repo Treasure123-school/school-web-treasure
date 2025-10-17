@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play } from 'lucide-react';
+import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -27,15 +28,17 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  // Redirect to profile setup if profile is incomplete
+  // Redirect to profile setup only if profile doesn't exist and wasn't skipped
   useEffect(() => {
     if (!statusLoading && profileStatus) {
-      const needsSetup = !profileStatus.hasProfile || !profileStatus.isComplete;
+      // Only force redirect if profile doesn't exist at all (first time user)
+      // If skipped or incomplete, show banner instead
+      const needsForcedSetup = !profileStatus.hasProfile && !profileStatus.skipped;
       
-      if (needsSetup) {
+      if (needsForcedSetup) {
         console.log('🔄 Redirecting to student profile setup:', { 
           hasProfile: profileStatus.hasProfile,
-          isComplete: profileStatus.isComplete
+          skipped: profileStatus.skipped
         });
         navigate('/portal/student/profile-setup');
       }
@@ -168,6 +171,38 @@ export default function StudentDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* Profile Completion Banner */}
+      {!statusLoading && profileStatus && !profileStatus.completed && (
+        <Alert variant="default" className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800" data-testid="alert-profile-incomplete">
+          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+          <AlertTitle className="text-yellow-800 dark:text-yellow-200 font-semibold">
+            Complete Your Profile
+          </AlertTitle>
+          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <p className="mb-2">
+                  Your profile is incomplete. Complete it to access all features including exams, grades, study resources, and messaging.
+                </p>
+                {profileStatus.percentage > 0 && (
+                  <p className="text-sm">
+                    Profile completion: <strong>{profileStatus.percentage}%</strong>
+                  </p>
+                )}
+              </div>
+              <Button 
+                onClick={() => navigate('/portal/student/profile-setup')}
+                variant="default"
+                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                data-testid="button-complete-profile"
+              >
+                Complete Profile
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Student Role Header - Brand Identity */}
       <div className="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl" data-testid="student-role-header">
         <div className="flex items-center gap-4">

@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Download, Filter, TrendingUp } from 'lucide-react';
 import { Link } from 'wouter';
+import RequireCompleteProfile from '@/components/RequireCompleteProfile';
 
 export default function StudentGrades() {
   const { user } = useAuth();
@@ -12,6 +13,15 @@ export default function StudentGrades() {
   if (!user) {
     return <div>Please log in to access your grades.</div>;
   }
+
+  return (
+    <RequireCompleteProfile feature="grades and exam results">
+      <StudentGradesContent user={user} />
+    </RequireCompleteProfile>
+  );
+}
+
+function StudentGradesContent({ user }: { user: any }) {
 
   const { data: examResults, isLoading, error } = useQuery({
     queryKey: ['examResults', user.id],
