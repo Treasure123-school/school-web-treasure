@@ -209,10 +209,13 @@ export default function Home() {
             {/* Left Content */}
             <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" data-testid="text-hero-tagline">
-                <span className="block sm:inline">
-                  <span className="block sm:inline">Nurturing Bright Minds</span>{' '}
-                  <span className="block sm:inline mt-2 sm:mt-0">
-                    with <span className="inline-block align-bottom min-w-[200px] sm:min-w-[240px] lg:min-w-[280px]"><span ref={typedElementRef} className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent"></span></span>
+                <span className="block">
+                  <span className="inline">Nurturing Bright Minds</span>{' '}
+                  <span className="inline-block whitespace-nowrap">
+                    <span className="inline">with</span>{' '}
+                    <span className="inline-block align-middle min-w-[200px] sm:min-w-[240px] lg:min-w-[300px] min-h-[1.2em]">
+                      <span ref={typedElementRef} className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent"></span>
+                    </span>
                   </span>
                 </span>
               </h1>
