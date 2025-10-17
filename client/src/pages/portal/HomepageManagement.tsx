@@ -10,6 +10,7 @@ import { Trash2, Upload, Edit, Save, X, Image as ImageIcon } from 'lucide-react'
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient, apiRequest } from '@/lib/queryClient';
+import { getApiUrl } from '@/config/api';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import type { HomePageContent } from '@shared/schema';
@@ -52,7 +53,7 @@ export default function HomepageManagement() {
       formData.append('caption', data.caption);
       formData.append('displayOrder', data.displayOrder.toString());
 
-      const response = await fetch('/api/upload/homepage', {
+      const response = await fetch(getApiUrl('/api/upload/homepage'), {
         method: 'POST',
         body: formData,
         headers: {
@@ -105,7 +106,7 @@ export default function HomepageManagement() {
         throw new Error('Authentication required. Please log in again.');
       }
 
-      const response = await fetch(`/api/homepage-content/${id}`, {
+      const response = await fetch(getApiUrl(`/api/homepage-content/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +155,7 @@ export default function HomepageManagement() {
         throw new Error('Authentication required. Please log in again.');
       }
 
-      const response = await fetch(`/api/homepage-content/${id}`, {
+      const response = await fetch(getApiUrl(`/api/homepage-content/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

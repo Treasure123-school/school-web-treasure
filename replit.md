@@ -8,13 +8,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 17, 2025)
 
-### Production Image Upload Critical Fix - Environment Variables
-- **Root Cause Identified**: Production image uploads failing due to missing SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables at runtime
+### Production Image Upload COMPLETE FIX - Frontend API Routing
+- **REAL Root Cause**: Frontend (Vercel) was trying to upload images to itself instead of Render backend due to hardcoded relative URLs
+- **Fixed Frontend API Calls**: Updated `client/src/pages/portal/HomepageManagement.tsx` to use `getApiUrl()` helper for all API calls (upload, update, delete)
+- **Critical Configuration**: Vercel needs `VITE_API_URL=https://treasure-home-backend.onrender.com` environment variable
 - **Fail-Fast Validation**: Changed Supabase credentials from optional to ALWAYS REQUIRED in `server/validate-env.ts`
 - **Production Startup Verification**: Added runtime check in `server/index.ts` that prevents deployment if Supabase Storage isn't configured
 - **Enhanced Error Logging**: Improved initialization messages in `server/supabase-storage.ts` with clear, actionable error messages (no credential exposure)
 - **Security Fix**: Removed partial service key logging to prevent credential leakage
-- **Documentation**: Created `PRODUCTION_UPLOAD_FIX.md` with step-by-step guide for setting environment variables in Render, Vercel, Railway, and other platforms
+- **Complete Documentation**: Created `PRODUCTION_UPLOAD_COMPLETE_FIX.md` with full fix explanation and Vercel environment variable setup
 
 ### Production Image Upload Fix (October 16, 2025)
 - **Fixed Supabase Storage RLS Policies**: Created automated tools to apply Row Level Security policies that were missing in production
