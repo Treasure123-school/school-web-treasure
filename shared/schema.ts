@@ -54,6 +54,7 @@ export const users = pgTable("users", {
 
   // Profile completion fields
   profileCompleted: boolean("profile_completed").default(false),
+  profileSkipped: boolean("profile_skipped").default(false),
   profileCompletionPercentage: integer("profile_completion_percentage").default(0),
   state: varchar("state", { length: 100 }),
   country: varchar("country", { length: 100 }),
