@@ -8,8 +8,9 @@ import { db } from "./storage";
 import { seedAcademicTerms } from "./seed-terms";
 import { validateEnvironment } from "./validate-env";
 
-// Validate environment variables at startup
-validateEnvironment(false);
+// Validate environment variables at startup - fail fast in production if critical vars missing
+const isProduction = process.env.NODE_ENV === 'production';
+validateEnvironment(isProduction);
 
 const app = express();
 

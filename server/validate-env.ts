@@ -56,20 +56,20 @@ const ENV_VARS: EnvVarConfig[] = [
     suggestion: 'https://your-backend.onrender.com'
   },
 
-  // Critical - Supabase Storage
+  // Critical - Supabase Storage (ALWAYS REQUIRED for uploads)
   {
     name: 'SUPABASE_URL',
-    required: 'production',
-    description: 'Supabase project URL for file storage',
+    required: 'always',
+    description: 'Supabase project URL for file storage (CRITICAL for uploads)',
     validateFn: (val) => val.includes('supabase.co'),
     suggestion: 'https://your-project.supabase.co'
   },
   {
     name: 'SUPABASE_SERVICE_KEY',
-    required: 'production',
-    description: 'Supabase service role key for file storage',
+    required: 'always',
+    description: 'Supabase service role key for file storage (CRITICAL for uploads)',
     validateFn: (val) => val.length > 50,
-    suggestion: 'Get from Supabase Dashboard → Settings → API'
+    suggestion: 'Get from Supabase Dashboard → Settings → API (use service_role key, NOT anon key)'
   },
 
   // Optional - Google OAuth
