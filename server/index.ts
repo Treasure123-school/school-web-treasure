@@ -250,6 +250,22 @@ function sanitizeLogData(data: any): any {
     log(`ℹ️ Registration setting initialization skipped (table may not exist): ${error instanceof Error ? error.message : error}`);
   }
 
+  // CRITICAL: Verify Supabase Storage is initialized in production
+  if (isProduction) {
+    const { isSupabaseStorageEnabled } = await import("./supabase-storage");
+    if (!isSupabaseStorageEnabled()) {
+      console.error('\n🚨 PRODUCTION CRITICAL ERROR: Supabase Storage is NOT configured!');
+      console.error('   → Image uploads will FAIL without SUPABASE_URL and SUPABASE_SERVICE_KEY');
+      console.error('   → Set these environment variables in your deployment platform (Render/Vercel/etc)');
+      console.error('   → Get credentials from: Supabase Dashboard → Project Settings → API');
+      console.error('   → Use the service_role key, NOT the anon key\n');
+      
+      // Fail fast in production to prevent silent upload failures
+      console.error('   → Exiting to prevent production deployment with broken uploads...\n');
+      process.exit(1);
+    }
+    log("✅ Supabase Storage verified for production deployment");
+  }
 
   // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
