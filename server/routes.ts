@@ -5510,6 +5510,8 @@ Treasure-Home School Administration
         mustChangePassword: true, // ✅ Student must change password on first login
         status: 'active',
         authProvider: 'local',
+        profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+        profileSkipped: false, // 🔧 FIX: New students start with incomplete profile
       };
 
       console.log('Creating user for student with username:', generatedUsername);
