@@ -170,23 +170,13 @@ export default function Home() {
           <div className="absolute -bottom-8 left-20 w-72 h-72 bg-blue-300 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-4000"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-16 lg:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-24 lg:py-32">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[75vh]">
             {/* Left Content */}
             <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
-              <div className="space-y-4">
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold leading-tight animate-slide-down tracking-tight" data-testid="text-hero-title">
-                  <span className="block">Treasure-Home</span>
-                  <span className="block bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">School</span>
-                </h1>
-                <p className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-yellow-300 animate-slide-down" style={{ animationDelay: '0.1s' }} data-testid="text-hero-motto">
-                  "Honesty and Success"
-                </p>
-              </div>
-
-              <h2 className="text-xl sm:text-2xl lg:text-3xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" style={{ animationDelay: '0.2s' }} data-testid="text-hero-tagline">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" data-testid="text-hero-tagline">
                 Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">Integrity</span>
-              </h2>
+              </h1>
 
               <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }} data-testid="text-hero-description">
                 At Treasure-Home School, we provide qualitative education anchored on moral values and lifelong learning. Located in Seriki-Soyinka, Ifo, Ogun State, we offer comprehensive education from Playgroup to Senior Secondary School — shaping confident, responsible, and successful learners.
