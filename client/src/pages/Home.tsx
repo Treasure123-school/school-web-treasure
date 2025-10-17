@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, Users, Award, GraduationCap, Star } from 'lucide-react';
 import type { HomePageContent } from '@shared/schema';
+import Typed from 'typed.js';
 
 export default function Home() {
   // Fetch dynamic content from database with optimized caching
@@ -156,6 +157,39 @@ export default function Home() {
     return text.substring(0, maxLength) + '...';
   };
 
+  // Typed.js animation for changing text
+  const typedElementRef = useRef<HTMLSpanElement>(null);
+  const typedInstance = useRef<Typed | null>(null);
+
+  useEffect(() => {
+    if (typedElementRef.current) {
+      // Destroy previous instance if it exists
+      if (typedInstance.current) {
+        typedInstance.current.destroy();
+      }
+
+      // Create new Typed instance
+      typedInstance.current = new Typed(typedElementRef.current, {
+        strings: ["Integrity", "Excellence", "Confidence", "Creativity", "Compassion"],
+        typeSpeed: 80,
+        backSpeed: 50,
+        loop: true,
+        backDelay: 2000,
+        startDelay: 500,
+        showCursor: true,
+        cursorChar: "|",
+        smartBackspace: true
+      });
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (typedInstance.current) {
+        typedInstance.current.destroy();
+      }
+    };
+  }, []); // Empty dependency array means this runs once on mount
+
   return (
     <PublicLayout>
       {/* Advanced Hero Section with Image Carousel */}
@@ -176,7 +210,7 @@ export default function Home() {
             <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal min-h-[120px] sm:min-h-[140px] lg:min-h-[160px] flex items-center justify-center lg:justify-start" data-testid="text-hero-tagline">
                 <span className="inline-block">
-                  Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent inline-block min-w-[200px] sm:min-w-[240px] lg:min-w-[280px] text-center lg:text-left"></span>
+                  Nurturing Bright Minds with <span ref={typedElementRef} className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent inline-block min-w-[200px] sm:min-w-[240px] lg:min-w-[280px] text-center lg:text-left"></span>
                 </span>
               </h1>
 
