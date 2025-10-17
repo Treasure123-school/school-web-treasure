@@ -23,23 +23,38 @@ function getSupabaseClient(): ReturnType<typeof createClient> | null {
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  const isProduction = process.env.NODE_ENV === 'production';
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn('⚠️ Supabase Storage not configured: Missing SUPABASE_URL or SUPABASE_SERVICE_KEY');
+    const errorMsg = `🚨 CRITICAL: Supabase Storage not configured! Missing: ${!supabaseUrl ? 'SUPABASE_URL' : ''} ${!supabaseServiceKey ? 'SUPABASE_SERVICE_KEY' : ''}`;
+    
+    if (isProduction) {
+      console.error(errorMsg);
+      console.error('   → Image uploads WILL FAIL in production without these credentials!');
+      console.error('   → Set SUPABASE_URL and SUPABASE_SERVICE_KEY in your deployment platform\'s environment variables');
+      console.error('   → Get these from: Supabase Dashboard → Project Settings → API');
+    } else {
+      console.warn(`⚠️ ${errorMsg} - Development mode will use fallback if available`);
+    }
     return null;
   }
 
   if (!isValidUrl(supabaseUrl)) {
-    console.warn(`⚠️ Supabase Storage not configured: Invalid SUPABASE_URL format: ${supabaseUrl}`);
+    const errorMsg = `🚨 CRITICAL: Invalid SUPABASE_URL format: ${supabaseUrl}`;
+    console.error(errorMsg);
+    console.error('   → Expected format: https://your-project.supabase.co');
     return null;
   }
 
   try {
     supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    console.log('✅ Supabase Storage client initialized');
+    console.log('✅ Supabase Storage client initialized successfully');
+    console.log(`   → Project URL: ${supabaseUrl}`);
+    console.log(`   → Service key configured: ${supabaseServiceKey.substring(0, 20)}...`);
     return supabaseClient;
   } catch (error) {
     console.error('❌ Failed to initialize Supabase Storage client:', error);
+    console.error('   → Verify your SUPABASE_SERVICE_KEY is the service_role key (not anon key)');
     return null;
   }
 }
