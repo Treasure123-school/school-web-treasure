@@ -85,16 +85,21 @@
           const element = document.querySelector(".changing-text");
           if (element && !element.dataset.typedInitialized) {
             element.dataset.typedInitialized = "true";
+            // Clear any existing content
+            element.innerHTML = "";
             new Typed(".changing-text", {
               strings: ["Integrity", "Excellence", "Confidence", "Creativity", "Compassion"],
-              typeSpeed: 60,
-              backSpeed: 40,
+              typeSpeed: 80,
+              backSpeed: 50,
               loop: true,
-              backDelay: 1500,
-              startDelay: 500
+              backDelay: 2000,
+              startDelay: 500,
+              showCursor: true,
+              cursorChar: "|",
+              smartBackspace: true
             });
           }
-        }, 500);
+        }, 800);
       });
     </script>
   </body>

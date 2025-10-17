@@ -176,7 +176,7 @@ export default function Home() {
             <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal min-h-[120px] sm:min-h-[140px] lg:min-h-[160px] flex items-center justify-center lg:justify-start" data-testid="text-hero-tagline">
                 <span className="inline-block">
-                  Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent inline-block min-w-[200px] sm:min-w-[240px] lg:min-w-[280px] text-center lg:text-left">Integrity</span>
+                  Nurturing Bright Minds with <span className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent inline-block min-w-[200px] sm:min-w-[240px] lg:min-w-[280px] text-center lg:text-left"></span>
                 </span>
               </h1>
 
