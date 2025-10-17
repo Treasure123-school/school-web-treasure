@@ -308,25 +308,17 @@
   vertical-align: middle;
 }
 
-/* Typed.js cursor styling - inline with text */
+/* Typed.js cursor styling - let library handle animation */
 .typed-cursor {
   font-weight: bold;
   opacity: 1;
   animation: blink 0.7s infinite;
-  display: inline-block;
-  margin-left: 2px;
 }
 
 @keyframes blink {
   0% { opacity: 1; }
   50% { opacity: 0; }
   100% { opacity: 1; }
-}
-
-/* Ensure cursor stays inline with text */
-.changing-text .typed-cursor {
-  position: relative;
-  vertical-align: baseline;
 }
 
 @keyframes slideDown {
