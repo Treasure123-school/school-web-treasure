@@ -2,7 +2,7 @@ import { Link, useLocation } from 'wouter';
 import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
+import schoolLogo from '@assets/school-logo.png';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -36,11 +36,11 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             <div className="flex justify-between items-center h-20">
               {/* Professional school branding */}
               <Link href="/" className="flex items-center space-x-4 group">
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-full p-2 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                <div className="rounded-full transition-all duration-300 group-hover:scale-105">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School Logo" 
-                    className="h-16 w-16 object-contain"
+                    className="h-20 w-20 object-contain"
                   />
                 </div>
                 <div className="flex flex-col">
@@ -149,11 +149,11 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             {/* School Branding */}
             <div className="lg:col-span-2">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-full p-2 shadow-xl">
+                <div className="rounded-full">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School Logo" 
-                    className="h-14 w-14 object-contain"
+                    className="h-16 w-16 object-contain"
                   />
                 </div>
                 <div>
