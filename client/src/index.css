@@ -306,12 +306,16 @@
   transition: all 0.3s ease-in-out;
   display: inline-block;
   vertical-align: middle;
+  position: relative;
 }
 
-/* Typed.js cursor styling - let library handle animation */
-.typed-cursor {
+/* Typed.js cursor styling - match the gradient text style */
+.changing-text .typed-cursor {
   font-weight: bold;
-  opacity: 1;
+  background: linear-gradient(to right, rgb(251, 191, 36), rgb(251, 146, 60));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   animation: blink 0.7s infinite;
 }
 
