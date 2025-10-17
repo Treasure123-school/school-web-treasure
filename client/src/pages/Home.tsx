@@ -205,7 +205,7 @@ export default function Home() {
                   asChild
                   size="lg"
                   variant="outline" 
-                  className="border-2 border-white/80 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white font-bold h-14 px-10 text-lg rounded-full shadow-xl transition-all duration-300 hover:scale-105"
+                  className="border-2 border-white/80 bg-white/10 backdrop-blur-md text-white hover:bg-gradient-to-r hover:from-green-500 hover:to-emerald-600 hover:border-green-400 font-bold h-14 px-10 text-lg rounded-full shadow-xl transition-all duration-300 hover:scale-105"
                   data-testid="button-contact-us"
                 >
                   <Link href="/contact">Contact Us</Link>
@@ -257,7 +257,7 @@ export default function Home() {
 
                     {/* Navigation dots - only show if multiple images */}
                     {heroImages.length > 1 && (
-                      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 z-10">
+                      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
                         {heroImages.map((_, index) => (
                           <button
                             key={index}
@@ -270,20 +270,13 @@ export default function Home() {
                             }}
                             className={`transition-all duration-300 rounded-full ${
                               currentHeroIndex === index 
-                                ? 'w-8 h-3 bg-white' 
-                                : 'w-3 h-3 bg-white/50 hover:bg-white/75'
+                                ? 'w-6 h-2 bg-white' 
+                                : 'w-2 h-2 bg-white/50 hover:bg-white/75'
                             }`}
                             aria-label={`View image ${index + 1}`}
                             data-testid={`button-hero-dot-${index}`}
                           />
                         ))}
-                      </div>
-                    )}
-
-                    {/* Image counter badge */}
-                    {heroImages.length > 1 && (
-                      <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-                        {currentHeroIndex + 1} / {heroImages.length}
                       </div>
                     )}
 
