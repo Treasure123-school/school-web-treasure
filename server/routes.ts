@@ -5560,6 +5560,8 @@ Treasure-Home School Administration
               authProvider: 'local',
               createdVia: 'admin',
               createdBy: req.user?.id,
+              profileCompleted: false, // 🔧 FIX: Explicitly set profile fields for parents
+              profileSkipped: false, // 🔧 FIX: New parents start with incomplete profile
             };
 
             const parentUser = await storage.createUser(parentData);
