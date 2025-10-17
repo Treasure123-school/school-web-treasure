@@ -211,9 +211,9 @@ export default function Home() {
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" data-testid="text-hero-tagline">
                 <span className="block">
                   <span className="inline">Nurturing Bright Minds</span>{' '}
-                  <span className="inline-block whitespace-nowrap">
-                    <span className="inline">with</span>{' '}
-                    <span className="inline-block align-middle min-w-[200px] sm:min-w-[240px] lg:min-w-[300px] min-h-[1.2em]">
+                  <span className="inline-block whitespace-nowrap align-baseline">
+                    <span className="inline-block align-baseline">with</span>{' '}
+                    <span className="inline-block align-baseline min-w-[200px] sm:min-w-[240px] lg:min-w-[300px]">
                       <span ref={typedElementRef} className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent"></span>
                     </span>
                   </span>

@@ -304,10 +304,9 @@
 /* Changing text animation with no layout shift */
 .changing-text {
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: baseline;
   position: relative;
-  min-height: 1.2em;
-  line-height: 1.2;
+  line-height: inherit;
 }
 
 /* Typed.js cursor styling - match the gradient text style */
