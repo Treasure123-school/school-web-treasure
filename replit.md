@@ -6,9 +6,17 @@ Treasure-Home School Management System is a comprehensive full-stack web applica
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (October 16, 2025)
+## Recent Changes (October 17, 2025)
 
-### Production Image Upload Fix
+### Production Image Upload Critical Fix - Environment Variables
+- **Root Cause Identified**: Production image uploads failing due to missing SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables at runtime
+- **Fail-Fast Validation**: Changed Supabase credentials from optional to ALWAYS REQUIRED in `server/validate-env.ts`
+- **Production Startup Verification**: Added runtime check in `server/index.ts` that prevents deployment if Supabase Storage isn't configured
+- **Enhanced Error Logging**: Improved initialization messages in `server/supabase-storage.ts` with clear, actionable error messages (no credential exposure)
+- **Security Fix**: Removed partial service key logging to prevent credential leakage
+- **Documentation**: Created `PRODUCTION_UPLOAD_FIX.md` with step-by-step guide for setting environment variables in Render, Vercel, Railway, and other platforms
+
+### Production Image Upload Fix (October 16, 2025)
 - **Fixed Supabase Storage RLS Policies**: Created automated tools to apply Row Level Security policies that were missing in production
 - **Added Diagnostic Tools**: Created `verify-storage-config.ts` to diagnose storage configuration issues (checks env vars, key type, bucket access, upload capability)
 - **Added Migration Tool**: Created `apply-storage-policies.ts` to apply RLS policies programmatically using direct SQL
