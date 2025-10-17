@@ -2416,6 +2416,8 @@ export async function registerRoutes(app: Express): Server {
               status: 'pending', // Requires approval
               createdVia: invite ? 'invite' : 'google',
               isActive: true,
+              profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+              profileSkipped: false, // 🔧 FIX: New users start with incomplete profile
             });
 
             // If invite exists, mark it as accepted
@@ -3157,25 +3159,33 @@ export async function registerRoutes(app: Express): Server {
             email: 'student@demo.com',
             firstName: 'John',
             lastName: 'Doe',
-            roleId: existingRoles.find(r => r.name === 'Student')?.id || existingRoles[0].id
+            roleId: existingRoles.find(r => r.name === 'Student')?.id || existingRoles[0].id,
+            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false // 🔧 FIX: Demo users start with incomplete profile
           },
           {
             email: 'teacher@demo.com',
             firstName: 'Jane',
             lastName: 'Smith',
-            roleId: existingRoles.find(r => r.name === 'Teacher')?.id || existingRoles[0].id
+            roleId: existingRoles.find(r => r.name === 'Teacher')?.id || existingRoles[0].id,
+            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false // 🔧 FIX: Demo users start with incomplete profile
           },
           {
             email: 'parent@demo.com',
             firstName: 'Bob',
             lastName: 'Johnson',
-            roleId: existingRoles.find(r => r.name === 'Parent')?.id || existingRoles[0].id
+            roleId: existingRoles.find(r => r.name === 'Parent')?.id || existingRoles[0].id,
+            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false // 🔧 FIX: Demo users start with incomplete profile
           },
           {
             email: 'admin@demo.com',
             firstName: 'Admin',
             lastName: 'User',
-            roleId: existingRoles.find(r => r.name === 'Admin')?.id || existingRoles[0].id
+            roleId: existingRoles.find(r => r.name === 'Admin')?.id || existingRoles[0].id,
+            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false // 🔧 FIX: Demo users start with incomplete profile
           }
         ];
 
@@ -3340,16 +3350,18 @@ export async function registerRoutes(app: Express): Server {
         });
       }
 
-      // 🔧 DEBUG: Log profile status for troubleshooting
-      console.log('🔐 LOGIN ATTEMPT:', {
-        identifier,
-        userId: user.id,
-        roleId: user.roleId,
-        isActive: user.isActive,
-        status: user.status,
-        profileCompleted: user.profileCompleted,
-        profileSkipped: user.profileSkipped,
-      });
+      // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 LOGIN ATTEMPT:', {
+          identifier,
+          userId: user.id,
+          roleId: user.roleId,
+          isActive: user.isActive,
+          status: user.status,
+          profileCompleted: user.profileCompleted,
+          profileSkipped: user.profileSkipped,
+        });
+      }
 
       // Get user role for various checks
       const userRole = await storage.getRole(user.roleId);
@@ -4223,7 +4235,9 @@ Treasure-Home School Administration
         authProvider: 'local',
         status: 'active',
         createdVia: 'invite',
-        mustChangePassword: false
+        mustChangePassword: false,
+        profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+        profileSkipped: false // 🔧 FIX: New staff start with incomplete profile
       });
 
       // Mark invite as accepted
@@ -5064,7 +5078,9 @@ Treasure-Home School Administration
       // Prepare user data with hashed password
       const userData = insertUserSchema.parse({
         ...otherUserData,
-        passwordHash
+        passwordHash,
+        profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
+        profileSkipped: otherUserData.profileSkipped ?? false // 🔧 FIX: Default to false if not provided
       });
 
       const user = await storage.createUser(userData);
@@ -5228,7 +5244,9 @@ Treasure-Home School Administration
               roleId: parentRoleData.id,
               firstName: parentFirstName,
               lastName: parentLastName,
-              mustChangePassword: true
+              mustChangePassword: true,
+              profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+              profileSkipped: false // 🔧 FIX: CSV import parents start with incomplete profile
             });
 
             // CRITICAL: Track newly created username to prevent duplicates in same batch
@@ -5262,7 +5280,9 @@ Treasure-Home School Administration
             roleId: studentRoleData.id,
             firstName: studentFirstName,
             lastName: studentLastName,
-            mustChangePassword: true
+            mustChangePassword: true,
+            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false // 🔧 FIX: CSV import students start with incomplete profile
           });
 
           // CRITICAL: Track newly created username to prevent duplicates in same batch
@@ -5773,6 +5793,8 @@ Treasure-Home School Administration
             status: 'active',
             createdVia: 'bulk',
             createdBy: req.user?.id,
+            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false, // 🔧 FIX: Bulk upload students start with incomplete profile
           };
 
           const user = await storage.createUser(userData);
@@ -6006,16 +6028,18 @@ Treasure-Home School Administration
         firstLogin: student?.firstLogin !== false
       };
 
-      // 🔧 DEBUG: Log profile status for troubleshooting
-      console.log('📊 PROFILE STATUS CHECK:', {
-        userId,
-        hasProfile: status.hasProfile,
-        completed: status.completed,
-        skipped: status.skipped,
-        percentage: status.percentage,
-        rawProfileCompleted: user?.profileCompleted,
-        rawProfileSkipped: user?.profileSkipped,
-      });
+      // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📊 PROFILE STATUS CHECK:', {
+          userId,
+          hasProfile: status.hasProfile,
+          completed: status.completed,
+          skipped: status.skipped,
+          percentage: status.percentage,
+          rawProfileCompleted: user?.profileCompleted,
+          rawProfileSkipped: user?.profileSkipped,
+        });
+      }
 
       res.json(status);
     } catch (error) {
@@ -6246,7 +6270,8 @@ Treasure-Home School Administration
           isActive: true,
           status: 'active',
           createdVia: 'self',
-          profileCompleted: false
+          profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+          profileSkipped: false // 🔧 FIX: Self-registration parents start with incomplete profile
         });
 
         parentUserId = parentUser.id;
@@ -6276,7 +6301,8 @@ Treasure-Home School Administration
         isActive: true,
         status: 'active',
         createdVia: 'self',
-        profileCompleted: false
+        profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+        profileSkipped: false // 🔧 FIX: Self-registration students start with incomplete profile
       });
 
       // Get the class by code (name)
