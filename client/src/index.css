@@ -307,6 +307,8 @@
   display: inline-block;
   vertical-align: middle;
   position: relative;
+  min-width: 280px;
+  text-align: left;
 }
 
 /* Typed.js cursor styling - match the gradient text style */
