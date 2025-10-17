@@ -208,9 +208,9 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[75vh]">
             {/* Left Content */}
             <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal min-h-[120px] sm:min-h-[140px] lg:min-h-[160px] flex items-center justify-center lg:justify-start" data-testid="text-hero-tagline">
-                <span className="inline-block">
-                  Nurturing Bright Minds with <span ref={typedElementRef} className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent"></span>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal flex items-center justify-center lg:justify-start" style={{ minHeight: '140px' }} data-testid="text-hero-tagline">
+                <span className="inline-block max-w-full">
+                  Nurturing Bright Minds with <span className="inline-block align-bottom" style={{ minWidth: '280px' }}><span ref={typedElementRef} className="changing-text font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent"></span></span>
                 </span>
               </h1>
 
