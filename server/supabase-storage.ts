@@ -50,7 +50,7 @@ function getSupabaseClient(): ReturnType<typeof createClient> | null {
     supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     console.log('✅ Supabase Storage client initialized successfully');
     console.log(`   → Project URL: ${supabaseUrl}`);
-    console.log(`   → Service key configured: ${supabaseServiceKey.substring(0, 20)}...`);
+    console.log(`   → Service key configured: Yes (service_role)`);
     return supabaseClient;
   } catch (error) {
     console.error('❌ Failed to initialize Supabase Storage client:', error);
