@@ -1771,16 +1771,16 @@ export default function StudentExams() {
 
                   {/* Clarity Banner */}
                   <div 
-                    className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-lg shadow-sm"
+                    className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-600 p-5 rounded-lg shadow-sm"
                     data-testid="banner-clarity"
                   >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-1">
+                    <div className="flex items-start gap-4">
+                      <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <p className="text-base font-semibold text-blue-900 dark:text-blue-200">
                           Auto-Graded Results
                         </p>
-                        <p className="text-sm text-blue-800 dark:text-blue-300">
+                        <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
                           This shows your score for multiple-choice questions only. Your teacher is reviewing your essay answers and will release your final grade soon.
                         </p>
                       </div>
