@@ -6001,7 +6001,7 @@ Treasure-Home School Administration
   app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const userId = req.user!.id;
-      const user = await storage.getUserById(userId);
+      const user = await storage.getUser(userId);
       const student = await storage.getStudent(userId);
 
       // Calculate profile completion percentage
@@ -6095,7 +6095,7 @@ Treasure-Home School Administration
   app.post('/api/student/profile/skip', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const userId = req.user!.id;
-      const user = await storage.getUserById(userId);
+      const user = await storage.getUser(userId);
       
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
