@@ -8,6 +8,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### UI Color Scheme Simplification (October 18, 2025)
+- **Change Made**: Replaced all blue-purple and blue-indigo gradient combinations with simple blue-only gradients across the entire application
+- **Motivation**: User requested a cleaner, simpler look that is "fine and simple, not too heavy looking" to match the hero section's blue gradient styling
+- **Scope**: Updated gradients in all portal dashboards (Student, Teacher, Parent, Admin), profile pages, login/onboarding pages, and public homepage
+- **Details**:
+  - Dark gradients: Changed from `from-blue-600 to-purple-600` → `from-blue-600 to-blue-700`
+  - Light backgrounds: Changed from `from-blue-50 to-indigo-50` → `from-blue-50 to-blue-100`
+  - Header text: Changed from `from-blue-600 to-purple-600` → `from-blue-600 to-blue-700`
+  - Updated both light and dark mode variants
+  - Preserved other color schemes (orange, green, yellow, emerald, teal) that were intentionally different
+- **Files Modified**: PortalLayout, StudentDashboard, ParentDashboard, StudentProfileSetup, TeacherProfileSetup, Login, StudentExams, TeacherProfile, ParentReportCards, StudentReportCard, Home, ForgotPassword, ProfileOnboarding
+- **Impact**: Cleaner, more cohesive blue color scheme throughout the application without purple/indigo mixing
+- **Verification**: Architect-reviewed and approved; confirmed no blue-purple/indigo gradient tokens remain via repo-wide search
+
 ### Student Profile Display & Authentication Fix (October 18, 2025)
 - **Issue Resolved**: Fixed critical bug where student profile page showed "N/A", "Not provided", and "Not assigned" for all fields even when profile was 100% complete, and profile page returned 401 Unauthorized errors
 - **Root Causes**:
