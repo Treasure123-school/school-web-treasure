@@ -5984,8 +5984,27 @@ Treasure-Home School Administration
 
       const updates = req.body;
 
+      // Separate user fields from student fields
+      const userFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'recoveryEmail', 'dateOfBirth', 'gender', 'profileImageUrl'];
+      const studentFields = ['emergencyContact', 'emergencyPhone', 'medicalInfo', 'guardianName'];
+
+      const userPatch: any = {};
+      const studentPatch: any = {};
+
+      // Separate the fields
+      Object.keys(updates).forEach(key => {
+        if (userFields.includes(key)) {
+          userPatch[key] = updates[key];
+        } else if (studentFields.includes(key)) {
+          studentPatch[key] = updates[key];
+        }
+      });
+
       // Update student record
-      const updatedStudent = await storage.updateStudent(studentId, updates);
+      const updatedStudent = await storage.updateStudent(studentId, {
+        userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
+        studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : undefined
+      });
 
       if (!updatedStudent) {
         return res.status(404).json({ message: 'Student not found' });
