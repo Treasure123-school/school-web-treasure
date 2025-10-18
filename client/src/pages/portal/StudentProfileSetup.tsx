@@ -49,7 +49,7 @@ interface StudentProfileData {
 }
 
 export default function StudentProfileSetup() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -100,7 +100,7 @@ export default function StudentProfileSetup() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Trigger confetti
       confetti({
         particleCount: 100,
@@ -112,6 +112,20 @@ export default function StudentProfileSetup() {
         title: "Profile Setup Complete! 🎉",
         description: "Welcome to your student portal. Your profile has been set up successfully.",
       });
+
+      // Update user in AuthContext with profile completion data
+      if (data.user) {
+        updateUser({
+          profileCompleted: data.user.profileCompleted,
+          profileCompletionPercentage: data.user.profileCompletionPercentage,
+          profileSkipped: data.user.profileSkipped,
+          phone: data.user.phone,
+          address: data.user.address,
+          dateOfBirth: data.user.dateOfBirth,
+          gender: data.user.gender,
+          recoveryEmail: data.user.recoveryEmail,
+        });
+      }
 
       // Clear draft
       localStorage.removeItem('student_profile_draft');
@@ -143,12 +157,21 @@ export default function StudentProfileSetup() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Profile Skipped",
         description: "You can complete your profile later in Settings. Some features will be limited until you do.",
         variant: "default",
       });
+
+      // Update user in AuthContext with profile skip data
+      if (data.user) {
+        updateUser({
+          profileSkipped: data.user.profileSkipped,
+          profileCompleted: data.user.profileCompleted,
+          profileCompletionPercentage: data.user.profileCompletionPercentage,
+        });
+      }
 
       // Invalidate profile queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/student/profile/status'] });
