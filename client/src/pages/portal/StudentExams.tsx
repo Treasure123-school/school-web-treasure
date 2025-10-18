@@ -1619,28 +1619,61 @@ export default function StudentExams() {
   // Render exam list and results with PortalLayout wrapper
   return (
     <RequireCompleteProfile feature="exams">
-      <PortalLayout
-        userRole={getRoleName(user.roleId)}
-        userName={user.firstName + ' ' + user.lastName}
-        userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-      >
-        {isScoring ? (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center space-y-4">
-            <Loader className="w-8 h-8 animate-spin mx-auto text-primary" />
-            <div>
-              <h2 className="text-2xl font-bold">Scoring Your Exam</h2>
-              <p className="text-muted-foreground">Please wait while we calculate your results...</p>
+      {isScoring ? (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 border-b border-blue-800 shadow-md">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center space-x-3">
+                <img 
+                  src={schoolLogo} 
+                  alt="Treasure-Home School" 
+                  className="h-10 w-10 object-contain bg-white rounded-full p-1"
+                />
+                <div>
+                  <h2 className="text-lg font-bold text-white">Treasure-Home School</h2>
+                  <p className="text-xs text-blue-100">Online Examination Portal</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Scoring Content */}
+          <div className="flex items-center justify-center min-h-[500px]">
+            <div className="text-center space-y-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 border border-blue-200 dark:border-blue-800">
+              <Loader className="w-16 h-16 animate-spin mx-auto text-blue-600" />
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Scoring Your Exam</h2>
+                <p className="text-gray-600 dark:text-gray-300 mt-2">Please wait while we calculate your results...</p>
+              </div>
             </div>
           </div>
         </div>
       ) : /* Results Screen */
       showResults ? (
-        <div className="min-h-screen bg-gray-50 p-6">
-          <div className="max-w-2xl mx-auto space-y-6">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 border-b border-blue-800 shadow-md">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center space-x-3">
+                <img 
+                  src={schoolLogo} 
+                  alt="Treasure-Home School" 
+                  className="h-10 w-10 object-contain bg-white rounded-full p-1"
+                />
+                <div>
+                  <h2 className="text-lg font-bold text-white">Treasure-Home School</h2>
+                  <p className="text-xs text-blue-100">Exam Results</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Content */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Success Banner */}
             <div 
-              className="bg-green-600 text-white p-4 rounded-lg flex items-center space-x-3"
+              className="bg-green-600 text-white p-4 rounded-lg flex items-center space-x-3 shadow-md"
               role="status"
               aria-live="polite"
               data-testid="banner-success"
@@ -1714,7 +1747,7 @@ export default function StudentExams() {
                   {/* Provisional Score Warning */}
                   {normalizedResults.pendingCount > 0 && (
                     <div 
-                      className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg"
+                      className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg shadow-sm"
                       role="status"
                       aria-live="polite"
                       data-testid="banner-provisional"
@@ -1738,7 +1771,7 @@ export default function StudentExams() {
 
                   {/* Clarity Banner */}
                   <div 
-                    className="bg-blue-50 border border-blue-200 p-4 rounded-lg"
+                    className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 rounded-lg shadow-sm"
                     data-testid="banner-clarity"
                   >
                     <div className="flex items-start space-x-3">
@@ -1757,7 +1790,7 @@ export default function StudentExams() {
                   </div>
 
                   {/* Main Results Card */}
-                  <Card className="bg-white shadow-lg" data-testid="card-exam-results">
+                  <Card className="bg-white dark:bg-gray-800 shadow-lg border-blue-200 dark:border-blue-800" data-testid="card-exam-results">
                     <CardContent className="p-8">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Circular Progress */}
@@ -2105,6 +2138,11 @@ export default function StudentExams() {
           </div>
         </div>
       ) : (
+        <PortalLayout
+          userRole={getRoleName(user.roleId)}
+          userName={user.firstName + ' ' + user.lastName}
+          userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
+        >
         /* Exam List */
         <div className="space-y-6">
           <div>
@@ -2208,8 +2246,8 @@ export default function StudentExams() {
             )}
           </div>
         </div>
+        </PortalLayout>
       )}
-    </PortalLayout>
     </RequireCompleteProfile>
   );
 }
