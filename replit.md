@@ -8,6 +8,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Student Profile Display Fix (October 18, 2025)
+- **Issue Resolved**: Fixed critical bug where student profile page showed "N/A", "Not provided", and "Not assigned" for fields even when profile was 100% complete
+- **Root Cause**: The `getStudent()` method only returned data from the `students` table but the profile page needed user-level fields (dateOfBirth, phone, address, gender) stored in the `users` table and class name from the `classes` table
+- **Code Fix**: Modified `getStudent()` method in `server/storage.ts` to join with `users` and `classes` tables using LEFT JOIN, returning combined data including: user fields (firstName, lastName, email, phone, address, dateOfBirth, gender, profileImageUrl, recoveryEmail) and className
+- **Impact**: Student profile page now displays all fields correctly; features properly unlock when profile is truly complete
+- **Verification**: Changes architect-reviewed and approved; application running successfully
+
 ### Student Profile Update Fix (October 18, 2025)
 - **Issue Resolved**: Fixed critical bug preventing student profile data from being saved during profile completion
 - **Root Cause**: API route was incorrectly calling `storage.updateStudent()` without wrapping data in `studentPatch` object
