@@ -216,7 +216,7 @@ export default function StudentReportCard() {
           <>
             {/* Student Information Header */}
             <Card className="print:shadow-none">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 print:bg-white">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 print:bg-white">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-white text-2xl font-bold">
@@ -297,7 +297,7 @@ export default function StudentReportCard() {
             </div>
 
             {/* Professional Report Card Format */}
-            <Card className="print:shadow-none bg-gradient-to-br from-blue-50 to-indigo-50 print:bg-white">
+            <Card className="print:shadow-none bg-gradient-to-br from-blue-50 to-blue-100 print:bg-white">
               <CardHeader className="text-center border-b-2 border-blue-200 print:border-gray-400">
                 {/* School Letterhead */}
                 <div className="flex items-center justify-center mb-6 print:mb-4">

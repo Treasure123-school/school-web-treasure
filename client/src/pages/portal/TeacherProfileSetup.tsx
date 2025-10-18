@@ -584,16 +584,16 @@ export default function TeacherProfileSetup() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-6 sm:py-8 md:py-12 px-3 sm:px-4 lg:px-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-6 sm:py-8 md:py-12 px-3 sm:px-4 lg:px-6">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6 sm:mb-8 md:mb-10 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-3 shadow-lg">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-3 shadow-lg">
               <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
             </div>
             <div className="text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
                 Welcome, Teacher!
               </h1>
               <p className="text-sm sm:text-base text-muted-foreground mt-1">
@@ -604,7 +604,7 @@ export default function TeacherProfileSetup() {
         </div>
 
         {/* Profile Completeness Meter */}
-        <Card className="mb-6 sm:mb-8 shadow-lg border-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+        <Card className="mb-6 sm:mb-8 shadow-lg border-0 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-800">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -672,7 +672,7 @@ export default function TeacherProfileSetup() {
                     key={step.number}
                     className={`flex items-center gap-2 sm:gap-3 flex-1 p-2 sm:p-3 rounded-lg transition-all ${
                       currentStep === step.number
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md'
                         : currentStep > step.number
                         ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
                         : 'bg-gray-50 dark:bg-gray-700 text-gray-400'
@@ -825,7 +825,7 @@ export default function TeacherProfileSetup() {
                       setCurrentStep(2);
                     }
                   }}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white gap-2 text-sm sm:text-base"
                   data-testid="button-next-step-1"
                 >
                   Next Step
@@ -966,7 +966,7 @@ export default function TeacherProfileSetup() {
                       setCurrentStep(3);
                     }
                   }}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white gap-2 text-sm sm:text-base"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white gap-2 text-sm sm:text-base"
                   data-testid="button-next-step-2"
                 >
                   Next Step

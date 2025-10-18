@@ -171,7 +171,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
     <>
       <div className={`p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
-          <div className="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
+          <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
               src={schoolLogo} 
               alt="Treasure-Home School Logo" 
@@ -180,7 +180,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           </div>
           {!collapsed && (
             <div>
-              <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">Treasure-Home</h1>
+              <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">Treasure-Home</h1>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">{getRoleTitle()}</p>
             </div>
           )}
@@ -198,7 +198,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                     variant="ghost"
                     className={`w-full justify-start text-sm font-semibold rounded-xl ${
                       collapsed ? 'px-2' : 'px-3'
-                    } text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-200`}
+                    } text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-200`}
                     title={collapsed ? item.label : undefined}
                   >
                     <Icon className={`h-4 w-4 ${collapsed ? '' : 'mr-3'}`} />
@@ -226,7 +226,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                           onClick={onNavigate}
                           className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             subItemActive 
-                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30' 
+                              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30' 
                               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
                           }`}
                           data-testid={`nav-${subItem.label.toLowerCase().replace(/\s+/g, '-')}`}
@@ -252,8 +252,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               onClick={onNavigate}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 navItemActive 
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
               }`}
               data-testid={`nav-${navItem.name.toLowerCase().replace(/\s+/g, '-')}`}
               title={collapsed ? navItem.name : undefined}
@@ -315,7 +315,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 </Sheet>
               )}
               <div className="min-w-0 flex-1">
-                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
                   Welcome back, {userName.split(' ')[0]}!
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base truncate font-medium">
@@ -330,7 +330,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               <NotificationBell />
               <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-full px-2 sm:px-3 py-1.5 shadow-sm border border-gray-200 dark:border-gray-700">
                 <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-white dark:ring-gray-800">
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs sm:text-sm font-bold">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-700 text-white text-xs sm:text-sm font-bold">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>

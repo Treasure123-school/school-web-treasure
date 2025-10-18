@@ -1905,14 +1905,14 @@ export default function StudentExams() {
               <div className="lg:col-span-2">
                 {currentQuestion && (
                   <Card className="shadow-2xl border-0 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden ring-1 ring-gray-100 dark:ring-gray-700">
-                    <CardHeader className="bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 dark:from-indigo-950 dark:via-blue-950 dark:to-cyan-950 border-b-2 border-blue-100 dark:border-blue-900 p-6">
+                    <CardHeader className="bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:from-blue-950 dark:via-blue-900 dark:to-blue-800 border-b-2 border-blue-100 dark:border-blue-900 p-6">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <CardTitle className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-white">
                               Question {currentQuestionIndex + 1}
                             </CardTitle>
-                            <Badge className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 px-4 py-1.5 text-sm font-bold shadow-lg">
+                            <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0 px-4 py-1.5 text-sm font-bold shadow-lg">
                               {currentQuestion.points} pts
                             </Badge>
                           </div>
@@ -1955,7 +1955,7 @@ export default function StudentExams() {
                         >
                           {questionOptions.map((option, index) => (
                             <div key={option.id} className="group">
-                              <div className="flex items-start space-x-4 p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 dark:hover:bg-gradient-to-r dark:hover:from-indigo-950/30 dark:hover:to-blue-950/30 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md">
+                              <div className="flex items-start space-x-4 p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:bg-gradient-to-r dark:hover:from-blue-950/30 dark:hover:to-blue-900/30 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md">
                                 <RadioGroupItem
                                   value={option.id.toString()}
                                   id={`option-${option.id}`}
@@ -2083,7 +2083,7 @@ export default function StudentExams() {
                                 className={`
                                   h-12 rounded-xl text-base font-black transition-all duration-300 shadow-md
                                   ${isCurrent 
-                                    ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-xl scale-110 ring-4 ring-indigo-200 dark:ring-indigo-800' 
+                                    ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-xl scale-110 ring-4 ring-blue-200 dark:ring-blue-800' 
                                     : isAnswered
                                       ? 'bg-gradient-to-br from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 shadow-lg'
                                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -2101,7 +2101,7 @@ export default function StudentExams() {
                         {/* Legend */}
                         <div className="flex flex-col gap-3 mt-5 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
                           <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 shadow-md" />
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 shadow-md" />
                             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Current</span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -2215,7 +2215,7 @@ export default function StudentExams() {
                 .filter(exam => exam.isPublished)
                 .map((exam) => (
                   <Card key={exam.id} className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-t-4 border-blue-600" data-testid={`exam-card-${exam.id}`}>
-                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                         <div className="flex-1">
                           <CardTitle className="text-base sm:text-lg md:text-xl">{exam.name}</CardTitle>
@@ -2225,7 +2225,7 @@ export default function StudentExams() {
                         </div>
                         <Badge 
                           variant={exam.isPublished ? 'default' : 'secondary'}
-                          className={exam.isPublished ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white' : ''}
+                          className={exam.isPublished ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white' : ''}
                         >
                           {exam.isPublished ? 'Available' : 'Draft'}
                         </Badge>
@@ -2255,7 +2255,7 @@ export default function StudentExams() {
                         <Button
                           onClick={() => handleStartExam(exam)}
                           disabled={startExamMutation.isPending || !exam.isPublished}
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
                           data-testid={`button-start-exam-${exam.id}`}
                         >
                           {startExamMutation.isPending ? (

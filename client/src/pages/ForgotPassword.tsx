@@ -187,7 +187,7 @@ export default function ForgotPassword() {
                   )}
                 </div>
 
-                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-blue-600 rounded-full">
                       <Mail className="h-3.5 w-3.5 text-white" />

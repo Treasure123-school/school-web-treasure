@@ -192,7 +192,7 @@ export default function StudentDashboard() {
       )}
 
       {/* Gradient Header with Greeting */}
-      <div className="mb-8 relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 p-8 text-white shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700" data-testid="student-dashboard-header">
+      <div className="mb-8 relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 p-8 text-white shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700" data-testid="student-dashboard-header">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
         
         <div className="relative z-10">
@@ -257,12 +257,12 @@ export default function StudentDashboard() {
                 <div className="flex items-baseline gap-2">
                   <AnimatedCounter 
                     value={parseFloat(gpa)} 
-                    className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+                    className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent"
                   />
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-lg">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
                 <TrendingUp className="h-6 w-6" />
               </div>
             </div>
@@ -342,7 +342,7 @@ export default function StudentDashboard() {
                 <p className="text-sm text-muted-foreground mb-1">Messages</p>
                 <AnimatedCounter 
                   value={3} 
-                  className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent"
+                  className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent"
                 />
                 <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
                   <span className="relative flex h-2 w-2">
@@ -352,7 +352,7 @@ export default function StudentDashboard() {
                   3 unread
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
                 <MessageSquare className="h-6 w-6" />
               </div>
             </div>
@@ -459,7 +459,7 @@ export default function StudentDashboard() {
                 {exams.filter(exam => exam.isPublished).slice(0, 3).map((exam: any) => (
                   <div 
                     key={exam.id} 
-                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 dark:from-purple-950/20 to-transparent border border-purple-200 dark:border-purple-800/30 hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 dark:from-blue-950/20 to-transparent border border-blue-200 dark:border-blue-800/30 hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
                   >
                     <div className="flex-1">
                       <h4 className="font-semibold text-sm mb-1">{exam.name}</h4>
@@ -471,7 +471,7 @@ export default function StudentDashboard() {
                       </p>
                     </div>
                     <Link to="/portal/student/exams">
-                      <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-md">
+                      <Button size="sm" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
                         <Play className="w-4 h-4 mr-1" />
                         Start
                       </Button>

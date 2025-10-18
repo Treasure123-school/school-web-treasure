@@ -395,7 +395,7 @@ export default function TeacherProfile() {
 
         {/* Profile Completion Progress */}
         {teacherProfile && (
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800" data-testid="card-progress">
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800" data-testid="card-progress">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <div>

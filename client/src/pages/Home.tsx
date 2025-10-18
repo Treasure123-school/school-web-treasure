@@ -195,7 +195,7 @@ export default function Home() {
       {/* Advanced Hero Section with Image Carousel */}
       <section className="relative min-h-[85vh] lg:min-h-[90vh] overflow-hidden">
         {/* Background gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 z-0"></div>
         
         {/* Animated background patterns */}
         <div className="absolute inset-0 opacity-10 z-0">
@@ -247,7 +247,7 @@ export default function Home() {
               <div className="relative max-w-lg mx-auto lg:max-w-none">
                 {heroLoading || heroImages.length === 0 ? (
                   // Loading state with marketing text
-                  <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] bg-gradient-to-br from-blue-500/20 to-indigo-600/20 backdrop-blur-sm border border-white/20">
+                  <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-sm border border-white/20">
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-6">
                       <div className="space-y-3">
                         <h3 className="text-3xl lg:text-4xl font-bold text-white animate-pulse">

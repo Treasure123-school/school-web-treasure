@@ -161,7 +161,7 @@ export default function ParentDashboard() {
       description: 'Monitor your children',
       href: '/portal/parent/children',
       gradient: 'from-blue-500 to-blue-600',
-      bgGradient: 'from-blue-50 to-indigo-50',
+      bgGradient: 'from-blue-50 to-blue-100',
     },
     {
       title: 'Report Cards',
@@ -178,8 +178,8 @@ export default function ParentDashboard() {
       icon: Calendar,
       description: 'View attendance records',
       href: '/portal/parent/attendance',
-      gradient: 'from-purple-500 to-purple-600',
-      bgGradient: 'from-purple-50 to-violet-50',
+      gradient: 'from-blue-500 to-blue-600',
+      bgGradient: 'from-blue-50 to-blue-100',
     },
     {
       title: 'Messages',
@@ -214,7 +214,7 @@ export default function ParentDashboard() {
 
         {/* Child Selector - Only show if parent has children linked */}
         {linkedChildren.length > 0 && (
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-2 border-blue-200 dark:border-blue-800">
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 border-2 border-blue-200 dark:border-blue-800">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -597,7 +597,7 @@ export default function ParentDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-purple-50/30">
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-blue-50/30">
             <CardHeader className="border-b border-gray-200/50">
               <div className="flex items-center gap-3">
                 <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg">

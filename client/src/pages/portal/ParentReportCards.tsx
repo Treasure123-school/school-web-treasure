@@ -188,7 +188,7 @@ export default function ParentReportCards() {
           <div className="space-y-6">
             {reportCards.map((report) => (
               <Card key={report.id} className="overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="space-y-1">
                       <CardTitle className="text-xl" data-testid={`text-report-title-${report.id}`}>
