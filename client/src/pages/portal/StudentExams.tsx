@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Maximize, Minimize, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award } from 'lucide-react';
+import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import RequireCompleteProfile from '@/components/RequireCompleteProfile';
@@ -37,7 +37,6 @@ export default function StudentExams() {
   const [examResults, setExamResults] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Per-question save status tracking
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
@@ -1309,7 +1308,7 @@ export default function StudentExams() {
   if (activeSession && examQuestions.length > 0) {
     return (
       <RequireCompleteProfile feature="exams">
-        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : 'bg-white dark:bg-gray-900'}`}>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
           {/* Warning Banners */}
           {(showTabSwitchWarning || !isOnline) && (
             <div className="sticky top-0 z-40 space-y-2 p-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b shadow-sm">
@@ -1340,28 +1339,20 @@ export default function StudentExams() {
           )}
 
           {/* Simple Exam Header */}
-          <div className="bg-white dark:bg-gray-900 border-b">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 border-b border-blue-800 shadow-md">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School" 
-                    className="h-10 w-10 object-contain"
+                    className="h-10 w-10 object-contain bg-white rounded-full p-1"
                   />
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Treasure-Home School</h2>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Online Examination Portal</p>
+                    <h2 className="text-lg font-bold text-white">Treasure-Home School</h2>
+                    <p className="text-xs text-blue-100">Online Examination Portal</p>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsFullScreen(!isFullScreen)}
-                  className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                </Button>
               </div>
             </div>
           </div>
@@ -1369,26 +1360,28 @@ export default function StudentExams() {
           {/* Exam Content */}
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Small Progress Indicator */}
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Question {currentQuestionIndex + 1} of {examQuestions.length}
-                </span>
-                {timeRemaining !== null && (
-                  <span className={`text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    <Clock className="w-4 h-4 inline mr-1" />
-                    {formatTime(timeRemaining)}
+            <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-800 shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    Question {currentQuestionIndex + 1} of {examQuestions.length}
                   </span>
-                )}
+                  {timeRemaining !== null && (
+                    <span className={`text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      {formatTime(timeRemaining)}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  {Object.keys(answers).length} answered
+                </span>
               </div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {Object.keys(answers).length} answered
-              </span>
             </div>
 
             {/* Question Card */}
             {currentQuestion && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-gray-700 shadow-md p-8 mb-6">
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1483,7 +1476,7 @@ export default function StudentExams() {
                   setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
                 }}
                 disabled={currentQuestionIndex === 0}
-                className="px-6"
+                className="px-6 border-blue-300 hover:bg-blue-50 dark:border-blue-700 dark:hover:bg-blue-950"
                 data-testid="button-previous"
               >
                 ← Previous
@@ -1498,7 +1491,7 @@ export default function StudentExams() {
                     if (confirmed) handleSubmitExam();
                   }}
                   disabled={isSubmitting || hasPendingSaves() || isScoring}
-                  className="px-6 bg-green-600 hover:bg-green-700"
+                  className="px-6 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
                   data-testid="button-submit-exam"
                 >
                   {isScoring ? (
@@ -1533,7 +1526,7 @@ export default function StudentExams() {
                     setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
                   }}
                   disabled={currentQuestionIndex === examQuestions.length - 1}
-                  className="px-6"
+                  className="px-6 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
                   data-testid="button-next"
                 >
                   Next →
