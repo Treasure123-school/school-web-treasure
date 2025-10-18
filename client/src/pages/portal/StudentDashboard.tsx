@@ -196,19 +196,33 @@ export default function StudentDashboard() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
         
         <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4 mb-6">
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-xl animate-in zoom-in duration-500">
-              <BookOpen className="h-10 w-10 text-white" />
+              <Target className="h-10 w-10 text-white" />
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1">
-                Welcome back, {user.firstName}! 🎓
+                Keep the Momentum, {user.firstName}!
               </h1>
               <p className="text-blue-100 text-sm md:text-base">
-                {attendanceImprovement 
-                  ? "Your academic streak is improving this week!" 
-                  : "Keep pushing forward - every day counts!"}
+                Your academic streak is shining brighter this week.
               </p>
+            </div>
+          </div>
+
+          {/* Streak and Progress Stats */}
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-3 text-white">
+              <span className="text-2xl">🔥</span>
+              <span className="font-semibold text-base md:text-lg">Streak: 5 days active</span>
+            </div>
+            <div className="flex items-center gap-3 text-white">
+              <TrendingUp className="h-6 w-6 text-green-300" />
+              <span className="font-semibold text-base md:text-lg">Progress: +12% from last week</span>
+            </div>
+            <div className="flex items-center gap-3 text-white">
+              <Trophy className="h-6 w-6 text-yellow-300" />
+              <span className="font-semibold text-base md:text-lg">Next Milestone: Reach GPA 2.0</span>
             </div>
           </div>
 
@@ -217,10 +231,10 @@ export default function StudentDashboard() {
             <Link to="/portal/student/exams">
               <Button 
                 className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
-                data-testid="button-start-assessment"
+                data-testid="button-continue-learning"
               >
                 <Play className="mr-2 h-4 w-4" />
-                Start Assessment
+                Continue Learning
               </Button>
             </Link>
             <Link to="/portal/student/grades">
@@ -228,17 +242,17 @@ export default function StudentDashboard() {
                 className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
                 data-testid="button-view-grades"
               >
-                <Star className="mr-2 h-4 w-4" />
+                <ChevronRight className="mr-2 h-4 w-4" />
                 View Grades
               </Button>
             </Link>
             <Link to="/portal/student/messages">
               <Button 
                 className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
-                data-testid="button-check-messages"
+                data-testid="button-messages"
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
-                Check Messages
+                Messages
               </Button>
             </Link>
           </div>

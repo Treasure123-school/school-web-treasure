@@ -291,7 +291,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header - Modern Responsive Design */}
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm p-3 sm:p-4 md:p-6 sticky top-0 z-10 backdrop-blur-sm bg-white/95 dark:bg-gray-900/95">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm p-3 sm:p-4 md:p-6">
           <div className="flex justify-between items-center gap-2 sm:gap-3 max-w-7xl mx-auto">
             <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
               {/* Modern Mobile Menu Trigger */}
