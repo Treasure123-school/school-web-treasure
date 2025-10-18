@@ -1771,7 +1771,7 @@ export default function StudentExams() {
 
                   {/* Clarity Banner */}
                   <div 
-                    className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-lg shadow-sm mb-6"
+                    className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-lg shadow-sm my-6"
                     data-testid="banner-clarity"
                   >
                     <div className="flex items-start gap-3">
