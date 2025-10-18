@@ -1795,7 +1795,7 @@ export default function StudentExams() {
         </div>
       ) : /* Active Exam Interface */
       activeSession && examQuestions.length > 0 ? (
-        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-950 overflow-auto' : 'bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-950'}`}>
+        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : 'bg-white dark:bg-gray-900'}`}>
           {/* Warning Banners */}
           {(showTabSwitchWarning || !isOnline) && (
             <div className="sticky top-0 z-40 space-y-2 p-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b shadow-sm">
@@ -1826,23 +1826,23 @@ export default function StudentExams() {
           )}
 
           {/* Professional Exam Header */}
-          <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 text-white shadow-2xl border-b-4 border-blue-700">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="bg-blue-600 text-white shadow-lg border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
               {/* School Branding */}
-              <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/30">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/20">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-3 shadow-2xl border border-white/20">
+                  <div className="bg-white rounded-lg p-2">
                     <img 
                       src={schoolLogo} 
                       alt="Treasure-Home School" 
-                      className="h-14 w-14 object-contain drop-shadow-lg"
+                      className="h-12 w-12 object-contain"
                     />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight drop-shadow-md">Treasure-Home School</h2>
-                    <div className="flex items-center gap-2 text-sm text-blue-50 mt-1">
+                    <h2 className="text-xl font-bold">Treasure-Home School</h2>
+                    <div className="flex items-center gap-2 text-sm text-white/90 mt-1">
                       <ClipboardCheck className="w-4 h-4" />
-                      <span className="font-medium">Online Examination Portal</span>
+                      <span>Online Examination Portal</span>
                     </div>
                   </div>
                 </div>
@@ -1850,18 +1850,18 @@ export default function StudentExams() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsFullScreen(!isFullScreen)}
-                  className="h-10 w-10 p-0 text-white hover:bg-white/25 rounded-xl transition-all shadow-lg border border-white/20"
+                  className="h-10 w-10 p-0 text-white hover:bg-white/20 rounded-lg"
                 >
                   {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                 </Button>
               </div>
 
               {/* Exam Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Exam Title */}
                 <div className="md:col-span-2">
-                  <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2 drop-shadow-lg">{selectedExam?.name}</h1>
-                  <div className="flex items-center gap-5 text-sm text-blue-50 font-medium">
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2">{selectedExam?.name}</h1>
+                  <div className="flex items-center gap-4 text-sm text-white/90">
                     <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
                       <BookOpen className="w-4 h-4" />
                       Question {currentQuestionIndex + 1} of {examQuestions.length}
@@ -1874,24 +1874,24 @@ export default function StudentExams() {
                 </div>
 
                 {/* Timer & Student Info */}
-                <div className="bg-white/15 backdrop-blur-xl rounded-2xl p-5 border border-white/25 shadow-2xl">
+                <div className="bg-white/10 backdrop-blur rounded-lg p-4 border border-white/20">
                   {timeRemaining !== null && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-blue-50 mb-2 flex items-center gap-1.5">
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-white/90 mb-2 flex items-center gap-1.5">
                         <Clock className="w-4 h-4" />
                         Time Remaining
                       </p>
-                      <div className={`text-4xl font-black font-mono ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-100' : 'text-red-200 animate-pulse'} drop-shadow-lg`}>
+                      <div className={`text-3xl font-bold font-mono ${timeRemaining > 300 ? 'text-white' : timeRemaining > 60 ? 'text-yellow-200' : 'text-red-200 animate-pulse'}`}>
                         {formatTime(timeRemaining)}
                       </div>
                     </div>
                   )}
-                  <div className="pt-4 border-t border-white/30">
-                    <p className="text-xs font-semibold text-blue-50 mb-1.5 flex items-center gap-1">
+                  <div className="pt-3 border-t border-white/20">
+                    <p className="text-xs font-semibold text-white/90 mb-1 flex items-center gap-1">
                       <GraduationCap className="w-3 h-3" />
                       Student
                     </p>
-                    <p className="text-base font-bold truncate drop-shadow">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-sm font-semibold truncate">{user?.firstName} {user?.lastName}</p>
                   </div>
                 </div>
               </div>
@@ -1904,19 +1904,19 @@ export default function StudentExams() {
               {/* Question Card - Main Area */}
               <div className="lg:col-span-2">
                 {currentQuestion && (
-                  <Card className="shadow-2xl border-0 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden ring-1 ring-gray-100 dark:ring-gray-700">
-                    <CardHeader className="bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:from-blue-950 dark:via-blue-900 dark:to-blue-800 border-b-2 border-blue-100 dark:border-blue-900 p-6">
+                  <Card className="shadow-md border bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                    <CardHeader className="bg-blue-50 dark:bg-gray-800 border-b p-6">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <CardTitle className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-white">
+                            <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                               Question {currentQuestionIndex + 1}
                             </CardTitle>
-                            <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0 px-4 py-1.5 text-sm font-bold shadow-lg">
+                            <Badge className="bg-blue-600 text-white border-0 px-3 py-1 text-sm font-semibold">
                               {currentQuestion.points} pts
                             </Badge>
                           </div>
-                          <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                          <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
                             <FileText className="w-4 h-4" />
                             {currentQuestion.questionType === 'multiple_choice' ? 'Multiple Choice' : 
                              currentQuestion.questionType === 'essay' ? 'Essay Question' : 'Short Answer'}
@@ -1929,7 +1929,7 @@ export default function StudentExams() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleRetryAnswer(currentQuestion.id, currentQuestion.questionType)}
-                              className="h-9 text-sm px-4 border-2 border-red-400 text-red-600 hover:bg-red-50 font-semibold shadow-md"
+                              className="h-9 text-sm px-4 border-2 border-red-400 text-red-600 hover:bg-red-50"
                             >
                               <RotateCcw className="w-4 h-4 mr-1.5" />
                               Retry
@@ -1950,23 +1950,23 @@ export default function StudentExams() {
                         <RadioGroup
                           value={answers[currentQuestion.id]?.toString() || ''}
                           onValueChange={(value) => handleAnswerChange(currentQuestion.id, parseInt(value), currentQuestion.questionType)}
-                          className="space-y-4"
+                          className="space-y-3"
                           data-testid="question-options"
                         >
                           {questionOptions.map((option, index) => (
                             <div key={option.id} className="group">
-                              <div className="flex items-start space-x-4 p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:bg-gradient-to-r dark:hover:from-blue-950/30 dark:hover:to-blue-900/30 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md">
+                              <div className="flex items-start space-x-3 p-4 rounded-lg border border-gray-300 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all cursor-pointer">
                                 <RadioGroupItem
                                   value={option.id.toString()}
                                   id={`option-${option.id}`}
-                                  className="mt-1.5 w-5 h-5"
+                                  className="mt-1 w-5 h-5"
                                   data-testid={`option-${index}`}
                                 />
                                 <Label
                                   htmlFor={`option-${option.id}`}
-                                  className="text-lg cursor-pointer flex-1 leading-relaxed text-gray-800 dark:text-gray-200 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 font-medium"
+                                  className="text-base cursor-pointer flex-1 leading-relaxed text-gray-800 dark:text-gray-200 group-hover:text-blue-700 dark:group-hover:text-blue-300"
                                 >
-                                  <span className="font-bold mr-3 text-indigo-600 dark:text-indigo-400">{String.fromCharCode(65 + index)}.</span>
+                                  <span className="font-bold mr-2 text-blue-600 dark:text-blue-400">{String.fromCharCode(65 + index)}.</span>
                                   {option.optionText}
                                 </Label>
                               </div>
@@ -1982,15 +1982,15 @@ export default function StudentExams() {
                           value={answers[currentQuestion.id] || ''}
                           onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
                           rows={currentQuestion.questionType === 'essay' ? 12 : 6}
-                          className="text-lg border-2 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all shadow-sm"
+                          className="text-base border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all"
                           data-testid="text-answer"
                         />
                       )}
                     </CardContent>
 
                     {/* Navigation Footer */}
-                    <div className="border-t-2 border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-950/30 px-8 py-5">
-                      <div className="flex gap-4">
+                    <div className="border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700 px-8 py-4">
+                      <div className="flex gap-3">
                         <Button
                           variant="outline"
                           onClick={() => {
@@ -2006,7 +2006,7 @@ export default function StudentExams() {
                             setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
                           }}
                           disabled={currentQuestionIndex === 0}
-                          className="flex-1 h-14 text-lg font-bold border-2 border-gray-300 hover:border-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all shadow-md disabled:opacity-50"
+                          className="flex-1 h-12 text-base font-semibold border-2 hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all disabled:opacity-50"
                           data-testid="button-previous"
                         >
                           ← Previous
@@ -2026,7 +2026,7 @@ export default function StudentExams() {
                             setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
                           }}
                           disabled={currentQuestionIndex === examQuestions.length - 1}
-                          className="flex-1 h-14 bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 hover:from-indigo-700 hover:via-blue-700 hover:to-cyan-700 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all disabled:opacity-50"
+                          className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base transition-all disabled:opacity-50"
                           data-testid="button-next"
                         >
                           Next →
@@ -2041,37 +2041,37 @@ export default function StudentExams() {
               <div className="lg:col-span-1">
                 <div className="sticky top-24 space-y-4">
                   {/* Progress Card */}
-                  <Card className="shadow-2xl border-0 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden ring-1 ring-gray-100 dark:ring-gray-700">
-                    <CardHeader className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950 dark:via-green-950 dark:to-teal-950 border-b-2 border-green-100 dark:border-green-900 p-5">
-                      <CardTitle className="text-xl font-extrabold flex items-center gap-2.5 text-gray-800 dark:text-white">
-                        <CheckCircle className="w-6 h-6 text-emerald-600" />
-                        Progress Tracker
+                  <Card className="shadow-md border bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                    <CardHeader className="bg-blue-50 dark:bg-gray-800 border-b p-4">
+                      <CardTitle className="text-lg font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+                        <CheckCircle className="w-5 h-5 text-blue-600" />
+                        Progress
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-5">
-                      <div className="mb-5">
-                        <div className="flex justify-between text-sm mb-3">
-                          <span className="font-bold text-gray-700 dark:text-gray-300">Questions Answered</span>
-                          <span className="font-black text-emerald-600 text-lg">{Object.keys(answers).length}/{examQuestions.length}</span>
+                    <CardContent className="p-4">
+                      <div className="mb-4">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">Answered</span>
+                          <span className="font-bold text-blue-600 text-base">{Object.keys(answers).length}/{examQuestions.length}</span>
                         </div>
-                        <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-4 bg-gray-200 dark:bg-gray-700" />
-                        <p className="text-sm font-semibold text-gray-600 mt-2 text-center">
+                        <Progress value={(Object.keys(answers).length / examQuestions.length) * 100} className="h-3 bg-gray-200 dark:bg-gray-700" />
+                        <p className="text-xs text-gray-600 mt-2 text-center">
                           {Math.round((Object.keys(answers).length / examQuestions.length) * 100)}% Complete
                         </p>
                       </div>
 
                       {/* Saving Status */}
                       {hasPendingSaves() && (
-                        <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl text-sm text-blue-600 dark:text-blue-400 mb-5 border border-blue-200 dark:border-blue-800">
-                          <Loader className="w-5 h-5 animate-spin" />
-                          <span className="font-bold">Saving your answers...</span>
+                        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-600 dark:text-blue-400 mb-4 border border-blue-200 dark:border-blue-800">
+                          <Loader className="w-4 h-4 animate-spin" />
+                          <span className="font-semibold">Saving...</span>
                         </div>
                       )}
 
                       {/* Question Navigation Grid */}
                       <div>
-                        <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Quick Navigation</p>
-                        <div className="grid grid-cols-5 gap-2.5">
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Navigation</p>
+                        <div className="grid grid-cols-5 gap-2">
                           {examQuestions.map((question, index) => {
                             const isAnswered = !!answers[question.id];
                             const isCurrent = currentQuestionIndex === index;
@@ -2081,14 +2081,13 @@ export default function StudentExams() {
                                 key={question.id}
                                 onClick={() => setCurrentQuestionIndex(index)}
                                 className={`
-                                  h-12 rounded-xl text-base font-black transition-all duration-300 shadow-md
+                                  h-10 rounded-lg text-sm font-bold transition-all
                                   ${isCurrent 
-                                    ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-xl scale-110 ring-4 ring-blue-200 dark:ring-blue-800' 
+                                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300 dark:ring-blue-800' 
                                     : isAnswered
-                                      ? 'bg-gradient-to-br from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 shadow-lg'
+                                      ? 'bg-green-500 text-white hover:bg-green-600'
                                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                                   }
-                                  hover:scale-105 active:scale-95
                                 `}
                                 data-testid={`question-nav-${index}`}
                               >
@@ -2099,18 +2098,18 @@ export default function StudentExams() {
                         </div>
                         
                         {/* Legend */}
-                        <div className="flex flex-col gap-3 mt-5 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 shadow-md" />
-                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Current</span>
+                        <div className="flex flex-col gap-2 mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-md bg-blue-600" />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Current</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 shadow-md" />
-                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Answered</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-md bg-green-500" />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Answered</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-lg bg-gray-200 dark:bg-gray-700 shadow-sm" />
-                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Not answered</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-md bg-gray-200 dark:bg-gray-700" />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Not answered</span>
                           </div>
                         </div>
                       </div>
@@ -2118,8 +2117,8 @@ export default function StudentExams() {
                   </Card>
 
                   {/* Submit Button Card */}
-                  <Card className="shadow-2xl border-0 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950 dark:to-green-950 rounded-3xl overflow-hidden ring-2 ring-emerald-200 dark:ring-emerald-800">
-                    <CardContent className="p-6">
+                  <Card className="shadow-md border bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                    <CardContent className="p-4">
                       <Button
                         onClick={() => {
                           const answeredCount = Object.keys(answers).length;
@@ -2132,32 +2131,32 @@ export default function StudentExams() {
                           if (confirmed) handleSubmitExam();
                         }}
                         disabled={isSubmitting || hasPendingSaves() || isScoring}
-                        className="w-full h-16 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-700 hover:via-green-700 hover:to-teal-700 text-white text-xl font-black shadow-2xl rounded-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                        className="w-full h-12 bg-green-600 hover:bg-green-700 text-white text-base font-semibold rounded-lg transition-all disabled:opacity-50"
                         data-testid="button-submit-exam-sidebar"
                       >
                         {isScoring ? (
                           <>
-                            <Loader className="w-6 h-6 mr-3 animate-spin" />
+                            <Loader className="w-5 h-5 mr-2 animate-spin" />
                             Processing...
                           </>
                         ) : isSubmitting ? (
                           <>
-                            <Loader className="w-6 h-6 mr-3 animate-spin" />
+                            <Loader className="w-5 h-5 mr-2 animate-spin" />
                             Submitting...
                           </>
                         ) : hasPendingSaves() ? (
                           <>
-                            <Save className="w-6 h-6 mr-3" />
+                            <Save className="w-5 h-5 mr-2" />
                             Saving...
                           </>
                         ) : (
                           <>
-                            <CheckCircle className="w-6 h-6 mr-3" />
+                            <CheckCircle className="w-5 h-5 mr-2" />
                             Submit Exam
                           </>
                         )}
                       </Button>
-                      <p className="text-sm font-semibold text-center text-gray-600 dark:text-gray-400 mt-4">
+                      <p className="text-xs text-center text-gray-600 dark:text-gray-400 mt-3">
                         Ensure all answers are saved before submitting
                       </p>
                     </CardContent>
