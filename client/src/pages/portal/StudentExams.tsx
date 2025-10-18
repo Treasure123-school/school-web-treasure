@@ -1305,6 +1305,74 @@ export default function StudentExams() {
     return roleMap[roleId] || 'student';
   };
 
+  // Render active exam without PortalLayout wrapper
+  if (activeSession && examQuestions.length > 0) {
+    return (
+      <RequireCompleteProfile feature="exams">
+        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : 'bg-white dark:bg-gray-900'}`}>
+          {/* Warning Banners */}
+          {(showTabSwitchWarning || !isOnline) && (
+            <div className="sticky top-0 z-40 space-y-2 p-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b shadow-sm">
+              {showTabSwitchWarning && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 rounded-r-lg p-3 flex items-center gap-3 text-yellow-800 dark:text-yellow-200 shadow-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {tabSwitchCount <= MAX_VIOLATIONS_BEFORE_PENALTY 
+                        ? `Warning ${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}`
+                        : `Penalty Applied: -${violationPenalty} marks`
+                      }
+                    </p>
+                    <p className="text-xs mt-0.5">Please stay on the exam page to avoid penalties</p>
+                  </div>
+                </div>
+              )}
+              {!isOnline && (
+                <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-r-lg p-3 flex items-center gap-3 text-red-800 dark:text-red-200 shadow-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">Connection Lost</p>
+                    <p className="text-xs mt-0.5">Your answers are being saved locally and will sync when connection is restored</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Simple Exam Header */}
+          <div className="bg-white dark:bg-gray-900 border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src={schoolLogo} 
+                    alt="Treasure-Home School" 
+                    className="h-10 w-10 object-contain"
+                  />
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Treasure-Home School</h2>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Online Examination Portal</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content will be added here */}
+        </div>
+      </RequireCompleteProfile>
+    );
+  }
+
+  // Render exam list and results with PortalLayout wrapper
   return (
     <RequireCompleteProfile feature="exams">
       <PortalLayout
@@ -1312,7 +1380,6 @@ export default function StudentExams() {
         userName={user.firstName + ' ' + user.lastName}
         userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
       >
-        {/* Scoring Screen */}
         {isScoring ? (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center space-y-4">
@@ -1793,11 +1860,8 @@ export default function StudentExams() {
             })()}
           </div>
         </div>
-      ) : /* Active Exam Interface */
-      activeSession && examQuestions.length > 0 ? (
-        <div className={`min-h-screen ${isFullScreen ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto' : 'bg-white dark:bg-gray-900'}`}>
-          {/* Warning Banners */}
-          {(showTabSwitchWarning || !isOnline) && (
+      ) : (
+        /* Exam List */
             <div className="sticky top-0 z-40 space-y-2 p-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b shadow-sm">
               {showTabSwitchWarning && (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 rounded-r-lg p-3 flex items-center gap-3 text-yellow-800 dark:text-yellow-200 shadow-sm">
