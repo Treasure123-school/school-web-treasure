@@ -11,12 +11,38 @@ import { apiRequest } from '@/lib/queryClient';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [, navigate] = useLocation();
 
   if (!user) {
     return <div>Please log in to access the student portal.</div>;
   }
+
+  // Fetch fresh user data to sync AuthContext with database
+  const { data: freshUserData } = useQuery({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/auth/me');
+      return await response.json();
+    },
+    enabled: !!user,
+  });
+
+  // Update AuthContext when fresh user data is loaded
+  useEffect(() => {
+    if (freshUserData && freshUserData.id === user.id) {
+      updateUser({
+        profileCompleted: freshUserData.profileCompleted,
+        profileCompletionPercentage: freshUserData.profileCompletionPercentage,
+        profileSkipped: freshUserData.profileSkipped,
+        phone: freshUserData.phone,
+        address: freshUserData.address,
+        dateOfBirth: freshUserData.dateOfBirth,
+        gender: freshUserData.gender,
+        recoveryEmail: freshUserData.recoveryEmail,
+      });
+    }
+  }, [freshUserData, user.id, updateUser]);
 
   // Check student profile status
   const { data: profileStatus, isLoading: statusLoading } = useQuery({

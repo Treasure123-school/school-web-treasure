@@ -6002,7 +6002,7 @@ Treasure-Home School Administration
   app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const userId = req.user!.id;
-      const user = await storage.getUser(userId);
+      let user = await storage.getUser(userId);
       const student = await storage.getStudent(userId);
 
       // Calculate profile completion percentage
@@ -6019,6 +6019,22 @@ Treasure-Home School Administration
         ];
         const filledFields = fields.filter(field => field !== null && field !== undefined && field !== '').length;
         completionPercentage = Math.round((filledFields / fields.length) * 100);
+      }
+
+      // 🔧 AUTO-FIX: If profile is 100% complete but profileCompleted is NULL/false, fix it
+      if (completionPercentage === 100 && !user?.profileCompleted) {
+        console.log('🔧 AUTO-FIX: Detected 100% profile but profileCompleted is false/null, fixing...');
+        const updated = await storage.updateStudent(userId, {
+          userPatch: {
+            profileCompleted: true,
+            profileCompletionPercentage: 100,
+            profileSkipped: false,
+          }
+        });
+        if (updated) {
+          user = updated.user;
+          console.log('✅ AUTO-FIX: Profile completion status fixed for user:', userId);
+        }
       }
 
       const status = {
