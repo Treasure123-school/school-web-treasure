@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target } from 'lucide-react';
+import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target, Clock } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
@@ -12,6 +12,7 @@ import { CircularProgress } from '@/components/ui/circular-progress';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { MiniLineChart } from '@/components/ui/mini-line-chart';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Exam } from '@shared/schema';
 
 export default function StudentDashboard() {
   const { user, updateUser } = useAuth();
@@ -101,7 +102,7 @@ export default function StudentDashboard() {
     }
   });
 
-  const { data: exams = [], isLoading: isLoadingExams } = useQuery({
+  const { data: exams = [], isLoading: isLoadingExams } = useQuery<Exam[]>({
     queryKey: ['exams'],
     queryFn: async () => {
       const response = await fetch('/api/exams', {
@@ -191,25 +192,26 @@ export default function StudentDashboard() {
         </Alert>
       )}
 
-      {/* Simple Welcome Box */}
+      {/* Smart Dashboard Welcome Box */}
       <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-5 text-white shadow-lg" data-testid="student-dashboard-header">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-1">
-              Keep the Momentum, {user.firstName}!
-            </h1>
-            <p className="text-blue-100 text-sm">
-              Your academic streak is shining brighter this week.
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-3">
-            <div className="text-center px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
-              <p className="text-2xl font-bold">{attendancePercentage}%</p>
-              <p className="text-xs text-blue-100">Attendance</p>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold mb-4">
+            Keep the Momentum, {user.firstName}!
+          </h1>
+          
+          {/* Smart Dashboard Summary */}
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" />
+              <span>You have <strong>{exams.filter(exam => exam.isPublished).length}</strong> upcoming exams</span>
             </div>
-            <div className="text-center px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
-              <p className="text-2xl font-bold">{gpa}</p>
-              <p className="text-xs text-blue-100">GPA</p>
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              <span><strong>{formattedGrades.length}</strong> pending assignments</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              <span><strong>{attendancePercentage}%</strong> attendance - {attendancePercentage >= 90 ? 'Great work!' : 'Keep it up!'}</span>
             </div>
           </div>
         </div>
@@ -426,7 +428,7 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {exams.filter(exam => exam.isPublished).slice(0, 3).map((exam: any) => (
+                {exams.filter((exam: Exam) => exam.isPublished).slice(0, 3).map((exam: Exam) => (
                   <div 
                     key={exam.id} 
                     className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
