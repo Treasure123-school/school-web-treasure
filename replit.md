@@ -6,9 +6,18 @@ Treasure-Home School Management System is a comprehensive full-stack web applica
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (October 17, 2025)
+## Recent Changes
 
-### Student Profile Skip Feature
+### CRITICAL FIX - Profile Skip Login Issue (October 18, 2025)
+- **Issue Resolved**: Fixed critical bug preventing student and parent login after profile skip feature implementation
+- **Root Cause**: Database was missing `profile_skipped`, `profile_completed`, and `profile_completion_percentage` columns that code was attempting to query
+- **Database Migration**: Added three missing columns to users table with safe defaults (profile_completed: false, profile_skipped: false, profile_completion_percentage: 0)
+- **Code Fixes**: Corrected two method calls from `storage.getUserById()` to `storage.getUser()` in server/routes.ts
+- **Verification**: All authentication flows restored - student login, parent login, profile skip feature, and dashboard loading all working correctly
+- **Production Deployment**: Created comprehensive deployment guide (PRODUCTION_DEPLOYMENT_GUIDE.md) with SQL migration scripts for Supabase
+- **Safety**: All changes backward compatible, architect-reviewed, and production-ready
+
+### Student Profile Skip Feature (October 17, 2025)
 - **Skip Onboarding Flow**: Students can now defer initial profile completion on first login instead of being forced to complete it immediately
 - **Smart Access Control**: Implemented RequireCompleteProfile guard component that restricts access to exams, grades, and study resources until profile is complete
 - **Profile Status Tracking**: Added `profileSkipped` field to users table; updated profile status endpoint to return completion state
