@@ -37,6 +37,7 @@ export default function StudentExams() {
   const [examResults, setExamResults] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
 
   // Per-question save status tracking
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
@@ -1484,12 +1485,7 @@ export default function StudentExams() {
 
               {currentQuestionIndex === examQuestions.length - 1 ? (
                 <Button
-                  onClick={() => {
-                    const confirmed = window.confirm(
-                      `You have answered ${Object.keys(answers).length} out of ${examQuestions.length} questions.\n\nAre you sure you want to submit your exam? This action cannot be undone.`
-                    );
-                    if (confirmed) handleSubmitExam();
-                  }}
+                  onClick={() => setShowSubmitDialog(true)}
                   disabled={isSubmitting || hasPendingSaves() || isScoring}
                   className="px-6 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
                   data-testid="button-submit-exam"
@@ -1573,6 +1569,48 @@ export default function StudentExams() {
               </div>
             </div>
           </div>
+
+          {/* Custom Submit Confirmation Dialog */}
+          <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+            <DialogContent className="sm:max-w-md bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-800">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  Submit Exam
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    You have answered <span className="font-bold text-blue-600 dark:text-blue-400">{Object.keys(answers).length}</span> out of <span className="font-bold text-blue-600 dark:text-blue-400">{examQuestions.length}</span> questions.
+                  </p>
+                </div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Are you sure you want to submit your exam? This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSubmitDialog(false)}
+                  className="border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                  data-testid="button-cancel-submit"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowSubmitDialog(false);
+                    handleSubmitExam();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
+                  data-testid="button-confirm-submit"
+                >
+                  Yes, Submit
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </RequireCompleteProfile>
     );
