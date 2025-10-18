@@ -229,27 +229,6 @@ function sanitizeLogData(data: any): any {
     log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
   }
 
-  // Initialize student self-registration setting if not exists
-  // Note: This is optional - registration will work even if settings table doesn't exist
-  try {
-    const { storage } = await import("./storage");
-    const existingSetting = await storage.getSetting('allow_student_self_registration');
-    if (!existingSetting) {
-      await storage.createSetting({
-        key: 'allow_student_self_registration',
-        value: 'true',
-        description: 'Allow students to self-register with automatic parent account creation',
-        dataType: 'boolean'
-      });
-      log("✅ Student self-registration setting initialized");
-    } else {
-      log("ℹ️ Student self-registration setting already exists");
-    }
-  } catch (error) {
-    // Settings table might not exist yet - that's okay, registration will work anyway
-    log(`ℹ️ Registration setting initialization skipped (table may not exist): ${error instanceof Error ? error.message : error}`);
-  }
-
   // CRITICAL: Verify Supabase Storage is initialized in production
   if (isProduction) {
     const { isSupabaseStorageEnabled } = await import("./supabase-storage");

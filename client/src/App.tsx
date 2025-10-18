@@ -27,7 +27,6 @@ const Gallery = lazy(() => import("@/pages/Gallery"));
 const Admissions = lazy(() => import("@/pages/Admissions"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
-const StudentRegistration = lazy(() => import("@/pages/StudentRegistration"));
 const JobVacancy = lazy(() => import("@/pages/JobVacancy"));
 
 // Lazy load all portal pages for optimal code splitting
@@ -89,7 +88,6 @@ function Router() {
         <Route path="/login" component={Login} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
-        <Route path="/register" component={StudentRegistration} />
 
       {/* Profile Onboarding - Available to all authenticated users */}
       <Route path="/portal/onboarding">

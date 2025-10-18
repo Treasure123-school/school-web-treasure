@@ -6054,23 +6054,25 @@ Treasure-Home School Administration
       const userId = req.user!.id;
       const profileData = req.body;
 
+      console.log('📝 PROFILE SETUP: Received data for user:', userId);
+      console.log('📝 PROFILE SETUP: Profile data:', JSON.stringify(profileData, null, 2));
+
       // Extract user-level fields
       const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
 
-      // Update user record with profile information
-      await storage.updateUser(userId, {
-        phone,
-        address,
-        dateOfBirth,
-        gender,
-        recoveryEmail,
-        profileCompleted: true,
-        profileSkipped: false,
-        profileCompletionPercentage: 100,
-      });
-
-      // Update student record - properly structure data for updateStudent method
+      // 🔧 FIX: Use updateStudent with both userPatch and studentPatch in a single transaction
+      // This ensures both user and student records are updated atomically
       const updatedStudent = await storage.updateStudent(userId, {
+        userPatch: {
+          phone,
+          address,
+          dateOfBirth,
+          gender,
+          recoveryEmail,
+          profileCompleted: true,
+          profileSkipped: false,
+          profileCompletionPercentage: 100,
+        },
         studentPatch: {
           emergencyContact: emergencyContact || null,
           emergencyPhone: emergencyPhone || null,
@@ -6080,8 +6082,18 @@ Treasure-Home School Administration
       });
 
       if (!updatedStudent) {
+        console.error('❌ PROFILE SETUP: Student not found');
         return res.status(404).json({ message: 'Student not found' });
       }
+
+      console.log('✅ PROFILE SETUP: Successfully updated profile for user:', userId);
+      console.log('✅ PROFILE SETUP: Updated user data:', {
+        profileCompleted: updatedStudent.user.profileCompleted,
+        profileSkipped: updatedStudent.user.profileSkipped,
+        profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
+        phone: updatedStudent.user.phone ? '***' : null,
+        address: updatedStudent.user.address ? '***' : null,
+      });
 
       res.json({ 
         message: 'Profile setup completed successfully',
@@ -6089,8 +6101,8 @@ Treasure-Home School Administration
         user: updatedStudent.user
       });
     } catch (error) {
-      console.error('Error setting up student profile:', error);
-      res.status(500).json({ message: 'Failed to setup profile' });
+      console.error('❌ PROFILE SETUP ERROR:', error);
+      res.status(500).json({ message: 'Failed to setup profile', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -6121,293 +6133,6 @@ Treasure-Home School Administration
   });
 
   // ==================== END STUDENT PROFILE ROUTES ====================
-
-
-  // ==================== STUDENT SELF-REGISTRATION ROUTES ====================
-
-  // Import registration utilities
-  const {
-    validateRegistrationData,
-    checkParentExists,
-    generateStudentUsername,
-    generateParentUsername,
-    generateTempPassword
-  } = await import('./registration-utils');
-
-  // Import email notifications
-  const { sendParentNotificationEmail, sendParentNotificationSMS } = await import('./email-notifications');
-
-  // Rate limiting store for registration attempts
-  const registrationAttempts = new Map<string, { count: number; lastAttempt: number }>();
-
-  // Rate limit middleware for registration
-  function checkRegistrationRateLimit(req: Request, res: Response, next: NextFunction) {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const now = Date.now();
-    const windowMs = 10 * 60 * 1000; // 10 minutes
-    const maxAttempts = 5;
-
-    const attempts = registrationAttempts.get(ip);
-
-    if (attempts) {
-      // Reset if window expired
-      if (now - attempts.lastAttempt > windowMs) {
-        registrationAttempts.set(ip, { count: 1, lastAttempt: now });
-        return next();
-      }
-
-      if (attempts.count >= maxAttempts) {
-        return res.status(429).json({ 
-          message: 'Too many registration attempts. Please try again in 10 minutes.' 
-        });
-      }
-
-      attempts.count++;
-      attempts.lastAttempt = now;
-    } else {
-      registrationAttempts.set(ip, { count: 1, lastAttempt: now });
-    }
-
-    next();
-  }
-
-  // POST /api/self-register/student/preview - Preview registration details
-  app.post('/api/self-register/student/preview', checkRegistrationRateLimit, async (req, res) => {
-    try {
-      const data = req.body;
-      const errors = validateRegistrationData(data);
-
-      if (errors.length > 0) {
-        return res.status(400).json({ errors });
-      }
-
-      // Generate suggested username
-      const suggestedUsername = await generateStudentUsername(data.classCode);
-
-      // Check if parent exists
-      const parentCheck = await checkParentExists(data.parentEmail);
-
-      res.json({
-        suggestedUsername,
-        parentExists: parentCheck.exists,
-        errors: []
-      });
-    } catch (error) {
-      console.error('Error in registration preview:', error);
-      res.status(500).json({ 
-        errors: ['Failed to generate preview. Please try again.'] 
-      });
-    }
-  });
-
-  // POST /api/self-register/student/commit - Complete registration
-  app.post('/api/self-register/student/commit', checkRegistrationRateLimit, async (req, res) => {
-    try {
-      const { fullName, classCode, gender, dateOfBirth, parentEmail, parentPhone, password } = req.body;
-
-      // Validate registration data
-      const errors = validateRegistrationData({ fullName, classCode, gender, dateOfBirth, parentEmail, parentPhone });
-      if (errors.length > 0) {
-        return res.status(400).json({ errors });
-      }
-
-      // Validate password
-      if (!password || password.length < 6) {
-        return res.status(400).json({ errors: ['Password must be at least 6 characters'] });
-      }
-
-      // Check if registration is allowed (default to true if setting doesn't exist)
-      try {
-        const setting = await storage.getSetting('allow_student_self_registration');
-        if (setting && setting.value === 'false') {
-          return res.status(403).json({ 
-            errors: ['Student self-registration is currently disabled'] 
-          });
-        }
-      } catch (error) {
-        // If settings table doesn't exist or query fails, allow registration by default
-        console.warn('Could not check registration setting, allowing by default:', error);
-      }
-
-      // Get student role
-      const studentRole = await storage.getRoleByName('student');
-      const parentRole = await storage.getRoleByName('parent');
-      if (!studentRole || !parentRole) {
-        return res.status(500).json({ errors: ['System configuration error'] });
-      }
-
-      // Split full name
-      const nameParts = fullName.trim().split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ') || firstName;
-
-      // Generate student username
-      const studentUsername = await generateStudentUsername(classCode);
-
-      // Check if parent exists and create if needed
-      let parentUserId: string;
-      let parentCreated = false;
-      let parentUsername: string | undefined;
-      let parentPassword: string | undefined;
-
-      const parentCheck = await checkParentExists(parentEmail);
-
-      if (parentCheck.exists && parentCheck.userId) {
-        // Link to existing parent
-        parentUserId = parentCheck.userId;
-      } else {
-        // Create new parent user
-        parentUsername = generateParentUsername();
-        parentPassword = generateTempPassword();
-        const parentPasswordHash = await bcrypt.hash(parentPassword, 10);
-
-        const parentUser = await storage.createUser({
-          username: parentUsername,
-          email: parentEmail,
-          passwordHash: parentPasswordHash,
-          mustChangePassword: true,
-          roleId: parentRole.id,
-          firstName: `Parent of ${firstName}`,
-          lastName: lastName,
-          phone: parentPhone || '',
-          isActive: true,
-          status: 'active',
-          createdVia: 'self',
-          profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
-          profileSkipped: false // 🔧 FIX: Self-registration parents start with incomplete profile
-        });
-
-        parentUserId = parentUser.id;
-        parentCreated = true;
-
-        // Create parent profile
-        await storage.createParentProfile({
-          userId: parentUserId,
-          linkedStudents: []
-        });
-      }
-
-      // Hash student password
-      const studentPasswordHash = await bcrypt.hash(password, 10);
-
-      // Create student user
-      const studentUser = await storage.createUser({
-        username: studentUsername,
-        email: parentEmail, // Use parent email for recovery
-        passwordHash: studentPasswordHash,
-        mustChangePassword: true,
-        roleId: studentRole.id,
-        firstName,
-        lastName,
-        dateOfBirth: dateOfBirth,
-        gender: gender as 'Male' | 'Female' | 'Other',
-        isActive: true,
-        status: 'active',
-        createdVia: 'self',
-        profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
-        profileSkipped: false // 🔧 FIX: Self-registration students start with incomplete profile
-      });
-
-      // Get the class by code (name)
-      const classes = await storage.getAllClasses();
-      const studentClass = classes.find(c => c.name === classCode);
-
-      // Create student record
-      await storage.createStudent({
-        id: studentUser.id,
-        admissionNumber: `ADM-${new Date().getFullYear()}-${studentUsername.split('-').pop()}`,
-        classId: studentClass?.id || null,
-        parentId: parentUserId
-      });
-
-      // Update parent profile to link student
-      const parentProfile = await storage.getParentProfile(parentUserId);
-      if (parentProfile) {
-        const linkedStudents = parentProfile.linkedStudents || [];
-        await storage.updateParentProfile(parentUserId, {
-          linkedStudents: [...linkedStudents, studentUser.id]
-        });
-      }
-
-      // Send notification to parent if new account was created
-      if (parentCreated && parentUsername && parentPassword) {
-        try {
-          // Send email notification
-          if (parentEmail) {
-            await sendParentNotificationEmail({
-              parentEmail: parentEmail,
-              parentUsername,
-              parentPassword,
-              studentName: fullName,
-              studentUsername
-            });
-          }
-
-          // Send SMS notification if phone is provided
-          if (parentPhone) {
-            await sendParentNotificationSMS(parentPhone, parentUsername, parentPassword);
-          }
-        } catch (error) {
-          console.error('Failed to send parent notification:', error);
-          // Don't fail the registration if notification fails
-        }
-      }
-
-      // Create audit log
-      await storage.createAuditLog({
-        userId: null,
-        action: 'student_self_register',
-        entityType: 'student',
-        entityId: 0,
-        oldValue: null,
-        newValue: JSON.stringify({ studentUsername, parentCreated, classCode }),
-        reason: 'Student self-registration',
-        ipAddress: req.ip || req.socket.remoteAddress || 'unknown'
-      });
-
-      // Return response with credentials (show parent password only once)
-      res.json({
-        studentUsername,
-        parentCreated,
-        parentUsername: parentCreated ? parentUsername : undefined,
-        parentPassword: parentCreated ? parentPassword : undefined,
-        message: 'Registration successful! Please save your credentials.'
-      });
-
-    } catch (error) {
-      console.error('Error in registration commit:', error);
-      res.status(500).json({ 
-        errors: ['Registration failed. Please try again.'] 
-      });
-    }
-  });
-
-  // GET /api/self-register/status/:username - Check registration status
-  app.get('/api/self-register/status/:username', async (req, res) => {
-    try {
-      const { username } = req.params;
-      const user = await storage.getUserByUsername(username);
-
-      if (!user) {
-        return res.status(404).json({ 
-          exists: false,
-          message: 'User not found' 
-        });
-      }
-
-      res.json({
-        exists: true,
-        status: user.status,
-        mustChangePassword: user.mustChangePassword,
-        isActive: user.isActive
-      });
-    } catch (error) {
-      console.error('Error checking registration status:', error);
-      res.status(500).json({ message: 'Failed to check status' });
-    }
-  });
-
-  // ==================== END STUDENT SELF-REGISTRATION ROUTES ====================
 
   // ==================== JOB VACANCY SYSTEM ROUTES ====================
 
