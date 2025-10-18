@@ -1,14 +1,17 @@
 import PortalLayout from '@/components/layout/PortalLayout';
-import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle } from 'lucide-react';
+import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CircularProgress } from '@/components/ui/circular-progress';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { MiniLineChart } from '@/components/ui/mini-line-chart';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function StudentDashboard() {
   const { user, updateUser } = useAuth();
@@ -28,7 +31,6 @@ export default function StudentDashboard() {
     enabled: !!user,
   });
 
-  // Update AuthContext when fresh user data is loaded
   useEffect(() => {
     if (freshUserData && freshUserData.id === user.id) {
       updateUser({
@@ -44,7 +46,6 @@ export default function StudentDashboard() {
     }
   }, [freshUserData, user.id, updateUser]);
 
-  // Check student profile status
   const { data: profileStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['/api/student/profile/status'],
     queryFn: async () => {
@@ -54,24 +55,15 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  // Redirect to profile setup only if profile doesn't exist and wasn't skipped
   useEffect(() => {
     if (!statusLoading && profileStatus) {
-      // Only force redirect if profile doesn't exist at all (first time user)
-      // If skipped or incomplete, show banner instead
       const needsForcedSetup = !profileStatus.hasProfile && !profileStatus.skipped;
-      
       if (needsForcedSetup) {
-        console.log('🔄 Redirecting to student profile setup:', { 
-          hasProfile: profileStatus.hasProfile,
-          skipped: profileStatus.skipped
-        });
         navigate('/portal/student/profile-setup');
       }
     }
   }, [profileStatus, statusLoading, navigate]);
 
-  // Fetch real data from API
   const { data: examResults, isLoading: isLoadingGrades } = useQuery({
     queryKey: ['examResults', user.id],
     queryFn: async () => {
@@ -109,7 +101,6 @@ export default function StudentDashboard() {
     }
   });
 
-  // Fetch upcoming exams
   const { data: exams = [], isLoading: isLoadingExams } = useQuery({
     queryKey: ['exams'],
     queryFn: async () => {
@@ -121,7 +112,6 @@ export default function StudentDashboard() {
     }
   });
 
-  // Calculate grade based on score
   const calculateGrade = (score: number) => {
     if (score >= 90) return 'A+';
     if (score >= 80) return 'A';
@@ -131,65 +121,38 @@ export default function StudentDashboard() {
     return 'F';
   };
 
-  // Format exam results for display
-  const formattedGrades = examResults?.map((result: any, index: number) => ({
+  const formattedGrades = examResults?.map((result: any) => ({
     subject: result.subjectName || result.subject,
-    assessment: result.examType || result.assessment || 'Assessment',
-    score: `${result.score || result.marks}/${result.maxScore || result.totalMarks || 100}`,
+    assessment: result.examType || 'Assessment',
+    score: result.score || result.marks || 0,
+    maxScore: result.maxScore || result.totalMarks || 100,
     grade: result.grade || calculateGrade(result.score || result.marks),
-    color: ['border-primary', 'border-secondary', 'border-green-500'][index % 3]
+    date: result.date || result.createdAt
   })) || [];
 
-  // Format announcements for display
-  const formattedAnnouncements = announcements?.map((announcement: any, index: number) => ({
-    id: announcement.id,
-    title: announcement.title,
-    content: announcement.content,
-    publishedAt: new Date(announcement.createdAt || announcement.publishedAt).toLocaleDateString(),
-    color: ['border-primary', 'border-secondary', 'border-green-500'][index % 3]
-  })) || [];
+  // Calculate attendance percentage
+  const attendanceStats = attendance?.reduce((stats: any, record: any) => {
+    stats.total++;
+    if (record.status === 'Present' || record.status === 'present') stats.present++;
+    return stats;
+  }, { total: 0, present: 0 }) || { total: 0, present: 0 };
 
-  // Format attendance for weekly view
-  const formatAttendanceWeekly = (attendanceData: any[]) => {
-    const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return daysOfWeek.map(day => {
-      const attendanceRecord = attendanceData?.find(record => 
-        new Date(record.date).toLocaleDateString('en-US', { weekday: 'short' }) === day
-      );
-      return {
-        day,
-        status: attendanceRecord ? attendanceRecord.status : null
-      };
-    });
-  };
+  const attendancePercentage = attendanceStats.total > 0 
+    ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
+    : 95;
 
-  const formattedAttendance = formatAttendanceWeekly(attendance || []);
+  // Calculate average GPA
+  const averageScore = formattedGrades.length > 0
+    ? formattedGrades.reduce((sum: number, g: any) => sum + g.score, 0) / formattedGrades.length
+    : 0;
+  const gpa = (averageScore / 100 * 4).toFixed(2);
 
-  const getAttendanceIcon = (status: string | null) => {
-    switch (status) {
-      case 'present':
-        return <i className="fas fa-check text-white text-xs"></i>;
-      case 'absent':
-        return <i className="fas fa-times text-white text-xs"></i>;
-      case 'late':
-        return <i className="fas fa-clock text-white text-xs"></i>;
-      default:
-        return null;
-    }
-  };
+  // Sample GPA trend data (last 6 assessments)
+  const gpaTrendData = formattedGrades.slice(-6).map((g: any) => (g.score / 100 * 4));
+  const hasGpaData = gpaTrendData.length > 0;
 
-  const getAttendanceColor = (status: string | null) => {
-    switch (status) {
-      case 'present':
-        return 'bg-green-500';
-      case 'absent':
-        return 'bg-red-500';
-      case 'late':
-        return 'bg-yellow-500';
-      default:
-        return 'bg-gray-200';
-    }
-  };
+  // Streak calculation (simple version based on attendance)
+  const attendanceImprovement = attendancePercentage >= 90;
 
   return (
     <PortalLayout 
@@ -199,7 +162,7 @@ export default function StudentDashboard() {
     >
       {/* Profile Completion Banner */}
       {!statusLoading && profileStatus && !profileStatus.completed && (
-        <Alert variant="default" className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800" data-testid="alert-profile-incomplete">
+        <Alert variant="default" className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 animate-in fade-in slide-in-from-top-2 duration-500">
           <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
           <AlertTitle className="text-yellow-800 dark:text-yellow-200 font-semibold">
             Complete Your Profile
@@ -208,7 +171,7 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <p className="mb-2">
-                  Your profile is incomplete. Complete it to access all features including exams, grades, study resources, and messaging.
+                  Your profile is incomplete. Complete it to unlock all features including exams, grades, and study resources.
                 </p>
                 {profileStatus.percentage > 0 && (
                   <p className="text-sm">
@@ -219,8 +182,7 @@ export default function StudentDashboard() {
               <Button 
                 onClick={() => navigate('/portal/student/profile-setup')}
                 variant="default"
-                className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                data-testid="button-complete-profile"
+                className="bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg"
               >
                 Complete Profile
               </Button>
@@ -229,334 +191,362 @@ export default function StudentDashboard() {
         </Alert>
       )}
 
-      {/* Student Role Header - Brand Identity */}
-      <div className="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl" data-testid="student-role-header">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-            <BookOpen className="h-10 w-10 text-white" />
+      {/* Gradient Header with Greeting */}
+      <div className="mb-8 relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 p-8 text-white shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700" data-testid="student-dashboard-header">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-xl animate-in zoom-in duration-500">
+              <BookOpen className="h-10 w-10 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1">
+                Welcome back, {user.firstName}! 🎓
+              </h1>
+              <p className="text-blue-100 text-sm md:text-base">
+                {attendanceImprovement 
+                  ? "Your academic streak is improving this week!" 
+                  : "Keep pushing forward - every day counts!"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Student Portal</h2>
-            <p className="text-blue-100 text-sm">Your learning journey starts here</p>
+
+          {/* Quick Actions Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+            <Link to="/portal/student/exams">
+              <Button 
+                className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
+                data-testid="button-start-assessment"
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Start Assessment
+              </Button>
+            </Link>
+            <Link to="/portal/student/grades">
+              <Button 
+                className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
+                data-testid="button-view-grades"
+              >
+                <Star className="mr-2 h-4 w-4" />
+                View Grades
+              </Button>
+            </Link>
+            <Link to="/portal/student/messages">
+              <Button 
+                className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
+                data-testid="button-check-messages"
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Check Messages
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards - Fully Responsive */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
-        <StatsCard
-          title="Current GPA"
-          value="3.85"
-          icon={TrendingUp}
-          color="primary"
-        />
-        <StatsCard
-          title="Attendance"
-          value="95%"
-          icon={Calendar}
-          color="green"
-          change="↗ +2% this week"
-          changeType="positive"
-        />
-        <StatsCard
-          title="Class Rank"
-          value="5th"
-          icon={Trophy}
-          color="secondary"
-        />
-        <StatsCard
-          title="Messages"
-          value="3"
-          icon={MessageSquare}
-          color="blue"
-        />
-      </div>
+      {/* Modern Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* GPA Card with Mini Chart */}
+        <Card className="relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-4 duration-500" data-testid="card-gpa">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-full -mr-16 -mt-16"></div>
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Current GPA</p>
+                <div className="flex items-baseline gap-2">
+                  <AnimatedCounter 
+                    value={parseFloat(gpa)} 
+                    className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+                  />
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-lg">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+            </div>
+            {hasGpaData && <MiniLineChart data={gpaTrendData} color="#6C63FF" height={40} />}
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-        {/* Professional Welcome Banner - Fully Responsive */}
-        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white mb-4 sm:mb-6 lg:col-span-2">
-          <CardContent className="p-4 sm:p-5 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        {/* Attendance Card with Circular Progress */}
+        <Card className="relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-4 duration-700" data-testid="card-attendance">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-full -mr-16 -mt-16"></div>
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-1 sm:mb-2">Welcome back, {user.firstName}! 🎓</h2>
-                <p className="text-xs sm:text-sm text-blue-100">Ready to continue your learning journey?</p>
+                <p className="text-sm text-muted-foreground mb-1">Attendance</p>
+                <div className="flex items-center gap-2">
+                  <AnimatedCounter 
+                    value={attendancePercentage} 
+                    suffix="%" 
+                    className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+                  />
+                  {attendancePercentage >= 90 && (
+                    <Award className="h-5 w-5 text-green-600" />
+                  )}
+                </div>
+                <p className="text-xs text-green-600 mt-1">
+                  ↗ +2% this week
+                </p>
               </div>
-              <div className="text-left sm:text-right">
-                <div className="text-2xl sm:text-3xl font-bold">{formattedGrades.length}</div>
-                <div className="text-xs sm:text-sm text-blue-100">Completed Assessments</div>
+              <div className="flex-shrink-0">
+                {isLoadingAttendance ? (
+                  <Skeleton className="h-16 w-16 rounded-full" />
+                ) : (
+                  <div className="scale-75">
+                    <CircularProgress 
+                      value={attendancePercentage} 
+                      size={80} 
+                      strokeWidth={6}
+                      color="#10b981"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Recent Grades */}
-        <Card className="shadow-sm border border-border" data-testid="card-recent-grades">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <BookOpen className="h-5 w-5" />
-                <span>Recent Grades</span>
-              </CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/portal/student/grades" data-testid="link-view-all-grades">
-                  View All
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {isLoadingGrades ? (
-                <div className="text-center py-4">Loading grades...</div>
-              ) : formattedGrades.length > 0 ? (
-                formattedGrades.map((grade: any, index: number) => (
-                <div 
-                  key={index} 
-                  className={`flex items-center justify-between p-3 bg-muted/50 rounded-lg border-l-4 ${grade.color}`}
-                  data-testid={`grade-item-${index}`}
-                >
-                  <div>
-                    <p className="font-medium" data-testid={`text-grade-subject-${index}`}>
-                      {grade.subject}
-                    </p>
-                    <p className="text-sm text-muted-foreground" data-testid={`text-grade-assessment-${index}`}>
-                      {grade.assessment}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary" data-testid={`text-grade-score-${index}`}>
-                      {grade.score}
-                    </p>
-                    <p className="text-sm text-green-600" data-testid={`text-grade-letter-${index}`}>
-                      {grade.grade}
-                    </p>
-                  </div>
+        {/* Class Rank Card */}
+        <Card className="relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-4 duration-900" data-testid="card-rank">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-full -mr-16 -mt-16"></div>
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Class Rank</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                    5th
+                  </span>
+                  <Trophy className="h-5 w-5 text-yellow-600" />
                 </div>
-              ))
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">No grades available</div>
-              )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Top 10% of class
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white shadow-lg animate-bounce">
+                <Trophy className="h-6 w-6" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Announcements */}
-        <Card className="shadow-sm border border-border" data-testid="card-announcements">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5" />
-                <span>Latest Announcements</span>
-              </CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/portal/student/announcements" data-testid="link-view-all-announcements">
-                  View All
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {isLoadingAnnouncements ? (
-                <div className="text-center py-4">Loading announcements...</div>
-              ) : formattedAnnouncements.length > 0 ? (
-                formattedAnnouncements.map((announcement: any, index: number) => (
-                <div 
-                  key={announcement.id} 
-                  className={`border-l-4 ${announcement.color} pl-4`}
-                  data-testid={`announcement-item-${index}`}
-                >
-                  <h3 className="font-medium text-sm" data-testid={`text-announcement-title-${index}`}>
-                    {announcement.title}
-                  </h3>
-                  <p className="text-muted-foreground text-xs mt-1" data-testid={`text-announcement-content-${index}`}>
-                    {announcement.content}
-                  </p>
-                  <p className="text-muted-foreground text-xs mt-2" data-testid={`text-announcement-time-${index}`}>
-                    {announcement.publishedAt}
-                  </p>
-                </div>
-              ))
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">No announcements yet</div>
-              )}
+        {/* Messages Card */}
+        <Card className="relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-4 duration-1000" data-testid="card-messages">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -mr-16 -mt-16"></div>
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Messages</p>
+                <AnimatedCounter 
+                  value={3} 
+                  className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent"
+                />
+                <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                  </span>
+                  3 unread
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg">
+                <MessageSquare className="h-6 w-6" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Attendance Chart */}
-      <Card className="mt-6 shadow-sm border border-border" data-testid="card-attendance">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5" />
-            <span>This Week's Attendance</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {isLoadingAttendance ? (
-              <div className="col-span-7 text-center py-4">Loading attendance...</div>
-            ) : (
-              formattedAttendance.map((day, index) => (
-                <div key={index} className="text-center" data-testid={`attendance-day-${index}`}>
-                  <p className="text-xs text-muted-foreground mb-2">{day.day}</p>
-                  <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center ${getAttendanceColor(day.status)}`}>
-                    {getAttendanceIcon(day.status)}
-                  </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Grades */}
+        <Card className="shadow-lg border-none animate-in fade-in slide-in-from-left-4 duration-700" data-testid="card-recent-grades">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <BookOpen className="h-5 w-5 text-primary" />
                 </div>
-              ))
+                Recent Grades
+              </CardTitle>
+              <Button variant="ghost" size="sm" asChild className="hover:bg-primary/10">
+                <Link href="/portal/student/grades" className="flex items-center gap-1">
+                  View All
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingGrades ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : formattedGrades.length > 0 ? (
+              <div className="space-y-3">
+                {formattedGrades.slice(0, 4).map((grade: any, index: number) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-muted/50 to-transparent border border-border/50 hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm mb-1">{grade.subject}</p>
+                      <p className="text-xs text-muted-foreground">{grade.assessment}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-primary">
+                          {grade.score}/{grade.maxScore}
+                        </span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          grade.grade.startsWith('A') ? 'bg-green-100 text-green-700' :
+                          grade.grade.startsWith('B') ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {grade.grade}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No grades available yet</p>
+              </div>
             )}
-          </div>
-          <div className="flex items-center justify-center space-x-6 mt-4 text-xs">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-500 w-3 h-3 rounded-full"></div>
-              <span>Present</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="bg-red-500 w-3 h-3 rounded-full"></div>
-              <span>Absent</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="bg-yellow-500 w-3 h-3 rounded-full"></div>
-              <span>Late</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Performance Analytics - Fully Responsive */}
-      <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
-        <CardHeader className="p-3 sm:p-4 md:p-6">
-          <CardTitle className="flex items-center space-x-2 text-sm sm:text-base md:text-lg">
-            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span>Academic Progress</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-          <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-            <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">
-                {formattedGrades.filter((g: any) => g.grade === 'A' || g.grade === 'A+').length}
-              </div>
-              <div className="text-xs sm:text-sm text-green-700 dark:text-green-600">A Grades</div>
-            </div>
-            <div className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                {formattedGrades.length > 0 ? 
-                  Math.round(formattedGrades.reduce((sum: number, g: any) => sum + parseInt(g.score.split('/')[0]), 0) / formattedGrades.length) : 0}%
-              </div>
-              <div className="text-xs sm:text-sm text-blue-700 dark:text-blue-600">Average Score</div>
-            </div>
-            <div className="text-center p-3 sm:p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-              <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                {Object.keys(formattedGrades.reduce((acc: any, g: any) => ({ ...acc, [g.subject]: true }), {})).length}
-              </div>
-              <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-600">Subjects</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Upcoming Exams and Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-6">
         {/* Upcoming Exams */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <ClipboardList className="w-5 h-5 mr-2" />
-              Upcoming Exams
-            </CardTitle>
+        <Card className="shadow-lg border-none animate-in fade-in slide-in-from-right-4 duration-700" data-testid="card-upcoming-exams">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <div className="p-2 rounded-lg bg-purple-500/10">
+                  <ClipboardList className="h-5 w-5 text-purple-600" />
+                </div>
+                Upcoming Exams
+              </CardTitle>
+              <Button variant="ghost" size="sm" asChild className="hover:bg-purple-500/10">
+                <Link href="/portal/student/exams" className="flex items-center gap-1">
+                  View All
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoadingExams ? (
-              <div className="text-center py-6">Loading exams...</div>
-            ) : exams.filter(exam => exam.isPublished && !exam.isCompleted).length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No upcoming exams scheduled</p>
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : exams.filter(exam => exam.isPublished).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No upcoming exams scheduled</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {exams.filter(exam => exam.isPublished && !exam.isCompleted).slice(0, 3).map((exam: any) => (
-                  <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{exam.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(exam.date).toLocaleDateString()} • {exam.timeLimit} minutes
+                {exams.filter(exam => exam.isPublished).slice(0, 3).map((exam: any) => (
+                  <div 
+                    key={exam.id} 
+                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 dark:from-purple-950/20 to-transparent border border-purple-200 dark:border-purple-800/30 hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm mb-1">{exam.name}</h4>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(exam.date).toLocaleDateString()}
+                        <span>•</span>
+                        {exam.timeLimit} minutes
                       </p>
                     </div>
                     <Link to="/portal/student/exams">
-                      <Button size="sm">
+                      <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-md">
                         <Play className="w-4 h-4 mr-1" />
                         Start
                       </Button>
                     </Link>
                   </div>
                 ))}
-                {exams.filter(exam => exam.isPublished && !exam.isCompleted).length > 3 && (
-                  <Link to="/portal/student/exams">
-                    <Button variant="outline" className="w-full">
-                      View All Exams
-                    </Button>
-                  </Link>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BookOpen className="w-5 h-5 mr-2" />
-              Quick Actions
-            </CardTitle>
+        {/* Latest Announcements */}
+        <Card className="lg:col-span-2 shadow-lg border-none animate-in fade-in slide-in-from-bottom-4 duration-900" data-testid="card-announcements">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <MessageSquare className="h-5 w-5 text-blue-600" />
+                </div>
+                Latest Announcements
+              </CardTitle>
+              <Button variant="ghost" size="sm" asChild className="hover:bg-blue-500/10">
+                <Link href="/portal/student/announcements" className="flex items-center gap-1">
+                  View All
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Link to="/portal/student/exams">
-              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <ClipboardList className="w-4 h-4 text-primary" />
-                  </div>
-                  <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Take Exams</span>
-                </div>
-              </Button>
-            </Link>
-            <Link to="/portal/student/grades">
-              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <Star className="w-4 h-4 text-primary" />
-                  </div>
-                  <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">View Grades</span>
-                </div>
-              </Button>
-            </Link>
-            <Link to="/portal/student/report-card">
-              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <FileText className="w-4 h-4 text-primary" />
-                  </div>
-                  <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Report Card</span>
-                </div>
-              </Button>
-            </Link>
-            <Link to="/portal/student/study-resources">
-              <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                  </div>
-                  <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Study Resources</span>
-                </div>
-              </Button>
-            </Link>
+          <CardContent>
+            {isLoadingAnnouncements ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : announcements && announcements.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {announcements.slice(0, 4).map((announcement: any, index: number) => {
+                  const colors = [
+                    'from-blue-500/10 border-blue-200 dark:border-blue-800/30',
+                    'from-purple-500/10 border-purple-200 dark:border-purple-800/30',
+                    'from-green-500/10 border-green-200 dark:border-green-800/30',
+                    'from-orange-500/10 border-orange-200 dark:border-orange-800/30'
+                  ];
+                  return (
+                    <div 
+                      key={announcement.id} 
+                      className={`p-4 rounded-xl bg-gradient-to-br ${colors[index % 4]} to-transparent border hover:shadow-md transition-all duration-200`}
+                    >
+                      <h3 className="font-semibold text-sm mb-2 line-clamp-1">{announcement.title}</h3>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{announcement.content}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(announcement.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No announcements yet</p>
+              </div>
+            )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Footer Message */}
+      <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border border-slate-200 dark:border-slate-700 text-center animate-in fade-in duration-1000">
+        <p className="text-sm text-muted-foreground">
+          💡 <strong>Tip:</strong> Keep attendance above 90% to maintain your rank!
+        </p>
       </div>
     </PortalLayout>
   );
