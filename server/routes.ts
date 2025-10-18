@@ -6055,7 +6055,7 @@ Treasure-Home School Administration
       const profileData = req.body;
 
       // Extract user-level fields
-      const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, agreement, ...studentFields } = profileData;
+      const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
 
       // Update user record with profile information
       await storage.updateUser(userId, {
@@ -6069,12 +6069,14 @@ Treasure-Home School Administration
         profileCompletionPercentage: 100,
       });
 
-      // Update student record
+      // Update student record - properly structure data for updateStudent method
       const updatedStudent = await storage.updateStudent(userId, {
-        emergencyContact: profileData.emergencyContact,
-        emergencyPhone: profileData.emergencyPhone,
-        guardianName: profileData.emergencyContact,
-        medicalInfo: bloodGroup ? `Blood Group: ${bloodGroup}` : null,
+        studentPatch: {
+          emergencyContact: emergencyContact || null,
+          emergencyPhone: emergencyPhone || null,
+          guardianName: emergencyContact || null,
+          medicalInfo: bloodGroup ? `Blood Group: ${bloodGroup}` : null,
+        }
       });
 
       if (!updatedStudent) {
@@ -6083,7 +6085,8 @@ Treasure-Home School Administration
 
       res.json({ 
         message: 'Profile setup completed successfully',
-        student: updatedStudent 
+        student: updatedStudent.student,
+        user: updatedStudent.user
       });
     } catch (error) {
       console.error('Error setting up student profile:', error);
