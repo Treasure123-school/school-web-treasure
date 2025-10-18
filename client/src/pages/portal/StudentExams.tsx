@@ -1366,7 +1366,220 @@ export default function StudentExams() {
             </div>
           </div>
 
-          {/* Content will be added here */}
+          {/* Exam Content */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Small Progress Indicator */}
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Question {currentQuestionIndex + 1} of {examQuestions.length}
+                </span>
+                {timeRemaining !== null && (
+                  <span className={`text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    {formatTime(timeRemaining)}
+                  </span>
+                )}
+              </div>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {Object.keys(answers).length} answered
+              </span>
+            </div>
+
+            {/* Question Card */}
+            {currentQuestion && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 mb-6">
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Question {currentQuestionIndex + 1}
+                    </h3>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {currentQuestion.points} points
+                    </span>
+                  </div>
+                  <p className="text-base text-gray-800 dark:text-gray-200 leading-relaxed">
+                    {currentQuestion.questionText}
+                  </p>
+                </div>
+
+                {/* Multiple Choice Options */}
+                {currentQuestion.questionType === 'multiple_choice' && (
+                  <RadioGroup
+                    value={answers[currentQuestion.id] || ''}
+                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, value, 'multiple_choice')}
+                    className="space-y-3"
+                  >
+                    {questionOptions.map((option: any, index: number) => (
+                      <div
+                        key={option.id}
+                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                          answers[currentQuestion.id] === String(option.id)
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <RadioGroupItem
+                            value={String(option.id)}
+                            id={`option-${option.id}`}
+                            className="mt-1"
+                            data-testid={`option-${index}`}
+                          />
+                          <Label
+                            htmlFor={`option-${option.id}`}
+                            className="cursor-pointer flex-1 text-base text-gray-700 dark:text-gray-300"
+                          >
+                            {String.fromCharCode(65 + index)}. {option.optionText}
+                          </Label>
+                        </div>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+
+                {/* Text/Essay Answer */}
+                {(currentQuestion.questionType === 'text' || currentQuestion.questionType === 'essay') && (
+                  <Textarea
+                    placeholder="Type your answer here..."
+                    value={answers[currentQuestion.id] || ''}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
+                    rows={currentQuestion.questionType === 'essay' ? 10 : 5}
+                    className="text-base"
+                    data-testid="text-answer"
+                  />
+                )}
+
+                {/* Save Status */}
+                {questionSaveStatus[currentQuestion.id] === 'saving' && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </div>
+                )}
+                {questionSaveStatus[currentQuestion.id] === 'saved' && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                    <CheckCircle className="w-4 h-4" />
+                    Saved
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex items-center justify-between gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const currentAnswer = answers[currentQuestion.id];
+                  if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                    const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                    const isNewAnswer = !existingAnswer || 
+                      (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                    if (isNewAnswer) {
+                      submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
+                    }
+                  }
+                  setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+                }}
+                disabled={currentQuestionIndex === 0}
+                className="px-6"
+                data-testid="button-previous"
+              >
+                ← Previous
+              </Button>
+
+              {currentQuestionIndex === examQuestions.length - 1 ? (
+                <Button
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      `You have answered ${Object.keys(answers).length} out of ${examQuestions.length} questions.\n\nAre you sure you want to submit your exam? This action cannot be undone.`
+                    );
+                    if (confirmed) handleSubmitExam();
+                  }}
+                  disabled={isSubmitting || hasPendingSaves() || isScoring}
+                  className="px-6 bg-green-600 hover:bg-green-700"
+                  data-testid="button-submit-exam"
+                >
+                  {isScoring ? (
+                    <>
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : isSubmitting ? (
+                    <>
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Submit Exam
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    const currentAnswer = answers[currentQuestion.id];
+                    if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                      const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                      const isNewAnswer = !existingAnswer || 
+                        (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                      if (isNewAnswer) {
+                        submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
+                      }
+                    }
+                    setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
+                  }}
+                  disabled={currentQuestionIndex === examQuestions.length - 1}
+                  className="px-6"
+                  data-testid="button-next"
+                >
+                  Next →
+                </Button>
+              )}
+            </div>
+
+            {/* Question Grid - Small and at bottom */}
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Quick Navigation</p>
+              <div className="grid grid-cols-10 sm:grid-cols-15 md:grid-cols-20 gap-2">
+                {examQuestions.map((q, idx) => {
+                  const isAnswered = answers[q.id];
+                  const isCurrent = idx === currentQuestionIndex;
+                  
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => {
+                        const currentAnswer = answers[currentQuestion.id];
+                        if (currentAnswer && validateAnswer(currentQuestion.questionType, currentAnswer).isValid) {
+                          const existingAnswer = existingAnswers.find(a => a.questionId === currentQuestion.id);
+                          const isNewAnswer = !existingAnswer || 
+                            (currentQuestion.questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== currentAnswer : existingAnswer.textAnswer !== currentAnswer);
+                          if (isNewAnswer) {
+                            submitAnswerMutation.mutate({ questionId: currentQuestion.id, answer: currentAnswer, questionType: currentQuestion.questionType });
+                          }
+                        }
+                        setCurrentQuestionIndex(idx);
+                      }}
+                      className={`h-8 w-8 rounded text-xs font-medium transition-colors ${
+                        isCurrent 
+                          ? 'bg-blue-600 text-white' 
+                          : isAnswered 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700' 
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600'
+                      }`}
+                      data-testid={`nav-question-${idx + 1}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </RequireCompleteProfile>
     );
