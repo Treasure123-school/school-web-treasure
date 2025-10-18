@@ -191,72 +191,14 @@ export default function StudentDashboard() {
         </Alert>
       )}
 
-      {/* Gradient Header with Greeting */}
-      <div className="mb-8 relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 p-8 text-white shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700" data-testid="student-dashboard-header">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-xl animate-in zoom-in duration-500">
-              <Target className="h-10 w-10 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1">
-                Keep the Momentum, {user.firstName}!
-              </h1>
-              <p className="text-blue-100 text-sm md:text-base">
-                Your academic streak is shining brighter this week.
-              </p>
-            </div>
-          </div>
-
-          {/* Streak and Progress Stats */}
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 text-white">
-              <span className="text-2xl">🔥</span>
-              <span className="font-semibold text-base md:text-lg">Streak: 5 days active</span>
-            </div>
-            <div className="flex items-center gap-3 text-white">
-              <TrendingUp className="h-6 w-6 text-green-300" />
-              <span className="font-semibold text-base md:text-lg">Progress: +12% from last week</span>
-            </div>
-            <div className="flex items-center gap-3 text-white">
-              <Trophy className="h-6 w-6 text-yellow-300" />
-              <span className="font-semibold text-base md:text-lg">Next Milestone: Reach GPA 2.0</span>
-            </div>
-          </div>
-
-          {/* Quick Actions Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-            <Link to="/portal/student/exams">
-              <Button 
-                className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
-                data-testid="button-continue-learning"
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Continue Learning
-              </Button>
-            </Link>
-            <Link to="/portal/student/grades">
-              <Button 
-                className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
-                data-testid="button-view-grades"
-              >
-                <ChevronRight className="mr-2 h-4 w-4" />
-                View Grades
-              </Button>
-            </Link>
-            <Link to="/portal/student/messages">
-              <Button 
-                className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 h-auto py-3 shadow-lg"
-                data-testid="button-messages"
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Messages
-              </Button>
-            </Link>
-          </div>
-        </div>
+      {/* Simple Welcome Box */}
+      <div className="mb-8 bg-blue-600 rounded-lg p-6 text-white" data-testid="student-dashboard-header">
+        <h1 className="text-2xl md:text-3xl font-semibold">
+          Keep the Momentum, {user.firstName}!
+        </h1>
+        <p className="text-blue-100 mt-1 text-sm md:text-base">
+          Your academic streak is shining brighter this week.
+        </p>
       </div>
 
       {/* Modern Stats Cards */}
@@ -473,21 +415,33 @@ export default function StudentDashboard() {
                 {exams.filter(exam => exam.isPublished).slice(0, 3).map((exam: any) => (
                   <div 
                     key={exam.id} 
-                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 dark:from-blue-950/20 to-transparent border border-blue-200 dark:border-blue-800/30 hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
                   >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-sm mb-1">{exam.name}</h4>
-                      <p className="text-xs text-muted-foreground flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(exam.date).toLocaleDateString()}
-                        <span>•</span>
-                        {exam.timeLimit} minutes
-                      </p>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-semibold text-base mb-1">{exam.name}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {new Date(exam.date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-blue-600 text-white text-xs font-medium px-3 py-1 rounded-full inline-block mb-3">
+                      Available
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      <div className="flex items-center gap-1">
+                        <Trophy className="h-4 w-4" />
+                        <span>{exam.totalMarks || 60} marks</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        <span>{exam.timeLimit} min</span>
+                      </div>
                     </div>
                     <Link to="/portal/student/exams">
-                      <Button size="sm" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
-                        <Play className="w-4 h-4 mr-1" />
-                        Start
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                        <Play className="w-4 h-4 mr-2" />
+                        Start Exam
                       </Button>
                     </Link>
                   </div>
