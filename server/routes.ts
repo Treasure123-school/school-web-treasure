@@ -4,8 +4,9 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createQuestionOptionSchema, createStudentSchema, InsertUser, InsertStudentAnswer, UpdateExamSessionSchema, UpdateUserStatusSchema, UpdateStudentSchema } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, InsertStudentAnswer } from "@shared/schema";
 import { z, ZodError } from "zod";
+import { log } from "./vite";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -1007,7 +1008,7 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
   }
 }
 
-export async function registerRoutes(app: Express): Server {
+export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI-assisted grading routes
   // Get AI-suggested grading tasks for teacher review
