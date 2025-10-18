@@ -8,6 +8,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Student Profile Update Fix (October 18, 2025)
+- **Issue Resolved**: Fixed critical bug preventing student profile data from being saved during profile completion
+- **Root Cause**: API route was incorrectly calling `storage.updateStudent()` without wrapping data in `studentPatch` object
+- **Database Schema Updates**: 
+  - Added `emergencyPhone` field to students table (varchar(20))
+  - Increased `emergencyContact` field length from varchar(20) to varchar(200) to accommodate full names
+- **Code Fixes**: Updated `/api/student/profile/setup` endpoint to properly structure data for updateStudent method
+- **Migration**: Created and applied migration file `migrations/0005_romantic_darkhawk.sql`
+- **Documentation**: Created `STUDENT_PROFILE_FIX.md` with comprehensive deployment guide for production (Supabase)
+- **Verification**: All changes architect-reviewed and tested - student profile setup now correctly saves all user-level and student-level fields
+- **Production Ready**: Safe to deploy to Vercel frontend, Render backend, and Supabase database
+
 ### CRITICAL FIX - Profile Skip Login Issue (October 18, 2025)
 - **Issue Resolved**: Fixed critical bug preventing student and parent login after profile skip feature implementation
 - **Root Cause**: Database was missing `profile_skipped`, `profile_completed`, and `profile_completion_percentage` columns that code was attempting to query
