@@ -37,9 +37,7 @@ export default function StudentProfile() {
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/students/${user.id}`, {
-        credentials: 'include'
-      });
+      const response = await apiRequest('GET', `/api/students/${user.id}`);
       if (!response.ok) throw new Error('Failed to fetch student data');
       return response.json();
     }
@@ -48,9 +46,7 @@ export default function StudentProfile() {
   const { data: classes } = useQuery({
     queryKey: ['student-classes', user.id],
     queryFn: async () => {
-      const response = await fetch(`/api/students/${user.id}/classes`, {
-        credentials: 'include'
-      });
+      const response = await apiRequest('GET', `/api/students/${user.id}/classes`);
       if (!response.ok) throw new Error('Failed to fetch classes');
       return response.json();
     }
@@ -85,14 +81,7 @@ export default function StudentProfile() {
 
   const handleSave = async () => {
     try {
-      const response = await fetch(`/api/students/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(profileData)
-      });
+      const response = await apiRequest('PATCH', `/api/students/${user.id}`, profileData);
       
       if (!response.ok) {
         const error = await response.json();

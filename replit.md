@@ -6,6 +6,19 @@ Treasure-Home is a full-stack web application designed for K-12 schools, offerin
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### Student Profile Display & Authentication Fix (October 18, 2025)
+- **Issue Resolved**: Fixed critical bug where student profile page showed "N/A", "Not provided", and "Not assigned" for all fields even when profile was 100% complete, and profile page returned 401 Unauthorized errors
+- **Root Causes**:
+  1. Backend: The `getStudent()` method only returned data from the `students` table but the profile page needed user-level fields (dateOfBirth, phone, address, gender) stored in the `users` table and class name from the `classes` table
+  2. Frontend: The StudentProfile component was using raw `fetch()` without Authorization header instead of the `apiRequest()` helper that includes the JWT token
+- **Code Fixes**:
+  1. Modified `getStudent()` method in `server/storage.ts` to join with `users` and `classes` tables using LEFT JOIN, returning combined data including: user fields (firstName, lastName, email, phone, address, dateOfBirth, gender, profileImageUrl, recoveryEmail) and className
+  2. Updated `client/src/pages/portal/StudentProfile.tsx` to use `apiRequest()` instead of raw `fetch()` for all API calls (data fetching and profile updates)
+- **Impact**: Student profile page now displays all fields correctly, authenticates properly, and features unlock correctly when profile is truly complete
+- **Verification**: Changes architect-reviewed and approved; application running successfully
+
 ## System Architecture
 
 ### UI/UX Decisions
