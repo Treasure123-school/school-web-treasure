@@ -191,110 +191,27 @@ export default function StudentDashboard() {
         </Alert>
       )}
 
-      {/* Enhanced Welcome Box */}
-      <div className="mb-8 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 rounded-2xl p-6 md:p-8 text-white shadow-2xl overflow-hidden relative" data-testid="student-dashboard-header">
-        {/* Decorative Background Elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full blur-2xl -ml-24 -mb-24"></div>
-        
-        <div className="relative z-10">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            {/* Left: Welcome Text */}
-            <div className="flex-1">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 animate-in fade-in slide-in-from-left duration-500">
-                Keep the Momentum, {user.firstName}!
-              </h1>
-              <p className="text-blue-100 text-sm md:text-base mb-4 animate-in fade-in slide-in-from-left duration-700">
-                Your academic streak is shining brighter this week.
-              </p>
-              
-              {/* Quick Action Buttons */}
-              <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-left duration-900">
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className="bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-sm"
-                  asChild
-                >
-                  <Link href="/portal/student/exams" className="flex items-center gap-1">
-                    <Play className="h-3 w-3" />
-                    Start Exam
-                  </Link>
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className="bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-sm"
-                  asChild
-                >
-                  <Link href="/portal/student/grades" className="flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" />
-                    View Grades
-                  </Link>
-                </Button>
-              </div>
+      {/* Simple Welcome Box */}
+      <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-5 text-white shadow-lg" data-testid="student-dashboard-header">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold mb-1">
+              Keep the Momentum, {user.firstName}!
+            </h1>
+            <p className="text-blue-100 text-sm">
+              Your academic streak is shining brighter this week.
+            </p>
+          </div>
+          <div className="hidden md:flex items-center gap-3">
+            <div className="text-center px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
+              <p className="text-2xl font-bold">{attendancePercentage}%</p>
+              <p className="text-xs text-blue-100">Attendance</p>
             </div>
-
-            {/* Right: Performance Metrics */}
-            <div className="flex gap-4 animate-in fade-in slide-in-from-right duration-700">
-              {/* Weekly Performance Ring */}
-              <div className="flex flex-col items-center justify-center bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 min-w-[120px]">
-                <div className="relative w-20 h-20 mb-2">
-                  <svg className="w-20 h-20 transform -rotate-90">
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="32"
-                      stroke="rgba(255,255,255,0.2)"
-                      strokeWidth="6"
-                      fill="none"
-                    />
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="32"
-                      stroke="white"
-                      strokeWidth="6"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 32}`}
-                      strokeDashoffset={`${2 * Math.PI * 32 * (1 - attendancePercentage / 100)}`}
-                      strokeLinecap="round"
-                      className="transition-all duration-1000 ease-out"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold">{attendancePercentage}%</span>
-                  </div>
-                </div>
-                <p className="text-xs text-blue-100 text-center">Weekly Goal</p>
-              </div>
-
-              {/* Achievement Badge */}
-              <div className="flex flex-col items-center justify-center bg-gradient-to-br from-yellow-400/20 to-orange-500/20 backdrop-blur-md rounded-2xl p-4 border border-yellow-400/30 min-w-[120px]">
-                <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-2 shadow-lg animate-pulse">
-                  <Award className="h-8 w-8 text-white" />
-                </div>
-                <p className="text-xs font-semibold text-yellow-100 text-center">Top 10%</p>
-                <p className="text-[10px] text-yellow-200/80 text-center">Class Rank</p>
-              </div>
+            <div className="text-center px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
+              <p className="text-2xl font-bold">{gpa}</p>
+              <p className="text-xs text-blue-100">GPA</p>
             </div>
           </div>
-
-          {/* Performance Trend (Mini Chart) */}
-          {hasGpaData && (
-            <div className="mt-6 pt-6 border-t border-white/20 animate-in fade-in slide-in-from-bottom duration-1000">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-blue-100">Performance Trend</p>
-                <div className="flex items-center gap-1 text-xs text-green-300">
-                  <TrendingUp className="h-3 w-3" />
-                  <span>+12% this month</span>
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                <MiniLineChart data={gpaTrendData} color="#fff" height={50} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
