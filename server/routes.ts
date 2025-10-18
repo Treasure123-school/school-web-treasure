@@ -5991,12 +5991,14 @@ Treasure-Home School Administration
       const userPatch: any = {};
       const studentPatch: any = {};
 
-      // Separate the fields
+      // Separate the fields and prune undefined values
       Object.keys(updates).forEach(key => {
-        if (userFields.includes(key)) {
-          userPatch[key] = updates[key];
-        } else if (studentFields.includes(key)) {
-          studentPatch[key] = updates[key];
+        if (updates[key] !== undefined && updates[key] !== null) {
+          if (userFields.includes(key)) {
+            userPatch[key] = updates[key];
+          } else if (studentFields.includes(key)) {
+            studentPatch[key] = updates[key];
+          }
         }
       });
 
