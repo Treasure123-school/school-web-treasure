@@ -1123,7 +1123,38 @@ export class DatabaseStorage implements IStorage {
 
   // Student management
   async getStudent(id: string): Promise<Student | undefined> {
-    const result = await this.db.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
+    const result = await this.db
+      .select({
+        // Student fields
+        id: schema.students.id,
+        admissionNumber: schema.students.admissionNumber,
+        classId: schema.students.classId,
+        parentId: schema.students.parentId,
+        admissionDate: schema.students.admissionDate,
+        emergencyContact: schema.students.emergencyContact,
+        emergencyPhone: schema.students.emergencyPhone,
+        medicalInfo: schema.students.medicalInfo,
+        guardianName: schema.students.guardianName,
+        createdAt: schema.students.createdAt,
+        // User fields (merged into student object)
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        address: schema.users.address,
+        dateOfBirth: schema.users.dateOfBirth,
+        gender: schema.users.gender,
+        profileImageUrl: schema.users.profileImageUrl,
+        recoveryEmail: schema.users.recoveryEmail,
+        // Class name (from classes table)
+        className: schema.classes.name,
+      })
+      .from(schema.students)
+      .leftJoin(schema.users, eq(schema.students.id, schema.users.id))
+      .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+      .where(eq(schema.students.id, id))
+      .limit(1);
+    
     const student = result[0];
     if (student && student.id) {
       const normalizedId = normalizeUuid(student.id);
@@ -1131,7 +1162,7 @@ export class DatabaseStorage implements IStorage {
         student.id = normalizedId;
       }
     }
-    return student;
+    return student as any;
   }
 
   async getAllUsernames(): Promise<string[]> {
