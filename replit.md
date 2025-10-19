@@ -8,6 +8,36 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Username Structure Simplification (October 19, 2025)
+- **Change Made**: Completely redesigned the username generation system to use a simplified, shorter format across all user roles
+- **Motivation**: User requested shorter, more user-friendly usernames that are still unique and identifiable by role
+- **New Username Format**:
+  - Students: `THS-STU-###` (e.g., THS-STU-021)
+  - Parents: `THS-PAR-###` (e.g., THS-PAR-012)
+  - Teachers: `THS-TCH-###` (e.g., THS-TCH-005)
+  - Admins: `THS-ADM-###` (e.g., THS-ADM-001)
+- **Old Username Format** (deprecated but still supported for backwards compatibility):
+  - Students: `THS-STU-2025-PR3-001`
+  - Parents: `THS-PAR-2025-001`
+  - Teachers: `THS-TCH-2025-MTH-002`
+  - Admins: `THS-ADM-2025-001`
+- **Technical Implementation**:
+  1. **Schema Update**: Modified `counters` table to support role-based sequential numbering (`roleCode` column)
+  2. **Username Generator**: Completely rewrote `server/username-generator.ts` with new simplified generation functions for all roles
+  3. **Auth Utils**: Updated `server/auth-utils.ts` to support both old and new username formats
+  4. **Validation**: Both old and new username formats are accepted during login for backwards compatibility
+  5. **CSV Import**: Updated `server/csv-import-service.ts` to use new simplified username generation
+  6. **Database Migration**: Automatic roleCode column addition on server startup via SQL
+  7. **Migration Script**: Created `server/migrate-usernames.ts` (ESM-compatible) to update existing usernames
+- **Key Features**:
+  - Atomic counter-based sequential numbering using PostgreSQL ON CONFLICT for race-condition safety
+  - No more year or class code in usernames - just role prefix + sequential number
+  - All username generation functions work consistently across roles
+  - Existing users can still login with old format usernames
+- **Files Modified**: `shared/schema.ts`, `server/username-generator.ts`, `server/auth-utils.ts`, `server/csv-import-service.ts`, `server/routes.ts`, `server/index.ts`, `server/migrate-usernames.ts`
+- **Impact**: Significantly shorter, cleaner usernames that are easier for users to remember and type while maintaining uniqueness and role identification
+- **Migration Status**: Database schema updated, new username generation active, old format still supported for login
+
 ### Student Exam Interface Redesign (October 18, 2025)
 - **Change Made**: Completely redesigned the student exam-taking interface to be simple, clean, and minimalist
 - **Motivation**: User requested a lighter, simpler exam page without heavy blue boxes or complex portal header - "fine and simple, not too heavy looking"
