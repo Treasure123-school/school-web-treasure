@@ -1339,45 +1339,45 @@ export default function StudentExams() {
             </div>
           )}
 
-          {/* Modern Sticky Exam Header */}
+          {/* Modern Sticky Exam Header - Responsive */}
           <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
               {/* Top Section - Branding */}
-              <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
-                <div className="flex items-center space-x-3">
+              <div className="flex items-center justify-between py-2 sm:py-3 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center space-x-2 sm:space-x-3">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School" 
-                    className="h-9 w-9 object-contain"
+                    className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
                   />
                   <div>
-                    <h2 className="text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Online Examination Portal</p>
+                    <h2 className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Online Examination Portal</p>
                   </div>
                 </div>
               </div>
               
-              {/* Bottom Section - Progress Info */}
-              <div className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Question {currentQuestionIndex + 1} of {examQuestions.length}
+              {/* Bottom Section - Progress Info - Responsive */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 sm:py-3 gap-2 sm:gap-0">
+                <div className="flex items-center gap-3 sm:gap-6">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Q {currentQuestionIndex + 1}/{examQuestions.length}
                     </span>
                   </div>
                   {timeRemaining !== null && (
-                    <div className="flex items-center gap-2">
-                      <Clock className={`w-4 h-4 ${timeRemaining > 300 ? 'text-blue-600 dark:text-blue-400' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`} />
-                      <span className={`text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeRemaining > 300 ? 'text-blue-600 dark:text-blue-400' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`} />
+                      <span className={`text-xs sm:text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
                         {formatTime(timeRemaining)}
                       </span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     {Object.keys(answers).length} answered
                   </span>
                 </div>
@@ -1385,22 +1385,22 @@ export default function StudentExams() {
             </div>
           </div>
 
-          {/* Exam Content */}
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Exam Content - Responsive */}
+          <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
 
-            {/* Question Card */}
+            {/* Question Card - Responsive */}
             {currentQuestion && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-gray-700 shadow-md p-8 mb-6">
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-gray-700 shadow-md p-4 sm:p-6 md:p-8 mb-6">
+                <div className="mb-4 sm:mb-6">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                       Question {currentQuestionIndex + 1}
                     </h3>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {currentQuestion.points} points
                     </span>
                   </div>
-                  <p className="text-base text-gray-800 dark:text-gray-200 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-800 dark:text-gray-200 leading-relaxed">
                     {currentQuestion.questionText}
                   </p>
                 </div>
@@ -1415,13 +1415,13 @@ export default function StudentExams() {
                     {questionOptions.map((option: any, index: number) => (
                       <div
                         key={option.id}
-                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                        className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-colors ${
                           answers[currentQuestion.id] === String(option.id)
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
-                        <div className="flex items-start space-x-3">
+                        <div className="flex items-start space-x-2 sm:space-x-3">
                           <RadioGroupItem
                             value={String(option.id)}
                             id={`option-${option.id}`}
@@ -1430,7 +1430,7 @@ export default function StudentExams() {
                           />
                           <Label
                             htmlFor={`option-${option.id}`}
-                            className="cursor-pointer flex-1 text-base text-gray-700 dark:text-gray-300"
+                            className="cursor-pointer flex-1 text-sm sm:text-base text-gray-700 dark:text-gray-300"
                           >
                             {String.fromCharCode(65 + index)}. {option.optionText}
                           </Label>
@@ -1629,18 +1629,18 @@ export default function StudentExams() {
     <RequireCompleteProfile feature="exams">
       {isScoring ? (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Modern Sticky Header */}
+          {/* Modern Sticky Header - Responsive */}
           <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center space-x-3">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 <img 
                   src={schoolLogo} 
                   alt="Treasure-Home School" 
-                  className="h-9 w-9 object-contain"
+                  className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
                 />
                 <div>
-                  <h2 className="text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Auto-Scoring Exam</p>
+                  <h2 className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Auto-Scoring Exam</p>
                 </div>
               </div>
             </div>
@@ -1660,31 +1660,31 @@ export default function StudentExams() {
       ) : /* Results Screen */
       showResults ? (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Modern Sticky Header */}
+          {/* Modern Sticky Header - Responsive */}
           <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center space-x-3">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 <img 
                   src={schoolLogo} 
                   alt="Treasure-Home School" 
-                  className="h-9 w-9 object-contain"
+                  className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
                 />
                 <div>
-                  <h2 className="text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Exam Results</p>
+                  <h2 className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Exam Results</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Results Content */}
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Simple Success Message */}
-            <div className="text-center mb-8" data-testid="banner-success">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          {/* Results Content - Responsive */}
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+            {/* Simple Success Message - Responsive */}
+            <div className="text-center mb-6 sm:mb-8 px-2" data-testid="banner-success">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 Exam Submitted Successfully
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                 Your answers have been saved. Here are your exam results.
               </p>
             </div>
