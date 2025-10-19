@@ -1679,18 +1679,14 @@ export default function StudentExams() {
 
           {/* Results Content */}
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Success Banner */}
-            <div 
-              className="bg-green-600 text-white p-4 rounded-lg flex items-center space-x-3 shadow-md"
-              role="status"
-              aria-live="polite"
-              data-testid="banner-success"
-            >
-              <CheckCircle className="w-6 h-6" aria-hidden="true" />
-              <div>
-                <span className="font-medium">Your exam answers have been submitted successfully.</span>
-                <p className="text-green-100 text-sm mt-1">Initial scoring complete - Full detailed report coming soon!</p>
-              </div>
+            {/* Simple Success Message */}
+            <div className="text-center mb-8" data-testid="banner-success">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Exam Submitted Successfully
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Your answers have been saved. Here are your exam results.
+              </p>
             </div>
 
             {examResults && (() => {
@@ -1752,49 +1748,6 @@ export default function StudentExams() {
 
               return (
                 <>
-                  {/* Provisional Score Warning */}
-                  {normalizedResults.pendingCount > 0 && (
-                    <div 
-                      className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg shadow-sm"
-                      role="status"
-                      aria-live="polite"
-                      data-testid="banner-provisional"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" aria-hidden="true" />
-                        <div>
-                          <p className="text-sm font-medium flex items-center gap-1.5">
-                            <Trophy className="w-4 h-4" />
-                            Objective Questions Only
-                          </p>
-                          <p className="text-xs mt-1">
-                            This score reflects only your multiple-choice and objective answers. 
-                            Your essay questions, theory responses, and practical assessments 
-                            are still being reviewed by your teacher.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Clarity Banner */}
-                  <div 
-                    className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded-lg shadow-sm my-6"
-                    data-testid="banner-clarity"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-1">
-                          Auto-Graded Results
-                        </p>
-                        <p className="text-sm text-blue-800 dark:text-blue-300">
-                          This shows your score for multiple-choice questions only. Your teacher is reviewing your essay answers and will release your final grade soon.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Main Results Card */}
                   <Card className="bg-white dark:bg-gray-800 shadow-lg border-blue-200 dark:border-blue-800" data-testid="card-exam-results">
                     <CardContent className="p-8">
