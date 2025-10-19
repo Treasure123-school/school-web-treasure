@@ -1,17 +1,17 @@
 
 /**
  * THS Authentication Utilities
- * Username and password generation following THS branding standards
+ * Username and password generation following THS simplified branding standards
  */
 
 import crypto from 'crypto';
 
-// Username format: THS-<ROLE>-<YEAR>-<OPTIONAL>-<NUMBER>
+// NEW Simplified Username format: THS-<ROLE>-<NUMBER>
 // Examples:
-// - Student: THS-STU-2025-PR3-001
-// - Teacher: THS-TCH-2025-MTH-002
-// - Parent: THS-PAR-2025-001
-// - Admin: THS-ADM-ROLE
+// - Student: THS-STU-021
+// - Teacher: THS-TCH-005
+// - Parent: THS-PAR-012
+// - Admin: THS-ADM-001
 
 const ROLE_CODES = {
   1: 'ADM', // Admin
@@ -35,26 +35,18 @@ function generateRandomString(length: number): string {
 }
 
 /**
- * Generate THS-branded username
+ * Generate THS-branded username with NEW simplified format
  * @param roleId - User role ID (1=Admin, 2=Teacher, 3=Student, 4=Parent)
- * @param year - Academic year (e.g., '2025')
- * @param optional - Optional identifier (e.g., class level like 'PR3', subject like 'MTH', or '')
  * @param number - Sequential number (e.g., 1, 2, 3...)
- * @returns THS-branded username
+ * @returns THS-branded username in new simplified format (THS-ROLE-###)
  */
 export function generateUsername(
   roleId: number,
-  year: string,
-  optional: string = '',
   number: number
 ): string {
   const roleCode = ROLE_CODES[roleId as keyof typeof ROLE_CODES] || 'USR';
   const paddedNumber = String(number).padStart(3, '0');
-
-  if (optional) {
-    return `THS-${roleCode}-${year}-${optional}-${paddedNumber}`;
-  }
-  return `THS-${roleCode}-${year}-${paddedNumber}`;
+  return `THS-${roleCode}-${paddedNumber}`;
 }
 
 /**
@@ -64,7 +56,7 @@ export function generateUsername(
  * @param year - Academic year (e.g., '2025')
  * @returns THS-branded password (16+ characters total, cryptographically secure)
  */
-export function generatePassword(year: string): string {
+export function generatePassword(year: string = new Date().getFullYear().toString()): string {
   // Generate 12 character cryptographically secure random string
   // This gives us 62^12 ≈ 3.2×10^21 possible combinations
   const randomPart = generateRandomString(12);
@@ -72,21 +64,18 @@ export function generatePassword(year: string): string {
 }
 
 /**
- * Generate student-specific username with class code
+ * Generate student-specific username with NEW simplified format
+ * @param nextNumber - Sequential number for this student
+ * @returns Username in format THS-STU-###
  */
-export function generateStudentUsername(className: string, currentYear: string, nextNumber: number): string {
-  // Extract class code from class name (e.g., "JSS 1" -> "JSS1", "Primary 3" -> "PRI3")
-  const classCode = className.replace(/\s+/g, '').toUpperCase().slice(0, 4);
-
-  // Format: THS-STU-{YEAR}-{CLASSCODE}-{NUMBER}
-  // Example: THS-STU-2025-JSS1-001
-  return `THS-STU-${currentYear}-${classCode}-${nextNumber.toString().padStart(3, '0')}`;
+export function generateStudentUsername(nextNumber: number): string {
+  return `THS-STU-${String(nextNumber).padStart(3, '0')}`;
 }
 
 /**
  * Generate student password with year
  */
-export function generateStudentPassword(currentYear: string): string {
+export function generateStudentPassword(currentYear: string = new Date().getFullYear().toString()): string {
   // Format: THS@{YEAR}#{RANDOM}
   // Example: THS@2025#A7B3
   const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
@@ -94,36 +83,51 @@ export function generateStudentPassword(currentYear: string): string {
 }
 
 /**
- * Parse a THS username to extract components
+ * Parse a THS username to extract components (supports both NEW and OLD formats)
  * @param username - THS username to parse
  * @returns Parsed username components or null if invalid
  */
 export function parseUsername(username: string): {
   prefix: string;
   roleCode: string;
-  year: string;
-  optional?: string;
+  format: 'new' | 'old';
   number: string;
+  year?: string;
+  optional?: string;
 } | null {
   const parts = username.split('-');
 
-  if (parts.length < 4 || parts[0] !== 'THS') {
+  if (parts.length < 3 || parts[0] !== 'THS') {
     return null;
   }
 
-  if (parts.length === 4) {
-    // Format: THS-ROLE-YEAR-NUMBER
+  // NEW format: THS-ROLE-NUMBER (3 parts)
+  if (parts.length === 3) {
     return {
       prefix: parts[0],
       roleCode: parts[1],
+      format: 'new',
+      number: parts[2],
+    };
+  }
+
+  // OLD format: THS-ROLE-YEAR-NUMBER (4 parts)
+  if (parts.length === 4) {
+    return {
+      prefix: parts[0],
+      roleCode: parts[1],
+      format: 'old',
       year: parts[2],
       number: parts[3],
     };
-  } else if (parts.length === 5) {
-    // Format: THS-ROLE-YEAR-OPTIONAL-NUMBER
+  }
+
+  // OLD format: THS-ROLE-YEAR-OPTIONAL-NUMBER (5 parts)
+  if (parts.length === 5) {
     return {
       prefix: parts[0],
       roleCode: parts[1],
+      format: 'old',
       year: parts[2],
       optional: parts[3],
       number: parts[4],
@@ -134,23 +138,17 @@ export function parseUsername(username: string): {
 }
 
 /**
- * Get the next available number for a given role, year, and optional identifier
+ * Get the next available number for a given role (used for legacy purposes)
  * @param existingUsernames - Array of existing usernames to check against
  * @param roleId - User role ID
- * @param year - Academic year
- * @param optional - Optional identifier
  * @returns Next available number
  */
 export function getNextUserNumber(
   existingUsernames: string[],
-  roleId: number,
-  year: string,
-  optional: string = ''
+  roleId: number
 ): number {
   const roleCode = ROLE_CODES[roleId as keyof typeof ROLE_CODES] || 'USR';
-  const prefix = optional 
-    ? `THS-${roleCode}-${year}-${optional}-`
-    : `THS-${roleCode}-${year}-`;
+  const prefix = `THS-${roleCode}-`;
 
   const numbers = existingUsernames
     .filter(username => username.startsWith(prefix))
@@ -169,7 +167,7 @@ export function getNextUserNumber(
 }
 
 /**
- * Validate THS username format with strict validation
+ * Validate THS username format (supports both NEW and OLD formats)
  * Checks for proper format, valid role code, and numeric suffix
  * @param username - Username to validate
  * @returns true if valid THS format with all requirements met
@@ -182,16 +180,26 @@ export function isValidThsUsername(username: string): boolean {
   const validRoleCodes = ['ADM', 'TCH', 'STU', 'PAR'];
   if (!validRoleCodes.includes(parsed.roleCode)) return false;
 
-  // Validate year format (4 digits)
-  if (!/^\d{4}$/.test(parsed.year)) return false;
-
   // Validate number suffix (3 digits)
   if (!/^\d{3}$/.test(parsed.number)) return false;
 
-  // If optional field exists, validate it (3-4 alphanumeric chars)
-  if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
+  // For NEW format, no additional validation needed
+  if (parsed.format === 'new') {
+    return true;
+  }
 
-  return true;
+  // For OLD format, validate year and optional fields
+  if (parsed.format === 'old') {
+    // Validate year format (4 digits)
+    if (parsed.year && !/^\d{4}$/.test(parsed.year)) return false;
+
+    // If optional field exists, validate it (2-4 alphanumeric chars)
+    if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
+
+    return true;
+  }
+
+  return false;
 }
 
 /**

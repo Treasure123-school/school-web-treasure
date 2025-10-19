@@ -13,7 +13,8 @@ import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import PDFDocument from "pdfkit";
-import { generateUsername, generatePassword, getNextUserNumber, generateStudentUsername, generateStudentPassword } from "./auth-utils";
+import { generateUsername, generatePassword, getNextUserNumber, generateStudentPassword } from "./auth-utils";
+import { generateStudentUsername, generateParentUsername, generateTeacherUsername, generateAdminUsername } from "./username-generator";
 import passport from "passport";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -5332,29 +5333,11 @@ Treasure-Home School Administration
         return res.status(400).json({ message: "Invalid class ID" });
       }
 
-      // Generate credentials automatically
-      const currentYear = new Date().getFullYear().toString();
-      const { generateStudentUsername, generateStudentPassword } = await import('./auth-utils');
+      // Generate credentials automatically using new simplified format
+      const generatedPassword = generateStudentPassword();
 
-      // Get all students to calculate next number
-      const existingStudents = await storage.getAllStudents(true);
-      const existingUsernames = existingStudents.map(s => s.admissionNumber).filter(Boolean);
-      const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear);
-
-      // Generate username and password only - NO EMAIL
-      const generatedUsername = generateStudentUsername(classInfo.name, currentYear, nextNumber);
-      const generatedPassword = generateStudentPassword(currentYear);
-
-      // Check if username already exists and increment if needed
-      let finalUsername = generatedUsername;
-      let attemptNumber = nextNumber;
-      let existingUser = await storage.getUserByUsername(finalUsername);
-
-      while (existingUser) {
-        attemptNumber++;
-        finalUsername = generateStudentUsername(classInfo.name, currentYear, attemptNumber);
-        existingUser = await storage.getUserByUsername(finalUsername);
-      }
+      // Generate username with atomic counter (no need to check for duplicates)
+      const finalUsername = await generateStudentUsername();
 
       // Hash the generated password
       const passwordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
@@ -5604,11 +5587,9 @@ Treasure-Home School Administration
             continue;
           }
 
-          const classCode = matchingClass.name.replace(/\s+/g, '').toUpperCase().substring(0, 4);
-          const currentYear = new Date().getFullYear().toString();
-          const nextNumber = await storage.getNextSequence(matchingClass.name, currentYear); // Use class name and year for sequence
-          const username = generateStudentUsername(matchingClass.name, currentYear, nextNumber); // Use class name for clarity
-          const password = generateStudentPassword(currentYear);
+          // Generate credentials using new simplified format
+          const username = await generateStudentUsername();
+          const password = generateStudentPassword();
           const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
           const userData = {

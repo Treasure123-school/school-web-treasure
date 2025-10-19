@@ -4,6 +4,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { sql } from "drizzle-orm";
 import { db } from "./storage";
 import { seedAcademicTerms } from "./seed-terms";
 import { validateEnvironment } from "./validate-env";
@@ -215,6 +216,22 @@ function sanitizeLogData(data: any): any {
         // process.exit(1);
       }
     }
+  }
+
+  // Add roleCode column to counters table if it doesn't exist (username migration)
+  try {
+    await db.execute(sql`
+      ALTER TABLE counters 
+      ADD COLUMN IF NOT EXISTS role_code VARCHAR(10) UNIQUE;
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS counters_role_code_idx 
+      ON counters(role_code) WHERE role_code IS NOT NULL;
+    `);
+    log("✅ Username migration: roleCode column ready");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    log(`ℹ️  Username migration note: ${errorMessage}`);
   }
 
   // Seed academic terms if they don't exist

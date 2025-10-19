@@ -598,13 +598,17 @@ export const settings = pgTable("settings", {
 // Prevents race conditions when generating sequential usernames
 export const counters = pgTable("counters", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  classCode: varchar("class_code", { length: 50 }).notNull(),
-  year: varchar("year", { length: 9 }).notNull(),
+  // New role-based counter fields
+  roleCode: varchar("role_code", { length: 10 }).unique(), // 'STU', 'PAR', 'TCH', 'ADM' - nullable during migration
+  // Legacy fields kept for backwards compatibility
+  classCode: varchar("class_code", { length: 50 }),
+  year: varchar("year", { length: 9 }),
   sequence: integer("sequence").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   countersClassYearIdx: uniqueIndex("counters_class_year_idx").on(table.classCode, table.year),
+  countersRoleCodeIdx: uniqueIndex("counters_role_code_idx").on(table.roleCode),
 }));
 
 

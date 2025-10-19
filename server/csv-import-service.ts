@@ -170,8 +170,8 @@ export async function commitCSVImport(
         const lastName = nameParts.slice(1).join(' ') || nameParts[0];
 
         // Generate student credentials
-        const studentUsername = await generateStudentUsername(item.data.classCode, year);
-        const studentPassword = generateTempPassword(year);
+        const studentUsername = await generateStudentUsername();
+        const studentPassword = generateTempPassword();
         const passwordHash = await bcrypt.hash(studentPassword, 10);
 
         // Create student user
@@ -228,8 +228,8 @@ export async function commitCSVImport(
             }
           } else {
             // Create new parent
-            const parentUsername = await generateParentUsername(year);
-            const parentPassword = generateTempPassword(year);
+            const parentUsername = await generateParentUsername();
+            const parentPassword = generateTempPassword();
             const parentHash = await bcrypt.hash(parentPassword, 10);
 
             const [parentUser] = await tx.insert(users).values({
