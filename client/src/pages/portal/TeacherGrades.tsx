@@ -19,7 +19,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star, RefreshCw, BarChart3 } from 'lucide-react';
+import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star, RefreshCw, BarChart3, ClipboardCheck, Trophy, Signature } from 'lucide-react';
 
 const examSchema = z.object({
   name: z.string().min(1, 'Exam name is required'),
@@ -794,74 +794,117 @@ export default function TeacherGrades() {
           </TabsContent>
 
           <TabsContent value="queue" className="space-y-4">
-            <Card>
-              <CardHeader>
+            <Card className="border-blue-100 dark:border-blue-900 shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-b">
                 <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center">
-                    <GraduationCap className="w-5 h-5 mr-2" />
-                    Manual Grading Queue
+                  <span className="flex items-center text-blue-900 dark:text-blue-100">
+                    <ClipboardCheck className="w-5 h-5 mr-2" />
+                    Auto-Grading Queue
                   </span>
                   <div className="flex items-center space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries(['/api/grading/tasks'])}>
+                    <Button size="sm" variant="outline" className="border-blue-300 hover:bg-blue-50 dark:border-blue-700 dark:hover:bg-blue-900" onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/grading/tasks'] })}>
                       <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                     </Button>
-                    <Button size="sm" onClick={() => setActiveTab('overview')}>Back to Overview</Button>
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => setActiveTab('overview')}>
+                      Back to Overview
+                    </Button>
                   </div>
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Review and grade pending student submissions.
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Review and grade pending student submissions requiring manual review
                 </p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {loadingTasks ? (
-                  <div className="text-center py-8">Loading grading tasks...</div>
+                  <div className="text-center py-12">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                      <p className="text-gray-600 dark:text-gray-400 font-medium">Loading grading tasks...</p>
+                    </div>
+                  </div>
                 ) : gradingTasks.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Pending Grading Tasks</h3>
-                    <p className="text-muted-foreground">
-                      All assigned grading tasks are up to date.
+                  <div className="text-center py-12">
+                    <CheckCircle className="w-20 h-20 mx-auto text-green-500 mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">All Caught Up!</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      No pending grading tasks at the moment. Great job keeping up!
                     </p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Exam</TableHead>
-                        <TableHead>Question Type</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {gradingTasks.map((task: any) => (
-                        <TableRow key={task.session_id} data-testid={`row-grading-task-${task.session_id}`}>
-                          <TableCell className="font-medium">
-                            {task.studentName || 'N/A'}
-                          </TableCell>
-                          <TableCell>{task.examName || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{task.questionType}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(task.submissionTime), 'MMM dd, HH:mm')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={task.status === 'pending' ? 'warning' : task.status === 'graded' ? 'success' : 'secondary'}>
-                              {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="outline" onClick={() => openGradingDialog(task)} disabled={task.status !== 'pending'}>
-                              <Edit className="w-4 h-4 mr-2" /> Grade
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <>
+                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-white">{gradingTasks.length} Task{gradingTasks.length !== 1 ? 's' : ''} Pending</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">Click "Grade" to review and score submissions</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <Table>
+                        <TableHeader className="bg-gray-50 dark:bg-gray-900">
+                          <TableRow>
+                            <TableHead className="font-semibold">Student</TableHead>
+                            <TableHead className="font-semibold">Exam</TableHead>
+                            <TableHead className="font-semibold">Type</TableHead>
+                            <TableHead className="font-semibold">Submitted</TableHead>
+                            <TableHead className="font-semibold">Status</TableHead>
+                            <TableHead className="text-right font-semibold">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {gradingTasks.map((task: any) => (
+                            <TableRow 
+                              key={task.session_id} 
+                              data-testid={`row-grading-task-${task.session_id}`}
+                              className="hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                            >
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                    {task.studentName?.charAt(0) || 'S'}
+                                  </div>
+                                  {task.studentName || 'N/A'}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">{task.examName || 'N/A'}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">
+                                  {task.questionType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-gray-600 dark:text-gray-400 text-sm">
+                                {format(new Date(task.submissionTime), 'MMM dd, HH:mm')}
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={task.status === 'pending' ? 'destructive' : task.status === 'graded' ? 'default' : 'secondary'}
+                                  className={task.status === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                                >
+                                  {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  size="sm" 
+                                  className="bg-blue-600 hover:bg-blue-700 text-white" 
+                                  onClick={() => openGradingDialog(task)} 
+                                  disabled={task.status !== 'pending'}
+                                >
+                                  <Edit className="w-4 h-4 mr-1" /> Grade
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1305,84 +1348,132 @@ export default function TeacherGrades() {
 
         {/* Grading Task Dialog */}
         <Dialog open={gradingDialogOpen} onOpenChange={setGradingDialogOpen}>
-          <DialogContent className="sm:max-w-[600px] lg:max-w-[800px] max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
+          <DialogContent className="sm:max-w-[650px] lg:max-w-[850px] max-h-[85vh] overflow-y-auto">
+            <DialogHeader className="border-b pb-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 -m-6 mb-6 rounded-t-lg">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <ClipboardCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 Grade Answer - {selectedGradingTask?.studentName}
               </DialogTitle>
-              <DialogDescription>
-                Exam: {selectedGradingTask?.examName} | Question Type: {selectedGradingTask?.questionType}
+              <DialogDescription className="flex items-center gap-4 text-sm mt-2">
+                <span className="flex items-center gap-1">
+                  <BookOpen className="h-4 w-4" />
+                  {selectedGradingTask?.examName}
+                </span>
+                <Badge variant="outline" className="border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">
+                  {selectedGradingTask?.questionType}
+                </Badge>
               </DialogDescription>
             </DialogHeader>
             {gradingAnswers.length > 0 ? (
-              gradingAnswers.map((answer: any) => (
-                <div key={answer.id} className="border-b last:border-b-0 py-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-medium">Question {answer.questionNumber}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {answer.questionText.substring(0, 100)}{answer.questionText.length > 100 ? '...' : ''}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">{answer.maxPoints} points</Badge>
-                  </div>
-                  <div className="mb-4 bg-muted p-3 rounded-md">
-                    <h5 className="font-semibold mb-2 text-sm">Student Answer:</h5>
-                    <p className="whitespace-pre-wrap text-sm">{answer.answerText || 'No answer provided'}</p>
-                  </div>
+              <div className="space-y-6">
+                {gradingAnswers.map((answer: any, index: number) => (
+                  <Card key={answer.id} className="border-blue-100 dark:border-blue-900">
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-base text-gray-900 dark:text-white mb-1">
+                            Question {answer.questionNumber}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                            {answer.questionText}
+                          </p>
+                        </div>
+                        <Badge className="bg-blue-600 hover:bg-blue-700 text-white ml-3">
+                          <Star className="h-3 w-3 mr-1" />
+                          {answer.maxPoints} pts
+                        </Badge>
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                    <div className="flex items-center space-x-2">
-                      <Input 
-                        type="number" 
-                        placeholder="Points earned" 
-                        defaultValue={answer.pointsEarned ?? 0} 
-                        min="0"
-                        max={answer.maxPoints}
-                        className="w-32"
-                        id={`points-earned-${answer.id}`}
-                      />
-                      <Label htmlFor={`points-earned-${answer.id}`} className="text-sm">/ {answer.maxPoints}</Label>
-                    </div>
-                    <Textarea 
-                      placeholder="Feedback (optional)" 
-                      defaultValue={answer.feedbackText || ''}
-                      rows={2}
-                      id={`feedback-${answer.id}`}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <Button 
-                      size="sm" 
-                      onClick={() => {
-                        const pointsInput = document.getElementById(`points-earned-${answer.id}`) as HTMLInputElement;
-                        const feedbackTextarea = document.getElementById(`feedback-${answer.id}`) as HTMLTextAreaElement;
-                        handleGradeAnswer(
-                          answer.id,
-                          parseInt(pointsInput.value),
-                          feedbackTextarea.value,
-                          answer.maxPoints
-                        );
-                      }}
-                      disabled={gradeAnswerMutation.isPending}
-                    >
-                      {gradeAnswerMutation.isPending ? 'Grading...' : 'Submit Grade'}
-                    </Button>
-                  </div>
-                </div>
-              ))
+                      <div className="mb-5 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-950 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2 mb-2">
+                          <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <h5 className="font-semibold text-sm text-gray-900 dark:text-white">Student's Answer:</h5>
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {answer.answerText || <span className="text-gray-400 italic">No answer provided</span>}
+                        </p>
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-800 border-2 border-blue-100 dark:border-blue-900 rounded-lg p-4 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`points-earned-${answer.id}`} className="text-sm font-semibold flex items-center gap-1">
+                              <Trophy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              Points Earned
+                            </Label>
+                            <div className="flex items-center space-x-2">
+                              <Input 
+                                type="number" 
+                                placeholder="0" 
+                                defaultValue={answer.pointsEarned ?? 0} 
+                                min="0"
+                                max={answer.maxPoints}
+                                className="w-24 text-base font-semibold border-blue-300 dark:border-blue-700 focus:border-blue-500"
+                                id={`points-earned-${answer.id}`}
+                              />
+                              <span className="text-lg font-semibold text-gray-600 dark:text-gray-400">/ {answer.maxPoints}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`feedback-${answer.id}`} className="text-sm font-semibold flex items-center gap-1">
+                              <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              Teacher Feedback (Optional)
+                            </Label>
+                            <Textarea 
+                              placeholder="Provide constructive feedback..." 
+                              defaultValue={answer.feedbackText || ''}
+                              rows={3}
+                              id={`feedback-${answer.id}`}
+                              className="text-sm border-blue-300 dark:border-blue-700 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                          <Button 
+                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm"
+                            onClick={() => {
+                              const pointsInput = document.getElementById(`points-earned-${answer.id}`) as HTMLInputElement;
+                              const feedbackTextarea = document.getElementById(`feedback-${answer.id}`) as HTMLTextAreaElement;
+                              handleGradeAnswer(
+                                answer.id,
+                                parseInt(pointsInput.value),
+                                feedbackTextarea.value,
+                                answer.maxPoints
+                              );
+                            }}
+                            disabled={gradeAnswerMutation.isPending}
+                          >
+                            {gradeAnswerMutation.isPending ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Grading...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Submit Grade
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : (
-              <div className="text-center py-8">
-                <Clock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Loading Answers...</h3>
-                <p className="text-muted-foreground">
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading Answers...</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   Fetching the student's answers for grading.
                 </p>
               </div>
             )}
             <DialogFooter className="mt-6 pt-4 border-t">
-              <Button variant="outline" onClick={() => setGradingDialogOpen(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setGradingDialogOpen(false)}>
+                Close
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

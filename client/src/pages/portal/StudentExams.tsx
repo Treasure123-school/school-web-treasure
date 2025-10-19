@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award } from 'lucide-react';
+import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award, Calendar } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import RequireCompleteProfile from '@/components/RequireCompleteProfile';
@@ -2141,105 +2141,141 @@ export default function StudentExams() {
           userName={user.firstName + ' ' + user.lastName}
           userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
         >
-        /* Exam List */
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Exams</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">View available exams and take tests</p>
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 rounded-xl p-6 shadow-lg">
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <BookOpen className="h-6 w-6" />
+              My Exams
+            </h1>
+            <p className="text-sm text-blue-50 mt-2">View and take your available examinations</p>
           </div>
 
-          {/* Available Exams */}
-          <div className="space-y-4">
+          <div className="grid gap-5">
             {loadingExams ? (
-              <div className="text-center py-8">
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-gray-600 dark:text-gray-400">Loading exams...</span>
-                </div>
-              </div>
-            ) : examsError ? (
-              <div className="text-center py-8">
-                <div className="text-red-600 mb-2">Failed to load exams</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {examsError instanceof Error ? examsError.message : 'Unknown error occurred'}
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-2"
-                  onClick={() => window.location.reload()}
-                >
-                  Reload Page
-                </Button>
-              </div>
-            ) : exams.filter(exam => exam.isPublished).length === 0 ? (
-              <div className="text-center py-8 text-gray-600 dark:text-gray-400">
-                <div className="mb-2">No exams available at the moment.</div>
-                {exams.length > 0 && (
-                  <div className="text-sm text-yellow-600">
-                    {exams.length} exam(s) found but not yet published
+              <Card className="shadow-sm border-blue-100 dark:border-blue-900">
+                <CardContent className="text-center py-12">
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Loading exams...</span>
                   </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
+            ) : examsError ? (
+              <Card className="shadow-sm border-red-100 dark:border-red-900">
+                <CardContent className="text-center py-12">
+                  <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+                  <div className="text-red-600 font-semibold mb-2">Failed to load exams</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    {examsError instanceof Error ? examsError.message : 'Unknown error occurred'}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reload Page
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : exams.filter(exam => exam.isPublished).length === 0 ? (
+              <Card className="shadow-sm border-gray-200 dark:border-gray-700">
+                <CardContent className="text-center py-12">
+                  <BookOpen className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <div className="text-lg font-medium text-gray-900 dark:text-white mb-2">No exams available</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Check back later for new examinations
+                  </div>
+                  {exams.length > 0 && (
+                    <div className="text-sm text-yellow-600 dark:text-yellow-500 mt-3 flex items-center justify-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {exams.length} exam(s) found but not yet published
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ) : (
               exams
                 .filter(exam => exam.isPublished)
                 .map((exam) => (
-                  <div 
-                    key={exam.id} 
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                  <Card 
+                    key={exam.id}
+                    className="group hover:shadow-md transition-all duration-200 border-blue-100 dark:border-blue-900 hover:border-blue-300 dark:hover:border-blue-700"
                     data-testid={`exam-card-${exam.id}`}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-base text-gray-900 dark:text-white mb-1">{exam.name}</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(exam.date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-blue-600 text-white text-xs font-medium px-3 py-1 rounded-full inline-block mb-3">
-                      Available
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      <div className="flex items-center gap-1">
-                        <Trophy className="h-4 w-4" />
-                        <span>{exam.totalMarks || 60} marks</span>
-                      </div>
-                      {exam.timeLimit && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          <span>{exam.timeLimit} min</span>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Available
+                            </Badge>
+                          </div>
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {exam.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(exam.date).toLocaleDateString('en-US', { 
+                              weekday: 'short',
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </p>
                         </div>
-                      )}
-                    </div>
+                        <GraduationCap className="h-10 w-10 text-blue-100 dark:text-blue-900 group-hover:text-blue-200 dark:group-hover:text-blue-800 transition-colors" />
+                      </div>
 
-                    <Button
-                      onClick={() => handleStartExam(exam)}
-                      disabled={startExamMutation.isPending || !exam.isPublished}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                      data-testid={`button-start-exam-${exam.id}`}
-                    >
-                      {startExamMutation.isPending ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Starting...
-                        </>
-                      ) : !exam.isPublished ? (
-                        <>
-                          <Clock className="w-4 h-4 mr-2" />
-                          Not Available
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4 mr-2" />
-                          Start Exam
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                      <div className="grid grid-cols-2 gap-4 mb-5 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <Trophy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Total Marks</div>
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white">{exam.totalMarks || 60}</div>
+                          </div>
+                        </div>
+                        {exam.timeLimit && (
+                          <div className="flex items-center gap-2">
+                            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                              <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Duration</div>
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{exam.timeLimit} min</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        onClick={() => handleStartExam(exam)}
+                        disabled={startExamMutation.isPending || !exam.isPublished}
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                        data-testid={`button-start-exam-${exam.id}`}
+                      >
+                        {startExamMutation.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Starting Exam...
+                          </>
+                        ) : !exam.isPublished ? (
+                          <>
+                            <Clock className="w-4 h-4 mr-2" />
+                            Not Available
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 mr-2" />
+                            Start Exam
+                          </>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
                 ))
             )}
           </div>
