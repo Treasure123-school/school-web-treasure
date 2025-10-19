@@ -6195,6 +6195,96 @@ Treasure-Home School Administration
     }
   });
 
+  // Create new admin (Super Admin only)
+  app.post('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+    try {
+      // Zod validation schema for creating admin
+      const createAdminSchema = z.object({
+        firstName: z.string().min(1, "First name is required").trim(),
+        lastName: z.string().min(1, "Last name is required").trim(),
+        email: z.string().email("Invalid email address").toLowerCase().trim(),
+        username: z.string().min(3, "Username must be at least 3 characters").trim(),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+      });
+
+      // Validate and parse request body
+      const validatedData = createAdminSchema.parse(req.body);
+      const { firstName, lastName, email, username, password } = validatedData;
+
+      // Check if username or email already exists
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // Create admin user
+      const newAdmin = await storage.createUser({
+        username,
+        email,
+        passwordHash,
+        roleId: ROLES.ADMIN,
+        firstName,
+        lastName,
+        status: 'active',
+        isActive: true,
+        mustChangePassword: false,
+        createdVia: 'admin',
+        createdBy: req.user!.id,
+        approvedBy: req.user!.id,
+        approvedAt: new Date(),
+      });
+
+      // Create admin profile
+      await storage.createAdminProfile({
+        userId: newAdmin.id,
+        department: 'Administration',
+        accessLevel: 'standard',
+      });
+
+      // Log the admin creation
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'admin_created',
+        entityType: 'user',
+        entityId: newAdmin.id,
+        reason: `New admin created: ${username}`,
+      });
+
+      console.log(`✅ New admin created: ${username} by ${req.user!.username}`);
+      
+      res.status(201).json({
+        message: 'Admin created successfully',
+        admin: {
+          id: newAdmin.id,
+          username: newAdmin.username,
+          email: newAdmin.email,
+          firstName: newAdmin.firstName,
+          lastName: newAdmin.lastName,
+        }
+      });
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      
+      // Handle Zod validation errors
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: error.errors[0].message || 'Validation error',
+          errors: error.errors 
+        });
+      }
+      
+      res.status(500).json({ message: 'Failed to create administrator' });
+    }
+  });
+
   // Get audit logs (Super Admin only)
   app.get('/api/superadmin/logs', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
     try {
