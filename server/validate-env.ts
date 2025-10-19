@@ -71,20 +71,6 @@ const ENV_VARS: EnvVarConfig[] = [
     validateFn: (val) => val.length > 50,
     suggestion: 'Get from Supabase Dashboard → Settings → API (use service_role key, NOT anon key)'
   },
-
-  // Optional - Google OAuth
-  {
-    name: 'GOOGLE_CLIENT_ID',
-    required: 'optional',
-    description: 'Google OAuth client ID',
-    suggestion: 'Get from Google Cloud Console'
-  },
-  {
-    name: 'GOOGLE_CLIENT_SECRET',
-    required: 'optional',
-    description: 'Google OAuth client secret',
-    suggestion: 'Get from Google Cloud Console'
-  },
 ];
 
 interface ValidationResult {
