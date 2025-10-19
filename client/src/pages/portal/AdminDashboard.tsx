@@ -15,6 +15,7 @@ import { Link, navigate } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef, useState } from "react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
 
 // Define DashboardStats type (assuming it's defined elsewhere or can be inferred)
 interface DashboardStats {
@@ -907,12 +908,12 @@ export default function AdminDashboard() {
 
 
 
-      {/* Statistics Cards - Fully Responsive */}
-      <div className="grid gap-2 xs:gap-3 sm:gap-4 md:gap-6 grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
+      {/* Statistics Cards - Modern Gradient Design */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6 animate-slide-up">
         {analyticsLoading ? (
           <>
             {[...Array(4)].map((_, i) => (
-              <Card key={i}>
+              <Card key={i} className="shadow-xl">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-2">
@@ -928,33 +929,82 @@ export default function AdminDashboard() {
           </>
         ) : (
           <>
-            <StatsCard
-              title="Total Students"
-              value={stats?.totalStudents.toString() ?? '0'}
-              description={`↗ +${stats?.studentsThisMonth ?? 0} this month`}
-              icon={Users}
-              trend="up"
-            />
-            <StatsCard
-              title="Teaching Staff"
-              value={stats?.totalTeachers.toString() ?? '0'}
-              description={`↗ +${stats?.teachersThisTerm ?? 0} this term`}
-              icon={GraduationCap}
-              trend="up"
-            />
-            <StatsCard
-              title="Total Classes"
-              value={stats?.totalClasses.toString() ?? '0'}
-              description={stats?.classesWithCapacity ?? 'All classes'}
-              icon={BookOpen}
-            />
-            <StatsCard
-              title="Avg. Attendance"
-              value={`${stats?.averageAttendance ?? 0}%`}
-              description="Last 30 days"
-              icon={Calendar}
-              trend={((stats?.averageAttendance ?? 0) >= 85) ? 'up' : 'down'}
-            />
+            <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-total-students">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 opacity-100"></div>
+              <CardContent className="relative p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium">Total Students</p>
+                    <AnimatedCounter
+                      value={stats?.totalStudents ?? 0}
+                      className="text-3xl font-bold mt-2"
+                    />
+                    <p className="text-blue-100 text-xs mt-2">↗ +{stats?.studentsThisMonth ?? 0} this month</p>
+                  </div>
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                    <Users className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-teaching-staff">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 opacity-100"></div>
+              <CardContent className="relative p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-emerald-100 text-sm font-medium">Teaching Staff</p>
+                    <AnimatedCounter
+                      value={stats?.totalTeachers ?? 0}
+                      className="text-3xl font-bold mt-2"
+                    />
+                    <p className="text-emerald-100 text-xs mt-2">↗ +{stats?.teachersThisTerm ?? 0} this term</p>
+                  </div>
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                    <GraduationCap className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-total-classes">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-violet-600 to-purple-600 opacity-100"></div>
+              <CardContent className="relative p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">Total Classes</p>
+                    <AnimatedCounter
+                      value={stats?.totalClasses ?? 0}
+                      className="text-3xl font-bold mt-2"
+                    />
+                    <p className="text-purple-100 text-xs mt-2">{stats?.classesWithCapacity ?? 'All classes'}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                    <BookOpen className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-avg-attendance">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-orange-600 to-red-500 opacity-100"></div>
+              <CardContent className="relative p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-amber-100 text-sm font-medium">Avg. Attendance</p>
+                    <AnimatedCounter
+                      value={stats?.averageAttendance ?? 0}
+                      suffix="%"
+                      className="text-3xl font-bold mt-2"
+                    />
+                    <p className="text-amber-100 text-xs mt-2">Last 30 days</p>
+                  </div>
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                    <Calendar className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

@@ -11,6 +11,7 @@ import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { getRoleName } from '@/lib/utils';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
 
 
 // Component for displaying results by class card
@@ -423,32 +424,83 @@ export default function TeacherDashboard() {
         </Button>
       </div>
 
-      {/* Stats Cards - Fully Responsive */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
-        <StatsCard
-          title="Total Students"
-          value={isLoading ? "..." : totalStudents.toString()}
-          icon={Users}
-          color="primary"
-        />
-        <StatsCard
-          title="Classes"
-          value={isLoading ? "..." : totalClasses.toString()}
-          icon={BookOpen}
-          color="secondary"
-        />
-        <StatsCard
-          title="Total Exams"
-          value={isLoading ? "..." : (exams as any[]).filter((e: any) => e.createdBy === user.id).length.toString()}
-          icon={ClipboardList}
-          color="green"
-        />
-        <StatsCard
-          title="Pending Grades"
-          value={isLoading ? "..." : pendingGradesCount.toString()}
-          icon={MessageSquare}
-          color="orange"
-        />
+      {/* Stats Cards - Modern Gradient Design */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 animate-slide-up">
+        <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-total-students">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 opacity-100"></div>
+          <CardContent className="relative p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm font-medium">Total Students</p>
+                <AnimatedCounter
+                  value={isLoading ? 0 : totalStudents}
+                  className="text-3xl font-bold mt-2"
+                />
+                <p className="text-blue-100 text-xs mt-2">Across all classes</p>
+              </div>
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-classes">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 opacity-100"></div>
+          <CardContent className="relative p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-emerald-100 text-sm font-medium">Classes</p>
+                <AnimatedCounter
+                  value={isLoading ? 0 : totalClasses}
+                  className="text-3xl font-bold mt-2"
+                />
+                <p className="text-emerald-100 text-xs mt-2">Teaching assignments</p>
+              </div>
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <BookOpen className="h-8 w-8 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-total-exams">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-violet-600 to-purple-600 opacity-100"></div>
+          <CardContent className="relative p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm font-medium">Total Exams</p>
+                <AnimatedCounter
+                  value={isLoading ? 0 : (exams as any[]).filter((e: any) => e.createdBy === user.id).length}
+                  className="text-3xl font-bold mt-2"
+                />
+                <p className="text-purple-100 text-xs mt-2">Exams created</p>
+              </div>
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <ClipboardList className="h-8 w-8 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-pending-grades">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-orange-600 to-red-500 opacity-100"></div>
+          <CardContent className="relative p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-amber-100 text-sm font-medium">Pending Grades</p>
+                <AnimatedCounter
+                  value={isLoading ? 0 : pendingGradesCount}
+                  className="text-3xl font-bold mt-2"
+                />
+                <p className="text-amber-100 text-xs mt-2">Awaiting review</p>
+              </div>
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <MessageSquare className="h-8 w-8 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
