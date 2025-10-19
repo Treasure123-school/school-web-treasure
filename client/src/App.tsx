@@ -29,6 +29,14 @@ const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const JobVacancy = lazy(() => import("@/pages/JobVacancy"));
 
+// Super Admin pages
+const SuperAdminLogin = lazy(() => import("@/pages/SuperAdminLogin"));
+const SuperAdminDashboard = lazy(() => import("@/pages/portal/SuperAdminDashboard"));
+const SuperAdminManagement = lazy(() => import("@/pages/portal/SuperAdminManagement"));
+const SuperAdminSettings = lazy(() => import("@/pages/portal/SuperAdminSettings"));
+const SuperAdminProfile = lazy(() => import("@/pages/portal/SuperAdminProfile"));
+const SuperAdminLogs = lazy(() => import("@/pages/portal/SuperAdminLogs"));
+
 // Lazy load all portal pages for optimal code splitting
 const StudentDashboard = lazy(() => import("@/pages/portal/StudentDashboard"));
 const StudentGrades = lazy(() => import("@/pages/portal/StudentGrades"));
@@ -86,8 +94,36 @@ function Router() {
         <Route path="/admissions" component={Admissions} />
         <Route path="/job-vacancy" component={JobVacancy} />
         <Route path="/login" component={Login} />
+        <Route path="/superadmin/login" component={SuperAdminLogin} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+
+      {/* Super Admin Portal Routes */}
+      <Route path="/portal/superadmin">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SuperAdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/admins">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SuperAdminManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/logs">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SuperAdminLogs />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/settings">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SuperAdminSettings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/profile">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SuperAdminProfile />
+        </ProtectedRoute>
+      </Route>
 
       {/* Profile Onboarding - Available to all authenticated users */}
       <Route path="/portal/onboarding">
