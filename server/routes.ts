@@ -17,7 +17,6 @@ import { generateUsername, generatePassword, getNextUserNumber, generateStudentU
 import passport from "passport";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { setupGoogleAuth } from "./google-auth";
 import { and, eq, sql } from "drizzle-orm";
 import { initializeStorageBuckets, uploadFileToSupabase, deleteFileFromSupabase, STORAGE_BUCKETS, isSupabaseStorageEnabled, extractFilePathFromUrl } from "./supabase-storage";
 
@@ -40,19 +39,6 @@ declare global {
   }
 }
 
-// Extend express-session to include our custom session data
-declare module 'express-session' {
-  interface SessionData {
-    pendingUser?: {
-      googleId: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      profileImageUrl?: string;
-      isNewUser: boolean;
-    };
-  }
-}
 
 const loginSchema = z.object({
   identifier: z.string().min(1), // Can be username or email
@@ -2339,158 +2325,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize Supabase Storage buckets
   await initializeStorageBuckets();
-
-  // Setup Google OAuth (will only activate if credentials are provided)
-  const googleOAuthEnabled = setupGoogleAuth();
-  if (googleOAuthEnabled) {
-    console.log('✅ Google OAuth authentication enabled');
-  } else {
-    console.log('⚠️  Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)');
-  }
-
-  // Google OAuth routes
-  app.get('/api/auth/google', passport.authenticate('google', {
-    scope: ['profile', 'email']
-  }));
-
-  app.get('/api/auth/google/callback',
-    (req, res, next) => {
-      console.log('📧 Google OAuth callback received:', {
-        query: req.query,
-        hasCode: !!req.query.code,
-        hasError: !!req.query.error
-      });
-
-      passport.authenticate('google', async (err: any, user: any, info: any) => {
-        // Frontend URL Configuration - Environment-aware
-        // PRIORITY ORDER:
-        // 1. Development (Replit): Use REPLIT_DEV_DOMAIN if available
-        // 2. Production: Use FRONTEND_URL env var
-        // 3. Fallback: Default production URL
-        const REPLIT_DEV_DOMAIN = process.env.REPLIT_DEV_DOMAIN;
-        const frontendUrl = REPLIT_DEV_DOMAIN 
-          ? `https://${REPLIT_DEV_DOMAIN}` 
-          : (process.env.FRONTEND_URL || 'https://treasurehomeschool.vercel.app');
-
-        console.log('🔄 OAuth redirect to frontend:', frontendUrl);
-
-        if (err) {
-          console.error('❌ Google OAuth error:', err);
-          console.error('Error details:', { message: err.message, stack: err.stack });
-          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent('Authentication failed. Please try again.'));
-        }
-
-        if (!user) {
-          const message = info?.message || 'Authentication failed';
-          console.error('❌ Google OAuth: No user returned. Info:', info);
-          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent(message));
-        }
-
-        // Handle new user requiring approval
-        if (user.isNewUser && user.requiresApproval) {
-          console.log('📝 Creating pending staff account for:', user.email);
-
-          try {
-            // Check if an invite exists for this email
-            const invite = await storage.getPendingInviteByEmail(user.email);
-            const roleId = invite ? invite.roleId : ROLES.TEACHER; // Default to teacher if no invite
-
-            // Generate THS username
-            const currentYear = new Date().getFullYear().toString();
-            const existingUsers = await storage.getUsersByRole(roleId);
-            const existingUsernames = existingUsers.map((u: any) => u.username).filter(Boolean);
-            const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
-            const username = generateUsername(roleId, currentYear, '', nextNumber);
-
-            // Create PENDING account with only fields that exist in DB
-            const newUser = await storage.createUser({
-              email: user.email,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              username,
-              roleId,
-              authProvider: 'google',
-              googleId: user.googleId,
-              profileImageUrl: user.profileImageUrl,
-              mustChangePassword: false,
-              passwordHash: null,
-              status: 'pending', // Requires approval
-              createdVia: invite ? 'invite' : 'google',
-              isActive: true,
-              profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
-              profileSkipped: false, // 🔧 FIX: New users start with incomplete profile
-            });
-
-            // If invite exists, mark it as accepted
-            if (invite) {
-              await storage.markInviteAsAccepted(invite.id, newUser.id);
-            }
-
-            console.log('✅ Created pending account for:', user.email);
-
-            // Log audit event
-            await storage.createAuditLog({
-              userId: newUser.id,
-              action: 'account_created_pending_approval',
-              entityType: 'user',
-              entityId: BigInt(1), // Placeholder, needs proper entity ID if applicable
-              newValue: JSON.stringify({ email: user.email, googleId: user.googleId, username, roleId }),
-              reason: invite ? 'OAuth signup via invite' : 'OAuth signup without invite',
-              ipAddress: req.ip,
-              userAgent: req.headers['user-agent']
-            });
-
-            // Notify all admins about the new pending user
-            try {
-              const admins = await storage.getUsersByRole(ROLES.ADMIN);
-              if (admins && admins.length > 0) {
-                const role = await storage.getRole(roleId);
-                const roleName = role?.name || (roleId === ROLES.ADMIN ? 'Admin' : 'Teacher');
-
-                for (const admin of admins) {
-                  await storage.createNotification({
-                    userId: admin.id,
-                    type: 'pending_user',
-                    title: 'New User Pending Approval',
-                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up via Google as ${roleName} and is awaiting approval.`,
-                    relatedEntityType: 'user',
-                    relatedEntityId: newUser.id,
-                    isRead: false
-                  });
-                }
-                console.log(`📬 Notified ${admins.length} admin(s) about pending user: ${newUser.email}`);
-              } else {
-                console.warn('⚠️ No admins found to notify about pending user:', newUser.email);
-              }
-            } catch (notifError) {
-              console.error('❌ Failed to create admin notifications:', notifError);
-              // Don't fail the user creation if notification fails
-            }
-
-            // REDIRECT WITH FRIENDLY MESSAGE - As per Chapter 1 plan
-            console.log(`🔒 OAuth signup complete - user ${newUser.email} awaiting admin approval`);
-            const role = await storage.getRole(roleId);
-            const roleName = role?.name || 'Staff';
-            return res.redirect(`${frontendUrl}/login?status=pending_verification&role=${roleName.toLowerCase()}`);
-          } catch (error) {
-            console.error('❌ Error creating pending account:', error);
-            return res.redirect(`${frontendUrl}/login?error=account_creation_failed&message=` + encodeURIComponent('Failed to create your account. Please contact the administrator.'));
-          }
-        }
-
-        // Existing active user - allow login
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            console.error('Login error:', loginErr);
-            return res.redirect(`${frontendUrl}/login?error=login_failed&message=` + encodeURIComponent('Failed to complete login'));
-          }
-
-          const token = jwt.sign({ userId: user.id, roleId: user.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-          res.redirect(`${frontendUrl}/login?token=${token}&provider=google`);
-        });
-      })(req, res, next);
-    }
-  );
 
   app.get('/api/auth/me', authenticateUser, async (req, res) => {
     try {
