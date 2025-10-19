@@ -91,10 +91,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
-  updateUserGoogleId(userId: string, googleId: string): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   getUsersByRole(roleId: number): Promise<User[]>;
   getUsersByStatus(status: string): Promise<User[]>;
@@ -561,41 +559,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
-    // Only select columns that exist in the current database schema
-    const result = await this.db.select({
-      id: schema.users.id,
-      username: schema.users.username,
-      email: schema.users.email,
-      recoveryEmail: schema.users.recoveryEmail,
-      passwordHash: schema.users.passwordHash,
-      roleId: schema.users.roleId,
-      firstName: schema.users.firstName,
-      lastName: schema.users.lastName,
-      phone: schema.users.phone,
-      address: schema.users.address,
-      dateOfBirth: schema.users.dateOfBirth,
-      gender: schema.users.gender,
-      nationalId: schema.users.nationalId,
-      profileImageUrl: schema.users.profileImageUrl,
-      isActive: schema.users.isActive,
-      authProvider: schema.users.authProvider,
-      googleId: schema.users.googleId,
-      status: schema.users.status,
-      createdAt: schema.users.createdAt,
-      updatedAt: schema.users.updatedAt,
-    }).from(schema.users).where(eq(schema.users.googleId, googleId)).limit(1);
-
-    const user = result[0];
-    if (user && user.id) {
-      const normalizedId = normalizeUuid(user.id);
-      if (normalizedId) {
-        user.id = normalizedId;
-      }
-    }
-    return user as User | undefined;
-  }
-
   async createPasswordResetToken(userId: string, token: string, expiresAt: Date, ipAddress?: string, resetBy?: string): Promise<any> {
     const result = await this.db.insert(schema.passwordResetTokens).values({
       userId,
@@ -680,10 +643,6 @@ export class DatabaseStorage implements IStorage {
       }
       throw error;
     }
-  }
-
-  async updateUserGoogleId(userId: string, googleId: string): Promise<User | undefined> {
-    return await this.updateUser(userId, { googleId });
   }
 
   async deleteUser(id: string): Promise<boolean> {
