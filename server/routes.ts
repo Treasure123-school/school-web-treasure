@@ -6171,6 +6171,75 @@ Treasure-Home School Administration
 
   // ==================== END JOB VACANCY SYSTEM ROUTES ====================
 
+  // ==================== SUPER ADMIN ROUTES ====================
+
+  // Get system statistics (Super Admin only)
+  app.get('/api/superadmin/stats', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+    try {
+      const stats = await storage.getSuperAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching super admin stats:', error);
+      res.status(500).json({ message: 'Failed to fetch system statistics' });
+    }
+  });
+
+  // Get all admins (Super Admin only)
+  app.get('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+    try {
+      const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      res.json(admins);
+    } catch (error) {
+      console.error('Error fetching admins:', error);
+      res.status(500).json({ message: 'Failed to fetch administrators' });
+    }
+  });
+
+  // Get audit logs (Super Admin only)
+  app.get('/api/superadmin/logs', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+    try {
+      const logs = await storage.getAuditLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      res.status(500).json({ message: 'Failed to fetch audit logs' });
+    }
+  });
+
+  // Get system settings (Super Admin only)
+  app.get('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+    try {
+      const settings = await storage.getSystemSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+      res.status(500).json({ message: 'Failed to fetch system settings' });
+    }
+  });
+
+  // Update system settings (Super Admin only)
+  app.put('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+    try {
+      const settings = await storage.updateSystemSettings(req.body);
+      
+      // Log the settings change
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'settings_updated',
+        entityType: 'system_settings',
+        entityId: settings.id,
+        reason: 'System settings updated by Super Admin',
+      });
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating system settings:', error);
+      res.status(500).json({ message: 'Failed to update system settings' });
+    }
+  });
+
+  // ==================== END SUPER ADMIN ROUTES ====================
+
   // ==================== END MODULE 1 ROUTES ====================
 
   // Catch-all for non-API routes - redirect to frontend (PRODUCTION ONLY)

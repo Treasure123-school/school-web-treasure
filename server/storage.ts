@@ -427,6 +427,16 @@ export interface IStorage {
   getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined>;
   getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]>;
   deleteApprovedTeacher(id: string): Promise<boolean>;
+
+  // Super Admin methods
+  getSuperAdminStats(): Promise<{
+    totalAdmins: number;
+    totalUsers: number;
+    activeSessions: number;
+    totalExams: number;
+  }>;
+  getSystemSettings(): Promise<schema.SystemSettings | undefined>;
+  updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings>;
 }
 
 // Helper to normalize UUIDs from various formats
@@ -4554,6 +4564,58 @@ export class DatabaseStorage implements IStorage {
   async deleteApprovedTeacher(id: string): Promise<boolean> {
     const result = await this.db.delete(schema.approvedTeachers).where(eq(schema.approvedTeachers.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Super Admin implementations
+  async getSuperAdminStats(): Promise<{
+    totalAdmins: number;
+    totalUsers: number;
+    activeSessions: number;
+    totalExams: number;
+  }> {
+    const [admins, users, exams] = await Promise.all([
+      this.getUsersByRole(1), // Admins have roleId 1
+      this.getAllUsers(),
+      this.db.select().from(schema.exams),
+    ]);
+
+    // Count active sessions (users logged in recently, within last hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const activeSessions = users.filter(u => u.updatedAt && u.updatedAt > oneHourAgo).length;
+
+    return {
+      totalAdmins: admins.length,
+      totalUsers: users.length,
+      activeSessions,
+      totalExams: exams.length,
+    };
+  }
+
+  async getSystemSettings(): Promise<schema.SystemSettings | undefined> {
+    const result = await this.db.select().from(schema.systemSettings).limit(1);
+    return result[0];
+  }
+
+  async updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings> {
+    // Get existing settings
+    const existing = await this.getSystemSettings();
+    
+    if (existing) {
+      // Update existing settings
+      const result = await this.db
+        .update(schema.systemSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(schema.systemSettings.id, existing.id))
+        .returning();
+      return result[0];
+    } else {
+      // Create new settings if none exist
+      const result = await this.db
+        .insert(schema.systemSettings)
+        .values(settings)
+        .returning();
+      return result[0];
+    }
   }
 }
 
