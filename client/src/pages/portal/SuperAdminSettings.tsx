@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,11 +35,11 @@ export default function SuperAdminSettings() {
   });
 
   // Update form when data loads
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setFormData(settings);
     }
-  });
+  }, [settings]);
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
