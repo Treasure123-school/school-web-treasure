@@ -2103,12 +2103,12 @@ export default function StudentExams() {
           userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
         >
         <div className="space-y-6">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 rounded-xl p-6 shadow-lg">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <BookOpen className="h-6 w-6" />
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <BookOpen className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               My Exams
             </h1>
-            <p className="text-sm text-blue-50 mt-2">View and take your available examinations</p>
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 mt-2">View and take your available examinations</p>
           </div>
 
           <div className="grid gap-5">
