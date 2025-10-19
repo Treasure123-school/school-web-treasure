@@ -29,7 +29,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import SuperAdminLayout from "@/components/SuperAdminLayout";
-import { UserPlus, Search, Ban, RefreshCw, Trash2, Key } from "lucide-react";
+import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -40,16 +40,23 @@ const addAdminSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 type AddAdminFormData = z.infer<typeof addAdminSchema>;
+
+interface GeneratedCredentials {
+  username: string;
+  password: string;
+  role: string;
+  fullName: string;
+}
 
 export default function SuperAdminManagement() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [generatedCredentials, setGeneratedCredentials] = useState<GeneratedCredentials | null>(null);
+  const [isCredentialsDialogOpen, setIsCredentialsDialogOpen] = useState(false);
 
   const form = useForm<AddAdminFormData>({
     resolver: zodResolver(addAdminSchema),
@@ -57,8 +64,6 @@ export default function SuperAdminManagement() {
       firstName: "",
       lastName: "",
       email: "",
-      username: "",
-      password: "",
     },
   });
 
@@ -100,12 +105,23 @@ export default function SuperAdminManagement() {
 
   const addAdminMutation = useMutation({
     mutationFn: async (data: AddAdminFormData) => {
-      return apiRequest("POST", "/api/superadmin/admins", data);
+      const response = await apiRequest("POST", "/api/superadmin/admins", data);
+      return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.credentials) {
+        setGeneratedCredentials({
+          username: data.credentials.username,
+          password: data.credentials.password,
+          role: data.credentials.role || "Admin",
+          fullName: `${form.getValues("firstName")} ${form.getValues("lastName")}`,
+        });
+        setIsCredentialsDialogOpen(true);
+      }
       toast({
-        title: "Success",
-        description: "New admin created successfully",
+        title: "✓ Admin Created Successfully",
+        description: "System-generated credentials have been created.",
+        className: "border-green-500 bg-green-50",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/admins"] });
       setIsAddDialogOpen(false);
@@ -321,44 +337,11 @@ export default function SuperAdminManagement() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="dark:text-slate-200">Username</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="admin_username"
-                          className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                          data-testid="input-username"
-                        />
-                      </FormControl>
-                      <FormMessage className="dark:text-red-400" />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="dark:text-slate-200">Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          placeholder="Minimum 8 characters"
-                          className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                          data-testid="input-password"
-                        />
-                      </FormControl>
-                      <FormMessage className="dark:text-red-400" />
-                    </FormItem>
-                  )}
-                />
+                <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Auto-Generated Credentials:</strong> Username and temporary password will be automatically generated and displayed after creation.
+                  </p>
+                </div>
 
                 <DialogFooter>
                   <Button
@@ -383,6 +366,94 @@ export default function SuperAdminManagement() {
                 </DialogFooter>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isCredentialsDialogOpen} onOpenChange={setIsCredentialsDialogOpen}>
+          <DialogContent className="dark:bg-slate-800 dark:border-slate-700 max-w-[95vw] sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <DialogTitle className="dark:text-white">Account Successfully Created</DialogTitle>
+              </div>
+              <DialogDescription className="dark:text-slate-400">
+                System-generated credentials for the new admin account
+              </DialogDescription>
+            </DialogHeader>
+
+            {generatedCredentials && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Role</p>
+                  <p className="text-base font-semibold text-slate-900 dark:text-white">{generatedCredentials.role}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</p>
+                  <p className="text-base font-semibold text-slate-900 dark:text-white">{generatedCredentials.fullName}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">System-Generated Username</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedCredentials.username);
+                        toast({ title: "Copied!", description: "Username copied to clipboard" });
+                      }}
+                      data-testid="button-copy-username"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-md border border-slate-300 dark:border-slate-700">
+                    <p className="text-base font-mono font-bold text-blue-600 dark:text-blue-400" data-testid="text-generated-username">
+                      {generatedCredentials.username}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Temporary Password</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedCredentials.password);
+                        toast({ title: "Copied!", description: "Password copied to clipboard" });
+                      }}
+                      data-testid="button-copy-password"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-md border border-slate-300 dark:border-slate-700">
+                    <p className="text-base font-mono font-bold text-blue-600 dark:text-blue-400" data-testid="text-generated-password">
+                      {generatedCredentials.password}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 p-3 border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>⚠️ Important:</strong> This password will only be shown once. The user must change it after their first login.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                onClick={() => setIsCredentialsDialogOpen(false)}
+                data-testid="button-close-credentials"
+                className="w-full"
+              >
+                Close
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

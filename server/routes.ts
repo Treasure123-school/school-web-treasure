@@ -6198,32 +6198,32 @@ Treasure-Home School Administration
   // Create new admin (Super Admin only)
   app.post('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
     try {
-      // Zod validation schema for creating admin
+      // Zod validation schema for creating admin (username and password are auto-generated)
       const createAdminSchema = z.object({
         firstName: z.string().min(1, "First name is required").trim(),
         lastName: z.string().min(1, "Last name is required").trim(),
         email: z.string().email("Invalid email address").toLowerCase().trim(),
-        username: z.string().min(3, "Username must be at least 3 characters").trim(),
-        password: z.string().min(8, "Password must be at least 8 characters"),
       });
 
       // Validate and parse request body
       const validatedData = createAdminSchema.parse(req.body);
-      const { firstName, lastName, email, username, password } = validatedData;
+      const { firstName, lastName, email } = validatedData;
 
-      // Check if username or email already exists
-      const existingUsername = await storage.getUserByUsername(username);
-      if (existingUsername) {
-        return res.status(400).json({ message: 'Username already exists' });
-      }
-
+      // Check if email already exists
       const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
         return res.status(400).json({ message: 'Email already exists' });
       }
 
+      // Auto-generate username using username generator
+      const { generateAdminUsername, generateTempPassword } = await import('./username-generator');
+      const username = await generateAdminUsername();
+      const tempPassword = generateTempPassword();
+
+      console.log(`🔐 Auto-generating credentials for admin: ${firstName} ${lastName}`);
+
       // Hash password
-      const passwordHash = await bcrypt.hash(password, 12);
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
 
       // Create admin user
       const newAdmin = await storage.createUser({
@@ -6235,7 +6235,7 @@ Treasure-Home School Administration
         lastName,
         status: 'active',
         isActive: true,
-        mustChangePassword: false,
+        mustChangePassword: true, // User must change password after first login
         createdVia: 'admin',
         createdBy: req.user!.id,
         approvedBy: req.user!.id,
@@ -6255,19 +6255,24 @@ Treasure-Home School Administration
         action: 'admin_created',
         entityType: 'user',
         entityId: newAdmin.id,
-        reason: `New admin created: ${username}`,
+        reason: `New admin created: ${username} (auto-generated credentials)`,
       });
 
       console.log(`✅ New admin created: ${username} by ${req.user!.username}`);
       
       res.status(201).json({
-        message: 'Admin created successfully',
+        message: 'Admin created successfully with auto-generated credentials',
         admin: {
           id: newAdmin.id,
           username: newAdmin.username,
           email: newAdmin.email,
           firstName: newAdmin.firstName,
           lastName: newAdmin.lastName,
+        },
+        credentials: {
+          username: username,
+          password: tempPassword,
+          role: 'Admin',
         }
       });
     } catch (error) {
