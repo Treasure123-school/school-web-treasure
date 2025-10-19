@@ -42,10 +42,10 @@ export default function SuperAdminLogs() {
     <SuperAdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold dark:text-white" data-testid="text-page-title">
+          <h1 className="text-2xl sm:text-3xl font-bold dark:text-white" data-testid="text-page-title">
             System Logs
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
             View system activity and audit trail
           </p>
         </div>
@@ -73,42 +73,57 @@ export default function SuperAdminLogs() {
                 No logs found
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="dark:border-slate-700">
-                    <TableHead className="dark:text-slate-300">Date & Time</TableHead>
-                    <TableHead className="dark:text-slate-300">Action</TableHead>
-                    <TableHead className="dark:text-slate-300">User</TableHead>
-                    <TableHead className="dark:text-slate-300">Details</TableHead>
-                    <TableHead className="dark:text-slate-300">IP Address</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLogs.map((log: any) => (
-                    <TableRow key={log.id} className="dark:border-slate-700" data-testid={`row-log-${log.id}`}>
-                      <TableCell className="dark:text-slate-300">
-                        {log.createdAt
-                          ? format(new Date(log.createdAt), "MMM dd, yyyy HH:mm")
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={getActionColor(log.action)}
-                          variant="outline"
-                          data-testid={`badge-action-${log.id}`}
-                        >
-                          {log.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="dark:text-slate-300">{log.userEmail || "System"}</TableCell>
-                      <TableCell className="dark:text-slate-300 max-w-md truncate">
-                        {log.reason || log.entityType || "—"}
-                      </TableCell>
-                      <TableCell className="dark:text-slate-300">{log.ipAddress || "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="dark:border-slate-700">
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap">Date & Time</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap">Action</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap hidden md:table-cell">User</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap hidden lg:table-cell">Details</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap hidden xl:table-cell">IP Address</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLogs.map((log: any) => (
+                        <TableRow key={log.id} className="dark:border-slate-700" data-testid={`row-log-${log.id}`}>
+                          <TableCell className="dark:text-slate-300 whitespace-nowrap text-xs sm:text-sm">
+                            <div className="hidden sm:block">
+                              {log.createdAt
+                                ? format(new Date(log.createdAt), "MMM dd, yyyy HH:mm")
+                                : "N/A"}
+                            </div>
+                            <div className="sm:hidden">
+                              {log.createdAt
+                                ? format(new Date(log.createdAt), "MMM dd")
+                                : "N/A"}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={`${getActionColor(log.action)} whitespace-nowrap text-xs`}
+                              variant="outline"
+                              data-testid={`badge-action-${log.id}`}
+                            >
+                              {log.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="dark:text-slate-300 hidden md:table-cell max-w-[150px] truncate">
+                            {log.userEmail || "System"}
+                          </TableCell>
+                          <TableCell className="dark:text-slate-300 hidden lg:table-cell max-w-[200px] truncate">
+                            {log.reason || log.entityType || "—"}
+                          </TableCell>
+                          <TableCell className="dark:text-slate-300 hidden xl:table-cell">
+                            {log.ipAddress || "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

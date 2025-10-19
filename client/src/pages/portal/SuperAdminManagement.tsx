@@ -29,7 +29,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import SuperAdminLayout from "@/components/SuperAdminLayout";
-import { UserPlus, Search, Ban, RefreshCw, Trash2 } from "lucide-react";
+import { UserPlus, Search, Ban, RefreshCw, Trash2, Key } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -131,21 +131,22 @@ export default function SuperAdminManagement() {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold dark:text-white" data-testid="text-page-title">
+            <h1 className="text-2xl sm:text-3xl font-bold dark:text-white" data-testid="text-page-title">
               Admin Management
             </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
               Manage all system administrators
             </p>
           </div>
           <Button
             onClick={() => setIsAddDialogOpen(true)}
             data-testid="button-add-admin"
+            className="w-full sm:w-auto"
           >
             <UserPlus className="mr-2 h-4 w-4" />
-            Add New Admin
+            <span className="sm:inline">Add New Admin</span>
           </Button>
         </div>
 
@@ -168,71 +169,91 @@ export default function SuperAdminManagement() {
             {isLoading ? (
               <div className="text-center py-8 text-slate-600 dark:text-slate-400">Loading...</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="dark:border-slate-700">
-                    <TableHead className="dark:text-slate-300">Name</TableHead>
-                    <TableHead className="dark:text-slate-300">Email</TableHead>
-                    <TableHead className="dark:text-slate-300">Status</TableHead>
-                    <TableHead className="dark:text-slate-300">Role</TableHead>
-                    <TableHead className="text-right dark:text-slate-300">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAdmins.map((admin: any) => (
-                    <TableRow key={admin.id} className="dark:border-slate-700" data-testid={`row-admin-${admin.id}`}>
-                      <TableCell className="font-medium dark:text-slate-200">
-                        {admin.firstName} {admin.lastName}
-                      </TableCell>
-                      <TableCell className="dark:text-slate-300">{admin.email}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={admin.status === "active" ? "default" : "destructive"}
-                          data-testid={`badge-status-${admin.id}`}
-                        >
-                          {admin.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="dark:text-slate-300">Admin</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        {admin.status === "active" ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => suspendMutation.mutate(admin.id)}
-                            data-testid={`button-suspend-${admin.id}`}
-                          >
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => unsuspendMutation.mutate(admin.id)}
-                            data-testid={`button-unsuspend-${admin.id}`}
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => resetPasswordMutation.mutate(admin.id)}
-                          data-testid={`button-reset-password-${admin.id}`}
-                        >
-                          Reset Password
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="dark:border-slate-700">
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap">Name</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap">Email</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap">Status</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap hidden sm:table-cell">Role</TableHead>
+                        <TableHead className="text-right dark:text-slate-300 whitespace-nowrap">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAdmins.map((admin: any) => (
+                        <TableRow key={admin.id} className="dark:border-slate-700" data-testid={`row-admin-${admin.id}`}>
+                          <TableCell className="font-medium dark:text-slate-200 whitespace-nowrap">
+                            {admin.firstName} {admin.lastName}
+                          </TableCell>
+                          <TableCell className="dark:text-slate-300 max-w-[150px] truncate">{admin.email}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={admin.status === "active" ? "default" : "destructive"}
+                              data-testid={`badge-status-${admin.id}`}
+                              className="whitespace-nowrap"
+                            >
+                              {admin.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="dark:text-slate-300 hidden sm:table-cell">Admin</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1 flex-wrap">
+                              {admin.status === "active" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => suspendMutation.mutate(admin.id)}
+                                  data-testid={`button-suspend-${admin.id}`}
+                                  title="Suspend"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => unsuspendMutation.mutate(admin.id)}
+                                  data-testid={`button-unsuspend-${admin.id}`}
+                                  title="Unsuspend"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => resetPasswordMutation.mutate(admin.id)}
+                                data-testid={`button-reset-password-${admin.id}`}
+                                className="hidden lg:inline-flex"
+                              >
+                                Reset Password
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => resetPasswordMutation.mutate(admin.id)}
+                                data-testid={`button-reset-password-mobile-${admin.id}`}
+                                className="lg:hidden"
+                                title="Reset Password"
+                              >
+                                <Key className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
+          <DialogContent className="dark:bg-slate-800 dark:border-slate-700 max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="dark:text-white">Add New Admin</DialogTitle>
               <DialogDescription className="dark:text-slate-400">
