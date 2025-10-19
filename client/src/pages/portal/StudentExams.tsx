@@ -1339,20 +1339,47 @@ export default function StudentExams() {
             </div>
           )}
 
-          {/* Simple Exam Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 border-b border-blue-800 shadow-md">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center justify-between">
+          {/* Modern Sticky Exam Header */}
+          <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {/* Top Section - Branding */}
+              <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex items-center space-x-3">
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School" 
-                    className="h-10 w-10 object-contain bg-white rounded-full p-1"
+                    className="h-9 w-9 object-contain"
                   />
                   <div>
-                    <h2 className="text-lg font-bold text-white">Treasure-Home School</h2>
-                    <p className="text-xs text-blue-100">Online Examination Portal</p>
+                    <h2 className="text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Online Examination Portal</p>
                   </div>
+                </div>
+              </div>
+              
+              {/* Bottom Section - Progress Info */}
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Question {currentQuestionIndex + 1} of {examQuestions.length}
+                    </span>
+                  </div>
+                  {timeRemaining !== null && (
+                    <div className="flex items-center gap-2">
+                      <Clock className={`w-4 h-4 ${timeRemaining > 300 ? 'text-blue-600 dark:text-blue-400' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`} />
+                      <span className={`text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {formatTime(timeRemaining)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {Object.keys(answers).length} answered
+                  </span>
                 </div>
               </div>
             </div>
@@ -1360,25 +1387,6 @@ export default function StudentExams() {
 
           {/* Exam Content */}
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Small Progress Indicator */}
-            <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-800 shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                    Question {currentQuestionIndex + 1} of {examQuestions.length}
-                  </span>
-                  {timeRemaining !== null && (
-                    <span className={`text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      {formatTime(timeRemaining)}
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  {Object.keys(answers).length} answered
-                </span>
-              </div>
-            </div>
 
             {/* Question Card */}
             {currentQuestion && (
@@ -1621,18 +1629,18 @@ export default function StudentExams() {
     <RequireCompleteProfile feature="exams">
       {isScoring ? (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 border-b border-blue-800 shadow-md">
+          {/* Modern Sticky Header */}
+          <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center space-x-3">
                 <img 
                   src={schoolLogo} 
                   alt="Treasure-Home School" 
-                  className="h-10 w-10 object-contain bg-white rounded-full p-1"
+                  className="h-9 w-9 object-contain"
                 />
                 <div>
-                  <h2 className="text-lg font-bold text-white">Treasure-Home School</h2>
-                  <p className="text-xs text-blue-100">Online Examination Portal</p>
+                  <h2 className="text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Auto-Scoring Exam</p>
                 </div>
               </div>
             </div>
@@ -1652,18 +1660,18 @@ export default function StudentExams() {
       ) : /* Results Screen */
       showResults ? (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 border-b border-blue-800 shadow-md">
+          {/* Modern Sticky Header */}
+          <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center space-x-3">
                 <img 
                   src={schoolLogo} 
                   alt="Treasure-Home School" 
-                  className="h-10 w-10 object-contain bg-white rounded-full p-1"
+                  className="h-9 w-9 object-contain"
                 />
                 <div>
-                  <h2 className="text-lg font-bold text-white">Treasure-Home School</h2>
-                  <p className="text-xs text-blue-100">Exam Results</p>
+                  <h2 className="text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Exam Results</p>
                 </div>
               </div>
             </div>
