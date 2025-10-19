@@ -4,6 +4,7 @@
  */
 
 export const ROLE_IDS = {
+  SUPER_ADMIN: 0,
   ADMIN: 1,
   TEACHER: 2, 
   STUDENT: 3,
@@ -11,6 +12,7 @@ export const ROLE_IDS = {
 } as const;
 
 export const ROLE_NAMES = {
+  [ROLE_IDS.SUPER_ADMIN]: 'Super Admin',
   [ROLE_IDS.ADMIN]: 'Admin',
   [ROLE_IDS.TEACHER]: 'Teacher',
   [ROLE_IDS.STUDENT]: 'Student',
@@ -18,6 +20,7 @@ export const ROLE_NAMES = {
 } as const;
 
 export const ROLE_PORTALS = {
+  [ROLE_IDS.SUPER_ADMIN]: '/portal/superadmin',
   [ROLE_IDS.ADMIN]: '/portal/admin',
   [ROLE_IDS.TEACHER]: '/portal/teacher',
   [ROLE_IDS.STUDENT]: '/portal/student',

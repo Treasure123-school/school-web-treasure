@@ -108,6 +108,7 @@ function normalizeUuid(raw: any): string | undefined {
 
 // Define role constants to prevent authorization bugs
 const ROLES = {
+  SUPER_ADMIN: 0,
   ADMIN: 1,
   TEACHER: 2,
   STUDENT: 3,

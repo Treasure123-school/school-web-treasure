@@ -226,6 +226,42 @@ export const parentProfiles = pgTable("parent_profiles", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Super Admin profiles table
+export const superAdminProfiles = pgTable("super_admin_profiles", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  department: varchar("department", { length: 100 }),
+  accessLevel: varchar("access_level", { length: 50 }).default('full'),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  lastPasswordChange: timestamp("last_password_change"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// System settings table for global configuration
+export const systemSettings = pgTable("system_settings", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  schoolName: varchar("school_name", { length: 200 }),
+  schoolMotto: text("school_motto"),
+  schoolLogo: text("school_logo"),
+  schoolEmail: varchar("school_email", { length: 255 }),
+  schoolPhone: varchar("school_phone", { length: 50 }),
+  schoolAddress: text("school_address"),
+  maintenanceMode: boolean("maintenance_mode").default(false),
+  maintenanceModeMessage: text("maintenance_mode_message"),
+  enableSmsNotifications: boolean("enable_sms_notifications").default(false),
+  enableEmailNotifications: boolean("enable_email_notifications").default(true),
+  enableExamsModule: boolean("enable_exams_module").default(true),
+  enableAttendanceModule: boolean("enable_attendance_module").default(true),
+  enableResultsModule: boolean("enable_results_module").default(true),
+  themeColor: varchar("theme_color", { length: 50 }).default('blue'),
+  favicon: text("favicon"),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Attendance table
 export const attendance = pgTable("attendance", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -1030,3 +1066,22 @@ export type ApprovedTeacher = typeof approvedTeachers.$inferSelect;
 export type InsertVacancy = z.infer<typeof insertVacancySchema>;
 export type InsertTeacherApplication = z.infer<typeof insertTeacherApplicationSchema>;
 export type InsertApprovedTeacher = z.infer<typeof insertApprovedTeacherSchema>;
+
+// Super Admin insert schemas
+export const insertSuperAdminProfileSchema = createInsertSchema(superAdminProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Super Admin types
+export type SuperAdminProfile = typeof superAdminProfiles.$inferSelect;
+export type SystemSettings = typeof systemSettings.$inferSelect;
+export type InsertSuperAdminProfile = z.infer<typeof insertSuperAdminProfileSchema>;
+export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
