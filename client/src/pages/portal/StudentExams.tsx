@@ -1348,11 +1348,11 @@ export default function StudentExams() {
                   <img 
                     src={schoolLogo} 
                     alt="Treasure-Home School" 
-                    className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
+                    className="h-8 w-8 sm:h-9 sm:w-9 object-contain"
                   />
                   <div>
-                    <h2 className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Online Examination Portal</p>
+                    <h2 className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Online Examination Portal</p>
                   </div>
                 </div>
               </div>
@@ -1636,11 +1636,11 @@ export default function StudentExams() {
                 <img 
                   src={schoolLogo} 
                   alt="Treasure-Home School" 
-                  className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
+                  className="h-8 w-8 sm:h-9 sm:w-9 object-contain"
                 />
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Auto-Scoring Exam</p>
+                  <h2 className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Auto-Scoring Exam</p>
                 </div>
               </div>
             </div>
@@ -1667,11 +1667,11 @@ export default function StudentExams() {
                 <img 
                   src={schoolLogo} 
                   alt="Treasure-Home School" 
-                  className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
+                  className="h-8 w-8 sm:h-9 sm:w-9 object-contain"
                 />
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Exam Results</p>
+                  <h2 className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Exam Results</p>
                 </div>
               </div>
             </div>
@@ -1679,12 +1679,12 @@ export default function StudentExams() {
 
           {/* Results Content - Responsive */}
           <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
-            {/* Simple Success Message - Responsive */}
+            {/* Simple Success Message - Responsive with Larger Text */}
             <div className="text-center mb-6 sm:mb-8 px-2" data-testid="banner-success">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3">
                 Exam Submitted Successfully
               </h1>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
                 Your answers have been saved. Here are your exam results.
               </p>
             </div>
