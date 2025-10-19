@@ -59,10 +59,10 @@ export default function SuperAdminSettings() {
     <SuperAdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold dark:text-white" data-testid="text-page-title">
+          <h1 className="text-2xl sm:text-3xl font-bold dark:text-white" data-testid="text-page-title">
             System Settings
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
             Configure global system settings
           </p>
         </div>
@@ -77,7 +77,7 @@ export default function SuperAdminSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="schoolName" className="dark:text-slate-200">School Name</Label>
                   <Input
@@ -142,10 +142,10 @@ export default function SuperAdminSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="space-y-0.5">
-                  <Label className="text-base dark:text-slate-200">Exams Module</Label>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <Label className="text-sm sm:text-base dark:text-slate-200">Exams Module</Label>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                     Enable exam creation and management
                   </p>
                 </div>
@@ -157,10 +157,10 @@ export default function SuperAdminSettings() {
                   data-testid="switch-exams-module"
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="space-y-0.5">
-                  <Label className="text-base dark:text-slate-200">Attendance Module</Label>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <Label className="text-sm sm:text-base dark:text-slate-200">Attendance Module</Label>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                     Enable attendance tracking
                   </p>
                 </div>
@@ -172,10 +172,10 @@ export default function SuperAdminSettings() {
                   data-testid="switch-attendance-module"
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="space-y-0.5">
-                  <Label className="text-base dark:text-slate-200">Results Module</Label>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <Label className="text-sm sm:text-base dark:text-slate-200">Results Module</Label>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                     Enable results and report cards
                   </p>
                 </div>
@@ -202,10 +202,10 @@ export default function SuperAdminSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="space-y-0.5">
-                  <Label className="text-base dark:text-slate-200">Enable Maintenance Mode</Label>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <Label className="text-sm sm:text-base dark:text-slate-200">Enable Maintenance Mode</Label>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                     Users won't be able to access the system
                   </p>
                 </div>
@@ -242,6 +242,7 @@ export default function SuperAdminSettings() {
               onClick={handleSave}
               disabled={saveSettingsMutation.isPending}
               data-testid="button-save-settings"
+              className="w-full sm:w-auto"
             >
               <Save className="mr-2 h-4 w-4" />
               {saveSettingsMutation.isPending ? "Saving..." : "Save Settings"}

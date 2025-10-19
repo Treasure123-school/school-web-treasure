@@ -74,10 +74,10 @@ export default function SuperAdminProfile() {
     <SuperAdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold dark:text-white" data-testid="text-page-title">
+          <h1 className="text-2xl sm:text-3xl font-bold dark:text-white" data-testid="text-page-title">
             My Profile
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
             Manage your account information
           </p>
         </div>
@@ -92,7 +92,7 @@ export default function SuperAdminProfile() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="username" className="dark:text-slate-200">Username</Label>
                   <Input
@@ -140,6 +140,7 @@ export default function SuperAdminProfile() {
                   onClick={handleProfileUpdate}
                   disabled={updateProfileMutation.isPending}
                   data-testid="button-save-profile"
+                  className="w-full sm:w-auto"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
@@ -203,6 +204,7 @@ export default function SuperAdminProfile() {
                   onClick={handlePasswordChange}
                   disabled={changePasswordMutation.isPending}
                   data-testid="button-change-password"
+                  className="w-full sm:w-auto"
                 >
                   <Key className="mr-2 h-4 w-4" />
                   {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
