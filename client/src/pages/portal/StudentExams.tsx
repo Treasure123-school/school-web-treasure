@@ -1351,8 +1351,8 @@ export default function StudentExams() {
                     className="h-8 w-8 sm:h-9 sm:w-9 object-contain"
                   />
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Online Examination Portal</p>
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
+                    <p className="text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400">Online Examination Portal</p>
                   </div>
                 </div>
               </div>
@@ -1361,23 +1361,23 @@ export default function StudentExams() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 sm:py-3 gap-2 sm:gap-0">
                 <div className="flex items-center gap-3 sm:gap-6">
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm sm:text-base md:text-lg font-medium text-gray-700 dark:text-gray-300">
                       Q {currentQuestionIndex + 1}/{examQuestions.length}
                     </span>
                   </div>
                   {timeRemaining !== null && (
                     <div className="flex items-center gap-1.5 sm:gap-2">
-                      <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeRemaining > 300 ? 'text-blue-600 dark:text-blue-400' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`} />
-                      <span className={`text-xs sm:text-sm font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      <Clock className={`w-4 h-4 sm:w-5 sm:h-5 ${timeRemaining > 300 ? 'text-blue-600 dark:text-blue-400' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`} />
+                      <span className={`text-sm sm:text-base md:text-lg font-medium ${timeRemaining > 300 ? 'text-gray-700 dark:text-gray-300' : timeRemaining > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
                         {formatTime(timeRemaining)}
                       </span>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm sm:text-base md:text-lg font-medium text-gray-700 dark:text-gray-300">
                     {Object.keys(answers).length} answered
                   </span>
                 </div>
@@ -1390,17 +1390,17 @@ export default function StudentExams() {
 
             {/* Question Card - Responsive */}
             {currentQuestion && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-gray-700 shadow-md p-4 sm:p-6 md:p-8 mb-6">
-                <div className="mb-4 sm:mb-6">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-gray-700 shadow-md p-5 sm:p-7 md:p-9 mb-6">
+                <div className="mb-5 sm:mb-7">
+                  <div className="flex items-center justify-between mb-4 sm:mb-5">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">
                       Question {currentQuestionIndex + 1}
                     </h3>
-                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400">
                       {currentQuestion.points} points
                     </span>
                   </div>
-                  <p className="text-sm sm:text-base text-gray-800 dark:text-gray-200 leading-relaxed">
+                  <p className="text-base sm:text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed">
                     {currentQuestion.questionText}
                   </p>
                 </div>
@@ -1410,18 +1410,18 @@ export default function StudentExams() {
                   <RadioGroup
                     value={answers[currentQuestion.id] || ''}
                     onValueChange={(value) => handleAnswerChange(currentQuestion.id, value, 'multiple_choice')}
-                    className="space-y-3"
+                    className="space-y-4"
                   >
                     {questionOptions.map((option: any, index: number) => (
                       <div
                         key={option.id}
-                        className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-colors ${
+                        className={`border rounded-lg p-4 sm:p-5 cursor-pointer transition-colors ${
                           answers[currentQuestion.id] === String(option.id)
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
-                        <div className="flex items-start space-x-2 sm:space-x-3">
+                        <div className="flex items-start space-x-3">
                           <RadioGroupItem
                             value={String(option.id)}
                             id={`option-${option.id}`}
@@ -1430,7 +1430,7 @@ export default function StudentExams() {
                           />
                           <Label
                             htmlFor={`option-${option.id}`}
-                            className="cursor-pointer flex-1 text-sm sm:text-base text-gray-700 dark:text-gray-300"
+                            className="cursor-pointer flex-1 text-base sm:text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-relaxed"
                           >
                             {String.fromCharCode(65 + index)}. {option.optionText}
                           </Label>
@@ -1447,7 +1447,7 @@ export default function StudentExams() {
                     value={answers[currentQuestion.id] || ''}
                     onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, currentQuestion.questionType)}
                     rows={currentQuestion.questionType === 'essay' ? 10 : 5}
-                    className="text-base"
+                    className="text-base sm:text-lg md:text-xl"
                     data-testid="text-answer"
                   />
                 )}
@@ -1485,7 +1485,7 @@ export default function StudentExams() {
                   setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
                 }}
                 disabled={currentQuestionIndex === 0}
-                className="px-6 border-blue-300 hover:bg-blue-50 dark:border-blue-700 dark:hover:bg-blue-950"
+                className="px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl border-blue-300 hover:bg-blue-50 dark:border-blue-700 dark:hover:bg-blue-950"
                 data-testid="button-previous"
               >
                 ← Previous
@@ -1495,22 +1495,22 @@ export default function StudentExams() {
                 <Button
                   onClick={() => setShowSubmitDialog(true)}
                   disabled={isSubmitting || hasPendingSaves() || isScoring}
-                  className="px-6 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                  className="px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
                   data-testid="button-submit-exam"
                 >
                   {isScoring ? (
                     <>
-                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader className="w-5 h-5 mr-2 animate-spin" />
                       Processing...
                     </>
                   ) : isSubmitting ? (
                     <>
-                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader className="w-5 h-5 mr-2 animate-spin" />
                       Submitting...
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <CheckCircle className="w-5 h-5 mr-2" />
                       Submit Exam
                     </>
                   )}
@@ -1530,7 +1530,7 @@ export default function StudentExams() {
                     setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1));
                   }}
                   disabled={currentQuestionIndex === examQuestions.length - 1}
-                  className="px-6 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+                  className="px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
                   data-testid="button-next"
                 >
                   Next →
