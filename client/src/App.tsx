@@ -30,7 +30,6 @@ const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const JobVacancy = lazy(() => import("@/pages/JobVacancy"));
 
 // Super Admin pages
-const SuperAdminLogin = lazy(() => import("@/pages/SuperAdminLogin"));
 const SuperAdminDashboard = lazy(() => import("@/pages/portal/SuperAdminDashboard"));
 const SuperAdminManagement = lazy(() => import("@/pages/portal/SuperAdminManagement"));
 const SuperAdminSettings = lazy(() => import("@/pages/portal/SuperAdminSettings"));
@@ -94,7 +93,6 @@ function Router() {
         <Route path="/admissions" component={Admissions} />
         <Route path="/job-vacancy" component={JobVacancy} />
         <Route path="/login" component={Login} />
-        <Route path="/superadmin/login" component={SuperAdminLogin} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
 

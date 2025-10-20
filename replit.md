@@ -6,6 +6,11 @@ Treasure-Home is a full-stack web application for K-12 schools, providing role-b
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 2025)
+- **Unified Login System**: Removed separate SuperAdminLogin page. All users (students, teachers, admins, parents, and super admins) now use the single unified login page at `/login`. The system automatically routes users to their appropriate portal based on their role after authentication.
+- **Automatic Super Admin Seeding**: Added automatic super admin account creation on server startup. The super admin user is created if it doesn't exist, with secure password requirements and mandatory password change on first login.
+- **Security Enhancement**: Improved password logging security - credentials are never logged in plaintext after initial setup.
+
 ## System Architecture
 
 ### UI/UX Decisions

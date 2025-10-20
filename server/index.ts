@@ -246,6 +246,19 @@ function sanitizeLogData(data: any): any {
     log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
   }
 
+  // Seed super admin account if it doesn't exist
+  try {
+    log("Checking for super admin account...");
+    const { seedSuperAdmin } = await import("./seed-superadmin");
+    await seedSuperAdmin();
+    log("✅ Super admin seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`🚨 SUPER ADMIN SEEDING ERROR: ${errorMessage}`);
+    console.error(error);
+    log(`⚠️ Super admin seeding failed: ${errorMessage}`);
+  }
+
   // CRITICAL: Verify Supabase Storage is initialized in production
   if (isProduction) {
     const { isSupabaseStorageEnabled } = await import("./supabase-storage");

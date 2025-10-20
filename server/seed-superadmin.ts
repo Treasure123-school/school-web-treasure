@@ -45,7 +45,7 @@ async function seedSuperAdmin() {
     if (existingSuperAdmin.length === 0) {
       console.log('Creating default Super Admin user...');
       
-      // Hash the default password
+      // Hash the default password only when creating new user
       const passwordHash = await bcrypt.hash('Temp@123', 12);
 
       // Create super admin user
@@ -72,26 +72,31 @@ async function seedSuperAdmin() {
 
       console.log('✅ Default Super Admin created');
       console.log('   Username: superadmin');
-      console.log('   Password: Temp@123');
-      console.log('   ⚠️  Please change the password after first login!');
+      console.log('   ⚠️  IMPORTANT: Default password has been set. Please login and change it immediately!');
+      console.log('   ⚠️  Check your secure documentation or contact the system administrator for the initial password.');
     } else {
       console.log('✅ Super Admin user already exists');
     }
 
-    // 3. Initialize system settings if not exists
-    const existingSettings = await db.select().from(schema.systemSettings).limit(1);
-    if (existingSettings.length === 0) {
-      console.log('Creating initial system settings...');
-      await db.insert(schema.systemSettings).values({
-        schoolName: 'Treasure-Home School',
-        schoolMotto: 'HONESTY AND SUCCESS',
-        enableExamsModule: true,
-        enableAttendanceModule: true,
-        enableResultsModule: true,
-        maintenanceMode: false,
-        themeColor: 'blue',
-      });
-      console.log('✅ System settings initialized');
+    // 3. Initialize system settings if not exists (optional - skip if table doesn't exist)
+    try {
+      const existingSettings = await db.select().from(schema.systemSettings).limit(1);
+      if (existingSettings.length === 0) {
+        console.log('Creating initial system settings...');
+        await db.insert(schema.systemSettings).values({
+          schoolName: 'Treasure-Home School',
+          schoolMotto: 'HONESTY AND SUCCESS',
+          enableExamsModule: true,
+          enableAttendanceModule: true,
+          enableResultsModule: true,
+          maintenanceMode: false,
+          themeColor: 'blue',
+        });
+        console.log('✅ System settings initialized');
+      }
+    } catch (settingsError) {
+      // Silently skip if system_settings table doesn't exist - it's optional
+      console.log('ℹ️  System settings table not found - skipping (optional feature)');
     }
 
     console.log('🎉 Super Admin seed completed successfully!');
