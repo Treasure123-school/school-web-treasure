@@ -6187,7 +6187,9 @@ Treasure-Home School Administration
   // Get all admins (Super Admin only)
   app.get('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
     try {
+      console.log(`🔍 Fetching admins with roleId: ${ROLES.ADMIN}`);
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      console.log(`✅ Found ${admins.length} admins:`, admins.map(a => ({ id: a.id, username: a.username, roleId: a.roleId })));
       res.json(admins);
     } catch (error) {
       console.error('Error fetching admins:', error);
@@ -6226,6 +6228,7 @@ Treasure-Home School Administration
       const passwordHash = await bcrypt.hash(tempPassword, 12);
 
       // Create admin user
+      console.log(`👤 Creating admin with roleId: ${ROLES.ADMIN}`);
       const newAdmin = await storage.createUser({
         username,
         email,
@@ -6241,6 +6244,8 @@ Treasure-Home School Administration
         approvedBy: req.user!.id,
         approvedAt: new Date(),
       });
+      
+      console.log(`✅ Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
 
       // Create admin profile
       await storage.createAdminProfile({
