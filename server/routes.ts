@@ -4728,8 +4728,8 @@ Treasure-Home School Administration
     }
   });
 
-  // Reset user password (Admin only)
-  app.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  // Reset user password (Admin and Super Admin)
+  app.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const { newPassword, forceChange } = z.object({
@@ -4748,8 +4748,19 @@ Treasure-Home School Administration
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Hash the new password
-      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      // Generate temporary password if none provided
+      let passwordToUse = newPassword;
+      let generatedPassword: string | undefined;
+      
+      if (!newPassword) {
+        const { generateTempPassword } = await import('./username-generator');
+        generatedPassword = generateTempPassword();
+        passwordToUse = generatedPassword;
+        console.log(`🔐 Auto-generated temporary password for user: ${user.username}`);
+      }
+
+      // Hash the password
+      const passwordHash = await bcrypt.hash(passwordToUse!, BCRYPT_ROUNDS);
 
       // Update user with new password and force change flag
       await storage.updateUser(id, {
@@ -4762,20 +4773,21 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'password_reset',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: BigInt(0),
         oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
         newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
-        reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? ' (force change on next login)' : ''}`,
+        reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? ' (force change on next login)' : ''}${generatedPassword ? ' (auto-generated)' : ''}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
       });
 
       // Remove sensitive data
-      const { passwordHash: _, ...safeUser } = user; // Keeping the original user object to get email/username
+      const { passwordHash: _, ...safeUser } = user;
 
       res.json({
         message: `Password reset successfully${forceChange ? '. User must change password on next login.' : ''}`,
-        user: { ...safeUser, email: user.email, username: user.username }, // Include email/username for response
+        user: { ...safeUser, email: user.email, username: user.username },
+        ...(generatedPassword && { temporaryPassword: generatedPassword })
       });
     } catch (error) {
       console.error('Error resetting password:', error);

@@ -35,6 +35,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import type { User } from "@shared/schema";
 
 const addAdminSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -67,7 +68,7 @@ export default function SuperAdminManagement() {
     },
   });
 
-  const { data: admins, isLoading } = useQuery({
+  const { data: admins, isLoading } = useQuery<User[]>({
     queryKey: ["/api/superadmin/admins"],
   });
 
@@ -93,12 +94,35 @@ export default function SuperAdminManagement() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest("POST", `/api/users/${userId}/reset-password`, { newPassword: "TempPass@123" });
+      const response = await apiRequest("POST", `/api/users/${userId}/reset-password`, {});
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to reset password");
+      }
+      
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.temporaryPassword) {
+        toast({
+          title: "Password Reset Successfully",
+          description: `New temporary password: ${data.temporaryPassword}`,
+          duration: 10000,
+        });
+      } else {
+        toast({
+          title: "Password Reset",
+          description: "Password has been reset successfully",
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/admins"] });
+    },
+    onError: (error: any) => {
       toast({
-        title: "Password Reset",
-        description: "Temporary password: TempPass@123",
+        title: "Error",
+        description: error?.message || "Failed to reset password",
+        variant: "destructive",
       });
     },
   });
@@ -146,7 +170,7 @@ export default function SuperAdminManagement() {
     addAdminMutation.mutate(data);
   };
 
-  const filteredAdmins = (admins || []).filter((admin: any) =>
+  const filteredAdmins = (admins || []).filter((admin: User) =>
     `${admin.firstName} ${admin.lastName} ${admin.email}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -204,7 +228,7 @@ export default function SuperAdminManagement() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredAdmins.map((admin: any) => (
+                      {filteredAdmins.map((admin: User) => (
                         <TableRow key={admin.id} className="dark:border-slate-700" data-testid={`row-admin-${admin.id}`}>
                           <TableCell className="font-medium dark:text-slate-200 whitespace-nowrap">
                             {admin.firstName} {admin.lastName}
