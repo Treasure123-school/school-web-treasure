@@ -21,6 +21,8 @@ async function getNextSequenceForRole(roleCode: string): Promise<number> {
     .insert(counters)
     .values({
       roleCode,
+      classCode: 'N/A',
+      year: '2025',
       sequence: 1
     })
     .onConflictDoUpdate({

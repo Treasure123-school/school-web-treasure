@@ -640,7 +640,7 @@ export const settings = pgTable("settings", {
 export const counters = pgTable("counters", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   // New role-based counter fields
-  roleCode: varchar("role_code", { length: 10 }).unique(), // 'STU', 'PAR', 'TCH', 'ADM' - nullable during migration
+  roleCode: varchar("role_code", { length: 10 }), // 'STU', 'PAR', 'TCH', 'ADM'
   // Legacy fields kept for backwards compatibility
   classCode: varchar("class_code", { length: 50 }),
   year: varchar("year", { length: 9 }),
@@ -648,7 +648,6 @@ export const counters = pgTable("counters", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  countersClassYearIdx: uniqueIndex("counters_class_year_idx").on(table.classCode, table.year),
   countersRoleCodeIdx: uniqueIndex("counters_role_code_idx").on(table.roleCode),
 }));
 

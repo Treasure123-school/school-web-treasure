@@ -106,7 +106,13 @@ export default function SuperAdminManagement() {
   const addAdminMutation = useMutation({
     mutationFn: async (data: AddAdminFormData) => {
       const response = await apiRequest("POST", "/api/superadmin/admins", data);
-      return await response.json();
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to create admin");
+      }
+      
+      return result;
     },
     onSuccess: (data) => {
       if (data.credentials) {
