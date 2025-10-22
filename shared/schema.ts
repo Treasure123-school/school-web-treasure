@@ -606,7 +606,7 @@ export const auditLogs = pgTable("audit_logs", {
   userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }), // Who made the change - PRESERVE audit trail
   action: varchar("action", { length: 100 }).notNull(), // 'grade_change', 'manual_override', 'report_publish', etc.
   entityType: varchar("entity_type", { length: 50 }).notNull(), // 'exam_result', 'student_answer', 'report_card'
-  entityId: bigint("entity_id", { mode: "number" }).notNull(), // ID of the affected entity
+  entityId: varchar("entity_id", { length: 255 }).notNull(), // ID of the affected entity (supports both UUIDs and numeric IDs)
   oldValue: text("old_value"), // JSON of old values
   newValue: text("new_value"), // JSON of new values
   reason: text("reason"), // Why the change was made
