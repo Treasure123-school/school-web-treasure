@@ -4587,8 +4587,8 @@ Treasure-Home School Administration
     }
   });
 
-  // Delete user (permanent removal - Admin only) - ENHANCED with retry logic and comprehensive error handling
-  app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  // Delete user (permanent removal - Super Admin and Admin only) - ENHANCED with retry logic and comprehensive error handling
+  app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req, res) => {
     const startTime = Date.now();
 
     try {

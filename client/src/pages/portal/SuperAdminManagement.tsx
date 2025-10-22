@@ -58,6 +58,8 @@ export default function SuperAdminManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [generatedCredentials, setGeneratedCredentials] = useState<GeneratedCredentials | null>(null);
   const [isCredentialsDialogOpen, setIsCredentialsDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const form = useForm<AddAdminFormData>({
     resolver: zodResolver(addAdminSchema),
@@ -163,6 +165,34 @@ export default function SuperAdminManagement() {
         description: error?.message || "Failed to create admin",
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("DELETE", `/api/users/${userId}`, {});
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || "Failed to delete user");
+      }
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Admin account has been permanently deleted",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/admins"] });
+      setDeleteConfirmOpen(false);
+      setUserToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete user",
+        variant: "destructive",
+      });
+      setDeleteConfirmOpen(false);
     },
   });
 
@@ -285,6 +315,20 @@ export default function SuperAdminManagement() {
                                 title="Reset Password"
                               >
                                 <Key className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setUserToDelete(admin);
+                                  setDeleteConfirmOpen(true);
+                                }}
+                                data-testid={`button-delete-${admin.id}`}
+                                title="Delete Account"
+                                aria-label="Delete admin account"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -482,6 +526,68 @@ export default function SuperAdminManagement() {
                 className="w-full"
               >
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent className="dark:bg-slate-800 dark:border-slate-700 max-w-[95vw] sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="dark:text-white flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+                Confirm Delete Account
+              </DialogTitle>
+              <DialogDescription className="dark:text-slate-400">
+                This action cannot be undone. This will permanently delete the admin account and all associated data.
+              </DialogDescription>
+            </DialogHeader>
+
+            {userToDelete && (
+              <div className="space-y-4">
+                <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
+                  <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+                    You are about to delete:
+                  </p>
+                  <p className="text-base font-semibold text-red-900 dark:text-red-100">
+                    {userToDelete.firstName} {userToDelete.lastName}
+                  </p>
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    {userToDelete.email}
+                  </p>
+                </div>
+
+                <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 p-3 border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>⚠️ Warning:</strong> This will permanently remove the user and all their data from the system.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setUserToDelete(null);
+                }}
+                data-testid="button-cancel-delete"
+                className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (userToDelete) {
+                    deleteMutation.mutate(userToDelete.id);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
               </Button>
             </DialogFooter>
           </DialogContent>
