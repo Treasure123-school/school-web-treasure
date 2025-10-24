@@ -112,17 +112,14 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
           const Icon = item.icon;
           const navItemActive = isActive(item.path);
           return (
-            <a
+            <button
               key={item.path}
-              href={item.path}
-              onClick={(e) => {
-                e.preventDefault();
-                if (onNavigate) {
-                  onNavigate();
-                }
-                setTimeout(() => navigate(item.path), 0);
+              type="button"
+              onClick={() => {
+                onNavigate?.();
+                navigate(item.path);
               }}
-              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 w-full ${
                 navItemActive 
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
@@ -132,7 +129,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
             >
               <Icon className={`h-4 w-4 ${navItemActive ? '' : ''}`} />
               {!collapsed && <span>{item.label}</span>}
-            </a>
+            </button>
           );
         })}
       </nav>

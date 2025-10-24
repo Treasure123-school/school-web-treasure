@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -223,17 +223,14 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                       const SubIcon = subItem.icon;
                       const subItemActive = isActive(subItem.href);
                       return (
-                        <a
+                        <button
                           key={subItem.href}
-                          href={subItem.href}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            if (onNavigate) {
-                              onNavigate();
-                            }
-                            setTimeout(() => navigate(subItem.href), 0);
+                          type="button"
+                          onClick={() => {
+                            onNavigate?.();
+                            navigate(subItem.href);
                           }}
-                          className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full text-left ${
                             subItemActive 
                               ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30' 
                               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
@@ -243,7 +240,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                         >
                           <SubIcon className="h-4 w-4 mr-3" />
                           {subItem.label}
-                        </a>
+                        </button>
                       );
                     })}
                   </CollapsibleContent>
@@ -255,17 +252,14 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           const navItem = item as NavItem;
           const navItemActive = isActive(navItem.href);
           return (
-            <a
+            <button
               key={navItem.name}
-              href={navItem.href}
-              onClick={(e) => {
-                e.preventDefault();
-                if (onNavigate) {
-                  onNavigate();
-                }
-                setTimeout(() => navigate(navItem.href), 0);
+              type="button"
+              onClick={() => {
+                onNavigate?.();
+                navigate(navItem.href);
               }}
-              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 w-full ${
                 navItemActive 
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
@@ -275,7 +269,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             >
               <Icon className={`h-4 w-4 ${navItemActive ? '' : ''}`} />
               {!collapsed && <span>{navItem.name}</span>}
-            </a>
+            </button>
           );
         })}
       </nav>
