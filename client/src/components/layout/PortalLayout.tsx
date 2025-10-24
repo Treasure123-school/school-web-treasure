@@ -231,7 +231,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                             if (onNavigate) {
                               onNavigate();
                             }
-                            navigate(subItem.href);
+                            setTimeout(() => navigate(subItem.href), 0);
                           }}
                           className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             subItemActive 
@@ -263,7 +263,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 if (onNavigate) {
                   onNavigate();
                 }
-                navigate(navItem.href);
+                setTimeout(() => navigate(navItem.href), 0);
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 navItemActive 

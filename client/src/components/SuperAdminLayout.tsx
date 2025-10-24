@@ -120,7 +120,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                 if (onNavigate) {
                   onNavigate();
                 }
-                navigate(item.path);
+                setTimeout(() => navigate(item.path), 0);
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 navItemActive 
