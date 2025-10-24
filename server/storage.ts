@@ -25,7 +25,7 @@ function initializeDatabase() {
 
     // Enhanced connection pool configuration for optimal performance
     const connectionConfig = {
-      ssl: { rejectUnauthorized: false }, // Supabase handles SSL certificates properly
+      ssl: process.env.DATABASE_URL?.includes('supabase.com') ? 'require' : false,
       prepare: false, // Required for Supabase transaction pooler
 
       // Optimized connection pool settings
