@@ -12,9 +12,9 @@ async function seedSuperAdmin() {
       throw new Error('DATABASE_URL environment variable is not set');
     }
 
-    // Initialize database connection
+    // Initialize database connection with conditional SSL (match server/storage.ts)
     const pg = postgres(process.env.DATABASE_URL, {
-      ssl: { rejectUnauthorized: false },
+      ssl: (process.env.DATABASE_URL?.includes('supabase.com') ? 'require' : false) as 'require' | false,
       prepare: false,
     });
     const db = drizzle(pg, { schema });
