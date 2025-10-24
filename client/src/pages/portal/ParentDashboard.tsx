@@ -207,8 +207,8 @@ export default function ParentDashboard() {
               <Heart className="h-10 w-10 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Parent Portal</h2>
-              <p className="text-amber-100 text-sm">Partnering in your child's success</p>
+              <h2 className="text-2xl font-bold tracking-tight">Welcome back, {user.firstName}!</h2>
+              <p className="text-amber-100 text-sm">Stay connected with your child's education</p>
             </div>
           </div>
         </div>

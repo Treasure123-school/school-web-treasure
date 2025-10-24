@@ -316,13 +316,10 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               )}
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
-                  Welcome back, {userName.split(' ')[0]}!
+                  Treasure-Home School
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base truncate font-medium">
-                  {userRole === 'student' && "Here's what's happening with your academics today."}
-                  {userRole === 'teacher' && "Ready to inspire minds today?"}
-                  {userRole === 'admin' && "Manage all aspects of Treasure-Home School"}
-                  {userRole === 'parent' && "Stay connected with your child's education."}
+                  Qualitative Education & Moral Excellence
                 </p>
               </div>
             </div>

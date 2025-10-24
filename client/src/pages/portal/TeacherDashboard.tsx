@@ -337,12 +337,12 @@ export default function TeacherDashboard() {
               </h2>
               <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
                 {profileLoading ? (
-                  'Loading profile...'
+                  'Ready to inspire minds today?'
                 ) : profileError ? (
-                  'Profile data unavailable - please refresh'
-                ) : teacherProfile ? (
+                  'Ready to inspire minds today?'
+                ) : teacherProfile && (getSubjectNames().length > 0 || getClassNames().length > 0) ? (
                   <>
-                    {teacherProfile.department || 'Department not set'}
+                    {teacherProfile.department || 'Teaching'}
                     {getSubjectNames().length > 0 && (
                       <> • Teaching {getSubjectNames().join(', ')}</>
                     )}
@@ -351,7 +351,7 @@ export default function TeacherDashboard() {
                     )}
                   </>
                 ) : (
-                  'Complete your profile to see assignment details'
+                  'Ready to inspire minds today?'
                 )}
               </p>
               {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (

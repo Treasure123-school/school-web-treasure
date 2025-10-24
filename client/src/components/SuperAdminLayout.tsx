@@ -175,10 +175,10 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               )}
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
-                  Welcome back, {user?.firstName || 'Admin'}!
+                  Treasure-Home School
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base truncate font-medium">
-                  Manage all system aspects of Treasure-Home School
+                  Qualitative Education & Moral Excellence
                 </p>
               </div>
             </div>

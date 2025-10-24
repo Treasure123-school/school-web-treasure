@@ -6,8 +6,10 @@ import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { useAuth } from "@/lib/auth";
 
 export default function SuperAdminDashboard() {
+  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/superadmin/stats"],
   });
@@ -89,10 +91,10 @@ export default function SuperAdminDashboard() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold mb-1">
-                Super Admin Dashboard
+                Welcome back, {user?.firstName || 'Super'}!
               </h1>
               <p className="text-blue-100 text-sm">
-                Complete system control and management
+                Manage all system aspects of Treasure-Home School
               </p>
             </div>
           </div>

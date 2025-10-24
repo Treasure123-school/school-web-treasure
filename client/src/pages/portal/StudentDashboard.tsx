@@ -193,26 +193,18 @@ export default function StudentDashboard() {
       )}
 
       {/* Smart Dashboard Welcome Box */}
-      <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-5 text-white shadow-lg" data-testid="student-dashboard-header">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-4">
-            Keep the Momentum, {user.firstName}!
-          </h1>
-          
-          {/* Smart Dashboard Summary */}
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" />
-              <span>You have <strong>{exams.filter(exam => exam.isPublished).length}</strong> upcoming exams</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span><strong>{formattedGrades.length}</strong> pending assignments</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4" />
-              <span><strong>{attendancePercentage}%</strong> attendance - {attendancePercentage >= 90 ? 'Great work!' : 'Keep it up!'}</span>
-            </div>
+      <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-white shadow-lg" data-testid="student-dashboard-header">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+            <Trophy className="h-10 w-10 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold mb-1">
+              Welcome back, {user.firstName}!
+            </h1>
+            <p className="text-blue-100 text-sm">
+              Here's what's happening with your academics today
+            </p>
           </div>
         </div>
       </div>
