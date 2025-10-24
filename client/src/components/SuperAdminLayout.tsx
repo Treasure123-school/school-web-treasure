@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
-import { useLocation, useRouter } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
@@ -85,8 +85,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
   };
 
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
-  const router = useRouter();
-  const navigate = router.navigate;
+  const [, navigate] = useLocation();
   
   return (
     <>

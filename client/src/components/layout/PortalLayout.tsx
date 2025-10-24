@@ -1,4 +1,4 @@
-import { Link, useLocation, useRouter } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -168,8 +168,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
 
   // Reusable Sidebar Content Component with Modern Design
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
-  const router = useRouter();
-  const navigate = router.navigate;
+  const [, navigate] = useLocation();
   
   return (
     <>
