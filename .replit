@@ -40,6 +40,10 @@ task = "shell.exec"
 args = "npx tsx verify-supabase-storage.ts"
 
 [[ports]]
+localPort = 3000
+externalPort = 5000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
