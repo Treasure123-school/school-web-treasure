@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation, useRouter } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
@@ -84,7 +84,11 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
     return location === path || location.startsWith(path + '/');
   };
 
-  const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => (
+  const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
+  const router = useRouter();
+  const navigate = router.navigate;
+  
+  return (
     <>
       <div className={`p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
@@ -109,10 +113,16 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
           const Icon = item.icon;
           const navItemActive = isActive(item.path);
           return (
-            <Link
+            <a
               key={item.path}
               href={item.path}
-              onClick={onNavigate}
+              onClick={(e) => {
+                e.preventDefault();
+                if (onNavigate) {
+                  onNavigate();
+                }
+                navigate(item.path);
+              }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 navItemActive 
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
@@ -123,12 +133,13 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
             >
               <Icon className={`h-4 w-4 ${navItemActive ? '' : ''}`} />
               {!collapsed && <span>{item.label}</span>}
-            </Link>
+            </a>
           );
         })}
       </nav>
     </>
   );
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex">
