@@ -45,12 +45,19 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Normalize origin by removing port for comparison
+    const originWithoutPort = origin.replace(/:\d+$/, '');
+
     // Check if origin matches any allowed pattern
     const isAllowed = allowedOrigins.some(allowed => {
       if (typeof allowed === 'string') {
-        return origin === allowed || origin === allowed.replace(/\/$/, '');
+        const allowedWithoutPort = allowed.replace(/:\d+$/, '');
+        return origin === allowed || 
+               origin === allowed.replace(/\/$/, '') ||
+               originWithoutPort === allowedWithoutPort ||
+               originWithoutPort === allowedWithoutPort.replace(/\/$/, '');
       }
-      return allowed.test(origin);
+      return allowed.test(origin) || allowed.test(originWithoutPort);
     });
 
     if (isAllowed) {
