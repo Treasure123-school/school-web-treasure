@@ -28,8 +28,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import SuperAdminLayout from "@/components/SuperAdminLayout";
-import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2 } from "lucide-react";
+import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2, MoreVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -275,7 +281,8 @@ export default function SuperAdminManagement() {
                           </TableCell>
                           <TableCell className="dark:text-slate-300 hidden sm:table-cell">Admin</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-1 flex-wrap">
+                            {/* Desktop: Show icon buttons */}
+                            <div className="hidden md:flex justify-end gap-2">
                               {admin.status === "active" ? (
                                 <Button
                                   variant="ghost"
@@ -283,6 +290,7 @@ export default function SuperAdminManagement() {
                                   onClick={() => suspendMutation.mutate(admin.id)}
                                   data-testid={`button-suspend-${admin.id}`}
                                   title="Suspend"
+                                  className="h-9 w-9 p-0"
                                 >
                                   <Ban className="h-4 w-4" />
                                 </Button>
@@ -293,6 +301,7 @@ export default function SuperAdminManagement() {
                                   onClick={() => unsuspendMutation.mutate(admin.id)}
                                   data-testid={`button-unsuspend-${admin.id}`}
                                   title="Unsuspend"
+                                  className="h-9 w-9 p-0"
                                 >
                                   <RefreshCw className="h-4 w-4" />
                                 </Button>
@@ -302,17 +311,8 @@ export default function SuperAdminManagement() {
                                 size="sm"
                                 onClick={() => resetPasswordMutation.mutate(admin.id)}
                                 data-testid={`button-reset-password-${admin.id}`}
-                                className="hidden lg:inline-flex"
-                              >
-                                Reset Password
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => resetPasswordMutation.mutate(admin.id)}
-                                data-testid={`button-reset-password-mobile-${admin.id}`}
-                                className="lg:hidden"
                                 title="Reset Password"
+                                className="h-9 w-9 p-0"
                               >
                                 <Key className="h-4 w-4" />
                               </Button>
@@ -326,10 +326,66 @@ export default function SuperAdminManagement() {
                                 data-testid={`button-delete-${admin.id}`}
                                 title="Delete Account"
                                 aria-label="Delete admin account"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950 h-9 w-9 p-0"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
+                            </div>
+
+                            {/* Mobile: Show dropdown menu */}
+                            <div className="md:hidden flex justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-10 w-10 p-0"
+                                    data-testid={`button-actions-${admin.id}`}
+                                  >
+                                    <MoreVertical className="h-5 w-5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 dark:bg-slate-800 dark:border-slate-700">
+                                  {admin.status === "active" ? (
+                                    <DropdownMenuItem
+                                      onClick={() => suspendMutation.mutate(admin.id)}
+                                      data-testid={`menu-suspend-${admin.id}`}
+                                      className="dark:text-slate-200 dark:hover:bg-slate-700"
+                                    >
+                                      <Ban className="h-4 w-4 mr-2" />
+                                      Suspend Admin
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={() => unsuspendMutation.mutate(admin.id)}
+                                      data-testid={`menu-unsuspend-${admin.id}`}
+                                      className="dark:text-slate-200 dark:hover:bg-slate-700"
+                                    >
+                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                      Unsuspend Admin
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    onClick={() => resetPasswordMutation.mutate(admin.id)}
+                                    data-testid={`menu-reset-password-${admin.id}`}
+                                    className="dark:text-slate-200 dark:hover:bg-slate-700"
+                                  >
+                                    <Key className="h-4 w-4 mr-2" />
+                                    Reset Password
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setUserToDelete(admin);
+                                      setDeleteConfirmOpen(true);
+                                    }}
+                                    data-testid={`menu-delete-${admin.id}`}
+                                    className="text-red-600 dark:text-red-400 dark:hover:bg-red-950 focus:text-red-600 dark:focus:text-red-400"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Account
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>
