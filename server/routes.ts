@@ -5006,10 +5006,14 @@ Treasure-Home School Administration
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
       // Prepare user data with hashed password and generated username
+      // ✅ AUTO-APPROVE: Set status to 'active' since user is created by authorized admin
+      // No approval needed when created by Super Admin, Admin, or Teacher
       const userData = insertUserSchema.parse({
         ...otherUserData,
         username,
         passwordHash,
+        status: 'active', // ✅ AUTO-APPROVE: Direct creation by admin means instant approval
+        isActive: true, // ✅ Enable account immediately
         mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
         profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
         profileSkipped: otherUserData.profileSkipped ?? false // 🔧 FIX: Default to false if not provided
