@@ -56,6 +56,11 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
       icon: Users,
     },
     {
+      label: "All Users",
+      path: "/portal/superadmin/all-users",
+      icon: Users,
+    },
+    {
       label: "System Logs",
       path: "/portal/superadmin/logs",
       icon: Activity,

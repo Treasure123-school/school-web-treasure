@@ -25,6 +25,7 @@ import SuperAdminManagement from "@/pages/portal/SuperAdminManagement";
 import SuperAdminSettings from "@/pages/portal/SuperAdminSettings";
 import SuperAdminProfile from "@/pages/portal/SuperAdminProfile";
 import SuperAdminLogs from "@/pages/portal/SuperAdminLogs";
+import SuperAdminAllUsers from "@/pages/portal/SuperAdminAllUsers";
 
 // Portal pages - eagerly loaded for instant navigation
 import StudentDashboard from "@/pages/portal/StudentDashboard";
@@ -108,6 +109,11 @@ function Router() {
       <Route path="/portal/superadmin/profile">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
           <SuperAdminProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/all-users">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SuperAdminAllUsers />
         </ProtectedRoute>
       </Route>
 
