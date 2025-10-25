@@ -44,7 +44,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -572,6 +571,7 @@ export default function Login() {
                   onClick={() => setShowNewPassword(!showNewPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   data-testid="toggle-new-password-visibility"
+                  title={showNewPassword ? "Hide passwords" : "Show passwords"}
                 >
                   {showNewPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -594,28 +594,14 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  {...registerPassword('confirmPassword')}
-                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
-                  placeholder="Re-enter your new password"
-                  data-testid="input-confirm-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid="toggle-confirm-password-visibility"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
+              <Input
+                id="confirmPassword"
+                type={showNewPassword ? "text" : "password"}
+                {...registerPassword('confirmPassword')}
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                placeholder="Re-enter your new password"
+                data-testid="input-confirm-password"
+              />
               {passwordErrors.confirmPassword && (
                 <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
