@@ -313,20 +313,20 @@ export default function TeacherDashboard() {
     >
       {/* Profile Completion Notice */}
       {!statusLoading && profileStatus && !profileStatus.hasProfile && (
-        <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-5 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="bg-blue-100 dark:bg-blue-900/50 rounded-lg p-3">
-                <AlertCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <div className="mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
+              <div className="bg-blue-100 dark:bg-blue-900/50 rounded-lg p-2 sm:p-3 flex-shrink-0">
+                <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                   Complete Your Profile
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   Some features are restricted until you complete your teacher profile setup.
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-1">
                   Complete your profile to unlock: Creating Exams, Grading, Attendance Management, and more.
                 </p>
               </div>
@@ -334,7 +334,7 @@ export default function TeacherDashboard() {
             <Button
               onClick={() => navigate('/portal/teacher/profile-setup')}
               variant="outline"
-              className="bg-white dark:bg-gray-800 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 font-medium shadow-sm whitespace-nowrap"
+              className="bg-white dark:bg-gray-800 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 font-medium shadow-sm w-full sm:w-auto text-sm sm:text-base"
               data-testid="button-complete-profile"
             >
               Complete Profile Now
