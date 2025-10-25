@@ -309,6 +309,7 @@ function Router() {
           <ExamManagement />
         </ProtectedRoute>
       </Route>
+      {/* Admin does NOT have grading queue - that's teacher-only */}
       <Route path="/portal/parent">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
           <ParentDashboard />

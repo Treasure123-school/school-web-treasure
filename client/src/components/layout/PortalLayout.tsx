@@ -1,5 +1,5 @@
 import { useLocation } from 'wouter';
-import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase } from 'lucide-react';
+import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase, Shield, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -119,11 +119,11 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             ]
           },
           { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
-          { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Bell },
-          { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
-          { name: 'Academic Terms', href: `/portal/${userRole}/academic-terms`, icon: Calendar },
+          { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Activity },
           { name: 'Audit Logs', href: `/portal/${userRole}/audit-logs`, icon: History },
+          { name: 'Profile Completion', href: `/portal/${userRole}/profile-completion`, icon: UserCheck },
           { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
+          { name: 'Recovery Tools', href: `/portal/${userRole}/recovery-tools`, icon: Shield },
         ];
       case 'parent':
         return [
@@ -168,7 +168,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   // Reusable Sidebar Content Component with Modern Design
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
   const [, navigate] = useLocation();
-  
+
   return (
     <>
       <div className={`p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
