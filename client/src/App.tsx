@@ -259,6 +259,11 @@ function Router() {
           <HomepageManagement />
         </ProtectedRoute>
       </Route>
+      <Route path="/portal/admin/gallery">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <PortalGallery />
+        </ProtectedRoute>
+      </Route>
       <Route path="/portal/admin/academic-terms">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AcademicTermsManagement />

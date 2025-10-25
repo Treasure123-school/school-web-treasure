@@ -100,6 +100,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           ...baseNav,
           { name: 'Job Vacancies', href: `/portal/${userRole}/job-vacancies`, icon: Briefcase },
           { name: 'Homepage Management', href: `/portal/${userRole}/homepage-management`, icon: ImageIcon },
+          { name: 'Gallery Management', href: `/portal/${userRole}/gallery`, icon: ImageIcon },
           { name: 'User Management', href: `/portal/${userRole}/users`, icon: Users },
           { name: 'Students', href: `/portal/${userRole}/students`, icon: Users },
           { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
