@@ -61,7 +61,6 @@ import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
 import ExamSessions from "@/pages/portal/ExamSessions";
 import ExamReports from "@/pages/portal/ExamReports";
 import ParentReportCards from "@/pages/portal/ParentReportCards";
-import PendingApprovals from "@/pages/portal/PendingApprovals";
 import VacancyManagement from "@/pages/portal/VacancyManagement";
 import UserManagement from "@/pages/portal/UserManagement";
 import AuditLogs from "@/pages/portal/AuditLogs";
@@ -193,11 +192,6 @@ function Router() {
       <Route path="/portal/admin">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AdminDashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/pending-approvals">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <PendingApprovals />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/job-vacancies">

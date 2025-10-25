@@ -98,7 +98,6 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       case 'admin':
         return [
           ...baseNav,
-          { name: 'Pending Approvals', href: `/portal/${userRole}/pending-approvals`, icon: UserCheck },
           { name: 'Job Vacancies', href: `/portal/${userRole}/job-vacancies`, icon: Briefcase },
           { name: 'Homepage Management', href: `/portal/${userRole}/homepage-management`, icon: ImageIcon },
           { name: 'User Management', href: `/portal/${userRole}/users`, icon: Users },

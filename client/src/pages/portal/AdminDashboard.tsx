@@ -461,44 +461,6 @@ function NotificationSummary() {
 export default function AdminDashboard() {
   const { user } = useAuth();
 
-  // Fetch pending users count for admin notification with real-time updates
-  const { data: pendingUsers = [] } = useQuery<any[]>({
-    queryKey: ['/api/users/pending'],
-    enabled: user?.roleId === 1, // Only for admins
-    refetchInterval: 10000, // Sync with notification bell - every 10 seconds
-    refetchIntervalInBackground: true,
-    staleTime: 5000,
-  });
-
-  const pendingCount = pendingUsers.length;
-  const { toast } = useToast();
-  const previousCountRef = useRef<number>(0);
-
-  // Show toast notification when new pending users arrive
-  useEffect(() => {
-    if (previousCountRef.current > 0 && pendingCount > previousCountRef.current) {
-      const newCount = pendingCount - previousCountRef.current;
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-orange-600" />
-            <span>New Pending Approval{newCount > 1 ? 's' : ''}</span>
-          </div>
-        ),
-        description: `${newCount} new user${newCount > 1 ? 's' : ''} waiting for approval. Click to review.`,
-        action: (
-          <Link href="/portal/admin/pending-approvals">
-            <Button size="sm" variant="outline">
-              Review Now
-            </Button>
-          </Link>
-        ),
-        className: "border-orange-500 bg-orange-50",
-      });
-    }
-    previousCountRef.current = pendingCount;
-  }, [pendingCount, toast]);
-
   // Fetch real analytics overview data
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery<any>({
     queryKey: ['/api/analytics/overview'],
@@ -616,13 +578,6 @@ export default function AdminDashboard() {
   ];
 
   const quickActions = [
-    {
-      title: 'Pending Approvals',
-      icon: UserCheck,
-      color: 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700',
-      href: '/portal/admin/pending-approvals',
-      badge: pendingCount > 0 ? pendingCount : undefined
-    },
     {
       title: 'User Management',
       icon: Users,
@@ -858,47 +813,6 @@ export default function AdminDashboard() {
               <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800 w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9" asChild>
                 <Link href="/portal/admin/teachers">
                   View All Teachers →
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* PROMINENT PENDING APPROVALS NOTIFICATION */}
-      {pendingCount > 0 && (
-        <Card className="mb-4 sm:mb-6 border-2 border-orange-500 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 shadow-lg" data-testid="card-pending-approvals-alert">
-          <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
-                <div className="relative flex-shrink-0">
-                  <Bell className="h-8 w-8 sm:h-10 sm:w-10 text-orange-600 animate-pulse" />
-                  <div className="absolute -top-1 -right-1 h-5 w-5 sm:h-6 sm:w-6 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs font-bold" data-testid="text-pending-count">
-                      {pendingCount}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 flex-shrink-0" />
-                    <h3 className="text-base sm:text-lg font-bold text-orange-900 dark:text-orange-200 truncate" data-testid="text-alert-title">
-                      Pending Approvals Require Attention
-                    </h3>
-                  </div>
-                  <p className="text-xs sm:text-sm text-orange-700 dark:text-orange-300 mt-1" data-testid="text-alert-message">
-                    {pendingCount} {pendingCount === 1 ? 'user' : 'users'} waiting for approval. Review and approve to grant portal access.
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                className="bg-orange-600 hover:bg-orange-700 text-white shadow-md w-full sm:w-auto sm:size-lg"
-                asChild
-              >
-                <Link href="/portal/admin/pending-approvals" data-testid="button-review-approvals">
-                  <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  Review Now
                 </Link>
               </Button>
             </div>

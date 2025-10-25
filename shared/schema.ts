@@ -41,7 +41,7 @@ export const users = pgTable("users", {
   googleId: varchar("google_id", { length: 255 }).unique(),
 
   // Security & audit fields
-  status: userStatusEnum("status").default('pending'), // New accounts require approval
+  status: userStatusEnum("status").default('active'), // New accounts are automatically active
   createdVia: createdViaEnum("created_via").default('admin'),
   createdBy: uuid("created_by"),
   approvedBy: uuid("approved_by"),

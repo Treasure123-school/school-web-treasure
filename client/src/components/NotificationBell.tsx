@@ -182,18 +182,6 @@ export function NotificationBell() {
             </div>
           )}
         </ScrollArea>
-        <div className="p-3 border-t bg-muted/30">
-          <Link href="/portal/admin/pending-approvals">
-            <Button 
-              variant="ghost" 
-              className="w-full text-sm hover:bg-white/50" 
-              data-testid="link-view-all-notifications"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              View Pending Approvals
-            </Button>
-          </Link>
-        </div>
       </PopoverContent>
     </Popover>
   );
