@@ -5141,802 +5141,802 @@ Treasure-Home School Administration
           const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
 
           const studentUser = await storage.createUser({
-            username: studentUsername,
-            email: `${studentUsername.toLowerCase()}@ths.edu`, // Auto-generated email
-            passwordHash: studentPasswordHash,
-            roleId: studentRoleData.id,
-            firstName: studentFirstName,
-            lastName: studentLastName,
-            mustChangePassword: true,
-            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
-            profileSkipped: false // 🔧 FIX: CSV import students start with incomplete profile
-          });
+            username: studentUsername, // Auto-generated email
+              email: `${studentUsername.toLowerCase()}@ths.edu`, // Auto-generated email
+              passwordHash: studentPasswordHash,
+              roleId: studentRoleData.id,
+              firstName: studentFirstName,
+              lastName: studentLastName,
+              mustChangePassword: true,
+              profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
+              profileSkipped: false // 🔧 FIX: CSV import students start with incomplete profile
+            });
 
-          // CRITICAL: Track newly created username to prevent duplicates in same batch
-          existingUsernames.push(studentUsername);
+            // CRITICAL: Track newly created username to prevent duplicates in same batch
+            existingUsernames.push(studentUsername);
 
-          // Create student record
-          const admissionNumber = studentUsername;
-          await storage.createStudent({
-            id: studentUser.id,
-            admissionNumber,
-            classId: studentClass.id,
-            parentId: parentId
-          });
+            // Create student record
+            const admissionNumber = studentUsername;
+            await storage.createStudent({
+              id: studentUser.id,
+              admissionNumber,
+              classId: studentClass.id,
+              parentId: parentId
+            });
 
-          createdUsers.push({
-            type: 'student',
-            name: studentName,
-            username: studentUsername,
-            password: studentPassword,
-            class: className,
-            parent: {
-              name: parentName,
-              email: parentEmail,
-              credentials: parentCredentials
-            }
-          });
+            createdUsers.push({
+              type: 'student',
+              name: studentName,
+              username: studentUsername,
+              password: studentPassword,
+              class: className,
+              parent: {
+                name: parentName,
+                email: parentEmail,
+                credentials: parentCredentials
+              }
+            });
 
-        } catch (error) {
-          console.error(`Error processing row ${i + 1}:`, error);
-          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      }
-
-      // Clean up uploaded file
-      await fs.unlink(req.file.path);
-
-      res.json({
-        message: `Successfully created ${createdUsers.length} users`,
-        users: createdUsers,
-        errors: errors.length > 0 ? errors : undefined
-      });
-
-    } catch (error) {
-      console.error('CSV upload error:', error);
-      // Clean up file if it exists
-      if (req.file?.path) {
-        try {
-          await fs.unlink(req.file.path);
-        } catch {}
-      }
-      res.status(500).json({ message: "Failed to process CSV file" });
-    }
-  });
-
-  // Preview CSV import (validate and return preview)
-  app.post('/api/admin/import/preview', authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
-
-      const csvContent = await fs.readFile(req.file.path, 'utf-8');
-      const { previewCSVImport } = await import('./csv-import-service');
-
-      const preview = await previewCSVImport(csvContent);
-
-      // Clean up uploaded file
-      await fs.unlink(req.file.path);
-
-      res.json(preview);
-    } catch (error: any) {
-      console.error('CSV preview error:', error);
-      res.status(500).json({ message: error.message || 'Failed to preview CSV' });
-    }
-  });
-
-  // Preview CSV import (student endpoint - same as admin/import/preview)
-  app.post('/api/students/csv-preview', authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
-
-      const csvContent = await fs.readFile(req.file.path, 'utf-8');
-      const { previewCSVImport } = await import('./csv-import-service');
-
-      const preview = await previewCSVImport(csvContent);
-
-      // Clean up uploaded file
-      await fs.unlink(req.file.path);
-
-      res.json(preview);
-    } catch (error: any) {
-      console.error('CSV preview error:', error);
-      res.status(500).json({ message: error.message || 'Failed to preview CSV' });
-    }
-  });
-
-  // Commit CSV import (create users from validated CSV)
-  app.post('/api/students/csv-commit', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { validRows } = req.body;
-
-      if (!validRows || !Array.isArray(validRows) || validRows.length === 0) {
-        return res.status(400).json({ message: 'No valid rows to import' });
-      }
-
-      const { commitCSVImport } = await import('./csv-import-service');
-      const adminUserId = req.user!.id;
-
-      const result = await commitCSVImport(validRows, adminUserId);
-
-      // Log audit event
-      await storage.createAuditLog({
-        userId: adminUser.id,
-        action: 'bulk_student_import',
-        entityType: 'student',
-        entityId: BigInt(0), // Bulk operation
-        newValue: JSON.stringify({ count: result.successCount, failed: result.failedRows.length }),
-        reason: `Bulk imported ${result.successCount} students via CSV`,
-        ipAddress: req.ip || 'unknown',
-        userAgent: req.headers['user-agent'] || null
-      });
-
-      res.json({
-        message: `Successfully imported ${result.successCount} students`,
-        successCount: result.successCount,
-        failedRows: result.failedRows,
-        credentials: result.credentials
-      });
-    } catch (error: any) {
-      console.error('CSV commit error:', error);
-      res.status(500).json({ message: error.message || 'Failed to import students' });
-    }
-  });
-
-  // ==================== STUDENT PROFILE ROUTES ====================
-
-  // Get student profile by ID
-  app.get('/api/students/:id', authenticateUser, async (req, res) => {
-    try {
-      const studentId = req.params.id;
-
-      // Ensure student can only access their own profile (or admin/teacher can access)
-      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
-        return res.status(403).json({ message: 'Unauthorized' });
-      }
-
-      const student = await storage.getStudent(studentId);
-
-      if (!student) {
-        return res.status(404).json({ message: 'Student not found' });
-      }
-
-      res.json(student);
-    } catch (error) {
-      console.error('Error fetching student:', error);
-      res.status(500).json({ message: 'Failed to fetch student data' });
-    }
-  });
-
-  // Get student's assigned classes
-  app.get('/api/students/:id/classes', authenticateUser, async (req, res) => {
-    try {
-      const studentId = req.params.id;
-
-      // Ensure student can only access their own classes (or admin/teacher can access)
-      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
-        return res.status(403).json({ message: 'Unauthorized' });
-      }
-
-      const classes = await storage.getStudentClasses(studentId);
-      res.json(classes);
-    } catch (error) {
-      console.error('Error fetching student classes:', error);
-      res.status(500).json({ message: 'Failed to fetch classes' });
-    }
-  });
-
-  // Update student profile
-  app.patch('/api/students/:id', authenticateUser, async (req, res) => {
-    try {
-      const studentId = req.params.id;
-
-      // Ensure student can only update their own profile (or admin can update)
-      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
-        return res.status(403).json({ message: 'Unauthorized' });
-      }
-
-      const updates = req.body;
-
-      // Separate user fields from student fields
-      const userFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'recoveryEmail', 'dateOfBirth', 'gender', 'profileImageUrl'];
-      const studentFields = ['emergencyContact', 'emergencyPhone', 'medicalInfo', 'guardianName'];
-
-      const userPatch: any = {};
-      const studentPatch: any = {};
-
-      // Separate the fields and prune undefined values
-      Object.keys(updates).forEach(key => {
-        if (updates[key] !== undefined && updates[key] !== null) {
-          if (userFields.includes(key)) {
-            userPatch[key] = updates[key];
-          } else if (studentFields.includes(key)) {
-            studentPatch[key] = updates[key];
+          } catch (error) {
+            console.error(`Error processing row ${i + 1}:`, error);
+            errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         }
-      });
 
-      // Update student record
-      const updatedStudent = await storage.updateStudent(studentId, {
-        userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
-        studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : undefined
-      });
+        // Clean up uploaded file
+        await fs.unlink(req.file.path);
 
-      if (!updatedStudent) {
-        return res.status(404).json({ message: 'Student not found' });
-      }
-
-      res.json(updatedStudent);
-    } catch (error) {
-      console.error('Error updating student:', error);
-      res.status(500).json({ message: 'Failed to update student profile' });
-    }
-  });
-
-  // Get student profile status (check if profile is complete)
-  app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      let user = await storage.getUser(userId);
-      const student = await storage.getStudent(userId);
-
-      // Calculate profile completion percentage
-      let completionPercentage = 0;
-      if (student) {
-        const fields = [
-          user?.phone,
-          user?.address,
-          user?.dateOfBirth,
-          user?.gender,
-          student?.emergencyContact,
-          student?.medicalInfo,
-          user?.recoveryEmail,
-        ];
-        const filledFields = fields.filter(field => field !== null && field !== undefined && field !== '').length;
-        completionPercentage = Math.round((filledFields / fields.length) * 100);
-      }
-
-      // 🔧 AUTO-FIX: If profile is 100% complete but profileCompleted is NULL/false, fix it
-      if (completionPercentage === 100 && !user?.profileCompleted) {
-        console.log('🔧 AUTO-FIX: Detected 100% profile but profileCompleted is false/null, fixing...');
-        const updated = await storage.updateStudent(userId, {
-          userPatch: {
-            profileCompleted: true,
-            profileCompletionPercentage: 100,
-            profileSkipped: false,
-          }
+        res.json({
+          message: `Successfully created ${createdUsers.length} users`,
+          users: createdUsers,
+          errors: errors.length > 0 ? errors : undefined
         });
-        if (updated) {
-          user = updated.user;
-          console.log('✅ AUTO-FIX: Profile completion status fixed for user:', userId);
+
+      } catch (error) {
+        console.error('CSV upload error:', error);
+        // Clean up file if it exists
+        if (req.file?.path) {
+          try {
+            await fs.unlink(req.file.path);
+          } catch {}
         }
-      }
-
-      const status = {
-        hasProfile: !!student,
-        completed: user?.profileCompleted || false,
-        skipped: user?.profileSkipped || false,
-        percentage: user?.profileCompletionPercentage || completionPercentage,
-        firstLogin: student?.firstLogin !== false
-      };
-
-      // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📊 PROFILE STATUS CHECK:', {
-          userId,
-          hasProfile: status.hasProfile,
-          completed: status.completed,
-          skipped: status.skipped,
-          percentage: status.percentage,
-          rawProfileCompleted: user?.profileCompleted,
-          rawProfileSkipped: user?.profileSkipped,
-        });
-      }
-
-      res.json(status);
-    } catch (error) {
-      console.error('Error checking student profile status:', error);
-      res.status(500).json({ message: 'Failed to check profile status' });
-    }
-  });
-
-  // Student profile setup (first-time login)
-  app.post('/api/student/profile/setup', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const profileData = req.body;
-
-      console.log('📝 PROFILE SETUP: Received data for user:', userId);
-      console.log('📝 PROFILE SETUP: Profile data:', JSON.stringify(profileData, null, 2));
-
-      // Extract user-level fields
-      const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
-
-      // 🔧 FIX: Use updateStudent with both userPatch and studentPatch in a single transaction
-      // This ensures both user and student records are updated atomically
-      const updatedStudent = await storage.updateStudent(userId, {
-        userPatch: {
-          phone,
-          address,
-          dateOfBirth,
-          gender,
-          recoveryEmail,
-          profileCompleted: true,
-          profileSkipped: false,
-          profileCompletionPercentage: 100,
-        },
-        studentPatch: {
-          emergencyContact: emergencyContact || null,
-          emergencyPhone: emergencyPhone || null,
-          guardianName: emergencyContact || null,
-          medicalInfo: bloodGroup ? `Blood Group: ${bloodGroup}` : null,
-        }
-      });
-
-      if (!updatedStudent) {
-        console.error('❌ PROFILE SETUP: Student not found');
-        return res.status(404).json({ message: 'Student not found' });
-      }
-
-      console.log('✅ PROFILE SETUP: Successfully updated profile for user:', userId);
-      console.log('✅ PROFILE SETUP: Updated user data:', {
-        profileCompleted: updatedStudent.user.profileCompleted,
-        profileSkipped: updatedStudent.user.profileSkipped,
-        profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
-        phone: updatedStudent.user.phone ? '***' : null,
-        address: updatedStudent.user.address ? '***' : null,
-      });
-
-      res.json({ 
-        message: 'Profile setup completed successfully',
-        student: updatedStudent.student,
-        user: updatedStudent.user
-      });
-    } catch (error) {
-      console.error('❌ PROFILE SETUP ERROR:', error);
-      res.status(500).json({ message: 'Failed to setup profile', error: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  });
-
-  // Skip student profile setup
-  app.post('/api/student/profile/skip', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const user = await storage.getUser(userId);
-
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      // Mark profile as skipped
-      await storage.updateUser(userId, {
-        profileSkipped: true,
-        profileCompleted: false,
-      });
-
-      res.json({ 
-        message: 'Profile setup skipped. You can complete it later in Settings.',
-        skipped: true
-      });
-    } catch (error) {
-      console.error('Error skipping student profile:', error);
-      res.status(500).json({ message: 'Failed to skip profile setup' });
-    }
-  });
-
-  // ==================== END STUDENT PROFILE ROUTES ====================
-
-  // ==================== JOB VACANCY SYSTEM ROUTES ====================
-
-  // Public routes - Job Vacancies (no auth required)
-  app.get('/api/vacancies', async (req: Request, res: Response) => {
-    try {
-      const status = req.query.status as string | undefined;
-      const vacancies = await storage.getAllVacancies(status);
-      res.json(vacancies);
-    } catch (error) {
-      console.error('Error fetching vacancies:', error);
-      res.status(500).json({ message: 'Failed to fetch vacancies' });
-    }
-  });
-
-  app.get('/api/vacancies/:id', async (req: Request, res: Response) => {
-    try {
-      const vacancy = await storage.getVacancy(req.params.id);
-      if (!vacancy) {
-        return res.status(404).json({ message: 'Vacancy not found' });
-      }
-      res.json(vacancy);
-    } catch (error) {
-      console.error('Error fetching vacancy:', error);
-      res.status(500).json({ message: 'Failed to fetch vacancy' });
-    }
-  });
-
-  // Teacher Application Submission (public)
-  const teacherApplicationSchema = z.object({
-    vacancyId: z.string().optional().nullable(),
-    fullName: z.string().min(1),
-    googleEmail: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
-    phone: z.string().min(1),
-    subjectSpecialty: z.string().min(1),
-    qualification: z.string().min(1),
-    experienceYears: z.number().min(0),
-    bio: z.string().min(1),
-    resumeUrl: z.string().optional().nullable(),
-  });
-
-  app.post('/api/teacher-applications', async (req: Request, res: Response) => {
-    try {
-      const validatedData = teacherApplicationSchema.parse(req.body);
-
-      // Check if email already has a pending or approved application
-      const existingApplications = await storage.getAllTeacherApplications();
-      const existingApp = existingApplications.find(
-        app => app.googleEmail === validatedData.googleEmail && 
-        (app.status === 'pending' || app.status === 'approved')
-      );
-
-      if (existingApp) {
-        return res.status(400).json({ 
-          message: existingApp.status === 'approved' 
-            ? 'This email has already been approved' 
-            :'You already have a pending application' 
-        });
-      }
-
-      const application = await storage.createTeacherApplication(validatedData);
-
-      // Create notification for admins
-      const admins = await storage.getUsersByRole(ROLES.ADMIN);
-      for (const admin of admins) {
-        await storage.createNotification({
-          userId: admin.id,
-          type: 'teacher_application',
-          title: 'New Teacher Application',
-          message: `${validatedData.fullName} has applied for a teaching position`,
-          relatedEntityType: 'teacher_application',
-          relatedEntityId: application.id,
-        });
-      }
-
-      res.status(201).json({ 
-        message: 'Application submitted successfully. You will be notified once reviewed.',
-        application 
-      });
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
-      }
-      console.error('Error submitting teacher application:', error);
-      res.status(500).json({ message: 'Failed to submit application' });
-    }
-  });
-
-  // Admin-only routes for managing vacancies
-  app.post('/api/admin/vacancies', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
-    try {
-      const vacancy = await storage.createVacancy({
-        ...req.body,
-        createdBy: req.user!.id,
-      });
-      res.status(201).json(vacancy);
-    } catch (error) {
-      console.error('Error creating vacancy:', error);
-      res.status(500).json({ message: 'Failed to create vacancy' });
-    }
-  });
-
-  app.patch('/api/admin/vacancies/:id/close', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
-    try {
-      const vacancy = await storage.updateVacancy(req.params.id, { status: 'closed' });
-      if (!vacancy) {
-        return res.status(404).json({ message: 'Vacancy not found' });
-      }
-      res.json(vacancy);
-    } catch (error) {
-      console.error('Error closing vacancy:', error);
-      res.status(500).json({ message: 'Failed to close vacancy' });
-    }
-  });
-
-  // Admin routes for managing teacher applications
-  app.get('/api/admin/applications', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
-    try {
-      const status = req.query.status as string | undefined;
-      const applications = await storage.getAllTeacherApplications(status);
-      res.json(applications);
-    } catch (error) {
-      console.error('Error fetching teacher applications:', error);
-      res.status(500).json({ message: 'Failed to fetch applications' });
-    }
-  });
-
-  app.patch('/api/admin/applications/:id/status', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
-    try {
-      const { status } = req.body;
-
-      if (status === 'approved') {
-        const result = await storage.approveTeacherApplication(req.params.id, req.user!.id);
-
-        // Create notification for the applicant (if they have an account)
-        const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
-        if (applicantUser) {
-          await storage.createNotification({
-            userId: applicantUser.id,
-            type: 'application_approved',
-            title: 'Application Approved',
-            message: 'Your teacher application has been approved. You can now sign in with Google.',
-            relatedEntityType: 'teacher_application',
-            relatedEntityId: result.application.id,
-          });
-        }
-
-        res.json({ 
-          message: 'Application approved successfully',
-          ...result 
-        });
-      } else if (status === 'rejected') {
-        const { reason } = req.body;
-        const application = await storage.rejectTeacherApplication(req.params.id, req.user!.id, reason || 'No reason provided');
-        if (!application) {
-          return res.status(404).json({ message: 'Application not found' });
-        }
-
-        res.json({ 
-          message: 'Application rejected',
-          application 
-        });
-      } else {
-        res.status(400).json({ message: 'Invalid status' });
-      }
-    } catch (error) {
-      console.error('Error updating application:', error);
-      res.status(500).json({ message: 'Failed to update application' });
-    }
-  });
-
-  // Get approved teachers (admin only)
-  app.get('/api/admin/approved-teachers', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
-    try {
-      const approvedTeachers = await storage.getAllApprovedTeachers();
-      res.json(approvedTeachers);
-    } catch (error) {
-      console.error('Error fetching approved teachers:', error);
-      res.status(500).json({ message: 'Failed to fetch approved teachers' });
-    }
-  });
-
-  // ==================== END JOB VACANCY SYSTEM ROUTES ====================
-
-  // ==================== SUPER ADMIN ROUTES ====================
-
-  // Get system statistics (Super Admin only)
-  app.get('/api/superadmin/stats', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-    try {
-      const stats = await storage.getSuperAdminStats();
-      res.json(stats);
-    } catch (error) {
-      console.error('Error fetching super admin stats:', error);
-      res.status(500).json({ message: 'Failed to fetch system statistics' });
-    }
-  });
-
-  // Get all admins (Super Admin only)
-  app.get('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-    try {
-      console.log(`🔍 Fetching admins with roleId: ${ROLES.ADMIN}`);
-      const admins = await storage.getUsersByRole(ROLES.ADMIN);
-      console.log(`✅ Found ${admins.length} admins:`, admins.map(a => ({ id: a.id, username: a.username, roleId: a.roleId })));
-      res.json(admins);
-    } catch (error) {
-      console.error('Error fetching admins:', error);
-      res.status(500).json({ message: 'Failed to fetch administrators' });
-    }
-  });
-
-  // Create new admin (Super Admin only)
-  app.post('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-    try {
-      // Zod validation schema for creating admin (username and password are auto-generated)
-      const createAdminSchema = z.object({
-        firstName: z.string().min(1, "First name is required").trim(),
-        lastName: z.string().min(1, "Last name is required").trim(),
-        email: z.string().email("Invalid email address").toLowerCase().trim(),
-      });
-
-      // Validate and parse request body
-      const validatedData = createAdminSchema.parse(req.body);
-      const { firstName, lastName, email } = validatedData;
-
-      // Check if email already exists
-      const existingEmail = await storage.getUserByEmail(email);
-      if (existingEmail) {
-        return res.status(400).json({ message: 'Email already exists' });
-      }
-
-      // Auto-generate username using username generator
-      const { generateAdminUsername, generateTempPassword } = await import('./username-generator');
-      const username = await generateAdminUsername();
-      const tempPassword = generateTempPassword();
-
-      console.log(`🔐 Auto-generating credentials for admin: ${firstName} ${lastName}`);
-
-      // Hash password
-      const passwordHash = await bcrypt.hash(tempPassword, 12);
-
-      // Create admin user
-      console.log(`👤 Creating admin with roleId: ${ROLES.ADMIN}`);
-      const newAdmin = await storage.createUser({
-        username,
-        email,
-        passwordHash,
-        roleId: ROLES.ADMIN,
-        firstName,
-        lastName,
-        status: 'active',
-        isActive: true,
-        mustChangePassword: true, // User must change password after first login
-        createdVia: 'admin',
-        createdBy: req.user!.id,
-        approvedBy: req.user!.id,
-        approvedAt: new Date(),
-      });
-
-      console.log(`✅ Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
-
-      // Create admin profile
-      await storage.createAdminProfile({
-        userId: newAdmin.id,
-        department: 'Administration',
-        accessLevel: 'standard',
-      });
-
-      // Log the admin creation
-      await storage.createAuditLog({
-        userId: req.user!.id,
-        action: 'admin_created',
-        entityType: 'user',
-        entityId: newAdmin.id,
-        reason: `New admin created: ${username} (auto-generated credentials)`,
-      });
-
-      console.log(`✅ New admin created: ${username} by ${req.user!.username}`);
-
-      res.status(201).json({
-        message: 'Admin created successfully with auto-generated credentials',
-        admin: {
-          id: newAdmin.id,
-          username: newAdmin.username,
-          email: newAdmin.email,
-          firstName: newAdmin.firstName,
-          lastName: newAdmin.lastName,
-        },
-        credentials: {
-          username: username,
-          password: tempPassword,
-          role: 'Admin',
-        }
-      });
-    } catch (error) {
-      console.error('Error creating admin:', error);
-
-      // Handle Zod validation errors
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: error.errors[0].message || 'Validation error',
-          errors: error.errors 
-        });
-      }
-
-      res.status(500).json({ message: 'Failed to create administrator' });
-    }
-  });
-
-  // Get audit logs (Super Admin only)
-  app.get('/api/superadmin/logs', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-    try {
-      const logs = await storage.getAuditLogs();
-      res.json(logs);
-    } catch (error) {
-      console.error('Error fetching audit logs:', error);
-      res.status(500).json({ message: 'Failed to fetch audit logs' });
-    }
-  });
-
-  // Get system settings (Super Admin only)
-  app.get('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-    try {
-      const settings = await storage.getSystemSettings();
-      res.json(settings);
-    } catch (error) {
-      console.error('Error fetching system settings:', error);
-      res.status(500).json({ message: 'Failed to fetch system settings' });
-    }
-  });
-
-  // Update system settings (Super Admin only)
-  app.put('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-    try {
-      const settings = await storage.updateSystemSettings(req.body);
-
-      // Log the settings change
-      await storage.createAuditLog({
-        userId: req.user!.id,
-        action: 'settings_updated',
-        entityType: 'system_settings',
-        entityId: settings.id,
-        reason: 'System settings updated by Super Admin',
-      });
-
-      res.json(settings);
-    } catch (error) {
-      console.error('Error updating system settings:', error);
-      res.status(500).json({ message: 'Failed to update system settings' });
-    }
-  });
-
-  // ==================== END SUPER ADMIN ROUTES ====================
-
-  // ==================== END MODULE 1 ROUTES ====================
-
-  // Catch-all for non-API routes - redirect to frontend (PRODUCTION ONLY)
-  // In development, Vite dev server handles this
-  // In production with FRONTEND_URL set, redirect to separate frontend
-  if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
-    app.get('*', (req: Request, res: Response) => {
-      // Only handle non-API routes
-      if (!req.path.startsWith('/api/') && !req.path.startsWith('/uploads/')) {
-        const frontendUrl = process.env.FRONTEND_URL;
-        res.status(200).send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Treasure Home School - Backend API</title>
-              <meta http-equiv="refresh" content="3;url=${frontendUrl}">
-              <style>
-                body {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  display: flex;
-                  justify-content: center;
-                  align-items: center;
-                  min-height: 100vh;
-                  margin: 0;
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  color: white;
-                }
-                .container {
-                  text-align: center;
-                  padding: 2rem;
-                  background: rgba(255, 255, 255, 0.1);
-                  border-radius: 12px;
-                  backdrop-filter: blur(10px);
-                }
-                h1 { margin: 0 0 1rem 0; }
-                a {
-                  color: #ffd700;
-                  text-decoration: none;
-                  font-weight: bold;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>🎓 Treasure Home School</h1>
-                <p>This is the backend API server.</p>
-                <p>Redirecting you to the main website...</p>
-                <p><a href="${frontendUrl}">Click here if not redirected automatically</a></p>
-              </div>
-            </body>
-          </html>
-        `);
+        res.status(500).json({ message: "Failed to process CSV file" });
       }
     });
-  }
 
-  const httpServer = createServer(app);
-  return httpServer;
-}
+    // Preview CSV import (validate and return preview)
+    app.post('/api/admin/import/preview', authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const csvContent = await fs.readFile(req.file.path, 'utf-8');
+        const { previewCSVImport } = await import('./csv-import-service');
+
+        const preview = await previewCSVImport(csvContent);
+
+        // Clean up uploaded file
+        await fs.unlink(req.file.path);
+
+        res.json(preview);
+      } catch (error: any) {
+        console.error('CSV preview error:', error);
+        res.status(500).json({ message: error.message || 'Failed to preview CSV' });
+      }
+    });
+
+    // Preview CSV import (student endpoint - same as admin/import/preview)
+    app.post('/api/students/csv-preview', authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const csvContent = await fs.readFile(req.file.path, 'utf-8');
+        const { previewCSVImport } = await import('./csv-import-service');
+
+        const preview = await previewCSVImport(csvContent);
+
+        // Clean up uploaded file
+        await fs.unlink(req.file.path);
+
+        res.json(preview);
+      } catch (error: any) {
+        console.error('CSV preview error:', error);
+        res.status(500).json({ message: error.message || 'Failed to preview CSV' });
+      }
+    });
+
+    // Commit CSV import (create users from validated CSV)
+    app.post('/api/students/csv-commit', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+      try {
+        const { validRows } = req.body;
+
+        if (!validRows || !Array.isArray(validRows) || validRows.length === 0) {
+          return res.status(400).json({ message: 'No valid rows to import' });
+        }
+
+        const { commitCSVImport } = await import('./csv-import-service');
+        const adminUserId = req.user!.id;
+
+        const result = await commitCSVImport(validRows, adminUserId);
+
+        // Log audit event
+        await storage.createAuditLog({
+          userId: adminUser.id,
+          action: 'bulk_student_import',
+          entityType: 'student',
+          entityId: BigInt(0), // Bulk operation
+          newValue: JSON.stringify({ count: result.successCount, failed: result.failedRows.length }),
+          reason: `Bulk imported ${result.successCount} students via CSV`,
+          ipAddress: req.ip || 'unknown',
+          userAgent: req.headers['user-agent'] || null
+        });
+
+        res.json({
+          message: `Successfully imported ${result.successCount} students`,
+          successCount: result.successCount,
+          failedRows: result.failedRows,
+          credentials: result.credentials
+        });
+      } catch (error: any) {
+        console.error('CSV commit error:', error);
+        res.status(500).json({ message: error.message || 'Failed to import students' });
+      }
+    });
+
+    // ==================== STUDENT PROFILE ROUTES ====================
+
+    // Get student profile by ID
+    app.get('/api/students/:id', authenticateUser, async (req, res) => {
+      try {
+        const studentId = req.params.id;
+
+        // Ensure student can only access their own profile (or admin/teacher can access)
+        if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+          return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const student = await storage.getStudent(studentId);
+
+        if (!student) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+
+        res.json(student);
+      } catch (error) {
+        console.error('Error fetching student:', error);
+        res.status(500).json({ message: 'Failed to fetch student data' });
+      }
+    });
+
+    // Get student's assigned classes
+    app.get('/api/students/:id/classes', authenticateUser, async (req, res) => {
+      try {
+        const studentId = req.params.id;
+
+        // Ensure student can only access their own classes (or admin/teacher can access)
+        if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+          return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const classes = await storage.getStudentClasses(studentId);
+        res.json(classes);
+      } catch (error) {
+        console.error('Error fetching student classes:', error);
+        res.status(500).json({ message: 'Failed to fetch classes' });
+      }
+    });
+
+    // Update student profile
+    app.patch('/api/students/:id', authenticateUser, async (req, res) => {
+      try {
+        const studentId = req.params.id;
+
+        // Ensure student can only update their own profile (or admin can update)
+        if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
+          return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const updates = req.body;
+
+        // Separate user fields from student fields
+        const userFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'recoveryEmail', 'dateOfBirth', 'gender', 'profileImageUrl'];
+        const studentFields = ['emergencyContact', 'emergencyPhone', 'medicalInfo', 'guardianName'];
+
+        const userPatch: any = {};
+        const studentPatch: any = {};
+
+        // Separate the fields and prune undefined values
+        Object.keys(updates).forEach(key => {
+          if (updates[key] !== undefined && updates[key] !== null) {
+            if (userFields.includes(key)) {
+              userPatch[key] = updates[key];
+            } else if (studentFields.includes(key)) {
+              studentPatch[key] = updates[key];
+            }
+          }
+        });
+
+        // Update student record
+        const updatedStudent = await storage.updateStudent(studentId, {
+          userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
+          studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : undefined
+        });
+
+        if (!updatedStudent) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+
+        res.json(updatedStudent);
+      } catch (error) {
+        console.error('Error updating student:', error);
+        res.status(500).json({ message: 'Failed to update student profile' });
+      }
+    });
+
+    // Get student profile status (check if profile is complete)
+    app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+      try {
+        const userId = req.user!.id;
+        let user = await storage.getUser(userId);
+        const student = await storage.getStudent(userId);
+
+        // Calculate profile completion percentage
+        let completionPercentage = 0;
+        if (student) {
+          const fields = [
+            user?.phone,
+            user?.address,
+            user?.dateOfBirth,
+            user?.gender,
+            student?.emergencyContact,
+            student?.medicalInfo,
+            user?.recoveryEmail,
+          ];
+          const filledFields = fields.filter(field => field !== null && field !== undefined && field !== '').length;
+          completionPercentage = Math.round((filledFields / fields.length) * 100);
+        }
+
+        // 🔧 AUTO-FIX: If profile is 100% complete but profileCompleted is NULL/false, fix it
+        if (completionPercentage === 100 && !user?.profileCompleted) {
+          console.log('🔧 AUTO-FIX: Detected 100% profile but profileCompleted is false/null, fixing...');
+          const updated = await storage.updateStudent(userId, {
+            userPatch: {
+              profileCompleted: true,
+              profileCompletionPercentage: 100,
+              profileSkipped: false,
+            }
+          });
+          if (updated) {
+            user = updated.user;
+            console.log('✅ AUTO-FIX: Profile completion status fixed for user:', userId);
+          }
+        }
+
+        const status = {
+          hasProfile: !!student,
+          completed: user?.profileCompleted || false,
+          skipped: user?.profileSkipped || false,
+          percentage: user?.profileCompletionPercentage || completionPercentage,
+          firstLogin: student?.firstLogin !== false
+        };
+
+        // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📊 PROFILE STATUS CHECK:', {
+            userId,
+            hasProfile: status.hasProfile,
+            completed: status.completed,
+            skipped: status.skipped,
+            percentage: status.percentage,
+            rawProfileCompleted: user?.profileCompleted,
+            rawProfileSkipped: user?.profileSkipped,
+          });
+        }
+
+        res.json(status);
+      } catch (error) {
+        console.error('Error checking student profile status:', error);
+        res.status(500).json({ message: 'Failed to check profile status' });
+      }
+    });
+
+    // Student profile setup (first-time login)
+    app.post('/api/student/profile/setup', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+      try {
+        const userId = req.user!.id;
+        const profileData = req.body;
+
+        console.log('📝 PROFILE SETUP: Received data for user:', userId);
+        console.log('📝 PROFILE SETUP: Profile data:', JSON.stringify(profileData, null, 2));
+
+        // Extract user-level fields
+        const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
+
+        // 🔧 FIX: Use updateStudent with both userPatch and studentPatch in a single transaction
+        // This ensures both user and student records are updated atomically
+        const updatedStudent = await storage.updateStudent(userId, {
+          userPatch: {
+            phone,
+            address,
+            dateOfBirth,
+            gender,
+            recoveryEmail,
+            profileCompleted: true,
+            profileSkipped: false,
+            profileCompletionPercentage: 100,
+          },
+          studentPatch: {
+            emergencyContact: emergencyContact || null,
+            emergencyPhone: emergencyPhone || null,
+            guardianName: emergencyContact || null,
+            medicalInfo: bloodGroup ? `Blood Group: ${bloodGroup}` : null,
+          }
+        });
+
+        if (!updatedStudent) {
+          console.error('❌ PROFILE SETUP: Student not found');
+          return res.status(404).json({ message: 'Student not found' });
+        }
+
+        console.log('✅ PROFILE SETUP: Successfully updated profile for user:', userId);
+        console.log('✅ PROFILE SETUP: Updated user data:', {
+          profileCompleted: updatedStudent.user.profileCompleted,
+          profileSkipped: updatedStudent.user.profileSkipped,
+          profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
+          phone: updatedStudent.user.phone ? '***' : null,
+          address: updatedStudent.user.address ? '***' : null,
+        });
+
+        res.json({ 
+          message: 'Profile setup completed successfully',
+          student: updatedStudent.student,
+          user: updatedStudent.user
+        });
+      } catch (error) {
+        console.error('❌ PROFILE SETUP ERROR:', error);
+        res.status(500).json({ message: 'Failed to setup profile', error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
+    // Skip student profile setup
+    app.post('/api/student/profile/skip', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+      try {
+        const userId = req.user!.id;
+        const user = await storage.getUser(userId);
+
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Mark profile as skipped
+        await storage.updateUser(userId, {
+          profileSkipped: true,
+          profileCompleted: false,
+        });
+
+        res.json({ 
+          message: 'Profile setup skipped. You can complete it later in Settings.',
+          skipped: true
+        });
+      } catch (error) {
+        console.error('Error skipping student profile:', error);
+        res.status(500).json({ message: 'Failed to skip profile setup' });
+      }
+    });
+
+    // ==================== END STUDENT PROFILE ROUTES ====================
+
+    // ==================== JOB VACANCY SYSTEM ROUTES ====================
+
+    // Public routes - Job Vacancies (no auth required)
+    app.get('/api/vacancies', async (req: Request, res: Response) => {
+      try {
+        const status = req.query.status as string | undefined;
+        const vacancies = await storage.getAllVacancies(status);
+        res.json(vacancies);
+      } catch (error) {
+        console.error('Error fetching vacancies:', error);
+        res.status(500).json({ message: 'Failed to fetch vacancies' });
+      }
+    });
+
+    app.get('/api/vacancies/:id', async (req: Request, res: Response) => {
+      try {
+        const vacancy = await storage.getVacancy(req.params.id);
+        if (!vacancy) {
+          return res.status(404).json({ message: 'Vacancy not found' });
+        }
+        res.json(vacancy);
+      } catch (error) {
+        console.error('Error fetching vacancy:', error);
+        res.status(500).json({ message: 'Failed to fetch vacancy' });
+      }
+    });
+
+    // Teacher Application Submission (public)
+    const teacherApplicationSchema = z.object({
+      vacancyId: z.string().optional().nullable(),
+      fullName: z.string().min(1),
+      googleEmail: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
+      phone: z.string().min(1),
+      subjectSpecialty: z.string().min(1),
+      qualification: z.string().min(1),
+      experienceYears: z.number().min(0),
+      bio: z.string().min(1),
+      resumeUrl: z.string().optional().nullable(),
+    });
+
+    app.post('/api/teacher-applications', async (req: Request, res: Response) => {
+      try {
+        const validatedData = teacherApplicationSchema.parse(req.body);
+
+        // Check if email already has a pending or approved application
+        const existingApplications = await storage.getAllTeacherApplications();
+        const existingApp = existingApplications.find(
+          app => app.googleEmail === validatedData.googleEmail && 
+          (app.status === 'pending' || app.status === 'approved')
+        );
+
+        if (existingApp) {
+          return res.status(400).json({ 
+            message: existingApp.status === 'approved' 
+              ? 'This email has already been approved' 
+              :'You already have a pending application' 
+          });
+        }
+
+        const application = await storage.createTeacherApplication(validatedData);
+
+        // Create notification for admins
+        const admins = await storage.getUsersByRole(ROLES.ADMIN);
+        for (const admin of admins) {
+          await storage.createNotification({
+            userId: admin.id,
+            type: 'teacher_application',
+            title: 'New Teacher Application',
+            message: `${validatedData.fullName} has applied for a teaching position`,
+            relatedEntityType: 'teacher_application',
+            relatedEntityId: application.id,
+          });
+        }
+
+        res.status(201).json({ 
+          message: 'Application submitted successfully. You will be notified once reviewed.',
+          application 
+        });
+      } catch (error) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: error.errors[0].message });
+        }
+        console.error('Error submitting teacher application:', error);
+        res.status(500).json({ message: 'Failed to submit application' });
+      }
+    });
+
+    // Admin-only routes for managing vacancies
+    app.post('/api/admin/vacancies', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const vacancy = await storage.createVacancy({
+          ...req.body,
+          createdBy: req.user!.id,
+        });
+        res.status(201).json(vacancy);
+      } catch (error) {
+        console.error('Error creating vacancy:', error);
+        res.status(500).json({ message: 'Failed to create vacancy' });
+      }
+    });
+
+    app.patch('/api/admin/vacancies/:id/close', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const vacancy = await storage.updateVacancy(req.params.id, { status: 'closed' });
+        if (!vacancy) {
+          return res.status(404).json({ message: 'Vacancy not found' });
+        }
+        res.json(vacancy);
+      } catch (error) {
+        console.error('Error closing vacancy:', error);
+        res.status(500).json({ message: 'Failed to close vacancy' });
+      }
+    });
+
+    // Admin routes for managing teacher applications
+    app.get('/api/admin/applications', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const status = req.query.status as string | undefined;
+        const applications = await storage.getAllTeacherApplications(status);
+        res.json(applications);
+      } catch (error) {
+        console.error('Error fetching teacher applications:', error);
+        res.status(500).json({ message: 'Failed to fetch applications' });
+      }
+    });
+
+    app.patch('/api/admin/applications/:id/status', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { status } = req.body;
+
+        if (status === 'approved') {
+          const result = await storage.approveTeacherApplication(req.params.id, req.user!.id);
+
+          // Create notification for the applicant (if they have an account)
+          const applicantUser = await storage.getUserByEmail(result.application.googleEmail);
+          if (applicantUser) {
+            await storage.createNotification({
+              userId: applicantUser.id,
+              type: 'application_approved',
+              title: 'Application Approved',
+              message: 'Your teacher application has been approved. You can now sign in with Google.',
+              relatedEntityType: 'teacher_application',
+              relatedEntityId: result.application.id,
+            });
+          }
+
+          res.json({ 
+            message: 'Application approved successfully',
+            ...result 
+          });
+        } else if (status === 'rejected') {
+          const { reason } = req.body;
+          const application = await storage.rejectTeacherApplication(req.params.id, req.user!.id, reason || 'No reason provided');
+          if (!application) {
+            return res.status(404).json({ message: 'Application not found' });
+          }
+
+          res.json({ 
+            message: 'Application rejected',
+            application 
+          });
+        } else {
+          res.status(400).json({ message: 'Invalid status' });
+        }
+      } catch (error) {
+        console.error('Error updating application:', error);
+        res.status(500).json({ message: 'Failed to update application' });
+      }
+    });
+
+    // Get approved teachers (admin only)
+    app.get('/api/admin/approved-teachers', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const approvedTeachers = await storage.getAllApprovedTeachers();
+        res.json(approvedTeachers);
+      } catch (error) {
+        console.error('Error fetching approved teachers:', error);
+        res.status(500).json({ message: 'Failed to fetch approved teachers' });
+      }
+    });
+
+    // ==================== END JOB VACANCY SYSTEM ROUTES ====================
+
+    // ==================== SUPER ADMIN ROUTES ====================
+
+    // Get system statistics (Super Admin only)
+    app.get('/api/superadmin/stats', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const stats = await storage.getSuperAdminStats();
+        res.json(stats);
+      } catch (error) {
+        console.error('Error fetching super admin stats:', error);
+        res.status(500).json({ message: 'Failed to fetch system statistics' });
+      }
+    });
+
+    // Get all admins (Super Admin only)
+    app.get('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log(`🔍 Fetching admins with roleId: ${ROLES.ADMIN}`);
+        const admins = await storage.getUsersByRole(ROLES.ADMIN);
+        console.log(`✅ Found ${admins.length} admins:`, admins.map(a => ({ id: a.id, username: a.username, roleId: a.roleId })));
+        res.json(admins);
+      } catch (error) {
+        console.error('Error fetching admins:', error);
+        res.status(500).json({ message: 'Failed to fetch administrators' });
+      }
+    });
+
+    // Create new admin (Super Admin only)
+    app.post('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        // Zod validation schema for creating admin (username and password are auto-generated)
+        const createAdminSchema = z.object({
+          firstName: z.string().min(1, "First name is required").trim(),
+          lastName: z.string().min(1, "Last name is required").trim(),
+          email: z.string().email("Invalid email address").toLowerCase().trim(),
+        });
+
+        // Validate and parse request body
+        const validatedData = createAdminSchema.parse(req.body);
+        const { firstName, lastName, email } = validatedData;
+
+        // Check if email already exists
+        const existingEmail = await storage.getUserByEmail(email);
+        if (existingEmail) {
+          return res.status(400).json({ message: 'Email already exists' });
+        }
+
+        // Auto-generate username using username generator
+        const { generateAdminUsername, generateTempPassword } = await import('./username-generator');
+        const username = await generateAdminUsername();
+        const tempPassword = generateTempPassword();
+
+        console.log(`🔐 Auto-generating credentials for admin: ${firstName} ${lastName}`);
+
+        // Hash password
+        const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+        // Create admin user
+        console.log(`👤 Creating admin with roleId: ${ROLES.ADMIN}`);
+        const newAdmin = await storage.createUser({
+          username,
+          email,
+          passwordHash,
+          roleId: ROLES.ADMIN,
+          firstName,
+          lastName,
+          status: 'active',
+          isActive: true,
+          mustChangePassword: true, // User must change password after first login
+          createdVia: 'admin',
+          createdBy: req.user!.id,
+          approvedBy: req.user!.id,
+          approvedAt: new Date(),
+        });
+
+        console.log(`✅ Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
+
+        // Create admin profile
+        await storage.createAdminProfile({
+          userId: newAdmin.id,
+          department: 'Administration',
+          accessLevel: 'standard',
+        });
+
+        // Log the admin creation
+        await storage.createAuditLog({
+          userId: req.user!.id,
+          action: 'admin_created',
+          entityType: 'user',
+          entityId: newAdmin.id,
+          reason: `New admin created: ${username} (auto-generated credentials)`,
+        });
+
+        console.log(`✅ New admin created: ${username} by ${req.user!.username}`);
+
+        res.status(201).json({
+          message: 'Admin created successfully with auto-generated credentials',
+          admin: {
+            id: newAdmin.id,
+            username: newAdmin.username,
+            email: newAdmin.email,
+            firstName: newAdmin.firstName,
+            lastName: newAdmin.lastName,
+          },
+          credentials: {
+            username: username,
+            password: tempPassword,
+            role: 'Admin',
+          }
+        });
+      } catch (error) {
+        console.error('Error creating admin:', error);
+
+        // Handle Zod validation errors
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ 
+            message: error.errors[0].message || 'Validation error',
+            errors: error.errors 
+          });
+        }
+
+        res.status(500).json({ message: 'Failed to create administrator' });
+      }
+    });
+
+    // Get audit logs (Super Admin only)
+    app.get('/api/superadmin/logs', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const logs = await storage.getAuditLogs();
+        res.json(logs);
+      } catch (error) {
+        console.error('Error fetching audit logs:', error);
+        res.status(500).json({ message: 'Failed to fetch audit logs' });
+      }
+    });
+
+    // Get system settings (Super Admin only)
+    app.get('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const settings = await storage.getSystemSettings();
+        res.json(settings);
+      } catch (error) {
+        console.error('Error fetching system settings:', error);
+        res.status(500).json({ message: 'Failed to fetch system settings' });
+      }
+    });
+
+    // Update system settings (Super Admin only)
+    app.put('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const settings = await storage.updateSystemSettings(req.body);
+
+        // Log the settings change
+        await storage.createAuditLog({
+          userId: req.user!.id,
+          action: 'settings_updated',
+          entityType: 'system_settings',
+          entityId: settings.id,
+          reason: 'System settings updated by Super Admin',
+        });
+
+        res.json(settings);
+      } catch (error) {
+        console.error('Error updating system settings:', error);
+        res.status(500).json({ message: 'Failed to update system settings' });
+      }
+    });
+
+    // ==================== END SUPER ADMIN ROUTES ====================
+
+    // ==================== END MODULE 1 ROUTES ====================
+
+    // Catch-all for non-API routes - redirect to frontend (PRODUCTION ONLY)
+    // In development, Vite dev server handles this
+    // In production with FRONTEND_URL set, redirect to separate frontend
+    if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
+      app.get('*', (req: Request, res: Response) => {
+        // Only handle non-API routes
+        if (!req.path.startsWith('/api/') && !req.path.startsWith('/uploads/')) {
+          const frontendUrl = process.env.FRONTEND_URL;
+          res.status(200).send(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Treasure Home School - Backend API</title>
+                <meta http-equiv="refresh" content="3;url=${frontendUrl}">
+                <style>
+                  body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                  }
+                  .container {
+                    text-align: center;
+                    padding: 2rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 12px;
+                    backdrop-filter: blur(10px);
+                  }
+                  h1 { margin: 0 0 1rem 0; }
+                  a {
+                    color: #ffd700;
+                    text-decoration: none;
+                    font-weight: bold;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h1>🎓 Treasure Home School</h1>
+                  <p>This is the backend API server.</p>
+                  <p>Redirecting you to the main website...</p>
+                  <p><a href="${frontendUrl}">Click here if not redirected automatically</a></p>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      });
+    }
+
+    const httpServer = createServer(app);
+    return httpServer;
+  }
