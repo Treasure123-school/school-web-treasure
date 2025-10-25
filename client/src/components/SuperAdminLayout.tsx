@@ -74,7 +74,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
 
   const handleLogout = () => {
     logout();
-    navigate("/superadmin/login");
+    navigate("/portal/login");
   };
 
   const isActive = (path: string) => {
