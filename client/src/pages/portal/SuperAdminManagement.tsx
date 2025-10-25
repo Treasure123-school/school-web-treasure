@@ -35,7 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SuperAdminLayout from "@/components/SuperAdminLayout";
-import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2, MoreVertical } from "lucide-react";
+import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2, MoreVertical, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -49,7 +49,15 @@ const addAdminSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+const editAdminSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
+});
+
 type AddAdminFormData = z.infer<typeof addAdminSchema>;
+type EditAdminFormData = z.infer<typeof editAdminSchema>;
 
 interface GeneratedCredentials {
   username: string;
@@ -62,6 +70,8 @@ export default function SuperAdminManagement() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<User | null>(null);
   const [generatedCredentials, setGeneratedCredentials] = useState<GeneratedCredentials | null>(null);
   const [isCredentialsDialogOpen, setIsCredentialsDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -73,6 +83,16 @@ export default function SuperAdminManagement() {
       firstName: "",
       lastName: "",
       email: "",
+    },
+  });
+
+  const editForm = useForm<EditAdminFormData>({
+    resolver: zodResolver(editAdminSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      newPassword: "",
     },
   });
 
@@ -202,8 +222,62 @@ export default function SuperAdminManagement() {
     },
   });
 
+  const editAdminMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: EditAdminFormData }) => {
+      const updateData: any = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+      };
+      
+      // Only include password if it's provided
+      if (data.newPassword && data.newPassword.trim().length > 0) {
+        updateData.password = data.newPassword;
+      }
+      
+      const response = await apiRequest("PUT", `/api/users/${id}`, updateData);
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || "Failed to update admin");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Admin account updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/admins"] });
+      setIsEditDialogOpen(false);
+      setEditingAdmin(null);
+      editForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update admin",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddAdmin = (data: AddAdminFormData) => {
     addAdminMutation.mutate(data);
+  };
+
+  const handleEditAdmin = (data: EditAdminFormData) => {
+    if (editingAdmin) {
+      editAdminMutation.mutate({ id: editingAdmin.id, data });
+    }
+  };
+
+  const openEditDialog = (admin: User) => {
+    setEditingAdmin(admin);
+    editForm.setValue("firstName", admin.firstName);
+    editForm.setValue("lastName", admin.lastName);
+    editForm.setValue("email", admin.email);
+    editForm.setValue("newPassword", "");
+    setIsEditDialogOpen(true);
   };
 
   const filteredAdmins = (admins || []).filter((admin: User) =>
@@ -283,6 +357,16 @@ export default function SuperAdminManagement() {
                           <TableCell className="text-right">
                             {/* Desktop: Show icon buttons */}
                             <div className="hidden md:flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(admin)}
+                                data-testid={`button-edit-${admin.id}`}
+                                title="Edit Admin"
+                                className="h-9 w-9 p-0"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
                               {admin.status === "active" ? (
                                 <Button
                                   variant="ghost"
@@ -346,6 +430,14 @@ export default function SuperAdminManagement() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 dark:bg-slate-800 dark:border-slate-700">
+                                  <DropdownMenuItem
+                                    onClick={() => openEditDialog(admin)}
+                                    data-testid={`menu-edit-${admin.id}`}
+                                    className="dark:text-slate-200 dark:hover:bg-slate-700"
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Admin
+                                  </DropdownMenuItem>
                                   {admin.status === "active" ? (
                                     <DropdownMenuItem
                                       onClick={() => suspendMutation.mutate(admin.id)}
