@@ -8,13 +8,6 @@ import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
 
-// Loading component for better UX
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-  </div>
-);
-
 // Public pages - eager load for better initial performance
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
@@ -83,7 +76,7 @@ const TeacherProfileVerification = lazy(() => import("@/pages/portal/TeacherProf
 
 function Router() {
   return (
-    <Suspense fallback={<PageLoader />}>
+    <Suspense fallback={null}>
       <Switch>
         {/* Public pages */}
         <Route path="/" component={Home} />
