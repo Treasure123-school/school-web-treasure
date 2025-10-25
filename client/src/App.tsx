@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -8,76 +7,73 @@ import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
 
-// Public pages - eager load for better initial performance
+// All pages eagerly loaded for instant navigation
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
-
-// Lazy load other public pages
-const About = lazy(() => import("@/pages/About"));
-const Contact = lazy(() => import("@/pages/Contact"));
-const Gallery = lazy(() => import("@/pages/Gallery"));
-const Admissions = lazy(() => import("@/pages/Admissions"));
-const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
-const JobVacancy = lazy(() => import("@/pages/JobVacancy"));
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
+import Gallery from "@/pages/Gallery";
+import Admissions from "@/pages/Admissions";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import JobVacancy from "@/pages/JobVacancy";
 
 // Super Admin pages
-const SuperAdminDashboard = lazy(() => import("@/pages/portal/SuperAdminDashboard"));
-const SuperAdminManagement = lazy(() => import("@/pages/portal/SuperAdminManagement"));
-const SuperAdminSettings = lazy(() => import("@/pages/portal/SuperAdminSettings"));
-const SuperAdminProfile = lazy(() => import("@/pages/portal/SuperAdminProfile"));
-const SuperAdminLogs = lazy(() => import("@/pages/portal/SuperAdminLogs"));
+import SuperAdminDashboard from "@/pages/portal/SuperAdminDashboard";
+import SuperAdminManagement from "@/pages/portal/SuperAdminManagement";
+import SuperAdminSettings from "@/pages/portal/SuperAdminSettings";
+import SuperAdminProfile from "@/pages/portal/SuperAdminProfile";
+import SuperAdminLogs from "@/pages/portal/SuperAdminLogs";
 
-// Lazy load all portal pages for optimal code splitting
-const StudentDashboard = lazy(() => import("@/pages/portal/StudentDashboard"));
-const StudentGrades = lazy(() => import("@/pages/portal/StudentGrades"));
-const StudentAnnouncements = lazy(() => import("@/pages/portal/StudentAnnouncements"));
-const StudentAttendance = lazy(() => import("@/pages/portal/StudentAttendance"));
-const StudentMessages = lazy(() => import("@/pages/portal/StudentMessages"));
-const StudentProfile = lazy(() => import("@/pages/portal/StudentProfile"));
-const StudentProfileSetup = lazy(() => import("@/pages/portal/StudentProfileSetup"));
-const StudentExams = lazy(() => import("@/pages/portal/StudentExams"));
-const StudentStudyResources = lazy(() => import("@/pages/portal/StudentStudyResources"));
-const StudentReportCard = lazy(() => import("@/pages/portal/StudentReportCard"));
-const PortalGallery = lazy(() => import("@/pages/portal/Gallery"));
-const TeacherDashboard = lazy(() => import("@/pages/portal/TeacherDashboard"));
-const TeacherProfile = lazy(() => import("@/pages/portal/TeacherProfile"));
-const TeacherProfileSetup = lazy(() => import("@/pages/portal/TeacherProfileSetup"));
-const AdminDashboard = lazy(() => import("@/pages/portal/AdminDashboard"));
-const ParentDashboard = lazy(() => import("@/pages/portal/ParentDashboard"));
-const StudentManagement = lazy(() => import("@/pages/portal/StudentManagement"));
-const AttendanceManagement = lazy(() => import("@/pages/portal/AttendanceManagement"));
-const TeachersManagement = lazy(() => import("@/pages/portal/TeachersManagement"));
-const ClassesManagement = lazy(() => import("@/pages/portal/ClassesManagement"));
-const SubjectsManagement = lazy(() => import("@/pages/portal/SubjectsManagement"));
-const AnnouncementsManagement = lazy(() => import("@/pages/portal/AnnouncementsManagement"));
-const ReportsManagement = lazy(() => import("@/pages/portal/ReportsManagement"));
-const SettingsManagement = lazy(() => import("@/pages/portal/SettingsManagement"));
-const TeacherGrades = lazy(() => import("@/pages/portal/TeacherGrades"));
-const TeacherGradingQueue = lazy(() => import("@/pages/portal/TeacherGradingQueue"));
-const TeacherClassResults = lazy(() => import("@/pages/portal/TeacherClassResults"));
-const TeacherExamResults = lazy(() => import("@/pages/portal/TeacherExamResults"));
-const ExamManagement = lazy(() => import("@/pages/portal/ExamManagement"));
-const HomepageManagement = lazy(() => import("@/pages/portal/HomepageManagement"));
-const PerformanceMonitoring = lazy(() => import("@/pages/portal/PerformanceMonitoring"));
-const ExamSessions = lazy(() => import("@/pages/portal/ExamSessions"));
-const ExamReports = lazy(() => import("@/pages/portal/ExamReports"));
-const ParentReportCards = lazy(() => import("@/pages/portal/ParentReportCards"));
-const PendingApprovals = lazy(() => import("@/pages/portal/PendingApprovals"));
-const VacancyManagement = lazy(() => import("@/pages/portal/VacancyManagement"));
-const UserManagement = lazy(() => import("@/pages/portal/UserManagement"));
-const AuditLogs = lazy(() => import("@/pages/portal/AuditLogs"));
-const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
-const ProfileCompletionMonitoring = lazy(() => import("@/pages/portal/ProfileCompletionMonitoring"));
-const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
-const AcademicTermsManagement = lazy(() => import("@/pages/portal/AcademicTermsManagement"));
-const TeacherProfileVerification = lazy(() => import("@/pages/portal/TeacherProfileVerification"));
+// Portal pages - eagerly loaded for instant navigation
+import StudentDashboard from "@/pages/portal/StudentDashboard";
+import StudentGrades from "@/pages/portal/StudentGrades";
+import StudentAnnouncements from "@/pages/portal/StudentAnnouncements";
+import StudentAttendance from "@/pages/portal/StudentAttendance";
+import StudentMessages from "@/pages/portal/StudentMessages";
+import StudentProfile from "@/pages/portal/StudentProfile";
+import StudentProfileSetup from "@/pages/portal/StudentProfileSetup";
+import StudentExams from "@/pages/portal/StudentExams";
+import StudentStudyResources from "@/pages/portal/StudentStudyResources";
+import StudentReportCard from "@/pages/portal/StudentReportCard";
+import PortalGallery from "@/pages/portal/Gallery";
+import TeacherDashboard from "@/pages/portal/TeacherDashboard";
+import TeacherProfile from "@/pages/portal/TeacherProfile";
+import TeacherProfileSetup from "@/pages/portal/TeacherProfileSetup";
+import AdminDashboard from "@/pages/portal/AdminDashboard";
+import ParentDashboard from "@/pages/portal/ParentDashboard";
+import StudentManagement from "@/pages/portal/StudentManagement";
+import AttendanceManagement from "@/pages/portal/AttendanceManagement";
+import TeachersManagement from "@/pages/portal/TeachersManagement";
+import ClassesManagement from "@/pages/portal/ClassesManagement";
+import SubjectsManagement from "@/pages/portal/SubjectsManagement";
+import AnnouncementsManagement from "@/pages/portal/AnnouncementsManagement";
+import ReportsManagement from "@/pages/portal/ReportsManagement";
+import SettingsManagement from "@/pages/portal/SettingsManagement";
+import TeacherGrades from "@/pages/portal/TeacherGrades";
+import TeacherGradingQueue from "@/pages/portal/TeacherGradingQueue";
+import TeacherClassResults from "@/pages/portal/TeacherClassResults";
+import TeacherExamResults from "@/pages/portal/TeacherExamResults";
+import ExamManagement from "@/pages/portal/ExamManagement";
+import HomepageManagement from "@/pages/portal/HomepageManagement";
+import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
+import ExamSessions from "@/pages/portal/ExamSessions";
+import ExamReports from "@/pages/portal/ExamReports";
+import ParentReportCards from "@/pages/portal/ParentReportCards";
+import PendingApprovals from "@/pages/portal/PendingApprovals";
+import VacancyManagement from "@/pages/portal/VacancyManagement";
+import UserManagement from "@/pages/portal/UserManagement";
+import AuditLogs from "@/pages/portal/AuditLogs";
+import ProfileOnboarding from "@/pages/ProfileOnboarding";
+import ProfileCompletionMonitoring from "@/pages/portal/ProfileCompletionMonitoring";
+import AdminRecoveryTools from "@/pages/portal/AdminRecoveryTools";
+import AcademicTermsManagement from "@/pages/portal/AcademicTermsManagement";
+import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerification";
 
 function Router() {
   return (
-    <Suspense fallback={null}>
-      <Switch>
+    <Switch>
         {/* Public pages */}
         <Route path="/" component={Home} />
         <Route path="/about" component={About} />
@@ -355,7 +351,6 @@ function Router() {
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
-    </Suspense>
   );
 }
 
