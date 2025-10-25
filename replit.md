@@ -7,6 +7,7 @@ Treasure-Home is a full-stack web application for K-12 schools, providing role-b
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
+- **Automatic Account Activation**: Removed manual approval requirement for new user accounts. All new users are now automatically activated with status set to 'active' upon registration, eliminating the need for admin approval. The PendingApprovals page and related approval endpoints have been removed from the system.
 - **Unified Login System**: Removed separate SuperAdminLogin page. All users (students, teachers, admins, parents, and super admins) now use the single unified login page at `/login`. The system automatically routes users to their appropriate portal based on their role after authentication.
 - **Automatic Roles Seeding**: Added automatic creation of all required roles (Super Admin, Admin, Teacher, Student, Parent) on server startup. All roles are created with appropriate permissions if they don't exist, ensuring admin creation always works.
 - **Automatic Super Admin Seeding**: Added automatic super admin account creation on server startup. The super admin user is created if it doesn't exist, with secure password requirements and mandatory password change on first login.
