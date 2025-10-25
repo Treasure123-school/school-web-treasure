@@ -62,14 +62,25 @@ export default function TeachersManagement() {
   // Create teacher mutation
   const createTeacherMutation = useMutation({
     mutationFn: async (teacherData: TeacherForm) => {
-      const response = await apiRequest('POST', '/api/users', teacherData);
-      if (!response.ok) throw new Error('Failed to create teacher');
+      // Generate a temporary password for the teacher
+      const currentYear = new Date().getFullYear();
+      const randomString = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const tempPassword = `THS@${currentYear}#${randomString}`;
+      
+      const response = await apiRequest('POST', '/api/users', {
+        ...teacherData,
+        password: tempPassword,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create teacher');
+      }
       return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Teacher created successfully",
+        description: "Teacher created successfully. They will receive login credentials via email.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setIsDialogOpen(false);
