@@ -1164,18 +1164,6 @@ export default function TeacherProfileSetup() {
           </Card>
         )}
 
-        {/* Skip Button - Added below the step progress and above the profile forms */}
-        {currentStep < 3 && (
-          <div className="flex justify-center mt-6">
-            <Button
-              variant="outline"
-              onClick={handleSkipProfile}
-              className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20"
-            >
-              Skip for now
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

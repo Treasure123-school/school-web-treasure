@@ -311,29 +311,30 @@ export default function TeacherDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      {/* Profile Completion Banner */}
+      {/* Profile Completion Notice */}
       {!statusLoading && profileStatus && !profileStatus.hasProfile && (
-        <div className="mb-6 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-xl animate-slide-up" data-testid="profile-incomplete-banner">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-5 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 flex-1">
-              <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-                <AlertCircle className="h-10 w-10 text-white" />
+              <div className="bg-blue-100 dark:bg-blue-900/50 rounded-lg p-3">
+                <AlertCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold tracking-tight mb-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                   Complete Your Profile
-                </h2>
-                <p className="text-orange-100 text-sm">
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Some features are restricted until you complete your teacher profile setup.
                 </p>
-                <p className="text-orange-100 text-xs mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                   Complete your profile to unlock: Creating Exams, Grading, Attendance Management, and more.
                 </p>
               </div>
             </div>
             <Button
               onClick={() => navigate('/portal/teacher/profile-setup')}
-              className="bg-white text-orange-600 hover:bg-orange-50 font-semibold shadow-lg"
+              variant="outline"
+              className="bg-white dark:bg-gray-800 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 font-medium shadow-sm whitespace-nowrap"
               data-testid="button-complete-profile"
             >
               Complete Profile Now
