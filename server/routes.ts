@@ -2771,7 +2771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const filename = `${req.body.contentType}-${timestamp}${path.extname(req.file.originalname)}`;
         const filePath = `homepage/${filename}`;
 
-        console.log('📤 Uploading to Supabase:', {
+        console.log(' পাঠানোর Supabase:', {
           bucket: STORAGE_BUCKETS.HOMEPAGE,
           path: filePath,
           size: req.file.buffer.length,
@@ -3329,16 +3329,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Login successful for ${identifier} with roleId: ${user.roleId}`);
 
+      // Ensure mustChangePassword is included in the response
       res.json({
         token,
+        mustChangePassword: user.mustChangePassword || false, // Include password change flag
         user: {
           id: user.id,
-          username: user.username,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           roleId: user.roleId,
-          mustChangePassword: user.mustChangePassword || false
+          profileImageUrl: user.profileImageUrl,
+          mustChangePassword: user.mustChangePassword || false, // Also include in user object
         }
       });
     } catch (error) {
@@ -3614,9 +3616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ============================================================
-  // ADMIN RECOVERY POWERS ENDPOINTS
-  // ============================================================
+  // ==================== ADMIN RECOVERY POWERS ENDPOINTS ====================
 
   // Admin reset user password (ENHANCED WITH AUDIT & NOTIFICATION)
   app.post("/api/admin/reset-user-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -3831,9 +3831,7 @@ Treasure-Home School Administration
     }
   });
 
-  // ============================================================
-  // ACCOUNT LOCKOUT MANAGEMENT ENDPOINTS
-  // ============================================================
+  // ==================== ACCOUNT LOCKOUT MANAGEMENT ENDPOINTS ====================
 
   // Get all suspended accounts (Admin only)
   app.get("/api/admin/suspended-accounts", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -3895,9 +3893,7 @@ Treasure-Home School Administration
     }
   });
 
-  // ============================================================
-  // INVITE SYSTEM ENDPOINTS
-  // ============================================================
+  // ==================== INVITE SYSTEM ENDPOINTS ====================
 
   // Create invite (Admin only)
   app.post("/api/invites", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -4050,10 +4046,9 @@ Treasure-Home School Administration
       }
 
       // Generate THS username for the new staff member
-      const { generateUsername } = await import('./auth-utils');
+      const { generateUsername, getNextUserNumber } = await import('./auth-utils');
       const currentYear = new Date().getFullYear().toString();
       const existingUsernames = await storage.getAllUsernames();
-      const { getNextUserNumber } = await import('./auth-utils');
       const nextNumber = getNextUserNumber(existingUsernames, invite.roleId, currentYear);
       const username = generateUsername(invite.roleId, currentYear, '', nextNumber);
 
