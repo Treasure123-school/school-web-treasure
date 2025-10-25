@@ -679,6 +679,128 @@ export default function SuperAdminManagement() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="dark:bg-slate-800 dark:border-slate-700 max-w-[95vw] sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="dark:text-white">Edit Admin Account</DialogTitle>
+              <DialogDescription className="dark:text-slate-400">
+                Update administrator information. Leave password empty to keep current password.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(handleEditAdmin)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="dark:text-slate-200">First Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="John"
+                          className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          data-testid="input-edit-first-name"
+                        />
+                      </FormControl>
+                      <FormMessage className="dark:text-red-400" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="dark:text-slate-200">Last Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Doe"
+                          className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          data-testid="input-edit-last-name"
+                        />
+                      </FormControl>
+                      <FormMessage className="dark:text-red-400" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="dark:text-slate-200">Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="email"
+                          placeholder="admin@example.com"
+                          className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          data-testid="input-edit-email"
+                        />
+                      </FormControl>
+                      <FormMessage className="dark:text-red-400" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="dark:text-slate-200">New Password (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          placeholder="Leave empty to keep current password"
+                          className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          data-testid="input-edit-password"
+                        />
+                      </FormControl>
+                      <FormMessage className="dark:text-red-400" />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Note:</strong> Only fill in the password field if you want to change the current password.
+                  </p>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setEditingAdmin(null);
+                      editForm.reset();
+                    }}
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    data-testid="button-edit-cancel"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={editAdminMutation.isPending}
+                    data-testid="button-edit-save"
+                  >
+                    {editAdminMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <DialogContent className="dark:bg-slate-800 dark:border-slate-700 max-w-[95vw] sm:max-w-md">
             <DialogHeader>

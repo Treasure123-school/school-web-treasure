@@ -4587,6 +4587,80 @@ Treasure-Home School Administration
     }
   });
 
+  // Update user (Super Admin and Admin only)
+  app.put("/api/users/:id", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser = req.user;
+
+      if (!adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Validate request body
+      const updateSchema = z.object({
+        firstName: z.string().min(1).optional(),
+        lastName: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+      });
+
+      const validatedData = updateSchema.parse(req.body);
+
+      // Check if user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+      if (validatedData.firstName) updateData.firstName = validatedData.firstName;
+      if (validatedData.lastName) updateData.lastName = validatedData.lastName;
+      if (validatedData.email) updateData.email = validatedData.email;
+
+      // Hash password if provided
+      if (validatedData.password) {
+        const hashedPassword = await bcrypt.hash(validatedData.password, BCRYPT_ROUNDS);
+        updateData.passwordHash = hashedPassword;
+      }
+
+      // Update user in database
+      const updatedUser = await storage.updateUser(id, updateData);
+
+      // Log audit event
+      storage.createAuditLog({
+        userId: adminUser.id,
+        action: 'user_updated',
+        entityType: 'user',
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+        }),
+        newValue: JSON.stringify(updateData),
+        reason: `Admin ${adminUser.email} updated user ${user.email || user.username}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      }).catch(err => console.error('Audit log failed (non-critical):', err));
+
+      // Remove sensitive data
+      const { passwordHash, ...safeUser } = updatedUser;
+
+      res.json({
+        message: "User updated successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      console.error('Error updating user:', error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
   // Delete user (permanent removal - Super Admin and Admin only) - ENHANCED with retry logic and comprehensive error handling
   app.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req, res) => {
     const startTime = Date.now();
