@@ -321,15 +321,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* New Exam System Routes */}
+      {/* Admin Exam System Routes - NO GRADING QUEUE (Teacher-only) */}
       <Route path="/portal/exam-sessions">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <ExamSessions />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/grading-queue">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <TeacherGradingQueue />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/exam-reports">

@@ -105,6 +105,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
           { name: 'Classes', href: `/portal/${userRole}/classes`, icon: BookOpen },
           { name: 'Subjects', href: `/portal/${userRole}/subjects`, icon: BookOpen },
+          { name: 'Academic Terms', href: `/portal/${userRole}/academic-terms`, icon: Calendar },
           { 
             type: 'group',
             label: 'Exam System',
@@ -112,9 +113,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             isOpen: isExamMenuOpen,
             setIsOpen: setIsExamMenuOpen,
             items: [
-              { href: '/portal/exams', icon: PenTool, label: 'Exam Management' },
+              { href: '/portal/admin/exams', icon: PenTool, label: 'Exam Management' },
               { href: '/portal/exam-sessions', icon: Clock, label: 'Active Sessions' },
-              { href: '/portal/grading-queue', icon: CheckSquare, label: 'Grading Queue' },
               { href: '/portal/exam-reports', icon: Award, label: 'Exam Reports' },
             ]
           },
