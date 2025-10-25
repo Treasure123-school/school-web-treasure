@@ -19,21 +19,37 @@ async function seedSuperAdmin() {
     });
     const db = drizzle(pg, { schema });
 
-    // 1. Check if Super Admin role exists, create if not
+    // 1. Check and create all required roles
     const existingRoles = await db.select().from(schema.roles);
-    let superAdminRole = existingRoles.find(r => r.name === 'Super Admin');
+    
+    const requiredRoles = [
+      { id: 0, name: 'Super Admin', permissions: ['*'] },
+      { id: 1, name: 'Admin', permissions: ['manage_users', 'manage_classes', 'manage_students', 'manage_teachers', 'manage_exams', 'view_reports', 'manage_announcements', 'manage_gallery', 'manage_content'] },
+      { id: 2, name: 'Teacher', permissions: ['view_students', 'manage_attendance', 'manage_exams', 'grade_exams', 'view_classes', 'manage_resources'] },
+      { id: 3, name: 'Student', permissions: ['view_exams', 'take_exams', 'view_results', 'view_resources', 'view_announcements'] },
+      { id: 4, name: 'Parent', permissions: ['view_students', 'view_results', 'view_attendance', 'view_announcements'] },
+    ];
+
+    let superAdminRole;
+    for (const roleData of requiredRoles) {
+      const existingRole = existingRoles.find(r => r.name === roleData.name);
+      if (!existingRole) {
+        console.log(`Creating ${roleData.name} role...`);
+        const [newRole] = await db.insert(schema.roles).values(roleData).returning();
+        if (roleData.name === 'Super Admin') {
+          superAdminRole = newRole;
+        }
+        console.log(`✅ ${roleData.name} role created`);
+      } else {
+        if (roleData.name === 'Super Admin') {
+          superAdminRole = existingRole;
+        }
+        console.log(`✅ ${roleData.name} role already exists`);
+      }
+    }
 
     if (!superAdminRole) {
-      console.log('Creating Super Admin role...');
-      const [newRole] = await db.insert(schema.roles).values({
-        id: 0,
-        name: 'Super Admin',
-        permissions: ['*'], // Full access
-      }).returning();
-      superAdminRole = newRole;
-      console.log('✅ Super Admin role created');
-    } else {
-      console.log('✅ Super Admin role already exists');
+      superAdminRole = existingRoles.find(r => r.name === 'Super Admin')!;
     }
 
     // 2. Check if superadmin user exists
