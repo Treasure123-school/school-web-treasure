@@ -583,17 +583,41 @@ export default function TeacherProfileSetup() {
     { number: 3, title: 'Confirmation', icon: CheckCircle },
   ];
 
-  const handleSkipProfile = () => {
-    // Clear draft and navigate to dashboard
-    localStorage.removeItem('teacher_profile_draft');
+  const handleSkipProfile = async () => {
+    try {
+      // Call backend to mark profile as skipped
+      const response = await apiRequest('POST', '/api/teacher/profile/skip');
+      
+      if (response.ok) {
+        // Clear draft and navigate to dashboard
+        localStorage.removeItem('teacher_profile_draft');
 
-    toast({
-      title: "Profile Setup Skipped",
-      description: "You can complete your profile anytime from the dashboard. Some features will be restricted until completion.",
-      duration: 5000,
-    });
+        // Update cache with skip status
+        queryClient.setQueryData(['/api/teacher/profile/status'], {
+          hasProfile: false,
+          verified: false,
+          firstLogin: false,
+          skipped: true
+        });
 
-    navigate('/portal/teacher');
+        toast({
+          title: "Profile Setup Skipped",
+          description: "You can complete your profile anytime from the dashboard. Some features will be restricted until completion.",
+          duration: 5000,
+        });
+
+        navigate('/portal/teacher');
+      } else {
+        throw new Error('Failed to skip profile');
+      }
+    } catch (error) {
+      console.error('Error skipping profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to skip profile setup. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -831,7 +855,15 @@ export default function TeacherProfileSetup() {
                 </p>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleSkipProfile}
+                  className="gap-2 text-sm sm:text-base"
+                  data-testid="button-skip-profile-1"
+                >
+                  Skip for Now
+                </Button>
                 <Button
                   onClick={() => {
                     if (validateStep1()) {
@@ -964,15 +996,25 @@ export default function TeacherProfileSetup() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentStep(1)}
-                  className="gap-2 text-sm sm:text-base"
-                  data-testid="button-previous-step-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentStep(1)}
+                    className="gap-2 text-sm sm:text-base"
+                    data-testid="button-previous-step-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={handleSkipProfile}
+                    className="gap-2 text-sm sm:text-base"
+                    data-testid="button-skip-profile-2"
+                  >
+                    Skip for Now
+                  </Button>
+                </div>
                 <Button
                   onClick={() => {
                     if (validateStep2()) {

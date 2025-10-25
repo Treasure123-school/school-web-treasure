@@ -9,8 +9,8 @@ if (!DATABASE_URL) {
 }
 
 async function resetPassword() {
-  const sql = postgres(DATABASE_URL, {
-    ssl: DATABASE_URL.includes('supabase.com') ? { rejectUnauthorized: false } : false,
+  const sql = postgres(DATABASE_URL!, {
+    ssl: DATABASE_URL!.includes('supabase.com') ? { rejectUnauthorized: false } : false,
     prepare: false
   });
 

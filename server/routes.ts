@@ -2035,6 +2035,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Skip teacher profile setup
+  app.post('/api/teacher/profile/skip', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Mark profile as skipped
+      await storage.updateUser(userId, {
+        profileSkipped: true,
+        profileCompleted: false,
+      });
+
+      res.json({ 
+        message: 'Profile setup skipped. You can complete it later from your dashboard.',
+        skipped: true
+      });
+    } catch (error) {
+      console.error('Error skipping teacher profile:', error);
+      res.status(500).json({ message: 'Failed to skip profile setup' });
+    }
+  });
+
   // Get teacher's own profile with user data
   app.get('/api/teacher/profile/me', authenticateUser, async (req, res) => {
     try {

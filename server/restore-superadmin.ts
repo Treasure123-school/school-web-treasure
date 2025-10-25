@@ -13,7 +13,7 @@ if (!DATABASE_URL) {
 }
 
 async function restoreSuperAdmin() {
-  const sql = postgres(DATABASE_URL, {
+  const sql = postgres(DATABASE_URL!, {
     ssl: { rejectUnauthorized: false },
     prepare: false
   });

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
