@@ -587,7 +587,7 @@ export default function TeacherProfileSetup() {
     try {
       // Call backend to mark profile as skipped
       const response = await apiRequest('POST', '/api/teacher/profile/skip');
-      
+
       if (response.ok) {
         // Clear draft and navigate to dashboard
         localStorage.removeItem('teacher_profile_draft');
