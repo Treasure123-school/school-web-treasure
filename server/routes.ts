@@ -4072,7 +4072,7 @@ Treasure-Home School Administration
         authProvider: 'local',
         status: 'active',
         createdVia: 'invite',
-        mustChangePassword: false,
+        mustChangePassword: true, // ✅ SECURITY: Force password change on first login even for invited users
         profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
         profileSkipped: false // 🔧 FIX: New staff start with incomplete profile
       });
@@ -5002,6 +5002,7 @@ Treasure-Home School Administration
       const userData = insertUserSchema.parse({
         ...otherUserData,
         passwordHash,
+        mustChangePassword: otherUserData.mustChangePassword ?? true, // ✅ SECURITY: Default to true - force password change on first login
         profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
         profileSkipped: otherUserData.profileSkipped ?? false // 🔧 FIX: Default to false if not provided
       });
