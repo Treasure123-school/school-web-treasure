@@ -262,6 +262,7 @@ export const systemSettings = pgTable("system_settings", {
   usernameTeacherPrefix: varchar("username_teacher_prefix", { length: 20 }).default('THS-TCH'),
   usernameAdminPrefix: varchar("username_admin_prefix", { length: 20 }).default('THS-ADM'),
   tempPasswordFormat: varchar("temp_password_format", { length: 50 }).default('THS@{year}#{random4}'),
+  hideAdminAccountsFromAdmins: boolean("hide_admin_accounts_from_admins").default(true),
   updatedBy: uuid("updated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

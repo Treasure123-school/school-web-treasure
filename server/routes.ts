@@ -4228,6 +4228,12 @@ Treasure-Home School Administration
   app.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { role } = req.query;
+      const currentUser = req.user;
+      
+      if (!currentUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
       let users: any[] = [];
 
       if (role && typeof role === 'string') {
@@ -4243,6 +4249,23 @@ Treasure-Home School Administration
         const userPromises = allRoles.map(userRole => storage.getUsersByRole(userRole.id));
         const userArrays = await Promise.all(userPromises);
         users = userArrays.flat();
+      }
+
+      // SECURITY: Filter admin accounts based on user role and system settings
+      const isCurrentUserSuperAdmin = currentUser.roleId === ROLES.SUPER_ADMIN;
+      
+      if (!isCurrentUserSuperAdmin) {
+        // Get system settings to check if admin accounts should be hidden
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true; // Default to true for security
+        
+        if (hideAdminAccounts) {
+          // Filter out Super Admin and Admin accounts for non-Super Admin users
+          users = users.filter(user => 
+            user.roleId !== ROLES.SUPER_ADMIN && user.roleId !== ROLES.ADMIN
+          );
+          console.log(`🔒 SECURITY: Filtered ${users.length} users for Admin user ${currentUser.email} (Admin accounts hidden)`);
+        }
       }
 
       // PERFORMANCE: Fetch roles once for enrichment
