@@ -1248,12 +1248,19 @@ export default function UserManagement() {
                 data-testid="input-new-password"
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span><strong>Security:</strong> User will be required to change this password on next login for security.</span>
+              </p>
+            </div>
+            <div className="hidden">
+              {/* Hidden - always force password change */}
               <input
                 type="checkbox"
                 id="force-change"
-                checked={forceChange}
-                onChange={(e) => setForceChange(e.target.checked)}
+                checked={true}
+                readOnly
                 className="h-4 w-4 rounded border-gray-300"
                 data-testid="checkbox-force-change"
               />

@@ -1781,6 +1781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateUser(teacherId, userUpdateData);
+      console.log('✅ User data updated successfully');
 
       // Detect suspicious patterns for admin notification (informational only)
       const isSuspicious = (
@@ -3476,7 +3477,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: 'password_reset_requested',
         entityType: 'user',
         entityId: 0,
-        oldValue: null,
         newValue: JSON.stringify({ requestedAt: new Date(), ipAddress }),
         reason: 'User requested password reset',
         ipAddress,
@@ -3585,7 +3585,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: 'password_reset_completed',
         entityType: 'user',
         entityId: 0,
-        oldValue: null,
         newValue: JSON.stringify({ completedAt: new Date(), ipAddress }),
         reason: 'Password was successfully reset via reset token',
         ipAddress,
@@ -4339,7 +4338,7 @@ Treasure-Home School Administration
       // Update the user status to pending
       const updatedUser = await storage.updateUserStatus(id, 'pending', adminUser.id, 'User unverified by admin - awaiting approval');
 
-      // PERFORMANCE: Log audit event asynchronously
+      // PERFORMANCE: Log audit event asynchronously (non-critical)
       storage.createAuditLog({
         userId: adminUser.id,
         action: 'user_unverified',
@@ -4555,6 +4554,10 @@ Treasure-Home School Administration
       // Update user in database
       const updatedUser = await storage.updateUser(id, updateData);
 
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update user" });
+      }
+
       // Log audit event
       storage.createAuditLog({
         userId: adminUser.id,
@@ -4752,7 +4755,7 @@ Treasure-Home School Administration
       // Generate temporary password if none provided
       let passwordToUse = newPassword;
       let generatedPassword: string | undefined;
-      
+
       if (!newPassword) {
         const { generateTempPassword } = await import('./username-generator');
         generatedPassword = generateTempPassword();
@@ -4788,7 +4791,7 @@ Treasure-Home School Administration
       res.json({
         message: `Password reset successfully${forceChange ? '. User must change password on next login.' : ''}`,
         user: { ...safeUser, email: user.email, username: user.username },
-        ...(generatedPassword && { temporaryPassword: generatedPassword })
+        ...(generatedPassword && { temporaryPassword: generatedPassword }) // Include generated password if auto-generated
       });
     } catch (error) {
       console.error('Error resetting password:', error);
@@ -4950,7 +4953,7 @@ Treasure-Home School Administration
 
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
-      
+
       // Include temporary password in response for admin to share with user
       // This is only sent once and should be displayed to admin immediately
       res.json({
@@ -5206,495 +5209,6 @@ Treasure-Home School Administration
     }
   });
 
-  // Generate printable login slips (PDF)
-  app.post("/api/users/generate-login-slips", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { users, createdCredentials } = req.body;
-
-      if (!users || !Array.isArray(users) || users.length === 0) {
-        return res.status(400).json({ message: "Users array is required and must not be empty" });
-      }
-
-      // Create PDF document
-      const doc = new PDFDocument({ size: 'A4', margin: 50 });
-
-      // Set response headers for PDF download
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="THS-Login-Slips-${new Date().toISOString().split('T')[0]}.pdf"`);
-
-      // Pipe PDF to response
-      doc.pipe(res);
-
-      // Add header
-      doc.fontSize(20).font('Helvetica-Bold').text('Treasure-Home School', { align: 'center' });
-      doc.fontSize(12).font('Helvetica').text('Login Credentials', { align: 'center' });
-      doc.moveDown(2);
-
-      // Generate login slips for each user
-      users.forEach((user: any, index: number) => {
-        if (index > 0) {
-          doc.addPage();
-        }
-
-        // Draw a border
-        doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60).stroke();
-
-        // Title
-        doc.fontSize(18).font('Helvetica-Bold').text('Login Information', 50, 60, { align: 'center' });
-        doc.moveDown(1.5);
-
-        // User details
-        const startY = 120;
-        doc.fontSize(14).font('Helvetica-Bold');
-        doc.text('Name:', 70, startY);
-        doc.font('Helvetica').text(`${user.firstName} ${user.lastName}`, 200, startY);
-
-        doc.font('Helvetica-Bold').text('Role:', 70, startY + 30);
-        doc.font('Helvetica').text(roleNames[user.roleId as keyof typeof roleNames] || 'Unknown', 200, startY + 30);
-
-        doc.font('Helvetica-Bold').text('Username:', 70, startY + 60);
-        doc.font('Helvetica-Bold').fontSize(16).text(user.username, 200, startY + 60);
-
-        doc.fontSize(14).font('Helvetica-Bold').text('Password:', 70, startY + 90);
-        doc.font('Helvetica-Bold').fontSize(16).text(user.password, 200, startY + 90);
-
-        // Important notice
-        doc.fontSize(12).font('Helvetica-Oblique').text('⚠️ Please change your password immediately after first login', 70, startY + 140, {
-          width: doc.page.width - 140,
-          align: 'center'
-        });
-
-        // Instructions
-        doc.fontSize(11).font('Helvetica').text('Login Instructions:', 70, startY + 180);
-        doc.fontSize(10).text('1. Go to the school portal login page', 90, startY + 200);
-        doc.text('2. Enter your username and password exactly as shown above', 90, startY + 220);
-        doc.text('3. You will be prompted to create a new secure password', 90, startY + 240);
-        doc.text('4. Keep your new password safe and do not share it with anyone', 90, startY + 260);
-
-        // Footer
-        doc.fontSize(9).font('Helvetica-Oblique').text(
-          '© 2024 Treasure-Home School | "Honesty and Success" | treasurehomeschool@gmail.com',
-          50,
-          doc.page.height - 80,
-          { align: 'center', width: 495 }
-        );
-
-        doc.fontSize(10).font('Helvetica-Bold').text(
-          'For assistance, contact the school administrator',
-          50,
-          doc.page.height - 60,
-          { align: 'center' }
-        );
-      });
-
-      // Finalize PDF
-      doc.end();
-
-    } catch (error) {
-      console.error('Login slip generation error:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ message: "Failed to generate login slips" });
-      }
-    }
-  });
-
-  // Student management
-  app.get("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { classId } = req.query;
-      let students: any[] = [];
-
-      if (classId && typeof classId === 'string') {
-        students = await storage.getStudentsByClass(parseInt(classId));
-      } else {
-        // Get all students including inactive ones so blocked students can be unblocked
-        students = await storage.getAllStudents(true);
-      }
-
-      res.json(students);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      res.status(500).json({ message: "Failed to fetch students" });
-    }
-  });
-
-  app.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      console.log('Creating student with auto-generated credentials');
-
-      // Date validation helper
-      const isValidDate = (dateString: string): boolean => {
-        const regex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!regex.test(dateString)) return false;
-
-        const [year, month, day] = dateString.split('-').map(Number);
-        if (year < 1900 || year > 2100) return false;
-        if (month < 1 || month > 12) return false;
-        if (day < 1 || day > 31) return false;
-
-        if (month === 2) {
-          const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-          if (day > (isLeapYear ? 29 : 28)) return false;
-        } else if ([4, 6, 9, 11].includes(month) && day > 30) {
-          return false;
-        }
-
-        return true;
-      };
-
-      // Enhanced schema validation with date checks - email and password are now optional
-      const sharedCreateStudentSchema = createStudentSchema.extend({
-        email: z.string().email().optional(),
-        password: z.string().min(6).optional(),
-        dateOfBirth: createStudentSchema.shape.dateOfBirth.refine(isValidDate, "Invalid date of birth"),
-        admissionDate: createStudentSchema.shape.admissionDate.refine(isValidDate, "Invalid admission date"),
-        medicalInfo: z.string().nullable().optional().transform(val => val === null ? '' : val),
-      });
-
-      // Clean up empty/null fields before validation
-      for (const field of ['phone', 'address', 'medicalInfo', 'parentId', 'email', 'password']) {
-        if (req.body[field] == null || req.body[field] === '') {
-          delete req.body[field];
-        }
-      }
-
-      const validatedData = sharedCreateStudentSchema.parse(req.body);
-
-      // Get class information for username generation
-      const classInfo = await storage.getClass(validatedData.classId);
-      if (!classInfo) {
-        return res.status(400).json({ message: "Invalid class ID" });
-      }
-
-      // Generate credentials automatically using new simplified format
-      const generatedPassword = generateStudentPassword();
-
-      // Generate username with atomic counter (no need to check for duplicates)
-      const finalUsername = await generateStudentUsername();
-
-      // Hash the generated password
-      const passwordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
-
-      // Create user account with auto-generated credentials - NO EMAIL REQUIRED
-      const userData: InsertUser = {
-        email: `${finalUsername.toLowerCase()}@internal.ths`, // Internal placeholder only - not used for login
-        username: finalUsername,
-        passwordHash,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        phone: validatedData.phone || null,
-        address: validatedData.address || null,
-        dateOfBirth: validatedData.dateOfBirth, // Store exact YYYY-MM-DD string
-        gender: validatedData.gender,
-        profileImageUrl: validatedData.profileImageUrl || null,
-        roleId: ROLES.STUDENT, // Always set to student role
-        isActive: true,
-        mustChangePassword: true, // ✅ Student must change password on first login
-        status: 'active',
-        authProvider: 'local',
-        profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
-        profileSkipped: false, // 🔧 FIX: New students start with incomplete profile
-      };
-
-      console.log('Creating user for student with username:', generatedUsername);
-      const user = await storage.createUser(userData);
-      console.log('User created with ID:', user.id);
-
-      try {
-        // 🔗 SMART AUTO-LINK SYSTEM: Handle parent account creation/linking
-        let parentId = validatedData.parentId || null;
-        let parentCredentials: { username: string; password: string } | null = null;
-        let parentCreated = false;
-
-        // Check if parent phone is provided and no explicit parentId - NO EMAIL MATCHING
-        if (validatedData.parentPhone && !parentId) {
-          console.log('🔍 Checking for existing parent account by phone...');
-
-          // Try to find existing parent by phone ONLY
-          let existingParent = null;
-          const allParents = await storage.getUsersByRole(ROLES.PARENT);
-          existingParent = allParents.find((p: any) => p.phone === validatedData.parentPhone);
-
-          if (existingParent) {
-            // ✅ Link to existing parent
-            console.log('✅ Found existing parent by phone, linking to student');
-            parentId = existingParent.id;
-          } else {
-            // 🆕 Auto-create new parent account - USERNAME/PASSWORD ONLY
-            console.log('🆕 No existing parent found, auto-creating parent account');
-
-            const parentUsername = generateUsername(ROLES.PARENT, currentYear, '',
-              getNextUserNumber(await storage.getAllUsernames(), ROLES.PARENT, currentYear));
-            const parentPassword = generatePassword(currentYear);
-            const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
-
-            const parentData: InsertUser = {
-              username: parentUsername,
-              email: `${parentUsername.toLowerCase()}@internal.ths`, // Internal placeholder - not used for login
-              passwordHash: parentPasswordHash,
-              firstName: validatedData.guardianName?.split(' ')[0] || validatedData.firstName,
-              lastName: validatedData.guardianName?.split(' ').slice(1).join(' ') || `Parent`,
-              phone: validatedData.parentPhone || null,
-              roleId: ROLES.PARENT,
-              isActive: true,
-              mustChangePassword: true,
-              status: 'active',
-              authProvider: 'local',
-              createdVia: 'admin',
-              createdBy: req.user?.id,
-              profileCompleted: false, // 🔧 FIX: Explicitly set profile fields for parents
-              profileSkipped: false, // 🔧 FIX: New parents start with incomplete profile
-            };
-
-            const parentUser = await storage.createUser(parentData);
-            parentId = parentUser.id;
-            parentCreated = true;
-
-            // Store parent credentials to return
-            parentCredentials = {
-              username: parentUsername,
-              password: parentPassword,
-            };
-
-            console.log('✅ Parent account created:', parentUsername);
-          }
-        }
-
-        // Prepare student data - admission number ALWAYS auto-generated from username
-        const studentData = {
-          id: user.id, // Use the same ID as the user
-          admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, '0')}`, // THS/25/001 format
-          classId: validatedData.classId,
-          parentId: parentId,
-          admissionDate: validatedData.admissionDate,
-          emergencyContact: validatedData.emergencyContact,
-          medicalInfo: validatedData.medicalInfo || null,
-          guardianName: validatedData.guardianName || null,
-        };
-
-        // Create student record
-        console.log('Creating student record...');
-        const student = await storage.createStudent(studentData);
-        console.log('Student created successfully with credentials');
-
-        // Build response with both student and parent credentials
-        const response: any = {
-          message: parentCreated
-            ? "Student and Parent accounts created successfully"
-            : "Student created successfully",
-          student,
-          user: {
-            id: user.id,
-            email: user.email,
-            username: finalUsername,
-            firstName: user.firstName,
-            lastName: user.lastName,
-          },
-          credentials: {
-            student: {
-              username: finalUsername,
-              password: generatedPassword,
-            }
-          }
-        };
-
-        // Add parent credentials if created
-        if (parentCreated && parentCredentials) {
-          response.credentials.parent = parentCredentials;
-          response.parentCreated = true;
-        }
-
-        res.json(response);
-
-      } catch (studentError) {
-        // Rollback: delete the user if student creation fails
-        console.error('Student creation failed, rolling back user:', studentError);
-        try {
-          await storage.deleteUser(user.id);
-        } catch (rollbackError) {
-          console.error('Rollback failed:', rollbackError);
-        }
-
-        if ((studentError as any).code === '23505') {
-          return res.status(409).json({ message: "Admission number already exists" });
-        }
-
-        throw studentError;
-      }
-
-    } catch (error) {
-      console.error('Error creating student:', error);
-
-      // Handle validation errors with detailed information
-      if ((error as any)?.name === 'ZodError' || ((error as any)?.issues && Array.isArray((error as any).issues))) {
-        const validationErrors = (error as any).issues || [];
-        const formattedErrors = validationErrors.map((err: any) => {
-          const fieldPath = err.path.length > 0 ? err.path.join('.') : 'unknown field';
-          return `${fieldPath}: ${err.message}`;
-        });
-        console.error('Student creation validation errors:', formattedErrors);
-        return res.status(400).json({
-          message: "Validation failed",
-          errors: formattedErrors.join(', '),
-          details: validationErrors // Include full details for debugging
-        });
-      }
-
-      // Handle specific database errors
-      if ((error as any)?.code) {
-        switch ((error as any).code) {
-          case '23503': // Foreign key violation
-            if ((error as any).message.includes('role_id')) {
-              return res.status(400).json({ message: "Invalid user role. Please contact administrator." });
-            } else if ((error as any).message.includes('class_id')) {
-              return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
-            } else if ((error as any).message.includes('parent_id')) {
-              return res.status(400).json({ message: "Selected parent does not exist. Please select a valid parent." });
-            }
-            return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
-          case '22007': // Invalid datetime format
-            return res.status(400).json({ message: "Invalid date format. Please use YYYY-MM-DD format." });
-          case '23505': // Unique violation
-            if ((error as any).message.includes('email')) {
-              return res.status(409).json({ message: "Email address already exists" });
-            } else if ((error as any).message.includes('admission_number')) {
-              return res.status(409).json({ message: "Admission number already exists" });
-            }
-            return res.status(409).json({ message: "Duplicate value detected" });
-          default:
-            console.error('Database error:', (error as any).code, (error as any).message);
-        }
-      }
-
-      res.status(500).json({ message: "Failed to create student" });
-    }
-  });
-
-  // Bulk upload students from CSV
-  app.post("/api/students/bulk-upload", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const fileContent = await fs.readFile(req.file.path, 'utf-8');
-      const lines = fileContent.split('\n').filter(line => line.trim());
-
-      if (lines.length < 2) {
-        await fs.unlink(req.file.path);
-        return res.status(400).json({ message: "CSV file is empty or invalid" });
-      }
-
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      const createdStudents: any[] = [];
-      const errors: string[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        try {
-          const values = lines[i].split(',').map(v => v.trim());
-          const row: any = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-          });
-
-          const firstName = row['first name'] || row['firstname'];
-          const lastName = row['last name'] || row['lastname'];
-          const className = row['class'];
-          const gender = row['gender'];
-          const dateOfBirth = row['date of birth'] || row['dob'];
-          const parentEmail = row['parent email'] || row['parentemail'];
-          const parentPhone = row['parent phone'] || row['parentphone'];
-
-          if (!firstName || !lastName || !className) {
-            errors.push(`Row ${i + 1}: Missing required fields (first name, last name, or class)`);
-            continue;
-          }
-
-          const classInfo = await storage.getClasses();
-          const matchingClass = classInfo.find((c: any) =>
-            c.name.toLowerCase() === className.toLowerCase()
-          );
-
-          if (!matchingClass) {
-            errors.push(`Row ${i + 1}: Class "${className}" not found`);
-            continue;
-          }
-
-          // Generate credentials using new simplified format
-          const username = await generateStudentUsername();
-          const password = generateStudentPassword();
-          const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-
-          const userData = {
-            username,
-            email: `${username.toLowerCase()}@ths.edu.ng`, // Auto-generated email
-            passwordHash,
-            mustChangePassword: true,
-            firstName,
-            lastName,
-            phone: null,
-            address: null,
-            dateOfBirth: dateOfBirth || null,
-            gender: (gender?.toLowerCase() === 'male' || gender?.toLowerCase() === 'female' || gender?.toLowerCase() === 'other') ? gender as any : null,
-            profileImageUrl: null,
-            roleId: ROLES.STUDENT,
-            isActive: true,
-            status: 'active',
-            createdVia: 'bulk',
-            createdBy: req.user?.id,
-            profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
-            profileSkipped: false, // 🔧 FIX: Bulk upload students start with incomplete profile
-          };
-
-          const user = await storage.createUser(userData);
-
-          const studentData = {
-            id: user.id,
-            admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, '0')}`, // THS/25/001 format
-            classId: matchingClass.id,
-            parentId: null, // Will be updated below if parent is found or created
-            admissionDate: new Date().toISOString().split('T')[0], // Current date as admission date
-            emergencyContact: parentPhone || null,
-            medicalInfo: null,
-            guardianName: parentId ? `${firstName} (Parent)` : null, // Placeholder for guardian name
-          };
-
-          await storage.createStudent(studentData);
-
-          createdStudents.push({
-            id: user.id,
-            firstName,
-            lastName,
-            username,
-            password, // Return plaintext password for admin to share
-            email: userData.email,
-            class: matchingClass.name,
-            parentEmail: parentEmail || null,
-          });
-        } catch (error) {
-          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      }
-
-    await fs.unlink(req.file.path);
-
-    res.json({
-      message: `Successfully created ${createdStudents.length} students`,
-      students: createdStudents,
-      errors: errors.length > 0 ? errors : undefined
-    });
-
-  } catch (error) {
-    console.error('CSV upload error:', error);
-    if (req.file?.path) {
-      try {
-        await fs.unlink(req.file.path);
-      } catch {}
-    }
-    res.status(500).json({ message: "Failed to process CSV file" });
-  }
-});
-
   // Preview CSV import (validate and return preview)
   app.post('/api/admin/import/preview', authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
     try {
@@ -5755,7 +5269,7 @@ Treasure-Home School Administration
 
       // Log audit event
       await storage.createAuditLog({
-        userId: adminUserId,
+        userId: adminUser.id,
         action: 'bulk_student_import',
         entityType: 'student',
         entityId: BigInt(0), // Bulk operation
@@ -5997,7 +5511,7 @@ Treasure-Home School Administration
     try {
       const userId = req.user!.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -6075,7 +5589,7 @@ Treasure-Home School Administration
         return res.status(400).json({ 
           message: existingApp.status === 'approved' 
             ? 'This email has already been approved' 
-            : 'You already have a pending application' 
+            :'You already have a pending application' 
         });
       }
 
@@ -6276,7 +5790,7 @@ Treasure-Home School Administration
         approvedBy: req.user!.id,
         approvedAt: new Date(),
       });
-      
+
       console.log(`✅ Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
 
       // Create admin profile
@@ -6296,7 +5810,7 @@ Treasure-Home School Administration
       });
 
       console.log(`✅ New admin created: ${username} by ${req.user!.username}`);
-      
+
       res.status(201).json({
         message: 'Admin created successfully with auto-generated credentials',
         admin: {
@@ -6314,7 +5828,7 @@ Treasure-Home School Administration
       });
     } catch (error) {
       console.error('Error creating admin:', error);
-      
+
       // Handle Zod validation errors
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
@@ -6322,7 +5836,7 @@ Treasure-Home School Administration
           errors: error.errors 
         });
       }
-      
+
       res.status(500).json({ message: 'Failed to create administrator' });
     }
   });
@@ -6353,7 +5867,7 @@ Treasure-Home School Administration
   app.put('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
     try {
       const settings = await storage.updateSystemSettings(req.body);
-      
+
       // Log the settings change
       await storage.createAuditLog({
         userId: req.user!.id,
@@ -6362,7 +5876,7 @@ Treasure-Home School Administration
         entityId: settings.id,
         reason: 'System settings updated by Super Admin',
       });
-      
+
       res.json(settings);
     } catch (error) {
       console.error('Error updating system settings:', error);
