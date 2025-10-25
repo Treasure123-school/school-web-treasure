@@ -4609,24 +4609,24 @@ Treasure-Home School Administration
 
       // Prevent deleting your own account
       if (user.id === adminUser.id) {
-        console.warn(`❌ DELETE BLOCKED: Admin attempted to delete own account`);
+        console.warn(`❌ DELETE BLOCKED: User attempted to delete own account`);
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
 
-      // CRITICAL SECURITY: Prevent deletion of Super Admin accounts
-      if (user.roleId === ROLES.SUPER_ADMIN) {
-        console.log(`🚫 BLOCKED: Attempt to delete Super Admin account ${user.email}`);
+      // CRITICAL SECURITY: Only Super Admins can delete Super Admin accounts
+      if (user.roleId === ROLES.SUPER_ADMIN && adminUser.roleId !== ROLES.SUPER_ADMIN) {
+        console.log(`🚫 BLOCKED: Non-Super Admin ${adminUser.email} attempted to delete Super Admin account ${user.email}`);
         return res.status(403).json({ 
-          message: "Cannot delete Super Admin accounts. Super Admins can only be managed by other Super Admins.",
+          message: "Only Super Admins can delete Super Admin accounts.",
           code: "SUPER_ADMIN_PROTECTED"
         });
       }
 
-      // Additional check: Regular admins cannot delete other admins
-      if (req.user!.roleId === ROLES.ADMIN && user.roleId === ROLES.ADMIN && req.user!.id !== id) {
-        console.log(`🚫 BLOCKED: Admin ${req.user!.email} attempted to delete another admin ${user.email}`);
+      // CRITICAL SECURITY: Admins cannot delete other Admin accounts
+      if (user.roleId === ROLES.ADMIN && adminUser.roleId === ROLES.ADMIN) {
+        console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to delete another Admin account ${user.email}`);
         return res.status(403).json({ 
-          message: "Admins cannot delete other admin accounts.",
+          message: "Admins cannot delete other Admin accounts.",
           code: "ADMIN_PROTECTED"
         });
       }
