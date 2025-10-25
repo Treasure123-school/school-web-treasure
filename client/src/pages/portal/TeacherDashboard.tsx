@@ -222,31 +222,18 @@ export default function TeacherDashboard() {
     retryDelay: 1000
   });
 
-  // Redirect to setup if profile is incomplete
+  // Show profile completion banner if incomplete, but don't redirect
   useEffect(() => {
-    // SAFETY: Only redirect if we have confirmed data (not loading) AND profile is missing
     if (!statusLoading && profileStatus) {
-      // A teacher needs setup if they have no profile OR if first_login is explicitly true
-      // Note: firstLogin becomes false after setup, so we check hasProfile as primary indicator
-      const needsSetup = !profileStatus.hasProfile;
-
-      if (needsSetup) {
-        console.log('🔄 Redirecting to profile setup:', { 
-          hasProfile: profileStatus.hasProfile, 
-          verified: profileStatus.verified 
-        });
-        navigate('/portal/teacher/profile-setup');
-      } else {
-        console.log('✅ Teacher profile exists, dashboard access granted:', {
-          hasProfile: profileStatus.hasProfile,
-          verified: profileStatus.verified,
-          profileLoading,
-          profileError: profileError?.message,
-          profileData: teacherProfile
-        });
-      }
+      console.log('✅ Teacher dashboard access granted:', {
+        hasProfile: profileStatus.hasProfile,
+        verified: profileStatus.verified,
+        profileLoading,
+        profileError: profileError?.message,
+        profileData: teacherProfile
+      });
     }
-  }, [profileStatus, statusLoading, navigate, teacherProfile, profileLoading, profileError]);
+  }, [profileStatus, statusLoading, teacherProfile, profileLoading, profileError]);
 
   // Debug: Log profile data when it changes
   useEffect(() => {
@@ -324,6 +311,37 @@ export default function TeacherDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
+      {/* Profile Completion Banner */}
+      {!statusLoading && profileStatus && !profileStatus.hasProfile && (
+        <div className="mb-6 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-xl animate-slide-up" data-testid="profile-incomplete-banner">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-1">
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+                <AlertCircle className="h-10 w-10 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold tracking-tight mb-1">
+                  Complete Your Profile
+                </h2>
+                <p className="text-orange-100 text-sm">
+                  Some features are restricted until you complete your teacher profile setup.
+                </p>
+                <p className="text-orange-100 text-xs mt-1">
+                  Complete your profile to unlock: Creating Exams, Grading, Attendance Management, and more.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('/portal/teacher/profile-setup')}
+              className="bg-white text-orange-600 hover:bg-orange-50 font-semibold shadow-lg"
+              data-testid="button-complete-profile"
+            >
+              Complete Profile Now
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Teacher Role Header - Personalized with Dynamic Subject/Class Info */}
       <div className="mb-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl" data-testid="teacher-role-header">
         <div className="flex items-center justify-between">

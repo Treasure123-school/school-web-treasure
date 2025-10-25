@@ -442,11 +442,11 @@ export default function TeacherProfileSetup() {
         type: profileImage.type,
         lastModified: profileImage.lastModified
       });
-      
+
       if (profileImage.size === 0) {
         errors.push("Profile Photo (file is empty)");
       }
-      
+
       // Additional validation
       if (!profileImage.type.startsWith('image/')) {
         errors.push("Profile Photo (must be an image file)");
@@ -529,7 +529,7 @@ export default function TeacherProfileSetup() {
         size: profileImage.size,
         type: profileImage.type
       });
-      
+
       // Create a new File object to ensure proper metadata
       const imageFile = new File(
         [profileImage], 
@@ -539,17 +539,17 @@ export default function TeacherProfileSetup() {
           lastModified: profileImage.lastModified || Date.now()
         }
       );
-      
+
       submitData.append('profileImage', imageFile, imageFile.name);
     }
-    
+
     if (signatureFile) {
       console.log('📤 Appending signature to FormData:', {
         name: signatureFile.name,
         size: signatureFile.size,
         type: signatureFile.type
       });
-      
+
       const sigFile = new File(
         [signatureFile],
         signatureFile.name || `signature-${Date.now()}.jpg`,
@@ -558,7 +558,7 @@ export default function TeacherProfileSetup() {
           lastModified: signatureFile.lastModified || Date.now()
         }
       );
-      
+
       submitData.append('signature', sigFile, sigFile.name);
     }
 
@@ -582,6 +582,19 @@ export default function TeacherProfileSetup() {
     { number: 2, title: 'Academic Details', icon: GraduationCap },
     { number: 3, title: 'Confirmation', icon: CheckCircle },
   ];
+
+  const handleSkipProfile = () => {
+    // Clear draft and navigate to dashboard
+    localStorage.removeItem('teacher_profile_draft');
+
+    toast({
+      title: "Profile Setup Skipped",
+      description: "You can complete your profile anytime from the dashboard. Some features will be restricted until completion.",
+      duration: 5000,
+    });
+
+    navigate('/portal/teacher');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-6 sm:py-8 md:py-12 px-3 sm:px-4 lg:px-6">
@@ -1107,6 +1120,19 @@ export default function TeacherProfileSetup() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Skip Button - Added below the step progress and above the profile forms */}
+        {currentStep < 3 && (
+          <div className="flex justify-center mt-6">
+            <Button
+              variant="outline"
+              onClick={handleSkipProfile}
+              className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20"
+            >
+              Skip for now
+            </Button>
+          </div>
         )}
       </div>
     </div>

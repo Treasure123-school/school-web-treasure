@@ -17,14 +17,20 @@ export default function RequireCompleteProfile({
   feature = "this feature" 
 }: RequireCompleteProfileProps) {
   const [, navigate] = useLocation();
+  const { user } = useQuery({ queryKey: ['/api/auth/me'] }).data || {};
 
-  // Check student profile status
+  // Determine which profile status endpoint to use based on role
+  const isTeacher = user?.roleId === 2;
+  const profileStatusEndpoint = isTeacher ? '/api/teacher/profile/status' : '/api/student/profile/status';
+
+  // Check profile status
   const { data: profileStatus, isLoading } = useQuery({
-    queryKey: ['/api/student/profile/status'],
+    queryKey: [profileStatusEndpoint],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/student/profile/status');
+      const response = await apiRequest('GET', profileStatusEndpoint);
       return await response.json();
     },
+    enabled: !!user,
   });
 
   // Show loading state
@@ -37,7 +43,10 @@ export default function RequireCompleteProfile({
   }
 
   // If profile is complete, render children
-  if (profileStatus?.completed) {
+  // For teachers: check hasProfile, for students: check completed
+  const isProfileComplete = isTeacher ? profileStatus?.hasProfile : profileStatus?.completed;
+  
+  if (isProfileComplete) {
     return <>{children}</>;
   }
 
@@ -69,7 +78,7 @@ export default function RequireCompleteProfile({
 
               <div className="flex gap-3 pt-2">
                 <Button 
-                  onClick={() => navigate('/portal/student/profile-setup')}
+                  onClick={() => navigate(isTeacher ? '/portal/teacher/profile-setup' : '/portal/student/profile-setup')}
                   className="flex-1"
                   data-testid="button-goto-profile-setup"
                 >
@@ -77,7 +86,7 @@ export default function RequireCompleteProfile({
                   Complete Profile Now
                 </Button>
                 <Button 
-                  onClick={() => navigate('/portal/student')}
+                  onClick={() => navigate(isTeacher ? '/portal/teacher' : '/portal/student')}
                   variant="outline"
                   data-testid="button-back-to-dashboard"
                 >
