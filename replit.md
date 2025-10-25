@@ -13,6 +13,7 @@ Preferred communication style: Simple, everyday language.
 - **Automatic Super Admin Seeding**: Added automatic super admin account creation on server startup. The super admin user is created if it doesn't exist, with secure password requirements and mandatory password change on first login.
 - **Security Enhancement**: Improved password logging security - credentials are never logged in plaintext after initial setup.
 - **Password Change Enforcement**: All newly created users (admins, teachers, students, parents) are now required to change their password on first login. This applies to users created through any method: invites, CSV import, manual creation, or bulk provisioning. The `mustChangePassword` flag is automatically set to `true` for all new accounts to ensure maximum security.
+- **Admin Account Visibility Control**: Implemented comprehensive security control for admin account visibility. Regular Admins can no longer view, modify, or delete Super Admin and Admin accounts in user management. This protection is enforced across ALL user management endpoints (list, update, delete, verify, suspend). Super Admins have complete control through a toggle in the system settings (`hideAdminAccountsFromAdmins`, default: enabled). Only Super Admins can manage admin-level accounts, ensuring proper privilege separation and preventing unauthorized access.
 
 ## System Architecture
 
