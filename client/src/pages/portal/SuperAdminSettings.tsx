@@ -32,6 +32,7 @@ export default function SuperAdminSettings() {
     enableAttendanceModule: true,
     enableResultsModule: true,
     themeColor: "blue",
+    hideAdminAccountsFromAdmins: true,
   });
 
   // Update form when data loads
@@ -185,6 +186,33 @@ export default function SuperAdminSettings() {
                     setFormData({ ...formData, enableResultsModule: checked })
                   }
                   data-testid="switch-results-module"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* User Management Settings */}
+          <Card className="dark:bg-slate-800 dark:border-slate-700 border-blue-200 dark:border-blue-900">
+            <CardHeader>
+              <CardTitle className="dark:text-white">User Management Settings</CardTitle>
+              <CardDescription className="dark:text-slate-400">
+                Control user visibility and access permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="space-y-0.5">
+                  <Label className="text-sm sm:text-base dark:text-slate-200">Hide Admin Accounts from Admins</Label>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    When enabled, regular Admins cannot see or manage Super Admin and Admin accounts. Only Super Admins have full access.
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.hideAdminAccountsFromAdmins}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, hideAdminAccountsFromAdmins: checked })
+                  }
+                  data-testid="switch-hide-admin-accounts"
                 />
               </div>
             </CardContent>

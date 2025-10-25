@@ -4304,6 +4304,21 @@ Treasure-Home School Administration
         return res.status(404).json({ message: "User not found" });
       }
 
+      // SECURITY: Check if admin can access this user account
+      const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
+        
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to verify admin account ${user.email}`);
+          return res.status(403).json({ 
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
+
       const oldStatus = user.status;
 
       // Update the user status to active
@@ -4349,6 +4364,21 @@ Treasure-Home School Administration
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      // SECURITY: Check if admin can access this user account
+      const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
+        
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to unverify admin account ${user.email}`);
+          return res.status(403).json({ 
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
       }
 
       const oldStatus = user.status;
@@ -4399,6 +4429,21 @@ Treasure-Home School Administration
         return res.status(404).json({ message: "User not found" });
       }
 
+      // SECURITY: Check if admin can access this user account
+      const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
+        
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to suspend admin account ${user.email}`);
+          return res.status(403).json({ 
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
+
       const oldStatus = user.status;
 
       // Update the user status to suspended
@@ -4444,6 +4489,21 @@ Treasure-Home School Administration
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      // SECURITY: Check if admin can access this user account
+      const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
+        
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to unsuspend admin account ${user.email}`);
+          return res.status(403).json({ 
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
       }
 
       const oldStatus = user.status;
@@ -4557,6 +4617,21 @@ Treasure-Home School Administration
         return res.status(404).json({ message: "User not found" });
       }
 
+      // SECURITY: Check if admin can access this user account
+      const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
+        
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to update admin account ${user.email}`);
+          return res.status(403).json({ 
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
+
       // Prepare update data
       const updateData: any = {};
       if (validatedData.firstName) updateData.firstName = validatedData.firstName;
@@ -4636,6 +4711,21 @@ Treasure-Home School Administration
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
 
+      // CRITICAL SECURITY: Check system settings for admin account protection
+      const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings = await storage.getSystemSettings();
+        const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
+        
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to delete admin account ${user.email}`);
+          return res.status(403).json({ 
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
+      
       // CRITICAL SECURITY: Only Super Admins can delete Super Admin accounts
       if (user.roleId === ROLES.SUPER_ADMIN && adminUser.roleId !== ROLES.SUPER_ADMIN) {
         console.log(`🚫 BLOCKED: Non-Super Admin ${adminUser.email} attempted to delete Super Admin account ${user.email}`);
