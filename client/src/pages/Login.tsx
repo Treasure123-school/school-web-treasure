@@ -42,6 +42,9 @@ export default function Login() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -523,14 +526,28 @@ export default function Login() {
           <form onSubmit={handlePasswordSubmit(onPasswordChange)} className="space-y-5 mt-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword" className="text-sm font-medium">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                {...registerPassword('currentPassword')}
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                placeholder="Enter your current password"
-                data-testid="input-current-password"
-              />
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  {...registerPassword('currentPassword')}
+                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
+                  placeholder="Enter your current password"
+                  data-testid="input-current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="toggle-current-password-visibility"
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
               {passwordErrors.currentPassword && (
                 <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
@@ -541,14 +558,28 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="newPassword" className="text-sm font-medium">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                {...registerPassword('newPassword')}
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                placeholder="Enter a new secure password"
-                data-testid="input-new-password"
-              />
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  {...registerPassword('newPassword')}
+                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
+                  placeholder="Enter a new secure password"
+                  data-testid="input-new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="toggle-new-password-visibility"
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
               {passwordErrors.newPassword && (
                 <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
@@ -563,14 +594,28 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                {...registerPassword('confirmPassword')}
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                placeholder="Re-enter your new password"
-                data-testid="input-confirm-password"
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  {...registerPassword('confirmPassword')}
+                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
+                  placeholder="Re-enter your new password"
+                  data-testid="input-confirm-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="toggle-confirm-password-visibility"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
               {passwordErrors.confirmPassword && (
                 <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
