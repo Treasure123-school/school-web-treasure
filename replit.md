@@ -11,6 +11,7 @@ Preferred communication style: Simple, everyday language.
 - **Automatic Roles Seeding**: Added automatic creation of all required roles (Super Admin, Admin, Teacher, Student, Parent) on server startup. All roles are created with appropriate permissions if they don't exist, ensuring admin creation always works.
 - **Automatic Super Admin Seeding**: Added automatic super admin account creation on server startup. The super admin user is created if it doesn't exist, with secure password requirements and mandatory password change on first login.
 - **Security Enhancement**: Improved password logging security - credentials are never logged in plaintext after initial setup.
+- **Password Change Enforcement**: All newly created users (admins, teachers, students, parents) are now required to change their password on first login. This applies to users created through any method: invites, CSV import, manual creation, or bulk provisioning. The `mustChangePassword` flag is automatically set to `true` for all new accounts to ensure maximum security.
 
 ## System Architecture
 

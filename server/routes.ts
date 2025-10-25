@@ -5002,7 +5002,7 @@ Treasure-Home School Administration
       const userData = insertUserSchema.parse({
         ...otherUserData,
         passwordHash,
-        mustChangePassword: otherUserData.mustChangePassword ?? true, // ✅ SECURITY: Default to true - force password change on first login
+        mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
         profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
         profileSkipped: otherUserData.profileSkipped ?? false // 🔧 FIX: Default to false if not provided
       });
