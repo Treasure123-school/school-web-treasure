@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2 } from 'lucide-react';
+import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Copy, CheckCircle } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 
@@ -42,6 +42,12 @@ export default function TeachersManagement() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<any>(null);
+  const [credentialsDialog, setCredentialsDialog] = useState<{
+    open: boolean;
+    username: string;
+    password: string;
+    email: string;
+  }>({ open: false, username: '', password: '', email: '' });
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<TeacherForm>({
     resolver: zodResolver(teacherFormSchema),
@@ -77,14 +83,22 @@ export default function TeachersManagement() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
-        description: "Teacher created successfully. They will receive login credentials via email.",
+        description: "Teacher created successfully. Login credentials are displayed below.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setIsDialogOpen(false);
       reset();
+      
+      // Show credentials dialog
+      setCredentialsDialog({
+        open: true,
+        username: data.username || '',
+        password: data.temporaryPassword || '',
+        email: data.email || ''
+      });
     },
     onError: (error: any) => {
       toast({
@@ -589,6 +603,85 @@ export default function TeachersManagement() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Login Credentials Dialog */}
+      <Dialog open={credentialsDialog.open} onOpenChange={(open) => setCredentialsDialog({ ...credentialsDialog, open })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              Teacher Created Successfully
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+              <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                Please share these login credentials with the teacher. An email has also been sent to <strong>{credentialsDialog.email}</strong>.
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                ⚠️ These credentials will only be shown once. Make sure to save them.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <Label className="text-xs text-muted-foreground">Username</Label>
+                <div className="flex items-center justify-between mt-1">
+                  <code className="text-sm font-mono font-semibold" data-testid="text-teacher-username">
+                    {credentialsDialog.username}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsDialog.username);
+                      toast({ title: "Copied!", description: "Username copied to clipboard" });
+                    }}
+                    data-testid="button-copy-username"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <Label className="text-xs text-muted-foreground">Temporary Password</Label>
+                <div className="flex items-center justify-between mt-1">
+                  <code className="text-sm font-mono font-semibold" data-testid="text-teacher-password">
+                    {credentialsDialog.password}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsDialog.password);
+                      toast({ title: "Copied!", description: "Password copied to clipboard" });
+                    }}
+                    data-testid="button-copy-password"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  <strong>Note:</strong> The teacher will be required to change their password on first login.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => setCredentialsDialog({ open: false, username: '', password: '', email: '' })}
+                data-testid="button-close-credentials"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5011,7 +5011,13 @@ Treasure-Home School Administration
 
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
-      res.json(userResponse);
+      
+      // Include temporary password in response for admin to share with user
+      // This is only sent once and should be displayed to admin immediately
+      res.json({
+        ...userResponse,
+        temporaryPassword: password
+      });
     } catch (error) {
       console.error('User creation error:', error);
       if (error instanceof z.ZodError) {
