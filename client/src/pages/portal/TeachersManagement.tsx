@@ -21,16 +21,16 @@ const teacherFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(1, 'Phone number is required'),
-  address: z.string().min(1, 'Address is required'),
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
-  gender: z.enum(['Male', 'Female', 'Other']),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(['Male', 'Female', 'Other']).optional(),
   roleId: z.number().default(2), // Teacher role ID
-  employeeId: z.string().min(1, 'Employee ID is required'),
-  department: z.string().min(1, 'Department is required'),
-  qualifications: z.string().min(1, 'Qualifications are required'),
-  dateOfJoining: z.string().min(1, 'Date of joining is required'),
-  salary: z.string().min(1, 'Salary is required'),
+  employeeId: z.string().optional(),
+  department: z.string().optional(),
+  qualifications: z.string().optional(),
+  dateOfJoining: z.string().optional(),
+  salary: z.string().optional(),
 });
 
 type TeacherForm = z.infer<typeof teacherFormSchema>;
@@ -182,7 +182,7 @@ export default function TeachersManagement() {
   });
 
   // Get unique departments for filter
-  const departments = Array.from(new Set(teachers.map((t: any) => t.department).filter(Boolean)));
+  const departments = Array.from(new Set(teachers.map((t: any) => t.department).filter(Boolean))) as string[];
 
   return (
     <div className="space-y-6" data-testid="teachers-management">
@@ -202,6 +202,14 @@ export default function TeachersManagement() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {!editingTeacher && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <strong>Quick Setup:</strong> Just enter the teacher's basic information. They can complete their profile when they log in.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name *</Label>
@@ -227,141 +235,144 @@ export default function TeachersManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    {...register('email')} 
-                    data-testid="input-email"
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone *</Label>
-                  <Input 
-                    id="phone" 
-                    {...register('phone')} 
-                    data-testid="input-phone"
-                  />
-                  {errors.phone && (
-                    <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>
-                  )}
-                </div>
-              </div>
-
               <div>
-                <Label htmlFor="address">Address *</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input 
-                  id="address" 
-                  {...register('address')} 
-                  data-testid="input-address"
+                  id="email" 
+                  type="email" 
+                  {...register('email')} 
+                  data-testid="input-email"
                 />
-                {errors.address && (
-                  <p className="text-sm text-red-500 mt-1">{errors.address.message}</p>
+                {errors.email && (
+                  <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                  <Input 
-                    id="dateOfBirth" 
-                    type="date" 
-                    {...register('dateOfBirth')} 
-                    data-testid="input-date-of-birth"
-                  />
-                  {errors.dateOfBirth && (
-                    <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="gender">Gender *</Label>
-                  <Select onValueChange={(value) => setValue('gender', value as any)}>
-                    <SelectTrigger data-testid="select-gender">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.gender && (
-                    <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
-                  )}
-                </div>
-              </div>
+              {editingTeacher && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input 
+                        id="phone" 
+                        {...register('phone')} 
+                        data-testid="input-phone"
+                      />
+                      {errors.phone && (
+                        <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="employeeId">Employee ID</Label>
+                      <Input 
+                        id="employeeId" 
+                        {...register('employeeId')} 
+                        placeholder="e.g., EMP/2024/001"
+                        data-testid="input-employee-id"
+                      />
+                      {errors.employeeId && (
+                        <p className="text-sm text-red-500 mt-1">{errors.employeeId.message}</p>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="employeeId">Employee ID *</Label>
-                  <Input 
-                    id="employeeId" 
-                    {...register('employeeId')} 
-                    placeholder="e.g., EMP/2024/001"
-                    data-testid="input-employee-id"
-                  />
-                  {errors.employeeId && (
-                    <p className="text-sm text-red-500 mt-1">{errors.employeeId.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="department">Department *</Label>
-                  <Input 
-                    id="department" 
-                    {...register('department')} 
-                    placeholder="e.g., Mathematics"
-                    data-testid="input-department"
-                  />
-                  {errors.department && (
-                    <p className="text-sm text-red-500 mt-1">{errors.department.message}</p>
-                  )}
-                </div>
-              </div>
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    <Input 
+                      id="address" 
+                      {...register('address')} 
+                      data-testid="input-address"
+                    />
+                    {errors.address && (
+                      <p className="text-sm text-red-500 mt-1">{errors.address.message}</p>
+                    )}
+                  </div>
 
-              <div>
-                <Label htmlFor="qualifications">Qualifications *</Label>
-                <Input 
-                  id="qualifications" 
-                  {...register('qualifications')} 
-                  placeholder="e.g., B.Ed Mathematics, M.Sc Mathematics"
-                  data-testid="input-qualifications"
-                />
-                {errors.qualifications && (
-                  <p className="text-sm text-red-500 mt-1">{errors.qualifications.message}</p>
-                )}
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                      <Input 
+                        id="dateOfBirth" 
+                        type="date" 
+                        {...register('dateOfBirth')} 
+                        data-testid="input-date-of-birth"
+                      />
+                      {errors.dateOfBirth && (
+                        <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select onValueChange={(value) => setValue('gender', value as any)}>
+                        <SelectTrigger data-testid="select-gender">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {errors.gender && (
+                        <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="dateOfJoining">Date of Joining *</Label>
-                  <Input 
-                    id="dateOfJoining" 
-                    type="date" 
-                    {...register('dateOfJoining')} 
-                    data-testid="input-date-of-joining"
-                  />
-                  {errors.dateOfJoining && (
-                    <p className="text-sm text-red-500 mt-1">{errors.dateOfJoining.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="salary">Salary *</Label>
-                  <Input 
-                    id="salary" 
-                    {...register('salary')} 
-                    placeholder="e.g., 50000"
-                    data-testid="input-salary"
-                  />
-                  {errors.salary && (
-                    <p className="text-sm text-red-500 mt-1">{errors.salary.message}</p>
-                  )}
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="department">Department</Label>
+                      <Input 
+                        id="department" 
+                        {...register('department')} 
+                        placeholder="e.g., Mathematics"
+                        data-testid="input-department"
+                      />
+                      {errors.department && (
+                        <p className="text-sm text-red-500 mt-1">{errors.department.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                      <Input 
+                        id="dateOfJoining" 
+                        type="date" 
+                        {...register('dateOfJoining')} 
+                        data-testid="input-date-of-joining"
+                      />
+                      {errors.dateOfJoining && (
+                        <p className="text-sm text-red-500 mt-1">{errors.dateOfJoining.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="qualifications">Qualifications</Label>
+                    <Input 
+                      id="qualifications" 
+                      {...register('qualifications')} 
+                      placeholder="e.g., B.Ed Mathematics, M.Sc Mathematics"
+                      data-testid="input-qualifications"
+                    />
+                    {errors.qualifications && (
+                      <p className="text-sm text-red-500 mt-1">{errors.qualifications.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="salary">Salary</Label>
+                    <Input 
+                      id="salary" 
+                      {...register('salary')} 
+                      placeholder="e.g., 50000"
+                      data-testid="input-salary"
+                    />
+                    {errors.salary && (
+                      <p className="text-sm text-red-500 mt-1">{errors.salary.message}</p>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={handleCloseDialog}>
