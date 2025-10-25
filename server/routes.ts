@@ -4995,12 +4995,20 @@ Treasure-Home School Administration
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
       }
 
+      // Generate username if not provided (based on roleId)
+      let username = otherUserData.username;
+      if (!username && otherUserData.roleId) {
+        const { generateUsernameByRole } = await import('./username-generator');
+        username = await generateUsernameByRole(otherUserData.roleId);
+      }
+
       // Hash password with bcrypt
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-      // Prepare user data with hashed password
+      // Prepare user data with hashed password and generated username
       const userData = insertUserSchema.parse({
         ...otherUserData,
+        username,
         passwordHash,
         mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
         profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
