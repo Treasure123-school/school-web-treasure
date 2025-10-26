@@ -253,6 +253,19 @@ function sanitizeLogData(data: any): any {
     log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
   }
 
+  // Seed system settings if they don't exist
+  try {
+    log("Seeding system settings if needed...");
+    const { seedSystemSettings } = await import("./seed-system-settings");
+    await seedSystemSettings();
+    log("✅ System settings seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`🚨 SYSTEM SETTINGS SEEDING ERROR: ${errorMessage}`);
+    console.error(error);
+    log(`⚠️ System settings seeding failed: ${errorMessage}`);
+  }
+
   // Seed super admin account if it doesn't exist
   try {
     log("Checking for super admin account...");

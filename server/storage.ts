@@ -171,6 +171,7 @@ export interface IStorage {
 
   // Class management
   getClasses(): Promise<Class[]>;
+  getAllClasses(includeInactive?: boolean): Promise<Class[]>;
   getClass(id: number): Promise<Class | undefined>;
   createClass(classData: InsertClass): Promise<Class>;
   updateClass(id: number, classData: Partial<InsertClass>): Promise<Class | undefined>;
@@ -1284,6 +1285,14 @@ export class DatabaseStorage implements IStorage {
   // Class management
   async getClasses(): Promise<Class[]> {
     return await db.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
+  }
+
+  async getAllClasses(includeInactive = false): Promise<Class[]> {
+    if (includeInactive) {
+      return await db.select().from(schema.classes).orderBy(asc(schema.classes.name));
+    } else {
+      return await db.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
+    }
   }
 
   async getClass(id: number): Promise<Class | undefined> {
