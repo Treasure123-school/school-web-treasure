@@ -310,6 +310,13 @@ export const exams = pgTable("exams", {
   showCorrectAnswers: boolean("show_correct_answers").default(false), // Show answers after submission
   passingScore: integer("passing_score"), // Minimum score to pass (percentage)
   gradingScale: text("grading_scale").default('standard'), // 'standard', 'custom'
+  // Proctoring and security settings
+  enableProctoring: boolean("enable_proctoring").default(false),
+  lockdownMode: boolean("lockdown_mode").default(false), // Prevents tab switching, copy-paste
+  requireWebcam: boolean("require_webcam").default(false),
+  requireFullscreen: boolean("require_fullscreen").default(false),
+  maxTabSwitches: integer("max_tab_switches").default(3), // Auto-submit after this many violations
+  shuffleOptions: boolean("shuffle_options").default(false), // Randomize option order
 });
 
 // Exam questions table
@@ -417,6 +424,62 @@ export const examResults = pgTable("exam_results", {
   examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
   examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
   examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId),
+}));
+
+// Question Bank tables - For reusable question management
+export const questionBanks = pgTable("question_banks", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+  classLevel: varchar("class_level", { length: 50 }), // e.g., "JSS2", "SSS1"
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
+  isPublic: boolean("is_public").default(false), // Shared across teachers or private
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  questionBanksSubjectIdx: index("question_banks_subject_idx").on(table.subjectId),
+  questionBanksCreatedByIdx: index("question_banks_created_by_idx").on(table.createdBy),
+}));
+
+// Question bank items - Individual questions in the bank
+export const questionBankItems = pgTable("question_bank_items", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  bankId: bigint("bank_id", { mode: "number" }).references(() => questionBanks.id, { onDelete: 'cascade' }).notNull(),
+  questionText: text("question_text").notNull(),
+  questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay', 'practical'
+  points: integer("points").default(1),
+  difficulty: varchar("difficulty", { length: 20 }).default('medium'), // 'easy', 'medium', 'hard'
+  tags: text("tags").array(), // For filtering and search
+  imageUrl: text("image_url"),
+  // Auto-grading features
+  autoGradable: boolean("auto_gradable").default(true),
+  expectedAnswers: text("expected_answers").array(),
+  caseSensitive: boolean("case_sensitive").default(false),
+  explanationText: text("explanation_text"),
+  hintText: text("hint_text"),
+  // For practical questions
+  practicalInstructions: text("practical_instructions"),
+  practicalFileUrl: text("practical_file_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  questionBankItemsBankIdIdx: index("question_bank_items_bank_id_idx").on(table.bankId),
+  questionBankItemsTypeIdx: index("question_bank_items_type_idx").on(table.questionType),
+  questionBankItemsDifficultyIdx: index("question_bank_items_difficulty_idx").on(table.difficulty),
+}));
+
+// Question bank item options - For multiple choice questions in the bank
+export const questionBankOptions = pgTable("question_bank_options", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  questionItemId: bigint("question_item_id", { mode: "number" }).references(() => questionBankItems.id, { onDelete: 'cascade' }).notNull(),
+  optionText: text("option_text").notNull(),
+  isCorrect: boolean("is_correct").default(false),
+  orderNumber: integer("order_number").notNull(),
+  explanationText: text("explanation_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  questionBankOptionsItemIdIdx: index("question_bank_options_item_id_idx").on(table.questionItemId),
 }));
 
 // Announcements table
@@ -966,6 +1029,11 @@ export type QuestionOption = typeof questionOptions.$inferSelect;
 export type ExamSession = typeof examSessions.$inferSelect;
 export type StudentAnswer = typeof studentAnswers.$inferSelect;
 
+// Question Bank types
+export type QuestionBank = typeof questionBanks.$inferSelect;
+export type QuestionBankItem = typeof questionBankItems.$inferSelect;
+export type QuestionBankOption = typeof questionBankOptions.$inferSelect;
+
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
@@ -1006,6 +1074,15 @@ export type CreateQuestionOption = z.infer<typeof createQuestionOptionSchema>;
 export type InsertExamSession = z.infer<typeof insertExamSessionSchema>;
 export type UpdateExamSession = z.infer<typeof updateExamSessionSchema>;
 export type InsertStudentAnswer = z.infer<typeof insertStudentAnswerSchema>;
+
+// Question Bank insert schemas
+export const insertQuestionBankSchema = createInsertSchema(questionBanks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertQuestionBankItemSchema = createInsertSchema(questionBankItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertQuestionBankOptionSchema = createInsertSchema(questionBankOptions).omit({ id: true, createdAt: true });
+
+export type InsertQuestionBank = z.infer<typeof insertQuestionBankSchema>;
+export type InsertQuestionBankItem = z.infer<typeof insertQuestionBankItemSchema>;
+export type InsertQuestionBankOption = z.infer<typeof insertQuestionBankOptionSchema>;
 
 // Job Vacancy System tables
 export const vacancyStatusEnum = pgEnum('vacancy_status', ['open', 'closed', 'filled']);

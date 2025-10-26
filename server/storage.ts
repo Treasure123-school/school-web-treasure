@@ -12,7 +12,8 @@ import type {
   ExamSession, InsertExamSession, StudentAnswer, InsertStudentAnswer,
   StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent,
   TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem,
-  Notification, InsertNotification, TeacherProfile
+  Notification, InsertNotification, TeacherProfile,
+  QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption
 } from "@shared/schema";
 
 // Configure PostgreSQL connection for Supabase (lazy initialization)
@@ -227,6 +228,25 @@ export interface IStorage {
   createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption>;
   getQuestionOptions(questionId: number): Promise<QuestionOption[]>;
   getQuestionOptionsBulk(questionIds: number[]): Promise<QuestionOption[]>;
+
+  // Question Bank management
+  createQuestionBank(bank: InsertQuestionBank): Promise<QuestionBank>;
+  getAllQuestionBanks(): Promise<QuestionBank[]>;
+  getQuestionBankById(id: number): Promise<QuestionBank | undefined>;
+  getQuestionBanksBySubject(subjectId: number): Promise<QuestionBank[]>;
+  updateQuestionBank(id: number, bank: Partial<InsertQuestionBank>): Promise<QuestionBank | undefined>;
+  deleteQuestionBank(id: number): Promise<boolean>;
+  
+  // Question Bank Items management
+  createQuestionBankItem(item: InsertQuestionBankItem, options?: Omit<InsertQuestionBankOption, 'questionItemId'>[]): Promise<QuestionBankItem>;
+  getQuestionBankItems(bankId: number, filters?: {questionType?: string; difficulty?: string; tags?: string[]}): Promise<QuestionBankItem[]>;
+  getQuestionBankItemById(id: number): Promise<QuestionBankItem | undefined>;
+  updateQuestionBankItem(id: number, item: Partial<InsertQuestionBankItem>): Promise<QuestionBankItem | undefined>;
+  deleteQuestionBankItem(id: number): Promise<boolean>;
+  
+  // Question Bank Item Options management
+  getQuestionBankItemOptions(questionItemId: number): Promise<QuestionBankOption[]>;
+  importQuestionsFromBank(examId: number, questionItemIds: number[], randomize?: boolean, maxQuestions?: number): Promise<{imported: number; questions: ExamQuestion[]}>;
 
   // Exam sessions management
   createExamSession(session: InsertExamSession): Promise<ExamSession>;
@@ -2110,6 +2130,142 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
   }
 
+  // Question Bank management
+  async createQuestionBank(bank: InsertQuestionBank): Promise<QuestionBank> {
+    const result = await db.insert(schema.questionBanks).values(bank).returning();
+    return result[0];
+  }
+
+  async getAllQuestionBanks(): Promise<QuestionBank[]> {
+    return await db.select().from(schema.questionBanks).orderBy(desc(schema.questionBanks.createdAt));
+  }
+
+  async getQuestionBankById(id: number): Promise<QuestionBank | undefined> {
+    const result = await db.select().from(schema.questionBanks).where(eq(schema.questionBanks.id, id));
+    return result[0];
+  }
+
+  async getQuestionBanksBySubject(subjectId: number): Promise<QuestionBank[]> {
+    return await db.select().from(schema.questionBanks)
+      .where(eq(schema.questionBanks.subjectId, subjectId))
+      .orderBy(desc(schema.questionBanks.createdAt));
+  }
+
+  async updateQuestionBank(id: number, bank: Partial<InsertQuestionBank>): Promise<QuestionBank | undefined> {
+    const result = await db.update(schema.questionBanks)
+      .set({ ...bank, updatedAt: new Date() })
+      .where(eq(schema.questionBanks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteQuestionBank(id: number): Promise<boolean> {
+    await db.delete(schema.questionBanks).where(eq(schema.questionBanks.id, id));
+    return true;
+  }
+
+  // Question Bank Items management
+  async createQuestionBankItem(item: InsertQuestionBankItem, options?: Omit<InsertQuestionBankOption, 'questionItemId'>[]): Promise<QuestionBankItem> {
+    const result = await db.insert(schema.questionBankItems).values(item).returning();
+    const questionItem = result[0];
+
+    if (options && options.length > 0) {
+      const optionValues = options.map((option) => ({
+        questionItemId: questionItem.id,
+        ...option
+      }));
+      await db.insert(schema.questionBankOptions).values(optionValues);
+    }
+
+    return questionItem;
+  }
+
+  async getQuestionBankItems(bankId: number, filters?: {questionType?: string; difficulty?: string; tags?: string[]}): Promise<QuestionBankItem[]> {
+    let query = db.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.bankId, bankId));
+    
+    if (filters?.questionType) {
+      query = query.where(eq(schema.questionBankItems.questionType, filters.questionType));
+    }
+    if (filters?.difficulty) {
+      query = query.where(eq(schema.questionBankItems.difficulty, filters.difficulty));
+    }
+    
+    return await query.orderBy(desc(schema.questionBankItems.createdAt));
+  }
+
+  async getQuestionBankItemById(id: number): Promise<QuestionBankItem | undefined> {
+    const result = await db.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
+    return result[0];
+  }
+
+  async updateQuestionBankItem(id: number, item: Partial<InsertQuestionBankItem>): Promise<QuestionBankItem | undefined> {
+    const result = await db.update(schema.questionBankItems)
+      .set({ ...item, updatedAt: new Date() })
+      .where(eq(schema.questionBankItems.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteQuestionBankItem(id: number): Promise<boolean> {
+    await db.delete(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
+    return true;
+  }
+
+  async getQuestionBankItemOptions(questionItemId: number): Promise<QuestionBankOption[]> {
+    return await db.select().from(schema.questionBankOptions)
+      .where(eq(schema.questionBankOptions.questionItemId, questionItemId))
+      .orderBy(asc(schema.questionBankOptions.orderNumber));
+  }
+
+  async importQuestionsFromBank(examId: number, questionItemIds: number[], randomize: boolean = false, maxQuestions?: number): Promise<{imported: number; questions: ExamQuestion[]}> {
+    let selectedItemIds = [...questionItemIds];
+    
+    if (randomize && maxQuestions && maxQuestions < questionItemIds.length) {
+      selectedItemIds = questionItemIds.sort(() => Math.random() - 0.5).slice(0, maxQuestions);
+    }
+
+    const questions: ExamQuestion[] = [];
+    const existingQuestionsCount = await this.getExamQuestionCount(examId);
+    let orderNumber = existingQuestionsCount + 1;
+
+    for (const itemId of selectedItemIds) {
+      const bankItem = await this.getQuestionBankItemById(itemId);
+      if (!bankItem) continue;
+
+      const questionData: InsertExamQuestion = {
+        examId,
+        questionText: bankItem.questionText,
+        questionType: bankItem.questionType,
+        points: bankItem.points || 1,
+        orderNumber: orderNumber++,
+        imageUrl: bankItem.imageUrl,
+        autoGradable: bankItem.autoGradable,
+        expectedAnswers: bankItem.expectedAnswers,
+        caseSensitive: bankItem.caseSensitive,
+        explanationText: bankItem.explanationText,
+        hintText: bankItem.hintText
+      };
+
+      const question = await this.createExamQuestion(questionData);
+      questions.push(question);
+
+      if (bankItem.questionType === 'multiple_choice') {
+        const bankOptions = await this.getQuestionBankItemOptions(itemId);
+        for (const bankOption of bankOptions) {
+          await this.createQuestionOption({
+            questionId: question.id,
+            optionText: bankOption.optionText,
+            isCorrect: bankOption.isCorrect,
+            orderNumber: bankOption.orderNumber,
+            partialCreditValue: 0,
+            explanationText: bankOption.explanationText
+          });
+        }
+      }
+    }
+
+    return { imported: questions.length, questions };
+  }
 
   // Get AI-suggested grading tasks for teacher review
   async getAISuggestedGradingTasks(teacherId: string, status?: string): Promise<any[]> {
