@@ -5068,13 +5068,18 @@ Treasure-Home School Administration
     }
   });
 
-  app.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       // Extract password from request and hash it before storage
       const { password, ...otherUserData } = req.body;
 
       if (!password || typeof password !== 'string' || password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+
+      // Teachers can only create students
+      if (req.user!.roleId === ROLES.TEACHER && otherUserData.roleId !== ROLES.STUDENT) {
+        return res.status(403).json({ message: "Teachers can only create student accounts" });
       }
 
       // Generate username if not provided (based on roleId)
@@ -5088,26 +5093,37 @@ Treasure-Home School Administration
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
       // Prepare user data with hashed password and generated username
-      // ✅ AUTO-APPROVE: Set status to 'active' since user is created by authorized admin
+      // ✅ AUTO-APPROVE: Set status to 'active' since user is created by authorized admin or teacher
       // No approval needed when created by Super Admin, Admin, or Teacher
       const userData = insertUserSchema.parse({
         ...otherUserData,
         username,
         passwordHash,
-        status: 'active', // ✅ AUTO-APPROVE: Direct creation by admin means instant approval
+        status: 'active', // ✅ AUTO-APPROVE: Direct creation by admin/teacher means instant approval
         isActive: true, // ✅ Enable account immediately
         mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
         profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
-        profileSkipped: otherUserData.profileSkipped ?? false // 🔧 FIX: Default to false if not provided
+        profileSkipped: otherUserData.profileSkipped ?? false, // 🔧 FIX: Default to false if not provided
+        createdVia: req.user!.roleId === ROLES.TEACHER ? 'teacher' : 'admin' // Track who created the user
       });
 
       const user = await storage.createUser(userData);
 
+      // If creating a student, also create the student record if classId and admissionNumber are provided
+      if (otherUserData.roleId === ROLES.STUDENT && otherUserData.classId) {
+        await storage.createStudent({
+          id: user.id,
+          admissionNumber: username, // Use username as admission number
+          classId: otherUserData.classId,
+          parentId: otherUserData.parentId || null
+        });
+      }
+
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
 
-      // Include temporary password in response for admin to share with user
-      // This is only sent once and should be displayed to admin immediately
+      // Include temporary password in response for admin/teacher to share with user
+      // This is only sent once and should be displayed to admin/teacher immediately
       res.json({
         ...userResponse,
         temporaryPassword: password
