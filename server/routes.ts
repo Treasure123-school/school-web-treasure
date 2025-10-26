@@ -2130,6 +2130,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get teacher dashboard data (profile, timetable, assignments)
+  app.get('/api/teacher/dashboard', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user!.id;
+      const dashboardData = await storage.getTeacherDashboardData(teacherId);
+      
+      res.json(dashboardData);
+    } catch (error: any) {
+      console.error('Error fetching teacher dashboard data:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard data', error: error.message });
+    }
+  });
+
   // Update teacher profile (PUT endpoint for editing)
   app.put('/api/teacher/profile/me', authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
     { name: 'profileImage', maxCount: 1 },

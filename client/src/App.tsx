@@ -42,6 +42,7 @@ import PortalGallery from "@/pages/portal/Gallery";
 import TeacherDashboard from "@/pages/portal/TeacherDashboard";
 import TeacherProfile from "@/pages/portal/TeacherProfile";
 import TeacherProfileSetup from "@/pages/portal/TeacherProfileSetup";
+import TeacherProfileAssignmentDashboard from "@/pages/portal/TeacherProfileAssignmentDashboard";
 import AdminDashboard from "@/pages/portal/AdminDashboard";
 import ParentDashboard from "@/pages/portal/ParentDashboard";
 import StudentManagement from "@/pages/portal/StudentManagement";
@@ -193,6 +194,11 @@ function Router() {
       <Route path="/portal/teacher/profile-setup">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherProfileSetup />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/profile-assignments">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherProfileAssignmentDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin">

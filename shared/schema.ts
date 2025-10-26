@@ -581,6 +581,25 @@ export const teacherClassAssignments = pgTable("teacher_class_assignments", {
   teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId),
 }));
 
+// Timetable table for teacher weekly schedules
+export const timetable = pgTable("timetable", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  teacherId: uuid("teacher_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+  dayOfWeek: varchar("day_of_week", { length: 10 }).notNull(), // 'Monday', 'Tuesday', etc.
+  startTime: varchar("start_time", { length: 5 }).notNull(), // '09:00' format
+  endTime: varchar("end_time", { length: 5 }).notNull(), // '10:00' format
+  location: varchar("location", { length: 100 }), // Room/classroom location
+  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Performance indexes for timetable queries
+  timetableTeacherIdx: index("timetable_teacher_idx").on(table.teacherId, table.isActive),
+  timetableDayIdx: index("timetable_day_idx").on(table.dayOfWeek, table.teacherId),
+}));
+
 // Manual grading tasks queue table for essays and subjective questions
 export const gradingTasks = pgTable("grading_tasks", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -759,6 +778,7 @@ export const insertReportCardItemSchema = createInsertSchema(reportCardItems).om
 export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
 export const insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
 export const insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
+export const insertTimetableSchema = createInsertSchema(timetable).omit({ id: true, createdAt: true });
 export const insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 export const insertSettingSchema = createInsertSchema(settings).omit({ id: true, createdAt: true, updatedAt: true });
@@ -930,6 +950,7 @@ export type ReportCardItem = typeof reportCardItems.$inferSelect;
 export type StudyResource = typeof studyResources.$inferSelect;
 export type PerformanceEvent = typeof performanceEvents.$inferSelect;
 export type TeacherClassAssignment = typeof teacherClassAssignments.$inferSelect;
+export type Timetable = typeof timetable.$inferSelect;
 export type GradingTask = typeof gradingTasks.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
@@ -968,6 +989,7 @@ export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
 export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;
 export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema>;
 export type InsertTeacherClassAssignment = z.infer<typeof insertTeacherClassAssignmentSchema>;
+export type InsertTimetable = z.infer<typeof insertTimetableSchema>;
 export type InsertGradingTask = z.infer<typeof insertGradingTaskSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;

@@ -365,6 +365,35 @@ export interface IStorage {
   updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined>;
   deleteTeacherClassAssignment(id: number): Promise<boolean>;
 
+  // Teacher timetable
+  createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable>;
+  getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]>;
+  updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined>;
+  deleteTimetableEntry(id: number): Promise<boolean>;
+
+  // Teacher dashboard data
+  getTeacherDashboardData(teacherId: string): Promise<{
+    profile: schema.TeacherProfile | undefined;
+    user: User | undefined;
+    assignments: Array<{
+      id: number;
+      className: string;
+      subjectName: string;
+      subjectCode: string;
+      classLevel: string;
+      termName?: string;
+    }>;
+    timetable: Array<{
+      id: number;
+      dayOfWeek: string;
+      startTime: string;
+      endTime: string;
+      className: string;
+      subjectName: string;
+      location: string | null;
+    }>;
+  }>;
+
   // Manual grading task queue
   createGradingTask(task: InsertGradingTask): Promise<GradingTask>;
   assignGradingTask(taskId: number, teacherId: string): Promise<GradingTask | undefined>;
@@ -3989,6 +4018,112 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.teacherClassAssignments.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // Teacher timetable implementation
+  async createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable> {
+    const result = await this.db.insert(schema.timetable).values(entry).returning();
+    return result[0];
+  }
+
+  async getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]> {
+    const conditions = [
+      eq(schema.timetable.teacherId, teacherId),
+      eq(schema.timetable.isActive, true)
+    ];
+
+    if (termId) {
+      conditions.push(eq(schema.timetable.termId, termId));
+    }
+
+    return await this.db.select()
+      .from(schema.timetable)
+      .where(and(...conditions))
+      .orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
+  }
+
+  async updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined> {
+    const result = await this.db.update(schema.timetable)
+      .set(entry)
+      .where(eq(schema.timetable.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTimetableEntry(id: number): Promise<boolean> {
+    const result = await this.db.delete(schema.timetable)
+      .where(eq(schema.timetable.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Teacher dashboard data - comprehensive method
+  async getTeacherDashboardData(teacherId: string): Promise<{
+    profile: schema.TeacherProfile | undefined;
+    user: User | undefined;
+    assignments: Array<{
+      id: number;
+      className: string;
+      subjectName: string;
+      subjectCode: string;
+      classLevel: string;
+      termName?: string;
+    }>;
+    timetable: Array<{
+      id: number;
+      dayOfWeek: string;
+      startTime: string;
+      endTime: string;
+      className: string;
+      subjectName: string;
+      location: string | null;
+    }>;
+  }> {
+    const profile = await this.getTeacherProfile(teacherId);
+    const user = await this.getUser(teacherId);
+
+    const assignmentsData = await this.db.select({
+      id: schema.teacherClassAssignments.id,
+      className: schema.classes.name,
+      classLevel: schema.classes.level,
+      subjectName: schema.subjects.name,
+      subjectCode: schema.subjects.code,
+      termName: schema.academicTerms.name,
+    })
+      .from(schema.teacherClassAssignments)
+      .innerJoin(schema.classes, eq(schema.teacherClassAssignments.classId, schema.classes.id))
+      .innerJoin(schema.subjects, eq(schema.teacherClassAssignments.subjectId, schema.subjects.id))
+      .leftJoin(schema.academicTerms, eq(schema.teacherClassAssignments.termId, schema.academicTerms.id))
+      .where(and(
+        eq(schema.teacherClassAssignments.teacherId, teacherId),
+        eq(schema.teacherClassAssignments.isActive, true)
+      ))
+      .orderBy(schema.classes.name, schema.subjects.name);
+
+    const timetableData = await this.db.select({
+      id: schema.timetable.id,
+      dayOfWeek: schema.timetable.dayOfWeek,
+      startTime: schema.timetable.startTime,
+      endTime: schema.timetable.endTime,
+      location: schema.timetable.location,
+      className: schema.classes.name,
+      subjectName: schema.subjects.name,
+    })
+      .from(schema.timetable)
+      .innerJoin(schema.classes, eq(schema.timetable.classId, schema.classes.id))
+      .innerJoin(schema.subjects, eq(schema.timetable.subjectId, schema.subjects.id))
+      .where(and(
+        eq(schema.timetable.teacherId, teacherId),
+        eq(schema.timetable.isActive, true)
+      ))
+      .orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
+
+    return {
+      profile,
+      user,
+      assignments: assignmentsData,
+      timetable: timetableData,
+    };
   }
 
   // Manual grading task queue
