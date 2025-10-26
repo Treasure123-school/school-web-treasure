@@ -1,5 +1,28 @@
 # Treasure-Home School Management System
 
+## ⚠️ CRITICAL NOTICE FOR ALL REPLIT AGENTS ⚠️
+
+**DATABASE STORAGE REQUIREMENT - READ THIS FIRST:**
+
+🔴 **ALL DATA AND INFORMATION MUST BE STORED EXCLUSIVELY IN THE SUPABASE DATABASE** 🔴
+
+- **NEVER** use in-memory storage (MemStorage)
+- **NEVER** use local file storage for persistent data
+- **ALWAYS** use the Supabase PostgreSQL database for ALL data persistence
+- The database connection is configured via `DATABASE_URL` environment variable
+- Storage implementation is in `server/storage.ts` using Drizzle ORM
+- All CRUD operations MUST go through the database storage interface
+
+**If you need to add new features:**
+1. Add the necessary tables/columns to `shared/schema.ts`
+2. Update `server/storage.ts` interface and implementation
+3. Run `npm run db:push` to sync schema changes to Supabase
+4. NEVER create alternative storage solutions
+
+This project is configured for **Production Supabase Database Only** - do not deviate from this architecture.
+
+---
+
 ## Overview
 Treasure-Home is a full-stack web application for K-12 schools, providing role-based dashboards for students, teachers, administrators, and parents, plus a public website. Its core purpose is to streamline school administration and enhance the educational experience through a unified, secure, and user-friendly platform. Key capabilities include managing enrollment, attendance, grades, announcements, communication, and a robust online exam system. The project uses a modern monorepo architecture, shared schema definitions, and a comprehensive authentication system with role-based access control.
 
