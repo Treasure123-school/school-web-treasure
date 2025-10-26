@@ -19,7 +19,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { insertExamSchema, insertExamQuestionSchema, insertQuestionOptionSchema, type Exam, type ExamQuestion, type QuestionOption, type Class, type Subject } from '@shared/schema';
 import { z } from 'zod';
-import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload, Save } from 'lucide-react';
+import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload, Save, Shield } from 'lucide-react';
 
 // Form schemas - Use the shared insertExamSchema which has proper preprocessing
 const examFormSchema = insertExamSchema.omit({ createdBy: true });
@@ -135,6 +135,13 @@ export default function ExamManagement() {
       showCorrectAnswers: false,
       passingScore: 60,
       gradingScale: 'standard',
+      // Proctoring and security defaults
+      enableProctoring: false,
+      lockdownMode: false,
+      requireWebcam: false,
+      requireFullscreen: false,
+      maxTabSwitches: 3,
+      shuffleOptions: false,
     }
   });
 
@@ -1644,6 +1651,137 @@ export default function ExamManagement() {
                         </Select>
                       )}
                     />
+                  </div>
+                </div>
+
+                {/* Proctoring & Security Settings */}
+                <div className="space-y-4 p-4 border rounded-lg bg-red-50 dark:bg-red-950/20">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Proctoring & Security Settings
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="enableProctoring"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-enable-proctoring"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Enable Proctoring</Label>
+                        <p className="text-xs text-muted-foreground">Monitor students during exam</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="lockdownMode"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-lockdown-mode"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Lockdown Mode</Label>
+                        <p className="text-xs text-muted-foreground">Prevent tab switching & copy-paste</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="requireWebcam"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-require-webcam"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Require Webcam</Label>
+                        <p className="text-xs text-muted-foreground">Students must enable camera</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="requireFullscreen"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-require-fullscreen"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Require Fullscreen</Label>
+                        <p className="text-xs text-muted-foreground">Force fullscreen mode</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="maxTabSwitches">Max Tab Switches</Label>
+                      <Input 
+                        id="maxTabSwitches" 
+                        type="number" 
+                        min="0" 
+                        max="10" 
+                        {...registerExam('maxTabSwitches', { valueAsNumber: true })} 
+                        data-testid="input-max-tab-switches"
+                        placeholder="3"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Auto-submit after this many violations (0 = unlimited)
+                      </p>
+                      {examErrors.maxTabSwitches && <p className="text-sm text-red-500">{examErrors.maxTabSwitches.message}</p>}
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="shuffleOptions"
+                        control={examControl}
+                        render={({ field }) => (
+                          <Switch 
+                            checked={field.value || false} 
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-shuffle-options"
+                          />
+                        )}
+                      />
+                      <div>
+                        <Label>Shuffle Options</Label>
+                        <p className="text-xs text-muted-foreground">Randomize option order (A, B, C, D)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-900 p-3 rounded border">
+                    <p className="text-sm font-medium mb-1">🔒 Security Features</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>• Proctoring monitors student activity during exams</li>
+                      <li>• Lockdown mode prevents cheating via external resources</li>
+                      <li>• Tab switching limits help maintain exam integrity</li>
+                      <li>• Shuffled options reduce answer sharing</li>
+                    </ul>
                   </div>
                 </div>
 
