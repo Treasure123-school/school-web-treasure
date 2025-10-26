@@ -30,6 +30,22 @@ Treasure-Home is a full-stack web application for K-12 schools, providing role-b
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
+
+### Phase 1: Multi-Class & Multi-Subject Teacher Assignment System ✅ COMPLETED
+**Backend Implementation (October 26, 2025)**
+- **Database Schema**: Added `teacher_class_assignments` table with full audit trail support (migration 0017)
+- **API Endpoints**: Complete CRUD operations for teacher-to-class-subject assignments
+  - POST /api/teacher-assignments - Create assignments (Admin/Super Admin only)
+  - GET /api/teacher-assignments - Get assignments with role-based filtering
+  - GET /api/classes/:classId/subjects/:subjectId/teachers - Get teachers for class/subject
+  - GET /api/teachers/:teacherId/assignments - Get teacher's assignments
+  - PUT /api/teacher-assignments/:id - Update assignments (Admin/Super Admin only)
+  - DELETE /api/teacher-assignments/:id - Delete assignments (Admin/Super Admin only)
+- **Security**: Implemented role-based authorization - Admins can manage all assignments, teachers can only view their own, students/parents have no access
+- **Audit Trail**: All assignments track `assigned_by` field for accountability
+- **Status**: Backend complete and architect-approved. Ready for frontend implementation.
+
+### System Enhancements
 - **Automatic Account Activation**: Removed manual approval requirement for new user accounts. All new users are now automatically activated with status set to 'active' upon registration, eliminating the need for admin approval. The PendingApprovals page and related approval endpoints have been removed from the system.
 - **Unified Login System**: Removed separate SuperAdminLogin page. All users (students, teachers, admins, parents, and super admins) now use the single unified login page at `/login`. The system automatically routes users to their appropriate portal based on their role after authentication.
 - **Automatic Roles Seeding**: Added automatic creation of all required roles (Super Admin, Admin, Teacher, Student, Parent) on server startup. All roles are created with appropriate permissions if they don't exist, ensuring admin creation always works.
