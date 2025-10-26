@@ -6054,6 +6054,214 @@ Treasure-Home School Administration
 
     // ==================== END SUPER ADMIN ROUTES ====================
 
+    // ==================== TEACHER ASSIGNMENT ROUTES ====================
+
+    // Create teacher class/subject assignment (Admin only)
+    app.post('/api/teacher-assignments', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { teacherId, classId, subjectId, termId } = req.body;
+
+        if (!teacherId || !classId || !subjectId) {
+          return res.status(400).json({ message: "teacherId, classId, and subjectId are required" });
+        }
+
+        // Check if teacher exists and has teacher role
+        const teacher = await storage.getUser(teacherId);
+        if (!teacher || teacher.roleId !== ROLES.TEACHER) {
+          return res.status(400).json({ message: "Invalid teacher ID" });
+        }
+
+        // Check if class exists
+        const classExists = await storage.getClass(classId);
+        if (!classExists) {
+          return res.status(400).json({ message: "Class not found" });
+        }
+
+        // Check if subject exists
+        const subjectExists = await storage.getSubject(subjectId);
+        if (!subjectExists) {
+          return res.status(400).json({ message: "Subject not found" });
+        }
+
+        const assignment = await storage.createTeacherClassAssignment({
+          teacherId,
+          classId,
+          subjectId,
+          termId: termId || null,
+          assignedBy: req.user!.id,
+          isActive: true
+        });
+
+        console.log(`✅ Admin ${req.user!.email} assigned teacher ${teacher.email} to class ${classExists.name} for subject ${subjectExists.name}`);
+
+        res.status(201).json(assignment);
+      } catch (error) {
+        console.error('Error creating teacher assignment:', error);
+        res.status(500).json({ message: "Failed to create teacher assignment" });
+      }
+    });
+
+    // Get teacher assignments (Admin gets all, Teacher gets own)
+    app.get('/api/teacher-assignments', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { teacherId } = req.query;
+
+        // Teachers can only view their own assignments
+        if (req.user!.roleId === ROLES.TEACHER) {
+          const assignments = await storage.getTeacherClassAssignments(req.user!.id);
+          
+          // Enrich with class and subject names
+          const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+            const classInfo = await storage.getClass(assignment.classId);
+            const subjectInfo = await storage.getSubject(assignment.subjectId);
+            return {
+              ...assignment,
+              className: classInfo?.name,
+              subjectName: subjectInfo?.name
+            };
+          }));
+
+          return res.json(enrichedAssignments);
+        }
+
+        // Only admins and super admins can view assignments for other teachers
+        if (req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.SUPER_ADMIN) {
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+
+        // Admins can view all or filter by teacherId
+        if (teacherId) {
+          const assignments = await storage.getTeacherClassAssignments(teacherId as string);
+          
+          const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+            const classInfo = await storage.getClass(assignment.classId);
+            const subjectInfo = await storage.getSubject(assignment.subjectId);
+            const teacher = await storage.getUser(assignment.teacherId);
+            return {
+              ...assignment,
+              className: classInfo?.name,
+              subjectName: subjectInfo?.name,
+              teacherName: `${teacher?.firstName} ${teacher?.lastName}`
+            };
+          }));
+
+          return res.json(enrichedAssignments);
+        }
+
+        // Get all assignments (Admin only)
+        // Note: This could be large, consider pagination in future
+        res.json({ message: "Please specify teacherId parameter" });
+      } catch (error) {
+        console.error('Error fetching teacher assignments:', error);
+        res.status(500).json({ message: "Failed to fetch teacher assignments" });
+      }
+    });
+
+    // Get all teachers assigned to a specific class and subject
+    app.get('/api/classes/:classId/subjects/:subjectId/teachers', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { classId, subjectId } = req.params;
+        
+        const teachers = await storage.getTeachersForClassSubject(Number(classId), Number(subjectId));
+        
+        const sanitizedTeachers = teachers.map(teacher => {
+          const { passwordHash, ...safeTeacher } = teacher;
+          return safeTeacher;
+        });
+
+        res.json(sanitizedTeachers);
+      } catch (error) {
+        console.error('Error fetching teachers for class/subject:', error);
+        res.status(500).json({ message: "Failed to fetch teachers" });
+      }
+    });
+
+    // Get all classes and subjects assigned to a specific teacher
+    app.get('/api/teachers/:teacherId/assignments', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { teacherId } = req.params;
+
+        // Teachers can only view their own assignments
+        if (req.user!.roleId === ROLES.TEACHER && req.user!.id !== teacherId) {
+          return res.status(403).json({ message: "You can only view your own assignments" });
+        }
+
+        const assignments = await storage.getTeacherClassAssignments(teacherId);
+        
+        // Group assignments by class
+        const groupedByClass: any = {};
+        
+        for (const assignment of assignments) {
+          const classInfo = await storage.getClass(assignment.classId);
+          const subjectInfo = await storage.getSubject(assignment.subjectId);
+          
+          if (!groupedByClass[assignment.classId]) {
+            groupedByClass[assignment.classId] = {
+              classId: assignment.classId,
+              className: classInfo?.name,
+              subjects: []
+            };
+          }
+          
+          groupedByClass[assignment.classId].subjects.push({
+            assignmentId: assignment.id,
+            subjectId: assignment.subjectId,
+            subjectName: subjectInfo?.name,
+            termId: assignment.termId,
+            isActive: assignment.isActive
+          });
+        }
+
+        res.json(Object.values(groupedByClass));
+      } catch (error) {
+        console.error('Error fetching teacher assignments:', error);
+        res.status(500).json({ message: "Failed to fetch teacher assignments" });
+      }
+    });
+
+    // Update teacher assignment (Admin only)
+    app.put('/api/teacher-assignments/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        const updatedAssignment = await storage.updateTeacherClassAssignment(Number(id), updateData);
+
+        if (!updatedAssignment) {
+          return res.status(404).json({ message: "Assignment not found" });
+        }
+
+        console.log(`✅ Admin ${req.user!.email} updated teacher assignment ${id}`);
+
+        res.json(updatedAssignment);
+      } catch (error) {
+        console.error('Error updating teacher assignment:', error);
+        res.status(500).json({ message: "Failed to update teacher assignment" });
+      }
+    });
+
+    // Delete teacher assignment (Admin only)
+    app.delete('/api/teacher-assignments/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+
+        const success = await storage.deleteTeacherClassAssignment(Number(id));
+
+        if (!success) {
+          return res.status(404).json({ message: "Assignment not found" });
+        }
+
+        console.log(`✅ Admin ${req.user!.email} deleted teacher assignment ${id}`);
+
+        res.json({ message: "Teacher assignment deleted successfully" });
+      } catch (error) {
+        console.error('Error deleting teacher assignment:', error);
+        res.status(500).json({ message: "Failed to delete teacher assignment" });
+      }
+    });
+
+    // ==================== END TEACHER ASSIGNMENT ROUTES ====================
+
     // ==================== END MODULE 1 ROUTES ====================
 
     // Catch-all for non-API routes - redirect to frontend (PRODUCTION ONLY)

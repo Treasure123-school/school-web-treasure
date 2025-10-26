@@ -572,6 +572,7 @@ export const teacherClassAssignments = pgTable("teacher_class_assignments", {
   classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
   subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
   termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+  assignedBy: uuid("assigned_by").references(() => users.id, { onDelete: 'set null' }),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({

@@ -43,6 +43,13 @@
       "when": 1760759447226,
       "tag": "0005_romantic_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1761455711955,
+      "tag": "0006_familiar_logan",
+      "breakpoints": true
     }
   ]
 }
