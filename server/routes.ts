@@ -5488,6 +5488,53 @@ Treasure-Home School Administration
 
     // ==================== STUDENT PROFILE ROUTES ====================
 
+    // Get all students with enriched user data
+    app.get('/api/students', authenticateUser, async (req, res) => {
+      try {
+        // Fetch all students from database
+        const allStudents = await storage.getAllStudents(false); // false = only active students
+        
+        // Enrich with user data
+        const enrichedStudents = await Promise.all(
+          allStudents.map(async (student: any) => {
+            const user = await storage.getUser(student.id);
+            const classInfo = student.classId ? await storage.getClass(student.classId) : null;
+            const parentUser = student.parentId ? await storage.getUser(student.parentId) : null;
+            
+            return {
+              ...student,
+              user: user ? {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                phone: user.phone,
+                gender: user.gender,
+                dateOfBirth: user.dateOfBirth,
+                profileImageUrl: user.profileImageUrl,
+                isActive: user.isActive,
+                status: user.status
+              } : null,
+              class: classInfo,
+              parent: parentUser ? {
+                id: parentUser.id,
+                firstName: parentUser.firstName,
+                lastName: parentUser.lastName,
+                email: parentUser.email,
+                phone: parentUser.phone
+              } : null
+            };
+          })
+        );
+        
+        res.json(enrichedStudents);
+      } catch (error: any) {
+        console.error('Error fetching students:', error);
+        res.status(500).json({ message: 'Failed to fetch students' });
+      }
+    });
+
     // Create a single student
     app.post('/api/students', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
       try {
