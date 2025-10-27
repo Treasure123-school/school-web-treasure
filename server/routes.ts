@@ -5517,7 +5517,7 @@ Treasure-Home School Administration
             profileImageUrl: validatedData.profileImageUrl || null,
             isActive: true,
             status: 'active',
-            createdVia: 'manual',
+            createdVia: 'admin',
             createdBy: adminUserId,
             mustChangePassword: true
           }).returning();
@@ -5573,7 +5573,7 @@ Treasure-Home School Administration
                 phone: validatedData.parentPhone,
                 isActive: true,
                 status: 'active',
-                createdVia: 'auto',
+                createdVia: 'admin',
                 createdBy: adminUserId,
                 mustChangePassword: true
               }).returning();
