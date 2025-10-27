@@ -5621,17 +5621,20 @@ Treasure-Home School Administration
         
         res.status(201).json({
           message: 'Student created successfully',
-          student: {
-            id: result.studentUser.id,
-            username: result.studentCredentials.username,
-            email: result.studentCredentials.email,
-            password: result.studentCredentials.password,
-            firstName: result.studentUser.firstName,
-            lastName: result.studentUser.lastName,
-            admissionNumber: result.student.admissionNumber,
-            classId: result.student.classId
+          credentials: {
+            student: {
+              id: result.studentUser.id,
+              username: result.studentCredentials.username,
+              email: result.studentCredentials.email,
+              password: result.studentCredentials.password,
+              firstName: result.studentUser.firstName,
+              lastName: result.studentUser.lastName,
+              admissionNumber: result.student.admissionNumber,
+              classId: result.student.classId
+            },
+            parent: result.parentCredentials
           },
-          parent: result.parentCredentials
+          parentCreated: result.parentCredentials !== null
         });
       } catch (error: any) {
         console.error('Error creating student:', error);
