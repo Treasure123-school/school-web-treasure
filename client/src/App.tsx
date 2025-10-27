@@ -73,6 +73,7 @@ import AdminRecoveryTools from "@/pages/portal/AdminRecoveryTools";
 import AcademicTermsManagement from "@/pages/portal/AcademicTermsManagement";
 import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerification";
 import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
+import CreateExam from "@/pages/portal/CreateExam";
 
 function Router() {
   return (
@@ -320,7 +321,7 @@ function Router() {
       </Route>
       <Route path="/portal/teacher/exams/create">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <ExamManagement />
+          <CreateExam />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/exams/manage">
