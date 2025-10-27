@@ -5488,6 +5488,167 @@ Treasure-Home School Administration
 
     // ==================== STUDENT PROFILE ROUTES ====================
 
+    // Create a single student
+    app.post('/api/students', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+      try {
+        const validatedData = createStudentSchema.parse(req.body);
+        const adminUserId = req.user!.id;
+        const year = new Date().getFullYear();
+        
+        const result = await db.transaction(async (tx: any) => {
+          // Generate student credentials
+          const studentUsername = await generateStudentUsername();
+          const studentPassword = generateStudentPassword();
+          const passwordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
+          const studentEmail = `${studentUsername}@ths.edu`;
+          
+          // Create student user account
+          const [studentUser] = await tx.insert(schema.users).values({
+            username: studentUsername,
+            email: studentEmail,
+            passwordHash,
+            roleId: ROLES.STUDENT,
+            firstName: validatedData.firstName,
+            lastName: validatedData.lastName,
+            phone: validatedData.phone || null,
+            address: validatedData.address || null,
+            dateOfBirth: validatedData.dateOfBirth,
+            gender: validatedData.gender,
+            profileImageUrl: validatedData.profileImageUrl || null,
+            isActive: true,
+            status: 'active',
+            createdVia: 'manual',
+            createdBy: adminUserId,
+            mustChangePassword: true
+          }).returning();
+          
+          // Generate admission number
+          const admissionNumber = `THS/${year}/${String(Date.now()).slice(-6)}`;
+          
+          // Create student record
+          const [student] = await tx.insert(schema.students).values({
+            id: studentUser.id,
+            admissionNumber,
+            classId: validatedData.classId,
+            admissionDate: validatedData.admissionDate,
+            emergencyContact: validatedData.emergencyContact || null,
+            medicalInfo: validatedData.medicalInfo || null,
+            parentId: validatedData.parentId || null
+          }).returning();
+          
+          // Handle parent linking/creation if parentPhone provided
+          let parentCredentials: any = null;
+          
+          if (validatedData.parentPhone && !validatedData.parentId) {
+            // Check if parent exists by phone
+            const existingParent = await tx.select()
+              .from(schema.users)
+              .where(and(
+                eq(schema.users.phone, validatedData.parentPhone),
+                eq(schema.users.roleId, ROLES.PARENT)
+              ))
+              .limit(1);
+            
+            if (existingParent.length > 0) {
+              // Link to existing parent
+              await tx.update(schema.students)
+                .set({ parentId: existingParent[0].id })
+                .where(eq(schema.students.id, studentUser.id));
+              
+              student.parentId = existingParent[0].id;
+            } else {
+              // Create new parent account
+              const parentUsername = await generateParentUsername();
+              const parentPassword = generatePassword();
+              const parentHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
+              const parentEmail = `${parentUsername}@ths.edu`;
+              
+              const [parentUser] = await tx.insert(schema.users).values({
+                username: parentUsername,
+                email: parentEmail,
+                passwordHash: parentHash,
+                roleId: ROLES.PARENT,
+                firstName: validatedData.guardianName || `Parent of ${validatedData.firstName}`,
+                lastName: validatedData.lastName,
+                phone: validatedData.parentPhone,
+                isActive: true,
+                status: 'active',
+                createdVia: 'auto',
+                createdBy: adminUserId,
+                mustChangePassword: true
+              }).returning();
+              
+              // Link student to new parent
+              await tx.update(schema.students)
+                .set({ parentId: parentUser.id })
+                .where(eq(schema.students.id, studentUser.id));
+              
+              student.parentId = parentUser.id;
+              parentCredentials = {
+                username: parentUsername,
+                password: parentPassword,
+                email: parentEmail
+              };
+            }
+          }
+          
+          return {
+            student,
+            studentUser,
+            studentCredentials: {
+              username: studentUsername,
+              password: studentPassword,
+              email: studentEmail
+            },
+            parentCredentials
+          };
+        });
+        
+        // Log audit event
+        await storage.createAuditLog({
+          userId: adminUserId,
+          action: 'create_student',
+          entityType: 'student',
+          entityId: BigInt(0),
+          newValue: JSON.stringify({ 
+            studentId: result.studentUser.id, 
+            username: result.studentCredentials.username 
+          }),
+          reason: `Created student ${result.studentUser.firstName} ${result.studentUser.lastName}`,
+          ipAddress: req.ip || 'unknown',
+          userAgent: req.headers['user-agent'] || null
+        });
+        
+        res.status(201).json({
+          message: 'Student created successfully',
+          student: {
+            id: result.studentUser.id,
+            username: result.studentCredentials.username,
+            email: result.studentCredentials.email,
+            password: result.studentCredentials.password,
+            firstName: result.studentUser.firstName,
+            lastName: result.studentUser.lastName,
+            admissionNumber: result.student.admissionNumber,
+            classId: result.student.classId
+          },
+          parent: result.parentCredentials
+        });
+      } catch (error: any) {
+        console.error('Error creating student:', error);
+        
+        if (error instanceof ZodError) {
+          return res.status(400).json({ 
+            message: 'Validation error', 
+            errors: error.errors 
+          });
+        }
+        
+        res.status(500).json({ 
+          message: error.message || 'Failed to create student' 
+        });
+      }
+    });
+
     // Get student profile by ID
     app.get('/api/students/:id', authenticateUser, async (req, res) => {
       try {
