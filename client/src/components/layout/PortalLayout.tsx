@@ -89,8 +89,19 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           ...baseNav,
           { name: 'My Classes', href: `/portal/${userRole}/classes`, icon: Users },
           { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
-          { name: 'Grades & Exams', href: `/portal/${userRole}/grades`, icon: BookOpen },
-          { name: 'Grading Queue', href: `/portal/${userRole}/grading-queue`, icon: ClipboardCheck },
+          { 
+            type: 'group',
+            label: 'Exam Management',
+            icon: ClipboardList,
+            isOpen: isExamMenuOpen,
+            setIsOpen: setIsExamMenuOpen,
+            items: [
+              { href: '/portal/teacher/exams', icon: PenTool, label: 'Create & Manage Exams' },
+              { href: '/portal/teacher/grading-queue', icon: CheckSquare, label: 'Grading Queue' },
+              { href: '/portal/teacher/exam-analytics', icon: Award, label: 'Exam Analytics' },
+            ]
+          },
+          { name: 'Grades & Results', href: `/portal/${userRole}/grades`, icon: BookOpen },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
           { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },
@@ -114,7 +125,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             isOpen: isExamMenuOpen,
             setIsOpen: setIsExamMenuOpen,
             items: [
-              { href: '/portal/admin/exams', icon: PenTool, label: 'Exam Management' },
+              { href: '/portal/admin/exams', icon: Eye, label: 'View Exams (Read-Only)' },
               { href: '/portal/exam-sessions', icon: Clock, label: 'Active Sessions' },
               { href: '/portal/exam-reports', icon: Award, label: 'Exam Reports' },
             ]

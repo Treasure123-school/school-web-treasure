@@ -38,7 +38,7 @@ export default function AdminExamOverview() {
     queryKey: ['/api/subjects'],
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['/api/users'],
   });
 
