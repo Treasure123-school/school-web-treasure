@@ -4,7 +4,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
-import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, InsertStudentAnswer } from "@shared/schema";
+import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, InsertStudentAnswer, users, students } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { log } from "./vite";
 import multer from "multer";
@@ -5503,7 +5503,7 @@ Treasure-Home School Administration
           const studentEmail = `${studentUsername}@ths.edu`;
           
           // Create student user account
-          const [studentUser] = await tx.insert(schema.users).values({
+          const [studentUser] = await tx.insert(users).values({
             username: studentUsername,
             email: studentEmail,
             passwordHash,
@@ -5526,7 +5526,7 @@ Treasure-Home School Administration
           const admissionNumber = `THS/${year}/${String(Date.now()).slice(-6)}`;
           
           // Create student record
-          const [student] = await tx.insert(schema.students).values({
+          const [student] = await tx.insert(students).values({
             id: studentUser.id,
             admissionNumber,
             classId: validatedData.classId,
@@ -5542,18 +5542,18 @@ Treasure-Home School Administration
           if (validatedData.parentPhone && !validatedData.parentId) {
             // Check if parent exists by phone
             const existingParent = await tx.select()
-              .from(schema.users)
+              .from(users)
               .where(and(
-                eq(schema.users.phone, validatedData.parentPhone),
-                eq(schema.users.roleId, ROLES.PARENT)
+                eq(users.phone, validatedData.parentPhone),
+                eq(users.roleId, ROLES.PARENT)
               ))
               .limit(1);
             
             if (existingParent.length > 0) {
               // Link to existing parent
-              await tx.update(schema.students)
+              await tx.update(students)
                 .set({ parentId: existingParent[0].id })
-                .where(eq(schema.students.id, studentUser.id));
+                .where(eq(students.id, studentUser.id));
               
               student.parentId = existingParent[0].id;
             } else {
@@ -5563,7 +5563,7 @@ Treasure-Home School Administration
               const parentHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
               const parentEmail = `${parentUsername}@ths.edu`;
               
-              const [parentUser] = await tx.insert(schema.users).values({
+              const [parentUser] = await tx.insert(users).values({
                 username: parentUsername,
                 email: parentEmail,
                 passwordHash: parentHash,
@@ -5579,9 +5579,9 @@ Treasure-Home School Administration
               }).returning();
               
               // Link student to new parent
-              await tx.update(schema.students)
+              await tx.update(students)
                 .set({ parentId: parentUser.id })
-                .where(eq(schema.students.id, studentUser.id));
+                .where(eq(students.id, studentUser.id));
               
               student.parentId = parentUser.id;
               parentCredentials = {
