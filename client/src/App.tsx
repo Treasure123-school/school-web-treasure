@@ -58,6 +58,7 @@ import TeacherGradingQueue from "@/pages/portal/TeacherGradingQueue";
 import TeacherClassResults from "@/pages/portal/TeacherClassResults";
 import TeacherExamResults from "@/pages/portal/TeacherExamResults";
 import ExamManagement from "@/pages/portal/ExamManagement";
+import AdminExamOverview from "@/pages/portal/AdminExamOverview";
 import HomepageManagement from "@/pages/portal/HomepageManagement";
 import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
 import ExamSessions from "@/pages/portal/ExamSessions";
@@ -316,6 +317,16 @@ function Router() {
           <TeacherExamResults />
         </ProtectedRoute>
       </Route>
+      <Route path="/portal/teacher/exams/create">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <ExamManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/exams/manage">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <ExamManagement />
+        </ProtectedRoute>
+      </Route>
       <Route path="/portal/teacher/exams">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <ExamManagement />
@@ -323,7 +334,7 @@ function Router() {
       </Route>
       <Route path="/portal/admin/exams">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <ExamManagement />
+          <AdminExamOverview />
         </ProtectedRoute>
       </Route>
       {/* Admin does NOT have grading queue - that's teacher-only */}

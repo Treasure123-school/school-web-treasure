@@ -1027,8 +1027,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create exam
-  app.post('/api/exams', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Create exam - TEACHERS ONLY
+  app.post('/api/exams', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examData = insertExamSchema.parse({
         ...req.body,
@@ -1063,16 +1063,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update exam
-  app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Update exam - TEACHERS ONLY
+  app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
-      const exam = await storage.updateExam(examId, req.body);
-
-      if (!exam) {
+      
+      const existingExam = await storage.getExamById(examId);
+      if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-
+      
+      if (existingExam.createdBy !== req.user!.id) {
+        return res.status(403).json({ message: 'You can only edit exams you created' });
+      }
+      
+      const exam = await storage.updateExam(examId, req.body);
       res.json(exam);
     } catch (error) {
       console.error('Error updating exam:', error);
@@ -1080,16 +1085,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete exam
-  app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Delete exam - TEACHERS ONLY
+  app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
-      const success = await storage.deleteExam(examId);
-
-      if (!success) {
+      
+      const existingExam = await storage.getExamById(examId);
+      if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-
+      
+      if (existingExam.createdBy !== req.user!.id) {
+        return res.status(403).json({ message: 'You can only delete exams you created' });
+      }
+      
+      const success = await storage.deleteExam(examId);
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting exam:', error);
@@ -1097,18 +1107,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Toggle exam publish status
-  app.patch('/api/exams/:id/publish', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Toggle exam publish status - TEACHERS ONLY
+  app.patch('/api/exams/:id/publish', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
       const { isPublished } = req.body;
 
-      const exam = await storage.updateExam(examId, { isPublished });
-
-      if (!exam) {
+      const existingExam = await storage.getExamById(examId);
+      if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
+      
+      if (existingExam.createdBy !== req.user!.id) {
+        return res.status(403).json({ message: 'You can only publish/unpublish exams you created' });
+      }
 
+      const exam = await storage.updateExam(examId, { isPublished });
       res.json(exam);
     } catch (error) {
       console.error('Error updating exam publish status:', error);
@@ -1249,8 +1263,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create exam question
-  app.post('/api/exam-questions', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Create exam question - TEACHERS ONLY
+  app.post('/api/exam-questions', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const { options, ...questionData } = req.body;
 
@@ -1267,8 +1281,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update exam question
-  app.patch('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Update exam question - TEACHERS ONLY
+  app.patch('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
       const question = await storage.updateExamQuestion(questionId, req.body);
@@ -1284,8 +1298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete exam question
-  app.delete('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Delete exam question - TEACHERS ONLY
+  app.delete('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
       const success = await storage.deleteExamQuestion(questionId);
@@ -1313,8 +1327,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk upload exam questions from CSV
-  app.post('/api/exam-questions/bulk', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  // Bulk upload exam questions from CSV - TEACHERS ONLY
+  app.post('/api/exam-questions/bulk', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const { examId, questions } = req.body;
 
