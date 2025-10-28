@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Search, Megaphone, Calendar, Users, Trash2 } from 'lucide-react';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 
 const announcementFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -48,6 +49,12 @@ export default function AnnouncementsManagement() {
       const response = await apiRequest('GET', '/api/announcements');
       return await response.json();
     },
+  });
+
+  // Enable real-time updates for announcements
+  useSupabaseRealtime({ 
+    table: 'announcements', 
+    queryKey: ['/api/announcements']
   });
 
   // Fetch users for author selection

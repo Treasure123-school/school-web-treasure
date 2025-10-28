@@ -31,6 +31,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -120,6 +121,12 @@ export default function UserManagement() {
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: true, // Refresh when user returns to tab
     refetchOnMount: true, // Fetch on component mount
+  });
+
+  // Enable real-time updates for users
+  useSupabaseRealtime({ 
+    table: 'users', 
+    queryKey: ['/api/users']
   });
 
   // Fetch pending users for count with BALANCED refresh settings

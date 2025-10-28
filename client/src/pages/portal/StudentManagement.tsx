@@ -17,6 +17,7 @@ import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
 import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle, AlertCircle } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 
 // Use shared schema to prevent frontend/backend drift
 type StudentForm = CreateStudentRequest;
@@ -55,6 +56,12 @@ export default function StudentManagement() {
       const response = await apiRequest('GET', '/api/students');
       return await response.json();
     },
+  });
+
+  // Enable real-time updates for students
+  useSupabaseRealtime({ 
+    table: 'students', 
+    queryKey: ['/api/students']
   });
 
   // Fetch classes

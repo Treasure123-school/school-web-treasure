@@ -11,6 +11,7 @@ import { Calendar, Check, X, Clock, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 
 type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 
@@ -64,6 +65,13 @@ export default function AttendanceManagement() {
       return await response.json();
     },
     enabled: !!selectedClass && !!selectedDate,
+  });
+
+  // Enable real-time updates for attendance
+  useSupabaseRealtime({ 
+    table: 'attendance', 
+    queryKey: ['/api/attendance', selectedClass, selectedDate],
+    enabled: !!selectedClass && !!selectedDate
   });
 
   // Submit attendance mutation

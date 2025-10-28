@@ -46,6 +46,7 @@ Preferred communication style: Simple, everyday language.
 - **Status**: Backend complete and architect-approved. Ready for frontend implementation.
 
 ### System Enhancements
+- **Real-time Synchronization (October 28, 2025)**: Implemented Supabase Realtime integration for instant data synchronization across all connected clients. All CRUD operations (create, update, delete) now reflect immediately on all user devices without requiring page reloads. Implementation uses a custom `useSupabaseRealtime` hook that listens to database changes and automatically invalidates React Query cache, optimized for 300-500 concurrent users using Supabase's free tier. Real-time updates are integrated into key pages: Student Management, User Management, Announcements, Attendance, and Exams. **Configuration Required**: Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` environment variables to enable real-time functionality (see Environment Variables section below).
 - **Automatic Account Activation**: Removed manual approval requirement for new user accounts. All new users are now automatically activated with status set to 'active' upon registration, eliminating the need for admin approval. The PendingApprovals page and related approval endpoints have been removed from the system.
 - **Unified Login System**: Removed separate SuperAdminLogin page. All users (students, teachers, admins, parents, and super admins) now use the single unified login page at `/login`. The system automatically routes users to their appropriate portal based on their role after authentication.
 - **Automatic Roles Seeding**: Added automatic creation of all required roles (Super Admin, Admin, Teacher, Student, Parent) on server startup. All roles are created with appropriate permissions if they don't exist, ensuring admin creation always works.
@@ -111,3 +112,26 @@ Preferred communication style: Simple, everyday language.
 - **Schema Validation**: Zod.
 - **Query Client**: TanStack React Query.
 - **Date Handling**: `date-fns`.
+
+## Environment Variables
+
+### Required for Real-time Functionality
+To enable real-time synchronization across all connected clients, you need to configure the following environment variables:
+
+- **VITE_SUPABASE_URL**: Your Supabase project URL (e.g., `https://your-project.supabase.co`)
+  - This is the public URL for your Supabase project
+  - Used by the frontend to establish Realtime connections
+  
+- **VITE_SUPABASE_ANON_KEY**: Your Supabase anonymous/public API key
+  - This is a public key safe to use in the frontend
+  - Provides read access and enables Realtime subscriptions
+  - Note: This is NOT the service role key (which is kept private on the backend)
+
+These variables should already be set in your Replit environment if you've configured Supabase. If real-time updates are not working, check that both variables are set correctly in the Replit Secrets panel.
+
+### Backend Environment Variables
+- **DATABASE_URL**: PostgreSQL connection string (Supabase or Neon)
+- **JWT_SECRET**: Secret for JWT token signing
+- **SESSION_SECRET**: Secret for Express session encryption
+- **SUPABASE_URL**: Same as VITE_SUPABASE_URL but for backend use
+- **SUPABASE_SERVICE_KEY**: Service role key for backend operations (private, not exposed to frontend)
