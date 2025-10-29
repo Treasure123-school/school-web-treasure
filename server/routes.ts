@@ -5787,6 +5787,42 @@ Treasure-Home School Administration
       }
     });
 
+    // Delete student (soft delete - sets isActive to false)
+    app.delete('/api/students/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+      try {
+        const studentId = req.params.id;
+
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(studentId)) {
+          return res.status(400).json({ message: 'Invalid student ID format' });
+        }
+
+        // Check if student exists
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+
+        // Perform soft delete (sets isActive = false)
+        const deleted = await storage.deleteStudent(studentId);
+
+        if (!deleted) {
+          return res.status(500).json({ message: 'Failed to delete student' });
+        }
+
+        console.log(`✅ Student ${studentId} successfully deactivated by admin ${req.user!.email}`);
+        res.json({ 
+          success: true, 
+          message: 'Student deleted successfully',
+          studentId: studentId
+        });
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        res.status(500).json({ message: 'Failed to delete student' });
+      }
+    });
+
     // Get student profile status (check if profile is complete)
     app.get('/api/student/profile/status', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
       try {

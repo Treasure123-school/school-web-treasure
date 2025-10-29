@@ -31,6 +31,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
 
+### Bug Fixes
+**Student Deletion Not Working (October 29, 2025)**
+- **Issue**: DELETE requests for students returned 200 OK but students were not being removed from the system
+- **Root Cause**: Missing DELETE endpoint for `/api/students/:id` - requests were falling through to catch-all handler
+- **Fix**: Implemented DELETE endpoint with proper authorization (Admin/Super Admin only), UUID validation, existence checks, and soft deletion (sets `isActive = false`)
+- **Impact**: Students can now be properly deleted through the admin interface, preserving referential integrity for attendance, exams, and other related data
+
 ### Phase 1: Multi-Class & Multi-Subject Teacher Assignment System ✅ COMPLETED
 **Backend Implementation (October 26, 2025)**
 - **Database Schema**: Added `teacher_class_assignments` table with full audit trail support (migration 0017)
