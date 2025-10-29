@@ -7,6 +7,7 @@ import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { RealtimeHealthMonitor } from "@/components/RealtimeHealthMonitor";
 
 export default function SuperAdminDashboard() {
   const { user } = useAuth();
@@ -136,6 +137,9 @@ export default function SuperAdminDashboard() {
             </Card>
           ))}
         </div>
+
+        {/* Realtime Health Monitor */}
+        <RealtimeHealthMonitor />
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
