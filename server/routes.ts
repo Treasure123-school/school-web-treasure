@@ -1231,9 +1231,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let examIds: number[] = [];
 
       if (typeof examIdsParam === 'string') {
-        examIds = [parseInt(examIdsParam)];
+        const parsed = parseInt(examIdsParam);
+        if (!isNaN(parsed)) {
+          examIds = [parsed];
+        }
       } else if (Array.isArray(examIdsParam)) {
-        examIds = examIdsParam.map((id) => parseInt(id as string));
+        examIds = examIdsParam
+          .map((id) => parseInt(id as string))
+          .filter((id) => !isNaN(id));
       }
 
       const counts: Record<number, number> = {};
