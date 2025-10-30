@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { Briefcase, Plus, Edit, Trash2, CheckCircle, XCircle, FileText, Mail, Phone, Calendar, User, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -59,6 +60,16 @@ export default function VacancyManagement() {
     queryKey: ['/api/admin/applications'],
   });
 
+  useSupabaseRealtime({ 
+    table: 'job_vacancies', 
+    queryKey: ['/api/vacancies']
+  });
+  
+  useSupabaseRealtime({ 
+    table: 'teacher_applications', 
+    queryKey: ['/api/admin/applications']
+  });
+
   // Create vacancy mutation
   const createVacancyMutation = useMutation({
     mutationFn: async (data: VacancyFormData) => {
@@ -87,6 +98,20 @@ export default function VacancyManagement() {
     mutationFn: async (id: string) => {
       return apiRequest('PATCH', `/api/admin/vacancies/${id}/close`);
     },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/vacancies'] });
+      const previousData = queryClient.getQueryData(['/api/vacancies']);
+      
+      queryClient.setQueryData(['/api/vacancies'], (old: any) => {
+        if (!old) return old;
+        return old.map((vacancy: any) => 
+          vacancy.id === id ? { ...vacancy, status: 'closed' } : vacancy
+        );
+      });
+      
+      toast({ title: "Closing...", description: "Updating vacancy status" });
+      return { previousData };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/vacancies'] });
       toast({
@@ -94,7 +119,10 @@ export default function VacancyManagement() {
         description: 'Vacancy closed successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, id: string, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/vacancies'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message || 'Failed to close vacancy',
@@ -108,6 +136,23 @@ export default function VacancyManagement() {
     mutationFn: async ({ id, status }: { id: number; status: 'approved' | 'rejected' }) => {
       return apiRequest('PATCH', `/api/admin/applications/${id}/status`, { status });
     },
+    onMutate: async ({ id, status }: { id: number; status: 'approved' | 'rejected' }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/applications'] });
+      const previousData = queryClient.getQueryData(['/api/admin/applications']);
+      
+      queryClient.setQueryData(['/api/admin/applications'], (old: any) => {
+        if (!old) return old;
+        return old.map((app: any) => 
+          app.id === id ? { ...app, status } : app
+        );
+      });
+      
+      toast({ 
+        title: status === 'approved' ? "Approving..." : "Rejecting...", 
+        description: "Processing application" 
+      });
+      return { previousData };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/applications'] });
       setSelectedApplication(null);
@@ -116,7 +161,10 @@ export default function VacancyManagement() {
         description: 'Application updated successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables: any, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/admin/applications'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message || 'Failed to update application',
@@ -148,9 +196,9 @@ export default function VacancyManagement() {
     }
   };
 
-  const pendingApplications = applications.filter(app => app.applicationStatus === 'pending');
-  const approvedApplications = applications.filter(app => app.applicationStatus === 'approved');
-  const rejectedApplications = applications.filter(app => app.applicationStatus === 'rejected');
+  const pendingApplications = applications.filter(app => app.status === 'pending');
+  const approvedApplications = applications.filter(app => app.status === 'approved');
+  const rejectedApplications = applications.filter(app => app.status === 'rejected');
 
   if (!user) return null;
 
@@ -525,7 +573,7 @@ export default function VacancyManagement() {
                   >
                     Close
                   </Button>
-                  {selectedApplication.applicationStatus === 'pending' && (
+                  {selectedApplication.status === 'pending' && (
                     <>
                       <Button
                         className="bg-green-500 hover:bg-green-600"

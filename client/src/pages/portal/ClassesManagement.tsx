@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,6 +46,11 @@ export default function ClassesManagement() {
       const response = await apiRequest('GET', '/api/classes');
       return await response.json();
     },
+  });
+
+  useSupabaseRealtime({ 
+    table: 'classes', 
+    queryKey: ['/api/classes']
   });
 
   // Fetch teachers for dropdown
