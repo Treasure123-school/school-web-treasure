@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { optimisticUpdateItem, optimisticDelete, rollbackOnError } from '@/lib/optimisticUpdates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -187,7 +188,7 @@ export default function StudentManagement() {
     },
   });
 
-  // Block/Unblock student mutation
+  // Block/Unblock student mutation with optimistic update
   const blockStudentMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
       const response = await apiRequest('PATCH', `/api/students/${id}/block`, { isActive });
@@ -197,6 +198,29 @@ export default function StudentManagement() {
       }
       return await response.json();
     },
+    onMutate: async ({ id, isActive }) => {
+      const queryKey = ['/api/students'];
+      await queryClient.cancelQueries({ queryKey });
+      
+      const previousData = queryClient.getQueryData(queryKey);
+      
+      // Update the nested user.isActive field for proper UI feedback
+      queryClient.setQueryData(queryKey, (old: any) => {
+        if (!old || !Array.isArray(old)) return old;
+        return old.map((student: any) =>
+          student.id === id
+            ? { ...student, isActive, user: { ...student.user, isActive } }
+            : student
+        );
+      });
+      
+      toast({
+        title: isActive ? "Activating..." : "Blocking...",
+        description: "Updating student status",
+      });
+      
+      return { previousData };
+    },
     onSuccess: (data) => {
       toast({
         title: 'Success',
@@ -205,7 +229,10 @@ export default function StudentManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _, context) => {
+      if (context?.previousData) {
+        rollbackOnError(['/api/students'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message || 'Failed to update student status',
@@ -214,7 +241,7 @@ export default function StudentManagement() {
     },
   });
 
-  // Delete student mutation
+  // Delete student mutation with optimistic update
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/students/${id}`);
@@ -222,17 +249,38 @@ export default function StudentManagement() {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to delete student');
       }
-      return await response.json();
+      // Handle 204 No Content response - don't parse JSON
+      if (response.status === 204) return { message: 'Student deleted successfully' };
+      // Only parse JSON if there's content
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > 0) {
+        return response.json();
+      }
+      return { message: 'Student deleted successfully' };
+    },
+    onMutate: async (id) => {
+      const queryKey = ['/api/students'];
+      const context = await optimisticDelete({ queryKey, idToDelete: id, idField: 'id' });
+      
+      toast({
+        title: "Deleting...",
+        description: "Removing student from the system",
+      });
+      
+      return context;
     },
     onSuccess: (data) => {
       toast({
         title: 'Success',
-        description: data.message,
+        description: data?.message || 'Student deleted successfully',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _, context) => {
+      if (context?.previousData) {
+        rollbackOnError(['/api/students'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete student',
