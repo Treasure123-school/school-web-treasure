@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2 } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 
 const subjectFormSchema = z.object({
   name: z.string().min(1, 'Subject name is required'),
@@ -49,12 +50,29 @@ export default function SubjectsManagement() {
     },
   });
 
+  useSupabaseRealtime({ 
+    table: 'subjects', 
+    queryKey: ['/api/subjects']
+  });
+
   // Create subject mutation
   const createSubjectMutation = useMutation({
     mutationFn: async (subjectData: SubjectForm) => {
       const response = await apiRequest('POST', '/api/subjects', subjectData);
       if (!response.ok) throw new Error('Failed to create subject');
       return response.json();
+    },
+    onMutate: async (newSubject) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/subjects'] });
+      const previousSubjects = queryClient.getQueryData(['/api/subjects']);
+      
+      queryClient.setQueryData(['/api/subjects'], (old: any) => {
+        const tempSubject = { ...newSubject, id: 'temp-' + Date.now(), createdAt: new Date() };
+        if (!old) return [tempSubject];
+        return [tempSubject, ...old];
+      });
+      
+      return { previousSubjects };
     },
     onSuccess: () => {
       toast({
@@ -65,7 +83,10 @@ export default function SubjectsManagement() {
       setIsDialogOpen(false);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, newSubject, context: any) => {
+      if (context?.previousSubjects) {
+        queryClient.setQueryData(['/api/subjects'], context.previousSubjects);
+      }
       toast({
         title: "Error", 
         description: error.message || "Failed to create subject",
@@ -81,6 +102,19 @@ export default function SubjectsManagement() {
       if (!response.ok) throw new Error('Failed to update subject');
       return response.json();
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/subjects'] });
+      const previousSubjects = queryClient.getQueryData(['/api/subjects']);
+      
+      queryClient.setQueryData(['/api/subjects'], (old: any) => {
+        if (!old) return old;
+        return old.map((subject: any) => 
+          subject.id === id ? { ...subject, ...data } : subject
+        );
+      });
+      
+      return { previousSubjects };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -91,7 +125,10 @@ export default function SubjectsManagement() {
       setEditingSubject(null);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      if (context?.previousSubjects) {
+        queryClient.setQueryData(['/api/subjects'], context.previousSubjects);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update subject", 
@@ -107,6 +144,17 @@ export default function SubjectsManagement() {
       if (!response.ok) throw new Error('Failed to delete subject');
       return response.status === 204 ? null : response.json();
     },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/subjects'] });
+      const previousSubjects = queryClient.getQueryData(['/api/subjects']);
+      
+      queryClient.setQueryData(['/api/subjects'], (old: any) => {
+        if (!old) return old;
+        return old.filter((subject: any) => subject.id !== id);
+      });
+      
+      return { previousSubjects };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -115,7 +163,10 @@ export default function SubjectsManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/subjects'] });
       setSubjectToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, id: string, context: any) => {
+      if (context?.previousSubjects) {
+        queryClient.setQueryData(['/api/subjects'], context.previousSubjects);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete subject",

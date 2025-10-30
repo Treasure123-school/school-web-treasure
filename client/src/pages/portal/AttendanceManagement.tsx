@@ -95,6 +95,37 @@ export default function AttendanceManagement() {
         });
       }
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['/api/attendance', selectedClass, selectedDate] });
+      const previousAttendance = queryClient.getQueryData(['/api/attendance', selectedClass, selectedDate]);
+      
+      const records = Object.values(attendanceRecords);
+      queryClient.setQueryData(['/api/attendance', selectedClass, selectedDate], (old: any) => {
+        const existingRecords = old || [];
+        const newRecords = records.map(record => ({
+          ...record,
+          classId: parseInt(selectedClass),
+          termId: 1,
+          date: selectedDate,
+          recordedBy: '2',
+          id: 'temp-' + Date.now() + '-' + record.studentId
+        }));
+        
+        const updatedRecords = [...existingRecords];
+        newRecords.forEach(newRecord => {
+          const existingIndex = updatedRecords.findIndex((r: any) => r.studentId === newRecord.studentId);
+          if (existingIndex >= 0) {
+            updatedRecords[existingIndex] = { ...updatedRecords[existingIndex], ...newRecord };
+          } else {
+            updatedRecords.push(newRecord);
+          }
+        });
+        
+        return updatedRecords;
+      });
+      
+      return { previousAttendance };
+    },
     onSuccess: () => {
       toast({
         title: 'Success',
@@ -103,7 +134,10 @@ export default function AttendanceManagement() {
       setAttendanceRecords({});
       queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      if (context?.previousAttendance) {
+        queryClient.setQueryData(['/api/attendance', selectedClass, selectedDate], context.previousAttendance);
+      }
       toast({
         title: 'Error',
         description: 'Failed to record attendance',

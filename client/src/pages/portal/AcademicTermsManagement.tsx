@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Plus, Calendar, Edit, Trash2, CheckCircle } from 'lucide-react';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 
 export default function AcademicTermsManagement() {
   const { toast } = useToast();
@@ -47,6 +48,11 @@ export default function AcademicTermsManagement() {
     retryDelay: 1000,
   });
 
+  useSupabaseRealtime({ 
+    table: 'academic_terms', 
+    queryKey: ['/api/terms']
+  });
+
   const createTermMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest('POST', '/api/terms', data);
@@ -55,6 +61,18 @@ export default function AcademicTermsManagement() {
         throw new Error(errorText || 'Failed to create term');
       }
       return response.json();
+    },
+    onMutate: async (newTerm) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/terms'] });
+      const previousTerms = queryClient.getQueryData(['/api/terms']);
+      
+      queryClient.setQueryData(['/api/terms'], (old: any) => {
+        const tempTerm = { ...newTerm, id: 'temp-' + Date.now(), createdAt: new Date() };
+        if (!old) return [tempTerm];
+        return [tempTerm, ...old];
+      });
+      
+      return { previousTerms };
     },
     onSuccess: () => {
       toast({
@@ -67,7 +85,10 @@ export default function AcademicTermsManagement() {
       setFormData({ name: '', year: '', startDate: '', endDate: '', isCurrent: false });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (error: any, newTerm, context: any) => {
+      if (context?.previousTerms) {
+        queryClient.setQueryData(['/api/terms'], context.previousTerms);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to create term",
@@ -86,6 +107,19 @@ export default function AcademicTermsManagement() {
       }
       return response.json();
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/terms'] });
+      const previousTerms = queryClient.getQueryData(['/api/terms']);
+      
+      queryClient.setQueryData(['/api/terms'], (old: any) => {
+        if (!old) return old;
+        return old.map((term: any) => 
+          term.id === id ? { ...term, ...data } : term
+        );
+      });
+      
+      return { previousTerms };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -97,8 +131,11 @@ export default function AcademicTermsManagement() {
       setFormData({ name: '', year: '', startDate: '', endDate: '', isCurrent: false });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
       console.error('Update term error:', error);
+      if (context?.previousTerms) {
+        queryClient.setQueryData(['/api/terms'], context.previousTerms);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update term",
@@ -117,6 +154,17 @@ export default function AcademicTermsManagement() {
       }
       return response.json();
     },
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/terms'] });
+      const previousTerms = queryClient.getQueryData(['/api/terms']);
+      
+      queryClient.setQueryData(['/api/terms'], (old: any) => {
+        if (!old) return old;
+        return old.filter((term: any) => term.id !== id);
+      });
+      
+      return { previousTerms };
+    },
     onSuccess: (data) => {
       console.log('Delete success:', data);
       toast({
@@ -126,8 +174,11 @@ export default function AcademicTermsManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/terms'] });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (error: any, id: number, context: any) => {
       console.error('Delete term error:', error);
+      if (context?.previousTerms) {
+        queryClient.setQueryData(['/api/terms'], context.previousTerms);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete term",
@@ -145,6 +196,20 @@ export default function AcademicTermsManagement() {
       }
       return response.json();
     },
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/terms'] });
+      const previousTerms = queryClient.getQueryData(['/api/terms']);
+      
+      queryClient.setQueryData(['/api/terms'], (old: any) => {
+        if (!old) return old;
+        return old.map((term: any) => ({
+          ...term,
+          isCurrent: term.id === id
+        }));
+      });
+      
+      return { previousTerms };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -153,7 +218,10 @@ export default function AcademicTermsManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/terms'] });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (error: any, id: number, context: any) => {
+      if (context?.previousTerms) {
+        queryClient.setQueryData(['/api/terms'], context.previousTerms);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to mark term as current",

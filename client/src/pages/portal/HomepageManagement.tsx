@@ -129,6 +129,19 @@ export default function HomepageManagement() {
 
       return response.json();
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/homepage-content'] });
+      const previousContent = queryClient.getQueryData(['/api/homepage-content']);
+      
+      queryClient.setQueryData(['/api/homepage-content'], (old: any) => {
+        if (!old) return old;
+        return old.map((item: any) => 
+          item.id === id ? { ...item, ...data } : item
+        );
+      });
+      
+      return { previousContent };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/homepage-content'] });
       toast({
@@ -137,7 +150,10 @@ export default function HomepageManagement() {
       });
       setEditingItem(null);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context: any) => {
+      if (context?.previousContent) {
+        queryClient.setQueryData(['/api/homepage-content'], context.previousContent);
+      }
       toast({
         title: "Update failed",
         description: error.message,
@@ -176,6 +192,17 @@ export default function HomepageManagement() {
 
       return response.json();
     },
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/homepage-content'] });
+      const previousContent = queryClient.getQueryData(['/api/homepage-content']);
+      
+      queryClient.setQueryData(['/api/homepage-content'], (old: any) => {
+        if (!old) return old;
+        return old.filter((item: any) => item.id !== id);
+      });
+      
+      return { previousContent };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/homepage-content'] });
       toast({
@@ -183,7 +210,10 @@ export default function HomepageManagement() {
         description: "Home page content deleted successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, id: number, context: any) => {
+      if (context?.previousContent) {
+        queryClient.setQueryData(['/api/homepage-content'], context.previousContent);
+      }
       toast({
         title: "Delete failed",
         description: error.message,
