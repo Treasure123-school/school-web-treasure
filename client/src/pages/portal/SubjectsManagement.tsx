@@ -35,7 +35,16 @@ export default function SubjectsManagement() {
 
   const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
   const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
-  const userRole = (user?.role?.name?.toLowerCase() || 'admin') as 'admin' | 'teacher' | 'student' | 'parent';
+  const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
+    const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
+      1: 'admin',
+      2: 'teacher',
+      3: 'student',
+      4: 'parent'
+    };
+    return roleMap[roleId] || 'admin';
+  };
+  const userRole = user ? getRoleName(user.roleId) : 'admin';
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<SubjectForm>({
     resolver: zodResolver(subjectFormSchema),

@@ -89,6 +89,18 @@ export default function TeachersManagement() {
       }
       return response.json();
     },
+    onMutate: async (newTeacher) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/users', 'Teacher'] });
+      const previousData = queryClient.getQueryData(['/api/users', 'Teacher']);
+      
+      queryClient.setQueryData(['/api/users', 'Teacher'], (old: any) => {
+        const tempTeacher = { ...newTeacher, id: 'temp-' + Date.now(), createdAt: new Date(), role: { id: 2, name: 'Teacher' } };
+        if (!old) return [tempTeacher];
+        return [tempTeacher, ...old];
+      });
+      
+      return { previousData };
+    },
     onSuccess: (data) => {
       toast({
         title: "Success",
@@ -106,7 +118,10 @@ export default function TeachersManagement() {
         email: data.email || ''
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, newTeacher, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/users', 'Teacher'], context.previousData);
+      }
       toast({
         title: "Error", 
         description: error.message || "Failed to create teacher",

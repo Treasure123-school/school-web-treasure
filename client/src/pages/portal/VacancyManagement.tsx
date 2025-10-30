@@ -75,6 +75,18 @@ export default function VacancyManagement() {
     mutationFn: async (data: VacancyFormData) => {
       return apiRequest('POST', '/api/admin/vacancies', { ...data, status: 'open' });
     },
+    onMutate: async (newVacancy) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/vacancies'] });
+      const previousData = queryClient.getQueryData(['/api/vacancies']);
+      
+      queryClient.setQueryData(['/api/vacancies'], (old: any) => {
+        const tempVacancy = { ...newVacancy, id: 'temp-' + Date.now(), status: 'open', createdAt: new Date() };
+        if (!old) return [tempVacancy];
+        return [tempVacancy, ...old];
+      });
+      
+      return { previousData };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/vacancies'] });
       setIsCreateDialogOpen(false);
@@ -84,7 +96,10 @@ export default function VacancyManagement() {
         description: 'Vacancy created successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, newVacancy, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/vacancies'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message || 'Failed to create vacancy',
