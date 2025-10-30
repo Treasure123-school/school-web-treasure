@@ -1273,34 +1273,18 @@ export default function ExamManagement() {
                   </div>
                 </div>
 
-                {/* Exam Metadata Section */}
-                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                  <h4 className="font-medium text-sm">Exam Details & Rules</h4>
-
-                  <div>
-                    <Label htmlFor="name">Exam Name</Label>
-                    <Input 
-                      id="name" 
-                      {...registerExam('name')} 
-                      data-testid="input-exam-name"
-                      placeholder="e.g., Mid-term Mathematics Test"
-                    />
-                    {examErrors.name && <p className="text-sm text-red-500">{examErrors.name.message}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="instructions">Instructions & Rules</Label>
-                    <Textarea 
-                      id="instructions" 
-                      {...registerExam('instructions')} 
-                      data-testid="textarea-exam-instructions"
-                      placeholder="Enter exam instructions for students..."
-                      rows={3}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      These will be shown to students before they start the exam
-                    </p>
-                  </div>
+                <div>
+                  <Label htmlFor="instructions">Instructions</Label>
+                  <Textarea 
+                    id="instructions" 
+                    {...registerExam('instructions')} 
+                    data-testid="textarea-exam-instructions"
+                    placeholder="Enter exam instructions for students..."
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    These will be shown to students before they start the exam
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1485,17 +1469,6 @@ export default function ExamManagement() {
                     </div>
                   </div>
                 )}
-
-                <div>
-                  <Label htmlFor="instructions">Instructions</Label>
-                  <Textarea 
-                    id="instructions" 
-                    {...registerExam('instructions')} 
-                    data-testid="textarea-exam-instructions"
-                    placeholder="Enter exam instructions for students..."
-                    rows={3}
-                  />
-                </div>
 
                 {/* Publishing & Options Section */}
                 <div className="space-y-4 p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
