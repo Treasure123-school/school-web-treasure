@@ -276,15 +276,18 @@ export default function ExamManagement() {
       return response.json();
     },
     onMutate: async ({ examId, isPublished }) => {
-      const queryKey = ['/api/exams'];
-      const context = await optimisticUpdateItem<Exam[]>(queryKey, examId, { isPublished });
+      await queryClient.cancelQueries({ queryKey: ['/api/exams'] });
+      const previousExams = queryClient.getQueryData(['/api/exams']);
       
-      toast({
-        title: isPublished ? "Publishing..." : "Unpublishing...",
-        description: "Updating exam status",
+      // Optimistically update the exam's published status
+      queryClient.setQueryData(['/api/exams'], (old: any) => {
+        if (!old) return old;
+        return old.map((exam: any) => 
+          exam.id === examId ? { ...exam, isPublished } : exam
+        );
       });
       
-      return context;
+      return { previousExams };
     },
     onSuccess: (_, { isPublished }) => {
       toast({
@@ -293,9 +296,9 @@ export default function ExamManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
     },
-    onError: (error: any, _, context) => {
-      if (context?.previousData) {
-        rollbackOnError(['/api/exams'], context.previousData);
+    onError: (error: any, variables, context: any) => {
+      if (context?.previousExams) {
+        queryClient.setQueryData(['/api/exams'], context.previousExams);
       }
       toast({
         title: "Error",
