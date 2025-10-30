@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient, resetCircuitBreaker, getCircuitBreakerStatus } from '@/lib/queryClient';
+import { optimisticToggle, optimisticDelete, optimisticCreate, optimisticUpdateItem, rollbackOnError } from '@/lib/optimisticUpdates';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -267,21 +268,35 @@ export default function ExamManagement() {
     },
   });
 
-  // Publish/Unpublish exam mutation
+  // Publish/Unpublish exam mutation with optimistic update
   const togglePublishMutation = useMutation({
     mutationFn: async ({ examId, isPublished }: { examId: number; isPublished: boolean }) => {
       const response = await apiRequest('PATCH', `/api/exams/${examId}/publish`, { isPublished });
       if (!response.ok) throw new Error('Failed to update exam publish status');
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ examId, isPublished }) => {
+      const queryKey = ['/api/exams'];
+      const context = await optimisticUpdateItem<Exam[]>(queryKey, examId, { isPublished });
+      
+      toast({
+        title: isPublished ? "Publishing..." : "Unpublishing...",
+        description: "Updating exam status",
+      });
+      
+      return context;
+    },
+    onSuccess: (_, { isPublished }) => {
       toast({
         title: "Success",
-        description: "Exam publish status updated successfully",
+        description: `Exam ${isPublished ? 'published' : 'unpublished'} successfully`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, _, context) => {
+      if (context?.previousData) {
+        rollbackOnError(['/api/exams'], context.previousData);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update exam publish status",
@@ -290,37 +305,48 @@ export default function ExamManagement() {
     },
   });
 
-  // Delete exam mutation
+  // Delete exam mutation with optimistic update
   const deleteExamMutation = useMutation({
     mutationFn: async (examId: number) => {
       const response = await apiRequest('DELETE', `/api/exams/${examId}`);
       if (!response.ok) throw new Error('Failed to delete exam');
-      // Handle 204 No Content response - don't parse JSON
       if (response.status === 204) return;
-      // Only parse JSON if there's content
       const contentLength = response.headers.get('content-length');
       if (contentLength && parseInt(contentLength) > 0) {
         return response.json();
       }
       return;
     },
-    onSuccess: (_, examId) => {
-      toast({
-        title: "Success",
-        description: "Exam deleted successfully",
-      });
-      // Clear UI state if the deleted exam was selected
+    onMutate: async (examId) => {
+      const queryKey = ['/api/exams'];
+      const context = await optimisticDelete<Exam[]>({ queryKey, idToDelete: examId });
+      
       if (selectedExam?.id === examId) {
         setSelectedExam(null);
         setEditingExam(null);
         setEditingQuestion(null);
       }
-      // Invalidate queries broadly to ensure fresh data
+      
+      toast({
+        title: "Deleting...",
+        description: "Removing exam from the system",
+      });
+      
+      return context;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Exam deleted successfully",
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, _, context) => {
+      if (context?.previousData) {
+        rollbackOnError(['/api/exams'], context.previousData);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete exam",
@@ -329,30 +355,41 @@ export default function ExamManagement() {
     },
   });
 
-  // Delete question mutation
+  // Delete question mutation with optimistic update
   const deleteQuestionMutation = useMutation({
     mutationFn: async (questionId: number) => {
       const response = await apiRequest('DELETE', `/api/exam-questions/${questionId}`);
       if (!response.ok) throw new Error('Failed to delete question');
-      // Handle 204 No Content response - don't parse JSON
       if (response.status === 204) return;
-      // Only parse JSON if there's content
       const contentLength = response.headers.get('content-length');
       if (contentLength && parseInt(contentLength) > 0) {
         return response.json();
       }
       return;
     },
+    onMutate: async (questionId) => {
+      const queryKey = ['/api/exam-questions', selectedExam?.id];
+      const context = await optimisticDelete<ExamQuestion[]>({ queryKey, idToDelete: questionId });
+      
+      toast({
+        title: "Deleting...",
+        description: "Removing question",
+      });
+      
+      return context;
+    },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Question deleted successfully",
       });
-      // Invalidate queries broadly to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, _, context) => {
+      if (context?.previousData) {
+        rollbackOnError(['/api/exam-questions', selectedExam?.id], context.previousData);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete question",
