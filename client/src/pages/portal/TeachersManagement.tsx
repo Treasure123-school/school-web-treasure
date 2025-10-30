@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -65,6 +66,11 @@ export default function TeachersManagement() {
     },
   });
 
+  useSupabaseRealtime({ 
+    table: 'users', 
+    queryKey: ['/api/users', 'Teacher']
+  });
+
   // Create teacher mutation
   const createTeacherMutation = useMutation({
     mutationFn: async (teacherData: TeacherForm) => {
@@ -116,6 +122,20 @@ export default function TeachersManagement() {
       if (!response.ok) throw new Error('Failed to update teacher');
       return response.json();
     },
+    onMutate: async ({ id, data }: { id: string, data: Partial<TeacherForm> }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/users', 'Teacher'] });
+      const previousData = queryClient.getQueryData(['/api/users', 'Teacher']);
+      
+      queryClient.setQueryData(['/api/users', 'Teacher'], (old: any) => {
+        if (!old) return old;
+        return old.map((teacher: any) => 
+          teacher.id === id ? { ...teacher, ...data } : teacher
+        );
+      });
+      
+      toast({ title: "Updating...", description: "Saving teacher information" });
+      return { previousData };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -126,7 +146,10 @@ export default function TeachersManagement() {
       setEditingTeacher(null);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, variables: any, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/users', 'Teacher'], context.previousData);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update teacher", 
@@ -142,6 +165,18 @@ export default function TeachersManagement() {
       if (!response.ok) throw new Error('Failed to delete teacher');
       return response.status === 204 ? null : response.json();
     },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/users', 'Teacher'] });
+      const previousData = queryClient.getQueryData(['/api/users', 'Teacher']);
+      
+      queryClient.setQueryData(['/api/users', 'Teacher'], (old: any) => {
+        if (!old) return old;
+        return old.filter((teacher: any) => teacher.id !== id);
+      });
+      
+      toast({ title: "Deleting...", description: "Removing teacher from system" });
+      return { previousData };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -150,7 +185,10 @@ export default function TeachersManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setTeacherToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, id: string, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/users', 'Teacher'], context.previousData);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete teacher",
