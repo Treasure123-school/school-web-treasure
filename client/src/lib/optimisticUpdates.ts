@@ -139,3 +139,99 @@ export async function invalidateAndRefetch(queryKeys: QueryKey[]) {
     )
   );
 }
+
+export async function optimisticStatusChange<TData = any[]>(
+  queryKey: QueryKey,
+  id: number | string,
+  statusField: string,
+  newStatus: string | boolean,
+  idField: string = 'id'
+) {
+  await queryClient.cancelQueries({ queryKey });
+  const previousData = queryClient.getQueryData<TData>(queryKey);
+
+  if (previousData && Array.isArray(previousData)) {
+    const updatedData = previousData.map((item: any) =>
+      item[idField] === id ? { ...item, [statusField]: newStatus } : item
+    );
+    queryClient.setQueryData<TData>(queryKey, updatedData as TData);
+  }
+
+  return { previousData };
+}
+
+export async function optimisticPublishToggle<TData = any[]>(
+  queryKey: QueryKey,
+  id: number | string,
+  isPublished: boolean,
+  idField: string = 'id'
+) {
+  await queryClient.cancelQueries({ queryKey });
+  const previousData = queryClient.getQueryData<TData>(queryKey);
+
+  if (previousData && Array.isArray(previousData)) {
+    const updatedData = previousData.map((item: any) =>
+      item[idField] === id ? { ...item, isPublished } : item
+    );
+    queryClient.setQueryData<TData>(queryKey, updatedData as TData);
+  }
+
+  return { previousData };
+}
+
+export async function optimisticVerifyToggle<TData = any[]>(
+  queryKey: QueryKey,
+  id: number | string,
+  isVerified: boolean,
+  idField: string = 'id'
+) {
+  await queryClient.cancelQueries({ queryKey });
+  const previousData = queryClient.getQueryData<TData>(queryKey);
+
+  if (previousData && Array.isArray(previousData)) {
+    const updatedData = previousData.map((item: any) =>
+      item[idField] === id ? { ...item, isVerified } : item
+    );
+    queryClient.setQueryData<TData>(queryKey, updatedData as TData);
+  }
+
+  return { previousData };
+}
+
+export async function optimisticApprovalStatusChange<TData = any[]>(
+  queryKey: QueryKey,
+  id: number | string,
+  status: 'approved' | 'rejected' | 'pending',
+  idField: string = 'id'
+) {
+  await queryClient.cancelQueries({ queryKey });
+  const previousData = queryClient.getQueryData<TData>(queryKey);
+
+  if (previousData && Array.isArray(previousData)) {
+    const updatedData = previousData.map((item: any) =>
+      item[idField] === id ? { ...item, status } : item
+    );
+    queryClient.setQueryData<TData>(queryKey, updatedData as TData);
+  }
+
+  return { previousData };
+}
+
+export async function optimisticActiveToggle<TData = any[]>(
+  queryKey: QueryKey,
+  id: number | string,
+  isActive: boolean,
+  idField: string = 'id'
+) {
+  await queryClient.cancelQueries({ queryKey });
+  const previousData = queryClient.getQueryData<TData>(queryKey);
+
+  if (previousData && Array.isArray(previousData)) {
+    const updatedData = previousData.map((item: any) =>
+      item[idField] === id ? { ...item, isActive } : item
+    );
+    queryClient.setQueryData<TData>(queryKey, updatedData as TData);
+  }
+
+  return { previousData };
+}

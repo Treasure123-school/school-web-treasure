@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { CheckCircle, XCircle, Eye, Users, UserCheck, Clock, GraduationCap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -30,6 +31,16 @@ export default function TeacherProfileVerification() {
     enabled: !!user
   });
 
+  useSupabaseRealtime({ 
+    table: 'teacher_profiles', 
+    queryKey: ['/api/admin/teacher-profiles/pending']
+  });
+  
+  useSupabaseRealtime({ 
+    table: 'teacher_profiles', 
+    queryKey: ['/api/admin/teacher-profiles/verified']
+  });
+
   const verifyMutation = useMutation({
     mutationFn: async ({ userId, action }: { userId: string; action: 'approve' | 'reject' }) => {
       return apiRequest('/api/admin/teacher-profiles/verify', {
@@ -37,6 +48,38 @@ export default function TeacherProfileVerification() {
         body: JSON.stringify({ userId, action }),
         headers: { 'Content-Type': 'application/json' }
       });
+    },
+    onMutate: async ({ userId, action }: { userId: string; action: 'approve' | 'reject' }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/teacher-profiles/pending'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/teacher-profiles/verified'] });
+      
+      const previousPending = queryClient.getQueryData(['/api/admin/teacher-profiles/pending']);
+      const previousVerified = queryClient.getQueryData(['/api/admin/teacher-profiles/verified']);
+      
+      if (action === 'approve') {
+        const teacherToMove = (previousPending as any[])?.find((t: any) => t.teacher.id === userId);
+        
+        if (teacherToMove) {
+          queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: any) => 
+            old?.filter((t: any) => t.teacher.id !== userId)
+          );
+          
+          queryClient.setQueryData(['/api/admin/teacher-profiles/verified'], (old: any) => 
+            old ? [...old, { ...teacherToMove, profile: { ...teacherToMove.profile, verified: true } }] : [teacherToMove]
+          );
+        }
+      } else {
+        queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: any) => 
+          old?.filter((t: any) => t.teacher.id !== userId)
+        );
+      }
+      
+      toast({
+        title: action === 'approve' ? "Approving..." : "Rejecting...",
+        description: "Processing teacher profile",
+      });
+      
+      return { previousPending, previousVerified };
     },
     onSuccess: (_, variables) => {
       toast({
@@ -49,7 +92,13 @@ export default function TeacherProfileVerification() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/teacher-profiles/verified'] });
       setIsDetailsOpen(false);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables: any, context: any) => {
+      if (context?.previousPending) {
+        queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], context.previousPending);
+      }
+      if (context?.previousVerified) {
+        queryClient.setQueryData(['/api/admin/teacher-profiles/verified'], context.previousVerified);
+      }
       toast({
         title: "Action Failed",
         description: error.message,

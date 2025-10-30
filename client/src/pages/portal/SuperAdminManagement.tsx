@@ -38,6 +38,7 @@ import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2, MoreVertical, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -100,13 +101,42 @@ export default function SuperAdminManagement() {
     queryKey: ["/api/superadmin/admins"],
   });
 
+  useSupabaseRealtime({ 
+    table: 'users', 
+    queryKey: ["/api/superadmin/admins"]
+  });
+
   const suspendMutation = useMutation({
     mutationFn: async (userId: string) => {
       return apiRequest("POST", `/api/users/${userId}/suspend`, { reason: "Suspended by Super Admin" });
     },
+    onMutate: async (userId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/superadmin/admins"] });
+      const previousData = queryClient.getQueryData(["/api/superadmin/admins"]);
+      
+      queryClient.setQueryData(["/api/superadmin/admins"], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, status: 'suspended' } : user
+        );
+      });
+      
+      toast({ title: "Suspending...", description: "Updating admin status" });
+      return { previousData };
+    },
     onSuccess: () => {
       toast({ title: "Success", description: "Admin suspended successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/admins"] });
+    },
+    onError: (error: any, userId: string, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/superadmin/admins"], context.previousData);
+      }
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to suspend admin",
+        variant: "destructive",
+      });
     },
   });
 
@@ -114,9 +144,33 @@ export default function SuperAdminManagement() {
     mutationFn: async (userId: string) => {
       return apiRequest("POST", `/api/users/${userId}/unsuspend`, {});
     },
+    onMutate: async (userId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/superadmin/admins"] });
+      const previousData = queryClient.getQueryData(["/api/superadmin/admins"]);
+      
+      queryClient.setQueryData(["/api/superadmin/admins"], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId ? { ...user, status: 'active' } : user
+        );
+      });
+      
+      toast({ title: "Unsuspending...", description: "Updating admin status" });
+      return { previousData };
+    },
     onSuccess: () => {
       toast({ title: "Success", description: "Admin unsuspended successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/admins"] });
+    },
+    onError: (error: any, userId: string, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/superadmin/admins"], context.previousData);
+      }
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to unsuspend admin",
+        variant: "destructive",
+      });
     },
   });
 
@@ -203,6 +257,18 @@ export default function SuperAdminManagement() {
       }
       return response;
     },
+    onMutate: async (userId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/superadmin/admins"] });
+      const previousData = queryClient.getQueryData(["/api/superadmin/admins"]);
+      
+      queryClient.setQueryData(["/api/superadmin/admins"], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== userId);
+      });
+      
+      toast({ title: "Deleting...", description: "Removing admin account" });
+      return { previousData };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -212,7 +278,10 @@ export default function SuperAdminManagement() {
       setDeleteConfirmOpen(false);
       setUserToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: any, userId: string, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/superadmin/admins"], context.previousData);
+      }
       toast({
         title: "Error",
         description: error?.message || "Failed to delete user",
@@ -242,6 +311,20 @@ export default function SuperAdminManagement() {
       }
       return response.json();
     },
+    onMutate: async ({ id, data }: { id: string, data: EditAdminFormData }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/superadmin/admins"] });
+      const previousData = queryClient.getQueryData(["/api/superadmin/admins"]);
+      
+      queryClient.setQueryData(["/api/superadmin/admins"], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === id ? { ...user, firstName: data.firstName, lastName: data.lastName, email: data.email } : user
+        );
+      });
+      
+      toast({ title: "Updating...", description: "Saving admin information" });
+      return { previousData };
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -252,7 +335,10 @@ export default function SuperAdminManagement() {
       setEditingAdmin(null);
       editForm.reset();
     },
-    onError: (error: any) => {
+    onError: (error: any, variables: any, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/superadmin/admins"], context.previousData);
+      }
       toast({
         title: "Error",
         description: error?.message || "Failed to update admin",
