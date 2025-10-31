@@ -287,14 +287,32 @@ export default function ExamManagement() {
         );
       });
       
+      // INSTANT FEEDBACK: Show loading toast immediately
+      toast({
+        title: isPublished ? "Publishing..." : "Unpublishing...",
+        description: "Updating exam status",
+      });
+      
       return { previousExams };
     },
-    onSuccess: (_, { isPublished }) => {
+    onSuccess: (data, { isPublished }) => {
+      // Update cache with backend response to ensure consistency
+      queryClient.setQueryData(['/api/exams'], (old: any) => {
+        if (!old) return old;
+        return old.map((exam: any) => 
+          exam.id === data.id ? data : exam
+        );
+      });
+      
       toast({
         title: "Success",
         description: `Exam ${isPublished ? 'published' : 'unpublished'} successfully`,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+      
+      // Delay invalidation slightly to avoid race with realtime subscription
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+      }, 100);
     },
     onError: (error: any, variables, context: any) => {
       if (context?.previousExams) {
@@ -1931,7 +1949,10 @@ export default function ExamManagement() {
                             className="flex-1"
                           >
                             <Play className="w-4 h-4 mr-1" />
-                            {exam.isPublished ? 'Unpublish' : 'Publish'}
+                            {togglePublishMutation.isPending 
+                              ? (exam.isPublished ? 'Unpublishing...' : 'Publishing...') 
+                              : (exam.isPublished ? 'Unpublish' : 'Publish')
+                            }
                           </Button>
                           <Button
                             variant="outline"
@@ -2082,7 +2103,10 @@ export default function ExamManagement() {
                                 data-testid={`button-toggle-publish-${exam.id}`}
                               >
                                 <Play className="w-4 h-4 mr-1" />
-                                {exam.isPublished ? 'Unpublish' : 'Publish'}
+                                {togglePublishMutation.isPending 
+                                  ? (exam.isPublished ? 'Unpublishing...' : 'Publishing...') 
+                                  : (exam.isPublished ? 'Unpublish' : 'Publish')
+                                }
                               </Button>
                               <Button
                                 variant="outline"
