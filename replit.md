@@ -30,8 +30,14 @@ Preferred communication style: Simple, everyday language.
 - **Teacher Profile Onboarding**: Compulsory 3-step wizard with progress meter, auto-save, validation, and admin verification.
 - **Homepage Content Management System**: Admin portal for managing website images (hero, gallery) with upload, organization, and secure storage. Public endpoints for content access.
 - **Job Vacancy & Teacher Pre-Approval System**: Public job portal, teacher application workflow, admin management of vacancies and applications, and pre-approval security for Google OAuth access.
-- **Optimistic UI Updates**: Implemented across the application for instant user feedback on all actions, with rollback logic on errors.
-- **Real-time Synchronization**: Supabase Realtime integration for instant data synchronization across clients, with auto-recovery and fallback to polling.
+- **Optimistic UI Updates**: Comprehensive implementation across all portals (Admin, Teacher, Student, Parent) providing instant visual feedback for every user action:
+  - **Instant UI Response**: All button actions (verify, publish, delete, activate, approve, reject, etc.) update the UI immediately before backend confirmation
+  - **Three-Phase Pattern**: Every mutation uses onMutate (instant update + loading toast), onSuccess (success toast + query invalidation), and onError (rollback + error toast)
+  - **Smart Rollback**: Automatic reversion to previous state if backend operations fail
+  - **Loading States**: All action buttons show disabled states and loading indicators during processing
+  - **Utility Functions**: Reusable optimistic update helpers in `client/src/lib/optimistic-utils.ts`
+  - **Documentation**: Complete pattern guide in `client/src/docs/OPTIMISTIC_UI_PATTERN.md`
+- **Real-time Synchronization**: Supabase Realtime integration for instant data synchronization across clients on all major tables (announcements, classes, subjects, users, students, exams, attendance, academic_terms), with auto-recovery and fallback to polling when connection limits are reached.
 - **Automatic Account Activation**: New user accounts are automatically activated upon registration.
 - **Unified Login System**: All users utilize a single login page at `/login` and are routed based on their role.
 - **Automatic Seeding**: Automatic creation of roles and a super admin account on server startup.
