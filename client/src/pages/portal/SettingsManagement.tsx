@@ -101,11 +101,18 @@ export default function SettingsManagement() {
     backups: 'Up to date',
   });
 
-  // Save settings mutations
+  // Save settings mutations with instant feedback
   const saveSchoolSettingsMutation = useMutation({
     mutationFn: async (data: SchoolSettings) => {
       // Mock API call - in real app, would save to backend
       return new Promise(resolve => setTimeout(resolve, 1000));
+    },
+    onMutate: () => {
+      // INSTANT FEEDBACK: Show saving toast immediately
+      toast({
+        title: "Saving...",
+        description: "Updating school settings",
+      });
     },
     onSuccess: () => {
       toast({
@@ -126,6 +133,13 @@ export default function SettingsManagement() {
     mutationFn: async (data: SecuritySettings) => {
       return new Promise(resolve => setTimeout(resolve, 1000));
     },
+    onMutate: () => {
+      // INSTANT FEEDBACK: Show saving toast immediately
+      toast({
+        title: "Saving...",
+        description: "Updating security settings",
+      });
+    },
     onSuccess: () => {
       toast({
         title: "Success",
@@ -144,6 +158,13 @@ export default function SettingsManagement() {
   const saveNotificationSettingsMutation = useMutation({
     mutationFn: async (data: NotificationSettings) => {
       return new Promise(resolve => setTimeout(resolve, 1000));
+    },
+    onMutate: () => {
+      // INSTANT FEEDBACK: Show saving toast immediately
+      toast({
+        title: "Saving...",
+        description: "Updating notification settings",
+      });
     },
     onSuccess: () => {
       toast({
