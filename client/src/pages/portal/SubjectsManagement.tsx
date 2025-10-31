@@ -81,6 +81,12 @@ export default function SubjectsManagement() {
         return [tempSubject, ...old];
       });
       
+      // INSTANT FEEDBACK: Show creating toast immediately
+      toast({
+        title: "Creating...",
+        description: "Adding new subject",
+      });
+      
       return { previousSubjects };
     },
     onSuccess: () => {
@@ -122,6 +128,12 @@ export default function SubjectsManagement() {
         );
       });
       
+      // INSTANT FEEDBACK: Show updating toast immediately
+      toast({
+        title: "Updating...",
+        description: "Saving changes",
+      });
+      
       return { previousSubjects };
     },
     onSuccess: () => {
@@ -160,6 +172,12 @@ export default function SubjectsManagement() {
       queryClient.setQueryData(['/api/subjects'], (old: any) => {
         if (!old) return old;
         return old.filter((subject: any) => subject.id !== id);
+      });
+      
+      // INSTANT FEEDBACK: Show deleting toast immediately
+      toast({
+        title: "Deleting...",
+        description: "Removing subject",
       });
       
       return { previousSubjects };

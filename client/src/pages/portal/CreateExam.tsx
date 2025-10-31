@@ -214,6 +214,13 @@ export default function CreateExam() {
       if (!response.ok) throw new Error('Failed to create exam');
       return response.json();
     },
+    onMutate: () => {
+      // INSTANT FEEDBACK: Show creating toast immediately
+      toast({
+        title: 'Creating Exam...',
+        description: 'Setting up your new exam',
+      });
+    },
     onSuccess: (data) => {
       toast({
         title: 'Exam Created Successfully!',
