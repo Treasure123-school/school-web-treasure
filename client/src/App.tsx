@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
+import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
 
 // All pages eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -74,6 +75,16 @@ import AcademicTermsManagement from "@/pages/portal/AcademicTermsManagement";
 import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerification";
 import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
 import CreateExam from "@/pages/portal/CreateExam";
+
+function RealtimeProvider({ children }: { children: React.ReactNode }) {
+  const { isEnabled, tableCount } = useGlobalRealtime();
+  
+  if (isEnabled && tableCount > 0) {
+    console.log(`🔴 Global Supabase Realtime active: ${tableCount} tables monitored`);
+  }
+  
+  return <>{children}</>;
+}
 
 function Router() {
   return (
@@ -384,8 +395,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Router />
+          <RealtimeProvider>
+            <Toaster />
+            <Router />
+          </RealtimeProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
