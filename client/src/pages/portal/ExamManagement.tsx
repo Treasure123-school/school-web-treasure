@@ -233,10 +233,13 @@ export default function ExamManagement() {
   // Filter out questions that are pending deletion to prevent race conditions
   const examQuestions = rawExamQuestions.filter((question: ExamQuestion) => !pendingQuestionDeletionsRef.current.has(question.id));
 
-  const { data: previewQuestions = [], isLoading: loadingPreviewQuestions } = useQuery<ExamQuestion[]>({
+  const { data: rawPreviewQuestions = [], isLoading: loadingPreviewQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', previewExam?.id],
     enabled: !!previewExam?.id,
   });
+
+  // Filter out questions that are pending deletion to prevent race conditions in preview
+  const previewQuestions = rawPreviewQuestions.filter((question: ExamQuestion) => !pendingQuestionDeletionsRef.current.has(question.id));
 
   // Fetch question counts for all exams
   const { data: questionCounts = {} } = useQuery<Record<number, number>>({
