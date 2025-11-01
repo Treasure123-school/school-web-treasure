@@ -714,14 +714,6 @@ export default function ExamManagement() {
       return { previousQuestions, queryKey };
     },
     onSuccess: async (data, variables, context) => {
-      // Silently refetch in background to replace optimistic data with real data
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] })
-      ]);
-
-      await queryClient.refetchQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
-
       const successMessage = data.errors && data.errors.length > 0 
         ? `${data.created} questions uploaded successfully. ${data.errors.length} failed - check logs for details.`
         : `${data.created} questions uploaded successfully`;
@@ -731,6 +723,23 @@ export default function ExamManagement() {
         description: successMessage,
         variant: data.errors && data.errors.length > 0 ? "default" : "default",
       });
+
+      // Wait for Supabase to commit before refetching - prevents data disappearing
+      console.log('⏳ Waiting 1 second for Supabase to commit data...');
+      setTimeout(async () => {
+        console.log('🔄 Refetching questions with real IDs from database...');
+        
+        // Invalidate queries to mark as stale
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] })
+        ]);
+
+        // Refetch to replace optimistic data with real data
+        await queryClient.refetchQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+        
+        console.log('✅ Questions updated with real data from database');
+      }, 1000); // 1 second delay to allow Supabase to commit
 
       if (data.errors && data.errors.length > 0) {
         console.warn('⚠️ Upload errors:', data.errors);
