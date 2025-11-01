@@ -679,7 +679,13 @@ export default function ExamManagement() {
       console.log('✅ CSV upload result:', result);
       return result;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Invalidate and refetch queries to show new questions immediately
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] })
+      ]);
+
       const successMessage = data.errors && data.errors.length > 0 
         ? `${data.created} questions uploaded successfully. ${data.errors.length} failed - check logs for details.`
         : `${data.created} questions uploaded successfully`;
@@ -706,9 +712,6 @@ export default function ExamManagement() {
           });
         }, 2000);
       }
-
-      queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] });
     },
     onError: (error: any) => {
       console.error('❌ CSV upload mutation error:', error);
