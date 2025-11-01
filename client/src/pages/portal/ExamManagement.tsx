@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient, resetCircuitBreaker, getCircuitBreakerStatus } from '@/lib/queryClient';
 import { optimisticToggle, optimisticDelete, optimisticCreate, optimisticUpdateItem, rollbackOnError } from '@/lib/optimisticUpdates';
@@ -121,6 +121,9 @@ export default function ExamManagement() {
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<ExamQuestion | null>(null);
   const [previewExam, setPreviewExam] = useState<Exam | null>(null);
+  
+  // Track pending deletions to prevent race conditions with Realtime
+  const pendingDeletionsRef = useRef<Set<number>>(new Set());
 
   const { register: registerExam, handleSubmit: handleExamSubmit, formState: { errors: examErrors }, control: examControl, setValue: setExamValue, reset: resetExam, watch: watchExam } = useForm<ExamForm>({
     resolver: zodResolver(examFormSchema),
@@ -167,14 +170,17 @@ export default function ExamManagement() {
   const watchDuration = watchExam('timeLimit');
   const watchGlobalStartTime = watchExam('startTime');
 
-  // Fetch exams
-  const { data: exams = [], isLoading: loadingExams } = useQuery({
+  // Fetch exams with pending deletion filter
+  const { data: rawExams = [], isLoading: loadingExams } = useQuery({
     queryKey: ['/api/exams'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/exams');
       return await response.json();
     },
   });
+
+  // Filter out exams that are pending deletion to prevent race conditions
+  const exams = rawExams.filter((exam: Exam) => !pendingDeletionsRef.current.has(exam.id));
 
   // Enable real-time updates for exams
   useSupabaseRealtime({ 
@@ -315,7 +321,7 @@ export default function ExamManagement() {
     },
   });
 
-  // Delete exam mutation with optimistic update
+  // Delete exam mutation with optimistic update and race condition prevention
   const deleteExamMutation = useMutation({
     mutationFn: async (examId: number) => {
       const response = await apiRequest('DELETE', `/api/exams/${examId}`);
@@ -328,6 +334,9 @@ export default function ExamManagement() {
       return;
     },
     onMutate: async (examId) => {
+      // Mark this deletion as pending to prevent Realtime from overriding
+      pendingDeletionsRef.current.add(examId);
+      
       const queryKey = ['/api/exams'];
       const context = await optimisticDelete<Exam[]>({ queryKey, idToDelete: examId });
       
@@ -344,16 +353,23 @@ export default function ExamManagement() {
       
       return context;
     },
-    onSuccess: () => {
+    onSuccess: (_, examId) => {
       toast({
         title: "Success",
         description: "Exam deleted successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/exam-questions'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+      
+      // Wait a brief moment for backend to fully commit, then clear pending flag
+      setTimeout(() => {
+        pendingDeletionsRef.current.delete(examId);
+        // Let Realtime handle the refetch - this prevents race conditions
+        // Manual invalidation can cause the deleted item to reappear if timed poorly
+      }, 500);
     },
-    onError: (error: any, _, context) => {
+    onError: (error: any, examId, context) => {
+      // Remove from pending deletions on error
+      pendingDeletionsRef.current.delete(examId);
+      
       if (context?.previousData) {
         rollbackOnError(['/api/exams'], context.previousData);
       }
@@ -362,6 +378,12 @@ export default function ExamManagement() {
         description: error.message || "Failed to delete exam",
         variant: "destructive",
       });
+    },
+    onSettled: (_, __, examId) => {
+      // Final cleanup after a delay to ensure smooth transition
+      setTimeout(() => {
+        pendingDeletionsRef.current.delete(examId);
+      }, 1000);
     },
   });
 
