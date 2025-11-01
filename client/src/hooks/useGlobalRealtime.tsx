@@ -20,6 +20,7 @@ const GLOBAL_REALTIME_TABLES: RealtimeTableConfig[] = [
   { table: 'classes', queryKeys: [['/api/classes'], ['/api/admin/classes'], ['/api/teacher/classes']] },
   { table: 'subjects', queryKeys: [['/api/subjects'], ['/api/admin/subjects']] },
   { table: 'exams', queryKeys: [['/api/exams'], ['/api/admin/exams'], ['/api/teacher/exams'], ['/api/student/exams']] },
+  { table: 'exam_questions', queryKeys: [['/api/exam-questions'], ['/api/exams/question-counts']] },
   { table: 'exam_results', queryKeys: [['/api/exam-results'], ['/api/results'], ['/api/admin/results'], ['/api/teacher/results'], ['/api/student/results']] },
   { table: 'exam_sessions', queryKeys: [['/api/exam-sessions'], ['/api/student/exam-sessions']] },
   { table: 'student_answers', queryKeys: [['/api/student-answers'], ['/api/teacher/grading']], throttleMs: 2000 },

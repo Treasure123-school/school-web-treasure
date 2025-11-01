@@ -686,6 +686,9 @@ export default function ExamManagement() {
         queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] })
       ]);
 
+      // Explicitly refetch to ensure UI updates immediately
+      await queryClient.refetchQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+
       const successMessage = data.errors && data.errors.length > 0 
         ? `${data.created} questions uploaded successfully. ${data.errors.length} failed - check logs for details.`
         : `${data.created} questions uploaded successfully`;
