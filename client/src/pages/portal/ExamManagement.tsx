@@ -724,22 +724,22 @@ export default function ExamManagement() {
         variant: data.errors && data.errors.length > 0 ? "default" : "default",
       });
 
-      // Wait for Supabase to commit before refetching - prevents data disappearing
-      console.log('⏳ Waiting 1 second for Supabase to commit data...');
-      setTimeout(async () => {
-        console.log('🔄 Refetching questions with real IDs from database...');
+      // Replace optimistic data with real data from backend response
+      // This ensures instant update even if Supabase Realtime doesn't fire for bulk inserts
+      if (data.questions && Array.isArray(data.questions)) {
+        const queryKey = ['/api/exam-questions', selectedExam?.id];
         
-        // Invalidate queries to mark as stale
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] }),
-          queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] })
-        ]);
-
-        // Refetch to replace optimistic data with real data
-        await queryClient.refetchQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+        queryClient.setQueryData<ExamQuestion[]>(queryKey, (old = []) => {
+          // Remove optimistic questions (negative IDs) and add real questions from backend
+          const nonOptimistic = old.filter(q => q.id > 0);
+          return [...nonOptimistic, ...data.questions];
+        });
         
-        console.log('✅ Questions updated with real data from database');
-      }, 1000); // 1 second delay to allow Supabase to commit
+        console.log('✅ Updated cache with real questions from backend:', data.questions.length);
+      }
+      
+      // Invalidate question counts
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'], exact: false });
 
       if (data.errors && data.errors.length > 0) {
         console.warn('⚠️ Upload errors:', data.errors);
