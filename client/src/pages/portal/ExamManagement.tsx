@@ -124,6 +124,7 @@ export default function ExamManagement() {
   
   // Track pending deletions to prevent race conditions with Realtime
   const pendingDeletionsRef = useRef<Set<number>>(new Set());
+  const pendingQuestionDeletionsRef = useRef<Set<number>>(new Set());
 
   const { register: registerExam, handleSubmit: handleExamSubmit, formState: { errors: examErrors }, control: examControl, setValue: setExamValue, reset: resetExam, watch: watchExam } = useForm<ExamForm>({
     resolver: zodResolver(examFormSchema),
@@ -224,10 +225,13 @@ export default function ExamManagement() {
     },
   });
 
-  const { data: examQuestions = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
+  const { data: rawExamQuestions = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', selectedExam?.id],
     enabled: !!selectedExam?.id,
   });
+
+  // Filter out questions that are pending deletion to prevent race conditions
+  const examQuestions = rawExamQuestions.filter((question: ExamQuestion) => !pendingQuestionDeletionsRef.current.has(question.id));
 
   const { data: previewQuestions = [], isLoading: loadingPreviewQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', previewExam?.id],
@@ -387,7 +391,7 @@ export default function ExamManagement() {
     },
   });
 
-  // Delete question mutation with optimistic update
+  // Delete question mutation with optimistic update and race condition prevention
   const deleteQuestionMutation = useMutation({
     mutationFn: async (questionId: number) => {
       const response = await apiRequest('DELETE', `/api/exam-questions/${questionId}`);
@@ -403,6 +407,9 @@ export default function ExamManagement() {
       const queryKey = ['/api/exam-questions', selectedExam?.id];
       const context = await optimisticDelete<ExamQuestion[]>({ queryKey, idToDelete: questionId });
       
+      // Mark question as pending deletion to prevent race conditions with Realtime
+      pendingQuestionDeletionsRef.current.add(questionId);
+      
       toast({
         title: "Deleting...",
         description: "Removing question",
@@ -410,15 +417,23 @@ export default function ExamManagement() {
       
       return context;
     },
-    onSuccess: () => {
+    onSuccess: (_, questionId) => {
       toast({
         title: "Success",
         description: "Question deleted successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/exam-questions'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+      
+      // Wait a brief moment for backend to fully commit, then clear pending flag
+      setTimeout(() => {
+        pendingQuestionDeletionsRef.current.delete(questionId);
+        // Let Realtime handle the refetch - this prevents race conditions
+        // Manual invalidation can cause the deleted item to reappear if timed poorly
+      }, 500);
     },
-    onError: (error: any, _, context) => {
+    onError: (error: any, questionId, context) => {
+      // Remove from pending deletions on error
+      pendingQuestionDeletionsRef.current.delete(questionId);
+      
       if (context?.previousData) {
         rollbackOnError(['/api/exam-questions', selectedExam?.id], context.previousData);
       }
@@ -427,6 +442,12 @@ export default function ExamManagement() {
         description: error.message || "Failed to delete question",
         variant: "destructive",
       });
+    },
+    onSettled: (_, __, questionId) => {
+      // Final cleanup after a delay to ensure smooth transition
+      setTimeout(() => {
+        pendingQuestionDeletionsRef.current.delete(questionId);
+      }, 1000);
     },
   });
 
