@@ -279,7 +279,7 @@ export default function ExamManagement() {
       await queryClient.cancelQueries({ queryKey: ['/api/exams'] });
       const previousExams = queryClient.getQueryData(['/api/exams']);
       
-      // Optimistically update the exam's published status
+      // Optimistically update the exam's published status for instant feedback
       queryClient.setQueryData(['/api/exams'], (old: any) => {
         if (!old) return old;
         return old.map((exam: any) => 
@@ -287,16 +287,10 @@ export default function ExamManagement() {
         );
       });
       
-      // INSTANT FEEDBACK: Show loading toast immediately
-      toast({
-        title: isPublished ? "Publishing..." : "Unpublishing...",
-        description: "Updating exam status",
-      });
-      
       return { previousExams };
     },
     onSuccess: (data, { isPublished }) => {
-      // Update cache with backend response to ensure consistency
+      // Update cache with confirmed backend data
       queryClient.setQueryData(['/api/exams'], (old: any) => {
         if (!old) return old;
         return old.map((exam: any) => 
@@ -308,11 +302,6 @@ export default function ExamManagement() {
         title: "Success",
         description: `Exam ${isPublished ? 'published' : 'unpublished'} successfully`,
       });
-      
-      // Delay invalidation slightly to avoid race with realtime subscription
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
-      }, 100);
     },
     onError: (error: any, variables, context: any) => {
       if (context?.previousExams) {
