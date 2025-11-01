@@ -664,9 +664,9 @@ export default function ExamManagement() {
     setQuestionValue('options', newOptions);
   };
 
-  // CSV upload mutation with no retries to prevent circuit breaker amplification
+  // CSV upload mutation with optimistic updates for instant UI feedback
   const csvUploadMutation = useMutation({
-    retry: false, // Disable retries for CSV uploads to prevent circuit breaker amplification
+    retry: false,
     mutationFn: async (questions: any[]) => {
       console.log('🔄 Starting CSV upload with', questions.length, 'questions');
       const response = await apiRequest('POST', '/api/exam-questions/bulk', { 
@@ -674,19 +674,52 @@ export default function ExamManagement() {
         questions 
       });
 
-      // apiRequest already handles error classification for non-OK responses
       const result = await response.json();
       console.log('✅ CSV upload result:', result);
       return result;
     },
-    onSuccess: async (data) => {
-      // Invalidate and refetch queries to show new questions immediately
+    onMutate: async (newQuestions) => {
+      const queryKey = ['/api/exam-questions', selectedExam?.id];
+      
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+      
+      // Snapshot previous value
+      const previousQuestions = queryClient.getQueryData<ExamQuestion[]>(queryKey);
+      
+      // Optimistically add new questions with temporary IDs
+      const optimisticQuestions = newQuestions.map((q, index) => ({
+        id: -(Date.now() + index), // Negative temp ID
+        examId: selectedExam!.id,
+        questionText: q.questionText,
+        questionType: q.questionType,
+        points: q.points,
+        orderNumber: (previousQuestions?.length || 0) + index + 1,
+        imageUrl: null,
+        expectedAnswers: null,
+        explanationText: null,
+        hintText: null,
+        partialCreditRules: null,
+        instructions: q.instructions,
+        sampleAnswer: q.sampleAnswer,
+        createdAt: new Date().toISOString(),
+        options: q.options || []
+      }));
+      
+      // Immediately update UI with optimistic data
+      queryClient.setQueryData<ExamQuestion[]>(queryKey, (old = []) => [...old, ...optimisticQuestions]);
+      
+      console.log('⚡ Optimistic update applied:', optimisticQuestions.length, 'questions added instantly');
+      
+      return { previousQuestions, queryKey };
+    },
+    onSuccess: async (data, variables, context) => {
+      // Silently refetch in background to replace optimistic data with real data
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] }),
         queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] })
       ]);
 
-      // Explicitly refetch to ensure UI updates immediately
       await queryClient.refetchQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
 
       const successMessage = data.errors && data.errors.length > 0 
@@ -699,11 +732,9 @@ export default function ExamManagement() {
         variant: data.errors && data.errors.length > 0 ? "default" : "default",
       });
 
-      // Show detailed errors if any
       if (data.errors && data.errors.length > 0) {
         console.warn('⚠️ Upload errors:', data.errors);
         setTimeout(() => {
-          // Show first few errors in the toast for immediate feedback
           const errorSummary = data.errors.slice(0, 3).join('; ');
           const moreErrors = data.errors.length > 3 ? ` (and ${data.errors.length - 3} more)` : '';
 
@@ -711,12 +742,17 @@ export default function ExamManagement() {
             title: `${data.errors.length} Questions Failed Validation`,
             description: `${errorSummary}${moreErrors}. Check browser console for all details.`,
             variant: "destructive",
-            duration: 8000, // Show longer for user to read errors
+            duration: 8000,
           });
         }, 2000);
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousQuestions) {
+        queryClient.setQueryData(context.queryKey, context.previousQuestions);
+        console.log('↩️ Rolled back optimistic update due to error');
+      }
       console.error('❌ CSV upload mutation error:', error);
 
       // Enhanced error handling for CSV uploads using classified error types
@@ -858,10 +894,10 @@ export default function ExamManagement() {
           firstQuestion: questions[0]
         });
 
-        // Show preview of what will be uploaded
+        // Show instant feedback - questions will appear immediately via optimistic update
         toast({
-          title: "Processing CSV",
-          description: `Found ${questions.length} questions. Uploading to exam...`,
+          title: "⚡ Uploading...",
+          description: `Adding ${questions.length} questions instantly...`,
         });
 
         csvUploadMutation.mutate(questions);
