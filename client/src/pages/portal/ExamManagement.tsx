@@ -755,17 +755,17 @@ export default function ExamManagement() {
       // Immediately update UI with optimistic data
       queryClient.setQueryData<ExamQuestion[]>(queryKey, (old = []) => [...old, ...optimisticQuestions]);
       
-      console.log('⚡ Optimistic update applied:', optimisticQuestions.length, 'questions added instantly');
+      console.log('⚡ Optimistic update applied:', optimisticQuestions.length, 'questions added to UI');
       
       return { previousQuestions, queryKey };
     },
     onSuccess: async (data, variables, context) => {
       const successMessage = data.errors && data.errors.length > 0 
-        ? `${data.created} questions uploaded successfully. ${data.errors.length} failed - check logs for details.`
-        : `${data.created} questions uploaded successfully`;
+        ? `${data.created} question${data.created !== 1 ? 's' : ''} uploaded successfully. ${data.errors.length} failed.`
+        : `${data.created} question${data.created !== 1 ? 's' : ''} uploaded successfully.`;
 
       toast({
-        title: "Upload Complete",
+        title: "✓ Upload Complete",
         description: successMessage,
         variant: data.errors && data.errors.length > 0 ? "default" : "default",
       });
@@ -853,8 +853,9 @@ export default function ExamManagement() {
       } else {
         toast({
           title: "Upload Failed",
-          description: error.message || "Failed to upload questions. Please check your CSV format and try again.",
+          description: error.message || "Unable to upload questions. Please check your CSV format and try again.",
           variant: "destructive",
+          duration: 6000,
         });
       }
     },
@@ -949,10 +950,10 @@ export default function ExamManagement() {
           firstQuestion: questions[0]
         });
 
-        // Show instant feedback - questions will appear immediately via optimistic update
+        // Show loading feedback with progress indication
         toast({
-          title: "⚡ Uploading...",
-          description: `Adding ${questions.length} questions instantly...`,
+          title: "Uploading Questions",
+          description: `Processing ${questions.length} question${questions.length > 1 ? 's' : ''}... please wait.`,
         });
 
         csvUploadMutation.mutate(questions);
