@@ -725,6 +725,12 @@ export default function ExamManagement() {
       return result;
     },
     onMutate: async (newQuestions) => {
+      // Show loading toast immediately when mutation starts
+      toast({
+        title: "Uploading Questions",
+        description: `Processing ${newQuestions.length} question${newQuestions.length > 1 ? 's' : ''}... please wait.`,
+      });
+
       const queryKey = ['/api/exam-questions', selectedExam?.id];
       
       // Cancel outgoing refetches
@@ -948,12 +954,6 @@ export default function ExamManagement() {
         console.log('✅ CSV parsed successfully:', {
           questionCount: questions.length,
           firstQuestion: questions[0]
-        });
-
-        // Show loading feedback with progress indication
-        toast({
-          title: "Uploading Questions",
-          description: `Processing ${questions.length} question${questions.length > 1 ? 's' : ''}... please wait.`,
         });
 
         csvUploadMutation.mutate(questions);
