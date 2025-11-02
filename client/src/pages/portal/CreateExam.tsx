@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import type { Class, Subject, AcademicTerm } from '@shared/schema';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,36 +193,57 @@ export default function CreateExam() {
     },
   });
 
-  const { data: classes = [] } = useQuery({
+  // Watch classId and subjectId to enable dynamic teacher filtering
+  const selectedClassId = form.watch('classId');
+  const selectedSubjectId = form.watch('subjectId');
+
+  // Fetch classes with real-time updates
+  const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/classes');
-      return await response.json();
-    },
+    refetchOnWindowFocus: true,
+    staleTime: 30000, // 30 seconds
   });
 
-  const { data: subjects = [] } = useQuery({
+  // Fetch subjects with real-time updates
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<Subject[]>({
     queryKey: ['/api/subjects'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/subjects');
-      return await response.json();
-    },
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
   });
 
-  const { data: terms = [] } = useQuery({
+  // Fetch academic terms with real-time updates
+  const { data: terms = [], isLoading: termsLoading } = useQuery<AcademicTerm[]>({
     queryKey: ['/api/terms'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/terms');
-      return await response.json();
-    },
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
   });
 
-  const { data: teachers = [] } = useQuery({
-    queryKey: ['/api/users', 'Teacher'],
+  // Auto-select current term when terms are loaded
+  useEffect(() => {
+    if (terms.length > 0 && !form.getValues('termId')) {
+      const currentTerm = terms.find((term: any) => term.isCurrent);
+      if (currentTerm) {
+        form.setValue('termId', currentTerm.id);
+      }
+    }
+  }, [terms, form]);
+
+  // Fetch teachers filtered by class and subject (dynamic filtering)
+  const { data: teachers = [], isLoading: teachersLoading } = useQuery({
+    queryKey: ['/api/teachers-for-subject', selectedClassId, selectedSubjectId],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/users?role=Teacher');
+      if (!selectedClassId || !selectedSubjectId) {
+        return [];
+      }
+      const response = await apiRequest(
+        'GET',
+        `/api/teachers-for-subject?classId=${selectedClassId}&subjectId=${selectedSubjectId}`
+      );
       return await response.json();
     },
+    enabled: !!selectedClassId && !!selectedSubjectId,
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
   });
 
   const createExamMutation = useMutation({
@@ -378,9 +400,10 @@ export default function CreateExam() {
                         <Select 
                           value={field.value?.toString()} 
                           onValueChange={(value) => field.onChange(Number(value))}
+                          disabled={classesLoading}
                         >
                           <SelectTrigger data-testid="select-class" className="h-12">
-                            <SelectValue placeholder="Select class" />
+                            <SelectValue placeholder={classesLoading ? "Loading classes..." : "Select class"} />
                           </SelectTrigger>
                           <SelectContent>
                             {classes.map((cls: any) => (
@@ -411,9 +434,10 @@ export default function CreateExam() {
                         <Select 
                           value={field.value?.toString()} 
                           onValueChange={(value) => field.onChange(Number(value))}
+                          disabled={subjectsLoading}
                         >
                           <SelectTrigger data-testid="select-subject" className="h-12">
-                            <SelectValue placeholder="Select subject" />
+                            <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select subject"} />
                           </SelectTrigger>
                           <SelectContent>
                             {subjects.map((subject: any) => (
@@ -465,25 +489,64 @@ export default function CreateExam() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="teacherInChargeId">Teacher In-Charge</Label>
+                    <Label htmlFor="teacherInChargeId">
+                      Teacher In-Charge 
+                      {selectedSubjectId && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (filtered by selected subject)
+                        </span>
+                      )}
+                    </Label>
                     <Controller
                       name="teacherInChargeId"
                       control={form.control}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select 
+                          value={field.value} 
+                          onValueChange={field.onChange}
+                          disabled={!selectedClassId || !selectedSubjectId || teachersLoading}
+                        >
                           <SelectTrigger data-testid="select-teacher-in-charge" className="h-12">
-                            <SelectValue placeholder="Select teacher (optional)" />
+                            <SelectValue 
+                              placeholder={
+                                !selectedClassId || !selectedSubjectId 
+                                  ? "Select class and subject first" 
+                                  : teachersLoading 
+                                    ? "Loading teachers..." 
+                                    : teachers.length === 0
+                                      ? "No teacher assigned to this subject"
+                                      : "Select teacher (optional)"
+                              } 
+                            />
                           </SelectTrigger>
                           <SelectContent>
-                            {teachers.map((teacher: any) => (
-                              <SelectItem key={teacher.id} value={teacher.id}>
-                                {teacher.firstName} {teacher.lastName}
-                              </SelectItem>
-                            ))}
+                            {teachers.length === 0 ? (
+                              <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                <p className="font-medium">No teachers assigned</p>
+                                <p className="text-xs mt-1">No teacher is currently assigned to this subject in this class.</p>
+                              </div>
+                            ) : (
+                              teachers.map((teacher: any) => (
+                                <SelectItem key={teacher.id} value={teacher.id}>
+                                  {teacher.firstName} {teacher.lastName}
+                                  {teacher.username && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      ({teacher.username})
+                                    </span>
+                                  )}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       )}
                     />
+                    {selectedClassId && selectedSubjectId && teachers.length === 0 && !teachersLoading && (
+                      <p className="text-sm text-amber-600 dark:text-amber-500 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        No teacher is assigned to teach this subject in this class. You may proceed without selecting a teacher.
+                      </p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2 space-y-2">
@@ -538,14 +601,20 @@ export default function CreateExam() {
                         <Select 
                           value={field.value?.toString()} 
                           onValueChange={(value) => field.onChange(Number(value))}
+                          disabled={termsLoading}
                         >
                           <SelectTrigger data-testid="select-term" className="h-12">
-                            <SelectValue placeholder="Select term" />
+                            <SelectValue placeholder={termsLoading ? "Loading terms..." : "Select term"} />
                           </SelectTrigger>
                           <SelectContent>
                             {terms.map((term: any) => (
                               <SelectItem key={term.id} value={term.id.toString()}>
                                 {term.name} ({term.year})
+                                {term.isCurrent && (
+                                  <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
+                                    Current
+                                  </span>
+                                )}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -567,6 +636,8 @@ export default function CreateExam() {
                     <Input
                       id="totalMarks"
                       type="number"
+                      min="1"
+                      max="1000"
                       placeholder="100"
                       {...form.register('totalMarks', { valueAsNumber: true })}
                       data-testid="input-total-marks"
@@ -587,6 +658,7 @@ export default function CreateExam() {
                     <Input
                       id="timeLimit"
                       type="number"
+                      min="1"
                       placeholder="60"
                       {...form.register('timeLimit', { valueAsNumber: true })}
                       data-testid="input-time-limit"
@@ -850,6 +922,8 @@ export default function CreateExam() {
                         <Input
                           id="passingScore"
                           type="number"
+                          min="0"
+                          max="100"
                           placeholder="60"
                           {...form.register('passingScore', { valueAsNumber: true })}
                           data-testid="input-passing-score"

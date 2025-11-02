@@ -6539,6 +6539,37 @@ Treasure-Home School Administration
       }
     });
 
+    // Get teachers for a specific class and subject (for exam creation)
+    app.get('/api/teachers-for-subject', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { classId, subjectId } = req.query;
+
+        if (!classId || !subjectId) {
+          return res.status(400).json({ message: "Both classId and subjectId are required" });
+        }
+
+        const teachers = await storage.getTeachersForClassSubject(Number(classId), Number(subjectId));
+
+        if (teachers.length === 0) {
+          return res.json([]);
+        }
+
+        // Return teacher data with essential information
+        const teacherData = teachers.map((teacher) => ({
+          id: teacher.id,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          username: teacher.username,
+        }));
+
+        res.json(teacherData);
+      } catch (error) {
+        console.error('Error fetching teachers for subject:', error);
+        res.status(500).json({ message: "Failed to fetch teachers" });
+      }
+    });
+
     // ==================== END TEACHER ASSIGNMENT ROUTES ====================
 
     // ==================== END MODULE 1 ROUTES ====================
