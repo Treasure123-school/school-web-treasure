@@ -17,6 +17,14 @@ Preferred communication style: Simple, everyday language.
 - **Form Handling**: React Hook Form with Zod schema validation.
 - **Exam Interface**: Features an enhanced navigation sidebar, prominent timer, full-screen mode, real-time auto-save indicators, and a professional, minimalist design with Lucide React icons.
 - **Portal Dashboards**: All dashboards (Super Admin, Admin, Teacher, Parent) redesigned to match the modern student portal style with gradient stats cards, professional animations, and visual consistency.
+- **Create Exam Form**: Modern 5-step wizard with intelligent field logic:
+  - **Dynamic Teacher Filtering**: Teacher In-Charge dropdown automatically filters to show only teachers assigned to the selected subject in the selected class
+  - **Real-Time Updates**: All dropdowns (Class, Subject, Term, Teacher) use refetchOnWindowFocus for auto-updates when data changes
+  - **Auto-Selection**: Current academic term is automatically selected when form loads
+  - **Smart Loading States**: All fields show loading placeholders and are disabled while data fetches
+  - **Contextual Validation**: Fields are validated step-by-step with clear error messages
+  - **Empty State Handling**: Helpful messages when no teachers are assigned to a subject
+  - **Type Safety**: Full TypeScript support with proper type annotations for all queries
 
 ### Technical Implementations
 - **Backend**: Node.js with Express.js and TypeScript.
