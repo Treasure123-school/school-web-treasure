@@ -18,9 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
-  ChevronDown,
-  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Save,
   Send,
   FileText,
@@ -33,7 +34,12 @@ import {
   GraduationCap,
   AlertCircle,
   X,
-  Upload
+  Check,
+  Info,
+  Shield,
+  Target,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 const createExamSchema = z.object({
@@ -48,7 +54,7 @@ const createExamSchema = z.object({
   date: z.string().min(1, 'Exam date is required'),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
-  timeLimit: z.number().min(1).optional(),
+  timeLimit: z.number().min(1, 'Duration must be at least 1 minute').optional(),
   timerMode: z.enum(['individual', 'global']).default('individual'),
   instructions: z.string().optional(),
   isPublished: z.boolean().default(false),
@@ -63,70 +69,83 @@ const createExamSchema = z.object({
   requireWebcam: z.boolean().default(false),
   requireFullscreen: z.boolean().default(false),
   maxTabSwitches: z.number().min(0).max(10).default(3),
+  gradingScale: z.string().optional(),
 });
 
 type CreateExamFormData = z.infer<typeof createExamSchema>;
 
-interface CollapsibleSectionProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-  isComplete?: boolean;
+const steps = [
+  { id: 1, title: 'Exam Details', icon: FileText },
+  { id: 2, title: 'Academic & Timing', icon: Calendar },
+  { id: 3, title: 'Publishing & Options', icon: Settings },
+  { id: 4, title: 'Auto-Grading & Security', icon: Shield },
+  { id: 5, title: 'Review & Create', icon: CheckCircle },
+];
+
+interface StepIndicatorProps {
+  currentStep: number;
+  totalSteps: number;
 }
 
-function CollapsibleSection({ title, description, icon, isOpen, onToggle, children, isComplete }: CollapsibleSectionProps) {
+function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
   return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-md border-border">
-      <CardHeader 
-        className="cursor-pointer bg-gradient-to-r from-background to-muted/20 hover:bg-muted/30 transition-colors"
-        onClick={onToggle}
-        data-testid={`section-${title.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              {icon}
+    <div className="w-full mb-8">
+      <div className="flex items-center justify-between">
+        {steps.map((step, index) => {
+          const StepIcon = step.icon;
+          const isCompleted = currentStep > step.id;
+          const isCurrent = currentStep === step.id;
+          
+          return (
+            <div key={step.id} className="flex items-center flex-1">
+              <div className="flex flex-col items-center relative">
+                <motion.div
+                  initial={false}
+                  animate={{
+                    scale: isCurrent ? 1.1 : 1,
+                    backgroundColor: isCompleted ? 'rgb(34, 197, 94)' : isCurrent ? 'rgb(59, 130, 246)' : 'rgb(229, 231, 235)',
+                  }}
+                  transition={{ duration: 0.3 }}
+                  className={`
+                    w-12 h-12 rounded-full flex items-center justify-center
+                    ${isCompleted ? 'bg-green-500 text-white' : isCurrent ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}
+                    transition-all duration-300 shadow-lg
+                  `}
+                  data-testid={`step-indicator-${step.id}`}
+                >
+                  {isCompleted ? (
+                    <Check className="w-6 h-6" />
+                  ) : (
+                    <StepIcon className="w-6 h-6" />
+                  )}
+                </motion.div>
+                <div className="mt-2 text-center">
+                  <p className={`text-xs font-medium ${isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    Step {step.id}
+                  </p>
+                  <p className={`text-xs ${isCurrent ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-400'} hidden sm:block`}>
+                    {step.title}
+                  </p>
+                </div>
+              </div>
+              {index < steps.length - 1 && (
+                <div className="flex-1 h-1 mx-2 relative">
+                  <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      width: isCompleted ? '100%' : '0%',
+                    }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute inset-0 bg-green-500 rounded-full"
+                  />
+                </div>
+              )}
             </div>
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                {title}
-                {isComplete && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Complete
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="text-sm">{description}</CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isOpen ? (
-              <ChevronUp className="w-5 h-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-          >
-            <CardContent className="pt-6 space-y-4">
-              {children}
-            </CardContent>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -134,8 +153,7 @@ export default function CreateExam() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [openSections, setOpenSections] = useState<string[]>(['basic']);
-  const [showPreview, setShowPreview] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   if (!user) {
     return <div>Loading...</div>;
@@ -170,6 +188,7 @@ export default function CreateExam() {
       requireWebcam: false,
       requireFullscreen: false,
       maxTabSwitches: 3,
+      gradingScale: 'standard',
     },
   });
 
@@ -215,7 +234,6 @@ export default function CreateExam() {
       return response.json();
     },
     onMutate: () => {
-      // INSTANT FEEDBACK: Show creating toast immediately
       toast({
         title: 'Creating Exam...',
         description: 'Setting up your new exam',
@@ -223,8 +241,8 @@ export default function CreateExam() {
     },
     onSuccess: (data) => {
       toast({
-        title: 'Exam Created Successfully!',
-        description: `"${data.name}" has been created. You can now add questions.`,
+        title: '✅ Exam Created Successfully!',
+        description: `"${data.name}" has been created. Proceed to upload questions.`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
       navigate(`/portal/teacher/exams/${data.id}/questions`);
@@ -238,12 +256,40 @@ export default function CreateExam() {
     },
   });
 
-  const toggleSection = (section: string) => {
-    setOpenSections(prev =>
-      prev.includes(section)
-        ? prev.filter(s => s !== section)
-        : [...prev, section]
-    );
+  const validateStep = async (step: number): Promise<boolean> => {
+    let fieldsToValidate: (keyof CreateExamFormData)[] = [];
+    
+    switch (step) {
+      case 1:
+        fieldsToValidate = ['name', 'examType', 'classId', 'subjectId', 'date'];
+        break;
+      case 2:
+        fieldsToValidate = ['termId', 'totalMarks', 'timeLimit', 'timerMode'];
+        break;
+      case 3:
+      case 4:
+        return true;
+      default:
+        return true;
+    }
+
+    const result = await form.trigger(fieldsToValidate);
+    return result;
+  };
+
+  const nextStep = async () => {
+    const isValid = await validateStep(currentStep);
+    if (isValid && currentStep < 5) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const onSubmit = (data: CreateExamFormData) => {
@@ -256,43 +302,894 @@ export default function CreateExam() {
   };
 
   const formValues = form.watch();
-  const isSectionComplete = (section: string) => {
-    switch (section) {
-      case 'basic':
-        return !!(formValues.name && formValues.classId && formValues.subjectId && formValues.termId && formValues.examType && formValues.totalMarks);
-      case 'scheduling':
-        return !!(formValues.date && formValues.timeLimit);
-      case 'instructions':
-        return true;
-      case 'settings':
-        return true;
-      case 'proctoring':
-        return true;
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-2xl rounded-2xl border-border">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-t-2xl">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500 text-white">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  Exam Details
+                </CardTitle>
+                <CardDescription>Essential information about the exam</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="name">
+                      Exam Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      placeholder="e.g., Mid-Term Mathematics Test"
+                      {...form.register('name')}
+                      data-testid="input-exam-name"
+                      className="h-12 text-base"
+                    />
+                    {form.formState.errors.name && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.name.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="date">
+                      Exam Date <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      {...form.register('date')}
+                      data-testid="input-exam-date"
+                      className="h-12"
+                    />
+                    {form.formState.errors.date && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.date.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="classId">
+                      Class / Grade <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      name="classId"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                          <SelectTrigger data-testid="select-class" className="h-12">
+                            <SelectValue placeholder="Select class" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {classes.map((cls: any) => (
+                              <SelectItem key={cls.id} value={cls.id.toString()}>
+                                {cls.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.classId && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.classId.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="subjectId">
+                      Subject <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      name="subjectId"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                          <SelectTrigger data-testid="select-subject" className="h-12">
+                            <SelectValue placeholder="Select subject" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subjects.map((subject: any) => (
+                              <SelectItem key={subject.id} value={subject.id.toString()}>
+                                {subject.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.subjectId && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.subjectId.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="examType">
+                      Assessment Type <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      name="examType"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <SelectTrigger data-testid="select-exam-type" className="h-12">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="test">Test (40% weight)</SelectItem>
+                            <SelectItem value="exam">Exam (60% weight)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.examType && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.examType.message}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      Final grade = Test (40%) + Exam (60%) = Total (100%)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="teacherInChargeId">Teacher In-Charge</Label>
+                    <Controller
+                      name="teacherInChargeId"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <SelectTrigger data-testid="select-teacher-in-charge" className="h-12">
+                            <SelectValue placeholder="Select teacher (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teachers.map((teacher: any) => (
+                              <SelectItem key={teacher.id} value={teacher.id}>
+                                {teacher.firstName} {teacher.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="instructions">Instructions</Label>
+                    <Textarea
+                      id="instructions"
+                      placeholder="Displayed to students before exam starts (e.g., allowed materials, rules)"
+                      rows={4}
+                      {...form.register('instructions')}
+                      data-testid="input-instructions"
+                      className="text-base"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Provide clear guidelines about what students should know before taking the exam
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 2:
+        return (
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-2xl rounded-2xl border-border">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-t-2xl">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-500 text-white">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  Academic & Timing Settings
+                </CardTitle>
+                <CardDescription>Configure duration, term, and timer mode</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="termId">
+                      Academic Term <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      name="termId"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                          <SelectTrigger data-testid="select-term" className="h-12">
+                            <SelectValue placeholder="Select term" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {terms.map((term: any) => (
+                              <SelectItem key={term.id} value={term.id.toString()}>
+                                {term.name} ({term.year})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.termId && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.termId.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="totalMarks">
+                      Total Marks <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="totalMarks"
+                      type="number"
+                      placeholder="100"
+                      {...form.register('totalMarks', { valueAsNumber: true })}
+                      data-testid="input-total-marks"
+                      className="h-12 text-base"
+                    />
+                    {form.formState.errors.totalMarks && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.totalMarks.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="timeLimit">
+                      Duration per Student (minutes) <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="timeLimit"
+                      type="number"
+                      placeholder="60"
+                      {...form.register('timeLimit', { valueAsNumber: true })}
+                      data-testid="input-time-limit"
+                      className="h-12 text-base"
+                    />
+                    {form.formState.errors.timeLimit && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {form.formState.errors.timeLimit.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-2 space-y-4">
+                    <Label>Timer Mode <span className="text-destructive">*</span></Label>
+                    <Controller
+                      name="timerMode"
+                      control={form.control}
+                      render={({ field }) => (
+                        <RadioGroup
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          className="space-y-3"
+                        >
+                          <div className={`
+                            flex items-start space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+                            ${field.value === 'individual' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}
+                          `}>
+                            <RadioGroupItem value="individual" id="timer-individual" data-testid="radio-timer-individual" />
+                            <div className="flex-1">
+                              <Label htmlFor="timer-individual" className="font-semibold text-base cursor-pointer">
+                                Individual Timer — Each student's timer starts when they begin
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                                <Info className="w-4 h-4" />
+                                💡 Ideal for flexible scheduling and different time zones.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className={`
+                            flex items-start space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+                            ${field.value === 'global' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}
+                          `}>
+                            <RadioGroupItem value="global" id="timer-global" data-testid="radio-timer-global" />
+                            <div className="flex-1">
+                              <Label htmlFor="timer-global" className="font-semibold text-base cursor-pointer">
+                                Global Timer — All students start and end at the same time
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                                <Info className="w-4 h-4" />
+                                💡 Best for synchronized, controlled exam sessions.
+                              </p>
+                            </div>
+                          </div>
+                        </RadioGroup>
+                      )}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 3:
+        return (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-2xl rounded-2xl border-border">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-t-2xl">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500 text-white">
+                    <Settings className="w-6 h-6" />
+                  </div>
+                  Publishing & Options
+                </CardTitle>
+                <CardDescription>Control visibility and exam behavior</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="isPublished" className="text-base font-semibold cursor-pointer">Publish Immediately</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Make exam visible to students right away
+                    </p>
+                  </div>
+                  <Controller
+                    name="isPublished"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Switch
+                        id="isPublished"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-published"
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="allowRetakes" className="text-base font-semibold cursor-pointer">Allow Retakes</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Students can attempt the exam multiple times
+                    </p>
+                  </div>
+                  <Controller
+                    name="allowRetakes"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Switch
+                        id="allowRetakes"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-allow-retakes"
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="shuffleQuestions" className="text-base font-semibold cursor-pointer">Shuffle Questions</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Randomize question order for each student
+                    </p>
+                  </div>
+                  <Controller
+                    name="shuffleQuestions"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Switch
+                        id="shuffleQuestions"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-shuffle-questions"
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        Save as Draft
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                        {formValues.isPublished 
+                          ? "This exam will be published immediately and visible to students."
+                          : "This exam will be saved as a draft. You can add questions and publish later."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 4:
+        return (
+          <motion.div
+            key="step4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-2xl rounded-2xl border-border">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 rounded-t-2xl">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-orange-500 text-white">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  Auto-Grading & Security
+                </CardTitle>
+                <CardDescription>Configure automatic grading and exam security</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-green-600" />
+                    Auto-Grading Settings
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="autoGradingEnabled" className="text-base font-semibold cursor-pointer">Enable Auto-Grading</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Automatically grade objective questions
+                        </p>
+                      </div>
+                      <Controller
+                        name="autoGradingEnabled"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="autoGradingEnabled"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-auto-grading"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="instantFeedback" className="text-base font-semibold cursor-pointer">Instant Feedback</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Show correct/incorrect immediately after answering
+                        </p>
+                      </div>
+                      <Controller
+                        name="instantFeedback"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="instantFeedback"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-instant-feedback"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="showCorrectAnswers" className="text-base font-semibold cursor-pointer">Show Correct Answers</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Display correct answers after submission
+                        </p>
+                      </div>
+                      <Controller
+                        name="showCorrectAnswers"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="showCorrectAnswers"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-show-correct-answers"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="passingScore">Passing Score (%)</Label>
+                        <Input
+                          id="passingScore"
+                          type="number"
+                          placeholder="60"
+                          {...form.register('passingScore', { valueAsNumber: true })}
+                          data-testid="input-passing-score"
+                          className="h-12"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="gradingScale">Grading Scale</Label>
+                        <Controller
+                          name="gradingScale"
+                          control={form.control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <SelectTrigger data-testid="select-grading-scale" className="h-12">
+                                <SelectValue placeholder="Select scale" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="standard">A-F (Standard)</SelectItem>
+                                <SelectItem value="pass-fail">Pass/Fail</SelectItem>
+                                <SelectItem value="numeric">Numeric (0-100)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-red-600" />
+                    Proctoring & Security Settings
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 mb-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                            🔒 Security Summary
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                            Proctoring monitors students during exams. Lockdown prevents tab switching. Shuffle options reduce answer sharing.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="enableProctoring" className="text-base font-semibold cursor-pointer">Enable Proctoring</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Monitor student activity during exam
+                        </p>
+                      </div>
+                      <Controller
+                        name="enableProctoring"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="enableProctoring"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-enable-proctoring"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="lockdownMode" className="text-base font-semibold cursor-pointer">Lockdown Mode</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Disable copy, paste, and new tabs
+                        </p>
+                      </div>
+                      <Controller
+                        name="lockdownMode"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="lockdownMode"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-lockdown-mode"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="requireWebcam" className="text-base font-semibold cursor-pointer">Require Webcam</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Enforce live video feed during exam
+                        </p>
+                      </div>
+                      <Controller
+                        name="requireWebcam"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="requireWebcam"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-require-webcam"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="requireFullscreen" className="text-base font-semibold cursor-pointer">Require Fullscreen</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Prevent multitasking during exam
+                        </p>
+                      </div>
+                      <Controller
+                        name="requireFullscreen"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="requireFullscreen"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-require-fullscreen"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="shuffleOptions" className="text-base font-semibold cursor-pointer">Shuffle Options</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Randomize MCQ option order (A, B, C, D)
+                        </p>
+                      </div>
+                      <Controller
+                        name="shuffleOptions"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Switch
+                            id="shuffleOptions"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-shuffle-options"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="maxTabSwitches">Max Tab Switches</Label>
+                      <Input
+                        id="maxTabSwitches"
+                        type="number"
+                        min="0"
+                        max="10"
+                        {...form.register('maxTabSwitches', { valueAsNumber: true })}
+                        data-testid="input-max-tab-switches"
+                        className="h-12"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Auto-submit exam after this many violations (default: 3)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 5:
+        const selectedClass = classes.find((c: any) => c.id === formValues.classId);
+        const selectedSubject = subjects.find((s: any) => s.id === formValues.subjectId);
+        const selectedTerm = terms.find((t: any) => t.id === formValues.termId);
+        
+        return (
+          <motion.div
+            key="step5"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-2xl rounded-2xl border-border">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-t-2xl">
+                <CardTitle className="text-2xl flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-indigo-500 text-white">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  Review & Create
+                </CardTitle>
+                <CardDescription>Review your exam configuration before creating</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Exam Name</p>
+                    <p className="font-semibold text-lg">{formValues.name || 'Not set'}</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Assessment Type</p>
+                    <Badge variant="outline" className="text-base">
+                      {formValues.examType === 'exam' ? 'Exam (60% weight)' : 'Test (40% weight)'}
+                    </Badge>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Class</p>
+                    <p className="font-semibold">{selectedClass?.name || 'Not selected'}</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Subject</p>
+                    <p className="font-semibold">{selectedSubject?.name || 'Not selected'}</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Academic Term</p>
+                    <p className="font-semibold">{selectedTerm ? `${selectedTerm.name} (${selectedTerm.year})` : 'Not selected'}</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Exam Date</p>
+                    <p className="font-semibold">{formValues.date || 'Not set'}</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Total Marks</p>
+                    <p className="font-semibold text-lg">{formValues.totalMarks || 0}</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Duration</p>
+                    <p className="font-semibold">{formValues.timeLimit || 0} minutes</p>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg md:col-span-2">
+                    <p className="text-sm text-muted-foreground mb-1">Timer Mode</p>
+                    <Badge variant={formValues.timerMode === 'individual' ? 'default' : 'secondary'} className="text-base">
+                      {formValues.timerMode === 'individual' ? '⏱️ Individual Timer' : '🕐 Global Timer'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    Publishing & Options
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2">
+                      {formValues.isPublished ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Publish Immediately</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formValues.allowRetakes ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Allow Retakes</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formValues.shuffleQuestions ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Shuffle Questions</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formValues.shuffleOptions ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Shuffle Options</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Target className="w-5 h-5" />
+                    Grading & Security
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2">
+                      {formValues.autoGradingEnabled ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Auto-Grading</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formValues.enableProctoring ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Proctoring</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formValues.lockdownMode ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Lockdown Mode</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formValues.requireFullscreen ? <CheckCircle className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm">Require Fullscreen</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                        Ready to Create!
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                        Your exam is configured and ready. Click "Create Exam" to proceed to question upload.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
       default:
-        return false;
+        return null;
     }
   };
 
   return (
     <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
-      <div className="max-w-5xl mx-auto py-8 px-4" data-testid="create-exam-page">
+      <div className="max-w-6xl mx-auto py-8 px-4" data-testid="create-exam-page">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
-                  <GraduationCap className="w-8 h-8 text-primary" />
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+                  <GraduationCap className="w-10 h-10 text-white" />
                 </div>
                 Create New Exam
               </h1>
-              <p className="text-muted-foreground mt-2">
-                Design a comprehensive exam with modern features, security, and automatic grading.
+              <p className="text-muted-foreground mt-2 text-lg">
+                Design a comprehensive exam with modern features, security, and automatic grading
               </p>
             </div>
             <Button
               variant="outline"
               onClick={() => navigate('/portal/teacher/exams')}
               data-testid="button-cancel"
+              className="h-12"
             >
               <X className="w-4 h-4 mr-2" />
               Cancel
@@ -301,646 +1198,73 @@ export default function CreateExam() {
           <Separator className="mt-4" />
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <CollapsibleSection
-            title="Basic Exam Details"
-            description="Essential information about the exam"
-            icon={<FileText className="w-5 h-5" />}
-            isOpen={openSections.includes('basic')}
-            onToggle={() => toggleSection('basic')}
-            isComplete={isSectionComplete('basic')}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  Exam Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Mid-Term Mathematics Test"
-                  {...form.register('name')}
-                  data-testid="input-exam-name"
-                />
-                {form.formState.errors.name && (
-                  <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-                )}
-              </div>
+        <StepIndicator currentStep={currentStep} totalSteps={5} />
 
-              <div className="space-y-2">
-                <Label htmlFor="examType">
-                  Assessment Type <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  name="examType"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger data-testid="select-exam-type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="test">Test (40 marks)</SelectItem>
-                        <SelectItem value="exam">Exam (60 marks)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.examType && (
-                  <p className="text-sm text-destructive">{form.formState.errors.examType.message}</p>
-                )}
-              </div>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <AnimatePresence mode="wait">
+            {renderStep()}
+          </AnimatePresence>
 
-              <div className="space-y-2">
-                <Label htmlFor="classId">
-                  Class / Grade <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  name="classId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={(value) => field.onChange(Number(value))}>
-                      <SelectTrigger data-testid="select-class">
-                        <SelectValue placeholder="Select class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classes.map((cls: any) => (
-                          <SelectItem key={cls.id} value={cls.id.toString()}>
-                            {cls.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.classId && (
-                  <p className="text-sm text-destructive">{form.formState.errors.classId.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="subjectId">
-                  Subject <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  name="subjectId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={(value) => field.onChange(Number(value))}>
-                      <SelectTrigger data-testid="select-subject">
-                        <SelectValue placeholder="Select subject" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subjects.map((subject: any) => (
-                          <SelectItem key={subject.id} value={subject.id.toString()}>
-                            {subject.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.subjectId && (
-                  <p className="text-sm text-destructive">{form.formState.errors.subjectId.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="termId">
-                  Academic Term <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  name="termId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={(value) => field.onChange(Number(value))}>
-                      <SelectTrigger data-testid="select-term">
-                        <SelectValue placeholder="Select term" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {terms.map((term: any) => (
-                          <SelectItem key={term.id} value={term.id.toString()}>
-                            {term.name} ({term.year})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.termId && (
-                  <p className="text-sm text-destructive">{form.formState.errors.termId.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="totalMarks">
-                  Total Marks <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="totalMarks"
-                  type="number"
-                  placeholder="100"
-                  {...form.register('totalMarks', { valueAsNumber: true })}
-                  data-testid="input-total-marks"
-                />
-                {form.formState.errors.totalMarks && (
-                  <p className="text-sm text-destructive">{form.formState.errors.totalMarks.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="passingScore">Passing Score (%)</Label>
-                <Input
-                  id="passingScore"
-                  type="number"
-                  placeholder="60"
-                  {...form.register('passingScore', { valueAsNumber: true })}
-                  data-testid="input-passing-score"
-                />
-                {form.formState.errors.passingScore && (
-                  <p className="text-sm text-destructive">{form.formState.errors.passingScore.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="teacherInChargeId">Teacher In-Charge</Label>
-                <Controller
-                  name="teacherInChargeId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger data-testid="select-teacher-in-charge">
-                        <SelectValue placeholder="Select teacher (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teachers.map((teacher: any) => (
-                          <SelectItem key={teacher.id} value={teacher.id}>
-                            {teacher.firstName} {teacher.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            title="Scheduling & Duration"
-            description="Set exam timing and availability"
-            icon={<Calendar className="w-5 h-5" />}
-            isOpen={openSections.includes('scheduling')}
-            onToggle={() => toggleSection('scheduling')}
-            isComplete={isSectionComplete('scheduling')}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date">
-                  Exam Date <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  {...form.register('date')}
-                  data-testid="input-exam-date"
-                />
-                {form.formState.errors.date && (
-                  <p className="text-sm text-destructive">{form.formState.errors.date.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="timeLimit">
-                  Duration (minutes) <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="timeLimit"
-                  type="number"
-                  placeholder="60"
-                  {...form.register('timeLimit', { valueAsNumber: true })}
-                  data-testid="input-time-limit"
-                />
-                {form.formState.errors.timeLimit && (
-                  <p className="text-sm text-destructive">{form.formState.errors.timeLimit.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  {...form.register('startTime')}
-                  data-testid="input-start-time"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  {...form.register('endTime')}
-                  data-testid="input-end-time"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="timerMode">Timer Mode</Label>
-                <Controller
-                  name="timerMode"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger data-testid="select-timer-mode">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="individual">
-                          Individual Timer - Each student gets full duration when they start
-                        </SelectItem>
-                        <SelectItem value="global">
-                          Fixed Timer - All students start and end at the same time
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {formValues.timerMode === 'individual' 
-                    ? 'Students can start at different times and each gets the full duration'
-                    : 'All students must complete the exam within the specified time window'}
-                </p>
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            title="Instructions & Rules"
-            description="Add exam guidelines for students"
-            icon={<BookOpen className="w-5 h-5" />}
-            isOpen={openSections.includes('instructions')}
-            onToggle={() => toggleSection('instructions')}
-            isComplete={isSectionComplete('instructions')}
-          >
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="instructions">Exam Instructions</Label>
-                <Textarea
-                  id="instructions"
-                  placeholder="Enter detailed instructions for students (e.g., allowed materials, rules, etc.)"
-                  rows={6}
-                  {...form.register('instructions')}
-                  data-testid="input-instructions"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Provide clear guidelines about what students should know before taking the exam
-                </p>
-              </div>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Pro Tip: Include Essential Information
-                    </p>
-                    <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
-                      <li>Required materials (calculator, formula sheet, etc.)</li>
-                      <li>Exam format and question types</li>
-                      <li>Grading criteria and expectations</li>
-                      <li>Academic integrity reminders</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            title="Exam Settings"
-            description="Configure display and behavior options"
-            icon={<Settings className="w-5 h-5" />}
-            isOpen={openSections.includes('settings')}
-            onToggle={() => toggleSection('settings')}
-            isComplete={isSectionComplete('settings')}
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="isPublished">Publish Immediately</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Make exam visible to students right away
-                  </p>
-                </div>
-                <Controller
-                  name="isPublished"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="isPublished"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-published"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="shuffleQuestions">Shuffle Questions</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Randomize question order for each student
-                  </p>
-                </div>
-                <Controller
-                  name="shuffleQuestions"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="shuffleQuestions"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-shuffle-questions"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="shuffleOptions">Shuffle Options</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Randomize answer option order (A, B, C, D)
-                  </p>
-                </div>
-                <Controller
-                  name="shuffleOptions"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="shuffleOptions"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-shuffle-options"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="allowRetakes">Allow Retakes</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Students can attempt the exam multiple times
-                  </p>
-                </div>
-                <Controller
-                  name="allowRetakes"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="allowRetakes"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-allow-retakes"
-                    />
-                  )}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="space-y-0.5">
-                  <Label htmlFor="autoGradingEnabled">Enable Auto-Grading</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Automatically grade objective questions
-                  </p>
-                </div>
-                <Controller
-                  name="autoGradingEnabled"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="autoGradingEnabled"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-auto-grading"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="instantFeedback">Instant Feedback</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Show correct/incorrect immediately after answering
-                  </p>
-                </div>
-                <Controller
-                  name="instantFeedback"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="instantFeedback"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-instant-feedback"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="showCorrectAnswers">Show Correct Answers</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Display correct answers after submission
-                  </p>
-                </div>
-                <Controller
-                  name="showCorrectAnswers"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="showCorrectAnswers"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-show-correct-answers"
-                    />
-                  )}
-                />
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            title="Proctoring & Security"
-            description="Ensure exam integrity and prevent cheating"
-            icon={<Lock className="w-5 h-5" />}
-            isOpen={openSections.includes('proctoring')}
-            onToggle={() => toggleSection('proctoring')}
-            isComplete={isSectionComplete('proctoring')}
-          >
-            <div className="space-y-4">
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                      Security Settings
-                    </p>
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
-                      These options help maintain exam integrity for online assessments. Enable as needed based on your exam requirements.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="enableProctoring">Enable Proctoring</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Monitor student activity during exam
-                  </p>
-                </div>
-                <Controller
-                  name="enableProctoring"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="enableProctoring"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-enable-proctoring"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="lockdownMode">Lockdown Mode</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Disable copy, paste, and new tabs
-                  </p>
-                </div>
-                <Controller
-                  name="lockdownMode"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="lockdownMode"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-lockdown-mode"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="requireWebcam">Require Webcam</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Enforce live video feed during exam
-                  </p>
-                </div>
-                <Controller
-                  name="requireWebcam"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="requireWebcam"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-require-webcam"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="requireFullscreen">Require Fullscreen Mode</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Prevent multitasking during exam
-                  </p>
-                </div>
-                <Controller
-                  name="requireFullscreen"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Switch
-                      id="requireFullscreen"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-require-fullscreen"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="maxTabSwitches">Maximum Tab Switches</Label>
-                <Input
-                  id="maxTabSwitches"
-                  type="number"
-                  min="0"
-                  max="10"
-                  {...form.register('maxTabSwitches', { valueAsNumber: true })}
-                  data-testid="input-max-tab-switches"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Auto-submit exam after this many violations (default: 3)
-                </p>
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          <Card className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 border-border shadow-lg rounded-2xl">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-primary" />
-                    Ready to Create Exam?
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Review your settings and create the exam. You can add questions next.
-                  </p>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={previousStep}
+                  disabled={currentStep === 1 || createExamMutation.isPending}
+                  data-testid="button-previous"
+                  className="h-12"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+
                 <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onSaveDraft}
-                    disabled={createExamMutation.isPending}
-                    data-testid="button-save-draft"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Draft
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createExamMutation.isPending}
-                    data-testid="button-create-exam"
-                  >
-                    {createExamMutation.isPending ? (
-                      <>
-                        <Clock className="w-4 h-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Create Exam & Add Questions
-                      </>
-                    )}
-                  </Button>
+                  {currentStep === 5 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onSaveDraft}
+                      disabled={createExamMutation.isPending}
+                      data-testid="button-save-draft"
+                      className="h-12"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save as Draft
+                    </Button>
+                  )}
+
+                  {currentStep < 5 ? (
+                    <Button
+                      type="button"
+                      onClick={nextStep}
+                      data-testid="button-next"
+                      className="h-12 min-w-[120px]"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      disabled={createExamMutation.isPending}
+                      data-testid="button-create-exam"
+                      className="h-12 min-w-[180px] bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                    >
+                      {createExamMutation.isPending ? (
+                        <>
+                          <Clock className="w-5 h-5 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5 mr-2" />
+                          Create Exam
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
