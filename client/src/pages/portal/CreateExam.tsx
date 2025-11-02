@@ -267,8 +267,11 @@ export default function CreateExam() {
         fieldsToValidate = ['termId', 'totalMarks', 'timeLimit', 'timerMode'];
         break;
       case 3:
+        fieldsToValidate = ['isPublished', 'allowRetakes', 'shuffleQuestions'];
+        break;
       case 4:
-        return true;
+        fieldsToValidate = ['autoGradingEnabled', 'passingScore', 'maxTabSwitches'];
+        break;
       default:
         return true;
     }
@@ -372,7 +375,10 @@ export default function CreateExam() {
                       name="classId"
                       control={form.control}
                       render={({ field }) => (
-                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                        <Select 
+                          value={field.value?.toString()} 
+                          onValueChange={(value) => field.onChange(Number(value))}
+                        >
                           <SelectTrigger data-testid="select-class" className="h-12">
                             <SelectValue placeholder="Select class" />
                           </SelectTrigger>
@@ -402,7 +408,10 @@ export default function CreateExam() {
                       name="subjectId"
                       control={form.control}
                       render={({ field }) => (
-                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                        <Select 
+                          value={field.value?.toString()} 
+                          onValueChange={(value) => field.onChange(Number(value))}
+                        >
                           <SelectTrigger data-testid="select-subject" className="h-12">
                             <SelectValue placeholder="Select subject" />
                           </SelectTrigger>
@@ -432,7 +441,7 @@ export default function CreateExam() {
                       name="examType"
                       control={form.control}
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select value={field.value} onValueChange={field.onChange}>
                           <SelectTrigger data-testid="select-exam-type" className="h-12">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
@@ -461,7 +470,7 @@ export default function CreateExam() {
                       name="teacherInChargeId"
                       control={form.control}
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select value={field.value} onValueChange={field.onChange}>
                           <SelectTrigger data-testid="select-teacher-in-charge" className="h-12">
                             <SelectValue placeholder="Select teacher (optional)" />
                           </SelectTrigger>
@@ -526,7 +535,10 @@ export default function CreateExam() {
                       name="termId"
                       control={form.control}
                       render={({ field }) => (
-                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                        <Select 
+                          value={field.value?.toString()} 
+                          onValueChange={(value) => field.onChange(Number(value))}
+                        >
                           <SelectTrigger data-testid="select-term" className="h-12">
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
@@ -851,7 +863,7 @@ export default function CreateExam() {
                           name="gradingScale"
                           control={form.control}
                           render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select value={field.value} onValueChange={field.onChange}>
                               <SelectTrigger data-testid="select-grading-scale" className="h-12">
                                 <SelectValue placeholder="Select scale" />
                               </SelectTrigger>
