@@ -59,7 +59,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 {navigation.map((item) => {
                   const isItemActive = isActive(item.href);
                   const isItemHovered = hoveredLink === item.href;
-                  const showUnderline = isItemActive || isItemHovered;
+                  // Show underline only on hovered link (if hovering) OR active link (if not hovering)
+                  const showUnderline = hoveredLink ? isItemHovered : isItemActive;
                   
                   return (
                     <Link
@@ -78,7 +79,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                       {showUnderline && (
                         <div className="absolute left-0 right-0 bottom-0 h-1 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] rounded-full" 
                           style={{
-                            animation: 'slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                            marginTop: '4px',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                           }}
                         />
                       )}
