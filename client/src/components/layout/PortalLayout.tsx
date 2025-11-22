@@ -93,9 +93,9 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             label: 'Exam Management',
             icon: ClipboardList,
             isOpen: openMenuKey === 'teacher-exam',
-            setIsOpen: (open) => setOpenMenuKey(open ? 'teacher-exam' : null),
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'teacher-exam' : null),
             items: [
-              { href: '/portal/teacher/exams', icon: PenTool, label: 'Create & Manage Exams' },
+              { href: '/portal/teacher/exams', icon: PenTool, label: 'Exam System' },
               { href: '/portal/teacher/grading-queue', icon: CheckSquare, label: 'Grading Queue' },
               { href: '/portal/teacher/exam-analytics', icon: Award, label: 'Exam Analytics' },
             ]
@@ -115,7 +115,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             label: 'People',
             icon: Users,
             isOpen: openMenuKey === 'admin-people',
-            setIsOpen: (open) => setOpenMenuKey(open ? 'admin-people' : null),
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-people' : null),
             items: [
               { href: `/portal/${userRole}/users`, icon: Users, label: 'User Management' },
               { href: `/portal/${userRole}/students`, icon: Users, label: 'Students' },
@@ -128,7 +128,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             label: 'Academics',
             icon: BookOpen,
             isOpen: openMenuKey === 'admin-academics',
-            setIsOpen: (open) => setOpenMenuKey(open ? 'admin-academics' : null),
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-academics' : null),
             items: [
               { href: `/portal/${userRole}/classes`, icon: BookOpen, label: 'Classes' },
               { href: `/portal/${userRole}/subjects`, icon: BookOpen, label: 'Subjects' },
@@ -140,7 +140,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             label: 'System',
             icon: Settings,
             isOpen: openMenuKey === 'admin-system',
-            setIsOpen: (open) => setOpenMenuKey(open ? 'admin-system' : null),
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-system' : null),
             items: [
               { href: '/portal/admin/exams', icon: Eye, label: 'Exam System' },
               { href: `/portal/${userRole}/settings`, icon: Settings, label: 'Settings' },
@@ -153,7 +153,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             label: 'Reports & Logs',
             icon: FileText,
             isOpen: openMenuKey === 'admin-reports',
-            setIsOpen: (open) => setOpenMenuKey(open ? 'admin-reports' : null),
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-reports' : null),
             items: [
               { href: `/portal/${userRole}/reports`, icon: BookOpen, label: 'Reports' },
               { href: `/portal/${userRole}/performance`, icon: Activity, label: 'Performance' },
