@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import schoolLogo from '@assets/school-logo.png';
 
 interface PublicLayoutProps {
@@ -11,6 +11,9 @@ interface PublicLayoutProps {
 export default function PublicLayout({ children }: PublicLayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
+  const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
   const isActive = (path: string) => location === path;
 
@@ -18,6 +21,21 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location]);
+
+  // Update underline position based on hovered or active nav item
+  useEffect(() => {
+    const currentIndex = hoveredIndex !== null ? hoveredIndex : navigation.findIndex(item => isActive(item.href));
+    
+    if (currentIndex >= 0 && navRefs.current[currentIndex]) {
+      const element = navRefs.current[currentIndex];
+      if (element) {
+        setUnderlineStyle({
+          left: element.offsetLeft,
+          width: element.offsetWidth,
+        });
+      }
+    }
+  }, [hoveredIndex, location]);
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -53,24 +71,37 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 </div>
               </Link>
               
-              {/* Desktop Navigation with animated underline */}
-              <div className="hidden lg:flex items-center space-x-8">
-                {navigation.map((item) => (
+              {/* Desktop Navigation with smooth sliding underline */}
+              <div className="hidden lg:flex items-center space-x-8 relative">
+                {navigation.map((item, index) => (
                   <Link
                     key={item.name}
+                    ref={(el) => {
+                      navRefs.current[index] = el;
+                    }}
                     href={item.href}
                     className={`relative text-sm font-medium pb-1 transition-colors duration-300 ${
                       isActive(item.href) 
                         ? 'text-[#1F51FF] font-semibold' 
                         : 'text-gray-700 dark:text-gray-300'
-                    } after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-gradient-to-r after:from-[#1F51FF] after:to-[#3B6FFF] after:transition-all after:duration-300 hover:after:w-full ${
-                      isActive(item.href) ? 'after:w-full' : ''
-                    }`}
+                    } hover:text-[#1F51FF]`}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
                     {item.name}
                   </Link>
                 ))}
+                
+                {/* Animated underline that slides between nav items */}
+                <div
+                  className="absolute bottom-0 h-0.5 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF]"
+                  style={{
+                    left: `${underlineStyle.left}px`,
+                    width: `${underlineStyle.width}px`,
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                />
               </div>
               
               {/* Enhanced Mobile menu button */}
