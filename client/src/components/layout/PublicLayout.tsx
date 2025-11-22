@@ -15,6 +15,14 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
   const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
+  const navigation = [
+    { name: 'Home', href: '/' },
+    { name: 'About', href: '/about' },
+    { name: 'Admissions', href: '/admissions' },
+    { name: 'Gallery', href: '/gallery' },
+    { name: 'Contact', href: '/contact' },
+  ];
+
   const isActive = (path: string) => location === path;
 
   // Auto-scroll to top when route changes
@@ -35,15 +43,21 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
         });
       }
     }
-  }, [hoveredIndex, location]);
+  }, [hoveredIndex, location, navigation]);
 
-  const navigation = [
-    { name: 'Home', href: '/' },
-    { name: 'About', href: '/about' },
-    { name: 'Admissions', href: '/admissions' },
-    { name: 'Gallery', href: '/gallery' },
-    { name: 'Contact', href: '/contact' },
-  ];
+  // Initialize underline position on mount
+  useEffect(() => {
+    const activeIndex = navigation.findIndex(item => isActive(item.href));
+    if (activeIndex >= 0 && navRefs.current[activeIndex]) {
+      const element = navRefs.current[activeIndex];
+      if (element) {
+        setUnderlineStyle({
+          left: element.offsetLeft,
+          width: element.offsetWidth,
+        });
+      }
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -94,14 +108,16 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 ))}
                 
                 {/* Animated underline that slides between nav items */}
-                <div
-                  className="absolute bottom-0 h-0.5 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF]"
-                  style={{
-                    left: `${underlineStyle.left}px`,
-                    width: `${underlineStyle.width}px`,
-                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                />
+                {underlineStyle.width > 0 && (
+                  <div
+                    className="absolute bottom-1 h-0.5 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] rounded-full"
+                    style={{
+                      left: `${underlineStyle.left}px`,
+                      width: `${underlineStyle.width}px`,
+                      transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  />
+                )}
               </div>
               
               {/* Enhanced Mobile menu button */}
