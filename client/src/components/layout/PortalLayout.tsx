@@ -183,7 +183,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
 
   return (
     <div className="flex flex-col h-full">
-      <div className={`flex-shrink-0 p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
+      <div className={`flex-shrink-0 h-[84px] flex items-center border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : 'px-5'} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
