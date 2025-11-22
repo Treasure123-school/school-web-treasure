@@ -182,8 +182,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   const [, navigate] = useLocation();
 
   return (
-    <>
-      <div className={`p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
+    <div className="flex flex-col h-full">
+      <div className={`flex-shrink-0 p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
@@ -201,7 +201,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
         </div>
       </div>
 
-      <nav className={`p-3 space-y-1.5 ${collapsed ? 'px-2' : ''} overflow-y-auto`}>
+      <nav className={`flex-1 min-h-0 p-3 space-y-1.5 ${collapsed ? 'px-2' : ''} overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-500`}>
         {navigation.map((item) => {
           const Icon = item.icon;
           if ('type' in item && item.type === 'group') {
@@ -284,7 +284,10 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           );
         })}
       </nav>
-    </>
+      
+      {/* Spacer for collapse button - only on desktop */}
+      {!isMobile && <div className="flex-shrink-0 h-20" />}
+    </div>
   );
 };
 
