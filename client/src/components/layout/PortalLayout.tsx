@@ -184,16 +184,16 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   return (
     <div className="flex flex-col h-full">
       <div className="flex-shrink-0 h-[84px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
-        <div className={`flex items-center w-full ${collapsed ? 'justify-center' : 'space-x-3'}`}>
+        <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
               src={schoolLogo} 
               alt="Treasure-Home School Logo" 
-              className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain`}
+              className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain transition-all duration-300 ease-in-out`}
             />
           </div>
           {!collapsed && (
-            <div>
+            <div className="transition-all duration-300 ease-in-out opacity-100">
               <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">Treasure-Home</h1>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">{getRoleTitle()}</p>
             </div>
@@ -201,7 +201,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
         </div>
       </div>
 
-      <nav className={`flex-1 min-h-0 p-3 space-y-1.5 ${collapsed ? 'px-2' : ''} overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-500`}>
+      <nav className={`flex-1 min-h-0 p-3 space-y-1.5 transition-all duration-300 ease-in-out ${collapsed ? 'px-2' : ''} overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-500`}>
         {navigation.map((item) => {
           const Icon = item.icon;
           if ('type' in item && item.type === 'group') {
@@ -212,13 +212,13 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                     variant="ghost"
                     className={`w-full text-sm font-semibold rounded-xl ${
                       collapsed ? 'justify-center px-2' : 'justify-start px-3'
-                    } text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-200`}
+                    } text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 ease-in-out`}
                     title={collapsed ? item.label : undefined}
                   >
-                    <Icon className={`h-4 w-4 ${collapsed ? '' : 'mr-3'}`} />
+                    <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out ${collapsed ? '' : 'mr-3'}`} />
                     {!collapsed && (
                       <>
-                        <span className="flex-1 text-left">{item.label}</span>
+                        <span className="flex-1 text-left opacity-100 transition-opacity duration-300 ease-in-out">{item.label}</span>
                         {item.isOpen ? (
                           <ChevronDown className="h-4 w-4 transition-transform" />
                         ) : (
@@ -270,7 +270,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 onNavigate?.();
                 navigate(navItem.href);
               }}
-              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 w-full ${
+              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full ${
                 navItemActive 
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
@@ -278,8 +278,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               data-testid={`nav-${navItem.name.toLowerCase().replace(/\s+/g, '-')}`}
               title={collapsed ? navItem.name : undefined}
             >
-              <Icon className={`h-4 w-4 ${navItemActive ? '' : ''}`} />
-              {!collapsed && <span>{navItem.name}</span>}
+              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out ${navItemActive ? '' : ''}`} />
+              {!collapsed && <span className="transition-opacity duration-300 ease-in-out">{navItem.name}</span>}
             </button>
           );
         })}
