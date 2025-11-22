@@ -36,10 +36,15 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
     
     if (currentIndex >= 0 && navRefs.current[currentIndex]) {
       const element = navRefs.current[currentIndex];
-      if (element) {
+      const navContainer = element?.closest('.nav-container');
+      
+      if (element && navContainer) {
+        const elementRect = element.getBoundingClientRect();
+        const containerRect = navContainer.getBoundingClientRect();
+        
         setUnderlineStyle({
-          left: element.offsetLeft,
-          width: element.offsetWidth,
+          left: elementRect.left - containerRect.left,
+          width: elementRect.width,
         });
       }
     }
@@ -50,10 +55,15 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
     const activeIndex = navigation.findIndex(item => isActive(item.href));
     if (activeIndex >= 0 && navRefs.current[activeIndex]) {
       const element = navRefs.current[activeIndex];
-      if (element) {
+      const navContainer = element?.closest('.nav-container');
+      
+      if (element && navContainer) {
+        const elementRect = element.getBoundingClientRect();
+        const containerRect = navContainer.getBoundingClientRect();
+        
         setUnderlineStyle({
-          left: element.offsetLeft,
-          width: element.offsetWidth,
+          left: elementRect.left - containerRect.left,
+          width: elementRect.width,
         });
       }
     }
@@ -86,7 +96,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               </Link>
               
               {/* Desktop Navigation with smooth sliding underline */}
-              <div className="hidden lg:flex items-center space-x-8 relative">
+              <div className="hidden lg:flex items-center space-x-8 relative nav-container">
                 {navigation.map((item, index) => (
                   <Link
                     key={item.name}
