@@ -48,6 +48,10 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isExamMenuOpen, setIsExamMenuOpen] = useState(false);
   const [isGradingMenuOpen, setIsGradingMenuOpen] = useState(false);
+  const [isPeopleMenuOpen, setIsPeopleMenuOpen] = useState(false);
+  const [isAcademicsMenuOpen, setIsAcademicsMenuOpen] = useState(false);
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
+  const [isReportsMenuOpen, setIsReportsMenuOpen] = useState(false);
 
 
   // Load sidebar state from localStorage
@@ -109,33 +113,58 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       case 'admin':
         return [
           ...baseNav,
-          { name: 'Job Vacancies', href: `/portal/${userRole}/job-vacancies`, icon: Briefcase },
           { name: 'Homepage Management', href: `/portal/${userRole}/homepage-management`, icon: ImageIcon },
           { name: 'Gallery Management', href: `/portal/${userRole}/gallery`, icon: ImageIcon },
-          { name: 'User Management', href: `/portal/${userRole}/users`, icon: Users },
-          { name: 'Students', href: `/portal/${userRole}/students`, icon: Users },
-          { name: 'Teachers', href: `/portal/${userRole}/teachers`, icon: Users },
-          { name: 'Classes', href: `/portal/${userRole}/classes`, icon: BookOpen },
-          { name: 'Subjects', href: `/portal/${userRole}/subjects`, icon: BookOpen },
-          { name: 'Academic Terms', href: `/portal/${userRole}/academic-terms`, icon: Calendar },
-          { 
+          {
             type: 'group',
-            label: 'Exam System',
-            icon: ClipboardList,
-            isOpen: isExamMenuOpen,
-            setIsOpen: setIsExamMenuOpen,
+            label: 'People',
+            icon: Users,
+            isOpen: isPeopleMenuOpen,
+            setIsOpen: setIsPeopleMenuOpen,
             items: [
-              { href: '/portal/admin/exams', icon: Eye, label: 'View Exams (Read-Only)' },
-              { href: '/portal/exam-sessions', icon: Clock, label: 'Active Sessions' },
-              { href: '/portal/exam-reports', icon: Award, label: 'Exam Reports' },
+              { href: `/portal/${userRole}/users`, icon: Users, label: 'User Management' },
+              { href: `/portal/${userRole}/students`, icon: Users, label: 'Students' },
+              { href: `/portal/${userRole}/teachers`, icon: Users, label: 'Teachers' },
+              { href: `/portal/${userRole}/job-vacancies`, icon: Briefcase, label: 'Job Vacancies' },
             ]
           },
-          { name: 'Reports', href: `/portal/${userRole}/reports`, icon: BookOpen },
-          { name: 'Performance', href: `/portal/${userRole}/performance`, icon: Activity },
-          { name: 'Audit Logs', href: `/portal/${userRole}/audit-logs`, icon: History },
-          { name: 'Profile Completion', href: `/portal/${userRole}/profile-completion`, icon: UserCheck },
-          { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
-          { name: 'Recovery Tools', href: `/portal/${userRole}/recovery-tools`, icon: Shield },
+          {
+            type: 'group',
+            label: 'Academics',
+            icon: BookOpen,
+            isOpen: isAcademicsMenuOpen,
+            setIsOpen: setIsAcademicsMenuOpen,
+            items: [
+              { href: `/portal/${userRole}/classes`, icon: BookOpen, label: 'Classes' },
+              { href: `/portal/${userRole}/subjects`, icon: BookOpen, label: 'Subjects' },
+              { href: `/portal/${userRole}/academic-terms`, icon: Calendar, label: 'Academic Terms' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'System',
+            icon: Settings,
+            isOpen: isSystemMenuOpen,
+            setIsOpen: setIsSystemMenuOpen,
+            items: [
+              { href: '/portal/admin/exams', icon: Eye, label: 'Exam System' },
+              { href: `/portal/${userRole}/settings`, icon: Settings, label: 'Settings' },
+              { href: `/portal/${userRole}/recovery-tools`, icon: Shield, label: 'Recovery Tools' },
+              { href: `/portal/${userRole}/profile-completion`, icon: UserCheck, label: 'Profile Completion' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'Reports & Logs',
+            icon: FileText,
+            isOpen: isReportsMenuOpen,
+            setIsOpen: setIsReportsMenuOpen,
+            items: [
+              { href: `/portal/${userRole}/reports`, icon: BookOpen, label: 'Reports' },
+              { href: `/portal/${userRole}/performance`, icon: Activity, label: 'Performance' },
+              { href: `/portal/${userRole}/audit-logs`, icon: History, label: 'Audit Logs' },
+            ]
+          },
         ];
       case 'parent':
         return [
