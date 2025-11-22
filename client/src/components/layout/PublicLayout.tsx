@@ -120,10 +120,11 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 {/* Animated underline that slides between nav items */}
                 {underlineStyle.width > 0 && (
                   <div
-                    className="absolute bottom-1 h-0.5 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] rounded-full"
+                    className="absolute h-1 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] rounded-full"
                     style={{
                       left: `${underlineStyle.left}px`,
                       width: `${underlineStyle.width}px`,
+                      bottom: '-8px',
                       transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   />
