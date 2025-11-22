@@ -315,8 +315,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header - Modern Responsive Design - Fixed at Top */}
-        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md p-3 sm:p-4 md:p-6">
-          <div className="flex justify-between items-center gap-2 sm:gap-3 max-w-7xl mx-auto">
+        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md h-[84px] flex items-center px-4 sm:px-5 md:px-6">
+          <div className="flex justify-between items-center gap-2 sm:gap-3 w-full max-w-7xl mx-auto">
             <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
               {/* Modern Mobile Menu Trigger */}
               {isMobile && (
