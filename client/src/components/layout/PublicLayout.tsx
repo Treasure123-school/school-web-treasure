@@ -53,29 +53,24 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 </div>
               </Link>
               
-              {/* Desktop Navigation with clean styling */}
-              <div className="hidden lg:flex items-center space-x-1">
+              {/* Desktop Navigation with animated underline */}
+              <div className="hidden lg:flex items-center space-x-8">
                 {navigation.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    className={`relative text-sm font-medium pb-1 transition-colors duration-300 ${
                       isActive(item.href) 
-                        ? 'bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] text-white font-semibold shadow-md' 
-                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-[#1F51FF]/10 hover:to-[#3B6FFF]/10 hover:text-[#1F51FF] hover:scale-105'
+                        ? 'text-[#1F51FF] font-semibold' 
+                        : 'text-gray-700 dark:text-gray-300'
+                    } after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-gradient-to-r after:from-[#1F51FF] after:to-[#3B6FFF] after:transition-all after:duration-300 hover:after:w-full ${
+                      isActive(item.href) ? 'after:w-full' : ''
                     }`}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
                     {item.name}
                   </Link>
                 ))}
-                <Button 
-                  asChild 
-                  className="bg-gradient-to-r from-[#3B82F6] to-[#6366F1] hover:from-[#2563EB] hover:to-[#4F46E5] text-white ml-8 px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105"
-                  data-testid="button-portal-login"
-                >
-                  <Link href="/login">Portal Login</Link>
-                </Button>
               </div>
               
               {/* Enhanced Mobile menu button */}
@@ -122,17 +117,6 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                     {item.name}
                   </Link>
                 ))}
-                <div className="pt-8 mt-6 pb-4 border-t border-gradient-to-r from-blue-200 to-teal-200">
-                  <Button 
-                    asChild 
-                    className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 hover:from-yellow-500 hover:via-orange-500 hover:to-orange-600 text-gray-900 font-bold w-full h-14 text-base rounded-2xl shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1 mb-2"
-                    data-testid="button-mobile-portal-login"
-                  >
-                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                      🎓 Portal Login
-                    </Link>
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
