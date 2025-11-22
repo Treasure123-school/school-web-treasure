@@ -11,9 +11,7 @@ interface PublicLayoutProps {
 export default function PublicLayout({ children }: PublicLayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
-  const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -29,45 +27,6 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location]);
-
-  // Update underline position based on hovered or active nav item
-  useEffect(() => {
-    const currentIndex = hoveredIndex !== null ? hoveredIndex : navigation.findIndex(item => isActive(item.href));
-    
-    if (currentIndex >= 0 && navRefs.current[currentIndex]) {
-      const element = navRefs.current[currentIndex];
-      const navContainer = element?.closest('.nav-container');
-      
-      if (element && navContainer) {
-        const elementRect = element.getBoundingClientRect();
-        const containerRect = navContainer.getBoundingClientRect();
-        
-        setUnderlineStyle({
-          left: elementRect.left - containerRect.left,
-          width: elementRect.width,
-        });
-      }
-    }
-  }, [hoveredIndex, location, navigation]);
-
-  // Initialize underline position on mount
-  useEffect(() => {
-    const activeIndex = navigation.findIndex(item => isActive(item.href));
-    if (activeIndex >= 0 && navRefs.current[activeIndex]) {
-      const element = navRefs.current[activeIndex];
-      const navContainer = element?.closest('.nav-container');
-      
-      if (element && navContainer) {
-        const elementRect = element.getBoundingClientRect();
-        const containerRect = navContainer.getBoundingClientRect();
-        
-        setUnderlineStyle({
-          left: elementRect.left - containerRect.left,
-          width: elementRect.width,
-        });
-      }
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,39 +55,36 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               </Link>
               
               {/* Desktop Navigation with smooth sliding underline */}
-              <div className="hidden lg:flex items-center space-x-8 relative nav-container">
-                {navigation.map((item, index) => (
-                  <Link
-                    key={item.name}
-                    ref={(el) => {
-                      navRefs.current[index] = el;
-                    }}
-                    href={item.href}
-                    className={`relative text-sm font-medium pb-1 transition-colors duration-300 ${
-                      isActive(item.href) 
-                        ? 'text-[#1F51FF] font-semibold' 
-                        : 'text-gray-700 dark:text-gray-300'
-                    } hover:text-[#1F51FF]`}
-                    onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                    data-testid={`nav-${item.name.toLowerCase()}`}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-                
-                {/* Animated underline that slides between nav items */}
-                {underlineStyle.width > 0 && (
-                  <div
-                    className="absolute h-1 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] rounded-full"
-                    style={{
-                      left: `${underlineStyle.left}px`,
-                      width: `${underlineStyle.width}px`,
-                      bottom: '-8px',
-                      transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  />
-                )}
+              <div className="hidden lg:flex items-center space-x-8">
+                {navigation.map((item) => {
+                  const isItemActive = isActive(item.href);
+                  const isItemHovered = hoveredLink === item.href;
+                  const showUnderline = isItemActive || isItemHovered;
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`relative text-sm font-medium transition-colors duration-300 ${
+                        isItemActive 
+                          ? 'text-[#1F51FF] font-semibold' 
+                          : 'text-gray-700 dark:text-gray-300'
+                      } hover:text-[#1F51FF]`}
+                      onMouseEnter={() => setHoveredLink(item.href)}
+                      onMouseLeave={() => setHoveredLink(null)}
+                      data-testid={`nav-${item.name.toLowerCase()}`}
+                    >
+                      {item.name}
+                      {showUnderline && (
+                        <div className="absolute left-0 right-0 bottom-0 h-1 bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] rounded-full" 
+                          style={{
+                            animation: 'slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                          }}
+                        />
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
               
               {/* Enhanced Mobile menu button */}
