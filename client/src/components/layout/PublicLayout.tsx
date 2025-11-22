@@ -28,23 +28,17 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
   // Update underline position when hovering or location changes
   useEffect(() => {
-    const currentHref = hoveredLink;
-    const targetHref = currentHref || location;
+    const targetHref = hoveredLink || location;
     const targetIndex = navigation.findIndex(item => item.href === targetHref);
     
-    if (targetIndex !== -1 && navRefs.current[targetIndex] && navContainerRef.current) {
+    if (targetIndex !== -1 && navRefs.current[targetIndex]) {
       const link = navRefs.current[targetIndex];
-      const container = navContainerRef.current;
-      
-      const linkRect = link.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      
       setUnderlineStyle({
-        width: linkRect.width,
-        left: linkRect.left - containerRect.left,
+        width: link.offsetWidth,
+        left: link.offsetLeft,
       });
     }
-  }, [hoveredLink, location, navigation]);
+  }, [hoveredLink, location]);
 
   // Auto-scroll to top when route changes
   useEffect(() => {
