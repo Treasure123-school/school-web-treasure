@@ -11,14 +11,31 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Save, AlertTriangle } from "lucide-react";
 
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolEmail: string;
+  schoolPhone: string;
+  schoolAddress: string;
+  maintenanceMode: boolean;
+  maintenanceModeMessage: string;
+  enableSmsNotifications: boolean;
+  enableEmailNotifications: boolean;
+  enableExamsModule: boolean;
+  enableAttendanceModule: boolean;
+  enableResultsModule: boolean;
+  themeColor: string;
+  hideAdminAccountsFromAdmins: boolean;
+}
+
 export default function SuperAdminSettings() {
   const { toast } = useToast();
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<SettingsData>({
     queryKey: ["/api/superadmin/settings"],
   });
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<SettingsData>({
     schoolName: "",
     schoolMotto: "",
     schoolEmail: "",
@@ -43,7 +60,7 @@ export default function SuperAdminSettings() {
   }, [settings]);
 
   const saveSettingsMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SettingsData) => {
       return apiRequest("PUT", "/api/superadmin/settings", data);
     },
     onSuccess: () => {

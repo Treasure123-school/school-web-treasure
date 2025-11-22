@@ -10,18 +10,31 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Save, Key } from "lucide-react";
 
+interface ProfileData {
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface PasswordData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export default function SuperAdminProfile() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<ProfileData>({
     username: user?.username || "",
     email: user?.email || "",
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
   });
 
-  const [passwordData, setPasswordData] = useState({
+  const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",

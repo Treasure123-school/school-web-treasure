@@ -67,6 +67,9 @@ __export(schema_exports, {
   insertPasswordResetAttemptSchema: () => insertPasswordResetAttemptSchema,
   insertPasswordResetTokenSchema: () => insertPasswordResetTokenSchema,
   insertPerformanceEventSchema: () => insertPerformanceEventSchema,
+  insertQuestionBankItemSchema: () => insertQuestionBankItemSchema,
+  insertQuestionBankOptionSchema: () => insertQuestionBankOptionSchema,
+  insertQuestionBankSchema: () => insertQuestionBankSchema,
   insertQuestionOptionSchema: () => insertQuestionOptionSchema,
   insertReportCardItemSchema: () => insertReportCardItemSchema,
   insertReportCardSchema: () => insertReportCardSchema,
@@ -76,9 +79,12 @@ __export(schema_exports, {
   insertStudentSchema: () => insertStudentSchema,
   insertStudyResourceSchema: () => insertStudyResourceSchema,
   insertSubjectSchema: () => insertSubjectSchema,
+  insertSuperAdminProfileSchema: () => insertSuperAdminProfileSchema,
+  insertSystemSettingsSchema: () => insertSystemSettingsSchema,
   insertTeacherApplicationSchema: () => insertTeacherApplicationSchema,
   insertTeacherClassAssignmentSchema: () => insertTeacherClassAssignmentSchema,
   insertTeacherProfileSchema: () => insertTeacherProfileSchema,
+  insertTimetableSchema: () => insertTimetableSchema,
   insertUserSchema: () => insertUserSchema,
   insertVacancySchema: () => insertVacancySchema,
   invites: () => invites,
@@ -88,6 +94,9 @@ __export(schema_exports, {
   passwordResetAttempts: () => passwordResetAttempts,
   passwordResetTokens: () => passwordResetTokens,
   performanceEvents: () => performanceEvents,
+  questionBankItems: () => questionBankItems,
+  questionBankOptions: () => questionBankOptions,
+  questionBanks: () => questionBanks,
   questionOptions: () => questionOptions,
   reportCardItems: () => reportCardItems,
   reportCardStatusEnum: () => reportCardStatusEnum,
@@ -98,9 +107,12 @@ __export(schema_exports, {
   students: () => students,
   studyResources: () => studyResources,
   subjects: () => subjects,
+  superAdminProfiles: () => superAdminProfiles,
+  systemSettings: () => systemSettings,
   teacherApplications: () => teacherApplications,
   teacherClassAssignments: () => teacherClassAssignments,
   teacherProfiles: () => teacherProfiles,
+  timetable: () => timetable,
   updateExamSessionSchema: () => updateExamSessionSchema,
   userStatusEnum: () => userStatusEnum,
   users: () => users,
@@ -111,7 +123,7 @@ import { sql, eq } from "drizzle-orm";
 import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var genderEnum, attendanceStatusEnum, reportCardStatusEnum, examTypeEnum, userStatusEnum, createdViaEnum, roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, performanceEvents, teacherClassAssignments, gradingTasks, auditLogs, settings, counters, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, vacancyStatusEnum, applicationStatusEnum, vacancies, teacherApplications, approvedTeachers, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema;
+var genderEnum, attendanceStatusEnum, reportCardStatusEnum, examTypeEnum, userStatusEnum, createdViaEnum, roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, superAdminProfiles, systemSettings, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, questionBanks, questionBankItems, questionBankOptions, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, performanceEvents, teacherClassAssignments, timetable, gradingTasks, auditLogs, settings, counters, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertTimetableSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, insertQuestionBankSchema, insertQuestionBankItemSchema, insertQuestionBankOptionSchema, vacancyStatusEnum, applicationStatusEnum, vacancies, teacherApplications, approvedTeachers, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema, insertSuperAdminProfileSchema, insertSystemSettingsSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -148,8 +160,8 @@ var init_schema = __esm({
       authProvider: varchar("auth_provider", { length: 20 }).default("local"),
       googleId: varchar("google_id", { length: 255 }).unique(),
       // Security & audit fields
-      status: userStatusEnum("status").default("pending"),
-      // New accounts require approval
+      status: userStatusEnum("status").default("active"),
+      // New accounts are automatically active
       createdVia: createdViaEnum("created_via").default("admin"),
       createdBy: uuid("created_by"),
       approvedBy: uuid("approved_by"),
@@ -162,6 +174,7 @@ var init_schema = __esm({
       // For suspicious activity lock
       // Profile completion fields
       profileCompleted: boolean("profile_completed").default(false),
+      profileSkipped: boolean("profile_skipped").default(false),
       profileCompletionPercentage: integer("profile_completion_percentage").default(0),
       state: varchar("state", { length: 100 }),
       country: varchar("country", { length: 100 }),
@@ -269,7 +282,8 @@ var init_schema = __esm({
       classId: integer("class_id").references(() => classes.id),
       parentId: uuid("parent_id").references(() => users.id, { onDelete: "set null" }),
       admissionDate: date("admission_date").defaultNow(),
-      emergencyContact: varchar("emergency_contact", { length: 20 }),
+      emergencyContact: varchar("emergency_contact", { length: 200 }),
+      emergencyPhone: varchar("emergency_phone", { length: 20 }),
       medicalInfo: text("medical_info"),
       guardianName: varchar("guardian_name", { length: 200 }),
       createdAt: timestamp("created_at").defaultNow()
@@ -312,6 +326,44 @@ var init_schema = __esm({
       occupation: varchar("occupation", { length: 100 }),
       contactPreference: varchar("contact_preference", { length: 50 }),
       linkedStudents: uuid("linked_students").array(),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    superAdminProfiles = pgTable("super_admin_profiles", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+      department: varchar("department", { length: 100 }),
+      accessLevel: varchar("access_level", { length: 50 }).default("full"),
+      twoFactorEnabled: boolean("two_factor_enabled").default(false),
+      twoFactorSecret: text("two_factor_secret"),
+      lastPasswordChange: timestamp("last_password_change"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    systemSettings = pgTable("system_settings", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      schoolName: varchar("school_name", { length: 200 }),
+      schoolMotto: text("school_motto"),
+      schoolLogo: text("school_logo"),
+      schoolEmail: varchar("school_email", { length: 255 }),
+      schoolPhone: varchar("school_phone", { length: 50 }),
+      schoolAddress: text("school_address"),
+      maintenanceMode: boolean("maintenance_mode").default(false),
+      maintenanceModeMessage: text("maintenance_mode_message"),
+      enableSmsNotifications: boolean("enable_sms_notifications").default(false),
+      enableEmailNotifications: boolean("enable_email_notifications").default(true),
+      enableExamsModule: boolean("enable_exams_module").default(true),
+      enableAttendanceModule: boolean("enable_attendance_module").default(true),
+      enableResultsModule: boolean("enable_results_module").default(true),
+      themeColor: varchar("theme_color", { length: 50 }).default("blue"),
+      favicon: text("favicon"),
+      usernameStudentPrefix: varchar("username_student_prefix", { length: 20 }).default("THS-STU"),
+      usernameParentPrefix: varchar("username_parent_prefix", { length: 20 }).default("THS-PAR"),
+      usernameTeacherPrefix: varchar("username_teacher_prefix", { length: 20 }).default("THS-TCH"),
+      usernameAdminPrefix: varchar("username_admin_prefix", { length: 20 }).default("THS-ADM"),
+      tempPasswordFormat: varchar("temp_password_format", { length: 50 }).default("THS@{year}#{random4}"),
+      hideAdminAccountsFromAdmins: boolean("hide_admin_accounts_from_admins").default(true),
+      updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -360,8 +412,18 @@ var init_schema = __esm({
       // Show answers after submission
       passingScore: integer("passing_score"),
       // Minimum score to pass (percentage)
-      gradingScale: text("grading_scale").default("standard")
+      gradingScale: text("grading_scale").default("standard"),
       // 'standard', 'custom'
+      // Proctoring and security settings
+      enableProctoring: boolean("enable_proctoring").default(false),
+      lockdownMode: boolean("lockdown_mode").default(false),
+      // Prevents tab switching, copy-paste
+      requireWebcam: boolean("require_webcam").default(false),
+      requireFullscreen: boolean("require_fullscreen").default(false),
+      maxTabSwitches: integer("max_tab_switches").default(3),
+      // Auto-submit after this many violations
+      shuffleOptions: boolean("shuffle_options").default(false)
+      // Randomize option order
     });
     examQuestions = pgTable("exam_questions", {
       id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -480,6 +542,61 @@ var init_schema = __esm({
       examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
       examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
       examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
+    }));
+    questionBanks = pgTable("question_banks", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      name: varchar("name", { length: 200 }).notNull(),
+      description: text("description"),
+      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+      classLevel: varchar("class_level", { length: 50 }),
+      // e.g., "JSS2", "SSS1"
+      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+      isPublic: boolean("is_public").default(false),
+      // Shared across teachers or private
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      questionBanksSubjectIdx: index("question_banks_subject_idx").on(table.subjectId),
+      questionBanksCreatedByIdx: index("question_banks_created_by_idx").on(table.createdBy)
+    }));
+    questionBankItems = pgTable("question_bank_items", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      bankId: bigint("bank_id", { mode: "number" }).references(() => questionBanks.id, { onDelete: "cascade" }).notNull(),
+      questionText: text("question_text").notNull(),
+      questionType: varchar("question_type", { length: 50 }).notNull(),
+      // 'multiple_choice', 'text', 'essay', 'practical'
+      points: integer("points").default(1),
+      difficulty: varchar("difficulty", { length: 20 }).default("medium"),
+      // 'easy', 'medium', 'hard'
+      tags: text("tags").array(),
+      // For filtering and search
+      imageUrl: text("image_url"),
+      // Auto-grading features
+      autoGradable: boolean("auto_gradable").default(true),
+      expectedAnswers: text("expected_answers").array(),
+      caseSensitive: boolean("case_sensitive").default(false),
+      explanationText: text("explanation_text"),
+      hintText: text("hint_text"),
+      // For practical questions
+      practicalInstructions: text("practical_instructions"),
+      practicalFileUrl: text("practical_file_url"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      questionBankItemsBankIdIdx: index("question_bank_items_bank_id_idx").on(table.bankId),
+      questionBankItemsTypeIdx: index("question_bank_items_type_idx").on(table.questionType),
+      questionBankItemsDifficultyIdx: index("question_bank_items_difficulty_idx").on(table.difficulty)
+    }));
+    questionBankOptions = pgTable("question_bank_options", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      questionItemId: bigint("question_item_id", { mode: "number" }).references(() => questionBankItems.id, { onDelete: "cascade" }).notNull(),
+      optionText: text("option_text").notNull(),
+      isCorrect: boolean("is_correct").default(false),
+      orderNumber: integer("order_number").notNull(),
+      explanationText: text("explanation_text"),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      questionBankOptionsItemIdIdx: index("question_bank_options_item_id_idx").on(table.questionItemId)
     }));
     announcements = pgTable("announcements", {
       id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -633,12 +750,34 @@ var init_schema = __esm({
       classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
       subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
       termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+      assignedBy: uuid("assigned_by").references(() => users.id, { onDelete: "set null" }),
       isActive: boolean("is_active").default(true),
       createdAt: timestamp("created_at").defaultNow()
     }, (table) => ({
       // Performance indexes for quick teacher assignment lookups
       teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
       teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId)
+    }));
+    timetable = pgTable("timetable", {
+      id: bigserial("id", { mode: "number" }).primaryKey(),
+      teacherId: uuid("teacher_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+      classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
+      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+      dayOfWeek: varchar("day_of_week", { length: 10 }).notNull(),
+      // 'Monday', 'Tuesday', etc.
+      startTime: varchar("start_time", { length: 5 }).notNull(),
+      // '09:00' format
+      endTime: varchar("end_time", { length: 5 }).notNull(),
+      // '10:00' format
+      location: varchar("location", { length: 100 }),
+      // Room/classroom location
+      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      // Performance indexes for timetable queries
+      timetableTeacherIdx: index("timetable_teacher_idx").on(table.teacherId, table.isActive),
+      timetableDayIdx: index("timetable_day_idx").on(table.dayOfWeek, table.teacherId)
     }));
     gradingTasks = pgTable("grading_tasks", {
       id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -670,8 +809,8 @@ var init_schema = __esm({
       // 'grade_change', 'manual_override', 'report_publish', etc.
       entityType: varchar("entity_type", { length: 50 }).notNull(),
       // 'exam_result', 'student_answer', 'report_card'
-      entityId: bigint("entity_id", { mode: "number" }).notNull(),
-      // ID of the affected entity
+      entityId: varchar("entity_id", { length: 255 }).notNull(),
+      // ID of the affected entity (supports both UUIDs and numeric IDs)
       oldValue: text("old_value"),
       // JSON of old values
       newValue: text("new_value"),
@@ -704,13 +843,17 @@ var init_schema = __esm({
     }));
     counters = pgTable("counters", {
       id: bigserial("id", { mode: "number" }).primaryKey(),
-      classCode: varchar("class_code", { length: 50 }).notNull(),
-      year: varchar("year", { length: 9 }).notNull(),
+      // New role-based counter fields
+      roleCode: varchar("role_code", { length: 10 }),
+      // 'STU', 'PAR', 'TCH', 'ADM'
+      // Legacy fields kept for backwards compatibility
+      classCode: varchar("class_code", { length: 50 }),
+      year: varchar("year", { length: 9 }),
       sequence: integer("sequence").notNull().default(0),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     }, (table) => ({
-      countersClassYearIdx: uniqueIndex("counters_class_year_idx").on(table.classCode, table.year)
+      countersRoleCodeIdx: uniqueIndex("counters_role_code_idx").on(table.roleCode)
     }));
     insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
     insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -803,6 +946,7 @@ var init_schema = __esm({
     insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
     insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
     insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
+    insertTimetableSchema = createInsertSchema(timetable).omit({ id: true, createdAt: true });
     insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
     insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
     insertSettingSchema = createInsertSchema(settings).omit({ id: true, createdAt: true, updatedAt: true });
@@ -928,6 +1072,9 @@ var init_schema = __esm({
     insertTeacherProfileSchema = createInsertSchema(teacherProfiles).omit({ id: true, createdAt: true, updatedAt: true });
     insertAdminProfileSchema = createInsertSchema(adminProfiles).omit({ id: true, createdAt: true, updatedAt: true });
     insertParentProfileSchema = createInsertSchema(parentProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+    insertQuestionBankSchema = createInsertSchema(questionBanks).omit({ id: true, createdAt: true, updatedAt: true });
+    insertQuestionBankItemSchema = createInsertSchema(questionBankItems).omit({ id: true, createdAt: true, updatedAt: true });
+    insertQuestionBankOptionSchema = createInsertSchema(questionBankOptions).omit({ id: true, createdAt: true });
     vacancyStatusEnum = pgEnum("vacancy_status", ["open", "closed", "filled"]);
     applicationStatusEnum = pgEnum("application_status", ["pending", "approved", "rejected"]);
     vacancies = pgTable("vacancies", {
@@ -998,16 +1145,20 @@ var init_schema = __esm({
       createdAt: true,
       dateApproved: true
     });
+    insertSuperAdminProfileSchema = createInsertSchema(superAdminProfiles).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
   }
 });
 
 // server/storage.ts
-var storage_exports = {};
-__export(storage_exports, {
-  DatabaseStorage: () => DatabaseStorage,
-  db: () => exportDb,
-  storage: () => storage
-});
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
@@ -1015,8 +1166,7 @@ function initializeDatabase() {
   if (!pg && process.env.DATABASE_URL) {
     console.log("\u{1F517} CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ":***@"));
     const connectionConfig = {
-      ssl: { rejectUnauthorized: false },
-      // Supabase handles SSL certificates properly
+      ssl: process.env.DATABASE_URL?.includes("supabase.com") ? "require" : false,
       prepare: false,
       // Required for Supabase transaction pooler
       // Optimized connection pool settings
@@ -1203,38 +1353,6 @@ var init_storage = __esm({
         }
         return user;
       }
-      async getUserByGoogleId(googleId) {
-        const result = await this.db.select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          recoveryEmail: users.recoveryEmail,
-          passwordHash: users.passwordHash,
-          roleId: users.roleId,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          phone: users.phone,
-          address: users.address,
-          dateOfBirth: users.dateOfBirth,
-          gender: users.gender,
-          nationalId: users.nationalId,
-          profileImageUrl: users.profileImageUrl,
-          isActive: users.isActive,
-          authProvider: users.authProvider,
-          googleId: users.googleId,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt
-        }).from(users).where(eq2(users.googleId, googleId)).limit(1);
-        const user = result[0];
-        if (user && user.id) {
-          const normalizedId = normalizeUuid(user.id);
-          if (normalizedId) {
-            user.id = normalizedId;
-          }
-        }
-        return user;
-      }
       async createPasswordResetToken(userId, token, expiresAt, ipAddress, resetBy) {
         const result = await this.db.insert(passwordResetTokens).values({
           userId,
@@ -1302,9 +1420,6 @@ var init_storage = __esm({
           }
           throw error;
         }
-      }
-      async updateUserGoogleId(userId, googleId) {
-        return await this.updateUser(userId, { googleId });
       }
       async deleteUser(id) {
         try {
@@ -1617,7 +1732,31 @@ var init_storage = __esm({
       }
       // Student management
       async getStudent(id) {
-        const result = await this.db.select().from(students).where(eq2(students.id, id)).limit(1);
+        const result = await this.db.select({
+          // Student fields
+          id: students.id,
+          admissionNumber: students.admissionNumber,
+          classId: students.classId,
+          parentId: students.parentId,
+          admissionDate: students.admissionDate,
+          emergencyContact: students.emergencyContact,
+          emergencyPhone: students.emergencyPhone,
+          medicalInfo: students.medicalInfo,
+          guardianName: students.guardianName,
+          createdAt: students.createdAt,
+          // User fields (merged into student object)
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          phone: users.phone,
+          address: users.address,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          profileImageUrl: users.profileImageUrl,
+          recoveryEmail: users.recoveryEmail,
+          // Class name (from classes table)
+          className: classes.name
+        }).from(students).leftJoin(users, eq2(students.id, users.id)).leftJoin(classes, eq2(students.classId, classes.id)).where(eq2(students.id, id)).limit(1);
         const student = result[0];
         if (student && student.id) {
           const normalizedId = normalizeUuid(student.id);
@@ -1713,6 +1852,13 @@ var init_storage = __esm({
       // Class management
       async getClasses() {
         return await db.select().from(classes).where(eq2(classes.isActive, true)).orderBy(asc(classes.name));
+      }
+      async getAllClasses(includeInactive = false) {
+        if (includeInactive) {
+          return await db.select().from(classes).orderBy(asc(classes.name));
+        } else {
+          return await db.select().from(classes).where(eq2(classes.isActive, true)).orderBy(asc(classes.name));
+        }
       }
       async getClass(id) {
         const result = await db.select().from(classes).where(eq2(classes.id, id)).limit(1);
@@ -2281,6 +2427,109 @@ var init_storage = __esm({
           createdAt: questionOptions.createdAt
         }).from(questionOptions).where(inArray(questionOptions.questionId, questionIds)).orderBy(asc(questionOptions.questionId), asc(questionOptions.orderNumber));
       }
+      // Question Bank management
+      async createQuestionBank(bank) {
+        const result = await db.insert(questionBanks).values(bank).returning();
+        return result[0];
+      }
+      async getAllQuestionBanks() {
+        return await db.select().from(questionBanks).orderBy(desc(questionBanks.createdAt));
+      }
+      async getQuestionBankById(id) {
+        const result = await db.select().from(questionBanks).where(eq2(questionBanks.id, id));
+        return result[0];
+      }
+      async getQuestionBanksBySubject(subjectId) {
+        return await db.select().from(questionBanks).where(eq2(questionBanks.subjectId, subjectId)).orderBy(desc(questionBanks.createdAt));
+      }
+      async updateQuestionBank(id, bank) {
+        const result = await db.update(questionBanks).set({ ...bank, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(questionBanks.id, id)).returning();
+        return result[0];
+      }
+      async deleteQuestionBank(id) {
+        await db.delete(questionBanks).where(eq2(questionBanks.id, id));
+        return true;
+      }
+      // Question Bank Items management
+      async createQuestionBankItem(item, options) {
+        const result = await db.insert(questionBankItems).values(item).returning();
+        const questionItem = result[0];
+        if (options && options.length > 0) {
+          const optionValues = options.map((option) => ({
+            questionItemId: questionItem.id,
+            ...option
+          }));
+          await db.insert(questionBankOptions).values(optionValues);
+        }
+        return questionItem;
+      }
+      async getQuestionBankItems(bankId, filters) {
+        let query = db.select().from(questionBankItems).where(eq2(questionBankItems.bankId, bankId));
+        if (filters?.questionType) {
+          query = query.where(eq2(questionBankItems.questionType, filters.questionType));
+        }
+        if (filters?.difficulty) {
+          query = query.where(eq2(questionBankItems.difficulty, filters.difficulty));
+        }
+        return await query.orderBy(desc(questionBankItems.createdAt));
+      }
+      async getQuestionBankItemById(id) {
+        const result = await db.select().from(questionBankItems).where(eq2(questionBankItems.id, id));
+        return result[0];
+      }
+      async updateQuestionBankItem(id, item) {
+        const result = await db.update(questionBankItems).set({ ...item, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(questionBankItems.id, id)).returning();
+        return result[0];
+      }
+      async deleteQuestionBankItem(id) {
+        await db.delete(questionBankItems).where(eq2(questionBankItems.id, id));
+        return true;
+      }
+      async getQuestionBankItemOptions(questionItemId) {
+        return await db.select().from(questionBankOptions).where(eq2(questionBankOptions.questionItemId, questionItemId)).orderBy(asc(questionBankOptions.orderNumber));
+      }
+      async importQuestionsFromBank(examId, questionItemIds, randomize = false, maxQuestions) {
+        let selectedItemIds = [...questionItemIds];
+        if (randomize && maxQuestions && maxQuestions < questionItemIds.length) {
+          selectedItemIds = questionItemIds.sort(() => Math.random() - 0.5).slice(0, maxQuestions);
+        }
+        const questions = [];
+        const existingQuestionsCount = await this.getExamQuestionCount(examId);
+        let orderNumber = existingQuestionsCount + 1;
+        for (const itemId of selectedItemIds) {
+          const bankItem = await this.getQuestionBankItemById(itemId);
+          if (!bankItem) continue;
+          const questionData = {
+            examId,
+            questionText: bankItem.questionText,
+            questionType: bankItem.questionType,
+            points: bankItem.points || 1,
+            orderNumber: orderNumber++,
+            imageUrl: bankItem.imageUrl,
+            autoGradable: bankItem.autoGradable,
+            expectedAnswers: bankItem.expectedAnswers,
+            caseSensitive: bankItem.caseSensitive,
+            explanationText: bankItem.explanationText,
+            hintText: bankItem.hintText
+          };
+          const question = await this.createExamQuestion(questionData);
+          questions.push(question);
+          if (bankItem.questionType === "multiple_choice") {
+            const bankOptions = await this.getQuestionBankItemOptions(itemId);
+            for (const bankOption of bankOptions) {
+              await this.createQuestionOption({
+                questionId: question.id,
+                optionText: bankOption.optionText,
+                isCorrect: bankOption.isCorrect,
+                orderNumber: bankOption.orderNumber,
+                partialCreditValue: 0,
+                explanationText: bankOption.explanationText
+              });
+            }
+          }
+        }
+        return { imported: questions.length, questions };
+      }
       // Get AI-suggested grading tasks for teacher review
       async getAISuggestedGradingTasks(teacherId, status) {
         try {
@@ -2338,14 +2587,14 @@ var init_storage = __esm({
           }
           const results = await query;
           const studentIds = [...new Set(results.map((r) => r.studentId))];
-          const students3 = await this.db.select({
+          const students2 = await this.db.select({
             id: users.id,
             firstName: users.firstName,
             lastName: users.lastName
           }).from(users).where(inArray(users.id, studentIds));
           return results.map((r) => ({
             ...r,
-            studentName: `${students3.find((s) => s.id === r.studentId)?.firstName} ${students3.find((s) => s.id === r.studentId)?.lastName}`,
+            studentName: `${students2.find((s) => s.id === r.studentId)?.firstName} ${students2.find((s) => s.id === r.studentId)?.lastName}`,
             status: r.autoScored || r.manualOverride ? "reviewed" : "pending",
             aiSuggested: r.pointsEarned > 0 && !r.autoScored && !r.manualOverride
           }));
@@ -3273,9 +3522,9 @@ var init_storage = __esm({
           return [];
         }
       }
-      async getStudentsByParentId(parentId2) {
+      async getStudentsByParentId(parentId) {
         try {
-          return await db.select().from(students).where(eq2(students.parentId, parentId2));
+          return await db.select().from(students).where(eq2(students.parentId, parentId));
         } catch (error) {
           console.error("Error fetching students by parent:", error);
           return [];
@@ -3284,7 +3533,7 @@ var init_storage = __esm({
       // Analytics and Reports
       async getAnalyticsOverview() {
         try {
-          const [students3, teachers, admins, parents] = await Promise.all([
+          const [students2, teachers, admins, parents] = await Promise.all([
             db.select().from(users).where(eq2(users.roleId, 1)),
             db.select().from(users).where(eq2(users.roleId, 2)),
             db.select().from(users).where(eq2(users.roleId, 4)),
@@ -3299,8 +3548,8 @@ var init_storage = __esm({
           const gradeDistribution = this.calculateGradeDistribution(examResults2);
           const subjectPerformance = await this.calculateSubjectPerformance(examResults2, subjects2);
           return {
-            totalUsers: students3.length + teachers.length + admins.length + parents.length,
-            totalStudents: students3.length,
+            totalUsers: students2.length + teachers.length + admins.length + parents.length,
+            totalStudents: students2.length,
             totalTeachers: teachers.length,
             totalAdmins: admins.length,
             totalParents: parents.length,
@@ -3308,11 +3557,11 @@ var init_storage = __esm({
             totalSubjects: subjects2.length,
             totalExams: exams2.length,
             totalExamResults: examResults2.length,
-            averageClassSize: classes2.length > 0 ? Math.round(students3.length / classes2.length) : 0,
+            averageClassSize: classes2.length > 0 ? Math.round(students2.length / classes2.length) : 0,
             gradeDistribution,
             subjectPerformance,
             recentActivity: {
-              newStudentsThisMonth: students3.filter(
+              newStudentsThisMonth: students2.filter(
                 (s) => s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
               ).length,
               examsThisMonth: exams2.filter(
@@ -3363,7 +3612,7 @@ var init_storage = __esm({
         try {
           const cutoffDate = /* @__PURE__ */ new Date();
           cutoffDate.setMonth(cutoffDate.getMonth() - months);
-          const [students3, exams2, examResults2] = await Promise.all([
+          const [students2, exams2, examResults2] = await Promise.all([
             db.select().from(users).where(and(
               eq2(users.roleId, 1)
               // Note: In a real implementation, you'd filter by createdAt >= cutoffDate
@@ -3380,7 +3629,7 @@ var init_storage = __esm({
             monthlyData.push({
               month: monthName,
               year,
-              students: students3.length + Math.floor(Math.random() * 10) - 5,
+              students: students2.length + Math.floor(Math.random() * 10) - 5,
               // Simulated variance
               exams: Math.floor(exams2.length / months) + Math.floor(Math.random() * 3),
               averageScore: 75 + Math.floor(Math.random() * 20) - 10,
@@ -3677,6 +3926,63 @@ var init_storage = __esm({
         const result = await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.id, id)).returning();
         return result.length > 0;
       }
+      // Teacher timetable implementation
+      async createTimetableEntry(entry) {
+        const result = await this.db.insert(timetable).values(entry).returning();
+        return result[0];
+      }
+      async getTimetableByTeacher(teacherId, termId) {
+        const conditions = [
+          eq2(timetable.teacherId, teacherId),
+          eq2(timetable.isActive, true)
+        ];
+        if (termId) {
+          conditions.push(eq2(timetable.termId, termId));
+        }
+        return await this.db.select().from(timetable).where(and(...conditions)).orderBy(timetable.dayOfWeek, timetable.startTime);
+      }
+      async updateTimetableEntry(id, entry) {
+        const result = await this.db.update(timetable).set(entry).where(eq2(timetable.id, id)).returning();
+        return result[0];
+      }
+      async deleteTimetableEntry(id) {
+        const result = await this.db.delete(timetable).where(eq2(timetable.id, id)).returning();
+        return result.length > 0;
+      }
+      // Teacher dashboard data - comprehensive method
+      async getTeacherDashboardData(teacherId) {
+        const profile = await this.getTeacherProfile(teacherId);
+        const user = await this.getUser(teacherId);
+        const assignmentsData = await this.db.select({
+          id: teacherClassAssignments.id,
+          className: classes.name,
+          classLevel: classes.level,
+          subjectName: subjects.name,
+          subjectCode: subjects.code,
+          termName: academicTerms.name
+        }).from(teacherClassAssignments).innerJoin(classes, eq2(teacherClassAssignments.classId, classes.id)).innerJoin(subjects, eq2(teacherClassAssignments.subjectId, subjects.id)).leftJoin(academicTerms, eq2(teacherClassAssignments.termId, academicTerms.id)).where(and(
+          eq2(teacherClassAssignments.teacherId, teacherId),
+          eq2(teacherClassAssignments.isActive, true)
+        )).orderBy(classes.name, subjects.name);
+        const timetableData = await this.db.select({
+          id: timetable.id,
+          dayOfWeek: timetable.dayOfWeek,
+          startTime: timetable.startTime,
+          endTime: timetable.endTime,
+          location: timetable.location,
+          className: classes.name,
+          subjectName: subjects.name
+        }).from(timetable).innerJoin(classes, eq2(timetable.classId, classes.id)).innerJoin(subjects, eq2(timetable.subjectId, subjects.id)).where(and(
+          eq2(timetable.teacherId, teacherId),
+          eq2(timetable.isActive, true)
+        )).orderBy(timetable.dayOfWeek, timetable.startTime);
+        return {
+          profile,
+          user,
+          assignments: assignmentsData,
+          timetable: timetableData
+        };
+      }
       // Manual grading task queue
       async createGradingTask(task) {
         try {
@@ -3783,8 +4089,8 @@ var init_storage = __esm({
         }
       }
       // Audit logging implementation
-      async createAuditLog(log3) {
-        const result = await this.db.insert(auditLogs).values(log3).returning();
+      async createAuditLog(log2) {
+        const result = await this.db.insert(auditLogs).values(log2).returning();
         return result[0];
       }
       async getAuditLogs(filters) {
@@ -4075,6 +4381,37 @@ var init_storage = __esm({
         const result = await this.db.delete(approvedTeachers).where(eq2(approvedTeachers.id, id)).returning();
         return result.length > 0;
       }
+      // Super Admin implementations
+      async getSuperAdminStats() {
+        const [admins, users2, exams2] = await Promise.all([
+          this.getUsersByRole(1),
+          // Admins have roleId 1
+          this.getAllUsers(),
+          this.db.select().from(exams)
+        ]);
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
+        const activeSessions = users2.filter((u) => u.updatedAt && u.updatedAt > oneHourAgo).length;
+        return {
+          totalAdmins: admins.length,
+          totalUsers: users2.length,
+          activeSessions,
+          totalExams: exams2.length
+        };
+      }
+      async getSystemSettings() {
+        const result = await this.db.select().from(systemSettings).limit(1);
+        return result[0];
+      }
+      async updateSystemSettings(settings2) {
+        const existing = await this.getSystemSettings();
+        if (existing) {
+          const result = await this.db.update(systemSettings).set({ ...settings2, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(systemSettings.id, existing.id)).returning();
+          return result[0];
+        } else {
+          const result = await this.db.insert(systemSettings).values(settings2).returning();
+          return result[0];
+        }
+      }
     };
     storage = initializeStorageSync();
   }
@@ -4102,42 +4439,49 @@ function generateRandomString(length) {
   }
   return result;
 }
-function generateUsername(roleId, year, optional = "", number) {
+function generateUsername(roleId, number) {
   const roleCode = ROLE_CODES[roleId] || "USR";
   const paddedNumber = String(number).padStart(3, "0");
-  if (optional) {
-    return `THS-${roleCode}-${year}-${optional}-${paddedNumber}`;
-  }
-  return `THS-${roleCode}-${year}-${paddedNumber}`;
+  return `THS-${roleCode}-${paddedNumber}`;
 }
-function generatePassword(year) {
+function generatePassword(year = (/* @__PURE__ */ new Date()).getFullYear().toString()) {
   const randomPart = generateRandomString(12);
   return `THS@${year}#${randomPart}`;
 }
-function generateStudentUsername(className, currentYear, nextNumber) {
-  const classCode = className.replace(/\s+/g, "").toUpperCase().slice(0, 4);
-  return `THS-STU-${currentYear}-${classCode}-${nextNumber.toString().padStart(3, "0")}`;
+function generateStudentUsername(nextNumber) {
+  return `THS-STU-${String(nextNumber).padStart(3, "0")}`;
 }
-function generateStudentPassword(currentYear) {
+function generateStudentPassword(currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString()) {
   const randomHex = crypto.randomBytes(2).toString("hex").toUpperCase();
   return `THS@${currentYear}#${randomHex}`;
 }
 function parseUsername(username) {
   const parts = username.split("-");
-  if (parts.length < 4 || parts[0] !== "THS") {
+  if (parts.length < 3 || parts[0] !== "THS") {
     return null;
+  }
+  if (parts.length === 3) {
+    return {
+      prefix: parts[0],
+      roleCode: parts[1],
+      format: "new",
+      number: parts[2]
+    };
   }
   if (parts.length === 4) {
     return {
       prefix: parts[0],
       roleCode: parts[1],
+      format: "old",
       year: parts[2],
       number: parts[3]
     };
-  } else if (parts.length === 5) {
+  }
+  if (parts.length === 5) {
     return {
       prefix: parts[0],
       roleCode: parts[1],
+      format: "old",
       year: parts[2],
       optional: parts[3],
       number: parts[4]
@@ -4145,9 +4489,9 @@ function parseUsername(username) {
   }
   return null;
 }
-function getNextUserNumber(existingUsernames, roleId, year, optional = "") {
+function getNextUserNumber(existingUsernames, roleId) {
   const roleCode = ROLE_CODES[roleId] || "USR";
-  const prefix = optional ? `THS-${roleCode}-${year}-${optional}-` : `THS-${roleCode}-${year}-`;
+  const prefix = `THS-${roleCode}-`;
   const numbers = existingUsernames.filter((username) => username.startsWith(prefix)).map((username) => {
     const parts = username.split("-");
     const numStr = parts[parts.length - 1];
@@ -4163,10 +4507,16 @@ function isValidThsUsername(username) {
   if (!parsed) return false;
   const validRoleCodes = ["ADM", "TCH", "STU", "PAR"];
   if (!validRoleCodes.includes(parsed.roleCode)) return false;
-  if (!/^\d{4}$/.test(parsed.year)) return false;
   if (!/^\d{3}$/.test(parsed.number)) return false;
-  if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
-  return true;
+  if (parsed.format === "new") {
+    return true;
+  }
+  if (parsed.format === "old") {
+    if (parsed.year && !/^\d{4}$/.test(parsed.year)) return false;
+    if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
+    return true;
+  }
+  return false;
 }
 function getRoleIdFromCode(roleCode) {
   const entries = Object.entries(ROLE_CODES);
@@ -4191,6 +4541,352 @@ var init_auth_utils = __esm({
       4: "PAR"
       // Parent
     };
+  }
+});
+
+// server/username-generator.ts
+var username_generator_exports = {};
+__export(username_generator_exports, {
+  generateAdminUsername: () => generateAdminUsername,
+  generateParentUsername: () => generateParentUsername,
+  generateStudentUsername: () => generateStudentUsername2,
+  generateTeacherUsername: () => generateTeacherUsername,
+  generateTempPassword: () => generateTempPassword,
+  generateUsernameByRole: () => generateUsernameByRole,
+  validateUsername: () => validateUsername
+});
+import { sql as sql3 } from "drizzle-orm";
+async function getNextSequenceForRole(roleCode) {
+  const result = await exportDb.insert(counters).values({
+    roleCode,
+    classCode: "N/A",
+    year: "2025",
+    sequence: 1
+  }).onConflictDoUpdate({
+    target: [counters.roleCode],
+    set: {
+      sequence: sql3`${counters.sequence} + 1`,
+      updatedAt: /* @__PURE__ */ new Date()
+    }
+  }).returning();
+  return result[0].sequence;
+}
+async function generateStudentUsername2() {
+  const sequence = await getNextSequenceForRole(ROLE_CODES2.STUDENT);
+  return `THS-${ROLE_CODES2.STUDENT}-${String(sequence).padStart(3, "0")}`;
+}
+async function generateParentUsername() {
+  const sequence = await getNextSequenceForRole(ROLE_CODES2.PARENT);
+  return `THS-${ROLE_CODES2.PARENT}-${String(sequence).padStart(3, "0")}`;
+}
+async function generateTeacherUsername() {
+  const sequence = await getNextSequenceForRole(ROLE_CODES2.TEACHER);
+  return `THS-${ROLE_CODES2.TEACHER}-${String(sequence).padStart(3, "0")}`;
+}
+async function generateAdminUsername() {
+  const sequence = await getNextSequenceForRole(ROLE_CODES2.ADMIN);
+  return `THS-${ROLE_CODES2.ADMIN}-${String(sequence).padStart(3, "0")}`;
+}
+async function generateUsernameByRole(roleId) {
+  switch (roleId) {
+    case 1:
+      return generateAdminUsername();
+    case 2:
+      return generateTeacherUsername();
+    case 3:
+      return generateStudentUsername2();
+    case 4:
+      return generateParentUsername();
+    default:
+      throw new Error(`Invalid role ID: ${roleId}`);
+  }
+}
+function generateTempPassword(year = (/* @__PURE__ */ new Date()).getFullYear()) {
+  const random4 = Math.floor(1e3 + Math.random() * 9e3);
+  return `THS@${year}#${random4}`;
+}
+function validateUsername(username) {
+  if (!username) {
+    return { valid: false, error: "Username is required" };
+  }
+  const newStudentPattern = /^THS-STU-\d{3}$/;
+  const newParentPattern = /^THS-PAR-\d{3}$/;
+  const newTeacherPattern = /^THS-TCH-\d{3}$/;
+  const newAdminPattern = /^THS-ADM-\d{3}$/;
+  const oldStudentPattern = /^THS-STU-\d{4}-[A-Z0-9]+-\d{3}$/;
+  const oldParentPattern = /^THS-PAR-\d{4}-\d{3}$/;
+  const oldTeacherPattern = /^THS-TCH-\d{4}-[A-Z0-9]+-\d{3}$/;
+  const oldAdminPattern = /^THS-ADM-\d{4}-\d{3}$/;
+  if (newStudentPattern.test(username)) {
+    return { valid: true, type: "student", format: "new" };
+  }
+  if (newParentPattern.test(username)) {
+    return { valid: true, type: "parent", format: "new" };
+  }
+  if (newTeacherPattern.test(username)) {
+    return { valid: true, type: "teacher", format: "new" };
+  }
+  if (newAdminPattern.test(username)) {
+    return { valid: true, type: "admin", format: "new" };
+  }
+  if (oldStudentPattern.test(username)) {
+    return { valid: true, type: "student", format: "old" };
+  }
+  if (oldParentPattern.test(username)) {
+    return { valid: true, type: "parent", format: "old" };
+  }
+  if (oldTeacherPattern.test(username)) {
+    return { valid: true, type: "teacher", format: "old" };
+  }
+  if (oldAdminPattern.test(username)) {
+    return { valid: true, type: "admin", format: "old" };
+  }
+  return { valid: false, error: "Invalid username format" };
+}
+var ROLE_CODES2;
+var init_username_generator = __esm({
+  "server/username-generator.ts"() {
+    "use strict";
+    init_storage();
+    init_schema();
+    ROLE_CODES2 = {
+      STUDENT: "STU",
+      PARENT: "PAR",
+      TEACHER: "TCH",
+      ADMIN: "ADM"
+    };
+  }
+});
+
+// server/supabase-storage.ts
+var supabase_storage_exports = {};
+__export(supabase_storage_exports, {
+  STORAGE_BUCKETS: () => STORAGE_BUCKETS,
+  deleteFileFromSupabase: () => deleteFileFromSupabase,
+  extractFilePathFromUrl: () => extractFilePathFromUrl,
+  getSupabaseFileUrl: () => getSupabaseFileUrl,
+  initializeStorageBuckets: () => initializeStorageBuckets,
+  isSupabaseStorageEnabled: () => isSupabaseStorageEnabled,
+  supabase: () => supabase,
+  uploadFileToSupabase: () => uploadFileToSupabase
+});
+import { createClient } from "@supabase/supabase-js";
+function isValidUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+function getSupabaseClient() {
+  if (initializationAttempted) {
+    return supabaseClient;
+  }
+  initializationAttempted = true;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  const isProduction2 = process.env.NODE_ENV === "production";
+  if (!supabaseUrl || !supabaseServiceKey) {
+    const errorMsg = `\u{1F6A8} CRITICAL: Supabase Storage not configured! Missing: ${!supabaseUrl ? "SUPABASE_URL" : ""} ${!supabaseServiceKey ? "SUPABASE_SERVICE_KEY" : ""}`;
+    if (isProduction2) {
+      console.error(errorMsg);
+      console.error("   \u2192 Image uploads WILL FAIL in production without these credentials!");
+      console.error("   \u2192 Set SUPABASE_URL and SUPABASE_SERVICE_KEY in your deployment platform's environment variables");
+      console.error("   \u2192 Get these from: Supabase Dashboard \u2192 Project Settings \u2192 API");
+    } else {
+      console.warn(`\u26A0\uFE0F ${errorMsg} - Development mode will use fallback if available`);
+    }
+    return null;
+  }
+  if (!isValidUrl(supabaseUrl)) {
+    const errorMsg = `\u{1F6A8} CRITICAL: Invalid SUPABASE_URL format: ${supabaseUrl}`;
+    console.error(errorMsg);
+    console.error("   \u2192 Expected format: https://your-project.supabase.co");
+    return null;
+  }
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    console.log("\u2705 Supabase Storage client initialized successfully");
+    console.log(`   \u2192 Project URL: ${supabaseUrl}`);
+    console.log(`   \u2192 Service key configured: Yes (service_role)`);
+    return supabaseClient;
+  } catch (error) {
+    console.error("\u274C Failed to initialize Supabase Storage client:", error);
+    console.error("   \u2192 Verify your SUPABASE_SERVICE_KEY is the service_role key (not anon key)");
+    return null;
+  }
+}
+async function initializeStorageBuckets() {
+  const client = supabase.get();
+  if (!client) {
+    console.log("\u{1F4E6} Supabase Storage: Not configured, using local filesystem");
+    return false;
+  }
+  try {
+    console.log("\u{1F4E6} Initializing Supabase Storage buckets...");
+    const bucketsToCreate = Object.values(STORAGE_BUCKETS);
+    for (const bucketName of bucketsToCreate) {
+      const { data: existingBucket } = await client.storage.getBucket(bucketName);
+      if (!existingBucket) {
+        const { error } = await client.storage.createBucket(bucketName, {
+          public: true,
+          fileSizeLimit: 10485760,
+          // 10MB
+          allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
+        });
+        if (error) {
+          if (error.message.includes("already exists")) {
+            console.log(`  \u2705 Bucket "${bucketName}" already exists`);
+          } else {
+            console.error(`  \u274C Failed to create bucket "${bucketName}":`, error.message);
+          }
+        } else {
+          console.log(`  \u2705 Created bucket: ${bucketName}`);
+        }
+      } else {
+        console.log(`  \u2705 Bucket "${bucketName}" already exists`);
+      }
+    }
+    console.log("\u{1F510} Applying storage RLS policies via service role...");
+    await applyStoragePolicies();
+    console.log("\u2705 Supabase Storage initialization complete");
+    return true;
+  } catch (error) {
+    console.error("\u274C Supabase Storage initialization failed:", error);
+    return false;
+  }
+}
+async function applyStoragePolicies() {
+  const client = supabase.get();
+  if (!client) return;
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      console.warn("\u26A0\uFE0F Missing Supabase credentials for policy application");
+      return;
+    }
+    console.log("\u{1F510} Checking storage configuration...");
+    console.log("\u2705 Using service_role key - This bypasses ALL RLS policies");
+    console.log("\u2705 Buckets configured as public for read access");
+    console.log("\u2139\uFE0F Note: If uploads still fail, run the SQL in supabase-storage-policies.sql manually");
+  } catch (error) {
+    console.error("\u274C Storage configuration check failed:", error);
+  }
+}
+async function uploadFileToSupabase(bucket, filePath, fileBuffer, contentType) {
+  const client = supabase.get();
+  if (!client) {
+    const errorMsg = "Supabase Storage not configured - missing client";
+    console.error(`\u274C ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+  try {
+    console.log(`\u{1F4E4} Uploading to Supabase: bucket="${bucket}", path="${filePath}", size=${fileBuffer.length} bytes, type="${contentType}"`);
+    const { data: bucketData, error: bucketError } = await client.storage.getBucket(bucket);
+    if (bucketError || !bucketData) {
+      console.error(`\u274C Bucket "${bucket}" not found or inaccessible:`, bucketError);
+      throw new Error(`Storage bucket "${bucket}" not found. Please check Supabase configuration.`);
+    }
+    console.log(`\u2705 Bucket "${bucket}" verified, proceeding with upload...`);
+    const { data, error } = await client.storage.from(bucket).upload(filePath, fileBuffer, {
+      contentType,
+      upsert: true,
+      cacheControl: "3600"
+    });
+    if (error) {
+      console.error(`\u274C Supabase upload error for "${filePath}":`, {
+        message: error.message,
+        statusCode: error.cause,
+        bucket,
+        contentType,
+        bufferSize: fileBuffer.length,
+        fullError: JSON.stringify(error)
+      });
+      if (error.message.includes("new row violates row-level security policy")) {
+        throw new Error("Storage permission denied. RLS policies are blocking the upload. This should not happen with service_role key. Please verify SUPABASE_SERVICE_KEY is correct.");
+      } else if (error.message.includes("Bucket not found")) {
+        throw new Error("Storage bucket not found: " + bucket);
+      } else if (error.message.includes("The object exceeded the maximum allowed size")) {
+        throw new Error("File size exceeds maximum allowed size (10MB)");
+      } else if (error.message.includes("Invalid JWT")) {
+        throw new Error("Storage authentication failed. SUPABASE_SERVICE_KEY is invalid or expired.");
+      } else if (error.message.includes("storage/unauthenticated")) {
+        throw new Error("Storage authentication failed. Please verify SUPABASE_SERVICE_KEY is the service_role key (not anon key).");
+      }
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+    const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(filePath);
+    console.log(`\u2705 Successfully uploaded to Supabase: ${publicUrl}`);
+    return {
+      publicUrl,
+      path: data.path
+    };
+  } catch (error) {
+    console.error("\u274C Failed to upload to Supabase:", {
+      error: error.message,
+      stack: error.stack,
+      bucket,
+      filePath,
+      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_KEY,
+      supabaseUrlConfigured: !!process.env.SUPABASE_URL
+    });
+    throw error;
+  }
+}
+async function deleteFileFromSupabase(bucket, filePath) {
+  const client = supabase.get();
+  if (!client) {
+    throw new Error("Supabase Storage not configured");
+  }
+  try {
+    const { error } = await client.storage.from(bucket).remove([filePath]);
+    if (error) {
+      console.error("Supabase delete error:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Failed to delete from Supabase:", error);
+    return false;
+  }
+}
+function getSupabaseFileUrl(bucket, filePath) {
+  const client = supabase.get();
+  if (!client || !process.env.SUPABASE_URL) {
+    return `/uploads/${filePath}`;
+  }
+  const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(filePath);
+  return publicUrl;
+}
+function extractFilePathFromUrl(url) {
+  if (!url) return null;
+  const supabaseMatch = url.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
+  if (supabaseMatch) {
+    return supabaseMatch[1];
+  }
+  const localMatch = url.match(/\/uploads\/(.+)$/);
+  if (localMatch) {
+    return localMatch[1];
+  }
+  return null;
+}
+var supabaseClient, initializationAttempted, supabase, STORAGE_BUCKETS, isSupabaseStorageEnabled;
+var init_supabase_storage = __esm({
+  "server/supabase-storage.ts"() {
+    "use strict";
+    supabaseClient = null;
+    initializationAttempted = false;
+    supabase = { get: () => getSupabaseClient() };
+    STORAGE_BUCKETS = {
+      HOMEPAGE: "homepage-images",
+      GALLERY: "gallery-images",
+      PROFILES: "profile-images",
+      STUDY_RESOURCES: "study-resources",
+      GENERAL: "general-uploads"
+    };
+    isSupabaseStorageEnabled = () => !!supabase.get();
   }
 });
 
@@ -4472,53 +5168,6 @@ var init_email_service = __esm({
   }
 });
 
-// server/username-generator.ts
-import { sql as sql3 } from "drizzle-orm";
-async function generateStudentUsername2(classCode, year) {
-  const yearStr = year.toString();
-  const result = await exportDb.insert(counters).values({
-    classCode,
-    year: yearStr,
-    sequence: 1
-  }).onConflictDoUpdate({
-    target: [counters.classCode, counters.year],
-    set: {
-      sequence: sql3`${counters.sequence} + 1`,
-      updatedAt: /* @__PURE__ */ new Date()
-    }
-  }).returning();
-  const sequence = result[0].sequence;
-  return `THS-STU-${yearStr}-${classCode.toUpperCase()}-${String(sequence).padStart(3, "0")}`;
-}
-async function generateParentUsername(year) {
-  const yearStr = year.toString();
-  const classCode = "PARENT";
-  const result = await exportDb.insert(counters).values({
-    classCode,
-    year: yearStr,
-    sequence: 1
-  }).onConflictDoUpdate({
-    target: [counters.classCode, counters.year],
-    set: {
-      sequence: sql3`${counters.sequence} + 1`,
-      updatedAt: /* @__PURE__ */ new Date()
-    }
-  }).returning();
-  const sequence = result[0].sequence;
-  return `THS-PAR-${yearStr}-${String(sequence).padStart(3, "0")}`;
-}
-function generateTempPassword(year) {
-  const random4 = Math.floor(1e3 + Math.random() * 9e3);
-  return `THS@${year}#${random4}`;
-}
-var init_username_generator = __esm({
-  "server/username-generator.ts"() {
-    "use strict";
-    init_storage();
-    init_schema();
-  }
-});
-
 // server/csv-import-service.ts
 var csv_import_service_exports = {};
 __export(csv_import_service_exports, {
@@ -4526,7 +5175,7 @@ __export(csv_import_service_exports, {
   previewCSVImport: () => previewCSVImport
 });
 import { parse } from "csv-parse/sync";
-import { eq as eq4, and as and3 } from "drizzle-orm";
+import { eq as eq4, and as and2 } from "drizzle-orm";
 import bcrypt from "bcrypt";
 async function previewCSVImport(csvContent) {
   const rows = parse(csvContent, {
@@ -4562,7 +5211,7 @@ async function previewCSVImport(csvContent) {
     }
     let parentExists = false;
     if (row.parentPhone) {
-      const existingParent = await exportDb.select().from(users).where(and3(
+      const existingParent = await exportDb.select().from(users).where(and2(
         eq4(users.phone, row.parentPhone),
         eq4(users.roleId, 4)
         // Parent role
@@ -4628,8 +5277,8 @@ async function commitCSVImport(validRows, adminUserId) {
         const nameParts = item.data.fullName.trim().split(" ");
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(" ") || nameParts[0];
-        const studentUsername = await generateStudentUsername2(item.data.classCode, year);
-        const studentPassword = generateTempPassword(year);
+        const studentUsername = await generateStudentUsername2();
+        const studentPassword = generateTempPassword();
         const passwordHash = await bcrypt.hash(studentPassword, 10);
         const [studentUser] = await tx.insert(users).values({
           username: studentUsername,
@@ -4660,7 +5309,7 @@ async function commitCSVImport(validRows, adminUserId) {
         let parentCredentials = null;
         if (item.data.parentPhone) {
           if (item.parentExists) {
-            const [existingParent] = await tx.select().from(users).where(and3(
+            const [existingParent] = await tx.select().from(users).where(and2(
               eq4(users.phone, item.data.parentPhone),
               eq4(users.roleId, 4)
             )).limit(1);
@@ -4669,8 +5318,8 @@ async function commitCSVImport(validRows, adminUserId) {
               await tx.update(students).set({ parentId: parentUserId }).where(eq4(students.id, studentUser.id));
             }
           } else {
-            const parentUsername = await generateParentUsername(year);
-            const parentPassword = generateTempPassword(year);
+            const parentUsername = await generateParentUsername();
+            const parentPassword = generateTempPassword();
             const parentHash = await bcrypt.hash(parentPassword, 10);
             const [parentUser] = await tx.insert(users).values({
               username: parentUsername,
@@ -4725,145 +5374,200 @@ var init_csv_import_service = __esm({
   }
 });
 
-// server/registration-utils.ts
-var registration_utils_exports = {};
-__export(registration_utils_exports, {
-  checkParentExists: () => checkParentExists,
-  generateParentUsername: () => generateParentUsername2,
-  generateStudentUsername: () => generateStudentUsername3,
-  generateTempPassword: () => generateTempPassword2,
-  validateRegistrationData: () => validateRegistrationData
+// server/seed-system-settings.ts
+var seed_system_settings_exports = {};
+__export(seed_system_settings_exports, {
+  seedSystemSettings: () => seedSystemSettings
 });
-import crypto2 from "crypto";
-async function generateStudentUsername3(classCode) {
-  const year = (/* @__PURE__ */ new Date()).getFullYear();
-  const sequence = await storage.getNextSequence(classCode, year.toString());
-  const paddedSequence = sequence.toString().padStart(3, "0");
-  return `THS-STU-${year}-${classCode}-${paddedSequence}`;
-}
-function generateParentUsername2() {
-  const year = (/* @__PURE__ */ new Date()).getFullYear();
-  const randomPart = crypto2.randomBytes(2).toString("hex").toUpperCase();
-  return `THS-PAR-${year}-${randomPart}`;
-}
-function generateTempPassword2() {
-  const year = (/* @__PURE__ */ new Date()).getFullYear();
-  const randomPart = crypto2.randomBytes(2).toString("hex").toUpperCase();
-  return `THS@${year}#${randomPart}`;
-}
-function validateRegistrationData(data) {
-  const errors = [];
-  if (!data.fullName || data.fullName.trim().length < 2) {
-    errors.push("Full name must be at least 2 characters");
-  }
-  if (!data.classCode || data.classCode.trim().length === 0) {
-    errors.push("Class code is required");
-  }
-  if (!data.gender || !["Male", "Female", "Other"].includes(data.gender)) {
-    errors.push("Valid gender is required");
-  }
-  if (!data.dateOfBirth) {
-    errors.push("Date of birth is required");
-  } else {
-    const dob = new Date(data.dateOfBirth);
-    const age = ((/* @__PURE__ */ new Date()).getTime() - dob.getTime()) / (1e3 * 60 * 60 * 24 * 365);
-    if (age < 2 || age > 25) {
-      errors.push("Student age must be between 2 and 25 years");
+import { sql as sql5 } from "drizzle-orm";
+async function seedSystemSettings() {
+  try {
+    await exportDb.execute(sql5`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        id BIGSERIAL PRIMARY KEY,
+        school_name VARCHAR(200),
+        school_motto TEXT,
+        school_logo TEXT,
+        school_email VARCHAR(255),
+        school_phone VARCHAR(20),
+        school_address TEXT,
+        maintenance_mode BOOLEAN DEFAULT FALSE,
+        maintenance_mode_message TEXT,
+        enable_sms_notifications BOOLEAN DEFAULT FALSE,
+        enable_email_notifications BOOLEAN DEFAULT TRUE,
+        enable_exams_module BOOLEAN DEFAULT TRUE,
+        enable_attendance_module BOOLEAN DEFAULT TRUE,
+        enable_results_module BOOLEAN DEFAULT TRUE,
+        theme_color VARCHAR(7) DEFAULT '#3B82F6',
+        favicon TEXT,
+        username_student_prefix VARCHAR(20) DEFAULT 'THS-STU-',
+        username_parent_prefix VARCHAR(20) DEFAULT 'THS-PAR-',
+        username_teacher_prefix VARCHAR(20) DEFAULT 'THS-TCH-',
+        username_admin_prefix VARCHAR(20) DEFAULT 'THS-ADM-',
+        temp_password_format VARCHAR(50) DEFAULT 'Welcome{YEAR}!',
+        hide_admin_accounts_from_admins BOOLEAN DEFAULT TRUE,
+        updated_by UUID,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    const existingSettings = await exportDb.select().from(systemSettings).limit(1);
+    if (existingSettings.length === 0) {
+      await exportDb.insert(systemSettings).values({
+        schoolName: "Treasure-Home School",
+        schoolMotto: "Honesty and Success",
+        schoolEmail: "info@treasurehomeschool.edu.ng",
+        schoolPhone: "+234-XXX-XXX-XXXX",
+        schoolAddress: "Lagos, Nigeria",
+        maintenanceMode: false,
+        enableSmsNotifications: false,
+        enableEmailNotifications: true,
+        enableExamsModule: true,
+        enableAttendanceModule: true,
+        enableResultsModule: true,
+        themeColor: "#3B82F6",
+        usernameStudentPrefix: "THS-STU-",
+        usernameParentPrefix: "THS-PAR-",
+        usernameTeacherPrefix: "THS-TCH-",
+        usernameAdminPrefix: "THS-ADM-",
+        tempPasswordFormat: "Welcome{YEAR}!",
+        hideAdminAccountsFromAdmins: true
+      });
+      console.log("\u2705 Default system settings created");
+    } else {
+      console.log("\u2139\uFE0F  System settings already exist");
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    if (errorMessage.includes("already exists") || errorMessage.includes("42P07")) {
+      console.log("\u2139\uFE0F  System settings table already exists");
+    } else {
+      console.error(`\u26A0\uFE0F  System settings seeding error: ${errorMessage}`);
+      throw error;
     }
   }
-  if (!data.parentEmail && !data.parentPhone) {
-    errors.push("At least one parent contact (email or phone) is required");
-  }
-  if (data.parentEmail && !isValidEmail(data.parentEmail)) {
-    errors.push("Parent email is invalid");
-  }
-  if (data.parentPhone && !isValidPhone(data.parentPhone)) {
-    errors.push("Parent phone number is invalid");
-  }
-  return errors;
 }
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-function isValidPhone(phone) {
-  const phoneRegex = /^[\d\s\+\-\(\)]{10,}$/;
-  return phoneRegex.test(phone);
-}
-async function checkParentExists(email) {
-  if (!email) {
-    return { exists: false };
-  }
-  const parentRole = await storage.getRoleByName("parent");
-  if (!parentRole) {
-    return { exists: false };
-  }
-  const users3 = await storage.getAllUsers();
-  const parent = users3.find((u) => u.email === email && u.roleId === parentRole.id);
-  if (parent) {
-    return { exists: true, userId: parent.id };
-  }
-  return { exists: false };
-}
-var init_registration_utils = __esm({
-  "server/registration-utils.ts"() {
+var init_seed_system_settings = __esm({
+  "server/seed-system-settings.ts"() {
     "use strict";
     init_storage();
+    init_schema();
   }
 });
 
-// server/email-notifications.ts
-var email_notifications_exports = {};
-__export(email_notifications_exports, {
-  sendParentNotificationEmail: () => sendParentNotificationEmail,
-  sendParentNotificationSMS: () => sendParentNotificationSMS
+// server/seed-superadmin.ts
+var seed_superadmin_exports = {};
+__export(seed_superadmin_exports, {
+  seedSuperAdmin: () => seedSuperAdmin
 });
-async function sendParentNotificationEmail(data) {
-  console.log("\n\u{1F4E7} ========== PARENT NOTIFICATION EMAIL ==========");
-  console.log(`\u{1F4EC} To: ${data.parentEmail}`);
-  console.log(`\u{1F4CB} Subject: THS Portal \u2014 Parent Account Created for ${data.studentName}`);
-  console.log("\n\u{1F4DD} Email Body:");
-  console.log(`
-Dear Parent/Guardian,
-
-A student account has been successfully created for ${data.studentName} at Treasure-Home School.
-
-Your parent portal account has been created with the following credentials:
-
-Username: ${data.parentUsername}
-Temporary Password: ${data.parentPassword}
-
-IMPORTANT SECURITY NOTICE:
-- This is a one-time password. Please change it immediately upon first login.
-- Keep your credentials secure and do not share them with anyone.
-
-To access the parent portal:
-1. Visit: ${process.env.REPLIT_DOMAINS?.split(",")[0] || "https://your-school-portal.com"}
-2. Click on "Portal Login"
-3. Enter your username and temporary password
-4. You will be prompted to change your password
-
-Your student's username is: ${data.studentUsername}
-
-If you have any questions or need assistance, please contact the school administration.
-
-Best regards,
-Treasure-Home School Administration
-
----
-This is an automated message. Please do not reply to this email.
-  `);
-  console.log("==================================================\n");
+import bcrypt3 from "bcrypt";
+import { drizzle as drizzle2 } from "drizzle-orm/postgres-js";
+import postgres2 from "postgres";
+import { eq as eq6 } from "drizzle-orm";
+async function seedSuperAdmin() {
+  try {
+    console.log("\u{1F510} Starting Super Admin seed...");
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+    const pg2 = postgres2(process.env.DATABASE_URL, {
+      ssl: process.env.DATABASE_URL?.includes("supabase.com") ? "require" : false,
+      prepare: false
+    });
+    const db2 = drizzle2(pg2, { schema: schema_exports });
+    const existingRoles = await db2.select().from(roles);
+    const requiredRoles = [
+      { id: 0, name: "Super Admin", permissions: ["*"] },
+      { id: 1, name: "Admin", permissions: ["manage_users", "manage_classes", "manage_students", "manage_teachers", "manage_exams", "view_reports", "manage_announcements", "manage_gallery", "manage_content"] },
+      { id: 2, name: "Teacher", permissions: ["view_students", "manage_attendance", "manage_exams", "grade_exams", "view_classes", "manage_resources"] },
+      { id: 3, name: "Student", permissions: ["view_exams", "take_exams", "view_results", "view_resources", "view_announcements"] },
+      { id: 4, name: "Parent", permissions: ["view_students", "view_results", "view_attendance", "view_announcements"] }
+    ];
+    let superAdminRole;
+    for (const roleData of requiredRoles) {
+      const existingRole = existingRoles.find((r) => r.name === roleData.name);
+      if (!existingRole) {
+        console.log(`Creating ${roleData.name} role...`);
+        const [newRole] = await db2.insert(roles).values(roleData).returning();
+        if (roleData.name === "Super Admin") {
+          superAdminRole = newRole;
+        }
+        console.log(`\u2705 ${roleData.name} role created`);
+      } else {
+        if (roleData.name === "Super Admin") {
+          superAdminRole = existingRole;
+        }
+        console.log(`\u2705 ${roleData.name} role already exists`);
+      }
+    }
+    if (!superAdminRole) {
+      superAdminRole = existingRoles.find((r) => r.name === "Super Admin");
+    }
+    const existingSuperAdmin = await db2.select().from(users).where(eq6(users.username, "superadmin")).limit(1);
+    if (existingSuperAdmin.length === 0) {
+      console.log("Creating default Super Admin user...");
+      const passwordHash = await bcrypt3.hash("Temp@123", 12);
+      const [newSuperAdmin] = await db2.insert(users).values({
+        username: "superadmin",
+        email: "superadmin@treasurehome.com",
+        passwordHash,
+        roleId: superAdminRole.id,
+        firstName: "Super",
+        lastName: "Admin",
+        status: "active",
+        isActive: true,
+        mustChangePassword: true,
+        // Force password change on first login
+        profileCompleted: true,
+        createdVia: "admin"
+      }).returning();
+      await db2.insert(superAdminProfiles).values({
+        userId: newSuperAdmin.id,
+        accessLevel: "full",
+        department: "System Administration"
+      });
+      console.log("\u2705 Default Super Admin created");
+      console.log("   Username: superadmin");
+      console.log("   \u26A0\uFE0F  IMPORTANT: Default password has been set. Please login and change it immediately!");
+      console.log("   \u26A0\uFE0F  Check your secure documentation or contact the system administrator for the initial password.");
+    } else {
+      console.log("\u2705 Super Admin user already exists");
+    }
+    try {
+      const existingSettings = await db2.select().from(systemSettings).limit(1);
+      if (existingSettings.length === 0) {
+        console.log("Creating initial system settings...");
+        await db2.insert(systemSettings).values({
+          schoolName: "Treasure-Home School",
+          schoolMotto: "HONESTY AND SUCCESS",
+          enableExamsModule: true,
+          enableAttendanceModule: true,
+          enableResultsModule: true,
+          maintenanceMode: false,
+          themeColor: "blue"
+        });
+        console.log("\u2705 System settings initialized");
+      }
+    } catch (settingsError) {
+      console.log("\u2139\uFE0F  System settings table not found - skipping (optional feature)");
+    }
+    console.log("\u{1F389} Super Admin seed completed successfully!");
+    await pg2.end();
+  } catch (error) {
+    console.error("\u274C Error seeding Super Admin:", error);
+    throw error;
+  }
 }
-async function sendParentNotificationSMS(phone, username, password) {
-  console.log("\n\u{1F4F1} ========== PARENT NOTIFICATION SMS ==========");
-  console.log(`\u{1F4DE} To: ${phone}`);
-  console.log(`\u{1F4DD} Message: Your THS parent account: Username: ${username}, Password: ${password}. Change password on first login.`);
-  console.log("==================================================\n");
-}
-var init_email_notifications = __esm({
-  "server/email-notifications.ts"() {
+var init_seed_superadmin = __esm({
+  "server/seed-superadmin.ts"() {
     "use strict";
+    init_schema();
+    if (import.meta.url === `file://${process.argv[1]}`) {
+      seedSuperAdmin().then(() => process.exit(0)).catch((error) => {
+        console.error(error);
+        process.exit(1);
+      });
+    }
   }
 });
 
@@ -4875,252 +5579,198 @@ import cors from "cors";
 // server/routes.ts
 init_storage();
 init_schema();
-init_auth_utils();
 import { createServer } from "http";
 import { z as z2, ZodError } from "zod";
-import multer from "multer";
+
+// server/vite.ts
+import express from "express";
+import fs from "fs";
+import path2 from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 import path from "path";
-import fs from "fs/promises";
+var vite_config_default = defineConfig({
+  plugins: [
+    react(),
+    ...process.env.NODE_ENV !== "production" ? [
+      (await import("@replit/vite-plugin-runtime-error-modal")).default()
+    ] : [],
+    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
+      await import("@replit/vite-plugin-cartographer").then(
+        (m) => m.cartographer()
+      )
+    ] : []
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  root: path.resolve(import.meta.dirname, "client"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1e3,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          "query-vendor": ["@tanstack/react-query"],
+          "radix-ui": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-scroll-area"
+          ],
+          "radix-ui-forms": [
+            "@radix-ui/react-label",
+            "@radix-ui/react-checkbox",
+            "@radix-ui/react-radio-group",
+            "@radix-ui/react-slider",
+            "@radix-ui/react-switch"
+          ],
+          "radix-ui-misc": [
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-hover-card",
+            "@radix-ui/react-navigation-menu",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-tooltip"
+          ],
+          "supabase": ["@supabase/supabase-js"],
+          "form-vendor": ["react-hook-form", "@hookform/resolvers", "zod"],
+          "icons": ["lucide-react", "react-icons"],
+          "animation": ["framer-motion", "canvas-confetti"],
+          "charts": ["recharts"]
+        }
+      }
+    }
+  },
+  server: {
+    host: "0.0.0.0",
+    port: 5e3,
+    allowedHosts: true,
+    fs: {
+      strict: true,
+      deny: ["**/.*"]
+    }
+  },
+  define: {
+    // Auto-configure API URL based on environment
+    // Development (Replit/Localhost): Use empty string for same-origin requests
+    // Production (Vercel): Use VITE_API_URL env var (set to Render backend URL)
+    "import.meta.env.VITE_API_URL": JSON.stringify(
+      process.env.VITE_API_URL || ""
+    )
+  }
+});
+
+// server/vite.ts
+import { nanoid } from "nanoid";
+var viteLogger = createLogger();
+function log(message, source = "express") {
+  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+async function setupVite(app2, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      }
+    },
+    server: serverOptions,
+    appType: "custom"
+  });
+  app2.use(vite.middlewares);
+  app2.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path2.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html"
+      );
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app2) {
+  const distPath = path2.resolve(import.meta.dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app2.use(express.static(distPath, {
+    maxAge: "1y",
+    // 1 year for versioned assets (Vite adds hashes to filenames)
+    etag: true,
+    lastModified: true,
+    immutable: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+      } else if (filePath.match(/\.(js|css|woff2?|ttf|eot)$/)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.match(/\.(jpg|jpeg|png|gif|svg|webp|ico)$/)) {
+        res.setHeader("Cache-Control", "public, max-age=86400");
+      }
+    }
+  }));
+  app2.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
+    res.sendFile(path2.resolve(distPath, "index.html"));
+  });
+}
+
+// server/routes.ts
+init_auth_utils();
+init_username_generator();
+init_supabase_storage();
+import multer from "multer";
+import path3 from "path";
+import fs2 from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt2 from "bcrypt";
-import PDFDocument from "pdfkit";
-import passport2 from "passport";
+import passport from "passport";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-
-// server/google-auth.ts
-init_storage();
-import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-var GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-var GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-var REPLIT_DEV_DOMAIN = process.env.REPLIT_DEV_DOMAIN;
-var BACKEND_URL = process.env.BACKEND_URL;
-var BASE_URL = REPLIT_DEV_DOMAIN ? `https://${REPLIT_DEV_DOMAIN}` : BACKEND_URL || "http://localhost:5000";
-var GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || `${BASE_URL}/api/auth/google/callback`;
-console.log("\u{1F510} Google OAuth Callback URL:", GOOGLE_CALLBACK_URL);
-console.log("\u{1F310} Environment:", REPLIT_DEV_DOMAIN ? "Replit Development" : BACKEND_URL ? "Production" : "Local Development");
-function setupGoogleAuth() {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-    console.warn("Google OAuth not configured: Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
-    return false;
-  }
-  passport.use(
-    new GoogleStrategy(
-      {
-        clientID: GOOGLE_CLIENT_ID,
-        clientSecret: GOOGLE_CLIENT_SECRET,
-        callbackURL: GOOGLE_CALLBACK_URL
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const email = profile.emails?.[0]?.value;
-          const googleId = profile.id;
-          const firstName = profile.name?.givenName || "";
-          const lastName = profile.name?.familyName || "";
-          const profileImageUrl = profile.photos?.[0]?.value;
-          if (!email) {
-            return done(null, false, { message: "No email found in Google profile" });
-          }
-          let user = await storage.getUserByGoogleId(googleId);
-          if (!user) {
-            user = await storage.getUserByEmail(email);
-          }
-          if (user) {
-            const role = await storage.getRole(user.roleId);
-            const roleName = role?.name?.toLowerCase();
-            if (roleName === "teacher" || roleName === "admin") {
-              if (roleName === "teacher") {
-                const approvedTeacher = await storage.getApprovedTeacherByEmail(email);
-                if (!approvedTeacher) {
-                  return done(null, false, {
-                    message: "Access denied: Only pre-approved teachers can use Google Sign-In. Please apply through the Job Vacancy page first."
-                  });
-                }
-              }
-              if (user.status === "active") {
-                if (!user.googleId) {
-                  await storage.updateUserGoogleId(user.id, googleId);
-                  user.googleId = googleId;
-                }
-                return done(null, user);
-              } else if (user.status === "pending") {
-                return done(null, false, {
-                  message: "Your account is awaiting Admin approval. You will be notified once verified."
-                });
-              } else if (user.status === "suspended" || user.status === "disabled") {
-                return done(null, false, {
-                  message: "Access denied: Your account has been suspended by THS Admin."
-                });
-              }
-            }
-            if (roleName === "student" || roleName === "parent") {
-              return done(null, false, {
-                message: "Students and parents must use THS username and password to login. Contact your teacher if you forgot your credentials."
-              });
-            }
-            if (user.authProvider === "local") {
-              return done(null, false, {
-                message: "This email is registered with a password. Please use password login instead."
-              });
-            }
-          }
-          return done(null, {
-            googleId,
-            email,
-            firstName,
-            lastName,
-            profileImageUrl,
-            isNewUser: true,
-            requiresApproval: true
-          });
-        } catch (error) {
-          return done(error);
-        }
-      }
-    )
-  );
-  passport.serializeUser((user, done) => {
-    done(null, user.id || user.googleId);
-  });
-  passport.deserializeUser(async (id, done) => {
-    try {
-      const user = await storage.getUserByGoogleId(id) || await storage.getUser(id);
-      done(null, user);
-    } catch (error) {
-      done(error);
-    }
-  });
-  return true;
-}
-
-// server/routes.ts
-import { sql as sql4 } from "drizzle-orm";
-
-// server/supabase-storage.ts
-import { createClient } from "@supabase/supabase-js";
-var supabaseUrl = process.env.SUPABASE_URL;
-var supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-function isValidUrl(url) {
-  try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-var supabase = null;
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn("\u26A0\uFE0F Supabase Storage not configured: Missing SUPABASE_URL or SUPABASE_SERVICE_KEY");
-} else if (!isValidUrl(supabaseUrl)) {
-  console.warn(`\u26A0\uFE0F Supabase Storage not configured: Invalid SUPABASE_URL format: ${supabaseUrl}`);
-} else {
-  try {
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log("\u2705 Supabase Storage client initialized");
-  } catch (error) {
-    console.error("\u274C Failed to initialize Supabase Storage client:", error);
-    supabase = null;
-  }
-}
-var STORAGE_BUCKETS = {
-  HOMEPAGE: "homepage-images",
-  GALLERY: "gallery-images",
-  PROFILES: "profile-images",
-  STUDY_RESOURCES: "study-resources",
-  GENERAL: "general-uploads"
-};
-async function initializeStorageBuckets() {
-  if (!supabase) {
-    console.log("\u{1F4E6} Supabase Storage: Not configured, using local filesystem");
-    return false;
-  }
-  try {
-    console.log("\u{1F4E6} Initializing Supabase Storage buckets...");
-    const bucketsToCreate = Object.values(STORAGE_BUCKETS);
-    for (const bucketName of bucketsToCreate) {
-      const { data: existingBucket } = await supabase.storage.getBucket(bucketName);
-      if (!existingBucket) {
-        const { error } = await supabase.storage.createBucket(bucketName, {
-          public: true,
-          fileSizeLimit: 10485760,
-          // 10MB
-          allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
-        });
-        if (error) {
-          if (error.message.includes("already exists")) {
-            console.log(`  \u2705 Bucket "${bucketName}" already exists`);
-          } else {
-            console.error(`  \u274C Failed to create bucket "${bucketName}":`, error.message);
-          }
-        } else {
-          console.log(`  \u2705 Created bucket: ${bucketName}`);
-        }
-      } else {
-        console.log(`  \u2705 Bucket "${bucketName}" already exists`);
-      }
-    }
-    console.log("\u2705 Supabase Storage initialization complete");
-    return true;
-  } catch (error) {
-    console.error("\u274C Supabase Storage initialization failed:", error);
-    return false;
-  }
-}
-async function uploadFileToSupabase(bucket, filePath, fileBuffer, contentType) {
-  if (!supabase) {
-    throw new Error("Supabase Storage not configured");
-  }
-  try {
-    const { data, error } = await supabase.storage.from(bucket).upload(filePath, fileBuffer, {
-      contentType,
-      upsert: true
-    });
-    if (error) {
-      console.error("Supabase upload error:", error);
-      throw error;
-    }
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
-    return {
-      publicUrl,
-      path: data.path
-    };
-  } catch (error) {
-    console.error("Failed to upload to Supabase:", error);
-    return null;
-  }
-}
-async function deleteFileFromSupabase(bucket, filePath) {
-  if (!supabase) {
-    throw new Error("Supabase Storage not configured");
-  }
-  try {
-    const { error } = await supabase.storage.from(bucket).remove([filePath]);
-    if (error) {
-      console.error("Supabase delete error:", error);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("Failed to delete from Supabase:", error);
-    return false;
-  }
-}
-function extractFilePathFromUrl(url) {
-  if (!url) return null;
-  const supabaseMatch = url.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
-  if (supabaseMatch) {
-    return supabaseMatch[1];
-  }
-  const localMatch = url.match(/\/uploads\/(.+)$/);
-  if (localMatch) {
-    return localMatch[1];
-  }
-  return null;
-}
-var isSupabaseStorageEnabled = !!supabase;
-
-// server/routes.ts
+import { and as and3, eq as eq5, sql as sql4 } from "drizzle-orm";
 var loginSchema = z2.object({
   identifier: z2.string().min(1),
   // Can be username or email
@@ -5171,6 +5821,7 @@ function normalizeUuid2(raw) {
   return void 0;
 }
 var ROLES = {
+  SUPER_ADMIN: 0,
   ADMIN: 1,
   TEACHER: 2,
   STUDENT: 3,
@@ -5256,17 +5907,17 @@ var galleryDir = "uploads/gallery";
 var profileDir = "uploads/profiles";
 var studyResourcesDir = "uploads/study-resources";
 var homepageDir = "uploads/homepage";
-fs.mkdir(uploadDir, { recursive: true }).catch(() => {
+fs2.mkdir(uploadDir, { recursive: true }).catch(() => {
 });
-fs.mkdir(galleryDir, { recursive: true }).catch(() => {
+fs2.mkdir(galleryDir, { recursive: true }).catch(() => {
 });
-fs.mkdir(profileDir, { recursive: true }).catch(() => {
+fs2.mkdir(profileDir, { recursive: true }).catch(() => {
 });
-fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {
+fs2.mkdir(studyResourcesDir, { recursive: true }).catch(() => {
 });
-fs.mkdir(homepageDir, { recursive: true }).catch(() => {
+fs2.mkdir(homepageDir, { recursive: true }).catch(() => {
 });
-var storage_multer = isSupabaseStorageEnabled ? multer.memoryStorage() : multer.diskStorage({
+var storage_multer = isSupabaseStorageEnabled() ? multer.memoryStorage() : multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadType = req.body.uploadType || "general";
     let dir = uploadDir;
@@ -5283,8 +5934,8 @@ var storage_multer = isSupabaseStorageEnabled ? multer.memoryStorage() : multer.
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext);
+    const ext = path3.extname(file.originalname);
+    const name = path3.basename(file.originalname, ext);
     cb(null, `${name}-${uniqueSuffix}${ext}`);
   }
 });
@@ -5296,7 +5947,7 @@ var upload = multer({
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = allowedTypes.test(path3.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     if (mimetype && extname) {
       return cb(null, true);
@@ -5313,7 +5964,7 @@ var uploadDocument = multer({
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /pdf|doc|docx|txt|rtf|odt|ppt|pptx|xls|xlsx/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = allowedTypes.test(path3.extname(file.originalname).toLowerCase());
     const mimetype = /application\/(pdf|msword|vnd\.openxmlformats-officedocument|vnd\.oasis\.opendocument|text\/plain|vnd\.ms-powerpoint|vnd\.ms-excel)/.test(file.mimetype);
     if (mimetype && extname) {
       return cb(null, true);
@@ -5323,7 +5974,7 @@ var uploadDocument = multer({
   }
 });
 var csvDir = "uploads/csv";
-fs.mkdir(csvDir, { recursive: true }).catch(() => {
+fs2.mkdir(csvDir, { recursive: true }).catch(() => {
 });
 var uploadCSV = multer({
   storage: multer.diskStorage({
@@ -5340,7 +5991,7 @@ var uploadCSV = multer({
     // 2MB limit for CSV
   },
   fileFilter: (req, file, cb) => {
-    const isCSV = /csv|txt/.test(path.extname(file.originalname).toLowerCase());
+    const isCSV = /csv|txt/.test(path3.extname(file.originalname).toLowerCase());
     const mimeOk = /text\/(csv|plain)|application\/(vnd\.ms-excel|csv)/.test(file.mimetype);
     if (isCSV || mimeOk) {
       return cb(null, true);
@@ -5489,7 +6140,7 @@ async function autoScoreExamSession(sessionId, storage2) {
     console.log(`\u2705 OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + " MC" : "no MC"}, ${hasEssayQuestions ? totalQuestions - autoScoredQuestions + " Essays" : "no Essays"})`);
     const questionDetails = [];
     for (const q of scoringData) {
-      const question = examQuestions2.find((eq6) => eq6.id === q.questionId);
+      const question = examQuestions2.find((eq7) => eq7.id === q.questionId);
       const studentAnswer = studentAnswers2.find((sa) => sa.questionId === q.questionId);
       let questionDetail = {
         questionId: q.questionId,
@@ -5812,7 +6463,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch exams" });
     }
   });
-  app2.post("/api/exams", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.post("/api/exams", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examData = insertExamSchema.parse({
         ...req.body,
@@ -5841,40 +6492,52 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch exam" });
     }
   });
-  app2.patch("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.patch("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
-      const exam = await storage.updateExam(examId, req.body);
-      if (!exam) {
+      const existingExam = await storage.getExamById(examId);
+      if (!existingExam) {
         return res.status(404).json({ message: "Exam not found" });
       }
+      if (existingExam.createdBy !== req.user.id) {
+        return res.status(403).json({ message: "You can only edit exams you created" });
+      }
+      const exam = await storage.updateExam(examId, req.body);
       res.json(exam);
     } catch (error) {
       console.error("Error updating exam:", error);
       res.status(500).json({ message: "Failed to update exam" });
     }
   });
-  app2.delete("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.delete("/api/exams/:id", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
-      const success = await storage.deleteExam(examId);
-      if (!success) {
+      const existingExam = await storage.getExamById(examId);
+      if (!existingExam) {
         return res.status(404).json({ message: "Exam not found" });
       }
+      if (existingExam.createdBy !== req.user.id) {
+        return res.status(403).json({ message: "You can only delete exams you created" });
+      }
+      const success = await storage.deleteExam(examId);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting exam:", error);
       res.status(500).json({ message: "Failed to delete exam" });
     }
   });
-  app2.patch("/api/exams/:id/publish", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.patch("/api/exams/:id/publish", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
       const { isPublished } = req.body;
-      const exam = await storage.updateExam(examId, { isPublished });
-      if (!exam) {
+      const existingExam = await storage.getExamById(examId);
+      if (!existingExam) {
         return res.status(404).json({ message: "Exam not found" });
       }
+      if (existingExam.createdBy !== req.user.id) {
+        return res.status(403).json({ message: "You can only publish/unpublish exams you created" });
+      }
+      const exam = await storage.updateExam(examId, { isPublished });
       res.json(exam);
     } catch (error) {
       console.error("Error updating exam publish status:", error);
@@ -5956,9 +6619,12 @@ async function registerRoutes(app2) {
       const examIdsParam = req.query.examIds;
       let examIds = [];
       if (typeof examIdsParam === "string") {
-        examIds = [parseInt(examIdsParam)];
+        const parsed = parseInt(examIdsParam);
+        if (!isNaN(parsed)) {
+          examIds = [parsed];
+        }
       } else if (Array.isArray(examIdsParam)) {
-        examIds = examIdsParam.map((id) => parseInt(id));
+        examIds = examIdsParam.map((id) => parseInt(id)).filter((id) => !isNaN(id));
       }
       const counts = {};
       for (const examId of examIds) {
@@ -5981,7 +6647,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch exam questions" });
     }
   });
-  app2.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.post("/api/exam-questions", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const { options, ...questionData } = req.body;
       if (options && Array.isArray(options)) {
@@ -5996,7 +6662,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: error.message || "Failed to create exam question" });
     }
   });
-  app2.patch("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.patch("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
       const question = await storage.updateExamQuestion(questionId, req.body);
@@ -6009,7 +6675,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to update exam question" });
     }
   });
-  app2.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.delete("/api/exam-questions/:id", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
       const success = await storage.deleteExamQuestion(questionId);
@@ -6032,7 +6698,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch question options" });
     }
   });
-  app2.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app2.post("/api/exam-questions/bulk", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const { examId, questions } = req.body;
       if (!examId) {
@@ -6106,7 +6772,7 @@ async function registerRoutes(app2) {
     try {
       const studentId = req.params.studentId;
       if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN) {
-        return res.status(403).json({ message: "Unauthorized" });
+        return res.status(403).json({ message: "Unauthorized access to parent records" });
       }
       const session2 = await storage.getStudentActiveSession(studentId);
       if (!session2) {
@@ -6393,6 +7059,7 @@ async function registerRoutes(app2) {
         userUpdateData.recoveryEmail = recoveryEmail.trim();
       }
       await storage.updateUser(teacherId, userUpdateData);
+      console.log("\u2705 User data updated successfully");
       const isSuspicious = parsedSubjects.length === 0 || parsedClasses.length === 0 || !department || yearsOfExperience === 0;
       const profile = await storage.createTeacherProfile({
         ...profileData,
@@ -6493,8 +7160,8 @@ async function registerRoutes(app2) {
         id: profile.id,
         userId: profile.userId,
         staffId: profile.staffId,
-        subjects: profile.subjects,
-        assignedClasses: profile.assignedClasses,
+        subjects: Array.isArray(profile.subjects) ? profile.subjects : profile.subjects ? [profile.subjects] : [],
+        assignedClasses: Array.isArray(profile.assignedClasses) ? profile.assignedClasses : profile.assignedClasses ? [profile.assignedClasses] : [],
         // FIX: Use correct field name
         department: profile.department,
         qualification: profile.qualification,
@@ -6589,6 +7256,26 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to check profile status" });
     }
   });
+  app2.post("/api/teacher/profile/skip", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      await storage.updateUser(userId, {
+        profileSkipped: true,
+        profileCompleted: false
+      });
+      res.json({
+        message: "Profile setup skipped. You can complete it later from your dashboard.",
+        skipped: true
+      });
+    } catch (error) {
+      console.error("Error skipping teacher profile:", error);
+      res.status(500).json({ message: "Failed to skip profile setup" });
+    }
+  });
   app2.get("/api/teacher/profile/me", authenticateUser, async (req, res) => {
     try {
       const userId = req.user.id;
@@ -6646,6 +7333,16 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("\u274C Error fetching teacher profile:", error);
       res.status(500).json({ message: "Failed to fetch profile", error: error.message });
+    }
+  });
+  app2.get("/api/teacher/dashboard", authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+    try {
+      const teacherId = req.user.id;
+      const dashboardData = await storage.getTeacherDashboardData(teacherId);
+      res.json(dashboardData);
+    } catch (error) {
+      console.error("Error fetching teacher dashboard data:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data", error: error.message });
     }
   });
   app2.put("/api/teacher/profile/me", authenticateUser, authorizeRoles(ROLES.TEACHER), upload.fields([
@@ -6793,7 +7490,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to review AI-suggested score" });
     }
   });
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction2 = process.env.NODE_ENV === "production";
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "development" ? "dev-session-secret-change-in-production" : process.env.JWT_SECRET || SECRET_KEY);
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
     console.warn("\u26A0\uFE0F WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.");
@@ -6813,11 +7510,11 @@ async function registerRoutes(app2) {
     name: "sessionId",
     // Custom cookie name
     cookie: {
-      secure: isProduction,
+      secure: isProduction2,
       // HTTPS only in production
       httpOnly: true,
       // Prevent JavaScript access (XSS protection)
-      sameSite: isProduction ? "none" : "lax",
+      sameSite: isProduction2 ? "none" : "lax",
       // 'none' required for cross-domain in production
       maxAge: 24 * 60 * 60 * 1e3,
       // 24 hours
@@ -6826,124 +7523,9 @@ async function registerRoutes(app2) {
       // DO NOT set domain attribute for cross-domain (Render ↔ Vercel)
     }
   }));
-  app2.use(passport2.initialize());
-  app2.use(passport2.session());
+  app2.use(passport.initialize());
+  app2.use(passport.session());
   await initializeStorageBuckets();
-  const googleOAuthEnabled = setupGoogleAuth();
-  if (googleOAuthEnabled) {
-    console.log("\u2705 Google OAuth authentication enabled");
-  } else {
-    console.log("\u26A0\uFE0F  Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)");
-  }
-  app2.get("/api/auth/google", passport2.authenticate("google", {
-    scope: ["profile", "email"]
-  }));
-  app2.get(
-    "/api/auth/google/callback",
-    (req, res, next) => {
-      console.log("\u{1F4E7} Google OAuth callback received:", {
-        query: req.query,
-        hasCode: !!req.query.code,
-        hasError: !!req.query.error
-      });
-      passport2.authenticate("google", async (err, user, info) => {
-        const REPLIT_DEV_DOMAIN2 = process.env.REPLIT_DEV_DOMAIN;
-        const frontendUrl = REPLIT_DEV_DOMAIN2 ? `https://${REPLIT_DEV_DOMAIN2}` : process.env.FRONTEND_URL || "https://treasurehomeschool.vercel.app";
-        console.log("\u{1F504} OAuth redirect to frontend:", frontendUrl);
-        if (err) {
-          console.error("\u274C Google OAuth error:", err);
-          console.error("Error details:", { message: err.message, stack: err.stack });
-          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent("Authentication failed. Please try again."));
-        }
-        if (!user) {
-          const message = info?.message || "Authentication failed";
-          console.error("\u274C Google OAuth: No user returned. Info:", info);
-          return res.redirect(`${frontendUrl}/login?error=google_auth_failed&message=` + encodeURIComponent(message));
-        }
-        if (user.isNewUser && user.requiresApproval) {
-          console.log("\u{1F4DD} Creating pending staff account for:", user.email);
-          try {
-            const invite = await storage.getPendingInviteByEmail(user.email);
-            const roleId = invite ? invite.roleId : ROLES.TEACHER;
-            const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
-            const existingUsers = await storage.getUsersByRole(roleId);
-            const existingUsernames = existingUsers.map((u) => u.username).filter(Boolean);
-            const nextNumber = getNextUserNumber(existingUsernames, roleId, currentYear);
-            const username = generateUsername(roleId, currentYear, "", nextNumber);
-            const newUser = await storage.createUser({
-              email: user.email,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              username,
-              roleId,
-              authProvider: "google",
-              googleId: user.googleId,
-              profileImageUrl: user.profileImageUrl,
-              mustChangePassword: false,
-              passwordHash: null,
-              status: "pending",
-              // Requires approval
-              createdVia: invite ? "invite" : "google",
-              isActive: true
-            });
-            if (invite) {
-              await storage.markInviteAsAccepted(invite.id, newUser.id);
-            }
-            console.log("\u2705 Created pending account for:", user.email);
-            await storage.createAuditLog({
-              userId: newUser.id,
-              action: "account_created_pending_approval",
-              entityType: "user",
-              entityId: BigInt(1),
-              // Placeholder, needs proper entity ID if applicable
-              newValue: JSON.stringify({ email: user.email, googleId: user.googleId, username, roleId }),
-              reason: invite ? "OAuth signup via invite" : "OAuth signup without invite",
-              ipAddress: req.ip,
-              userAgent: req.headers["user-agent"]
-            });
-            try {
-              const admins = await storage.getUsersByRole(ROLES.ADMIN);
-              if (admins && admins.length > 0) {
-                const role2 = await storage.getRole(roleId);
-                const roleName2 = role2?.name || (roleId === ROLES.ADMIN ? "Admin" : "Teacher");
-                for (const admin of admins) {
-                  await storage.createNotification({
-                    userId: admin.id,
-                    type: "pending_user",
-                    title: "New User Pending Approval",
-                    message: `${newUser.firstName} ${newUser.lastName} (${newUser.email}) has signed up via Google as ${roleName2} and is awaiting approval.`,
-                    relatedEntityType: "user",
-                    relatedEntityId: newUser.id,
-                    isRead: false
-                  });
-                }
-                console.log(`\u{1F4EC} Notified ${admins.length} admin(s) about pending user: ${newUser.email}`);
-              } else {
-                console.warn("\u26A0\uFE0F No admins found to notify about pending user:", newUser.email);
-              }
-            } catch (notifError) {
-              console.error("\u274C Failed to create admin notifications:", notifError);
-            }
-            console.log(`\u{1F512} OAuth signup complete - user ${newUser.email} awaiting admin approval`);
-            const role = await storage.getRole(roleId);
-            const roleName = role?.name || "Staff";
-            return res.redirect(`${frontendUrl}/login?status=pending_verification&role=${roleName.toLowerCase()}`);
-          } catch (error) {
-            console.error("\u274C Error creating pending account:", error);
-            return res.redirect(`${frontendUrl}/login?error=account_creation_failed&message=` + encodeURIComponent("Failed to create your account. Please contact the administrator."));
-          }
-        }
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            console.error("Login error:", loginErr);
-            return res.redirect(`${frontendUrl}/login?error=login_failed&message=` + encodeURIComponent("Failed to complete login"));
-          }
-          const token = jwt.sign({ userId: user.id, roleId: user.roleId }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-          res.redirect(`${frontendUrl}/login?token=${token}&provider=google`);
-        });
-      })(req, res, next);
-    }
-  );
   app2.get("/api/auth/me", authenticateUser, async (req, res) => {
     try {
       const user = req.user;
@@ -6962,12 +7544,12 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/parents/children/:parentId", authenticateUser, async (req, res) => {
     try {
-      const parentId2 = req.params.parentId;
+      const parentId = req.params.parentId;
       const user = req.user;
-      if (user?.roleId !== ROLES.PARENT && user?.roleId !== ROLES.ADMIN && user?.id !== parentId2) {
+      if (user?.roleId !== ROLES.PARENT && user?.roleId !== ROLES.ADMIN && user?.id !== parentId) {
         return res.status(403).json({ message: "Unauthorized access to parent records" });
       }
-      const children = await storage.getStudentsByParentId(parentId2);
+      const children = await storage.getStudentsByParentId(parentId);
       res.json(children);
     } catch (error) {
       console.error("Error fetching parent children:", error);
@@ -7250,7 +7832,7 @@ async function registerRoutes(app2) {
         return res.status(400).json({ message: "No file uploaded" });
       }
       let fileUrl;
-      if (isSupabaseStorageEnabled) {
+      if (isSupabaseStorageEnabled()) {
         const fileName = `${Date.now()}-${req.file.originalname}`;
         const uploadResult = await uploadFileToSupabase(
           STORAGE_BUCKETS.PROFILES,
@@ -7275,47 +7857,83 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single("homePageImage"), async (req, res) => {
     try {
+      console.log("\u{1F3AF} Homepage upload request received:", {
+        file: req.file?.originalname,
+        contentType: req.body.contentType,
+        userId: req.user.id,
+        supabaseEnabled: isSupabaseStorageEnabled()
+      });
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      const { contentType, altText, caption, displayOrder } = req.body;
-      if (!contentType) {
+      if (!req.body.contentType) {
         return res.status(400).json({ message: "Content type is required" });
       }
-      let fileUrl;
-      if (isSupabaseStorageEnabled) {
-        const fileName = `${Date.now()}-${req.file.originalname}`;
-        const uploadResult = await uploadFileToSupabase(
-          STORAGE_BUCKETS.HOMEPAGE,
-          fileName,
-          req.file.buffer,
-          req.file.mimetype
-        );
-        if (!uploadResult) {
-          return res.status(500).json({ message: "Failed to upload file to cloud storage" });
+      let imageUrl;
+      let storedFilePath;
+      if (isSupabaseStorageEnabled()) {
+        console.log("\u{1F4E6} Using Supabase Storage for upload");
+        const timestamp2 = Date.now();
+        const filename = `${req.body.contentType}-${timestamp2}${path3.extname(req.file.originalname)}`;
+        const filePath = `homepage/${filename}`;
+        console.log(" \u09AA\u09BE\u09A0\u09BE\u09A8\u09CB\u09B0 Supabase:", {
+          bucket: STORAGE_BUCKETS.HOMEPAGE,
+          path: filePath,
+          size: req.file.buffer.length,
+          contentType: req.file.mimetype
+        });
+        try {
+          const uploadResult = await uploadFileToSupabase(
+            STORAGE_BUCKETS.HOMEPAGE,
+            filePath,
+            req.file.buffer,
+            req.file.mimetype
+          );
+          if (!uploadResult) {
+            throw new Error("Upload returned null - check Supabase configuration");
+          }
+          imageUrl = uploadResult.publicUrl;
+          storedFilePath = uploadResult.path;
+          console.log("\u2705 Successfully uploaded to Supabase:", imageUrl);
+        } catch (uploadError) {
+          console.error("\u274C Supabase upload failed:", uploadError);
+          if (uploadError.message?.includes("new row violates row-level security policy")) {
+            throw new Error("Storage permission denied. RLS policies are not configured correctly in Supabase. Please contact your administrator.");
+          } else if (uploadError.message?.includes("Bucket not found")) {
+            throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in Supabase. Please verify bucket exists.`);
+          } else if (uploadError.message?.includes("Invalid JWT")) {
+            throw new Error("Storage authentication failed. SUPABASE_SERVICE_KEY may be invalid or expired.");
+          } else {
+            throw new Error(`Storage upload failed: ${uploadError.message}`);
+          }
         }
-        fileUrl = uploadResult.publicUrl;
-        console.log(`\u{1F4E6} Uploaded to Supabase Storage: ${fileUrl}`);
       } else {
-        fileUrl = `/${req.file.path.replace(/\\/g, "/")}`;
-        console.log(`\u{1F4BE} Saved to local filesystem: ${fileUrl}`);
+        console.log("\u{1F4C1} Using local filesystem for upload");
+        imageUrl = `/uploads/homepage/${req.file.filename}`;
+        storedFilePath = req.file.filename;
+        console.log("\u2705 Successfully uploaded to local filesystem:", imageUrl);
       }
+      console.log("\u{1F4DD} Creating homepage content record in database...");
       const content = await storage.createHomePageContent({
-        contentType,
-        imageUrl: fileUrl,
-        altText: altText || "",
-        caption: caption || null,
-        displayOrder: parseInt(displayOrder) || 0,
-        isActive: true,
-        uploadedBy: req.user.id
+        contentType: req.body.contentType,
+        imageUrl,
+        altText: req.body.altText || "",
+        caption: req.body.caption || null,
+        displayOrder: parseInt(req.body.displayOrder) || 0,
+        isActive: true
       });
-      res.json({
-        message: "Homepage image uploaded successfully",
-        content
-      });
+      console.log("\u2705 Homepage content created successfully:", content.id);
+      res.json(content);
     } catch (error) {
-      console.error("Homepage image upload error:", error);
-      res.status(500).json({ message: "Failed to upload homepage image" });
+      console.error("\u274C Homepage upload error:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      res.status(500).json({
+        message: error.message || "Failed to upload homepage image",
+        error: process.env.NODE_ENV === "development" ? error.toString() : void 0
+      });
     }
   });
   app2.get("/api/homepage-content", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
@@ -7358,7 +7976,7 @@ async function registerRoutes(app2) {
       if (!content) {
         return res.status(404).json({ message: "Homepage content not found" });
       }
-      if (isSupabaseStorageEnabled && content.imageUrl) {
+      if (isSupabaseStorageEnabled() && content.imageUrl) {
         const filePath = extractFilePathFromUrl(content.imageUrl);
         if (filePath) {
           await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
@@ -7396,8 +8014,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/uploads/homepage/:filename", (req, res) => {
     const { filename } = req.params;
-    const filePath = path.resolve("uploads", "homepage", filename);
-    if (!filePath.startsWith(path.resolve("uploads", "homepage"))) {
+    const filePath = path3.resolve("uploads", "homepage", filename);
+    if (!filePath.startsWith(path3.resolve("uploads", "homepage"))) {
       return res.status(403).json({ message: "Access denied" });
     }
     res.sendFile(filePath, (err) => {
@@ -7408,8 +8026,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/uploads/:filename", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
-    const filePath = path.resolve("uploads", filename);
-    if (!filePath.startsWith(path.resolve("uploads"))) {
+    const filePath = path3.resolve("uploads", filename);
+    if (!filePath.startsWith(path3.resolve("uploads"))) {
       return res.status(403).json({ message: "Access denied" });
     }
     res.sendFile(filePath, (err) => {
@@ -7436,25 +8054,41 @@ async function registerRoutes(app2) {
             email: "student@demo.com",
             firstName: "John",
             lastName: "Doe",
-            roleId: existingRoles.find((r) => r.name === "Student")?.id || existingRoles[0].id
+            roleId: existingRoles.find((r) => r.name === "Student")?.id || existingRoles[0].id,
+            profileCompleted: false,
+            // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false
+            // 🔧 FIX: Demo users start with incomplete profile
           },
           {
             email: "teacher@demo.com",
             firstName: "Jane",
             lastName: "Smith",
-            roleId: existingRoles.find((r) => r.name === "Teacher")?.id || existingRoles[0].id
+            roleId: existingRoles.find((r) => r.name === "Teacher")?.id || existingRoles[0].id,
+            profileCompleted: false,
+            // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false
+            // 🔧 FIX: Demo users start with incomplete profile
           },
           {
             email: "parent@demo.com",
             firstName: "Bob",
             lastName: "Johnson",
-            roleId: existingRoles.find((r) => r.name === "Parent")?.id || existingRoles[0].id
+            roleId: existingRoles.find((r) => r.name === "Parent")?.id || existingRoles[0].id,
+            profileCompleted: false,
+            // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false
+            // 🔧 FIX: Demo users start with incomplete profile
           },
           {
             email: "admin@demo.com",
             firstName: "Admin",
             lastName: "User",
-            roleId: existingRoles.find((r) => r.name === "Admin")?.id || existingRoles[0].id
+            roleId: existingRoles.find((r) => r.name === "Admin")?.id || existingRoles[0].id,
+            profileCompleted: false,
+            // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false
+            // 🔧 FIX: Demo users start with incomplete profile
           }
         ];
         let createdCount = 0;
@@ -7580,6 +8214,17 @@ async function registerRoutes(app2) {
           hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
         });
       }
+      if (process.env.NODE_ENV === "development") {
+        console.log("\u{1F510} LOGIN ATTEMPT:", {
+          identifier,
+          userId: user.id,
+          roleId: user.roleId,
+          isActive: user.isActive,
+          status: user.status,
+          profileCompleted: user.profileCompleted,
+          profileSkipped: user.profileSkipped
+        });
+      }
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
       const isStaffAccount = roleName === "admin" || roleName === "teacher";
@@ -7679,14 +8324,17 @@ async function registerRoutes(app2) {
       console.log(`Login successful for ${identifier} with roleId: ${user.roleId}`);
       res.json({
         token,
+        mustChangePassword: user.mustChangePassword || false,
+        // Include password change flag
         user: {
           id: user.id,
-          username: user.username,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           roleId: user.roleId,
+          profileImageUrl: user.profileImageUrl,
           mustChangePassword: user.mustChangePassword || false
+          // Also include in user object
         }
       });
     } catch (error) {
@@ -7772,8 +8420,8 @@ async function registerRoutes(app2) {
           message: "Your account is temporarily locked. Please contact the administrator or try again later."
         });
       }
-      const crypto3 = __require("crypto");
-      const resetToken = crypto3.randomBytes(32).toString("hex");
+      const crypto2 = __require("crypto");
+      const resetToken = crypto2.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 15 * 60 * 1e3);
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt, ipAddress);
       const recoveryEmail = user.recoveryEmail || user.email;
@@ -7782,7 +8430,6 @@ async function registerRoutes(app2) {
         action: "password_reset_requested",
         entityType: "user",
         entityId: 0,
-        oldValue: null,
         newValue: JSON.stringify({ requestedAt: /* @__PURE__ */ new Date(), ipAddress }),
         reason: "User requested password reset",
         ipAddress,
@@ -7858,7 +8505,6 @@ async function registerRoutes(app2) {
         action: "password_reset_completed",
         entityType: "user",
         entityId: 0,
-        oldValue: null,
         newValue: JSON.stringify({ completedAt: /* @__PURE__ */ new Date(), ipAddress }),
         reason: "Password was successfully reset via reset token",
         ipAddress,
@@ -8002,10 +8648,10 @@ ${notificationBody}
         userAgent: req.headers["user-agent"]
       });
       console.log(`\u2705 User ${req.user?.email} updated recovery email for account ${id}`);
-      const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "Recovery email updated successfully",
-        user: safeUser
+        user: { ...updatedUser, recoveryEmail: updatedUser.recoveryEmail }
+        // Explicitly return updated recoveryEmail
       });
     } catch (error) {
       console.error("Error updating recovery email:", error);
@@ -8116,8 +8762,8 @@ ${notificationBody}
       if (existingInvite) {
         return res.status(400).json({ message: "Pending invite already exists for this email" });
       }
-      const crypto3 = __require("crypto");
-      const token = crypto3.randomBytes(32).toString("hex");
+      const crypto2 = __require("crypto");
+      const token = crypto2.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
       const invite = await storage.createInvite({
         email,
@@ -8210,12 +8856,11 @@ ${notificationBody}
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
-      const { generateUsername: generateUsername2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
+      const { generateUsername: generateUsername3, getNextUserNumber: getNextUserNumber3 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
       const existingUsernames = await storage.getAllUsernames();
-      const { getNextUserNumber: getNextUserNumber2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
-      const nextNumber = getNextUserNumber2(existingUsernames, invite.roleId, currentYear);
-      const username = generateUsername2(invite.roleId, currentYear, "", nextNumber);
+      const nextNumber = getNextUserNumber3(existingUsernames, invite.roleId, currentYear);
+      const username = generateUsername3(invite.roleId, currentYear, "", nextNumber);
       const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
       const user = await storage.createUser({
         email: invite.email,
@@ -8227,7 +8872,12 @@ ${notificationBody}
         authProvider: "local",
         status: "active",
         createdVia: "invite",
-        mustChangePassword: false
+        mustChangePassword: true,
+        // ✅ SECURITY: Force password change on first login even for invited users
+        profileCompleted: false,
+        // 🔧 FIX: Explicitly set profile fields
+        profileSkipped: false
+        // 🔧 FIX: New staff start with incomplete profile
       });
       await storage.markInviteAsAccepted(invite.id, user.id);
       const token_jwt = jwt.sign(
@@ -8311,26 +8961,81 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to send message. Please try again." });
     }
   });
+  app2.get("/api/analytics/overview", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const allRoles = await storage.getRoles();
+      const roleMap = new Map(allRoles.map((r) => [r.name.toLowerCase(), r.id]));
+      const studentRoleId = roleMap.get("student");
+      const teacherRoleId = roleMap.get("teacher");
+      const [
+        allStudents,
+        allTeachers,
+        allClasses
+      ] = await Promise.all([
+        studentRoleId ? storage.getUsersByRole(studentRoleId) : [],
+        teacherRoleId ? storage.getUsersByRole(teacherRoleId) : [],
+        storage.getAllClasses()
+      ]);
+      const now = /* @__PURE__ */ new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const newStudentsThisMonth = allStudents.filter((student) => {
+        const createdAt = new Date(student.createdAt);
+        return createdAt >= startOfMonth;
+      }).length;
+      const startOfTerm = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      const newTeachersThisTerm = allTeachers.filter((teacher) => {
+        const createdAt = new Date(teacher.createdAt);
+        return createdAt >= startOfTerm;
+      }).length;
+      res.json({
+        totalStudents: allStudents.length,
+        totalTeachers: allTeachers.length,
+        totalClasses: allClasses.length,
+        recentActivity: {
+          newStudentsThisMonth,
+          newTeachersThisTerm
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics data" });
+    }
+  });
   app2.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { role } = req.query;
-      let users3 = [];
+      const currentUser = req.user;
+      if (!currentUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      let users2 = [];
       if (role && typeof role === "string") {
         const userRole = await storage.getRoleByName(role);
         if (userRole) {
-          users3 = await storage.getUsersByRole(userRole.id);
+          users2 = await storage.getUsersByRole(userRole.id);
         } else {
-          users3 = [];
+          users2 = [];
         }
       } else {
         const allRoles2 = await storage.getRoles();
         const userPromises = allRoles2.map((userRole) => storage.getUsersByRole(userRole.id));
         const userArrays = await Promise.all(userPromises);
-        users3 = userArrays.flat();
+        users2 = userArrays.flat();
+      }
+      const isCurrentUserSuperAdmin = currentUser.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts) {
+          users2 = users2.filter(
+            (user) => user.roleId !== ROLES.SUPER_ADMIN && user.roleId !== ROLES.ADMIN
+          );
+          console.log(`\u{1F512} SECURITY: Filtered ${users2.length} users for Admin user ${currentUser.email} (Admin accounts hidden)`);
+        }
       }
       const allRoles = await storage.getRoles();
       const roleMap = new Map(allRoles.map((r) => [r.id, r.name]));
-      const sanitizedUsers = users3.map((user) => {
+      const sanitizedUsers = users2.map((user) => {
         const { passwordHash, ...safeUser } = user;
         return {
           ...safeUser,
@@ -8343,83 +9048,40 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
-  app2.get("/api/users/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const pendingUsers = await storage.getUsersByStatus("pending");
-      const allRoles = await storage.getRoles();
-      const roleMap = new Map(allRoles.map((r) => [r.id, r.name]));
-      const enrichedUsers = pendingUsers.map((user) => {
-        const { passwordHash, ...safeUser } = user;
-        return {
-          ...safeUser,
-          roleName: roleMap.get(user.roleId) || "Unknown"
-        };
-      });
-      res.json(enrichedUsers);
-    } catch (error) {
-      console.error("Error fetching pending users:", error);
-      res.status(500).json({ message: "Failed to fetch pending users" });
-    }
-  });
-  app2.post("/api/users/:id/approve", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const adminUser = req.user;
-      if (!adminUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      const user = await storage.getUser(id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      if (user.status !== "pending") {
-        return res.status(400).json({ message: `Cannot approve user with status: ${user.status}` });
-      }
-      const approvedUser = await storage.approveUser(id, adminUser.id);
-      storage.createAuditLog({
-        userId: adminUser.id,
-        action: "user_approved",
-        entityType: "user",
-        entityId: BigInt(0),
-        // Placeholder, needs proper entity ID if applicable
-        oldValue: JSON.stringify({ userId: user.id, status: "pending" }),
-        newValue: JSON.stringify({ userId: user.id, status: "active" }),
-        reason: `Admin ${adminUser.email} approved user ${user.email}`,
-        ipAddress: req.ip,
-        userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
-      const { passwordHash, ...safeUser } = approvedUser;
-      res.json({
-        message: "User approved successfully",
-        user: safeUser
-      });
-    } catch (error) {
-      console.error("Error approving user:", error);
-      res.status(500).json({ message: "Failed to approve user" });
-    }
-  });
   app2.post("/api/users/:id/verify", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to verify admin account ${user.email}`);
+          return res.status(403).json({
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
       const oldStatus = user.status;
-      const updatedUser = await storage.updateUserStatus(id, "active", adminUser.id, "User verified by admin");
+      const updatedUser = await storage.updateUserStatus(id, "active", adminUser2.id, "User verified by admin");
       storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "user_verified",
         entityType: "user",
         entityId: BigInt(0),
         // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: "active" }),
-        reason: `Admin ${adminUser.email} verified user ${user.email}`,
+        reason: `Admin ${adminUser2.email} verified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       }).catch((err) => console.error("Audit log failed (non-critical):", err));
@@ -8436,25 +9098,37 @@ ${notificationBody}
   app2.post("/api/users/:id/unverify", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to unverify admin account ${user.email}`);
+          return res.status(403).json({
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
       const oldStatus = user.status;
-      const updatedUser = await storage.updateUserStatus(id, "pending", adminUser.id, "User unverified by admin - awaiting approval");
+      const updatedUser = await storage.updateUserStatus(id, "pending", adminUser2.id, "User unverified by admin - awaiting approval");
       storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "user_unverified",
         entityType: "user",
         entityId: BigInt(0),
         // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: "pending" }),
-        reason: `Admin ${adminUser.email} unverified user ${user.email}`,
+        reason: `Admin ${adminUser2.email} unverified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       }).catch((err) => console.error("Audit log failed (non-critical):", err));
@@ -8472,25 +9146,37 @@ ${notificationBody}
     try {
       const { id } = req.params;
       const { reason } = req.body;
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to suspend admin account ${user.email}`);
+          return res.status(403).json({
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
       const oldStatus = user.status;
-      const updatedUser = await storage.updateUserStatus(id, "suspended", adminUser.id, reason || "Account suspended by admin");
+      const updatedUser = await storage.updateUserStatus(id, "suspended", adminUser2.id, reason || "Account suspended by admin");
       storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "user_suspended",
         entityType: "user",
         entityId: BigInt(0),
         // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: "suspended" }),
-        reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
+        reason: reason || `Admin ${adminUser2.email} suspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       }).catch((err) => console.error("Audit log failed (non-critical):", err));
@@ -8507,25 +9193,37 @@ ${notificationBody}
   app2.post("/api/users/:id/unsuspend", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to unsuspend admin account ${user.email}`);
+          return res.status(403).json({
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
       const oldStatus = user.status;
-      const updatedUser = await storage.updateUserStatus(id, "active", adminUser.id, "Suspension lifted by admin");
+      const updatedUser = await storage.updateUserStatus(id, "active", adminUser2.id, "Suspension lifted by admin");
       storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "user_unsuspended",
         entityType: "user",
         entityId: BigInt(0),
         // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: "active" }),
-        reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
+        reason: `Admin ${adminUser2.email} unsuspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       }).catch((err) => console.error("Audit log failed (non-critical):", err));
@@ -8543,8 +9241,8 @@ ${notificationBody}
     try {
       const { id } = req.params;
       const { status, reason } = req.body;
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const validStatuses = ["pending", "active", "suspended", "disabled"];
@@ -8556,16 +9254,16 @@ ${notificationBody}
         return res.status(404).json({ message: "User not found" });
       }
       const oldStatus = user.status;
-      const updatedUser = await storage.updateUserStatus(id, status, adminUser.id, reason);
+      const updatedUser = await storage.updateUserStatus(id, status, adminUser2.id, reason);
       storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "user_status_changed",
         entityType: "user",
         entityId: BigInt(0),
         // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status }),
-        reason: reason || `Admin ${adminUser.email} changed status of user ${user.email || user.username}`,
+        reason: reason || `Admin ${adminUser2.email} changed status of user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       }).catch((err) => console.error("Audit log failed (non-critical):", err));
@@ -8579,23 +9277,119 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to update user status" });
     }
   });
-  app2.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app2.put("/api/users/:id", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const adminUser2 = req.user;
+      if (!adminUser2) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const updateSchema = z2.object({
+        firstName: z2.string().min(1).optional(),
+        lastName: z2.string().min(1).optional(),
+        email: z2.string().email().optional(),
+        password: z2.string().min(6).optional()
+      });
+      const validatedData = updateSchema.parse(req.body);
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to update admin account ${user.email}`);
+          return res.status(403).json({
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
+      const updateData = {};
+      if (validatedData.firstName) updateData.firstName = validatedData.firstName;
+      if (validatedData.lastName) updateData.lastName = validatedData.lastName;
+      if (validatedData.email) updateData.email = validatedData.email;
+      if (validatedData.password) {
+        const hashedPassword = await bcrypt2.hash(validatedData.password, BCRYPT_ROUNDS);
+        updateData.passwordHash = hashedPassword;
+      }
+      const updatedUser = await storage.updateUser(id, updateData);
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update user" });
+      }
+      storage.createAuditLog({
+        userId: adminUser2.id,
+        action: "user_updated",
+        entityType: "user",
+        entityId: BigInt(0),
+        oldValue: JSON.stringify({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email
+        }),
+        newValue: JSON.stringify(updateData),
+        reason: `Admin ${adminUser2.email} updated user ${user.email || user.username}`,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
+      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      const { passwordHash, ...safeUser } = updatedUser;
+      res.json({
+        message: "User updated successfully",
+        user: safeUser
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+  app2.delete("/api/users/:id", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req, res) => {
     const startTime = Date.now();
     try {
       const { id } = req.params;
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      console.log(`\u{1F5D1}\uFE0F DELETE REQUEST: Admin ${adminUser.email} attempting to delete user ${id}`);
+      console.log(`\u{1F5D1}\uFE0F DELETE REQUEST: Admin ${adminUser2.email} attempting to delete user ${id}`);
       const user = await storage.getUser(id);
       if (!user) {
         console.warn(`\u274C DELETE FAILED: User ${id} not found`);
         return res.status(404).json({ message: "User not found" });
       }
-      if (user.id === adminUser.id) {
-        console.warn(`\u274C DELETE BLOCKED: Admin attempted to delete own account`);
+      if (user.id === adminUser2.id) {
+        console.warn(`\u274C DELETE BLOCKED: User attempted to delete own account`);
         return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
+      if (!isCurrentUserSuperAdmin) {
+        const settings2 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
+          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to delete admin account ${user.email}`);
+          return res.status(403).json({
+            message: "You do not have permission to manage admin accounts.",
+            code: "ADMIN_ACCOUNT_PROTECTED"
+          });
+        }
+      }
+      if (user.roleId === ROLES.SUPER_ADMIN && adminUser2.roleId !== ROLES.SUPER_ADMIN) {
+        console.log(`\u{1F6AB} BLOCKED: Non-Super Admin ${adminUser2.email} attempted to delete Super Admin account ${user.email}`);
+        return res.status(403).json({
+          message: "Only Super Admins can delete Super Admin accounts.",
+          code: "SUPER_ADMIN_PROTECTED"
+        });
+      }
+      if (user.roleId === ROLES.ADMIN && adminUser2.roleId === ROLES.ADMIN) {
+        console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to delete another Admin account ${user.email}`);
+        return res.status(403).json({
+          message: "Admins cannot delete other Admin accounts.",
+          code: "ADMIN_PROTECTED"
+        });
       }
       console.log(`\u{1F4CB} DELETING USER: ${user.email || user.username} (ID: ${id}, Role: ${user.roleId})`);
       let deleted = false;
@@ -8656,7 +9450,7 @@ ${notificationBody}
       }
       console.log(`\u2705 DELETE VERIFIED: User ${id} successfully removed from database`);
       storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "user_deleted",
         entityType: "user",
         entityId: BigInt(0),
@@ -8667,7 +9461,7 @@ ${notificationBody}
           roleId: user.roleId
         }),
         newValue: null,
-        reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
+        reason: `Admin ${adminUser2.email} permanently deleted user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       }).catch((err) => console.error("Audit log failed (non-critical):", err));
@@ -8688,43 +9482,51 @@ ${notificationBody}
       });
     }
   });
-  app2.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app2.post("/api/users/:id/reset-password", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
       const { newPassword, forceChange } = z2.object({
-        newPassword: z2.string().min(6, "Password must be at least 6 characters"),
+        newPassword: z2.string().min(6, "Password must be at least 6 characters").optional(),
         forceChange: z2.boolean().optional().default(true)
       }).parse(req.body);
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      const passwordHash = await bcrypt2.hash(newPassword, BCRYPT_ROUNDS);
+      let passwordToUse = newPassword;
+      let generatedPassword;
+      if (!newPassword) {
+        const { generateTempPassword: generateTempPassword2 } = await Promise.resolve().then(() => (init_username_generator(), username_generator_exports));
+        generatedPassword = generateTempPassword2();
+        passwordToUse = generatedPassword;
+        console.log(`\u{1F510} Auto-generated temporary password for user: ${user.username}`);
+      }
+      const passwordHash = await bcrypt2.hash(passwordToUse, BCRYPT_ROUNDS);
       await storage.updateUser(id, {
         passwordHash,
         mustChangePassword: forceChange
       });
       await storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "password_reset",
         entityType: "user",
         entityId: BigInt(0),
-        // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
         newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
-        reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? " (force change on next login)" : ""}`,
+        reason: `Admin ${adminUser2.email} reset password for user ${user.email || user.username}${forceChange ? " (force change on next login)" : ""}${generatedPassword ? " (auto-generated)" : ""}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       });
       const { passwordHash: _, ...safeUser } = user;
       res.json({
         message: `Password reset successfully${forceChange ? ". User must change password on next login." : ""}`,
-        user: { ...safeUser, email: user.email, username: user.username }
-        // Include email/username for response
+        user: { ...safeUser, email: user.email, username: user.username },
+        ...generatedPassword && { temporaryPassword: generatedPassword }
+        // Include generated password if auto-generated
       });
     } catch (error) {
       console.error("Error resetting password:", error);
@@ -8743,8 +9545,8 @@ ${notificationBody}
       const { roleId } = z2.object({
         roleId: z2.number().int().positive()
       }).parse(req.body);
-      const adminUser = req.user;
-      if (!adminUser) {
+      const adminUser2 = req.user;
+      if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(id);
@@ -8755,7 +9557,7 @@ ${notificationBody}
       if (!newRole) {
         return res.status(400).json({ message: "Invalid role" });
       }
-      if (user.id === adminUser.id) {
+      if (user.id === adminUser2.id) {
         return res.status(400).json({ message: "Cannot change your own role" });
       }
       const oldRole = await storage.getRole(user.roleId);
@@ -8764,14 +9566,14 @@ ${notificationBody}
         return res.status(500).json({ message: "Failed to update user role" });
       }
       await storage.createAuditLog({
-        userId: adminUser.id,
+        userId: adminUser2.id,
         action: "role_changed",
         entityType: "user",
         entityId: BigInt(0),
         // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, roleId: user.roleId, roleName: oldRole?.name }),
         newValue: JSON.stringify({ userId: user.id, roleId, roleName: newRole.name }),
-        reason: `Admin ${adminUser.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
+        reason: `Admin ${adminUser2.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       });
@@ -8805,10 +9607,10 @@ ${notificationBody}
         action,
         entityType
       });
-      const enrichedLogs = await Promise.all(logs.map(async (log3) => {
-        const user = await storage.getUser(log3.userId);
+      const enrichedLogs = await Promise.all(logs.map(async (log2) => {
+        const user = await storage.getUser(log2.userId);
         return {
-          ...log3,
+          ...log2,
           userEmail: user?.email,
           userName: `${user?.firstName} ${user?.lastName}`
         };
@@ -8825,20 +9627,53 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
-  app2.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app2.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { password, ...otherUserData } = req.body;
       if (!password || typeof password !== "string" || password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
       }
+      if (req.user.roleId === ROLES.TEACHER && otherUserData.roleId !== ROLES.STUDENT) {
+        return res.status(403).json({ message: "Teachers can only create student accounts" });
+      }
+      let username = otherUserData.username;
+      if (!username && otherUserData.roleId) {
+        const { generateUsernameByRole: generateUsernameByRole2 } = await Promise.resolve().then(() => (init_username_generator(), username_generator_exports));
+        username = await generateUsernameByRole2(otherUserData.roleId);
+      }
       const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
       const userData = insertUserSchema.parse({
         ...otherUserData,
-        passwordHash
+        username,
+        passwordHash,
+        status: "active",
+        // ✅ AUTO-APPROVE: Direct creation by admin/teacher means instant approval
+        isActive: true,
+        // ✅ Enable account immediately
+        mustChangePassword: true,
+        // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
+        profileCompleted: otherUserData.profileCompleted ?? false,
+        // 🔧 FIX: Default to false if not provided
+        profileSkipped: otherUserData.profileSkipped ?? false,
+        // 🔧 FIX: Default to false if not provided
+        createdVia: req.user.roleId === ROLES.TEACHER ? "teacher" : "admin"
+        // Track who created the user
       });
       const user = await storage.createUser(userData);
+      if (otherUserData.roleId === ROLES.STUDENT && otherUserData.classId) {
+        await storage.createStudent({
+          id: user.id,
+          admissionNumber: username,
+          // Use username as admission number
+          classId: otherUserData.classId,
+          parentId: otherUserData.parentId || null
+        });
+      }
       const { passwordHash: _, ...userResponse } = user;
-      res.json(userResponse);
+      res.json({
+        ...userResponse,
+        temporaryPassword: password
+      });
     } catch (error) {
       console.error("User creation error:", error);
       if (error instanceof z2.ZodError) {
@@ -8892,10 +9727,10 @@ ${notificationBody}
       if (!req.file) {
         return res.status(400).json({ message: "CSV file is required" });
       }
-      const csvContent = await fs.readFile(req.file.path, "utf-8");
+      const csvContent = await fs2.readFile(req.file.path, "utf-8");
       const lines = csvContent.trim().split("\n");
       if (lines.length < 2) {
-        return res.status(400).json({ message: "CSV file must contain header and at least one row" });
+        return res.status(4e3).json({ message: "CSV file must contain header and at least one row" });
       }
       const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
       const requiredColumns = ["studentname", "class", "parentname", "parentemail"];
@@ -8906,7 +9741,7 @@ ${notificationBody}
         });
       }
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
-      const { generateUsername: generateUsername2, generatePassword: generatePassword2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
+      const { generateUsername: generateUsername3, generatePassword: generatePassword2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
       const existingUsernames = await storage.getAllUsernames();
       const createdUsers = [];
       const errors = [];
@@ -8936,11 +9771,11 @@ ${notificationBody}
           const [parentFirstName, ...parentLastParts] = parentName.split(" ");
           const parentLastName = parentLastParts.join(" ") || parentFirstName;
           let parent = await storage.getUserByEmail(parentEmail);
-          let parentId2;
+          let parentId;
           let parentCredentials = null;
           if (!parent) {
             const parentCount = existingUsernames.filter((u) => u.startsWith(`THS-PAR-${currentYear}-`)).length + 1;
-            const parentUsername = generateUsername2(parentRoleData.id, currentYear, "", parentCount);
+            const parentUsername = generateUsername3(parentRoleData.id, currentYear, "", parentCount);
             const parentPassword = generatePassword2(currentYear);
             const parentPasswordHash = await bcrypt2.hash(parentPassword, BCRYPT_ROUNDS);
             parent = await storage.createUser({
@@ -8950,13 +9785,17 @@ ${notificationBody}
               roleId: parentRoleData.id,
               firstName: parentFirstName,
               lastName: parentLastName,
-              mustChangePassword: true
+              mustChangePassword: true,
+              profileCompleted: false,
+              // 🔧 FIX: Explicitly set profile fields
+              profileSkipped: false
+              // 🔧 FIX: CSV import parents start with incomplete profile
             });
             existingUsernames.push(parentUsername);
             parentCredentials = { username: parentUsername, password: parentPassword };
-            parentId2 = parent.id;
+            parentId = parent.id;
           } else {
-            parentId2 = parent.id;
+            parentId = parent.id;
           }
           const classObj = await storage.getClasses();
           const studentClass = classObj.find((c) => c.name.toLowerCase() === className.toLowerCase());
@@ -8966,17 +9805,23 @@ ${notificationBody}
           }
           const classPrefix = `THS-STU-${currentYear}-${className.toUpperCase()}-`;
           const studentCount = existingUsernames.filter((u) => u.startsWith(classPrefix)).length + 1;
-          const studentUsername = generateUsername2(studentRoleData.id, currentYear, className.toUpperCase(), studentCount);
+          const studentUsername = generateUsername3(studentRoleData.id, currentYear, className.toUpperCase(), studentCount);
           const studentPassword = generatePassword2(currentYear);
           const studentPasswordHash = await bcrypt2.hash(studentPassword, BCRYPT_ROUNDS);
           const studentUser = await storage.createUser({
             username: studentUsername,
+            // Auto-generated email
             email: `${studentUsername.toLowerCase()}@ths.edu`,
             // Auto-generated email
             passwordHash: studentPasswordHash,
+            roleId: studentRoleData.id,
             firstName: studentFirstName,
             lastName: studentLastName,
-            mustChangePassword: true
+            mustChangePassword: true,
+            profileCompleted: false,
+            // 🔧 FIX: Explicitly set profile fields
+            profileSkipped: false
+            // 🔧 FIX: CSV import students start with incomplete profile
           });
           existingUsernames.push(studentUsername);
           const admissionNumber = studentUsername;
@@ -8984,7 +9829,7 @@ ${notificationBody}
             id: studentUser.id,
             admissionNumber,
             classId: studentClass.id,
-            parentId: parentId2
+            parentId
           });
           createdUsers.push({
             type: "student",
@@ -9003,7 +9848,7 @@ ${notificationBody}
           errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
       }
-      await fs.unlink(req.file.path);
+      await fs2.unlink(req.file.path);
       res.json({
         message: `Successfully created ${createdUsers.length} users`,
         users: createdUsers,
@@ -9013,411 +9858,7 @@ ${notificationBody}
       console.error("CSV upload error:", error);
       if (req.file?.path) {
         try {
-          await fs.unlink(req.file.path);
-        } catch {
-        }
-      }
-      res.status(500).json({ message: "Failed to process CSV file" });
-    }
-  });
-  app2.post("/api/users/generate-login-slips", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
-    try {
-      const { users: users3, createdCredentials } = req.body;
-      if (!users3 || !Array.isArray(users3) || users3.length === 0) {
-        return res.status(400).json({ message: "Users array is required and must not be empty" });
-      }
-      const doc = new PDFDocument({ size: "A4", margin: 50 });
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="THS-Login-Slips-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf"`);
-      doc.pipe(res);
-      doc.fontSize(20).font("Helvetica-Bold").text("Treasure-Home School", { align: "center" });
-      doc.fontSize(12).font("Helvetica").text("Login Credentials", { align: "center" });
-      doc.moveDown(2);
-      users3.forEach((user, index2) => {
-        if (index2 > 0) {
-          doc.addPage();
-        }
-        doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60).stroke();
-        doc.fontSize(18).font("Helvetica-Bold").text("Login Information", 50, 60, { align: "center" });
-        doc.moveDown(1.5);
-        const startY = 120;
-        doc.fontSize(14).font("Helvetica-Bold");
-        doc.text("Name:", 70, startY);
-        doc.font("Helvetica").text(`${user.firstName} ${user.lastName}`, 200, startY);
-        doc.font("Helvetica-Bold").text("Role:", 70, startY + 30);
-        const roleNames = { 1: "Admin", 2: "Teacher", 3: "Student", 4: "Parent" };
-        doc.font("Helvetica").text(roleNames[user.roleId] || "Unknown", 200, startY + 30);
-        doc.font("Helvetica-Bold").text("Username:", 70, startY + 60);
-        doc.font("Helvetica-Bold").fontSize(16).text(user.username, 200, startY + 60);
-        doc.fontSize(14).font("Helvetica-Bold").text("Password:", 70, startY + 90);
-        doc.font("Helvetica-Bold").fontSize(16).text(user.password, 200, startY + 90);
-        doc.fontSize(12).font("Helvetica-Oblique").text("\u26A0\uFE0F Please change your password immediately after first login", 70, startY + 140, {
-          width: doc.page.width - 140,
-          align: "center"
-        });
-        doc.fontSize(11).font("Helvetica").text("Login Instructions:", 70, startY + 180);
-        doc.fontSize(10).text("1. Go to the school portal login page", 90, startY + 200);
-        doc.text("2. Enter your username and password exactly as shown above", 90, startY + 220);
-        doc.text("3. You will be prompted to create a new secure password", 90, startY + 240);
-        doc.text("4. Keep your new password safe and do not share it with anyone", 90, startY + 260);
-        doc.fontSize(9).font("Helvetica-Oblique").text(
-          '\xA9 2024 Treasure-Home School | "Honesty and Success" | treasurehomeschool@gmail.com',
-          50,
-          doc.page.height - 80,
-          { align: "center", width: 495 }
-        );
-        doc.fontSize(10).font("Helvetica-Bold").text(
-          "For assistance, contact the school administrator",
-          50,
-          doc.page.height - 60,
-          { align: "center" }
-        );
-      });
-      doc.end();
-    } catch (error) {
-      console.error("Login slip generation error:", error);
-      if (!res.headersSent) {
-        res.status(500).json({ message: "Failed to generate login slips" });
-      }
-    }
-  });
-  app2.get("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      const { classId } = req.query;
-      let students3 = [];
-      if (classId && typeof classId === "string") {
-        students3 = await storage.getStudentsByClass(parseInt(classId));
-      } else {
-        students3 = await storage.getAllStudents(true);
-      }
-      res.json(students3);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      res.status(500).json({ message: "Failed to fetch students" });
-    }
-  });
-  app2.post("/api/students", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
-    try {
-      console.log("Creating student with auto-generated credentials");
-      const isValidDate = (dateString) => {
-        const regex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!regex.test(dateString)) return false;
-        const [year, month, day] = dateString.split("-").map(Number);
-        if (year < 1900 || year > 2100) return false;
-        if (month < 1 || month > 12) return false;
-        if (day < 1 || day > 31) return false;
-        if (month === 2) {
-          const isLeapYear = year % 4 === 0 && year % 100 !== 0 || year % 400 === 0;
-          if (day > (isLeapYear ? 29 : 28)) return false;
-        } else if ([4, 6, 9, 11].includes(month) && day > 30) {
-          return false;
-        }
-        return true;
-      };
-      const sharedCreateStudentSchema = createStudentSchema.extend({
-        email: z2.string().email().optional(),
-        password: z2.string().min(6).optional(),
-        dateOfBirth: createStudentSchema.shape.dateOfBirth.refine(isValidDate, "Invalid date of birth"),
-        admissionDate: createStudentSchema.shape.admissionDate.refine(isValidDate, "Invalid admission date"),
-        medicalInfo: z2.string().nullable().optional().transform((val) => val === null ? "" : val)
-      });
-      for (const field of ["phone", "address", "medicalInfo", "parentId", "email", "password"]) {
-        if (req.body[field] == null || req.body[field] === "") {
-          delete req.body[field];
-        }
-      }
-      const validatedData = sharedCreateStudentSchema.parse(req.body);
-      const classInfo = await storage.getClass(validatedData.classId);
-      if (!classInfo) {
-        return res.status(400).json({ message: "Invalid class ID" });
-      }
-      const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
-      const { generateStudentUsername: generateStudentUsername6, generateStudentPassword: generateStudentPassword2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
-      const existingStudents = await storage.getAllStudents(true);
-      const existingUsernames = existingStudents.map((s) => s.admissionNumber).filter(Boolean);
-      const nextNumber = getNextUserNumber(existingUsernames, ROLES.STUDENT, currentYear);
-      const generatedUsername = generateStudentUsername6(classInfo.name, currentYear, nextNumber);
-      const generatedPassword = generateStudentPassword2(currentYear);
-      let finalUsername = generatedUsername;
-      let attemptNumber = nextNumber;
-      let existingUser = await storage.getUserByUsername(finalUsername);
-      while (existingUser) {
-        attemptNumber++;
-        finalUsername = generateStudentUsername6(classInfo.name, currentYear, attemptNumber);
-        existingUser = await storage.getUserByUsername(finalUsername);
-      }
-      const passwordHash = await bcrypt2.hash(generatedPassword, BCRYPT_ROUNDS);
-      const userData = {
-        email: `${finalUsername.toLowerCase()}@internal.ths`,
-        // Internal placeholder only - not used for login
-        username: finalUsername,
-        passwordHash,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        phone: validatedData.phone || null,
-        address: validatedData.address || null,
-        dateOfBirth: validatedData.dateOfBirth,
-        // Store exact YYYY-MM-DD string
-        gender: validatedData.gender,
-        profileImageUrl: validatedData.profileImageUrl || null,
-        roleId: ROLES.STUDENT,
-        // Always set to student role
-        isActive: true,
-        mustChangePassword: true,
-        // ✅ Student must change password on first login
-        status: "active",
-        authProvider: "local"
-      };
-      console.log("Creating user for student with username:", generatedUsername);
-      const user = await storage.createUser(userData);
-      console.log("User created with ID:", user.id);
-      try {
-        let parentId2 = validatedData.parentId || null;
-        let parentCredentials = null;
-        let parentCreated = false;
-        if (validatedData.parentPhone && !parentId2) {
-          console.log("\u{1F50D} Checking for existing parent account by phone...");
-          let existingParent = null;
-          const allParents = await storage.getUsersByRole(ROLES.PARENT);
-          existingParent = allParents.find((p) => p.phone === validatedData.parentPhone);
-          if (existingParent) {
-            console.log("\u2705 Found existing parent by phone, linking to student");
-            parentId2 = existingParent.id;
-          } else {
-            console.log("\u{1F195} No existing parent found, auto-creating parent account");
-            const parentUsername = generateUsername(
-              ROLES.PARENT,
-              currentYear,
-              "",
-              getNextUserNumber(await storage.getAllUsernames(), ROLES.PARENT, currentYear)
-            );
-            const parentPassword = generatePassword(currentYear);
-            const parentPasswordHash = await bcrypt2.hash(parentPassword, BCRYPT_ROUNDS);
-            const parentData = {
-              username: parentUsername,
-              email: `${parentUsername.toLowerCase()}@internal.ths`,
-              // Internal placeholder - not used for login
-              passwordHash: parentPasswordHash,
-              firstName: validatedData.guardianName?.split(" ")[0] || validatedData.firstName,
-              lastName: validatedData.guardianName?.split(" ").slice(1).join(" ") || `Parent`,
-              phone: validatedData.parentPhone || null,
-              roleId: ROLES.PARENT,
-              isActive: true,
-              mustChangePassword: true,
-              status: "active",
-              authProvider: "local",
-              createdVia: "admin",
-              createdBy: req.user?.id
-            };
-            const parentUser = await storage.createUser(parentData);
-            parentId2 = parentUser.id;
-            parentCreated = true;
-            parentCredentials = {
-              username: parentUsername,
-              password: parentPassword
-            };
-            console.log("\u2705 Parent account created:", parentUsername);
-          }
-        }
-        const studentData = {
-          id: user.id,
-          // Use the same ID as the user
-          admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, "0")}`,
-          // THS/25/001 format
-          classId: validatedData.classId,
-          parentId: parentId2,
-          admissionDate: validatedData.admissionDate,
-          emergencyContact: validatedData.emergencyContact,
-          medicalInfo: validatedData.medicalInfo || null,
-          guardianName: validatedData.guardianName || null
-        };
-        console.log("Creating student record...");
-        const student = await storage.createStudent(studentData);
-        console.log("Student created successfully with credentials");
-        const response = {
-          message: parentCreated ? "Student and Parent accounts created successfully" : "Student created successfully",
-          student,
-          user: {
-            id: user.id,
-            email: user.email,
-            username: finalUsername,
-            firstName: user.firstName,
-            lastName: user.lastName
-          },
-          credentials: {
-            student: {
-              username: finalUsername,
-              password: generatedPassword
-            }
-          }
-        };
-        if (parentCreated && parentCredentials) {
-          response.credentials.parent = parentCredentials;
-          response.parentCreated = true;
-        }
-        res.json(response);
-      } catch (studentError) {
-        console.error("Student creation failed, rolling back user:", studentError);
-        try {
-          await storage.deleteUser(user.id);
-        } catch (rollbackError) {
-          console.error("Rollback failed:", rollbackError);
-        }
-        if (studentError.code === "23505") {
-          return res.status(409).json({ message: "Admission number already exists" });
-        }
-        throw studentError;
-      }
-    } catch (error) {
-      console.error("Error creating student:", error);
-      if (error?.name === "ZodError" || error?.issues && Array.isArray(error.issues)) {
-        const validationErrors = error.issues || [];
-        const formattedErrors = validationErrors.map((err) => {
-          const fieldPath = err.path.length > 0 ? err.path.join(".") : "unknown field";
-          return `${fieldPath}: ${err.message}`;
-        });
-        console.error("Student creation validation errors:", formattedErrors);
-        return res.status(400).json({
-          message: "Validation failed",
-          errors: formattedErrors.join(", "),
-          details: validationErrors
-          // Include full details for debugging
-        });
-      }
-      if (error?.code) {
-        switch (error.code) {
-          case "23503":
-            if (error.message.includes("role_id")) {
-              return res.status(400).json({ message: "Invalid user role. Please contact administrator." });
-            } else if (error.message.includes("class_id")) {
-              return res.status(400).json({ message: "Selected class does not exist. Please select a valid class." });
-            } else if (error.message.includes("parent_id")) {
-              return res.status(400).json({ message: "Selected parent does not exist. Please select a valid parent." });
-            }
-            return res.status(400).json({ message: "Invalid reference data. Please check all selections." });
-          case "22007":
-            return res.status(400).json({ message: "Invalid date format. Please use YYYY-MM-DD format." });
-          case "23505":
-            if (error.message.includes("email")) {
-              return res.status(409).json({ message: "Email address already exists" });
-            } else if (error.message.includes("admission_number")) {
-              return res.status(409).json({ message: "Admission number already exists" });
-            }
-            return res.status(409).json({ message: "Duplicate value detected" });
-          default:
-            console.error("Database error:", error.code, error.message);
-        }
-      }
-      res.status(500).json({ message: "Failed to create student" });
-    }
-  });
-  app2.post("/api/students/bulk-upload", authenticateUser, authorizeRoles(ROLES.ADMIN), uploadCSV.single("file"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-      const fileContent = await fs.readFile(req.file.path, "utf-8");
-      const lines = fileContent.split("\n").filter((line) => line.trim());
-      if (lines.length < 2) {
-        await fs.unlink(req.file.path);
-        return res.status(400).json({ message: "CSV file is empty or invalid" });
-      }
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-      const createdStudents = [];
-      const errors = [];
-      for (let i = 1; i < lines.length; i++) {
-        try {
-          const values = lines[i].split(",").map((v) => v.trim());
-          const row = {};
-          headers.forEach((header, index2) => {
-            row[header] = values[index2] || "";
-          });
-          const firstName = row["first name"] || row["firstname"];
-          const lastName = row["last name"] || row["lastname"];
-          const className = row["class"];
-          const gender = row["gender"];
-          const dateOfBirth = row["date of birth"] || row["dob"];
-          const parentEmail = row["parent email"] || row["parentemail"];
-          const parentPhone = row["parent phone"] || row["parentphone"];
-          if (!firstName || !lastName || !className) {
-            errors.push(`Row ${i + 1}: Missing required fields (first name, last name, or class)`);
-            continue;
-          }
-          const classInfo = await storage.getClasses();
-          const matchingClass = classInfo.find(
-            (c) => c.name.toLowerCase() === className.toLowerCase()
-          );
-          if (!matchingClass) {
-            errors.push(`Row ${i + 1}: Class "${className}" not found`);
-            continue;
-          }
-          const classCode = matchingClass.name.replace(/\s+/g, "").toUpperCase().substring(0, 4);
-          const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
-          const nextNumber = await storage.getNextSequence(matchingClass.name, currentYear);
-          const username = generateStudentUsername5(matchingClass.name, currentYear, nextNumber);
-          const password = generateStudentPassword(currentYear);
-          const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
-          const userData = {
-            username,
-            email: `${username.toLowerCase()}@ths.edu.ng`,
-            // Auto-generated email
-            passwordHash,
-            mustChangePassword: true,
-            firstName,
-            lastName,
-            phone: null,
-            address: null,
-            dateOfBirth: dateOfBirth || null,
-            gender: gender?.toLowerCase() === "male" || gender?.toLowerCase() === "female" || gender?.toLowerCase() === "other" ? gender : null,
-            profileImageUrl: null,
-            roleId: ROLES.STUDENT,
-            isActive: true,
-            status: "active",
-            createdVia: "bulk",
-            createdBy: req.user?.id
-          };
-          const user = await storage.createUser(userData);
-          const studentData = {
-            id: user.id,
-            admissionNumber: `THS/${currentYear.slice(-2)}/${String(nextNumber).padStart(4, "0")}`,
-            // THS/25/001 format
-            classId: matchingClass.id,
-            parentId: null,
-            // Will be updated below if parent is found or created
-            admissionDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
-            // Current date as admission date
-            emergencyContact: parentPhone || null,
-            medicalInfo: null,
-            guardianName: parentId ? `${firstName} (Parent)` : null
-            // Placeholder for guardian name
-          };
-          await storage.createStudent(studentData);
-          createdStudents.push({
-            id: user.id,
-            firstName,
-            lastName,
-            username,
-            password,
-            // Return plaintext password for admin to share
-            email: userData.email,
-            class: matchingClass.name,
-            parentEmail: parentEmail || null
-          });
-        } catch (error) {
-          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
-      }
-      await fs.unlink(req.file.path);
-      res.json({
-        message: `Successfully created ${createdStudents.length} students`,
-        students: createdStudents,
-        errors: errors.length > 0 ? errors : void 0
-      });
-    } catch (error) {
-      console.error("CSV upload error:", error);
-      if (req.file?.path) {
-        try {
-          await fs.unlink(req.file.path);
+          await fs2.unlink(req.file.path);
         } catch {
         }
       }
@@ -9429,10 +9870,10 @@ ${notificationBody}
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      const csvContent = await fs.readFile(req.file.path, "utf-8");
+      const csvContent = await fs2.readFile(req.file.path, "utf-8");
       const { previewCSVImport: previewCSVImport2 } = await Promise.resolve().then(() => (init_csv_import_service(), csv_import_service_exports));
       const preview = await previewCSVImport2(csvContent);
-      await fs.unlink(req.file.path);
+      await fs2.unlink(req.file.path);
       res.json(preview);
     } catch (error) {
       console.error("CSV preview error:", error);
@@ -9444,10 +9885,10 @@ ${notificationBody}
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      const csvContent = await fs.readFile(req.file.path, "utf-8");
+      const csvContent = await fs2.readFile(req.file.path, "utf-8");
       const { previewCSVImport: previewCSVImport2 } = await Promise.resolve().then(() => (init_csv_import_service(), csv_import_service_exports));
       const preview = await previewCSVImport2(csvContent);
-      await fs.unlink(req.file.path);
+      await fs2.unlink(req.file.path);
       res.json(preview);
     } catch (error) {
       console.error("CSV preview error:", error);
@@ -9464,7 +9905,7 @@ ${notificationBody}
       const adminUserId = req.user.id;
       const result = await commitCSVImport2(validRows, adminUserId);
       await storage.createAuditLog({
-        userId: adminUserId,
+        userId: adminUser.id,
         action: "bulk_student_import",
         entityType: "student",
         entityId: BigInt(0),
@@ -9483,6 +9924,175 @@ ${notificationBody}
     } catch (error) {
       console.error("CSV commit error:", error);
       res.status(500).json({ message: error.message || "Failed to import students" });
+    }
+  });
+  app2.get("/api/students", authenticateUser, async (req, res) => {
+    try {
+      const allStudents = await storage.getAllStudents(false);
+      const enrichedStudents = await Promise.all(
+        allStudents.map(async (student) => {
+          const user = await storage.getUser(student.id);
+          const classInfo = student.classId ? await storage.getClass(student.classId) : null;
+          const parentUser = student.parentId ? await storage.getUser(student.parentId) : null;
+          return {
+            ...student,
+            user: user ? {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              phone: user.phone,
+              gender: user.gender,
+              dateOfBirth: user.dateOfBirth,
+              profileImageUrl: user.profileImageUrl,
+              isActive: user.isActive,
+              status: user.status
+            } : null,
+            class: classInfo,
+            parent: parentUser ? {
+              id: parentUser.id,
+              firstName: parentUser.firstName,
+              lastName: parentUser.lastName,
+              email: parentUser.email,
+              phone: parentUser.phone
+            } : null
+          };
+        })
+      );
+      res.json(enrichedStudents);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+  app2.post("/api/students", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const validatedData = createStudentSchema.parse(req.body);
+      const adminUserId = req.user.id;
+      const year = (/* @__PURE__ */ new Date()).getFullYear();
+      const result = await exportDb.transaction(async (tx) => {
+        const studentUsername = await generateStudentUsername2();
+        const studentPassword = generateStudentPassword();
+        const passwordHash = await bcrypt2.hash(studentPassword, BCRYPT_ROUNDS);
+        const studentEmail = `${studentUsername}@ths.edu`;
+        const [studentUser] = await tx.insert(users).values({
+          username: studentUsername,
+          email: studentEmail,
+          passwordHash,
+          roleId: ROLES.STUDENT,
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
+          phone: validatedData.phone || null,
+          address: validatedData.address || null,
+          dateOfBirth: validatedData.dateOfBirth,
+          gender: validatedData.gender,
+          profileImageUrl: validatedData.profileImageUrl || null,
+          isActive: true,
+          status: "active",
+          createdVia: "admin",
+          createdBy: adminUserId,
+          mustChangePassword: true
+        }).returning();
+        const admissionNumber = `THS/${year}/${String(Date.now()).slice(-6)}`;
+        const [student] = await tx.insert(students).values({
+          id: studentUser.id,
+          admissionNumber,
+          classId: validatedData.classId,
+          admissionDate: validatedData.admissionDate,
+          emergencyContact: validatedData.emergencyContact || null,
+          medicalInfo: validatedData.medicalInfo || null,
+          parentId: validatedData.parentId || null
+        }).returning();
+        let parentCredentials = null;
+        if (validatedData.parentPhone && !validatedData.parentId) {
+          const existingParent = await tx.select().from(users).where(and3(
+            eq5(users.phone, validatedData.parentPhone),
+            eq5(users.roleId, ROLES.PARENT)
+          )).limit(1);
+          if (existingParent.length > 0) {
+            await tx.update(students).set({ parentId: existingParent[0].id }).where(eq5(students.id, studentUser.id));
+            student.parentId = existingParent[0].id;
+          } else {
+            const parentUsername = await generateParentUsername();
+            const parentPassword = generatePassword();
+            const parentHash = await bcrypt2.hash(parentPassword, BCRYPT_ROUNDS);
+            const parentEmail = `${parentUsername}@ths.edu`;
+            const [parentUser] = await tx.insert(users).values({
+              username: parentUsername,
+              email: parentEmail,
+              passwordHash: parentHash,
+              roleId: ROLES.PARENT,
+              firstName: validatedData.guardianName || `Parent of ${validatedData.firstName}`,
+              lastName: validatedData.lastName,
+              phone: validatedData.parentPhone,
+              isActive: true,
+              status: "active",
+              createdVia: "admin",
+              createdBy: adminUserId,
+              mustChangePassword: true
+            }).returning();
+            await tx.update(students).set({ parentId: parentUser.id }).where(eq5(students.id, studentUser.id));
+            student.parentId = parentUser.id;
+            parentCredentials = {
+              username: parentUsername,
+              password: parentPassword,
+              email: parentEmail
+            };
+          }
+        }
+        return {
+          student,
+          studentUser,
+          studentCredentials: {
+            username: studentUsername,
+            password: studentPassword,
+            email: studentEmail
+          },
+          parentCredentials
+        };
+      });
+      await storage.createAuditLog({
+        userId: adminUserId,
+        action: "create_student",
+        entityType: "student",
+        entityId: BigInt(0),
+        newValue: JSON.stringify({
+          studentId: result.studentUser.id,
+          username: result.studentCredentials.username
+        }),
+        reason: `Created student ${result.studentUser.firstName} ${result.studentUser.lastName}`,
+        ipAddress: req.ip || "unknown",
+        userAgent: req.headers["user-agent"] || null
+      });
+      res.status(201).json({
+        message: "Student created successfully",
+        credentials: {
+          student: {
+            id: result.studentUser.id,
+            username: result.studentCredentials.username,
+            email: result.studentCredentials.email,
+            password: result.studentCredentials.password,
+            firstName: result.studentUser.firstName,
+            lastName: result.studentUser.lastName,
+            admissionNumber: result.student.admissionNumber,
+            classId: result.student.classId
+          },
+          parent: result.parentCredentials
+        },
+        parentCreated: result.parentCredentials !== null
+      });
+    } catch (error) {
+      console.error("Error creating student:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors
+        });
+      }
+      res.status(500).json({
+        message: error.message || "Failed to create student"
+      });
     }
   });
   app2.get("/api/students/:id", authenticateUser, async (req, res) => {
@@ -9521,7 +10131,23 @@ ${notificationBody}
         return res.status(403).json({ message: "Unauthorized" });
       }
       const updates = req.body;
-      const updatedStudent = await storage.updateStudent(studentId, updates);
+      const userFields = ["firstName", "lastName", "email", "phone", "address", "recoveryEmail", "dateOfBirth", "gender", "profileImageUrl"];
+      const studentFields = ["emergencyContact", "emergencyPhone", "medicalInfo", "guardianName"];
+      const userPatch = {};
+      const studentPatch = {};
+      Object.keys(updates).forEach((key) => {
+        if (updates[key] !== void 0 && updates[key] !== null) {
+          if (userFields.includes(key)) {
+            userPatch[key] = updates[key];
+          } else if (studentFields.includes(key)) {
+            studentPatch[key] = updates[key];
+          }
+        }
+      });
+      const updatedStudent = await storage.updateStudent(studentId, {
+        userPatch: Object.keys(userPatch).length > 0 ? userPatch : void 0,
+        studentPatch: Object.keys(studentPatch).length > 0 ? studentPatch : void 0
+      });
       if (!updatedStudent) {
         return res.status(404).json({ message: "Student not found" });
       }
@@ -9531,15 +10157,83 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to update student profile" });
     }
   });
+  app2.delete("/api/students/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const studentId = req.params.id;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(studentId)) {
+        return res.status(400).json({ message: "Invalid student ID format" });
+      }
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      const deleted = await storage.deleteStudent(studentId);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete student" });
+      }
+      console.log(`\u2705 Student ${studentId} successfully deactivated by admin ${req.user.email}`);
+      res.json({
+        success: true,
+        message: "Student deleted successfully",
+        studentId
+      });
+    } catch (error) {
+      console.error("Error deleting student:", error);
+      res.status(500).json({ message: "Failed to delete student" });
+    }
+  });
   app2.get("/api/student/profile/status", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const studentId = req.user.id;
-      const student = await storage.getStudent(studentId);
+      const userId = req.user.id;
+      let user = await storage.getUser(userId);
+      const student = await storage.getStudent(userId);
+      let completionPercentage = 0;
+      if (student) {
+        const fields = [
+          user?.phone,
+          user?.address,
+          user?.dateOfBirth,
+          user?.gender,
+          student?.emergencyContact,
+          student?.medicalInfo,
+          user?.recoveryEmail
+        ];
+        const filledFields = fields.filter((field) => field !== null && field !== void 0 && field !== "").length;
+        completionPercentage = Math.round(filledFields / fields.length * 100);
+      }
+      if (completionPercentage === 100 && !user?.profileCompleted) {
+        console.log("\u{1F527} AUTO-FIX: Detected 100% profile but profileCompleted is false/null, fixing...");
+        const updated = await storage.updateStudent(userId, {
+          userPatch: {
+            profileCompleted: true,
+            profileCompletionPercentage: 100,
+            profileSkipped: false
+          }
+        });
+        if (updated) {
+          user = updated.user;
+          console.log("\u2705 AUTO-FIX: Profile completion status fixed for user:", userId);
+        }
+      }
       const status = {
         hasProfile: !!student,
-        isComplete: !!(student?.phone && student?.address),
+        completed: user?.profileCompleted || false,
+        skipped: user?.profileSkipped || false,
+        percentage: user?.profileCompletionPercentage || completionPercentage,
         firstLogin: student?.firstLogin !== false
       };
+      if (process.env.NODE_ENV === "development") {
+        console.log("\u{1F4CA} PROFILE STATUS CHECK:", {
+          userId,
+          hasProfile: status.hasProfile,
+          completed: status.completed,
+          skipped: status.skipped,
+          percentage: status.percentage,
+          rawProfileCompleted: user?.profileCompleted,
+          rawProfileSkipped: user?.profileSkipped
+        });
+      }
       res.json(status);
     } catch (error) {
       console.error("Error checking student profile status:", error);
@@ -9548,231 +10242,69 @@ ${notificationBody}
   });
   app2.post("/api/student/profile/setup", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const studentId = req.user.id;
+      const userId = req.user.id;
       const profileData = req.body;
-      const updatedStudent = await storage.updateStudent(studentId, {
-        ...profileData,
-        firstLogin: false
+      console.log("\u{1F4DD} PROFILE SETUP: Received data for user:", userId);
+      console.log("\u{1F4DD} PROFILE SETUP: Profile data:", JSON.stringify(profileData, null, 2));
+      const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
+      const updatedStudent = await storage.updateStudent(userId, {
+        userPatch: {
+          phone,
+          address,
+          dateOfBirth,
+          gender,
+          recoveryEmail,
+          profileCompleted: true,
+          profileSkipped: false,
+          profileCompletionPercentage: 100
+        },
+        studentPatch: {
+          emergencyContact: emergencyContact || null,
+          emergencyPhone: emergencyPhone || null,
+          guardianName: emergencyContact || null,
+          medicalInfo: bloodGroup ? `Blood Group: ${bloodGroup}` : null
+        }
       });
       if (!updatedStudent) {
+        console.error("\u274C PROFILE SETUP: Student not found");
         return res.status(404).json({ message: "Student not found" });
       }
+      console.log("\u2705 PROFILE SETUP: Successfully updated profile for user:", userId);
+      console.log("\u2705 PROFILE SETUP: Updated user data:", {
+        profileCompleted: updatedStudent.user.profileCompleted,
+        profileSkipped: updatedStudent.user.profileSkipped,
+        profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
+        phone: updatedStudent.user.phone ? "***" : null,
+        address: updatedStudent.user.address ? "***" : null
+      });
       res.json({
         message: "Profile setup completed successfully",
-        student: updatedStudent
+        student: updatedStudent.student,
+        user: updatedStudent.user
       });
     } catch (error) {
-      console.error("Error setting up student profile:", error);
-      res.status(500).json({ message: "Failed to setup profile" });
+      console.error("\u274C PROFILE SETUP ERROR:", error);
+      res.status(500).json({ message: "Failed to setup profile", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
-  const {
-    validateRegistrationData: validateRegistrationData2,
-    checkParentExists: checkParentExists2,
-    generateStudentUsername: generateStudentUsername5,
-    generateParentUsername: generateParentUsername3,
-    generateTempPassword: generateTempPassword3
-  } = await Promise.resolve().then(() => (init_registration_utils(), registration_utils_exports));
-  const { sendParentNotificationEmail: sendParentNotificationEmail2, sendParentNotificationSMS: sendParentNotificationSMS2 } = await Promise.resolve().then(() => (init_email_notifications(), email_notifications_exports));
-  const registrationAttempts = /* @__PURE__ */ new Map();
-  function checkRegistrationRateLimit(req, res, next) {
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    const now = Date.now();
-    const windowMs = 10 * 60 * 1e3;
-    const maxAttempts = 5;
-    const attempts = registrationAttempts.get(ip);
-    if (attempts) {
-      if (now - attempts.lastAttempt > windowMs) {
-        registrationAttempts.set(ip, { count: 1, lastAttempt: now });
-        return next();
-      }
-      if (attempts.count >= maxAttempts) {
-        return res.status(429).json({
-          message: "Too many registration attempts. Please try again in 10 minutes."
-        });
-      }
-      attempts.count++;
-      attempts.lastAttempt = now;
-    } else {
-      registrationAttempts.set(ip, { count: 1, lastAttempt: now });
-    }
-    next();
-  }
-  app2.post("/api/self-register/student/preview", checkRegistrationRateLimit, async (req, res) => {
+  app2.post("/api/student/profile/skip", authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
-      const data = req.body;
-      const errors = validateRegistrationData2(data);
-      if (errors.length > 0) {
-        return res.status(400).json({ errors });
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
-      const suggestedUsername = await generateStudentUsername5(data.classCode);
-      const parentCheck = await checkParentExists2(data.parentEmail);
-      res.json({
-        suggestedUsername,
-        parentExists: parentCheck.exists,
-        errors: []
-      });
-    } catch (error) {
-      console.error("Error in registration preview:", error);
-      res.status(500).json({
-        errors: ["Failed to generate preview. Please try again."]
-      });
-    }
-  });
-  app2.post("/api/self-register/student/commit", checkRegistrationRateLimit, async (req, res) => {
-    try {
-      const { fullName, classCode, gender, dateOfBirth, parentEmail, parentPhone, password } = req.body;
-      const errors = validateRegistrationData2({ fullName, classCode, gender, dateOfBirth, parentEmail, parentPhone });
-      if (errors.length > 0) {
-        return res.status(400).json({ errors });
-      }
-      if (!password || password.length < 6) {
-        return res.status(400).json({ errors: ["Password must be at least 6 characters"] });
-      }
-      try {
-        const setting = await storage.getSetting("allow_student_self_registration");
-        if (setting && setting.value === "false") {
-          return res.status(403).json({
-            errors: ["Student self-registration is currently disabled"]
-          });
-        }
-      } catch (error) {
-        console.warn("Could not check registration setting, allowing by default:", error);
-      }
-      const studentRole = await storage.getRoleByName("student");
-      const parentRole = await storage.getRoleByName("parent");
-      if (!studentRole || !parentRole) {
-        return res.status(500).json({ errors: ["System configuration error"] });
-      }
-      const nameParts = fullName.trim().split(" ");
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(" ") || firstName;
-      const studentUsername = await generateStudentUsername5(classCode);
-      let parentUserId;
-      let parentCreated = false;
-      let parentUsername;
-      let parentPassword;
-      const parentCheck = await checkParentExists2(parentEmail);
-      if (parentCheck.exists && parentCheck.userId) {
-        parentUserId = parentCheck.userId;
-      } else {
-        parentUsername = generateParentUsername3();
-        parentPassword = generateTempPassword3();
-        const parentPasswordHash = await bcrypt2.hash(parentPassword, 10);
-        const parentUser = await storage.createUser({
-          username: parentUsername,
-          email: parentEmail,
-          passwordHash: parentPasswordHash,
-          mustChangePassword: true,
-          roleId: parentRole.id,
-          firstName: `Parent of ${firstName}`,
-          lastName,
-          phone: parentPhone || "",
-          isActive: true,
-          status: "active",
-          createdVia: "self",
-          profileCompleted: false
-        });
-        parentUserId = parentUser.id;
-        parentCreated = true;
-        await storage.createParentProfile({
-          userId: parentUserId,
-          linkedStudents: []
-        });
-      }
-      const studentPasswordHash = await bcrypt2.hash(password, 10);
-      const studentUser = await storage.createUser({
-        username: studentUsername,
-        email: parentEmail,
-        // Use parent email for recovery
-        passwordHash: studentPasswordHash,
-        mustChangePassword: true,
-        roleId: studentRole.id,
-        firstName,
-        lastName,
-        dateOfBirth,
-        gender,
-        isActive: true,
-        status: "active",
-        createdVia: "self",
+      await storage.updateUser(userId, {
+        profileSkipped: true,
         profileCompleted: false
       });
-      const classes2 = await storage.getAllClasses();
-      const studentClass = classes2.find((c) => c.name === classCode);
-      await storage.createStudent({
-        id: studentUser.id,
-        admissionNumber: `ADM-${(/* @__PURE__ */ new Date()).getFullYear()}-${studentUsername.split("-").pop()}`,
-        classId: studentClass?.id || null,
-        parentId: parentUserId
-      });
-      const parentProfile = await storage.getParentProfile(parentUserId);
-      if (parentProfile) {
-        const linkedStudents = parentProfile.linkedStudents || [];
-        await storage.updateParentProfile(parentUserId, {
-          linkedStudents: [...linkedStudents, studentUser.id]
-        });
-      }
-      if (parentCreated && parentUsername && parentPassword) {
-        try {
-          if (parentEmail) {
-            await sendParentNotificationEmail2({
-              parentEmail,
-              parentUsername,
-              parentPassword,
-              studentName: fullName,
-              studentUsername
-            });
-          }
-          if (parentPhone) {
-            await sendParentNotificationSMS2(parentPhone, parentUsername, parentPassword);
-          }
-        } catch (error) {
-          console.error("Failed to send parent notification:", error);
-        }
-      }
-      await storage.createAuditLog({
-        userId: null,
-        action: "student_self_register",
-        entityType: "student",
-        entityId: 0,
-        oldValue: null,
-        newValue: JSON.stringify({ studentUsername, parentCreated, classCode }),
-        reason: "Student self-registration",
-        ipAddress: req.ip || req.socket.remoteAddress || "unknown"
-      });
       res.json({
-        studentUsername,
-        parentCreated,
-        parentUsername: parentCreated ? parentUsername : void 0,
-        parentPassword: parentCreated ? parentPassword : void 0,
-        message: "Registration successful! Please save your credentials."
+        message: "Profile setup skipped. You can complete it later in Settings.",
+        skipped: true
       });
     } catch (error) {
-      console.error("Error in registration commit:", error);
-      res.status(500).json({
-        errors: ["Registration failed. Please try again."]
-      });
-    }
-  });
-  app2.get("/api/self-register/status/:username", async (req, res) => {
-    try {
-      const { username } = req.params;
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(404).json({
-          exists: false,
-          message: "User not found"
-        });
-      }
-      res.json({
-        exists: true,
-        status: user.status,
-        mustChangePassword: user.mustChangePassword,
-        isActive: user.isActive
-      });
-    } catch (error) {
-      console.error("Error checking registration status:", error);
-      res.status(500).json({ message: "Failed to check status" });
+      console.error("Error skipping student profile:", error);
+      res.status(500).json({ message: "Failed to skip profile setup" });
     }
   });
   app2.get("/api/vacancies", async (req, res) => {
@@ -9925,52 +10457,352 @@ ${notificationBody}
       res.status(500).json({ message: "Failed to fetch approved teachers" });
     }
   });
+  app2.get("/api/superadmin/stats", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const stats = await storage.getSuperAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching super admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch system statistics" });
+    }
+  });
+  app2.get("/api/superadmin/admins", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      console.log(`\u{1F50D} Fetching admins with roleId: ${ROLES.ADMIN}`);
+      const admins = await storage.getUsersByRole(ROLES.ADMIN);
+      console.log(`\u2705 Found ${admins.length} admins:`, admins.map((a) => ({ id: a.id, username: a.username, roleId: a.roleId })));
+      res.json(admins);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+      res.status(500).json({ message: "Failed to fetch administrators" });
+    }
+  });
+  app2.post("/api/superadmin/admins", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const createAdminSchema = z2.object({
+        firstName: z2.string().min(1, "First name is required").trim(),
+        lastName: z2.string().min(1, "Last name is required").trim(),
+        email: z2.string().email("Invalid email address").toLowerCase().trim()
+      });
+      const validatedData = createAdminSchema.parse(req.body);
+      const { firstName, lastName, email } = validatedData;
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+      const { generateAdminUsername: generateAdminUsername3, generateTempPassword: generateTempPassword2 } = await Promise.resolve().then(() => (init_username_generator(), username_generator_exports));
+      const username = await generateAdminUsername3();
+      const tempPassword = generateTempPassword2();
+      console.log(`\u{1F510} Auto-generating credentials for admin: ${firstName} ${lastName}`);
+      const passwordHash = await bcrypt2.hash(tempPassword, 12);
+      console.log(`\u{1F464} Creating admin with roleId: ${ROLES.ADMIN}`);
+      const newAdmin = await storage.createUser({
+        username,
+        email,
+        passwordHash,
+        roleId: ROLES.ADMIN,
+        firstName,
+        lastName,
+        status: "active",
+        isActive: true,
+        mustChangePassword: true,
+        // User must change password after first login
+        createdVia: "admin",
+        createdBy: req.user.id,
+        approvedBy: req.user.id,
+        approvedAt: /* @__PURE__ */ new Date()
+      });
+      console.log(`\u2705 Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
+      await storage.createAdminProfile({
+        userId: newAdmin.id,
+        department: "Administration",
+        accessLevel: "standard"
+      });
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "admin_created",
+        entityType: "user",
+        entityId: newAdmin.id,
+        reason: `New admin created: ${username} (auto-generated credentials)`
+      });
+      console.log(`\u2705 New admin created: ${username} by ${req.user.username}`);
+      res.status(201).json({
+        message: "Admin created successfully with auto-generated credentials",
+        admin: {
+          id: newAdmin.id,
+          username: newAdmin.username,
+          email: newAdmin.email,
+          firstName: newAdmin.firstName,
+          lastName: newAdmin.lastName
+        },
+        credentials: {
+          username,
+          password: tempPassword,
+          role: "Admin"
+        }
+      });
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: error.errors[0].message || "Validation error",
+          errors: error.errors
+        });
+      }
+      res.status(500).json({ message: "Failed to create administrator" });
+    }
+  });
+  app2.get("/api/superadmin/logs", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const logs = await storage.getAuditLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  app2.get("/api/superadmin/settings", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const settings2 = await storage.getSystemSettings();
+      res.json(settings2);
+    } catch (error) {
+      console.error("Error fetching system settings:", error);
+      res.status(500).json({ message: "Failed to fetch system settings" });
+    }
+  });
+  app2.put("/api/superadmin/settings", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const settings2 = await storage.updateSystemSettings(req.body);
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "settings_updated",
+        entityType: "system_settings",
+        entityId: settings2.id,
+        reason: "System settings updated by Super Admin"
+      });
+      res.json(settings2);
+    } catch (error) {
+      console.error("Error updating system settings:", error);
+      res.status(500).json({ message: "Failed to update system settings" });
+    }
+  });
+  app2.post("/api/teacher-assignments", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { teacherId, classId, subjectId, termId } = req.body;
+      if (!teacherId || !classId || !subjectId) {
+        return res.status(400).json({ message: "teacherId, classId, and subjectId are required" });
+      }
+      const teacher = await storage.getUser(teacherId);
+      if (!teacher || teacher.roleId !== ROLES.TEACHER) {
+        return res.status(400).json({ message: "Invalid teacher ID" });
+      }
+      const classExists = await storage.getClass(classId);
+      if (!classExists) {
+        return res.status(400).json({ message: "Class not found" });
+      }
+      const subjectExists = await storage.getSubject(subjectId);
+      if (!subjectExists) {
+        return res.status(400).json({ message: "Subject not found" });
+      }
+      const assignment = await storage.createTeacherClassAssignment({
+        teacherId,
+        classId,
+        subjectId,
+        termId: termId || null,
+        assignedBy: req.user.id,
+        isActive: true
+      });
+      console.log(`\u2705 Admin ${req.user.email} assigned teacher ${teacher.email} to class ${classExists.name} for subject ${subjectExists.name}`);
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating teacher assignment:", error);
+      res.status(500).json({ message: "Failed to create teacher assignment" });
+    }
+  });
+  app2.get("/api/teacher-assignments", authenticateUser, async (req, res) => {
+    try {
+      const { teacherId } = req.query;
+      if (req.user.roleId === ROLES.TEACHER) {
+        const assignments = await storage.getTeacherClassAssignments(req.user.id);
+        const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+          const classInfo = await storage.getClass(assignment.classId);
+          const subjectInfo = await storage.getSubject(assignment.subjectId);
+          return {
+            ...assignment,
+            className: classInfo?.name,
+            subjectName: subjectInfo?.name
+          };
+        }));
+        return res.json(enrichedAssignments);
+      }
+      if (req.user.roleId !== ROLES.ADMIN && req.user.roleId !== ROLES.SUPER_ADMIN) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      if (teacherId) {
+        const assignments = await storage.getTeacherClassAssignments(teacherId);
+        const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+          const classInfo = await storage.getClass(assignment.classId);
+          const subjectInfo = await storage.getSubject(assignment.subjectId);
+          const teacher = await storage.getUser(assignment.teacherId);
+          return {
+            ...assignment,
+            className: classInfo?.name,
+            subjectName: subjectInfo?.name,
+            teacherName: `${teacher?.firstName} ${teacher?.lastName}`
+          };
+        }));
+        return res.json(enrichedAssignments);
+      }
+      res.json({ message: "Please specify teacherId parameter" });
+    } catch (error) {
+      console.error("Error fetching teacher assignments:", error);
+      res.status(500).json({ message: "Failed to fetch teacher assignments" });
+    }
+  });
+  app2.get("/api/classes/:classId/subjects/:subjectId/teachers", authenticateUser, async (req, res) => {
+    try {
+      const { classId, subjectId } = req.params;
+      const teachers = await storage.getTeachersForClassSubject(Number(classId), Number(subjectId));
+      const sanitizedTeachers = teachers.map((teacher) => {
+        const { passwordHash, ...safeTeacher } = teacher;
+        return safeTeacher;
+      });
+      res.json(sanitizedTeachers);
+    } catch (error) {
+      console.error("Error fetching teachers for class/subject:", error);
+      res.status(500).json({ message: "Failed to fetch teachers" });
+    }
+  });
+  app2.get("/api/teachers/:teacherId/assignments", authenticateUser, async (req, res) => {
+    try {
+      const { teacherId } = req.params;
+      if (req.user.roleId === ROLES.TEACHER && req.user.id !== teacherId) {
+        return res.status(403).json({ message: "You can only view your own assignments" });
+      }
+      const assignments = await storage.getTeacherClassAssignments(teacherId);
+      const groupedByClass = {};
+      for (const assignment of assignments) {
+        const classInfo = await storage.getClass(assignment.classId);
+        const subjectInfo = await storage.getSubject(assignment.subjectId);
+        if (!groupedByClass[assignment.classId]) {
+          groupedByClass[assignment.classId] = {
+            classId: assignment.classId,
+            className: classInfo?.name,
+            subjects: []
+          };
+        }
+        groupedByClass[assignment.classId].subjects.push({
+          assignmentId: assignment.id,
+          subjectId: assignment.subjectId,
+          subjectName: subjectInfo?.name,
+          termId: assignment.termId,
+          isActive: assignment.isActive
+        });
+      }
+      res.json(Object.values(groupedByClass));
+    } catch (error) {
+      console.error("Error fetching teacher assignments:", error);
+      res.status(500).json({ message: "Failed to fetch teacher assignments" });
+    }
+  });
+  app2.put("/api/teacher-assignments/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const updatedAssignment = await storage.updateTeacherClassAssignment(Number(id), updateData);
+      if (!updatedAssignment) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      console.log(`\u2705 Admin ${req.user.email} updated teacher assignment ${id}`);
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Error updating teacher assignment:", error);
+      res.status(500).json({ message: "Failed to update teacher assignment" });
+    }
+  });
+  app2.delete("/api/teacher-assignments/:id", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteTeacherClassAssignment(Number(id));
+      if (!success) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      console.log(`\u2705 Admin ${req.user.email} deleted teacher assignment ${id}`);
+      res.json({ message: "Teacher assignment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting teacher assignment:", error);
+      res.status(500).json({ message: "Failed to delete teacher assignment" });
+    }
+  });
+  app2.get("/api/teachers-for-subject", authenticateUser, async (req, res) => {
+    try {
+      const { classId, subjectId } = req.query;
+      if (!classId || !subjectId) {
+        return res.status(400).json({ message: "Both classId and subjectId are required" });
+      }
+      const teachers = await storage.getTeachersForClassSubject(Number(classId), Number(subjectId));
+      if (teachers.length === 0) {
+        return res.json([]);
+      }
+      const teacherData = teachers.map((teacher) => ({
+        id: teacher.id,
+        firstName: teacher.firstName,
+        lastName: teacher.lastName,
+        email: teacher.email,
+        username: teacher.username
+      }));
+      res.json(teacherData);
+    } catch (error) {
+      console.error("Error fetching teachers for subject:", error);
+      res.status(500).json({ message: "Failed to fetch teachers" });
+    }
+  });
   if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
     app2.get("*", (req, res) => {
       if (!req.path.startsWith("/api/") && !req.path.startsWith("/uploads/")) {
         const frontendUrl = process.env.FRONTEND_URL;
         res.status(200).send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Treasure Home School - Backend API</title>
-              <meta http-equiv="refresh" content="3;url=${frontendUrl}">
-              <style>
-                body {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  display: flex;
-                  justify-content: center;
-                  align-items: center;
-                  min-height: 100vh;
-                  margin: 0;
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  color: white;
-                }
-                .container {
-                  text-align: center;
-                  padding: 2rem;
-                  background: rgba(255, 255, 255, 0.1);
-                  border-radius: 12px;
-                  backdrop-filter: blur(10px);
-                }
-                h1 { margin: 0 0 1rem 0; }
-                a {
-                  color: #ffd700;
-                  text-decoration: none;
-                  font-weight: bold;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>\u{1F393} Treasure Home School</h1>
-                <p>This is the backend API server.</p>
-                <p>Redirecting you to the main website...</p>
-                <p><a href="${frontendUrl}">Click here if not redirected automatically</a></p>
-              </div>
-            </body>
-          </html>
-        `);
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Treasure Home School - Backend API</title>
+                <meta http-equiv="refresh" content="3;url=${frontendUrl}">
+                <style>
+                  body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                  }
+                  .container {
+                    text-align: center;
+                    padding: 2rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 12px;
+                    backdrop-filter: blur(10px);
+                  }
+                  h1 { margin: 0 0 1rem 0; }
+                  a {
+                    color: #ffd700;
+                    text-decoration: none;
+                    font-weight: bold;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h1>\u{1F393} Treasure Home School</h1>
+                  <p>This is the backend API server.</p>
+                  <p>Redirecting you to the main website...</p>
+                  <p><a href="${frontendUrl}">Click here if not redirected automatically</a></p>
+                </div>
+              </body>
+            </html>
+          `);
       }
     });
   }
@@ -9978,184 +10810,10 @@ ${notificationBody}
   return httpServer;
 }
 
-// server/vite.ts
-import express from "express";
-import fs2 from "fs";
-import path3 from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path2 from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-var vite_config_default = defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
-      await import("@replit/vite-plugin-cartographer").then(
-        (m) => m.cartographer()
-      )
-    ] : []
-  ],
-  resolve: {
-    alias: {
-      "@": path2.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path2.resolve(import.meta.dirname, "shared"),
-      "@assets": path2.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
-  root: path2.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path2.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-    chunkSizeWarningLimit: 1e3,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          "query-vendor": ["@tanstack/react-query"],
-          "radix-ui": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-toast",
-            "@radix-ui/react-popover",
-            "@radix-ui/react-scroll-area"
-          ],
-          "radix-ui-forms": [
-            "@radix-ui/react-label",
-            "@radix-ui/react-checkbox",
-            "@radix-ui/react-radio-group",
-            "@radix-ui/react-slider",
-            "@radix-ui/react-switch"
-          ],
-          "radix-ui-misc": [
-            "@radix-ui/react-accordion",
-            "@radix-ui/react-alert-dialog",
-            "@radix-ui/react-avatar",
-            "@radix-ui/react-hover-card",
-            "@radix-ui/react-navigation-menu",
-            "@radix-ui/react-progress",
-            "@radix-ui/react-separator",
-            "@radix-ui/react-tooltip"
-          ],
-          "supabase": ["@supabase/supabase-js"],
-          "form-vendor": ["react-hook-form", "@hookform/resolvers", "zod"],
-          "icons": ["lucide-react", "react-icons"],
-          "animation": ["framer-motion", "canvas-confetti"],
-          "charts": ["recharts"]
-        }
-      }
-    }
-  },
-  server: {
-    host: "0.0.0.0",
-    port: 5e3,
-    allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"]
-    }
-  },
-  define: {
-    // Auto-configure API URL based on environment
-    // Development (Replit/Localhost): Use empty string for same-origin requests
-    // Production (Vercel): Use VITE_API_URL env var (set to Render backend URL)
-    "import.meta.env.VITE_API_URL": JSON.stringify(
-      process.env.VITE_API_URL || ""
-    )
-  }
-});
-
-// server/vite.ts
-import { nanoid } from "nanoid";
-var viteLogger = createLogger();
-function log2(message, source = "express") {
-  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  });
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
-async function setupVite(app2, server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true
-  };
-  const vite = await createViteServer({
-    ...vite_config_default,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      }
-    },
-    server: serverOptions,
-    appType: "custom"
-  });
-  app2.use(vite.middlewares);
-  app2.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-    try {
-      const clientTemplate = path3.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html"
-      );
-      let template = await fs2.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
-}
-function serveStatic(app2) {
-  const distPath = path3.resolve(import.meta.dirname, "public");
-  if (!fs2.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
-    );
-  }
-  app2.use(express.static(distPath, {
-    maxAge: "1y",
-    // 1 year for versioned assets (Vite adds hashes to filenames)
-    etag: true,
-    lastModified: true,
-    immutable: true,
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".html")) {
-        res.setHeader("Cache-Control", "no-cache, must-revalidate");
-      } else if (filePath.match(/\.(js|css|woff2?|ttf|eot)$/)) {
-        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      } else if (filePath.match(/\.(jpg|jpeg|png|gif|svg|webp|ico)$/)) {
-        res.setHeader("Cache-Control", "public, max-age=86400");
-      }
-    }
-  }));
-  app2.use("*", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache, must-revalidate");
-    res.sendFile(path3.resolve(distPath, "index.html"));
-  });
-}
-
 // server/index.ts
 init_storage();
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { sql as sql6 } from "drizzle-orm";
 
 // server/seed-terms.ts
 init_storage();
@@ -10252,37 +10910,24 @@ var ENV_VARS = [
     validateFn: (val) => val.startsWith("http://") || val.startsWith("https://"),
     suggestion: "https://your-backend.onrender.com"
   },
-  // Critical - Supabase Storage
+  // Critical - Supabase Storage (ALWAYS REQUIRED for uploads)
   {
     name: "SUPABASE_URL",
-    required: "production",
-    description: "Supabase project URL for file storage",
+    required: "always",
+    description: "Supabase project URL for file storage (CRITICAL for uploads)",
     validateFn: (val) => val.includes("supabase.co"),
     suggestion: "https://your-project.supabase.co"
   },
   {
     name: "SUPABASE_SERVICE_KEY",
-    required: "production",
-    description: "Supabase service role key for file storage",
+    required: "always",
+    description: "Supabase service role key for file storage (CRITICAL for uploads)",
     validateFn: (val) => val.length > 50,
-    suggestion: "Get from Supabase Dashboard \u2192 Settings \u2192 API"
-  },
-  // Optional - Google OAuth
-  {
-    name: "GOOGLE_CLIENT_ID",
-    required: "optional",
-    description: "Google OAuth client ID",
-    suggestion: "Get from Google Cloud Console"
-  },
-  {
-    name: "GOOGLE_CLIENT_SECRET",
-    required: "optional",
-    description: "Google OAuth client secret",
-    suggestion: "Get from Google Cloud Console"
+    suggestion: "Get from Supabase Dashboard \u2192 Settings \u2192 API (use service_role key, NOT anon key)"
   }
 ];
 function validateEnvironment(exitOnError = false) {
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction2 = process.env.NODE_ENV === "production";
   const result = {
     missing: [],
     invalid: [],
@@ -10292,7 +10937,7 @@ function validateEnvironment(exitOnError = false) {
   console.log("\n\u{1F50D} Validating Environment Variables...\n");
   ENV_VARS.forEach((config) => {
     const value = process.env[config.name];
-    const isRequired = config.required === "always" || config.required === "production" && isProduction;
+    const isRequired = config.required === "always" || config.required === "production" && isProduction2;
     if (!value) {
       if (isRequired) {
         result.missing.push(config.name);
@@ -10330,7 +10975,7 @@ function validateEnvironment(exitOnError = false) {
   if (hasErrors) {
     console.error("\n\u{1F6A8} CRITICAL: Missing or invalid environment variables detected!");
     console.error("   Fix these issues before deploying to production.\n");
-    if (isProduction && exitOnError) {
+    if (isProduction2 && exitOnError) {
       console.error("   Exiting due to production environment validation failure...\n");
       process.exit(1);
     }
@@ -10341,7 +10986,8 @@ function validateEnvironment(exitOnError = false) {
 }
 
 // server/index.ts
-validateEnvironment(false);
+var isProduction = process.env.NODE_ENV === "production";
+validateEnvironment(isProduction);
 var app = express2();
 app.set("trust proxy", 1);
 var allowedOrigins = process.env.NODE_ENV === "development" ? [
@@ -10366,11 +11012,13 @@ var corsOptions = {
     if (!origin) {
       return callback(null, true);
     }
+    const originWithoutPort = origin.replace(/:\d+$/, "");
     const isAllowed = allowedOrigins.some((allowed) => {
       if (typeof allowed === "string") {
-        return origin === allowed || origin === allowed.replace(/\/$/, "");
+        const allowedWithoutPort = allowed.replace(/:\d+$/, "");
+        return origin === allowed || origin === allowed.replace(/\/$/, "") || originWithoutPort === allowedWithoutPort || originWithoutPort === allowedWithoutPort.replace(/\/$/, "");
       }
-      return allowed.test(origin);
+      return allowed.test(origin) || allowed.test(originWithoutPort);
     });
     if (isAllowed) {
       callback(null, true);
@@ -10414,7 +11062,7 @@ app.use("/uploads", express2.static("uploads"));
 app.use((req, res, next) => {
   const start = Date.now();
   const path4 = req.path;
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction2 = process.env.NODE_ENV === "production";
   let capturedJsonResponse = void 0;
   if (req.method === "GET" && path4.startsWith("/api/")) {
     if (path4.includes("/homepage-content") || path4.includes("/announcements")) {
@@ -10423,7 +11071,7 @@ app.use((req, res, next) => {
       res.setHeader("Cache-Control", "private, max-age=30");
     }
   }
-  if (!isProduction) {
+  if (!isProduction2) {
     const originalResJson = res.json;
     res.json = function(bodyJson, ...args) {
       capturedJsonResponse = bodyJson;
@@ -10434,14 +11082,14 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path4.startsWith("/api")) {
       let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
-      if (!isProduction && capturedJsonResponse) {
+      if (!isProduction2 && capturedJsonResponse) {
         const sanitizedResponse = sanitizeLogData(capturedJsonResponse);
         logLine += ` :: ${JSON.stringify(sanitizedResponse)}`;
       }
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "\u2026";
       }
-      log2(logLine);
+      log(logLine);
     }
   });
   next();
@@ -10469,60 +11117,92 @@ function sanitizeLogData(data) {
 }
 (async () => {
   try {
-    log2("Applying database migrations...");
+    log("Applying database migrations...");
     await migrate(exportDb, { migrationsFolder: "./migrations" });
-    log2("\u2705 Database migrations completed successfully");
+    log("\u2705 Database migrations completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const errorCode = error?.cause?.code;
     const isIdempotencyError = errorMessage.includes("already exists") || errorMessage.includes("relation") && errorMessage.includes("already exists") || errorMessage.includes("duplicate key") || errorMessage.includes("nothing to migrate") || errorMessage.includes("PostgresError: relation") || errorCode === "42P07" || // relation already exists
     errorCode === "42710";
     if (isIdempotencyError) {
-      log2(`\u2139\uFE0F Migrations already applied: ${errorMessage}`);
+      log(`\u2139\uFE0F Migrations already applied: ${errorMessage}`);
     } else {
       console.error(`\u{1F6A8} MIGRATION ERROR: ${errorMessage}`);
       console.error(error);
-      log2(`\u26A0\uFE0F Migration failed: ${errorMessage}`);
+      log(`\u26A0\uFE0F Migration failed: ${errorMessage}`);
       if (process.env.NODE_ENV === "production") {
         console.error("Production migration failure detected. Review required.");
       }
     }
   }
   try {
-    log2("Seeding academic terms if needed...");
+    await exportDb.execute(sql6`
+      ALTER TABLE counters 
+      ADD COLUMN IF NOT EXISTS role_code VARCHAR(10) UNIQUE;
+    `);
+    await exportDb.execute(sql6`
+      CREATE UNIQUE INDEX IF NOT EXISTS counters_role_code_idx 
+      ON counters(role_code) WHERE role_code IS NOT NULL;
+    `);
+    log("\u2705 Username migration: roleCode column ready");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    log(`\u2139\uFE0F  Username migration note: ${errorMessage}`);
+  }
+  try {
+    log("Seeding academic terms if needed...");
     await seedAcademicTerms();
-    log2("\u2705 Academic terms seeding completed successfully");
+    log("\u2705 Academic terms seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`\u{1F6A8} ACADEMIC TERMS SEEDING ERROR: ${errorMessage}`);
     console.error(error);
-    log2(`\u26A0\uFE0F Academic terms seeding failed: ${errorMessage}`);
+    log(`\u26A0\uFE0F Academic terms seeding failed: ${errorMessage}`);
   }
   try {
-    const { storage: storage2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
-    const existingSetting = await storage2.getSetting("allow_student_self_registration");
-    if (!existingSetting) {
-      await storage2.createSetting({
-        key: "allow_student_self_registration",
-        value: "true",
-        description: "Allow students to self-register with automatic parent account creation",
-        dataType: "boolean"
-      });
-      log2("\u2705 Student self-registration setting initialized");
-    } else {
-      log2("\u2139\uFE0F Student self-registration setting already exists");
-    }
+    log("Seeding system settings if needed...");
+    const { seedSystemSettings: seedSystemSettings2 } = await Promise.resolve().then(() => (init_seed_system_settings(), seed_system_settings_exports));
+    await seedSystemSettings2();
+    log("\u2705 System settings seeding completed successfully");
   } catch (error) {
-    log2(`\u2139\uFE0F Registration setting initialization skipped (table may not exist): ${error instanceof Error ? error.message : error}`);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u{1F6A8} SYSTEM SETTINGS SEEDING ERROR: ${errorMessage}`);
+    console.error(error);
+    log(`\u26A0\uFE0F System settings seeding failed: ${errorMessage}`);
+  }
+  try {
+    log("Checking for super admin account...");
+    const { seedSuperAdmin: seedSuperAdmin2 } = await Promise.resolve().then(() => (init_seed_superadmin(), seed_superadmin_exports));
+    await seedSuperAdmin2();
+    log("\u2705 Super admin seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u{1F6A8} SUPER ADMIN SEEDING ERROR: ${errorMessage}`);
+    console.error(error);
+    log(`\u26A0\uFE0F Super admin seeding failed: ${errorMessage}`);
+  }
+  if (isProduction) {
+    const { isSupabaseStorageEnabled: isSupabaseStorageEnabled2 } = await Promise.resolve().then(() => (init_supabase_storage(), supabase_storage_exports));
+    if (!isSupabaseStorageEnabled2()) {
+      console.error("\n\u{1F6A8} PRODUCTION CRITICAL ERROR: Supabase Storage is NOT configured!");
+      console.error("   \u2192 Image uploads will FAIL without SUPABASE_URL and SUPABASE_SERVICE_KEY");
+      console.error("   \u2192 Set these environment variables in your deployment platform (Render/Vercel/etc)");
+      console.error("   \u2192 Get credentials from: Supabase Dashboard \u2192 Project Settings \u2192 API");
+      console.error("   \u2192 Use the service_role key, NOT the anon key\n");
+      console.error("   \u2192 Exiting to prevent production deployment with broken uploads...\n");
+      process.exit(1);
+    }
+    log("\u2705 Supabase Storage verified for production deployment");
   }
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
-    log2(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
+    log(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
     res.status(410).json({ message: "Gone - Route disabled for security" });
   });
   const server = await registerRoutes(app);
   app.use((err, req, res, next) => {
     if (err.name === "MulterError" || err.message?.includes("Only image files") || err.message?.includes("Only document files") || err.message?.includes("Only CSV files")) {
-      log2(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
+      log(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
       let status = 400;
       let message = err.message;
       if (err.code === "LIMIT_FILE_SIZE") {
@@ -10537,7 +11217,7 @@ function sanitizeLogData(data) {
   app.use((err, req, res, _next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    log2(`ERROR: ${req.method} ${req.path} - ${err.message}`);
+    log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
     console.error(err.stack);
     if (!res.headersSent) {
       res.status(status).json({ message });
@@ -10555,6 +11235,6 @@ function sanitizeLogData(data) {
     host: "0.0.0.0",
     reusePort: true
   }, () => {
-    log2(`serving on port ${port}`);
+    log(`serving on port ${port}`);
   });
 })();

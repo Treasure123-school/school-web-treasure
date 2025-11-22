@@ -20,24 +20,14 @@ export default function AdminUtilities() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Demo Accounts Deleted</span>
-          </div>
-        ),
+        title: "Demo Accounts Deleted",
         description: `Successfully deleted ${data.deletedUsers?.length || 0} demo accounts: ${data.deletedUsers?.join(', ')}`,
         className: "border-green-500 bg-green-50",
       });
     },
     onError: (error: any) => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span>Deletion Failed</span>
-          </div>
-        ),
+        title: "Deletion Failed",
         description: error.message || "Failed to delete demo accounts",
         variant: "destructive",
         className: "border-red-500 bg-red-50",

@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { TeacherProfile, Class } from '@shared/schema';
+import type { TeacherProfileWithUser, Class } from '@shared/schema';
 
 export default function TeacherProfile() {
   const { user } = useAuth();
@@ -50,7 +50,8 @@ export default function TeacherProfile() {
     availability: 'full-time',
     subjects: [] as number[],
     assignedClasses: [] as number[],
-    staffId: ''
+    staffId: '',
+    signatureUrl: ''
   });
 
   if (!user) {
@@ -69,7 +70,7 @@ export default function TeacherProfile() {
   });
 
   // Fetch teacher professional profile - this already has merged user data
-  const { data: teacherProfile, isLoading: teacherProfileLoading } = useQuery<TeacherProfile>({
+  const { data: teacherProfile, isLoading: teacherProfileLoading } = useQuery<TeacherProfileWithUser>({
     queryKey: ['/api/teacher/profile/me'],
     enabled: !!user
   });
@@ -191,7 +192,8 @@ export default function TeacherProfile() {
         availability: teacherProfile.availability || 'full-time',
         subjects: subjectsArray,
         assignedClasses: classesArray,
-        staffId: teacherProfile.staffId || ''
+        staffId: teacherProfile.staffId || '',
+        signatureUrl: teacherProfile.signatureUrl || ''
       };
 
       console.log('✅ Setting professional data:', newProfessionalData);

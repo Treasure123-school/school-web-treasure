@@ -9,9 +9,16 @@ import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { RealtimeHealthMonitor } from "@/components/RealtimeHealthMonitor";
 
+interface DashboardStats {
+  totalAdmins?: number;
+  totalUsers?: number;
+  activeSessions?: number;
+  totalExams?: number;
+}
+
 export default function SuperAdminDashboard() {
   const { user } = useAuth();
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/superadmin/stats"],
   });
 

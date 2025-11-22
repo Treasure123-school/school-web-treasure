@@ -5,8 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Users, CheckCircle, AlertCircle, Clock } from "lucide-react";
 
+interface ProfileUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  profileCompleted: boolean;
+  completionPercentage: number;
+  lastLogin: string | null;
+}
+
 export default function ProfileCompletionMonitoring() {
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading } = useQuery<ProfileUser[]>({
     queryKey: ["/api/admin/profile-completion"],
   });
 
@@ -20,8 +31,8 @@ export default function ProfileCompletionMonitoring() {
     }
   };
 
-  const completedCount = users ? (users as any[]).filter((u: any) => u.profileCompleted).length : 0;
-  const totalCount = users ? (users as any[]).length : 0;
+  const completedCount = users ? users.filter((u) => u.profileCompleted).length : 0;
+  const totalCount = users ? users.length : 0;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   if (isLoading) {
@@ -92,7 +103,7 @@ export default function ProfileCompletionMonitoring() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users && (users as any[]).map((user: any) => (
+              {users && users.map((user) => (
                 <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                   <TableCell className="font-medium" data-testid={`text-name-${user.id}`}>{user.name}</TableCell>
                   <TableCell data-testid={`text-email-${user.id}`}>{user.email}</TableCell>
@@ -122,7 +133,7 @@ export default function ProfileCompletionMonitoring() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!users || (users as any[]).length === 0) && (
+              {(!users || users.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No users found

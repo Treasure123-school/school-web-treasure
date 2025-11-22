@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GraduationCap, CheckCircle, AlertCircle } from 'lucide-react';
+import { GraduationCap, CheckCircle, AlertCircle, Mail } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,12 +38,7 @@ export default function ResetPassword() {
       setToken(tokenParam);
     } else {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span>Invalid Reset Link</span>
-          </div>
-        ),
+        title: "Invalid Reset Link",
         description: '❌ No reset token found. Please request a new password reset link.',
         className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
       });
@@ -72,12 +67,7 @@ export default function ResetPassword() {
     onSuccess: () => {
       setResetSuccess(true);
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Password Reset Successful</span>
-          </div>
-        ),
+        title: "Password Reset Successful",
         description: '✅ Your password has been reset successfully. You can now login with your new password.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
@@ -89,12 +79,7 @@ export default function ResetPassword() {
     onError: (error: any) => {
       const errorMessage = error?.message || 'Failed to reset password. The link may have expired.';
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span>Reset Failed</span>
-          </div>
-        ),
+        title: "Reset Failed",
         description: `❌ ${errorMessage}`,
         className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
       });

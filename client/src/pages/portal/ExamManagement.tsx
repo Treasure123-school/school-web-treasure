@@ -243,13 +243,13 @@ export default function ExamManagement() {
 
   // Fetch question counts for all exams
   const { data: questionCounts = {} } = useQuery<Record<number, number>>({
-    queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)],
+    queryKey: ['/api/exams/question-counts', exams.map((exam: Exam) => exam.id)],
     enabled: exams.length > 0,
     queryFn: async () => {
-      const examIds = exams.map(exam => exam.id);
+      const examIds = exams.map((exam: Exam) => exam.id);
       if (examIds.length === 0) return {};
 
-      const queryString = examIds.map(id => `examIds=${id}`).join('&');
+      const queryString = examIds.map((id: number) => `examIds=${id}`).join('&');
       const response = await apiRequest('GET', `/api/exams/question-counts?${queryString}`);
       if (!response.ok) throw new Error('Failed to fetch question counts');
       return response.json();
@@ -472,7 +472,7 @@ export default function ExamManagement() {
         description: "Question added successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map(exam => exam.id)] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts', exams.map((exam: Exam) => exam.id)] });
       // Invalidate question options for the newly created question to ensure fresh data
       if (createdQuestion?.id) {
         queryClient.invalidateQueries({ queryKey: ['/api/question-options', createdQuestion.id] });
@@ -754,12 +754,15 @@ export default function ExamManagement() {
         partialCreditRules: null,
         instructions: q.instructions,
         sampleAnswer: q.sampleAnswer,
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        autoGradable: q.questionType === 'multiple_choice',
+        caseSensitive: false,
+        allowPartialCredit: false,
         options: q.options || []
       }));
       
       // Immediately update UI with optimistic data
-      queryClient.setQueryData<ExamQuestion[]>(queryKey, (old = []) => [...old, ...optimisticQuestions]);
+      queryClient.setQueryData<ExamQuestion[]>(queryKey, (old: ExamQuestion[] = []) => [...old, ...optimisticQuestions]);
       
       console.log('⚡ Optimistic update applied:', optimisticQuestions.length, 'questions added to UI');
       
@@ -1595,7 +1598,7 @@ export default function ExamManagement() {
                             type="datetime-local"
                             {...registerExam('endTime')} 
                             data-testid="input-exam-end-time"
-                            min={watchGlobalStartTime || new Date().toISOString().slice(0, 16)}
+                            min={watchGlobalStartTime ? (typeof watchGlobalStartTime === 'string' ? watchGlobalStartTime : new Date(watchGlobalStartTime).toISOString().slice(0, 16)) : new Date().toISOString().slice(0, 16)}
                           />
                           {examErrors.endTime && (
                             <p className="text-sm text-red-500 mt-1">{examErrors.endTime.message}</p>

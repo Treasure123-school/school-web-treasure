@@ -521,7 +521,7 @@ export default function ReportsManagement() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {getGradeDistributionData().map((entry, index) => (
+                        {getGradeDistributionData().map((entry: { name: string; value: number }, index: number) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>

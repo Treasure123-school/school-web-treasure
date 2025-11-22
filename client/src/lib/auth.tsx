@@ -6,6 +6,9 @@ interface AuthUser {
   firstName: string;
   lastName: string;
   roleId: number;
+  username?: string;
+  role?: string;
+  profileImageUrl?: string;
   profileCompleted?: boolean;
   profileCompletionPercentage?: number;
   profileSkipped?: boolean;

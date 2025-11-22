@@ -114,6 +114,8 @@ export function useGlobalRealtime() {
     console.log(`📊 Monitoring ${GLOBAL_REALTIME_TABLES.length} tables for instant updates`);
 
     GLOBAL_REALTIME_TABLES.forEach(({ table, queryKeys, throttleMs }) => {
+      if (!supabase) return;
+
       if (throttleMs) {
         throttlersRef.current.set(table, createThrottledInvalidator(throttleMs));
       }
@@ -153,7 +155,7 @@ export function useGlobalRealtime() {
               setIsFallbackMode(true);
               startPollingForTable(table, queryKeys);
               
-              if (channelsRef.current) {
+              if (channelsRef.current && supabase) {
                 const channelToRemove = channelsRef.current.find(ch => ch.topic.includes(table));
                 if (channelToRemove) {
                   supabase.removeChannel(channelToRemove);

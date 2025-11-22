@@ -196,7 +196,7 @@ export function ProfessionalReportCard({
       </div>
 
       {/* Print styles */}
-      <style jsx>{`
+      <style>{`
         @media print {
           body * {
             visibility: hidden;

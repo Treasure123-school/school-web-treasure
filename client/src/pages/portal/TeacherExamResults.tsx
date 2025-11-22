@@ -9,6 +9,7 @@ import { ArrowLeft, Download, Users, TrendingUp, Award, Clock, FileText, CheckCi
 import { Link } from 'wouter';
 import { format } from 'date-fns';
 import { useAuth } from '@/lib/auth';
+import type { Class, ExamResult, Exam, Subject, User } from '@shared/schema';
 
 export default function TeacherExamResults() {
   const { user } = useAuth();
@@ -21,69 +22,69 @@ export default function TeacherExamResults() {
 
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
-  const userRole = (user.role?.name?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
+  const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
   // Fetch exam details
-  const { data: exams = [] } = useQuery({
+  const { data: exams = [] } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
   });
 
-  const currentExam = exams.find((e: any) => e.id === examId);
+  const currentExam = exams.find((e) => e.id === examId);
 
   // Fetch exam results for this exam
-  const { data: examResults = [], isLoading } = useQuery({
+  const { data: examResults = [], isLoading } = useQuery<ExamResult[]>({
     queryKey: [`/api/exam-results/exam/${examId}`],
     enabled: !!examId,
   });
 
   // Fetch all users to get student details
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
 
   // Fetch subjects for subject names
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['/api/subjects'],
   });
 
   // Fetch classes for class names
-  const { data: classes = [] } = useQuery({
+  const { data: classes = [] } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
   });
 
-  const subject = subjects.find((s: any) => s.id === currentExam?.subjectId);
-  const examClass = classes.find((c: any) => c.id === currentExam?.classId);
+  const subject = subjects.find((s) => s.id === currentExam?.subjectId);
+  const examClass = classes.find((c) => c.id === currentExam?.classId);
 
   // Calculate statistics
   const totalSubmissions = examResults.length;
   const averageScore = totalSubmissions > 0
-    ? examResults.reduce((sum: number, r: any) => sum + (r.score || 0), 0) / totalSubmissions
+    ? examResults.reduce((sum: number, r) => sum + (r.score ?? 0), 0) / totalSubmissions
     : 0;
   
   const averagePercentage = totalSubmissions > 0
-    ? examResults.reduce((sum: number, r: any) => {
-        const percentage = r.maxScore > 0 ? (r.score / r.maxScore) * 100 : 0;
+    ? examResults.reduce((sum: number, r) => {
+        const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
         return sum + percentage;
       }, 0) / totalSubmissions
     : 0;
 
   const highestScore = totalSubmissions > 0
-    ? Math.max(...examResults.map((r: any) => r.score || 0))
+    ? Math.max(...examResults.map((r) => r.score ?? 0))
     : 0;
 
   const lowestScore = totalSubmissions > 0
-    ? Math.min(...examResults.map((r: any) => r.score || 0))
+    ? Math.min(...examResults.map((r) => r.score ?? 0))
     : 0;
 
-  const passCount = examResults.filter((r: any) => {
-    const percentage = r.maxScore > 0 ? (r.score / r.maxScore) * 100 : 0;
+  const passCount = examResults.filter((r) => {
+    const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
     return percentage >= 50;
   }).length;
 
   const failCount = totalSubmissions - passCount;
 
   // Sort results by score (highest first)
-  const sortedResults = [...examResults].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+  const sortedResults = [...examResults].sort((a, b) => (b.score || 0) - (a.score || 0));
 
   const getGrade = (percentage: number) => {
     if (percentage >= 90) return { grade: 'A+', color: 'text-green-600' };
@@ -99,18 +100,18 @@ export default function TeacherExamResults() {
 
     const csvContent = [
       ['Student Name', 'Student ID', 'Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
-      ...sortedResults.map((result: any) => {
-        const student = users.find((u: any) => u.id === result.studentId);
-        const percentage = result.maxScore > 0 ? (result.score / result.maxScore) * 100 : 0;
+      ...sortedResults.map((result) => {
+        const student = users.find((u) => u.id === result.studentId);
+        const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
         const { grade } = getGrade(percentage);
         return [
           `"${student?.firstName || ''} ${student?.lastName || ''}"`,
           result.studentId,
-          result.score || 0,
-          result.maxScore || 0,
+          result.score ?? 0,
+          result.maxScore ?? 0,
           percentage.toFixed(1) + '%',
           grade,
-          result.submittedAt ? format(new Date(result.submittedAt), 'PPpp') : 'N/A'
+          result.createdAt ? format(new Date(result.createdAt), 'PPpp') : 'N/A'
         ].join(',');
       })
     ].join('\n');
@@ -187,7 +188,7 @@ export default function TeacherExamResults() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-average-score">
-                {averageScore.toFixed(1)} / {currentExam.totalMarks || currentExam.maxScore || 100}
+                {averageScore.toFixed(1)} / {currentExam.totalMarks || 100}
               </div>
               <p className="text-sm text-muted-foreground" data-testid="text-average-percentage">
                 {averagePercentage.toFixed(1)}%
@@ -269,9 +270,9 @@ export default function TeacherExamResults() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedResults.map((result: any, index: number) => {
-                      const student = users.find((u: any) => u.id === result.studentId);
-                      const percentage = result.maxScore > 0 ? (result.score / result.maxScore) * 100 : 0;
+                    {sortedResults.map((result, index) => {
+                      const student = users.find((u) => u.id === result.studentId);
+                      const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
                       const { grade, color } = getGrade(percentage);
                       const isPassed = percentage >= 50;
 
@@ -312,7 +313,7 @@ export default function TeacherExamResults() {
                             </div>
                           </TableCell>
                           <TableCell data-testid={`text-submitted-at-${index}`}>
-                            {result.submittedAt ? format(new Date(result.submittedAt), 'PPp') : 'N/A'}
+                            {result.createdAt ? format(new Date(result.createdAt), 'PPp') : 'N/A'}
                           </TableCell>
                         </TableRow>
                       );

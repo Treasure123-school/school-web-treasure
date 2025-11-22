@@ -73,12 +73,7 @@ export default function Login() {
         switch (statusType) {
           case 'invalid_credentials':
             toast({
-              title: (
-                <div className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span>Invalid Login</span>
-                </div>
-              ),
+              title: "Invalid Login",
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -94,12 +89,7 @@ export default function Login() {
             break;
           case 'pending_staff':
             toast({
-              title: (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-orange-500" />
-                  <span>Account Awaiting Approval</span>
-                </div>
-              ),
+              title: "Account Awaiting Approval",
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -117,12 +107,7 @@ export default function Login() {
             break;
           case 'pending_setup':
             toast({
-              title: (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-orange-500" />
-                  <span>Account Setup Pending</span>
-                </div>
-              ),
+              title: "Account Setup Pending",
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -137,12 +122,7 @@ export default function Login() {
             break;
           case 'suspended_staff':
             toast({
-              title: (
-                <div className="flex items-center gap-2">
-                  <Ban className="h-4 w-4 text-red-500" />
-                  <span>Account Suspended</span>
-                </div>
-              ),
+              title: "Account Suspended",
               description: (
                 <div className="text-xs sm:text-sm">
                   <p className="mb-2 flex items-center gap-2">
@@ -160,12 +140,7 @@ export default function Login() {
             break;
           case 'suspended_parent':
             toast({
-              title: (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
-                  <span className="font-bold text-sm sm:text-base break-words">🔒 Account Suspended - Security Alert</span>
-                </div>
-              ),
+              title: "🔒 Account Suspended - Security Alert",
               description: (
                 <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
                   <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
@@ -207,12 +182,7 @@ export default function Login() {
             break;
           case 'suspended_student':
             toast({
-              title: (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
-                  <span className="font-bold text-sm sm:text-base break-words">🔒 Account Suspended - Security Alert</span>
-                </div>
-              ),
+              title: "🔒 Account Suspended - Security Alert",
               description: (
                 <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
                   <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
@@ -248,12 +218,7 @@ export default function Login() {
             break;
           default:
             toast({
-              title: (
-                <div className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span>Login Failed</span>
-                </div>
-              ),
+              title: "Login Failed",
               description: result.message || 'An error occurred during login. Please try again.',
               variant: 'destructive',
             });
@@ -277,12 +242,7 @@ export default function Login() {
       const targetPath = getPortalByRoleId(data.user.roleId);
 
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Login Successful</span>
-          </div>
-        ),
+        title: "Login Successful",
         description: `Welcome back to THS Portal. Redirecting you to your ${userRole} dashboard...`,
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });
@@ -325,12 +285,7 @@ export default function Login() {
       resetPasswordForm();
 
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Password Changed Successfully</span>
-          </div>
-        ),
+        title: "Password Changed Successfully",
         description: 'Welcome to THS Portal! Your password has been updated.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });

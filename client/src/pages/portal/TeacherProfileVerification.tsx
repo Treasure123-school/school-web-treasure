@@ -14,6 +14,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import type { TeacherProfile } from '@shared/schema';
+
+// Type for the teacher profile data returned by the API
+interface TeacherProfileData {
+  teacher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profileImageUrl?: string;
+    gender?: string;
+    dateOfBirth?: string;
+    phone?: string;
+  };
+  profile: TeacherProfile;
+  assignedClassDetails?: Array<{ name: string }>;
+}
 
 export default function TeacherProfileVerification() {
   const { user } = useAuth();
@@ -21,12 +38,12 @@ export default function TeacherProfileVerification() {
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  const { data: pendingProfiles = [], isLoading: pendingLoading } = useQuery({
+  const { data: pendingProfiles = [], isLoading: pendingLoading } = useQuery<TeacherProfileData[]>({
     queryKey: ['/api/admin/teacher-profiles/pending'],
     enabled: !!user
   });
 
-  const { data: verifiedProfiles = [], isLoading: verifiedLoading } = useQuery({
+  const { data: verifiedProfiles = [], isLoading: verifiedLoading } = useQuery<TeacherProfileData[]>({
     queryKey: ['/api/admin/teacher-profiles/verified'],
     enabled: !!user
   });
@@ -43,11 +60,7 @@ export default function TeacherProfileVerification() {
 
   const verifyMutation = useMutation({
     mutationFn: async ({ userId, action }: { userId: string; action: 'approve' | 'reject' }) => {
-      return apiRequest('/api/admin/teacher-profiles/verify', {
-        method: 'POST',
-        body: JSON.stringify({ userId, action }),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest('POST', '/api/admin/teacher-profiles/verify', { userId, action });
     },
     onMutate: async ({ userId, action }: { userId: string; action: 'approve' | 'reject' }) => {
       await queryClient.cancelQueries({ queryKey: ['/api/admin/teacher-profiles/pending'] });
@@ -57,20 +70,20 @@ export default function TeacherProfileVerification() {
       const previousVerified = queryClient.getQueryData(['/api/admin/teacher-profiles/verified']);
       
       if (action === 'approve') {
-        const teacherToMove = (previousPending as any[])?.find((t: any) => t.teacher.id === userId);
+        const teacherToMove = (previousPending as TeacherProfileData[])?.find((t) => t.teacher.id === userId);
         
         if (teacherToMove) {
-          queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: any) => 
-            old?.filter((t: any) => t.teacher.id !== userId)
+          queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: TeacherProfileData[] | undefined) => 
+            old?.filter((t) => t.teacher.id !== userId)
           );
           
-          queryClient.setQueryData(['/api/admin/teacher-profiles/verified'], (old: any) => 
+          queryClient.setQueryData(['/api/admin/teacher-profiles/verified'], (old: TeacherProfileData[] | undefined) => 
             old ? [...old, { ...teacherToMove, profile: { ...teacherToMove.profile, verified: true } }] : [teacherToMove]
           );
         }
       } else {
-        queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: any) => 
-          old?.filter((t: any) => t.teacher.id !== userId)
+        queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: TeacherProfileData[] | undefined) => 
+          old?.filter((t) => t.teacher.id !== userId)
         );
       }
       
@@ -200,7 +213,7 @@ export default function TeacherProfileVerification() {
                 <div className="col-span-2">
                   <p className="text-muted-foreground">Subjects</p>
                   <div className="flex flex-wrap gap-1 mt-1" data-testid="container-subjects">
-                    {profile.subjects?.map((subject: string, idx: number) => (
+                    {profile.subjects?.map((subject: number, idx: number) => (
                       <Badge key={idx} variant="secondary" data-testid={`badge-subject-${idx}`}>{subject}</Badge>
                     ))}
                   </div>
@@ -208,7 +221,7 @@ export default function TeacherProfileVerification() {
                 <div className="col-span-2">
                   <p className="text-muted-foreground">Assigned Classes</p>
                   <div className="flex flex-wrap gap-1 mt-1" data-testid="container-classes">
-                    {assignedClassDetails?.map((cls: any, idx: number) => (
+                    {assignedClassDetails?.map((cls: { name: string }, idx: number) => (
                       <Badge key={idx} variant="outline" data-testid={`badge-class-${idx}`}>{cls.name}</Badge>
                     ))}
                   </div>
@@ -392,7 +405,7 @@ export default function TeacherProfileVerification() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingProfiles.map((item: any, index: number) => (
+                      {pendingProfiles.map((item, index: number) => (
                         <TableRow key={item.teacher.id} data-testid={`row-pending-${index}`}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -420,12 +433,12 @@ export default function TeacherProfileVerification() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1" data-testid={`subjects-${index}`}>
-                              {item.profile.subjects?.slice(0, 2).map((subject: string, idx: number) => (
+                              {item.profile.subjects?.slice(0, 2).map((subject, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
                                   {subject}
                                 </Badge>
                               ))}
-                              {item.profile.subjects?.length > 2 && (
+                              {item.profile.subjects && item.profile.subjects.length > 2 && (
                                 <Badge variant="secondary" className="text-xs">
                                   +{item.profile.subjects.length - 2}
                                 </Badge>
@@ -487,7 +500,7 @@ export default function TeacherProfileVerification() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {verifiedProfiles.map((item: any, index: number) => (
+                      {verifiedProfiles.map((item, index: number) => (
                         <TableRow key={item.teacher.id} data-testid={`row-verified-${index}`}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -515,12 +528,12 @@ export default function TeacherProfileVerification() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1" data-testid={`verified-subjects-${index}`}>
-                              {item.profile.subjects?.slice(0, 2).map((subject: string, idx: number) => (
+                              {item.profile.subjects?.slice(0, 2).map((subject, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
                                   {subject}
                                 </Badge>
                               ))}
-                              {item.profile.subjects?.length > 2 && (
+                              {item.profile.subjects && item.profile.subjects.length > 2 && (
                                 <Badge variant="secondary" className="text-xs">
                                   +{item.profile.subjects.length - 2}
                                 </Badge>

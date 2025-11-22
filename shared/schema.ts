@@ -1023,6 +1023,22 @@ export type ParentProfile = typeof parentProfiles.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
 export type Counter = typeof counters.$inferSelect;
 
+// Merged profile types that include user data
+// These match the API responses from endpoints like /api/teacher/profile/me
+export type TeacherProfileWithUser = TeacherProfile & {
+  // User fields merged from users table
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  recoveryEmail: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  nationalId: string | null;
+  profileImageUrl: string | null;
+};
+
 // New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
 export type QuestionOption = typeof questionOptions.$inferSelect;

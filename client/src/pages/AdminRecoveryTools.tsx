@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Input, Label, Form, Toast, toast } from '@/components/ui';
-import { Shield, Key, Mail, AlertCircle, CheckCircle, UserCog, XCircle } from 'lucide-react';
-import { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Form } from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'hookform/react';
+import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 
 const passwordResetSchema = z.object({
@@ -18,16 +21,20 @@ const passwordResetSchema = z.object({
 type PasswordResetFormValues = z.infer<typeof passwordResetSchema>;
 
 export default function ForgotPassword() {
-  const router = useRouter();
-  const { token } = router.query;
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [token, setToken] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      // Optionally redirect or show an error if no token is provided
-      // router.push('/login');
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get('token');
+    if (tokenParam) {
+      setToken(tokenParam);
+    } else {
+      setLocation('/login');
     }
-  }, [token, router]);
+  }, [setLocation]);
 
   const form = useForm<PasswordResetFormValues>({
     resolver: zodResolver(passwordResetSchema),
@@ -64,23 +71,13 @@ export default function ForgotPassword() {
       }
 
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Password Reset Successful</span>
-          </div>
-        ),
+        title: "Password Reset Successful",
         description: 'User password has been reset. They will receive an email notification.',
       });
-      router.push('/login');
+      setLocation('/login');
     } catch (error: any) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-500" />
-            <span>Password Reset Failed</span>
-          </div>
-        ),
+        title: "Password Reset Failed",
         description: error.message || 'Failed to reset password. Please try again.',
         variant: 'destructive',
       });
@@ -122,9 +119,9 @@ export default function ForgotPassword() {
                   placeholder="Confirm your new password"
                   className="mt-1"
                 />
-                {form.errors.confirmPassword && (
+                {form.formState.errors.confirmPassword && (
                   <p className="mt-2 text-sm text-red-500">
-                    {form.errors.confirmPassword.message}
+                    {form.formState.errors.confirmPassword.message}
                   </p>
                 )}
               </div>

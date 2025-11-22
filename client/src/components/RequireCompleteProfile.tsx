@@ -12,12 +12,36 @@ interface RequireCompleteProfileProps {
   feature?: string;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roleId: number;
+  username?: string;
+  role?: string;
+  profileImageUrl?: string;
+  profileCompleted?: boolean;
+  profileCompletionPercentage?: number;
+  profileSkipped?: boolean;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  recoveryEmail?: string;
+}
+
+interface AuthMeResponse {
+  user: AuthUser;
+}
+
 export default function RequireCompleteProfile({ 
   children, 
   feature = "this feature" 
 }: RequireCompleteProfileProps) {
   const [, navigate] = useLocation();
-  const { user } = useQuery({ queryKey: ['/api/auth/me'] }).data || {};
+  const { data } = useQuery<AuthMeResponse>({ queryKey: ['/api/auth/me'] });
+  const user = data?.user;
 
   // Determine which profile status endpoint to use based on role
   const isTeacher = user?.roleId === 2;

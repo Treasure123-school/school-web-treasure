@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar, Search, Filter, Mail, Phone, Edit, Ban, CheckCircle, XCircle, Clock, Activity } from 'lucide-react';
-import { Link, navigate } from 'wouter';
+import { Link } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef, useState } from "react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -577,7 +577,13 @@ export default function AdminDashboard() {
     }
   ];
 
-  const quickActions = [
+  const quickActions: Array<{
+    title: string;
+    icon: any;
+    color: string;
+    href: string;
+    badge?: number | string;
+  }> = [
     {
       title: 'User Management',
       icon: Users,

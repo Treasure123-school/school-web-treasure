@@ -15,15 +15,25 @@ import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { Search } from "lucide-react";
 import { format } from "date-fns";
 
+interface LogEntry {
+  id: string;
+  action: string;
+  reason?: string;
+  userEmail?: string;
+  entityType?: string;
+  ipAddress?: string;
+  createdAt?: string;
+}
+
 export default function SuperAdminLogs() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: logs, isLoading } = useQuery({
+  const { data: logs, isLoading } = useQuery<LogEntry[]>({
     queryKey: ["/api/superadmin/logs"],
   });
 
-  const filteredLogs = (logs || []).filter((log: any) =>
-    `${log.action} ${log.reason}`.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredLogs = (logs || []).filter((log) =>
+    `${log.action} ${log.reason || ""}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getActionColor = (action: string) => {
@@ -86,7 +96,7 @@ export default function SuperAdminLogs() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredLogs.map((log: any) => (
+                      {filteredLogs.map((log) => (
                         <TableRow key={log.id} className="dark:border-slate-700" data-testid={`row-log-${log.id}`}>
                           <TableCell className="dark:text-slate-300 whitespace-nowrap text-xs sm:text-sm">
                             <div className="hidden sm:block">

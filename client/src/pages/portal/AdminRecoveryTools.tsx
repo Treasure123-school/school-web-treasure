@@ -113,9 +113,7 @@ export default function AdminRecoveryTools() {
   // Delete demo accounts mutation
   const deleteDemoAccountsMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('/api/admin/delete-demo-accounts', {
-        method: 'POST',
-      });
+      return await apiRequest('POST', '/api/admin/delete-demo-accounts');
     },
     onSuccess: (data: any) => {
       toast({

@@ -69,12 +69,7 @@ export default function JobVacancy() {
     },
     onSuccess: () => {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span>Application Submitted</span>
-          </div>
-        ),
+        title: "Application Submitted",
         description: 'Your application has been submitted successfully. We will review it and get back to you soon.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
       });

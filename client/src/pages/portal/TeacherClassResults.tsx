@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Download, Users, TrendingUp, Award } from 'lucide-react';
 import { Link } from 'wouter';
 import { useAuth } from '@/lib/auth';
+import type { Class, ExamResult, Exam, Subject, User } from '@shared/schema';
 
 export default function TeacherClassResults() {
   const { user } = useAuth();
@@ -20,55 +21,55 @@ export default function TeacherClassResults() {
 
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
-  const userRole = (user.role?.name?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
+  const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
   // Fetch class details
-  const { data: classes = [] } = useQuery({
+  const { data: classes = [] } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
   });
 
-  const currentClass = classes.find((c: any) => c.id === classId);
+  const currentClass = classes.find((c) => c.id === classId);
 
   // Fetch all exam results for this class
-  const { data: examResults = [], isLoading } = useQuery({
+  const { data: examResults = [], isLoading } = useQuery<ExamResult[]>({
     queryKey: [`/api/exam-results/class/${classId}`],
     enabled: !!classId,
   });
 
   // Fetch all exams to get exam details
-  const { data: exams = [] } = useQuery({
+  const { data: exams = [] } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
   });
 
   // Fetch all users to get student details
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
 
   // Fetch subjects for subject names
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['/api/subjects'],
   });
 
   // Group results by exam
-  const resultsByExam = examResults.reduce((acc: any, result: any) => {
+  const resultsByExam = examResults.reduce((acc: Record<number, ExamResult[]>, result) => {
     const examId = result.examId;
     if (!acc[examId]) {
       acc[examId] = [];
     }
     acc[examId].push(result);
     return acc;
-  }, {});
+  }, {} as Record<number, ExamResult[]>);
 
   // Calculate statistics
-  const totalStudents = new Set(examResults.map((r: any) => r.studentId)).size;
+  const totalStudents = new Set(examResults.map((r) => r.studentId)).size;
   const totalExams = Object.keys(resultsByExam).length;
   const averageScore = examResults.length > 0
-    ? examResults.reduce((sum: number, r: any) => sum + (r.score || 0), 0) / examResults.length
+    ? examResults.reduce((sum: number, r) => sum + (r.score ?? 0), 0) / examResults.length
     : 0;
   const averagePercentage = examResults.length > 0
-    ? examResults.reduce((sum: number, r: any) => {
-        const percentage = r.maxScore > 0 ? (r.score / r.maxScore) * 100 : 0;
+    ? examResults.reduce((sum: number, r) => {
+        const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
         return sum + percentage;
       }, 0) / examResults.length
     : 0;
@@ -157,10 +158,10 @@ export default function TeacherClassResults() {
 
         {/* Results by Exam */}
         <div className="space-y-6">
-          {Object.entries(resultsByExam).map(([examId, results]: [string, any]) => {
-            const exam = exams.find((e: any) => e.id === parseInt(examId));
-            const subject = subjects.find((s: any) => s.id === exam?.subjectId);
-            const examResultsList = results as any[];
+          {Object.entries(resultsByExam).map(([examId, results]) => {
+            const exam = exams.find((e) => e.id === parseInt(examId));
+            const subject = subjects.find((s) => s.id === exam?.subjectId);
+            const examResultsList = results;
 
             return (
               <Card key={examId} data-testid={`card-exam-${examId}`}>
@@ -199,10 +200,10 @@ export default function TeacherClassResults() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {examResultsList.map((result: any, index: number) => {
-                          const student = users.find((u: any) => u.id === result.studentId);
-                          const percentage = result.maxScore > 0 
-                            ? ((result.score / result.maxScore) * 100).toFixed(1)
+                        {examResultsList.map((result, index) => {
+                          const student = users.find((u) => u.id === result.studentId);
+                          const percentage = (result.maxScore ?? 0) > 0 
+                            ? (((result.score ?? 0) / (result.maxScore ?? 0)) * 100).toFixed(1)
                             : '0';
                           
                           return (
@@ -228,7 +229,7 @@ export default function TeacherClassResults() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
-                                {result.recordedBy ? users.find((u: any) => u.id === result.recordedBy)?.firstName || 'System' : 'System'}
+                                {result.recordedBy ? users.find((u) => u.id === result.recordedBy)?.firstName || 'System' : 'System'}
                               </TableCell>
                             </TableRow>
                           );

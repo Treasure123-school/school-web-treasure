@@ -25,6 +25,7 @@ import { Search, Download, Ban, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
+import { formatDistance } from "date-fns";
 
 export default function SuperAdminAllUsers() {
   const { toast } = useToast();
@@ -59,14 +60,15 @@ export default function SuperAdminAllUsers() {
     if (!users) return;
     
     const csv = [
-      ["ID", "Name", "Email", "Role", "Status", "Created At"].join(","),
+      ["ID", "Name", "Email", "Role", "Status", "Created At", "Last Login"].join(","),
       ...users.map(u => [
         u.id,
         `"${u.firstName} ${u.lastName}"`,
         u.email,
         u.roleId,
         u.status,
-        new Date(u.createdAt).toLocaleDateString()
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
+        u.lastLoginAt ? formatDistance(u.lastLoginAt, new Date()) + ' ago' : 'Never'
       ].join(","))
     ].join("\n");
 
@@ -161,6 +163,7 @@ export default function SuperAdminAllUsers() {
                         <TableHead className="dark:text-slate-300 whitespace-nowrap">Role</TableHead>
                         <TableHead className="dark:text-slate-300 whitespace-nowrap">Status</TableHead>
                         <TableHead className="dark:text-slate-300 whitespace-nowrap hidden lg:table-cell">Created</TableHead>
+                        <TableHead className="dark:text-slate-300 whitespace-nowrap hidden xl:table-cell">Last Login</TableHead>
                         <TableHead className="text-right dark:text-slate-300 whitespace-nowrap">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -185,7 +188,10 @@ export default function SuperAdminAllUsers() {
                             </Badge>
                           </TableCell>
                           <TableCell className="dark:text-slate-300 hidden lg:table-cell">
-                            {new Date(user.createdAt).toLocaleDateString()}
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell className="dark:text-slate-300 hidden xl:table-cell">
+                            {user.lastLoginAt ? formatDistance(user.lastLoginAt, new Date()) + ' ago' : 'Never'}
                           </TableCell>
                           <TableCell className="text-right">
                             {user.roleId !== 0 && ( // Don't allow actions on Super Admin accounts

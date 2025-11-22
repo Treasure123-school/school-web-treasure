@@ -564,11 +564,11 @@ export default function TeacherProfileSetup() {
 
     // Log FormData contents for debugging
     console.log('📦 FormData contents:');
-    for (let pair of submitData.entries()) {
-      if (pair[1] instanceof File) {
-        console.log(`  ${pair[0]}: [File: ${pair[1].name}, ${pair[1].size} bytes]`);
+    for (const [key, value] of Array.from(submitData.entries())) {
+      if (value instanceof File) {
+        console.log(`  ${key}: [File: ${value.name}, ${value.size} bytes]`);
       } else {
-        console.log(`  ${pair[0]}: ${pair[1]}`);
+        console.log(`  ${key}: ${value}`);
       }
     }
 

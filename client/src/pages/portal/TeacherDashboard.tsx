@@ -217,7 +217,7 @@ export default function TeacherDashboard() {
     },
     enabled: !!user && !!profileStatus?.hasProfile,
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
     retry: 2,
     retryDelay: 1000
   });

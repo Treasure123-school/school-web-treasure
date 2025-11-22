@@ -41,12 +41,7 @@ export default function ForgotPassword() {
       // In development mode, show the reset code and link
       if (data.developmentMode && (data.resetToken || data.resetLink)) {
         toast({
-          title: (
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Reset Code Generated (Dev Mode)</span>
-            </div>
-          ),
+          title: "Reset Code Generated (Dev Mode)",
           description: (
             <div className="space-y-2">
               <p className="flex items-center gap-1">
@@ -86,12 +81,7 @@ export default function ForgotPassword() {
         });
       } else {
         toast({
-          title: (
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Reset Link Sent</span>
-            </div>
-          ),
+          title: "Reset Link Sent",
           description: '✅ If an account exists with that email/username, a password reset link will be sent.',
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
         });
@@ -100,12 +90,7 @@ export default function ForgotPassword() {
     onError: (error: any) => {
       const errorMessage = error?.message || 'Failed to send reset link. Please try again.';
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span>Request Failed</span>
-          </div>
-        ),
+        title: "Request Failed",
         description: (
           <div className="space-y-2">
             <p>{errorMessage}</p>

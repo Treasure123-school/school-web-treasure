@@ -318,7 +318,7 @@ export default function UserManagement() {
       ]);
 
       toast({
-        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Deleted</span></div>,
+        title: "✓ User Deleted",
         description: data?.message || "User has been deleted successfully.",
         className: "border-green-500 bg-green-50",
       });
@@ -350,7 +350,7 @@ export default function UserManagement() {
         queryClient.invalidateQueries({ queryKey: ['/api/users/pending'], refetchType: 'active' });
 
         toast({
-          title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Already Deleted</span></div>,
+          title: "✓ User Already Deleted",
           description: "This user has already been removed from the system.",
           className: "border-green-500 bg-green-50",
         });
@@ -588,7 +588,7 @@ export default function UserManagement() {
       ]);
 
       toast({
-        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
+        title: "✓ User Status Updated",
         description: data?.message || `User has been ${variables.action === 'verify' ? 'verified' : 'unverified'}.`,
         className: "border-green-500 bg-green-50",
       });
@@ -604,7 +604,7 @@ export default function UserManagement() {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
       }
       toast({
-        title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Update Failed</span></div>,
+        title: "✗ Update Failed",
         description: error.message || `Failed to ${variables.action} user.`,
         variant: "destructive",
         className: "border-red-500 bg-red-50",
@@ -634,7 +634,7 @@ export default function UserManagement() {
       ]);
 
       toast({
-        title: <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /><span>User Status Updated</span></div>,
+        title: "✓ User Status Updated",
         description: data?.message || `User has been ${variables.action}ed.`,
         className: "border-green-500 bg-green-50",
       });
@@ -648,7 +648,7 @@ export default function UserManagement() {
         queryClient.setQueryData(['/api/users'], context.previousUsers);
       }
       toast({
-        title: <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-600" /><span>Update Failed</span></div>,
+        title: "✗ Update Failed",
         description: error.message || `Failed to ${variables.action} user.`,
         variant: "destructive",
         className: "border-red-500 bg-red-50",
