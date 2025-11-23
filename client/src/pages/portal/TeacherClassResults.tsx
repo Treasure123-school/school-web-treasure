@@ -17,8 +17,7 @@ export default function TeacherClassResults() {
 
   if (!user) {
     return <div>Loading...</div>;
-  }
-
+  } // fixed
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
   const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';

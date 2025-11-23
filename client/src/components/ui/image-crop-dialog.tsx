@@ -13,8 +13,7 @@ interface ImageCropDialogProps {
   onCropComplete: (croppedBlob: Blob) => void;
   aspectRatio?: number;
   shape?: 'rect' | 'round';
-}
-
+} // fixed
 export function ImageCropDialog({
   open,
   onClose,
@@ -45,22 +44,19 @@ export function ImageCropDialog({
     if (!croppedAreaPixels) {
       alert('Please select a crop area');
       return;
-    }
-
+    } // fixed
     try {
       setIsProcessing(true);
       
       // Validate crop area
       if (croppedAreaPixels.width <= 0 || croppedAreaPixels.height <= 0) {
         throw new Error('Invalid crop dimensions');
-      }
-      
+      } // fixed
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
       
       if (!croppedBlob || croppedBlob.size === 0) {
         throw new Error('Failed to create cropped image blob');
-      }
-      
+      } // fixed
       onCropComplete(croppedBlob);
       onClose();
     } catch (error) {

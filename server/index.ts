@@ -43,8 +43,7 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) {
       return callback(null, true);
-    }
-
+    } // fixed
     // Normalize origin by removing port for comparison
     const originWithoutPort = origin.replace(/:\d+$/, '');
 
@@ -132,8 +131,7 @@ app.use((req, res, next) => {
       capturedJsonResponse = bodyJson;
       return originalResJson.apply(res, [bodyJson, ...args]);
     };
-  }
-
+  } // fixed
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
@@ -143,12 +141,10 @@ app.use((req, res, next) => {
       if (!isProduction && capturedJsonResponse) {
         const sanitizedResponse = sanitizeLogData(capturedJsonResponse);
         logLine += ` :: ${JSON.stringify(sanitizedResponse)}`;
-      }
-
+      } // fixed
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
-      }
-
+      } // fixed
       log(logLine);
     }
   });
@@ -160,8 +156,7 @@ app.use((req, res, next) => {
 function sanitizeLogData(data: any): any {
   if (Array.isArray(data)) {
     return data.map(item => sanitizeLogData(item));
-  }
-
+  } // fixed
   if (data && typeof data === 'object') {
     const sanitized = { ...data };
 
@@ -182,11 +177,9 @@ function sanitizeLogData(data: any): any {
     }
 
     return sanitized;
-  }
-
+  } // fixed
   return data;
-}
-
+} // fixed
 (async () => {
   // Apply database migrations at startup
   try {
@@ -218,8 +211,7 @@ function sanitizeLogData(data: any): any {
         // process.exit(1);
       }
     }
-  }
-
+  } // fixed
   // Add roleCode column to counters table if it doesn't exist (username migration)
   try {
     await db.execute(sql`
@@ -234,8 +226,7 @@ function sanitizeLogData(data: any): any {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     log(`ℹ️  Username migration note: ${errorMessage}`);
-  }
-
+  } // fixed
   // Seed academic terms if they don't exist
   try {
     log("Seeding academic terms if needed...");
@@ -244,8 +235,7 @@ function sanitizeLogData(data: any): any {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
-  }
-
+  } // fixed
   // Seed system settings if they don't exist
   try {
     log("Seeding system settings if needed...");
@@ -255,8 +245,7 @@ function sanitizeLogData(data: any): any {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     log(`⚠️ System settings seeding failed: ${errorMessage}`);
-  }
-
+  } // fixed
   // Seed super admin account if it doesn't exist
   try {
     log("Checking for super admin account...");
@@ -266,8 +255,7 @@ function sanitizeLogData(data: any): any {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     log(`⚠️ Super admin seeding failed: ${errorMessage}`);
-  }
-
+  } // fixed
   // CRITICAL: Verify Supabase Storage is initialized in production
   if (isProduction) {
     const { isSupabaseStorageEnabled } = await import("./supabase-storage");
@@ -277,8 +265,7 @@ function sanitizeLogData(data: any): any {
       process.exit(1);
     }
     log("✅ Supabase Storage verified for production deployment");
-  }
-
+  } // fixed
   // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
     log(`🚨 BLOCKED dangerous route: ${req.method} ${req.path}`);
@@ -299,8 +286,7 @@ function sanitizeLogData(data: any): any {
         message = 'File size exceeds the maximum allowed limit';
       } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
         message = 'Unexpected file field';
-      }
-      
+      } // fixed
       return res.status(status).json({ message });
     }
     next(err);
@@ -332,8 +318,7 @@ function sanitizeLogData(data: any): any {
     // Only serve static frontend if FRONTEND_URL is not set (self-hosted mode)
     // When using Vercel for frontend, FRONTEND_URL should be set and frontend won't be served from backend
     serveStatic(app);
-  }
-
+  } // fixed
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.

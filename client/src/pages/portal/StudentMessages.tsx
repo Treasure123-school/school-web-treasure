@@ -29,8 +29,7 @@ export default function StudentMessages() {
 
   if (!user) {
     return <div>Please log in to access your messages.</div>;
-  }
-
+  } // fixed
   const { data: messages = [], isLoading, error } = useQuery({
     queryKey: ['messages', user.id],
     queryFn: async () => {

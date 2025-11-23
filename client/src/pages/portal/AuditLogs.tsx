@@ -39,8 +39,7 @@ interface AuditLog {
   createdAt: Date;
   userEmail?: string;
   userName?: string;
-}
-
+} // fixed
 export default function AuditLogs() {
   const { user } = useAuth();
   const [actionFilter, setActionFilter] = useState<string>('all');
@@ -53,8 +52,7 @@ export default function AuditLogs() {
 
   if (!user) {
     return <div>Please log in to access the admin portal.</div>;
-  }
-
+  } // fixed
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString('en-US', {
       month: 'short',

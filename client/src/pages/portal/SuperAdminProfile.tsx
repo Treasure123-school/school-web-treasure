@@ -15,14 +15,12 @@ interface ProfileData {
   email: string;
   firstName: string;
   lastName: string;
-}
-
+} // fixed
 interface PasswordData {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
-}
-
+} // fixed
 export default function SuperAdminProfile() {
   const { toast } = useToast();
   const { user } = useAuth();

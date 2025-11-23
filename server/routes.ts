@@ -28,8 +28,7 @@ interface AuthenticatedUser {
   roleId: number;
   firstName: string;
   lastName: string;
-}
-
+} // fixed
 // Extend Express Request interface to include user property added by authentication middleware
 declare global {
   namespace Express {
@@ -74,8 +73,7 @@ function normalizeUuid(raw: any): string | undefined {
   // If already a valid UUID string, return as-is
   if (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
     return raw;
-  }
-
+  } // fixed
   let bytes: number[] | undefined;
 
   // Handle comma-separated string of numbers
@@ -91,17 +89,14 @@ function normalizeUuid(raw: any): string | undefined {
     bytes = raw;
   } else if (raw instanceof Uint8Array && raw.length === 16) {
     bytes = Array.from(raw);
-  }
-
+  } // fixed
   // Convert bytes to UUID format
   if (bytes) {
     const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
     return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
-  }
-
+  } // fixed
   return undefined;
-}
-
+} // fixed
 // Define role constants to prevent authorization bugs
 const ROLES = {
   SUPER_ADMIN: 0,
@@ -151,38 +146,32 @@ const authenticateUser = async (req: any, res: any, next: any) => {
 
     if (!/^bearer$/i.test(scheme) || !token) {
       return res.status(401).json({ message: "Authentication required" });
-    }
-
+    } // fixed
     // Verify JWT token
     let decoded: any;
     try {
       decoded = jwt.verify(token, SECRET_KEY);
     } catch (jwtError) {
       return res.status(401).json({ message: "Invalid or expired token" });
-    }
-
+    } // fixed
     // Normalize decoded userId before database lookup
     const normalizedUserId = normalizeUuid(decoded.userId);
     if (!normalizedUserId) {
       return res.status(401).json({ message: "Invalid token format" });
-    }
-
+    } // fixed
     // Validate user still exists in database
     const user = await storage.getUser(normalizedUserId);
     if (!user) {
       return res.status(401).json({ message: "User no longer exists" });
-    }
-
+    } // fixed
     // Block inactive users (blocked/deactivated accounts)
     if (user.isActive === false) {
       return res.status(401).json({ message: "Account has been deactivated. Please contact administrator." });
-    }
-
+    } // fixed
     // Ensure role hasn't changed since token was issued
     if (user.roleId !== decoded.roleId) {
       return res.status(401).json({ message: "User role has changed, please log in again" });
-    }
-
+    } // fixed
     req.user = user;
     next();
   } catch (error) {
@@ -196,12 +185,10 @@ const authorizeRoles = (...allowedRoles: number[]) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "Authentication required" });
-      }
-
+      } // fixed
       if (!allowedRoles.includes(req.user.roleId)) {
         return res.status(403).json({ message: "Insufficient permissions" });
-      }
-
+      } // fixed
       next();
     } catch (error) {
       res.status(403).json({ message: "Authorization failed" });
@@ -239,8 +226,7 @@ const storage_multer = isSupabaseStorageEnabled()
           dir = studyResourcesDir;
         } else if (uploadType === 'homepage') {
           dir = homepageDir;
-        }
-
+        } // fixed
         cb(null, dir);
       },
       filename: (req, file, cb) => {
@@ -402,8 +388,7 @@ async function scoreTheoryAnswer(
       feedback: 'No answer provided.',
       autoScored: true
     };
-  }
-
+  } // fixed
   const studentText = studentAnswer.toLowerCase().trim();
 
   // Keyword matching (60% weight)
@@ -422,8 +407,7 @@ async function scoreTheoryAnswer(
     });
 
     keywordScore = matchedKeywords.length / expectedAnswers.length;
-  }
-
+  } // fixed
   // Simple semantic similarity (40% weight) - basic word overlap
   let semanticScore = 0;
   if (sampleAnswer && sampleAnswer.trim().length > 0) {
@@ -435,8 +419,7 @@ async function scoreTheoryAnswer(
   } else {
     // If no sample answer, use keyword score for both
     semanticScore = keywordScore;
-  }
-
+  } // fixed
   // Hybrid score calculation
   const hybridScore = (keywordScore * 0.6) + (semanticScore * 0.4);
   const calculatedPoints = Math.round(hybridScore * points * 100) / 100; // Round to 2 decimals
@@ -468,16 +451,14 @@ async function scoreTheoryAnswer(
 
   if (!shouldAutoScore) {
     feedback += 'This answer has been flagged for teacher review.';
-  }
-
+  } // fixed
   return {
     score: shouldAutoScore ? calculatedPoints : 0,
     confidence,
     feedback,
     autoScored: shouldAutoScore
   };
-}
-
+} // fixed
 // OPTIMIZED Auto-scoring function for <2 second performance goal
 async function autoScoreExamSession(sessionId: number, storage: any): Promise<void> {
   const startTime = Date.now();
@@ -557,8 +538,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       }
 
       questionDetails.push(questionDetail);
-    }
-
+    } // fixed
     // CRITICAL FIX: Persist all scores to student_answers for accurate score merging
     for (const detail of questionDetails) {
       if (detail.questionId) {
@@ -594,8 +574,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     if (process.env.NODE_ENV === 'development') {
       questionDetails.forEach((q: any, index: number) => {
       });
-    }
-
+    } // fixed
     // Create or update exam result - CRITICAL for instant feedback
 
     // ENHANCED ERROR HANDLING: Add validation before database operations
@@ -606,15 +585,13 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       throw new Error('CRITICAL: Session missing examId - cannot create exam result');
     }
     if (maxPossibleScore === 0 && totalQuestions > 0) {
-    }
-
+    } // fixed
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
 
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
     if (existingResult) {
     } else {
-    }
-
+    } // fixed
     // CRITICAL FIX: Ensure recordedBy uses a valid user ID that exists in users table
     let SYSTEM_AUTO_SCORING_UUID: string;
 
@@ -651,13 +628,11 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       }
     } catch (userError) {
       throw new Error(`Auto-scoring failed: Cannot find valid user ID for recordedBy. Error: ${userError instanceof Error ? userError.message : String(userError)}`);
-    }
-
+    } // fixed
     // Validate UUID before using
     if (!SYSTEM_AUTO_SCORING_UUID || typeof SYSTEM_AUTO_SCORING_UUID !== 'string') {
       throw new Error(`CRITICAL: Invalid recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
-    }
-
+    } // fixed
 
     const resultData = {
       examId: session.examId,
@@ -698,8 +673,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
       if (!savedResult) {
         throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the result');
-      }
-
+      } // fixed
 
       // ENHANCED PERFORMANCE MONITORING - Track 2-second submission goal
       const totalResponseTime = Date.now() - startTime;
@@ -718,8 +692,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       // Alert if submission exceeds 2-second goal
       if (totalResponseTime > 2000) {
       } else {
-      }
-
+      } // fixed
       // Store performance event in database for monitoring
       try {
         await storage.logPerformanceEvent({
@@ -738,12 +711,10 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         });
       } catch (perfLogError) {
         // Don't throw - this shouldn't break the auto-scoring process
-      }
-
+      } // fixed
       // Log detailed metrics in development
       if (process.env.NODE_ENV === 'development') {
-      }
-
+      } // fixed
 
     } catch (error) {
       const totalErrorTime = Date.now() - startTime;
@@ -763,8 +734,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
     const answer = await storage.getStudentAnswerById(answerId);
     if (!answer) {
       return;
-    }
-
+    } // fixed
     const sessionId = answer.sessionId;
 
     // Get all answers and questions for this session
@@ -787,8 +757,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
 
     if (!allEssaysGraded) {
       return;
-    }
-
+    } // fixed
 
     // Calculate total score by summing all points earned
     let totalScore = 0;
@@ -827,8 +796,7 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
         autoScored: false,
         recordedBy: session.studentId, // System recorded
       });
-    }
-
+    } // fixed
 
   } catch (error) {
     // Don't throw - log and return so grading flow isn't blocked
@@ -844,8 +812,7 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
     const exam = await storage.getExamById(examId);
     if (!exam) {
       throw new Error(`Exam ${examId} not found`);
-    }
-
+    } // fixed
     // Get all questions for this exam
     const examQuestions = await storage.getExamQuestions(examId);
 
@@ -856,8 +823,7 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
 
     if (manualGradingQuestions.length === 0) {
       return;
-    }
-
+    } // fixed
 
     // Get student answers for this session
     const studentAnswers = await storage.getStudentAnswers(sessionId);
@@ -876,8 +842,7 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
       } catch (error) {
       }
     } else {
-    }
-
+    } // fixed
     // Create grading tasks for each essay answer
     let tasksCreated = 0;
     for (const question of manualGradingQuestions) {
@@ -963,8 +928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
-      }
-
+      } // fixed
       res.json(exam);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch exam' });
@@ -979,12 +943,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingExam = await storage.getExamById(examId);
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
-      }
-      
+      } // fixed
       if (existingExam.createdBy !== req.user!.id) {
         return res.status(403).json({ message: 'You can only edit exams you created' });
-      }
-      
+      } // fixed
       const exam = await storage.updateExam(examId, req.body);
       res.json(exam);
     } catch (error) {
@@ -1000,12 +962,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingExam = await storage.getExamById(examId);
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
-      }
-      
+      } // fixed
       if (existingExam.createdBy !== req.user!.id) {
         return res.status(403).json({ message: 'You can only delete exams you created' });
-      }
-      
+      } // fixed
       const success = await storage.deleteExam(examId);
       res.status(204).send();
     } catch (error) {
@@ -1022,12 +982,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingExam = await storage.getExamById(examId);
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
-      }
-      
+      } // fixed
       if (existingExam.createdBy !== req.user!.id) {
         return res.status(403).json({ message: 'You can only publish/unpublish exams you created' });
-      }
-
+      } // fixed
       const exam = await storage.updateExam(examId, { isPublished });
       res.json(exam);
     } catch (error) {
@@ -1049,13 +1007,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!activeSession) {
         return res.status(404).json({ message: 'No active exam session found' });
-      }
-
+      } // fixed
       // Check if already submitted
       if (activeSession.isCompleted) {
         return res.status(409).json({ message: 'Exam already submitted' });
-      }
-
+      } // fixed
       const now = new Date();
 
       // Mark session as submitted
@@ -1139,15 +1095,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         examIds = examIdsParam
           .map((id) => parseInt(id as string))
           .filter((id) => !isNaN(id));
-      }
-
+      } // fixed
       const counts: Record<number, number> = {};
 
       for (const examId of examIds) {
         const questions = await storage.getExamQuestions(examId);
         counts[examId] = questions.length;
-      }
-
+      } // fixed
       res.json(counts);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch question counts' });
@@ -1191,8 +1145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!question) {
         return res.status(404).json({ message: 'Question not found' });
-      }
-
+      } // fixed
       res.json(question);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam question' });
@@ -1207,8 +1160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!success) {
         return res.status(404).json({ message: 'Question not found' });
-      }
-
+      } // fixed
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete exam question' });
@@ -1233,12 +1185,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!examId) {
         return res.status(400).json({ message: 'Exam ID is required' });
-      }
-
+      } // fixed
       if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return res.status(400).json({ message: 'Questions array is required and must not be empty' });
-      }
-
+      } // fixed
 
       // Prepare questions data with examId and order number
       const questionsData = questions.map((q, index) => ({
@@ -1278,20 +1228,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!examId) {
         return res.status(400).json({ message: 'Exam ID is required' });
-      }
-
+      } // fixed
 
       // Get exam details to calculate end time
       const exam = await storage.getExamById(examId);
 
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
-      }
-
+      } // fixed
       if (!exam.isPublished) {
         return res.status(403).json({ message: 'Exam is not published yet' });
-      }
-
+      } // fixed
       const now = new Date();
       const endTime = new Date(now.getTime() + (exam.duration || 60) * 60 * 1000);
 
@@ -1324,14 +1271,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure student can only access their own session
       if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
         return res.status(403).json({ message: 'Unauthorized access to parent records' });
-      }
-
+      } // fixed
       const session = await storage.getStudentActiveSession(studentId);
 
       if (!session) {
         return res.json(null);
-      }
-
+      } // fixed
       res.json(session);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch active session' });
@@ -1346,13 +1291,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
-      }
-
+      } // fixed
       // Ensure student can only access their own session
       if (req.user!.id !== session.studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
         return res.status(403).json({ message: 'Unauthorized' });
-      }
-
+      } // fixed
       res.json(session);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch exam session' });
@@ -1369,8 +1312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
-      }
-
+      } // fixed
       res.json(session);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update session metadata' });
@@ -1394,8 +1336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
-      }
-
+      } // fixed
       res.json(session);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update session progress' });
@@ -1411,33 +1352,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate required fields
       if (!sessionId || !questionId) {
         return res.status(400).json({ message: 'Missing required fields: sessionId and questionId' });
-      }
-
+      } // fixed
       // Verify the session belongs to this student
       const session = await storage.getExamSessionById(sessionId);
       if (!session) {
         return res.status(404).json({ message: 'Exam session not found' });
-      }
-
+      } // fixed
       if (session.studentId !== studentId) {
         return res.status(403).json({ message: 'Unauthorized access to this exam session' });
-      }
-
+      } // fixed
       if (session.isCompleted) {
         return res.status(409).json({ message: 'Cannot save answer - exam is already completed' });
-      }
-
+      } // fixed
       // Get the question to validate
       const question = await storage.getExamQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ message: 'Question not found' });
-      }
-
+      } // fixed
       // CRITICAL SECURITY CHECK: Verify question belongs to the exam in this session
       if (question.examId !== session.examId) {
         return res.status(403).json({ message: 'Question does not belong to this exam' });
-      }
-
+      } // fixed
       // Prepare answer data based on what was provided
       let answerData: Partial<InsertStudentAnswer> = {};
 
@@ -1445,33 +1380,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Multiple choice answer - validate question type
         if (question.questionType !== 'multiple_choice') {
           return res.status(400).json({ message: 'Cannot submit multiple choice answer for non-MCQ question' });
-        }
-
+        } // fixed
         const optionId = typeof selectedOptionId === 'number' ? selectedOptionId : parseInt(selectedOptionId);
 
         const option = await storage.getQuestionOptionById(optionId);
         if (!option) {
           return res.status(400).json({ message: 'Invalid option selected' });
-        }
-
+        } // fixed
         if (option.questionId !== questionId) {
           return res.status(400).json({ message: 'Selected option does not belong to this question' });
-        }
-
+        } // fixed
         answerData.selectedOptionId = optionId;
         answerData.textAnswer = null;
       } else if (textAnswer !== undefined) {
         // Text/essay answer - validate question type
         if (question.questionType === 'multiple_choice') {
           return res.status(400).json({ message: 'Cannot submit text answer for multiple choice question' });
-        }
-
+        } // fixed
         answerData.textAnswer = textAnswer || '';
         answerData.selectedOptionId = null;
       } else {
         return res.status(400).json({ message: 'No answer provided' });
-      }
-
+      } // fixed
       // Upsert the student answer
       const savedAnswer = await storage.upsertStudentAnswer(
         sessionId,
@@ -1501,13 +1431,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
-      }
-
+      } // fixed
       // Ensure student can only access their own answers
       if (req.user!.id !== session.studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
         return res.status(403).json({ message: 'Unauthorized' });
-      }
-
+      } // fixed
       const answers = await storage.getStudentAnswers(sessionId);
       res.json(answers);
     } catch (error) {
@@ -1544,8 +1472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           path: files['profileImage'][0].path
         });
       } else {
-      }
-
+      } // fixed
       if (files['signature']?.[0]) {
           filename: files['signature'][0].filename,
           originalname: files['signature'][0].originalname,
@@ -1553,8 +1480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: files['signature'][0].size,
           path: files['signature'][0].path
         });
-      }
-
+      } // fixed
       const {
         gender, dateOfBirth, staffId, nationalId, phoneNumber, recoveryEmail,
         qualification, specialization, yearsOfExperience,
@@ -1580,8 +1506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Profile already exists. Please update your existing profile instead.",
           existingProfile: true
         });
-      }
-
+      } // fixed
       // FIX #2: Validate user exists before proceeding
       const user = await storage.getUser(teacherId);
       if (!user) {
@@ -1589,8 +1514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User account not found. Please contact support.",
           code: "USER_NOT_FOUND"
         });
-      }
-
+      } // fixed
       // FIX: Make staffId fully optional - auto-generate if not provided
       let finalStaffId: string | null = null;
 
@@ -1667,13 +1591,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only include nationalId if provided
       if (nationalId && nationalId.trim() !== '' && nationalId !== 'undefined') {
         userUpdateData.nationalId = nationalId.trim();
-      }
-
+      } // fixed
       // Only include recoveryEmail if provided
       if (recoveryEmail && recoveryEmail.trim() !== '' && recoveryEmail !== 'undefined') {
         userUpdateData.recoveryEmail = recoveryEmail.trim();
-      }
-
+      } // fixed
       await storage.updateUser(teacherId, userUpdateData);
 
       // Detect suspicious patterns for admin notification (informational only)
@@ -1713,8 +1635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityId: profile.id.toString(),
           isRead: false
         });
-      }
-
+      } // fixed
       // Update user's profile completion status
       await storage.updateUser(teacherId, {
         profileCompleted: true,
@@ -1754,8 +1675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           } catch (error) {
             subjectNames = parsedSubjects.map((id: number) => `Subject #${id}`);
-          }
-
+          } // fixed
           try {
             const classes = await storage.getClasses();
             classNames = parsedClasses.map((classId: number) => {
@@ -1764,8 +1684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           } catch (error) {
             classNames = parsedClasses.map((id: number) => `Class #${id}`);
-          }
-
+          } // fixed
           await sendEmail({
             to: admin.email,
             subject: '🎉 New Teacher Auto-Verified - THS Portal',
@@ -1890,8 +1809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             errorCode = 'VALIDATION_ERROR';
           }
         }
-      }
-
+      } // fixed
       res.status(statusCode).json({
         message: errorMessage,
         code: errorCode,
@@ -1928,8 +1846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
-      }
-
+      } // fixed
       // Mark profile as skipped
       await storage.updateUser(userId, {
         profileSkipped: true,
@@ -1954,15 +1871,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!profile) {
         return res.status(404).json({ message: 'Profile not found' });
-      }
-
+      } // fixed
       // Get user data to merge with profile
       const user = await storage.getUser(userId);
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
-      }
-
+      } // fixed
       // Build complete profile with ALL fields merged from both tables
       const completeProfile = {
         // Profile fields
@@ -2050,12 +1965,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (files['profileImage']?.[0]) {
         profileImageUrl = `/${files['profileImage'][0].path.replace(/\\/g, '/')}`;
-      }
-
+      } // fixed
       if (files['signature']?.[0]) {
         signatureUrl = `/${files['signature'][0].path.replace(/\\/g, '/')}`;
-      }
-
+      } // fixed
       // Parse JSON fields
       const subjects = typeof updateData.subjects === 'string' ? JSON.parse(updateData.subjects) : updateData.subjects;
       const assignedClasses = typeof updateData.assignedClasses === 'string' ? JSON.parse(updateData.assignedClasses) : updateData.assignedClasses;
@@ -2074,8 +1987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (profileImageUrl) {
         userUpdateData.profileImageUrl = profileImageUrl;
-      }
-
+      } // fixed
       await storage.updateUser(teacherId, userUpdateData);
 
       // Update teacher profile table (professional information)
@@ -2094,8 +2006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (signatureUrl) {
         profileUpdateData.signatureUrl = signatureUrl;
-      }
-
+      } // fixed
       await storage.updateTeacherProfile(teacherId, profileUpdateData);
 
       // Fetch and return updated profile
@@ -2170,8 +2081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const answer = await storage.getStudentAnswerById(answerId);
       if (!answer) {
         return res.status(404).json({ message: 'Answer not found' });
-      }
-
+      } // fixed
       // If approved, mark as auto-scored and keep the score
       if (approved) {
         await storage.updateStudentAnswer(answerId, {
@@ -2187,8 +2097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           manualOverride: true,
           feedbackText: comment
         });
-      }
-
+      } // fixed
       // Trigger score merge
       await mergeExamScores(answerId, storage);
 
@@ -2207,8 +2116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-session-secret-change-in-production' : process.env.JWT_SECRET || SECRET_KEY);
 
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  }
-
+  } // fixed
   // Configure PostgreSQL session store for production persistence
   const PgStore = connectPgSimple(session);
   const sessionStore = new PgStore({
@@ -2245,12 +2153,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
-      }
-
+      } // fixed
       if (!user.isActive) {
         return res.status(403).json({ message: 'Account is inactive' });
-      }
-
+      } // fixed
       const { passwordHash, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -2267,8 +2173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Security: Only allow parents to access their own children or admins
       if (user?.roleId !== ROLES.PARENT && user?.roleId !== ROLES.ADMIN && user?.id !== parentId) {
         return res.status(403).json({ message: 'Unauthorized access to parent records' });
-      }
-
+      } // fixed
       const children = await storage.getStudentsByParentId(parentId);
       res.json(children);
     } catch (error) {
@@ -2282,8 +2187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
-      }
-
+      } // fixed
       const notifications = await storage.getNotificationsByUserId(user.id);
       res.json(notifications);
     } catch (error) {
@@ -2296,8 +2200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
-      }
-
+      } // fixed
       const count = await storage.getUnreadNotificationCount(user.id);
       res.json({ count });
     } catch (error) {
@@ -2312,16 +2215,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
-      }
-
+      } // fixed
       // Verify the notification belongs to the user
       const notifications = await storage.getNotificationsByUserId(user.id);
       const notification = notifications.find(n => n.id === notificationId);
 
       if (!notification) {
         return res.status(404).json({ message: 'Notification not found' });
-      }
-
+      } // fixed
       const updated = await storage.markNotificationAsRead(notificationId);
       res.json(updated);
     } catch (error) {
@@ -2334,8 +2235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
-      }
-
+      } // fixed
       await storage.markAllNotificationsAsRead(user.id);
       res.json({ message: 'All notifications marked as read' });
     } catch (error) {
@@ -2379,8 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate required fields
       if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
         return res.status(400).json({ message: 'Missing required fields: name, year, startDate, endDate' });
-      }
-
+      } // fixed
       const term = await storage.createAcademicTerm(req.body);
       res.json(term);
     } catch (error: any) {
@@ -2394,15 +2293,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (isNaN(termId)) {
         return res.status(400).json({ message: 'Invalid term ID' });
-      }
-
+      } // fixed
 
       // Check if term exists first
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
         return res.status(404).json({ message: 'Academic term not found' });
-      }
-
+      } // fixed
       const term = await storage.updateAcademicTerm(termId, req.body);
       res.json(term);
     } catch (error: any) {
@@ -2416,8 +2313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (isNaN(termId)) {
         return res.status(400).json({ message: 'Invalid term ID' });
-      }
-
+      } // fixed
 
       const success = await storage.deleteAcademicTerm(termId);
 
@@ -2425,8 +2321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({
           message: 'Failed to delete academic term. The term may not exist or could not be removed from the database.'
         });
-      }
-
+      } // fixed
       res.json({
         message: 'Academic term deleted successfully',
         id: termId,
@@ -2439,8 +2334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: error.message || 'Cannot delete this term because it is being used by other records.'
         });
-      }
-
+      } // fixed
       res.status(500).json({
         message: error.message || 'Failed to delete academic term',
         error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
@@ -2454,15 +2348,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (isNaN(termId)) {
         return res.status(400).json({ message: 'Invalid term ID' });
-      }
-
+      } // fixed
 
       // Check if term exists first
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
         return res.status(404).json({ message: 'Academic term not found' });
-      }
-
+      } // fixed
       const term = await storage.markTermAsCurrent(termId);
       res.json(term);
     } catch (error: any) {
@@ -2514,8 +2406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const role of allRoles) {
         const roleUsers = await storage.getUsersByRole(role.id);
         allUsers.push(...roleUsers);
-      }
-
+      } // fixed
       // Check users who might have the weak default password by attempting to verify against 'password123'
       const usersToUpdate = [];
       for (const user of allUsers) {
@@ -2529,16 +2420,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Skip users with invalid password hashes
           }
         }
-      }
-
+      } // fixed
 
       if (usersToUpdate.length === 0) {
         return res.json({
           message: "No users found with weak passwords",
           updatedCount: 0
         });
-      }
-
+      } // fixed
       // Generate strong unique passwords and update users
       const passwordUpdates = [];
       let updateCount = 0;
@@ -2585,8 +2474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
-      }
-
+      } // fixed
       let fileUrl: string;
 
       // Use Supabase Storage if enabled, otherwise fall back to local filesystem
@@ -2601,13 +2489,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (!uploadResult) {
           return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
-        }
-
+        } // fixed
         fileUrl = uploadResult.publicUrl;
       } else {
         fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
-      }
-
+      } // fixed
       res.json({ url: fileUrl });
     } catch (error) {
       res.status(500).json({ message: 'Failed to upload file' });
@@ -2627,12 +2513,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
-      }
-
+      } // fixed
       if (!req.body.contentType) {
         return res.status(400).json({ message: 'Content type is required' });
-      }
-
+      } // fixed
       let imageUrl: string;
       let storedFilePath: string;
 
@@ -2657,8 +2541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (!uploadResult) {
             throw new Error('Upload returned null - check Supabase configuration');
-          }
-
+          } // fixed
           imageUrl = uploadResult.publicUrl;
           storedFilePath = uploadResult.path;
         } catch (uploadError: any) {
@@ -2677,8 +2560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         imageUrl = `/uploads/homepage/${req.file.filename}`;
         storedFilePath = req.file.filename;
-      }
-
+      } // fixed
       const content = await storage.createHomePageContent({
         contentType: req.body.contentType,
         imageUrl,
@@ -2728,8 +2610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!updated) {
         return res.status(404).json({ message: 'Homepage content not found' });
-      }
-
+      } // fixed
       res.json({
         message: 'Homepage content updated successfully',
         content: updated
@@ -2750,8 +2631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!content) {
         return res.status(404).json({ message: 'Homepage content not found' });
-      }
-
+      } // fixed
       // Delete file from Supabase Storage if enabled
       if (isSupabaseStorageEnabled() && content.imageUrl) {
         const filePath = extractFilePathFromUrl(content.imageUrl);
@@ -2764,8 +2644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!deleted) {
         return res.status(404).json({ message: 'Homepage content not found' });
-      }
-
+      } // fixed
       res.json({ message: 'Homepage content deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete homepage content' });
@@ -2801,8 +2680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Security: Prevent path traversal attacks
     if (!filePath.startsWith(path.resolve('uploads', 'homepage'))) {
       return res.status(403).json({ message: "Access denied" });
-    }
-
+    } // fixed
     res.sendFile(filePath, (err) => {
       if (err) {
         res.status(404).json({ message: "File not found" });
@@ -2818,8 +2696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Security: Prevent path traversal attacks
     if (!filePath.startsWith(path.resolve('uploads'))) {
       return res.status(403).json({ message: "Access denied" });
-    }
-
+    } // fixed
     res.sendFile(filePath, (err) => {
       if (err) {
         res.status(404).json({ message: "File not found" });
@@ -2842,8 +2719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "No roles found. Database tables may need to be created first.",
             rolesCount: 0
           });
-        }
-
+        } // fixed
         // Try to create demo users if roles exist
         const demoUsers = [
           {
@@ -2952,8 +2828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userToSuspend = await storage.getUserByEmail(identifier);
               } else {
                 userToSuspend = await storage.getUserByUsername(identifier);
-              }
-
+              } // fixed
               if (userToSuspend && userToSuspend.status !== 'suspended') {
                 await storage.updateUserStatus(userToSuspend.id, 'suspended', 'system', `Automatic suspension due to ${recentViolations.length} rate limit violations within 1 hour`);
                 lockoutViolations.delete(identifier); // Clear violations after suspension
@@ -2988,8 +2863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } catch (err) {
             }
           }
-        }
-
+        } // fixed
         // Show "temporarily locked" message ONLY on first rate limit hit (when violations < 3)
         const currentViolations = lockoutViolations.get(identifier);
         if (currentViolations && currentViolations.count < MAX_RATE_LIMIT_VIOLATIONS) {
@@ -2998,12 +2872,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: "Too many failed login attempts. Your account has been temporarily locked for security reasons. Please wait 15 minutes before trying again, or use 'Forgot Password' to reset.",
             statusType: "rate_limited"
           });
-        }
-
+        } // fixed
         // After suspension threshold reached, show nothing here - let the actual suspension check handle it
         // This allows the user to see their account is actually suspended with proper message
-      }
-
+      } // fixed
       // Try to find user by email or username FIRST to check suspension
       let user;
       if (identifier.includes('@')) {
@@ -3029,8 +2901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid username or password. Please check your credentials and try again.",
           hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
         });
-      }
-
+      } // fixed
       // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
       if (process.env.NODE_ENV === 'development') {
           identifier,
@@ -3041,8 +2912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           profileCompleted: user.profileCompleted,
           profileSkipped: user.profileSkipped,
         });
-      }
-
+      } // fixed
       // Get user role for various checks
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
@@ -3109,8 +2979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: "Your account has been disabled and is no longer active. Please contact the school administrator if you believe this is an error.",
           statusType: "disabled"
         });
-      }
-
+      } // fixed
       // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login - Message 8
       if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
         return res.status(401).json({
@@ -3118,8 +2987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: "Admins and Teachers must sign in using their authorized Google account. Please click the 'Sign in with Google' button below to access your account.",
           statusType: "google_required"
         });
-      }
-
+      } // fixed
       // CRITICAL: Verify password hash with bcrypt
       if (!user.passwordHash) {
         // If user is admin/teacher without password but with Google, direct them to Google login
@@ -3135,8 +3003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: "Your account setup is incomplete. Please contact the school administrator for assistance.",
           statusType: "setup_incomplete"
         });
-      }
-
+      } // fixed
       // Compare provided password with stored hash - Message 1 (Invalid Credentials)
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
@@ -3145,14 +3012,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: "Invalid username or password. Please check your credentials and try again. Make sure CAPS LOCK is off and you're using the correct username and password.",
           statusType: "invalid_credentials"
         });
-      }
-
+      } // fixed
       // Password verification successful - reset rate limit and clear lockout violations
       loginAttempts.delete(attemptKey);
       if (identifier) {
         lockoutViolations.delete(identifier);
-      }
-
+      } // fixed
       // Generate JWT token with user claims - ensure UUID is string
       const tokenPayload = {
         userId: user.id,
@@ -3196,14 +3061,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       if (!user || !user.passwordHash) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!isCurrentPasswordValid) {
         return res.status(401).json({ message: "Current password is incorrect" });
-      }
-
+      } // fixed
       // Hash new password
       const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
@@ -3266,14 +3129,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(429).json({
           message: "Too many password reset attempts. Please try again later."
         });
-      }
-
+      } // fixed
       // Find user by email or username
       let user = await storage.getUserByEmail(identifier);
       if (!user) {
         user = await storage.getUserByUsername(identifier);
-      }
-
+      } // fixed
       // Track attempt
       await storage.createPasswordResetAttempt(identifier, ipAddress, !!user);
 
@@ -3282,16 +3143,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           message: "If an account exists with that email/username, a password reset link will be sent."
         });
-      }
-
+      } // fixed
       // Check if account is locked
       const isLocked = await storage.isAccountLocked(user.id);
       if (isLocked) {
         return res.status(423).json({
           message: "Your account is temporarily locked. Please contact the administrator or try again later."
         });
-      }
-
+      } // fixed
       // Generate secure random token
       const crypto = require('crypto');
       const resetToken = crypto.randomBytes(32).toString('hex');
@@ -3335,8 +3194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({
           message: "Failed to send password reset email. Please try again later or contact administrator."
         });
-      }
-
+      } // fixed
       // In development without API key, show the reset code/token for testing
       if (process.env.NODE_ENV === 'development' && !process.env.RESEND_API_KEY) {
         log(`📧 DEV MODE - Password Reset Token: ${resetToken}`);
@@ -3351,8 +3209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiresIn: "15 minutes",
           instructions: "Use the resetToken as your reset code, or click the resetLink"
         });
-      }
-
+      } // fixed
       log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
 
       res.json({
@@ -3367,8 +3224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createPasswordResetAttempt(identifier, ipAddress, false);
         }
       } catch (trackError) {
-      }
-
+      } // fixed
       res.status(500).json({ message: "Failed to process password reset request" });
     }
   });
@@ -3391,14 +3247,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resetToken = await storage.getPasswordResetToken(token);
       if (!resetToken) {
         return res.status(400).json({ message: "Invalid or expired reset token" });
-      }
-
+      } // fixed
       // Get user details for notification
       const user = await storage.getUser(resetToken.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Hash new password
       const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
@@ -3461,8 +3315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Generate new password if not provided
       const { generatePassword } = await import('./auth-utils');
       const currentYear = new Date().getFullYear().toString();
@@ -3498,8 +3351,7 @@ Treasure-Home School Administration
 
       // In development, log the notification
       if (process.env.NODE_ENV === 'development') {
-      }
-
+      } // fixed
       // TODO: In production, send actual email
       // await sendEmail({ to: recoveryEmail, subject: notificationSubject, text: notificationBody });
 
@@ -3527,15 +3379,13 @@ Treasure-Home School Administration
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Update recovery email with audit logging
       const success = await storage.updateRecoveryEmail(userId, recoveryEmail, req.user!.id);
 
       if (!success) {
         return res.status(500).json({ message: "Failed to update recovery email" });
-      }
-
+      } // fixed
 
       res.json({
         message: "Recovery email updated successfully",
@@ -3562,13 +3412,11 @@ Treasure-Home School Administration
       // Only allow users to update their own recovery email or admins to update any
       if (id !== userId && req.user!.roleId !== ROLES.ADMIN) {
         return res.status(403).json({ message: "You can only update your own recovery email" });
-      }
-
+      } // fixed
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Update the user with new recovery email
       const updatedUser = await storage.updateUser(id, {
         recoveryEmail
@@ -3576,8 +3424,7 @@ Treasure-Home School Administration
 
       if (!updatedUser) {
         return res.status(500).json({ message: "Failed to update recovery email" });
-      }
-
+      } // fixed
       // Log audit event
       await storage.createAuditLog({
         userId: req.user!.id,
@@ -3617,15 +3464,13 @@ Treasure-Home School Administration
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Unlock the account
       const success = await storage.unlockAccount(userId);
 
       if (!success) {
         return res.status(500).json({ message: "Failed to unlock account" });
-      }
-
+      } // fixed
       // Create audit log
       await storage.createAuditLog({
         userId: req.user!.id,
@@ -3678,12 +3523,10 @@ Treasure-Home School Administration
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       if (user.status !== 'suspended') {
         return res.status(400).json({ message: "Account is not suspended" });
-      }
-
+      } // fixed
       // Unlock account by changing status to active
       const updatedUser = await storage.updateUserStatus(
         userId,
@@ -3723,24 +3566,20 @@ Treasure-Home School Administration
       const role = await storage.getRole(roleId);
       if (!role) {
         return res.status(400).json({ message: "Invalid role" });
-      }
-
+      } // fixed
       if (roleId !== ROLES.ADMIN && roleId !== ROLES.TEACHER) {
         return res.status(400).json({ message: "Invites can only be sent for Admin or Teacher roles" });
-      }
-
+      } // fixed
       // Check if user already exists with this email
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
-      }
-
+      } // fixed
       // Check for pending invite
       const existingInvite = await storage.getPendingInviteByEmail(email);
       if (existingInvite) {
         return res.status(400).json({ message: "Pending invite already exists for this email" });
-      }
-
+      } // fixed
       // Generate secure token
       const crypto = require('crypto');
       const token = crypto.randomBytes(32).toString('hex');
@@ -3774,8 +3613,7 @@ Treasure-Home School Administration
           },
           developmentOnly: true
         });
-      }
-
+      } // fixed
       res.json({
         message: "Invite sent successfully",
         invite: {
@@ -3821,8 +3659,7 @@ Treasure-Home School Administration
       const invite = await storage.getInviteByToken(token);
       if (!invite) {
         return res.status(404).json({ message: "Invalid or expired invite" });
-      }
-
+      } // fixed
       // Return invite info without sensitive data
       res.json({
         email: invite.email,
@@ -3848,14 +3685,12 @@ Treasure-Home School Administration
       const invite = await storage.getInviteByToken(token);
       if (!invite) {
         return res.status(400).json({ message: "Invalid or expired invite" });
-      }
-
+      } // fixed
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(invite.email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
-      }
-
+      } // fixed
       // Generate THS username for the new staff member
       const { generateUsername, getNextUserNumber } = await import('./auth-utils');
       const currentYear = new Date().getFullYear().toString();
@@ -3921,8 +3756,7 @@ Treasure-Home School Administration
       const deleted = await storage.deleteInvite(inviteId);
       if (!deleted) {
         return res.status(404).json({ message: "Invite not found" });
-      }
-
+      } // fixed
       res.json({ message: "Invite deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete invite" });
@@ -4037,8 +3871,7 @@ Treasure-Home School Administration
       
       if (!currentUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       let users: any[] = [];
 
       if (role && typeof role === 'string') {
@@ -4054,8 +3887,7 @@ Treasure-Home School Administration
         const userPromises = allRoles.map(userRole => storage.getUsersByRole(userRole.id));
         const userArrays = await Promise.all(userPromises);
         users = userArrays.flat();
-      }
-
+      } // fixed
       // SECURITY: Filter admin accounts based on user role and system settings
       const isCurrentUserSuperAdmin = currentUser.roleId === ROLES.SUPER_ADMIN;
       
@@ -4099,14 +3931,12 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // SECURITY: Check if admin can access this user account
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
@@ -4158,14 +3988,12 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // SECURITY: Check if admin can access this user account
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
@@ -4218,14 +4046,12 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // SECURITY: Check if admin can access this user account
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
@@ -4277,14 +4103,12 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // SECURITY: Check if admin can access this user account
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
@@ -4337,20 +4161,17 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Validate status
       const validStatuses = ['pending', 'active', 'suspended', 'disabled'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       const oldStatus = user.status;
 
       // Update the user status
@@ -4388,8 +4209,7 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Validate request body
       const updateSchema = z.object({
         firstName: z.string().min(1).optional(),
@@ -4404,8 +4224,7 @@ Treasure-Home School Administration
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // SECURITY: Check if admin can access this user account
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
@@ -4430,15 +4249,13 @@ Treasure-Home School Administration
       if (validatedData.password) {
         const hashedPassword = await bcrypt.hash(validatedData.password, BCRYPT_ROUNDS);
         updateData.passwordHash = hashedPassword;
-      }
-
+      } // fixed
       // Update user in database
       const updatedUser = await storage.updateUser(id, updateData);
 
       if (!updatedUser) {
         return res.status(500).json({ message: "Failed to update user" });
-      }
-
+      } // fixed
       // Log audit event
       storage.createAuditLog({
         userId: adminUser.id,
@@ -4480,20 +4297,17 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
 
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Prevent deleting your own account
       if (user.id === adminUser.id) {
         return res.status(400).json({ message: "Cannot delete your own account" });
-      }
-
+      } // fixed
       // CRITICAL SECURITY: Check system settings for admin account protection
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
@@ -4514,16 +4328,14 @@ Treasure-Home School Administration
           message: "Only Super Admins can delete Super Admin accounts.",
           code: "SUPER_ADMIN_PROTECTED"
         });
-      }
-
+      } // fixed
       // CRITICAL SECURITY: Admins cannot delete other Admin accounts
       if (user.roleId === ROLES.ADMIN && adminUser.roleId === ROLES.ADMIN) {
         return res.status(403).json({ 
           message: "Admins cannot delete other Admin accounts.",
           code: "ADMIN_PROTECTED"
         });
-      }
-
+      } // fixed
 
       // RETRY LOGIC: Attempt delete with retries for transient errors
       let deleted = false;
@@ -4547,21 +4359,18 @@ Treasure-Home School Administration
               message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
               technicalDetails: "RLS_PERMISSION_DENIED"
             });
-          }
-
+          } // fixed
           // If it's not a transient error, break the retry loop
           if (deleteError?.code !== 'ECONNRESET' && !deleteError?.message?.includes('timeout')) {
             break;
-          }
-
+          } // fixed
           // Wait before retry (TRUE exponential backoff: 100ms, 200ms, 400ms)
           if (attempt < maxRetries) {
             const backoffMs = 100 * Math.pow(2, attempt - 1);
             await new Promise(resolve => setTimeout(resolve, backoffMs));
           }
         }
-      }
-
+      } // fixed
       if (!deleted) {
         const errorMsg = lastError?.message || "Unknown error";
 
@@ -4572,14 +4381,12 @@ Treasure-Home School Administration
             message: `Cannot delete user: This user has associated ${relatedTable}. Please disable the account instead.`,
             technicalDetails: "FOREIGN_KEY_CONSTRAINT"
           });
-        }
-
+        } // fixed
         return res.status(500).json({
           message: "Failed to delete user after multiple attempts",
           technicalDetails: errorMsg
         });
-      }
-
+      } // fixed
       // Verify deletion was successful
       const verifyUser = await storage.getUser(id);
       if (verifyUser) {
@@ -4587,8 +4394,7 @@ Treasure-Home School Administration
           message: "Delete operation completed but user still exists. This may be a database policy issue.",
           technicalDetails: "DELETE_VERIFICATION_FAILED"
         });
-      }
-
+      } // fixed
 
       // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
@@ -4636,14 +4442,12 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Generate temporary password if none provided
       let passwordToUse = newPassword;
       let generatedPassword: string | undefined;
@@ -4652,8 +4456,7 @@ Treasure-Home School Administration
         const { generateTempPassword } = await import('./username-generator');
         generatedPassword = generateTempPassword();
         passwordToUse = generatedPassword;
-      }
-
+      } // fixed
       // Hash the password
       const passwordHash = await bcrypt.hash(passwordToUse!, BCRYPT_ROUNDS);
 
@@ -4706,25 +4509,21 @@ Treasure-Home School Administration
 
       if (!adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
-      }
-
+      } // fixed
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Validate role exists
       const newRole = await storage.getRole(roleId);
       if (!newRole) {
         return res.status(400).json({ message: "Invalid role" });
-      }
-
+      } // fixed
       // Prevent changing your own role
       if (user.id === adminUser.id) {
         return res.status(400).json({ message: "Cannot change your own role" });
-      }
-
+      } // fixed
       const oldRole = await storage.getRole(user.roleId);
 
       // Update user role
@@ -4732,8 +4531,7 @@ Treasure-Home School Administration
 
       if (!updatedUser) {
         return res.status(500).json({ message: "Failed to update user role" });
-      }
-
+      } // fixed
       // Log audit event
       await storage.createAuditLog({
         userId: adminUser.id,
@@ -4811,20 +4609,17 @@ Treasure-Home School Administration
 
       if (!password || typeof password !== 'string' || password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
-      }
-
+      } // fixed
       // Teachers can only create students
       if (req.user!.roleId === ROLES.TEACHER && otherUserData.roleId !== ROLES.STUDENT) {
         return res.status(403).json({ message: "Teachers can only create student accounts" });
-      }
-
+      } // fixed
       // Generate username if not provided (based on roleId)
       let username = otherUserData.username;
       if (!username && otherUserData.roleId) {
         const { generateUsernameByRole } = await import('./username-generator');
         username = await generateUsernameByRole(otherUserData.roleId);
-      }
-
+      } // fixed
       // Hash password with bcrypt
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
@@ -4853,8 +4648,7 @@ Treasure-Home School Administration
           classId: otherUserData.classId,
           parentId: otherUserData.parentId || null
         });
-      }
-
+      } // fixed
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
 
@@ -4883,16 +4677,14 @@ Treasure-Home School Administration
       // Authorization: Users can update their own profile, admins can update any
       if (requestUser.id !== id && requestUser.roleId !== ROLES.ADMIN) {
         return res.status(403).json({ message: "You can only update your own profile" });
-      }
-
+      } // fixed
       // Extract password if provided for separate handling
       const { password, passwordHash, ...otherUserData } = req.body;
 
       // Prevent direct passwordHash manipulation
       if (passwordHash) {
         return res.status(400).json({ message: "Direct password hash modification not allowed" });
-      }
-
+      } // fixed
       let updateData = otherUserData;
 
       // If password provided, hash it properly
@@ -4902,15 +4694,13 @@ Treasure-Home School Administration
         }
         const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
         updateData = { ...otherUserData, passwordHash: hashedPassword };
-      }
-
+      } // fixed
       const userData = insertUserSchema.partial().parse(updateData);
       const user = await storage.updateUser(id, userData);
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      }
-
+      } // fixed
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
@@ -4930,16 +4720,14 @@ Treasure-Home School Administration
     try {
       if (!req.file) {
         return res.status(400).json({ message: "CSV file is required" });
-      }
-
+      } // fixed
       // Read and parse CSV file
       const csvContent = await fs.readFile(req.file.path, 'utf-8');
       const lines = csvContent.trim().split('\n');
 
       if (lines.length < 2) {
         return res.status(4000).json({ message: "CSV file must contain header and at least one row" });
-      }
-
+      } // fixed
       // Parse header
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
 
@@ -4951,8 +4739,7 @@ Treasure-Home School Administration
         return res.status(400).json({
           message: "CSV must contain columns: studentName, class, parentName, parentEmail"
         });
-      }
-
+      } // fixed
       const currentYear = new Date().getFullYear().toString();
       const { generateUsername, generatePassword } = await import('./auth-utils');
 
@@ -4967,8 +4754,7 @@ Treasure-Home School Administration
 
       if (!studentRoleData || !parentRoleData) {
         return res.status(500).json({ message: "Required roles (Student, Parent) not found in database" });
-      }
-
+      } // fixed
       // Parse each row
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
@@ -4989,8 +4775,7 @@ Treasure-Home School Administration
           if (!studentName || !className || !parentName || !parentEmail) {
             errors.push(`Row ${i + 1}: Missing required fields`);
             continue;
-          }
-
+          } // fixed
           // Split student name
           const [studentFirstName, ...studentLastParts] = studentName.split(' ');
           const studentLastName = studentLastParts.join(' ') || studentFirstName;
@@ -5029,8 +4814,7 @@ Treasure-Home School Administration
             parentId = parent.id;
           } else {
             parentId = parent.id;
-          }
-
+          } // fixed
           // Get class
           const classObj = await storage.getClasses(); // Assuming this fetches classes
           const studentClass = classObj.find(c => c.name.toLowerCase() === className.toLowerCase());
@@ -5038,8 +4822,7 @@ Treasure-Home School Administration
           if (!studentClass) {
             errors.push(`Row ${i + 1}: Class "${className}" not found`);
             continue;
-          }
-
+          } // fixed
           // Create student account - calculate correct sequence number
           const classPrefix = `THS-STU-${currentYear}-${className.toUpperCase()}-`;
           const studentCount = existingUsernames.filter(u => u.startsWith(classPrefix)).length + 1;
@@ -5114,8 +4897,7 @@ Treasure-Home School Administration
       try {
         if (!req.file) {
           return res.status(400).json({ message: 'No file uploaded' });
-        }
-
+        } // fixed
         const csvContent = await fs.readFile(req.file.path, 'utf-8');
         const { previewCSVImport } = await import('./csv-import-service');
 
@@ -5135,8 +4917,7 @@ Treasure-Home School Administration
       try {
         if (!req.file) {
           return res.status(400).json({ message: 'No file uploaded' });
-        }
-
+        } // fixed
         const csvContent = await fs.readFile(req.file.path, 'utf-8');
         const { previewCSVImport } = await import('./csv-import-service');
 
@@ -5158,8 +4939,7 @@ Treasure-Home School Administration
 
         if (!validRows || !Array.isArray(validRows) || validRows.length === 0) {
           return res.status(400).json({ message: 'No valid rows to import' });
-        }
-
+        } // fixed
         const { commitCSVImport } = await import('./csv-import-service');
         const adminUserId = req.user!.id;
 
@@ -5391,8 +5171,7 @@ Treasure-Home School Administration
             message: 'Validation error', 
             errors: error.errors 
           });
-        }
-        
+        } // fixed
         res.status(500).json({ 
           message: error.message || 'Failed to create student' 
         });
@@ -5407,14 +5186,12 @@ Treasure-Home School Administration
         // Ensure student can only access their own profile (or admin/teacher can access)
         if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
           return res.status(403).json({ message: 'Unauthorized' });
-        }
-
+        } // fixed
         const student = await storage.getStudent(studentId);
 
         if (!student) {
           return res.status(404).json({ message: 'Student not found' });
-        }
-
+        } // fixed
         res.json(student);
       } catch (error) {
         res.status(500).json({ message: 'Failed to fetch student data' });
@@ -5429,8 +5206,7 @@ Treasure-Home School Administration
         // Ensure student can only access their own classes (or admin/teacher can access)
         if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
           return res.status(403).json({ message: 'Unauthorized' });
-        }
-
+        } // fixed
         const classes = await storage.getStudentClasses(studentId);
         res.json(classes);
       } catch (error) {
@@ -5446,8 +5222,7 @@ Treasure-Home School Administration
         // Ensure student can only update their own profile (or admin can update)
         if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
           return res.status(403).json({ message: 'Unauthorized' });
-        }
-
+        } // fixed
         const updates = req.body;
 
         // Separate user fields from student fields
@@ -5476,8 +5251,7 @@ Treasure-Home School Administration
 
         if (!updatedStudent) {
           return res.status(404).json({ message: 'Student not found' });
-        }
-
+        } // fixed
         res.json(updatedStudent);
       } catch (error) {
         res.status(500).json({ message: 'Failed to update student profile' });
@@ -5493,21 +5267,18 @@ Treasure-Home School Administration
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(studentId)) {
           return res.status(400).json({ message: 'Invalid student ID format' });
-        }
-
+        } // fixed
         // Check if student exists
         const student = await storage.getStudent(studentId);
         if (!student) {
           return res.status(404).json({ message: 'Student not found' });
-        }
-
+        } // fixed
         // Perform soft delete (sets isActive = false)
         const deleted = await storage.deleteStudent(studentId);
 
         if (!deleted) {
           return res.status(500).json({ message: 'Failed to delete student' });
-        }
-
+        } // fixed
         res.json({ 
           success: true, 
           message: 'Student deleted successfully',
@@ -5539,8 +5310,7 @@ Treasure-Home School Administration
           ];
           const filledFields = fields.filter(field => field !== null && field !== undefined && field !== '').length;
           completionPercentage = Math.round((filledFields / fields.length) * 100);
-        }
-
+        } // fixed
         // 🔧 AUTO-FIX: If profile is 100% complete but profileCompleted is NULL/false, fix it
         if (completionPercentage === 100 && !user?.profileCompleted) {
           const updated = await storage.updateStudent(userId, {
@@ -5573,8 +5343,7 @@ Treasure-Home School Administration
             rawProfileCompleted: user?.profileCompleted,
             rawProfileSkipped: user?.profileSkipped,
           });
-        }
-
+        } // fixed
         res.json(status);
       } catch (error) {
         res.status(500).json({ message: 'Failed to check profile status' });
@@ -5614,8 +5383,7 @@ Treasure-Home School Administration
 
         if (!updatedStudent) {
           return res.status(404).json({ message: 'Student not found' });
-        }
-
+        } // fixed
           profileCompleted: updatedStudent.user.profileCompleted,
           profileSkipped: updatedStudent.user.profileSkipped,
           profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
@@ -5641,8 +5409,7 @@ Treasure-Home School Administration
 
         if (!user) {
           return res.status(404).json({ message: 'User not found' });
-        }
-
+        } // fixed
         // Mark profile as skipped
         await storage.updateUser(userId, {
           profileSkipped: true,
@@ -5715,8 +5482,7 @@ Treasure-Home School Administration
               ? 'This email has already been approved' 
               :'You already have a pending application' 
           });
-        }
-
+        } // fixed
         const application = await storage.createTeacherApplication(validatedData);
 
         // Create notification for admins
@@ -5730,8 +5496,7 @@ Treasure-Home School Administration
             relatedEntityType: 'teacher_application',
             relatedEntityId: application.id,
           });
-        }
-
+        } // fixed
         res.status(201).json({ 
           message: 'Application submitted successfully. You will be notified once reviewed.',
           application 
@@ -5798,8 +5563,7 @@ Treasure-Home School Administration
               relatedEntityType: 'teacher_application',
               relatedEntityId: result.application.id,
             });
-          }
-
+          } // fixed
           res.json({ 
             message: 'Application approved successfully',
             ...result 
@@ -5809,8 +5573,7 @@ Treasure-Home School Administration
           const application = await storage.rejectTeacherApplication(req.params.id, req.user!.id, reason || 'No reason provided');
           if (!application) {
             return res.status(404).json({ message: 'Application not found' });
-          }
-
+          } // fixed
           res.json({ 
             message: 'Application rejected',
             application 
@@ -5875,8 +5638,7 @@ Treasure-Home School Administration
         const existingEmail = await storage.getUserByEmail(email);
         if (existingEmail) {
           return res.status(400).json({ message: 'Email already exists' });
-        }
-
+        } // fixed
         // Auto-generate username using username generator
         const { generateAdminUsername, generateTempPassword } = await import('./username-generator');
         const username = await generateAdminUsername();
@@ -5944,8 +5706,7 @@ Treasure-Home School Administration
             message: error.errors[0].message || 'Validation error',
             errors: error.errors 
           });
-        }
-
+        } // fixed
         res.status(500).json({ message: 'Failed to create administrator' });
       }
     });
@@ -6001,26 +5762,22 @@ Treasure-Home School Administration
 
         if (!teacherId || !classId || !subjectId) {
           return res.status(400).json({ message: "teacherId, classId, and subjectId are required" });
-        }
-
+        } // fixed
         // Check if teacher exists and has teacher role
         const teacher = await storage.getUser(teacherId);
         if (!teacher || teacher.roleId !== ROLES.TEACHER) {
           return res.status(400).json({ message: "Invalid teacher ID" });
-        }
-
+        } // fixed
         // Check if class exists
         const classExists = await storage.getClass(classId);
         if (!classExists) {
           return res.status(400).json({ message: "Class not found" });
-        }
-
+        } // fixed
         // Check if subject exists
         const subjectExists = await storage.getSubject(subjectId);
         if (!subjectExists) {
           return res.status(400).json({ message: "Subject not found" });
-        }
-
+        } // fixed
         const assignment = await storage.createTeacherClassAssignment({
           teacherId,
           classId,
@@ -6058,13 +5815,11 @@ Treasure-Home School Administration
           }));
 
           return res.json(enrichedAssignments);
-        }
-
+        } // fixed
         // Only admins and super admins can view assignments for other teachers
         if (req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.SUPER_ADMIN) {
           return res.status(403).json({ message: "Insufficient permissions" });
-        }
-
+        } // fixed
         // Admins can view all or filter by teacherId
         if (teacherId) {
           const assignments = await storage.getTeacherClassAssignments(teacherId as string);
@@ -6082,8 +5837,7 @@ Treasure-Home School Administration
           }));
 
           return res.json(enrichedAssignments);
-        }
-
+        } // fixed
         // Get all assignments (Admin only)
         // Note: This could be large, consider pagination in future
         res.json({ message: "Please specify teacherId parameter" });
@@ -6118,8 +5872,7 @@ Treasure-Home School Administration
         // Teachers can only view their own assignments
         if (req.user!.roleId === ROLES.TEACHER && req.user!.id !== teacherId) {
           return res.status(403).json({ message: "You can only view your own assignments" });
-        }
-
+        } // fixed
         const assignments = await storage.getTeacherClassAssignments(teacherId);
         
         // Group assignments by class
@@ -6135,8 +5888,7 @@ Treasure-Home School Administration
               className: classInfo?.name,
               subjects: []
             };
-          }
-          
+          } // fixed
           groupedByClass[assignment.classId].subjects.push({
             assignmentId: assignment.id,
             subjectId: assignment.subjectId,
@@ -6144,8 +5896,7 @@ Treasure-Home School Administration
             termId: assignment.termId,
             isActive: assignment.isActive
           });
-        }
-
+        } // fixed
         res.json(Object.values(groupedByClass));
       } catch (error) {
         res.status(500).json({ message: "Failed to fetch teacher assignments" });
@@ -6162,8 +5913,7 @@ Treasure-Home School Administration
 
         if (!updatedAssignment) {
           return res.status(404).json({ message: "Assignment not found" });
-        }
-
+        } // fixed
 
         res.json(updatedAssignment);
       } catch (error) {
@@ -6180,8 +5930,7 @@ Treasure-Home School Administration
 
         if (!success) {
           return res.status(404).json({ message: "Assignment not found" });
-        }
-
+        } // fixed
 
         res.json({ message: "Teacher assignment deleted successfully" });
       } catch (error) {
@@ -6196,14 +5945,12 @@ Treasure-Home School Administration
 
         if (!classId || !subjectId) {
           return res.status(400).json({ message: "Both classId and subjectId are required" });
-        }
-
+        } // fixed
         const teachers = await storage.getTeachersForClassSubject(Number(classId), Number(subjectId));
 
         if (teachers.length === 0) {
           return res.json([]);
-        }
-
+        } // fixed
         // Return teacher data with essential information
         const teacherData = teachers.map((teacher) => ({
           id: teacher.id,
@@ -6275,8 +6022,7 @@ Treasure-Home School Administration
           `);
         }
       });
-    }
-
+    } // fixed
     const httpServer = createServer(app);
     return httpServer;
   }

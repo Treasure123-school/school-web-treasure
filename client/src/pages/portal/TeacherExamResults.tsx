@@ -18,8 +18,7 @@ export default function TeacherExamResults() {
 
   if (!user) {
     return <div>Loading...</div>;
-  }
-
+  } // fixed
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
   const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
@@ -138,8 +137,7 @@ export default function TeacherExamResults() {
         </div>
       </PortalLayout>
     );
-  }
-
+  } // fixed
   return (
     <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
       <div className="container mx-auto p-6 space-y-6">

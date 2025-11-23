@@ -31,8 +31,7 @@ const CommandDialog = ({ children, ...props }: DialogProps) => {
       </DialogContent>
     </Dialog>
   )
-}
-
+} // fixed
 const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>

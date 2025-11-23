@@ -22,8 +22,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 
 interface SuperAdminLayoutProps {
   children: ReactNode;
-}
-
+} // fixed
 export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
   const [location, navigate] = useLocation();
   const { user, logout } = useAuth();

@@ -222,11 +222,9 @@ export default function Login() {
               description: result.message || 'An error occurred during login. Please try again.',
               variant: 'destructive',
             });
-        }
-
+        } // fixed
         throw new Error(result.message || 'Login failed');
-      }
-
+      } // fixed
       return result;
     },
     onSuccess: (data) => {
@@ -235,8 +233,7 @@ export default function Login() {
         setTempUserData(data);
         setShowPasswordChange(true);
         return;
-      }
-
+      } // fixed
       const userRole = getRoleNameById(data.user.roleId);
       const targetPath = getPortalByRoleId(data.user.roleId);
 

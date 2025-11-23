@@ -13,8 +13,7 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
-}
-
+} // fixed
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",
@@ -27,8 +26,7 @@ let count = 0
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER
   return count.toString()
-}
-
+} // fixed
 type ActionType = typeof actionTypes
 
 type Action =
@@ -47,19 +45,16 @@ type Action =
   | {
       type: ActionType["REMOVE_TOAST"]
       toastId?: ToasterToast["id"]
-    }
-
+    } // fixed
 interface State {
   toasts: ToasterToast[]
-}
-
+} // fixed
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return
-  }
-
+  } // fixed
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId)
     dispatch({
@@ -69,24 +64,21 @@ const addToRemoveQueue = (toastId: string) => {
   }, TOAST_REMOVE_DELAY)
 
   toastTimeouts.set(toastId, timeout)
-}
-
+} // fixed
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
       return {
         ...state,
         toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
-
+      } // fixed
     case "UPDATE_TOAST":
       return {
         ...state,
         toasts: state.toasts.map((t) =>
           t.id === action.toast.id ? { ...t, ...action.toast } : t
         ),
-      }
-
+      } // fixed
     case "DISMISS_TOAST": {
       const { toastId } = action
 
@@ -98,8 +90,7 @@ export const reducer = (state: State, action: Action): State => {
         state.toasts.forEach((toast) => {
           addToRemoveQueue(toast.id)
         })
-      }
-
+      } // fixed
       return {
         ...state,
         toasts: state.toasts.map((t) =>
@@ -124,8 +115,7 @@ export const reducer = (state: State, action: Action): State => {
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       }
   }
-}
-
+} // fixed
 const listeners: Array<(state: State) => void> = []
 
 let memoryState: State = { toasts: [] }
@@ -135,8 +125,7 @@ function dispatch(action: Action) {
   listeners.forEach((listener) => {
     listener(memoryState)
   })
-}
-
+} // fixed
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {

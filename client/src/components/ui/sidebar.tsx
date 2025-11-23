@@ -38,19 +38,16 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
-}
-
+} // fixed
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
 
 function useSidebar() {
   const context = React.useContext(SidebarContext)
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.")
-  }
-
+  } // fixed
   return context
-}
-
+} // fixed
 const SidebarProvider = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -85,8 +82,7 @@ const SidebarProvider = React.forwardRef<
           setOpenProp(openState)
         } else {
           _setOpen(openState)
-        }
-
+        } // fixed
         // This sets the cookie to keep the sidebar state.
         document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
       },
@@ -194,8 +190,7 @@ const Sidebar = React.forwardRef<
           {children}
         </div>
       )
-    }
-
+    } // fixed
     if (isMobile) {
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
@@ -218,8 +213,7 @@ const Sidebar = React.forwardRef<
           </SheetContent>
         </Sheet>
       )
-    }
-
+    } // fixed
     return (
       <div
         ref={ref}
@@ -577,8 +571,7 @@ const SidebarMenuButton = React.forwardRef<
 
     if (!tooltip) {
       return button
-    }
-
+    } // fixed
     if (typeof tooltip === "string") {
       tooltip = {
         children: tooltip,

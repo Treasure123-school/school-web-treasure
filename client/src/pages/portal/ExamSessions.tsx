@@ -42,8 +42,7 @@ interface ExamSession {
   answeredQuestions: number;
   totalQuestions: number;
   lastActivity?: string;
-}
-
+} // fixed
 export default function ExamSessions() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,8 +123,7 @@ export default function ExamSessions() {
 
   if (!user) {
     return <div>Please log in to access exam sessions.</div>;
-  }
-
+  } // fixed
   // Map roleId to role name
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {

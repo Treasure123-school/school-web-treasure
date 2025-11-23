@@ -9,8 +9,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
   process.exit(1);
-}
-
+} // fixed
 async function restoreSuperAdmin() {
   const sql = postgres(DATABASE_URL!, {
     ssl: { rejectUnauthorized: false },
@@ -25,16 +24,14 @@ async function restoreSuperAdmin() {
     if (roles.length === 0) {
       await sql`INSERT INTO roles (id, name, permissions) VALUES (0, 'Super Admin', ARRAY['*'])`;
     } else {
-    }
-
+    } // fixed
     // Check if super admin user exists
     const existing = await sql`SELECT id, username FROM users WHERE username = 'superadmin'`;
     
     if (existing.length > 0) {
       await sql.end();
       process.exit(0);
-    }
-
+    } // fixed
     // Hash password
     const passwordHash = await bcrypt.hash('Temp@123', 12);
 

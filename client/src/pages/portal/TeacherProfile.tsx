@@ -56,8 +56,7 @@ export default function TeacherProfile() {
 
   if (!user) {
     return <div>Please log in to access your profile.</div>;
-  }
-
+  } // fixed
   const { data: teacher, isLoading: teacherLoading, error: teacherError } = useQuery({
     queryKey: ['teacher', user.id],
     queryFn: async () => {
@@ -217,13 +216,11 @@ export default function TeacherProfile() {
       // Add profile image if changed
       if (profileImageFile) {
         formData.append('profileImage', profileImageFile);
-      }
-
+      } // fixed
       // Add signature if changed
       if (signatureFile) {
         formData.append('signature', signatureFile);
-      }
-
+      } // fixed
       // Add all personal data
       formData.append('firstName', profileData.firstName);
       formData.append('lastName', profileData.lastName);
@@ -254,8 +251,7 @@ export default function TeacherProfile() {
       }
       if (!signatureFile && professionalData.signatureUrl) {
         formData.append('signatureUrl', professionalData.signatureUrl);
-      }
-
+      } // fixed
       // Send update request
       const response = await fetch('/api/teacher/profile/me', {
         method: 'PUT',
@@ -269,8 +265,7 @@ export default function TeacherProfile() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update profile');
-      }
-
+      } // fixed
       const result = await response.json();
 
       toast({
@@ -321,11 +316,9 @@ export default function TeacherProfile() {
         </Card>
       </PortalLayout>
     );
-  }
-
+  } // fixed
   if (teacherError) {
-  }
-
+  } // fixed
   // Debug: Log current state with detailed info
     hasTeacher: !!teacher,
     hasTeacherProfile: !!teacherProfile,

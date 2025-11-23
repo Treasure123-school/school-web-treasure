@@ -58,8 +58,7 @@ interface TeacherProfileData {
   notificationPreference: string;
   availability: string;
   agreement: boolean;
-}
-
+} // fixed
 export default function TeacherProfileSetup() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -189,8 +188,7 @@ export default function TeacherProfileSetup() {
         error.status = response.status;
         error.existingProfile = errorData.existingProfile;
         throw error;
-      }
-
+      } // fixed
       return await response.json();
     },
     onSuccess: async (data) => {
@@ -202,15 +200,13 @@ export default function TeacherProfileSetup() {
 
       function randomInRange(min: number, max: number) {
         return Math.random() * (max - min) + min;
-      }
-
+      } // fixed
       const interval: any = setInterval(function() {
         const timeLeft = animationEnd - Date.now();
 
         if (timeLeft <= 0) {
           return clearInterval(interval);
-        }
-
+        } // fixed
         const particleCount = 50 * (timeLeft / duration);
         confetti({
           ...defaults,
@@ -241,8 +237,7 @@ export default function TeacherProfileSetup() {
           recoveryEmail: formData.recoveryEmail,
           profileImageUrl: data.profile.profileImageUrl || '/uploads/profiles/default.jpg'
         });
-      }
-
+      } // fixed
       queryClient.setQueryData(['/api/teacher/profile/status'], {
         hasProfile: true,
         verified: true,
@@ -319,8 +314,7 @@ export default function TeacherProfileSetup() {
         errorMessage = "❌ Server Error";
         errorDetails.push("An unexpected error occurred on the server");
         actionHint = 'Please try again. If the problem persists, contact the administrator with the error details.';
-      }
-
+      } // fixed
       // Add diagnostic info
       if (error.code) errorDetails.push(`Error Code: ${error.code}`);
       if (error.status) errorDetails.push(`HTTP Status: ${error.status}`);
@@ -415,20 +409,16 @@ export default function TeacherProfileSetup() {
     // Step 1: Personal Information validation
     if (!formData.gender || formData.gender.trim() === '') {
       errors.push("Gender");
-    }
-
+    } // fixed
     if (!formData.dateOfBirth || formData.dateOfBirth.trim() === '') {
       errors.push("Date of Birth");
-    }
-
+    } // fixed
     if (!formData.nationalId || formData.nationalId.trim() === '') {
       errors.push("National ID (NIN)");
-    }
-
+    } // fixed
     if (!formData.phoneNumber || formData.phoneNumber.trim() === '') {
       errors.push("Phone Number");
-    }
-
+    } // fixed
     if (!profileImage) {
       errors.push("Profile Photo");
     } else {
@@ -441,8 +431,7 @@ export default function TeacherProfileSetup() {
 
       if (profileImage.size === 0) {
         errors.push("Profile Photo (file is empty)");
-      }
-
+      } // fixed
       // Additional validation
       if (!profileImage.type.startsWith('image/')) {
         errors.push("Profile Photo (must be an image file)");
@@ -452,33 +441,26 @@ export default function TeacherProfileSetup() {
     // Step 2: Academic & Professional validation
     if (!formData.qualification || formData.qualification.trim() === '') {
       errors.push("Qualification");
-    }
-
+    } // fixed
     if (!formData.specialization || formData.specialization.trim() === '') {
       errors.push("Specialization");
-    }
-
+    } // fixed
     if (!formData.department || formData.department.trim() === '') {
       errors.push("Department");
-    }
-
+    } // fixed
     if (!formData.yearsOfExperience || formData.yearsOfExperience <= 0) {
       errors.push("Years of Experience (must be greater than 0)");
-    }
-
+    } // fixed
     if (!formData.subjects || formData.subjects.length === 0) {
       errors.push("At least one Subject");
-    }
-
+    } // fixed
     if (!formData.assignedClasses || formData.assignedClasses.length === 0) {
       errors.push("At least one Class");
-    }
-
+    } // fixed
     // Step 3: Agreement validation
     if (!formData.agreement) {
       errors.push("Terms & Conditions Agreement");
-    }
-
+    } // fixed
     // Block submission if ANY required fields are missing
     if (errors.length > 0) {
       toast({
@@ -497,8 +479,7 @@ export default function TeacherProfileSetup() {
         duration: 15000,
       });
       return;
-    }
-
+    } // fixed
     const submitData = new FormData();
 
     Object.entries(formData).forEach(([key, value]) => {
@@ -536,8 +517,7 @@ export default function TeacherProfileSetup() {
       );
 
       submitData.append('profileImage', imageFile, imageFile.name);
-    }
-
+    } // fixed
     if (signatureFile) {
         name: signatureFile.name,
         size: signatureFile.size,
@@ -554,8 +534,7 @@ export default function TeacherProfileSetup() {
       );
 
       submitData.append('signature', sigFile, sigFile.name);
-    }
-
+    } // fixed
     // Log FormData contents for debugging
     for (const [key, value] of Array.from(submitData.entries())) {
       if (value instanceof File) {

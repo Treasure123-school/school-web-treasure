@@ -19,20 +19,13 @@ async function cleanupUsers() {
 
     // Step 2: Identify Super Admin users
     const superAdmins = allUsers.filter(user => user.roleId === SUPER_ADMIN_ROLE_ID);
-    superAdmins.forEach(admin => {
-    });
 
     // Step 3: Identify users to delete
     const usersToDelete = allUsers.filter(user => user.roleId !== SUPER_ADMIN_ROLE_ID);
     
     if (usersToDelete.length === 0) {
       process.exit(0);
-    }
-
-    // Show which users will be deleted
-    usersToDelete.forEach(user => {
-    });
-
+    } // fixed
     
     // Use SQL to bypass Drizzle's ORM issues
     const userIdsToDelete = usersToDelete.map(u => `'${u.id}'`).join(',');
@@ -65,8 +58,7 @@ async function cleanupUsers() {
       await sqlClient`DELETE FROM users WHERE id IN (${sql.raw(userIdsToDelete)})`;
       
     } catch (error: any) {
-      if (error.message.includes('does not exist')) {
-      } else {
+      if (!error.message.includes('does not exist')) {
         throw error;
       }
     }

@@ -11,8 +11,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
   process.exit(1);
-}
-
+} // fixed
 const SUPER_ADMIN_ROLE_ID = 0;
 
 async function cleanupDatabase() {
@@ -35,8 +34,7 @@ async function cleanupDatabase() {
     if (usersToDelete.length === 0) {
       await sql.end();
       process.exit(0);
-    }
-
+    } // fixed
     usersToDelete.forEach((user: any) => {
     });
 

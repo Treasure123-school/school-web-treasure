@@ -7,8 +7,7 @@ interface EnvVarConfig {
   description: string;
   validateFn?: (value: string) => boolean;
   suggestion?: string;
-}
-
+} // fixed
 const ENV_VARS: EnvVarConfig[] = [
   // Critical - Always Required
   {
@@ -78,8 +77,7 @@ interface ValidationResult {
   invalid: string[];
   warnings: string[];
   passed: string[];
-}
-
+} // fixed
 export function validateEnvironment(exitOnError = false): ValidationResult {
   const isProduction = process.env.NODE_ENV === 'production';
   const result: ValidationResult = {
@@ -104,16 +102,14 @@ export function validateEnvironment(exitOnError = false): ValidationResult {
         result.warnings.push(config.name);
       }
       return;
-    }
-
+    } // fixed
     // Check if invalid format
     if (config.validateFn && !config.validateFn(value)) {
       result.invalid.push(config.name);
       if (config.suggestion) {
       }
       return;
-    }
-
+    } // fixed
     // Valid
     result.passed.push(config.name);
     const displayValue = config.name.includes('SECRET') || config.name.includes('KEY') || config.name.includes('PASSWORD')
@@ -131,7 +127,6 @@ export function validateEnvironment(exitOnError = false): ValidationResult {
       process.exit(1);
     }
   } else {
-  }
-
+  } // fixed
   return result;
 }

@@ -30,8 +30,7 @@ export async function getCroppedImg(
 
   if (!rotatedCtx) {
     throw new Error('Failed to get canvas context');
-  }
-
+  } // fixed
   const maxSize = Math.max(image.width, image.height);
   const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
 
@@ -53,8 +52,7 @@ export async function getCroppedImg(
   
   if (!croppedCtx) {
     throw new Error('Failed to get cropped canvas context');
-  }
-
+  } // fixed
   // Ensure valid dimensions with bounds checking
   const width = Math.max(1, Math.min(Math.floor(pixelCrop.width), safeArea));
   const height = Math.max(1, Math.min(Math.floor(pixelCrop.height), safeArea));

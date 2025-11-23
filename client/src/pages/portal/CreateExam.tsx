@@ -86,8 +86,7 @@ const steps = [
 interface StepIndicatorProps {
   currentStep: number;
   totalSteps: number;
-}
-
+} // fixed
 function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
   return (
     <div className="w-full mb-8">
@@ -148,8 +147,7 @@ function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
       </div>
     </div>
   );
-}
-
+} // fixed
 export default function CreateExam() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -158,8 +156,7 @@ export default function CreateExam() {
 
   if (!user) {
     return <div>Loading...</div>;
-  }
-
+  } // fixed
   const userRole = 'teacher' as 'admin' | 'teacher' | 'student' | 'parent';
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
@@ -167,8 +164,7 @@ export default function CreateExam() {
   if (user.roleId !== 2) {
     navigate('/portal/teacher/dashboard');
     return null;
-  }
-
+  } // fixed
   const form = useForm<CreateExamFormData>({
     resolver: zodResolver(createExamSchema),
     defaultValues: {
@@ -296,8 +292,7 @@ export default function CreateExam() {
         break;
       default:
         return true;
-    }
-
+    } // fixed
     const result = await form.trigger(fieldsToValidate);
     return result;
   };

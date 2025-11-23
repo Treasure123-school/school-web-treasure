@@ -53,8 +53,7 @@ export default function TeacherGrades() {
 
   if (!user) {
     return <div>Loading...</div>;
-  }
-
+  } // fixed
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
   const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
@@ -1478,8 +1477,7 @@ export default function TeacherGrades() {
       </div>
     </PortalLayout>
   );
-}
-
+} // fixed
 // Enhanced Test/Exam Grade Entry Component
 function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
   student: any;
@@ -1517,8 +1515,7 @@ function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
         variant: "destructive",
       });
       return;
-    }
-
+    } // fixed
     if (testScore < 0 || testScore > 40 || examScore < 0 || examScore > 60) {
       toast({
         title: "Invalid Scores",
@@ -1526,8 +1523,7 @@ function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
         variant: "destructive",
       });
       return;
-    }
-
+    } // fixed
     setIsSubmitting(true);
     try {
       const totalScore = calculateWeightedTotal();
@@ -1710,8 +1706,7 @@ function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
       </CardContent>
     </Card>
   );
-}
-
+} // fixed
 // Student Report Finalization Component
 function StudentReportFinalization({ exam, students, onReportFinalized }: {
   exam: any;
@@ -1750,8 +1745,7 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
         variant: "destructive",
       });
       return;
-    }
-
+    } // fixed
     setIsFinalizingReport(true);
     try {
       // Update the exam result with teacher finalization

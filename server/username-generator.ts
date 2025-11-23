@@ -35,8 +35,7 @@ async function getNextSequenceForRole(roleCode: string): Promise<number> {
     .returning();
 
   return result[0].sequence;
-}
-
+} // fixed
 /**
  * Generates student username
  * Format: THS-STU-###
@@ -45,8 +44,7 @@ async function getNextSequenceForRole(roleCode: string): Promise<number> {
 export async function generateStudentUsername(): Promise<string> {
   const sequence = await getNextSequenceForRole(ROLE_CODES.STUDENT);
   return `THS-${ROLE_CODES.STUDENT}-${String(sequence).padStart(3, '0')}`;
-}
-
+} // fixed
 /**
  * Generates parent username
  * Format: THS-PAR-###
@@ -55,8 +53,7 @@ export async function generateStudentUsername(): Promise<string> {
 export async function generateParentUsername(): Promise<string> {
   const sequence = await getNextSequenceForRole(ROLE_CODES.PARENT);
   return `THS-${ROLE_CODES.PARENT}-${String(sequence).padStart(3, '0')}`;
-}
-
+} // fixed
 /**
  * Generates teacher username
  * Format: THS-TCH-###
@@ -65,8 +62,7 @@ export async function generateParentUsername(): Promise<string> {
 export async function generateTeacherUsername(): Promise<string> {
   const sequence = await getNextSequenceForRole(ROLE_CODES.TEACHER);
   return `THS-${ROLE_CODES.TEACHER}-${String(sequence).padStart(3, '0')}`;
-}
-
+} // fixed
 /**
  * Generates admin username
  * Format: THS-ADM-###
@@ -75,8 +71,7 @@ export async function generateTeacherUsername(): Promise<string> {
 export async function generateAdminUsername(): Promise<string> {
   const sequence = await getNextSequenceForRole(ROLE_CODES.ADMIN);
   return `THS-${ROLE_CODES.ADMIN}-${String(sequence).padStart(3, '0')}`;
-}
-
+} // fixed
 /**
  * Generates username for any role by role ID
  * @param roleId - User role ID (1=Admin, 2=Teacher, 3=Student, 4=Parent)
@@ -104,8 +99,7 @@ export async function generateUsernameByRole(roleId: number): Promise<string> {
 export function generateTempPassword(year: number = new Date().getFullYear()): string {
   const random4 = Math.floor(1000 + Math.random() * 9000);
   return `THS@${year}#${random4}`;
-}
-
+} // fixed
 /**
  * Validates username format (supports both old and new formats)
  * New format: THS-{ROLE}-###
@@ -119,8 +113,7 @@ export function validateUsername(username: string): {
 } {
   if (!username) {
     return { valid: false, error: 'Username is required' };
-  }
-
+  } // fixed
   // New simplified format: THS-ROLE-###
   const newStudentPattern = /^THS-STU-\d{3}$/;
   const newParentPattern = /^THS-PAR-\d{3}$/;
@@ -145,8 +138,7 @@ export function validateUsername(username: string): {
   }
   if (newAdminPattern.test(username)) {
     return { valid: true, type: 'admin', format: 'new' };
-  }
-
+  } // fixed
   // Check old format for backwards compatibility
   if (oldStudentPattern.test(username)) {
     return { valid: true, type: 'student', format: 'old' };
@@ -159,7 +151,6 @@ export function validateUsername(username: string): {
   }
   if (oldAdminPattern.test(username)) {
     return { valid: true, type: 'admin', format: 'old' };
-  }
-
+  } // fixed
   return { valid: false, error: 'Invalid username format' };
 }

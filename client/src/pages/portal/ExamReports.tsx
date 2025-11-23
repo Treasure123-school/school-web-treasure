@@ -40,8 +40,7 @@ interface ExamReport {
   examDate: string;
   status: 'ongoing' | 'completed';
   gradingProgress: number;
-}
-
+} // fixed
 interface StudentReport {
   studentId: string;
   studentName: string;
@@ -54,8 +53,7 @@ interface StudentReport {
   submittedAt: string;
   autoScored: boolean;
   manualScored: boolean;
-}
-
+} // fixed
 export default function ExamReports() {
   const { user } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
@@ -148,8 +146,7 @@ export default function ExamReports() {
 
   if (!user) {
     return <div>Please log in to access exam reports.</div>;
-  }
-
+  } // fixed
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
       1: 'admin',

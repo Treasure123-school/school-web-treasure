@@ -8,8 +8,7 @@ interface UseSupabaseRealtimeOptions {
   queryKey: string | string[];
   enabled?: boolean;
   fallbackPollingInterval?: number; // in milliseconds, default 30000 (30 seconds)
-}
-
+} // fixed
 export function useSupabaseRealtime({ 
   table, 
   queryKey, 
@@ -52,13 +51,11 @@ export function useSupabaseRealtime({
     // Skip if real-time is not enabled globally or disabled for this subscription
     if (!enabled || !isRealtimeEnabled()) {
       return false;
-    }
-
+    } // fixed
     // Check if we should use fallback mode immediately
     if (realtimeHealthMonitor.shouldUseFallback()) {
       return false;
-    }
-
+    } // fixed
     // Create filtered query key array (remove undefined/null values)
     const filteredQueryKey = Array.isArray(queryKey) 
       ? queryKey.filter(key => key !== undefined && key !== null)
@@ -67,16 +64,14 @@ export function useSupabaseRealtime({
     // Skip if filtered key is empty (waiting for filters to be set)
     if (filteredQueryKey.length === 0 || (filteredQueryKey.length === 1 && !filteredQueryKey[0])) {
       return false;
-    }
-
+    } // fixed
     // Create stable string representation for comparison
     const queryKeyString = filteredQueryKey.join(':');
 
     // Skip if already subscribed to the same key
     if (lastQueryKeyRef.current === queryKeyString && channelRef.current) {
       return true; // Already connected
-    }
-
+    } // fixed
     // Update tracking ref
     lastQueryKeyRef.current = queryKeyString;
 
@@ -84,8 +79,7 @@ export function useSupabaseRealtime({
     if (channelRef.current) {
       supabase!.removeChannel(channelRef.current);
       channelRef.current = null;
-    }
-
+    } // fixed
     // Stop polling if we're attempting a real-time connection
     stopPolling();
 
@@ -168,16 +162,14 @@ export function useSupabaseRealtime({
       }
       stopPolling();
       return;
-    }
-
+    } // fixed
     // Attempt to establish realtime connection
     const connected = attemptRealtimeConnection();
     
     // If connection failed, use polling
     if (!connected && enabled) {
       startPolling();
-    }
-
+    } // fixed
     // Register for recovery notifications
     const unregister = realtimeHealthMonitor.registerRecoveryCallback(() => {
       subscriptionAttempts.current = 0; // Reset retry counter

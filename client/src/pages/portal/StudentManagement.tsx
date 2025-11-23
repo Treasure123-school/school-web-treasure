@@ -120,16 +120,14 @@ export default function StudentManagement() {
       if (!studentResponse.ok) {
         const errorData = await studentResponse.json();
         throw new Error(errorData.message || 'Failed to create student');
-      }
-
+      } // fixed
       return await studentResponse.json();
     },
     onSuccess: (data) => {
       // Store generated credentials to show to admin
       if (data.credentials) {
         setCreatedCredentials(data.credentials);
-      }
-
+      } // fixed
       toast({
         title: 'Success',
         description: data.parentCreated 
@@ -302,8 +300,7 @@ export default function StudentManagement() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to upload students');
-      }
-
+      } // fixed
       return await response.json();
     },
     onSuccess: (data) => {
@@ -348,8 +345,7 @@ export default function StudentManagement() {
 
       if (!response.ok) {
         throw new Error('Failed to generate login slips');
-      }
-
+      } // fixed
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -421,8 +417,7 @@ export default function StudentManagement() {
           variant: 'destructive',
         });
         return;
-      }
-
+      } // fixed
       // Show preview first
       const formData = new FormData();
       formData.append('file', file);
@@ -438,8 +433,7 @@ export default function StudentManagement() {
 
         if (!response.ok) {
           throw new Error('Failed to preview CSV');
-        }
-
+        } // fixed
         const preview = await response.json();
         setCsvPreview(preview);
         setIsPreviewDialogOpen(true);
@@ -449,8 +443,7 @@ export default function StudentManagement() {
           description: error instanceof Error ? error.message : 'Unknown error',
           variant: 'destructive',
         });
-      }
-
+      } // fixed
       event.target.value = '';
     }
   };
@@ -471,8 +464,7 @@ export default function StudentManagement() {
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Failed to import students');
-        }
-
+        } // fixed
         const data = await response.json();
         
         // Transform credentials for display
@@ -915,8 +907,7 @@ export default function StudentManagement() {
 
                     if (createdCredentials?.parent) {
                       text += `\n\n=== PARENT CREDENTIALS ===\nUsername: ${createdCredentials?.parent?.username}\nPassword: ${createdCredentials?.parent?.password}`;
-                    }
-
+                    } // fixed
 
         {/* CSV Preview Dialog */}
         <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>

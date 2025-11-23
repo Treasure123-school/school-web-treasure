@@ -26,8 +26,7 @@ interface DashboardStats {
   totalClasses: number;
   classesWithCapacity: string;
   averageAttendance: number;
-}
-
+} // fixed
 function TeacherOverviewSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -78,8 +77,7 @@ function TeacherOverviewSection() {
         </CardContent>
       </Card>
     );
-  }
-
+  } // fixed
 
 
 function NotificationSummary() {
@@ -161,8 +159,7 @@ function NotificationSummary() {
       </CardContent>
     </Card>
   );
-}
-
+} // fixed
   return (
     <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
       <CardHeader className="p-4 sm:p-6">
@@ -375,8 +372,7 @@ function NotificationSummary() {
       </CardContent>
     </Card>
   );
-}
-
+} // fixed
 function NotificationSummary() {
   const { data: teachersOverview = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/teachers/overview'],
@@ -456,8 +452,7 @@ function NotificationSummary() {
       </CardContent>
     </Card>
   );
-}
-
+} // fixed
 export default function AdminDashboard() {
   const { user } = useAuth();
 
@@ -659,8 +654,7 @@ export default function AdminDashboard() {
         // Assuming setStats is available or stats is a state variable managed elsewhere
         // For now, let's assume 'stats' is directly updated if it's not a state variable
         // If stats is a state variable, you'd use a setter function like setStats(data)
-      }
-
+      } // fixed
       // Fetch recent teacher profiles
       const teachersResponse = await fetch("/api/admin/teachers/overview", {
         credentials: "include",
@@ -688,8 +682,7 @@ export default function AdminDashboard() {
 
   if (!user) {
     return <div>Please log in to access the admin portal.</div>;
-  }
-
+  } // fixed
   // Fetch today's auto-verified teachers
   const { data: todayAutoVerified = [] } = useQuery({
     queryKey: ['/api/admin/teachers/overview'],

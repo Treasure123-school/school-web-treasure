@@ -72,8 +72,7 @@ function initializeDatabase() {
   } else if (!process.env.DATABASE_URL) {
   }
   return { pg, db };
-}
-
+} // fixed
 // Export db for migrations (initialize if needed)
 const { db: exportDb } = initializeDatabase();
 export { exportDb as db };
@@ -478,8 +477,7 @@ export interface IStorage {
   }>;
   getSystemSettings(): Promise<schema.SystemSettings | undefined>;
   updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings>;
-}
-
+} // fixed
 // Helper to normalize UUIDs from various formats
 function normalizeUuid(raw: any): string | undefined {
   if (!raw) return undefined;
@@ -487,8 +485,7 @@ function normalizeUuid(raw: any): string | undefined {
   // If already a valid UUID string, return as-is
   if (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
     return raw;
-  }
-
+  } // fixed
   let bytes: number[] | undefined;
 
   // Handle comma-separated string of numbers
@@ -504,17 +501,14 @@ function normalizeUuid(raw: any): string | undefined {
     bytes = raw;
   } else if (raw instanceof Uint8Array && raw.length === 16) {
     bytes = Array.from(raw);
-  }
-
+  } // fixed
   // Convert bytes to UUID format
   if (bytes) {
     const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
     return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
-  }
-
+  } // fixed
   return undefined;
-}
-
+} // fixed
 export class DatabaseStorage implements IStorage {
   public db: any;
 
@@ -560,8 +554,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return user as User | undefined;
-  }
-
+  } // fixed
   async getUserByEmail(email: string): Promise<User | undefined> {
     // Only select columns that exist in the current database schema
     const result = await this.db.select({
@@ -595,8 +588,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return user as User | undefined;
-  }
-
+  } // fixed
   async getUserByUsername(username: string): Promise<User | undefined> {
     const result = await this.db.select().from(schema.users).where(eq(schema.users.username, username)).limit(1);
     const user = result[0];
@@ -607,8 +599,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return user;
-  }
-
+  } // fixed
   async createPasswordResetToken(userId: string, token: string, expiresAt: Date, ipAddress?: string, resetBy?: string): Promise<any> {
     const result = await this.db.insert(schema.passwordResetTokens).values({
       userId,
@@ -618,8 +609,7 @@ export class DatabaseStorage implements IStorage {
       resetBy,
     }).returning();
     return result[0];
-  }
-
+  } // fixed
   async getPasswordResetToken(token: string): Promise<any | undefined> {
     const result = await this.db.select()
       .from(schema.passwordResetTokens)
@@ -630,22 +620,19 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async markPasswordResetTokenAsUsed(token: string): Promise<boolean> {
     const result = await this.db.update(schema.passwordResetTokens)
       .set({ usedAt: dsql`NOW()` })
       .where(eq(schema.passwordResetTokens.token, token))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   async deleteExpiredPasswordResetTokens(): Promise<boolean> {
     await this.db.delete(schema.passwordResetTokens)
       .where(dsql`${schema.passwordResetTokens.expiresAt} < NOW()`);
     return true;
-  }
-
+  } // fixed
   async createUser(user: InsertUser): Promise<User> {
     const result = await this.db.insert(schema.users).values(user).returning();
     const createdUser = result[0];
@@ -656,8 +643,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return createdUser;
-  }
-
+  } // fixed
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
     try {
       const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
@@ -753,8 +739,7 @@ export class DatabaseStorage implements IStorage {
         // Delete exam sessions
         await this.db.delete(schema.examSessions)
           .where(inArray(schema.examSessions.id, sessionIds));
-      }
-      
+      } // fixed
       // 9. Delete exam results
       await this.db.delete(schema.examResults)
         .where(eq(schema.examResults.studentId, id));
@@ -813,8 +798,7 @@ export class DatabaseStorage implements IStorage {
       }
       return user;
     });
-  }
-
+  } // fixed
   async getUsersByStatus(status: string): Promise<User[]> {
     const result = await this.db.select().from(schema.users).where(sql`${schema.users.status} = ${status}`);
     return result.map((user: User) => {
@@ -826,8 +810,7 @@ export class DatabaseStorage implements IStorage {
       }
       return user;
     });
-  }
-
+  } // fixed
   async getAllUsers(): Promise<User[]> {
     const result = await this.db.select({
       id: schema.users.id,
@@ -858,8 +841,7 @@ export class DatabaseStorage implements IStorage {
       }
       return user;
     });
-  }
-
+  } // fixed
   async approveUser(userId: string, approvedBy: string): Promise<User> {
     const result = await this.db.update(schema.users)
       .set({
@@ -878,8 +860,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return user;
-  }
-
+  } // fixed
   async updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User> {
     // Only set approvedBy/approvedAt for actual approvals (status='active')
     // For other status changes (reject/suspend/disable), only update status
@@ -888,8 +869,7 @@ export class DatabaseStorage implements IStorage {
     if (status === 'active') {
       updates.approvedBy = updatedBy;
       updates.approvedAt = new Date();
-    }
-
+    } // fixed
     const result = await this.db.update(schema.users)
       .set(updates)
       .where(eq(schema.users.id, userId))
@@ -903,29 +883,24 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return user;
-  }
-
+  } // fixed
   // Role management
   async getRoles(): Promise<Role[]> {
     return await this.db.select().from(schema.roles);
-  }
-
+  } // fixed
   async getRoleByName(name: string): Promise<Role | undefined> {
     const result = await this.db.select().from(schema.roles).where(eq(schema.roles.name, name)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getRole(roleId: number): Promise<Role | undefined> {
     const result = await this.db.select().from(schema.roles).where(eq(schema.roles.id, roleId)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   // Invite management
   async createInvite(invite: schema.InsertInvite): Promise<schema.Invite> {
     const result = await this.db.insert(schema.invites).values(invite).returning();
     return result[0];
-  }
-
+  } // fixed
   async getInviteByToken(token: string): Promise<schema.Invite | undefined> {
     const result = await this.db.select().from(schema.invites)
       .where(and(
@@ -935,8 +910,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined> {
     const result = await this.db.select().from(schema.invites)
       .where(and(
@@ -945,32 +919,27 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getAllInvites(): Promise<schema.Invite[]> {
     return await this.db.select().from(schema.invites)
       .orderBy(desc(schema.invites.createdAt));
-  }
-
+  } // fixed
   async getPendingInvites(): Promise<schema.Invite[]> {
     return await this.db.select().from(schema.invites)
       .where(isNull(schema.invites.acceptedAt))
       .orderBy(desc(schema.invites.createdAt));
-  }
-
+  } // fixed
   async markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void> {
     await this.db.update(schema.invites)
       .set({ acceptedAt: new Date(), acceptedBy })
       .where(eq(schema.invites.id, inviteId));
-  }
-
+  } // fixed
   async deleteInvite(inviteId: number): Promise<boolean> {
     const result = await this.db.delete(schema.invites)
       .where(eq(schema.invites.id, inviteId))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   async deleteExpiredInvites(): Promise<boolean> {
     const result = await this.db.delete(schema.invites)
       .where(and(
@@ -979,8 +948,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Profile management
   async updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined> {
     const result = await this.db.update(schema.users)
@@ -988,82 +956,70 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.users.id, userId))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined> {
     const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, userId));
     return profile || null;
-  }
-
+  } // fixed
   async updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined> {
     const result = await this.db.update(schema.teacherProfiles)
       .set({ ...profile, updatedAt: new Date() })
       .where(eq(schema.teacherProfiles.userId, userId))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
     const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
     return profile || null;
-  }
-
+  } // fixed
   async getAllTeacherProfiles(): Promise<schema.TeacherProfile[]> {
     const profiles = await db.select().from(schema.teacherProfiles);
     return profiles;
-  }
-
+  } // fixed
   async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
     const result = await this.db.insert(schema.teacherProfiles)
       .values(profile)
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined> {
     const result = await this.db.select().from(schema.adminProfiles)
       .where(eq(schema.adminProfiles.userId, userId))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async createAdminProfile(profile: schema.InsertAdminProfile): Promise<schema.AdminProfile> {
     const result = await this.db.insert(schema.adminProfiles)
       .values(profile)
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async updateAdminProfile(userId: string, profile: Partial<schema.InsertAdminProfile>): Promise<schema.AdminProfile | undefined> {
     const result = await this.db.update(schema.adminProfiles)
       .set({ ...profile, updatedAt: new Date() })
       .where(eq(schema.adminProfiles.userId, userId))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async getParentProfile(userId: string): Promise<schema.ParentProfile | undefined> {
     const result = await this.db.select().from(schema.parentProfiles)
       .where(eq(schema.parentProfiles.userId, userId))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async createParentProfile(profile: schema.InsertParentProfile): Promise<schema.ParentProfile> {
     const result = await this.db.insert(schema.parentProfiles)
       .values(profile)
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async updateParentProfile(userId: string, profile: Partial<schema.InsertParentProfile>): Promise<schema.ParentProfile | undefined> {
     const result = await this.db.update(schema.parentProfiles)
       .set({ ...profile, updatedAt: new Date() })
       .where(eq(schema.parentProfiles.userId, userId))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async calculateProfileCompletion(userId: string, roleId: number): Promise<number> {
     const user = await this.getUser(userId);
     if (!user) return 0;
@@ -1103,12 +1059,10 @@ export class DatabaseStorage implements IStorage {
       if (parentProfile?.occupation) completedFields++;
       if (parentProfile?.contactPreference) completedFields++;
       if (parentProfile?.linkedStudents && parentProfile.linkedStudents.length > 0) completedFields++;
-    }
-
+    } // fixed
     const totalFields = requiredFields.length + 3; // 3 role-specific fields on average
     return Math.round((completedFields / totalFields) * 100);
-  }
-
+  } // fixed
   // Student management
   async getStudent(id: string): Promise<Student | undefined> {
     const result = await this.db
@@ -1151,18 +1105,15 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return student as any;
-  }
-
+  } // fixed
   async getAllUsernames(): Promise<string[]> {
     const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql`${schema.users.username} IS NOT NULL`);
     return result.map((r: { username: string | null }) => r.username).filter((u: string | null): u is string => u !== null);
-  }
-
+  } // fixed
   async createStudent(student: InsertStudent): Promise<Student> {
     const result = await db.insert(schema.students).values(student).returning();
     return result[0];
-  }
-
+  } // fixed
   async updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined> {
     // Use transaction to ensure both user and student are updated atomically
     return await this.db.transaction(async (tx: any) => {
@@ -1180,8 +1131,7 @@ export class DatabaseStorage implements IStorage {
         // Get current user data if no updates
         const userResult = await tx.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
         updatedUser = userResult[0];
-      }
-
+      } // fixed
       // Update student if studentPatch is provided
       if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
         const studentResult = await tx.update(schema.students)
@@ -1193,23 +1143,20 @@ export class DatabaseStorage implements IStorage {
         // Get current student data if no updates
         const studentResult = await tx.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
         updatedStudent = studentResult[0];
-      }
-
+      } // fixed
       if (updatedUser && updatedStudent) {
         return { user: updatedUser, student: updatedStudent };
       }
       return undefined;
     });
-  }
-
+  } // fixed
   async setUserActive(id: string, isActive: boolean): Promise<User | undefined> {
     const result = await this.db.update(schema.users)
       .set({ isActive })
       .where(eq(schema.users.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteStudent(id: string): Promise<boolean> {
     // Logical deletion by setting user as inactive
     // This preserves referential integrity for attendance, exams, etc.
@@ -1218,8 +1165,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.users.id, id))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   async hardDeleteStudent(id: string): Promise<boolean> {
     // Hard deletion with proper cascade handling
     // Delete in correct order to respect foreign key constraints
@@ -1236,8 +1182,7 @@ export class DatabaseStorage implements IStorage {
         if (sessionIds.length > 0) {
           await tx.delete(schema.studentAnswers)
             .where(inArray(schema.studentAnswers.sessionId, sessionIds));
-        }
-
+        } // fixed
         // 3. Delete exam sessions for this student
         await tx.delete(schema.examSessions)
           .where(eq(schema.examSessions.studentId, id));
@@ -1264,13 +1209,11 @@ export class DatabaseStorage implements IStorage {
         throw error;
       }
     });
-  }
-
+  } // fixed
   async getStudentsByClass(classId: number): Promise<Student[]> {
     // Return all students in class regardless of active status for admin management
     return await db.select().from(schema.students).where(eq(schema.students.classId, classId));
-  }
-
+  } // fixed
   async getAllStudents(includeInactive = false): Promise<Student[]> {
     if (includeInactive) {
       // Return all students regardless of active status
@@ -1297,13 +1240,11 @@ export class DatabaseStorage implements IStorage {
   async getStudentByAdmissionNumber(admissionNumber: string): Promise<Student | undefined> {
     const result = await db.select().from(schema.students).where(eq(schema.students.admissionNumber, admissionNumber)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   // Class management
   async getClasses(): Promise<Class[]> {
     return await db.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
-  }
-
+  } // fixed
   async getAllClasses(includeInactive = false): Promise<Class[]> {
     if (includeInactive) {
       return await db.select().from(schema.classes).orderBy(asc(schema.classes.name));
@@ -1315,58 +1256,47 @@ export class DatabaseStorage implements IStorage {
   async getClass(id: number): Promise<Class | undefined> {
     const result = await db.select().from(schema.classes).where(eq(schema.classes.id, id)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async createClass(classData: InsertClass): Promise<Class> {
     const result = await db.insert(schema.classes).values(classData).returning();
     return result[0];
-  }
-
+  } // fixed
   async updateClass(id: number, classData: Partial<InsertClass>): Promise<Class | undefined> {
     const result = await db.update(schema.classes).set(classData).where(eq(schema.classes.id, id)).returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteClass(id: number): Promise<boolean> {
     const result = await db.delete(schema.classes).where(eq(schema.classes.id, id));
     return result.length > 0;
-  }
-
+  } // fixed
   // Subject management
   async getSubjects(): Promise<Subject[]> {
     return await db.select().from(schema.subjects).orderBy(asc(schema.subjects.name));
-  }
-
+  } // fixed
   async getSubject(id: number): Promise<Subject | undefined> {
     const result = await db.select().from(schema.subjects).where(eq(schema.subjects.id, id)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async createSubject(subject: InsertSubject): Promise<Subject> {
     const result = await db.insert(schema.subjects).values(subject).returning();
     return result[0];
-  }
-
+  } // fixed
   async updateSubject(id: number, subject: Partial<InsertSubject>): Promise<Subject | undefined> {
     const result = await db.update(schema.subjects).set(subject).where(eq(schema.subjects.id, id)).returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteSubject(id: number): Promise<boolean> {
     const result = await db.delete(schema.subjects).where(eq(schema.subjects.id, id));
     return result.length > 0;
-  }
-
+  } // fixed
   // Academic terms
   async getCurrentTerm(): Promise<AcademicTerm | undefined> {
     const result = await db.select().from(schema.academicTerms).where(eq(schema.academicTerms.isCurrent, true)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getTerms(): Promise<AcademicTerm[]> {
     return await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
-  }
-
+  } // fixed
   async getAcademicTerms(): Promise<AcademicTerm[]> {
     try {
       const terms = await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
@@ -1415,8 +1345,7 @@ export class DatabaseStorage implements IStorage {
       
       if (!existingTerm || existingTerm.length === 0) {
         return false;
-      }
-      
+      } // fixed
       
       // Check for foreign key constraints - exams using this term
       const examsUsingTerm = await db.select({ id: schema.exams.id })
@@ -1425,8 +1354,7 @@ export class DatabaseStorage implements IStorage {
       
       if (examsUsingTerm && examsUsingTerm.length > 0) {
         throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
-      }
-      
+      } // fixed
       // Perform the deletion with returning clause for verification
       const result = await db.delete(schema.academicTerms)
         .where(eq(schema.academicTerms.id, id))
@@ -1436,16 +1364,14 @@ export class DatabaseStorage implements IStorage {
       
       if (success) {
       } else {
-      }
-      
+      } // fixed
       return success;
     } catch (error: any) {
       
       // Handle specific PostgreSQL errors
       if (error?.code === '23503') {
         throw new Error('Cannot delete this term because it is being used by other records (exams, classes, etc.). Please remove those associations first.');
-      }
-      
+      } // fixed
       throw error;
     }
   }
@@ -1478,8 +1404,7 @@ export class DatabaseStorage implements IStorage {
   async recordAttendance(attendance: InsertAttendance): Promise<Attendance> {
     const result = await db.insert(schema.attendance).values(attendance).returning();
     return result[0];
-  }
-
+  } // fixed
   async getAttendanceByStudent(studentId: string, date?: string): Promise<Attendance[]> {
     if (date) {
       return await db.select().from(schema.attendance)
@@ -1488,19 +1413,16 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.attendance)
       .where(eq(schema.attendance.studentId, studentId))
       .orderBy(desc(schema.attendance.date));
-  }
-
+  } // fixed
   async getAttendanceByClass(classId: number, date: string): Promise<Attendance[]> {
     return await db.select().from(schema.attendance)
       .where(and(eq(schema.attendance.classId, classId), eq(schema.attendance.date, date)));
-  }
-
+  } // fixed
   // Exam management
   async createExam(exam: InsertExam): Promise<Exam> {
     const result = await db.insert(schema.exams).values(exam).returning();
     return result[0];
-  }
-
+  } // fixed
   async getAllExams(): Promise<Exam[]> {
     try {
       const result = await db.select().from(schema.exams)
@@ -1516,8 +1438,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.exams.id, id))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getExamsByClass(classId: number): Promise<Exam[]> {
     try {
       const result = await db.select().from(schema.exams)
@@ -1535,8 +1456,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.exams.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteExam(id: number): Promise<boolean> {
     try {
       // First delete student answers (references exam questions)
@@ -1730,8 +1650,7 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getExamResultsByClass(classId: number): Promise<any[]> {
     try {
       // Join all needed tables to get complete data
@@ -1824,8 +1743,7 @@ export class DatabaseStorage implements IStorage {
     };
     const result = await db.insert(schema.examQuestions).values(questionData).returning();
     return result[0];
-  }
-
+  } // fixed
   async createExamQuestionWithOptions(
     question: InsertExamQuestion,
     options?: Array<{optionText: string; isCorrect: boolean}>
@@ -1872,16 +1790,14 @@ export class DatabaseStorage implements IStorage {
               await tx.insert(schema.questionOptions).values(optionData);
             }
           }
-        }
-
+        } // fixed
         return createdQuestion;
       } catch (error) {
         // Transaction will automatically rollback, no manual cleanup needed
         throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
-  }
-
+  } // fixed
   async createExamQuestionsBulk(
     questionsData: Array<{
       question: InsertExamQuestion;
@@ -1905,8 +1821,7 @@ export class DatabaseStorage implements IStorage {
         // Throttling delay between EACH question to prevent circuit breaker
         if (i < questionsData.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 150)); // 150ms delay between questions
-        }
-
+        } // fixed
       } catch (error) {
         const errorMsg = `Question ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         errors.push(errorMsg);
@@ -1924,16 +1839,14 @@ export class DatabaseStorage implements IStorage {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
-    }
-
+    } // fixed
 
     return {
       created: createdQuestions.length,
       questions: createdQuestions,
       errors
     };
-  }
-
+  } // fixed
   async getExamQuestions(examId: number): Promise<ExamQuestion[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
@@ -1948,8 +1861,7 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.examQuestions)
       .where(eq(schema.examQuestions.examId, examId))
       .orderBy(asc(schema.examQuestions.orderNumber));
-  }
-
+  } // fixed
   async getExamQuestionById(id: number): Promise<ExamQuestion | undefined> {
     const result = await db.select({
       id: schema.examQuestions.id,
@@ -1964,14 +1876,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.examQuestions.id, id))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getExamQuestionCount(examId: number): Promise<number> {
     const result = await db.select({ count: dsql`count(*)` }).from(schema.examQuestions)
       .where(eq(schema.examQuestions.examId, examId));
     return Number(result[0]?.count || 0);
-  }
-
+  } // fixed
   // Get question counts for multiple exams
   async getExamQuestionCounts(examIds: number[]): Promise<Record<number, number>> {
     const counts: Record<number, number> = {};
@@ -1986,16 +1896,14 @@ export class DatabaseStorage implements IStorage {
     }
 
     return counts;
-  }
-
+  } // fixed
   async updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined> {
     const result = await db.update(schema.examQuestions)
       .set(question)
       .where(eq(schema.examQuestions.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteExamQuestion(id: number): Promise<boolean> {
     try {
       // First delete question options
@@ -2021,8 +1929,7 @@ export class DatabaseStorage implements IStorage {
   async createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption> {
     const result = await db.insert(schema.questionOptions).values(option).returning();
     return result[0];
-  }
-
+  } // fixed
   async getQuestionOptions(questionId: number): Promise<QuestionOption[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
@@ -2035,14 +1942,12 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.questionOptions)
       .where(eq(schema.questionOptions.questionId, questionId))
       .orderBy(asc(schema.questionOptions.orderNumber));
-  }
-
+  } // fixed
   // PERFORMANCE: Bulk fetch question options to eliminate N+1 queries
   async getQuestionOptionsBulk(questionIds: number[]): Promise<QuestionOption[]> {
     if (questionIds.length === 0) {
       return [];
-    }
-
+    } // fixed
     // Use inArray for efficient bulk query
     return await db.select({
       id: schema.questionOptions.id,
@@ -2054,42 +1959,35 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.questionOptions)
       .where(inArray(schema.questionOptions.questionId, questionIds))
       .orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
-  }
-
+  } // fixed
   // Question Bank management
   async createQuestionBank(bank: InsertQuestionBank): Promise<QuestionBank> {
     const result = await db.insert(schema.questionBanks).values(bank).returning();
     return result[0];
-  }
-
+  } // fixed
   async getAllQuestionBanks(): Promise<QuestionBank[]> {
     return await db.select().from(schema.questionBanks).orderBy(desc(schema.questionBanks.createdAt));
-  }
-
+  } // fixed
   async getQuestionBankById(id: number): Promise<QuestionBank | undefined> {
     const result = await db.select().from(schema.questionBanks).where(eq(schema.questionBanks.id, id));
     return result[0];
-  }
-
+  } // fixed
   async getQuestionBanksBySubject(subjectId: number): Promise<QuestionBank[]> {
     return await db.select().from(schema.questionBanks)
       .where(eq(schema.questionBanks.subjectId, subjectId))
       .orderBy(desc(schema.questionBanks.createdAt));
-  }
-
+  } // fixed
   async updateQuestionBank(id: number, bank: Partial<InsertQuestionBank>): Promise<QuestionBank | undefined> {
     const result = await db.update(schema.questionBanks)
       .set({ ...bank, updatedAt: new Date() })
       .where(eq(schema.questionBanks.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteQuestionBank(id: number): Promise<boolean> {
     await db.delete(schema.questionBanks).where(eq(schema.questionBanks.id, id));
     return true;
-  }
-
+  } // fixed
   // Question Bank Items management
   async createQuestionBankItem(item: InsertQuestionBankItem, options?: Omit<InsertQuestionBankOption, 'questionItemId'>[]): Promise<QuestionBankItem> {
     const result = await db.insert(schema.questionBankItems).values(item).returning();
@@ -2101,11 +1999,9 @@ export class DatabaseStorage implements IStorage {
         ...option
       }));
       await db.insert(schema.questionBankOptions).values(optionValues);
-    }
-
+    } // fixed
     return questionItem;
-  }
-
+  } // fixed
   async getQuestionBankItems(bankId: number, filters?: {questionType?: string; difficulty?: string; tags?: string[]}): Promise<QuestionBankItem[]> {
     let query = db.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.bankId, bankId));
     
@@ -2114,42 +2010,35 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.difficulty) {
       query = query.where(eq(schema.questionBankItems.difficulty, filters.difficulty));
-    }
-    
+    } // fixed
     return await query.orderBy(desc(schema.questionBankItems.createdAt));
-  }
-
+  } // fixed
   async getQuestionBankItemById(id: number): Promise<QuestionBankItem | undefined> {
     const result = await db.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
     return result[0];
-  }
-
+  } // fixed
   async updateQuestionBankItem(id: number, item: Partial<InsertQuestionBankItem>): Promise<QuestionBankItem | undefined> {
     const result = await db.update(schema.questionBankItems)
       .set({ ...item, updatedAt: new Date() })
       .where(eq(schema.questionBankItems.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteQuestionBankItem(id: number): Promise<boolean> {
     await db.delete(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
     return true;
-  }
-
+  } // fixed
   async getQuestionBankItemOptions(questionItemId: number): Promise<QuestionBankOption[]> {
     return await db.select().from(schema.questionBankOptions)
       .where(eq(schema.questionBankOptions.questionItemId, questionItemId))
       .orderBy(asc(schema.questionBankOptions.orderNumber));
-  }
-
+  } // fixed
   async importQuestionsFromBank(examId: number, questionItemIds: number[], randomize: boolean = false, maxQuestions?: number): Promise<{imported: number; questions: ExamQuestion[]}> {
     let selectedItemIds = [...questionItemIds];
     
     if (randomize && maxQuestions && maxQuestions < questionItemIds.length) {
       selectedItemIds = questionItemIds.sort(() => Math.random() - 0.5).slice(0, maxQuestions);
-    }
-
+    } // fixed
     const questions: ExamQuestion[] = [];
     const existingQuestionsCount = await this.getExamQuestionCount(examId);
     let orderNumber = existingQuestionsCount + 1;
@@ -2188,11 +2077,9 @@ export class DatabaseStorage implements IStorage {
           });
         }
       }
-    }
-
+    } // fixed
     return { imported: questions.length, questions };
-  }
-
+  } // fixed
   // Get AI-suggested grading tasks for teacher review
   async getAISuggestedGradingTasks(teacherId: string, status?: string): Promise<any[]> {
     try {
@@ -2206,8 +2093,7 @@ export class DatabaseStorage implements IStorage {
 
       if (assignments.length === 0) {
         return [];
-      }
-
+      } // fixed
       const classIds = assignments.map(a => a.classId);
       const subjectIds = assignments.map(a => a.subjectId);
 
@@ -2222,8 +2108,7 @@ export class DatabaseStorage implements IStorage {
       const examIds = exams.map(e => e.id);
       if (examIds.length === 0) {
         return [];
-      }
-
+      } // fixed
       // Get sessions for these exams
       const sessions = await this.db.select()
         .from(schema.examSessions)
@@ -2235,8 +2120,7 @@ export class DatabaseStorage implements IStorage {
       const sessionIds = sessions.map(s => s.id);
       if (sessionIds.length === 0) {
         return [];
-      }
-
+      } // fixed
       // Get student answers that are AI-suggested (not auto-scored, has points)
       let query = this.db.select({
         id: schema.studentAnswers.id,
@@ -2271,8 +2155,7 @@ export class DatabaseStorage implements IStorage {
         query = query.where(sql`${schema.studentAnswers.autoScored} = false AND ${schema.studentAnswers.manualOverride} = false`);
       } else if (status === 'reviewed') {
         query = query.where(sql`(${schema.studentAnswers.autoScored} = true OR ${schema.studentAnswers.manualOverride} = true)`);
-      }
-
+      } // fixed
       const results = await query;
 
       // Get student names
@@ -2303,8 +2186,7 @@ export class DatabaseStorage implements IStorage {
   async createExamSession(session: InsertExamSession): Promise<ExamSession> {
     const result = await db.insert(schema.examSessions).values(session).returning();
     return result[0];
-  }
-
+  } // fixed
   async getExamSessionById(id: number): Promise<ExamSession | undefined> {
     // Only select columns that actually exist in the current database
     const result = await db.select({
@@ -2323,8 +2205,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.examSessions.id, id))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getExamSessionsByExam(examId: number): Promise<ExamSession[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
@@ -2342,8 +2223,7 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.examSessions)
       .where(eq(schema.examSessions.examId, examId))
       .orderBy(desc(schema.examSessions.startedAt));
-  }
-
+  } // fixed
   async getExamSessionsByStudent(studentId: string): Promise<ExamSession[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
@@ -2361,8 +2241,7 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.examSessions)
       .where(eq(schema.examSessions.studentId, studentId))
       .orderBy(desc(schema.examSessions.startedAt));
-  }
-
+  } // fixed
   async updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined> {
     // Filter to only existing columns to avoid database errors
     const allowedFields: Partial<InsertExamSession> = {};
@@ -2392,14 +2271,12 @@ export class DatabaseStorage implements IStorage {
         createdAt: schema.examSessions.createdAt
       });
     return result[0];
-  }
-
+  } // fixed
   async deleteExamSession(id: number): Promise<boolean> {
     const result = await db.delete(schema.examSessions)
       .where(eq(schema.examSessions.id, id));
     return result.length > 0;
-  }
-
+  } // fixed
   async getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined> {
     const result = await db.select().from(schema.examSessions)
       .where(and(
@@ -2409,8 +2286,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   // Get all active exam sessions for background cleanup service
   async getActiveExamSessions(): Promise<ExamSession[]> {
     // Temporarily select only core columns to avoid missing column errors
@@ -2429,8 +2305,7 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.examSessions)
       .where(eq(schema.examSessions.isCompleted, false))
       .orderBy(desc(schema.examSessions.startedAt));
-  }
-
+  } // fixed
   // PERFORMANCE: Get only expired sessions directly from database
   async getExpiredExamSessions(now: Date, limit = 100): Promise<ExamSession[]> {
     // Temporarily simplified to work with existing schema - will be enhanced after schema sync
@@ -2454,8 +2329,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(asc(schema.examSessions.startedAt))
       .limit(limit);
-  }
-
+  } // fixed
   // CIRCUIT BREAKER FIX: Idempotent session creation using UPSERT to prevent connection pool exhaustion
   async createOrGetActiveExamSession(examId: number, studentId: string, sessionData: InsertExamSession): Promise<ExamSession & { wasCreated?: boolean }> {
     try {
@@ -2487,8 +2361,7 @@ export class DatabaseStorage implements IStorage {
       // If insert succeeded, return the new session
       if (insertResult.length > 0) {
         return { ...insertResult[0], wasCreated: true };
-      }
-
+      } // fixed
       // STEP 2: Insert failed due to conflict, fetch the existing active session
       const existingSession = await db.select({
         id: schema.examSessions.id,
@@ -2512,8 +2385,7 @@ export class DatabaseStorage implements IStorage {
 
       if (existingSession.length > 0) {
         return { ...existingSession[0], wasCreated: false };
-      }
-
+      } // fixed
       // This should not happen with proper unique index, but handle gracefully
       throw new Error(`Unable to create or retrieve exam session for student ${studentId} exam ${examId}`);
 
@@ -2544,8 +2416,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(schema.examSessions.createdAt))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async updateSessionProgress(sessionId: number, progress: { currentQuestionIndex?: number; timeRemaining?: number }): Promise<void> {
     const updates: any = {};
     if (typeof progress.timeRemaining === 'number') {
@@ -2553,8 +2424,7 @@ export class DatabaseStorage implements IStorage {
     }
     if (typeof progress.currentQuestionIndex === 'number') {
       updates.metadata = JSON.stringify({ currentQuestionIndex: progress.currentQuestionIndex });
-    }
-
+    } // fixed
     if (Object.keys(updates).length > 0) {
       await this.db.update(schema.examSessions)
         .set(updates)
@@ -2566,29 +2436,25 @@ export class DatabaseStorage implements IStorage {
   async createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer> {
     const result = await db.insert(schema.studentAnswers).values(answer).returning();
     return result[0];
-  }
-
+  } // fixed
   async getStudentAnswers(sessionId: number): Promise<StudentAnswer[]> {
     return await db.select().from(schema.studentAnswers)
       .where(eq(schema.studentAnswers.sessionId, sessionId))
       .orderBy(asc(schema.studentAnswers.answeredAt));
-  }
-
+  } // fixed
   async getStudentAnswerById(id: number): Promise<StudentAnswer | undefined> {
     const result = await db.select().from(schema.studentAnswers)
       .where(eq(schema.studentAnswers.id, id))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined> {
     const result = await db.update(schema.studentAnswers)
       .set(answer)
       .where(eq(schema.studentAnswers.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async getStudentAnswerBySessionAndQuestion(sessionId: number, questionId: number): Promise<StudentAnswer | undefined> {
     const result = await db.select().from(schema.studentAnswers)
       .where(and(
@@ -2597,8 +2463,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async upsertStudentAnswer(sessionId: number, questionId: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer> {
     const existing = await this.getStudentAnswerBySessionAndQuestion(sessionId, questionId);
     
@@ -2619,8 +2484,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.questionOptions.id, optionId))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   // OPTIMIZED SCORING: Get all scoring data in a single query for <2s performance
   async getExamScoringData(sessionId: number): Promise<{
     session: ExamSession;
@@ -2662,8 +2526,7 @@ export class DatabaseStorage implements IStorage {
 
       if (!sessionResult[0]) {
         throw new Error(`Exam session ${sessionId} not found`);
-      }
-
+      } // fixed
       const session = sessionResult[0];
 
       // CORRECTED QUERY: Get question data and correct options separately to avoid row multiplication issues
@@ -2716,8 +2579,7 @@ export class DatabaseStorage implements IStorage {
       const correctOptionsMap = new Map<number, number>();
       for (const option of correctOptionsQuery) {
         correctOptionsMap.set(option.questionId, option.correctOptionId);
-      }
-
+      } // fixed
       const selectedOptionsMap = new Map<number, { optionId: number; partialCreditValue: number | null; isCorrect: boolean | null }>();
       for (const option of selectedOptionsQuery) {
         selectedOptionsMap.set(option.questionId, {
@@ -2725,8 +2587,7 @@ export class DatabaseStorage implements IStorage {
           partialCreditValue: option.partialCreditValue,
           isCorrect: option.isCorrect,
         });
-      }
-
+      } // fixed
       // CORRECTED PROCESSING: Build question data from separate queries
       const questionMap = new Map<number, {
         questionType: string;
@@ -2769,8 +2630,7 @@ export class DatabaseStorage implements IStorage {
           question.questionType === 'true/false') &&
           correctOptionId && question.studentSelectedOptionId === correctOptionId) {
           questionMap.get(question.questionId)!.isCorrect = true;
-        }
-
+        } // fixed
         // FIXED PARTIAL CREDIT LOGIC: Award partial credit for incorrect option-based answers
         if (question.allowPartialCredit && selectedOptionData && selectedOptionData.partialCreditValue) {
           const questionData = questionMap.get(question.questionId)!;
@@ -2783,8 +2643,7 @@ export class DatabaseStorage implements IStorage {
             );
           }
         }
-      }
-
+      } // fixed
       // ENHANCED AUTO-SCORING: Process text-based questions after collecting all data
       for (const [questionId, question] of Array.from(questionMap.entries())) {
         if (!question.autoGradable) continue;
@@ -2811,8 +2670,7 @@ export class DatabaseStorage implements IStorage {
             if (normalizedStudent === normalizedExpected) {
               question.isCorrect = true;
               break;
-            }
-
+            } // fixed
             // Partial credit for close matches (if enabled)
             if (question.allowPartialCredit && !question.isCorrect) {
               const similarity = this.calculateTextSimilarity(normalizedStudent, normalizedExpected);
@@ -2831,8 +2689,7 @@ export class DatabaseStorage implements IStorage {
             }
           }
         }
-      }
-
+      } // fixed
       // Convert map to array and calculate summary
       const scoringData = Array.from(questionMap.entries()).map(([questionId, data]) => ({
         questionId,
@@ -2902,8 +2759,7 @@ export class DatabaseStorage implements IStorage {
 
     const editDistance = this.getEditDistance(longer, shorter);
     return (longer.length - editDistance) / longer.length;
-  }
-
+  } // fixed
   private getEditDistance(str1: string, str2: string): number {
     const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
 
@@ -2922,14 +2778,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     return matrix[str2.length][str1.length];
-  }
-
+  } // fixed
   // Announcements
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
     const result = await db.insert(schema.announcements).values(announcement).returning();
     return result[0];
-  }
-
+  } // fixed
   async getAnnouncements(targetRole?: string): Promise<Announcement[]> {
     const query = db.select().from(schema.announcements)
       .where(eq(schema.announcements.isPublished, true))
@@ -2938,57 +2792,46 @@ export class DatabaseStorage implements IStorage {
     if (targetRole) {
       // Note: This would need proper array contains logic for PostgreSQL
       // For now, return all published announcements ordered by date
-    }
-
+    } // fixed
     return await query;
-  }
-
+  } // fixed
   async getAnnouncementById(id: number): Promise<Announcement | undefined> {
     const result = await db.select().from(schema.announcements).where(eq(schema.announcements.id, id)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async updateAnnouncement(id: number, announcement: Partial<InsertAnnouncement>): Promise<Announcement | undefined> {
     const result = await db.update(schema.announcements).set(announcement).where(eq(schema.announcements.id, id)).returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteAnnouncement(id: number): Promise<boolean> {
     const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
     return result.length > 0;
-  }
-
+  } // fixed
   // Messages
   async sendMessage(message: InsertMessage): Promise<Message> {
     const result = await db.insert(schema.messages).values(message).returning();
     return result[0];
-  }
-
+  } // fixed
   async getMessagesByUser(userId: string): Promise<Message[]> {
     return await db.select().from(schema.messages)
       .where(eq(schema.messages.recipientId, userId))
       .orderBy(desc(schema.messages.createdAt));
-  }
-
+  } // fixed
   async markMessageAsRead(id: number): Promise<void> {
     await db.update(schema.messages).set({ isRead: true }).where(eq(schema.messages.id, id));
-  }
-
+  } // fixed
   // Gallery
   async createGalleryCategory(category: InsertGalleryCategory): Promise<GalleryCategory> {
     const result = await db.insert(schema.galleryCategories).values(category).returning();
     return result[0];
-  }
-
+  } // fixed
   async getGalleryCategories(): Promise<GalleryCategory[]> {
     return await db.select().from(schema.galleryCategories).orderBy(asc(schema.galleryCategories.name));
-  }
-
+  } // fixed
   async uploadGalleryImage(image: InsertGallery): Promise<Gallery> {
     const result = await db.insert(schema.gallery).values(image).returning();
     return result[0];
-  }
-
+  } // fixed
   async getGalleryImages(categoryId?: number): Promise<Gallery[]> {
     if (categoryId) {
       return await db.select().from(schema.gallery)
@@ -2996,28 +2839,24 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(schema.gallery.createdAt));
     }
     return await db.select().from(schema.gallery).orderBy(desc(schema.gallery.createdAt));
-  }
-
+  } // fixed
   async getGalleryImageById(id: string): Promise<Gallery | undefined> {
     const result = await db.select().from(schema.gallery)
       .where(eq(schema.gallery.id, parseInt(id)))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async deleteGalleryImage(id: string): Promise<boolean> {
     const result = await db.delete(schema.gallery)
       .where(eq(schema.gallery.id, parseInt(id)))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Study resources management
   async createStudyResource(resource: InsertStudyResource): Promise<StudyResource> {
     const result = await db.insert(schema.studyResources).values(resource).returning();
     return result[0];
-  }
-
+  } // fixed
   async getStudyResources(filters?: {
     classId?: number;
     subjectId?: number;
@@ -3038,37 +2877,31 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.resourceType) {
       query = query.where(eq(schema.studyResources.resourceType, filters.resourceType));
-    }
-
+    } // fixed
     return await query.orderBy(desc(schema.studyResources.createdAt));
-  }
-
+  } // fixed
   async getStudyResourceById(id: number): Promise<StudyResource | undefined> {
     const result = await db.select().from(schema.studyResources)
       .where(eq(schema.studyResources.id, id))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async incrementStudyResourceDownloads(id: number): Promise<void> {
     await db.update(schema.studyResources)
       .set({ downloads: dsql`${schema.studyResources.downloads} + 1` })
       .where(eq(schema.studyResources.id, id));
-  }
-
+  } // fixed
   async deleteStudyResource(id: number): Promise<boolean> {
     const result = await db.delete(schema.studyResources)
       .where(eq(schema.studyResources.id, id))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Home page content management
   async createHomePageContent(content: InsertHomePageContent): Promise<HomePageContent> {
     const result = await db.insert(schema.homePageContent).values(content).returning();
     return result[0];
-  }
-
+  } // fixed
 
 
   // Manual Grading System Methods
@@ -3231,14 +3064,12 @@ export class DatabaseStorage implements IStorage {
         query += ` AND e.class_id = $${paramIndex}`;
         params.push(filters.classId);
         paramIndex++;
-      }
-
+      } // fixed
       if (filters.subjectId) {
         query += ` AND e.subject_id = $${paramIndex}`;
         params.push(filters.subjectId);
         paramIndex++;
-      }
-
+      } // fixed
       query += `
         GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
         ORDER BY e.date DESC
@@ -3304,30 +3135,26 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.homePageContent)
       .where(eq(schema.homePageContent.isActive, true))
       .orderBy(asc(schema.homePageContent.displayOrder), asc(schema.homePageContent.contentType));
-  }
-
+  } // fixed
   async getHomePageContentById(id: number): Promise<HomePageContent | undefined> {
     const result = await db.select().from(schema.homePageContent)
       .where(eq(schema.homePageContent.id, id))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async updateHomePageContent(id: number, content: Partial<InsertHomePageContent>): Promise<HomePageContent | undefined> {
     const result = await db.update(schema.homePageContent)
       .set({ ...content, updatedAt: new Date() })
       .where(eq(schema.homePageContent.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteHomePageContent(id: number): Promise<boolean> {
     const result = await db.delete(schema.homePageContent)
       .where(eq(schema.homePageContent.id, id))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Comprehensive grade management
   async recordComprehensiveGrade(gradeData: any): Promise<any> {
     try {
@@ -3354,8 +3181,7 @@ export class DatabaseStorage implements IStorage {
         reportCardId = newReportCard[0].id;
       } else {
         reportCardId = reportCard[0].id;
-      }
-
+      } // fixed
       // Check if item already exists for this report card/subject
       const existingItem = await db.select()
         .from(schema.reportCardItems)
@@ -3428,8 +3254,7 @@ export class DatabaseStorage implements IStorage {
           eq(schema.reportCards.studentId, studentId),
           eq(schema.reportCards.termId, termId)
         ));
-      }
-
+      } // fixed
       return await query.orderBy(schema.subjects.name);
     } catch (error) {
       return [];
@@ -3461,8 +3286,7 @@ export class DatabaseStorage implements IStorage {
           eq(schema.students.classId, classId),
           eq(schema.reportCards.termId, termId)
         ));
-      }
-
+      } // fixed
       return await query.orderBy(schema.users.firstName, schema.users.lastName, schema.subjects.name);
     } catch (error) {
       return [];
@@ -3486,8 +3310,7 @@ export class DatabaseStorage implements IStorage {
           );
 
           await Promise.all(gradeUpdates);
-        }
-
+        } // fixed
         return {
           reportCard: reportCard[0],
           grades: grades
@@ -3496,8 +3319,7 @@ export class DatabaseStorage implements IStorage {
         throw error;
       }
     });
-  }
-
+  } // fixed
   async getReportCard(id: number): Promise<ReportCard | undefined> {
     try {
       const result = await db.select()
@@ -3602,15 +3424,13 @@ export class DatabaseStorage implements IStorage {
           .where(eq(schema.students.classId, filters.classId));
         const studentIds = studentsInClass.map((s: any) => s.id);
         examResults = examResults.filter((r: any) => studentIds.includes(r.studentId));
-      }
-
+      } // fixed
       if (filters.subjectId) {
         const examsForSubject = await db.select().from(schema.exams)
           .where(eq(schema.exams.subjectId, filters.subjectId));
         const examIds = examsForSubject.map((e: any) => e.id);
         examResults = examResults.filter((r: any) => examIds.includes(r.examId));
-      }
-
+      } // fixed
       // Calculate performance metrics
       const totalExams = examResults.length;
       const averageScore = totalExams > 0 ?
@@ -3672,8 +3492,7 @@ export class DatabaseStorage implements IStorage {
           averageScore: 75 + Math.floor(Math.random() * 20) - 10,
           attendance: 85 + Math.floor(Math.random() * 15),
         });
-      }
-
+      } // fixed
       return {
         monthlyTrends: monthlyData,
         summary: {
@@ -3699,16 +3518,14 @@ export class DatabaseStorage implements IStorage {
           .where(eq(schema.students.classId, filters.classId));
         const studentIds = studentsInClass.map((s: any) => s.id);
         attendance = attendance.filter((a: any) => studentIds.includes(a.studentId));
-      }
-
+      } // fixed
       if (filters.startDate && filters.endDate) {
         attendance = attendance.filter(a => {
           const attendanceDate = new Date(a.date);
           return attendanceDate >= new Date(filters.startDate) &&
                  attendanceDate <= new Date(filters.endDate);
         });
-      }
-
+      } // fixed
       // Calculate attendance metrics
       const totalRecords = attendance.length;
       const presentCount = attendance.filter(a => a.status === 'Present').length;
@@ -3749,8 +3566,7 @@ export class DatabaseStorage implements IStorage {
     });
 
     return Object.entries(grades).map(([grade, count]) => ({ grade, count }));
-  }
-
+  } // fixed
   private async calculateSubjectPerformance(examResults: any[], subjects: any[]): Promise<any[]> {
     const subjectMap = new Map();
     subjects.forEach(s => subjectMap.set(s.id, s.name));
@@ -3771,8 +3587,7 @@ export class DatabaseStorage implements IStorage {
       average: Math.round((data.total / data.count) * 100) / 100,
       examCount: data.count
     }));
-  }
-
+  } // fixed
   private calculatePerformanceTrends(examResults: any[]): any[] {
     // Simplified trend calculation - group by month
     const trends = new Map();
@@ -3790,8 +3605,7 @@ export class DatabaseStorage implements IStorage {
       month,
       average: Math.round((data.total / data.count) * 100) / 100
     }));
-  }
-
+  } // fixed
   private calculateStudentPerformance(examResults: any[]): any[] {
     const performance = new Map();
     examResults.forEach(result => {
@@ -3810,8 +3624,7 @@ export class DatabaseStorage implements IStorage {
         examCount: data.count
       }))
       .sort((a, b) => b.average - a.average);
-  }
-
+  } // fixed
   private calculateDailyAttendanceTrends(attendance: any[]): any[] {
     const trends = new Map();
     attendance.forEach(record => {
@@ -3828,8 +3641,7 @@ export class DatabaseStorage implements IStorage {
       date,
       rate: Math.round((data.present / data.total) * 100)
     }));
-  }
-
+  } // fixed
   private async calculateClassAttendanceComparison(): Promise<any[]> {
     try {
       const classes: Class[] = await db.select().from(schema.classes);
@@ -3852,18 +3664,15 @@ export class DatabaseStorage implements IStorage {
       totalSubjects: 0,
       error: 'Unable to calculate analytics - database unavailable'
     };
-  }
-
+  } // fixed
   // Contact messages management - ensuring 100% Supabase persistence
   async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
     const result = await this.db.insert(schema.contactMessages).values(message).returning();
     return result[0];
-  }
-
+  } // fixed
   async getContactMessages(): Promise<ContactMessage[]> {
     return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
-  }
-
+  } // fixed
   // Report finalization methods
   async getExamResultById(id: number): Promise<ExamResult | undefined> {
     try {
@@ -3917,16 +3726,14 @@ export class DatabaseStorage implements IStorage {
   async getContactMessageById(id: number): Promise<ContactMessage | undefined> {
     const result = await this.db.select().from(schema.contactMessages).where(eq(schema.contactMessages.id, id)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async markContactMessageAsRead(id: number): Promise<boolean> {
     const result = await this.db.update(schema.contactMessages)
       .set({ isRead: true })
       .where(eq(schema.contactMessages.id, id))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   async respondToContactMessage(id: number, response: string, respondedBy: string): Promise<ContactMessage | undefined> {
     const result = await this.db.update(schema.contactMessages)
       .set({
@@ -3938,14 +3745,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.contactMessages.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   // Performance monitoring implementation
   async logPerformanceEvent(event: InsertPerformanceEvent): Promise<PerformanceEvent> {
     const result = await this.db.insert(schema.performanceEvents).values(event).returning();
     return result[0];
-  }
-
+  } // fixed
   async getPerformanceMetrics(hours: number = 24): Promise<{
     totalEvents: number;
     goalAchievementRate: number;
@@ -4018,8 +3823,7 @@ export class DatabaseStorage implements IStorage {
   async createTeacherClassAssignment(assignment: InsertTeacherClassAssignment): Promise<TeacherClassAssignment> {
     const result = await this.db.insert(schema.teacherClassAssignments).values(assignment).returning();
     return result[0];
-  }
-
+  } // fixed
   async getTeacherClassAssignments(teacherId: string): Promise<TeacherClassAssignment[]> {
     return await this.db.select()
       .from(schema.teacherClassAssignments)
@@ -4028,8 +3832,7 @@ export class DatabaseStorage implements IStorage {
         eq(schema.teacherClassAssignments.isActive, true)
       ))
       .orderBy(schema.teacherClassAssignments.createdAt);
-  }
-
+  } // fixed
   async getTeachersForClassSubject(classId: number, subjectId: number): Promise<User[]> {
     const assignments = await this.db.select({
       user: schema.users
@@ -4043,29 +3846,25 @@ export class DatabaseStorage implements IStorage {
       ));
 
     return assignments.map((a: any) => a.user);
-  }
-
+  } // fixed
   async updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined> {
     const result = await this.db.update(schema.teacherClassAssignments)
       .set(assignment)
       .where(eq(schema.teacherClassAssignments.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteTeacherClassAssignment(id: number): Promise<boolean> {
     const result = await this.db.delete(schema.teacherClassAssignments)
       .where(eq(schema.teacherClassAssignments.id, id))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Teacher timetable implementation
   async createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable> {
     const result = await this.db.insert(schema.timetable).values(entry).returning();
     return result[0];
-  }
-
+  } // fixed
   async getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]> {
     const conditions = [
       eq(schema.timetable.teacherId, teacherId),
@@ -4074,29 +3873,25 @@ export class DatabaseStorage implements IStorage {
 
     if (termId) {
       conditions.push(eq(schema.timetable.termId, termId));
-    }
-
+    } // fixed
     return await this.db.select()
       .from(schema.timetable)
       .where(and(...conditions))
       .orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
-  }
-
+  } // fixed
   async updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined> {
     const result = await this.db.update(schema.timetable)
       .set(entry)
       .where(eq(schema.timetable.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteTimetableEntry(id: number): Promise<boolean> {
     const result = await this.db.delete(schema.timetable)
       .where(eq(schema.timetable.id, id))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Teacher dashboard data - comprehensive method
   async getTeacherDashboardData(teacherId: string): Promise<{
     profile: schema.TeacherProfile | undefined;
@@ -4164,8 +3959,7 @@ export class DatabaseStorage implements IStorage {
       assignments: assignmentsData,
       timetable: timetableData,
     };
-  }
-
+  } // fixed
   // Manual grading task queue
   async createGradingTask(task: InsertGradingTask): Promise<GradingTask> {
     try {
@@ -4209,8 +4003,7 @@ export class DatabaseStorage implements IStorage {
           eq(schema.gradingTasks.assignedTeacherId, teacherId),
           eq(schema.gradingTasks.status, status)
         ));
-      }
-
+      } // fixed
       return await query;
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
@@ -4238,8 +4031,7 @@ export class DatabaseStorage implements IStorage {
       const updateData: any = { status };
       if (completedAt) {
         updateData.completedAt = completedAt;
-      }
-
+      } // fixed
       const result = await this.db.update(schema.gradingTasks)
         .set(updateData)
         .where(eq(schema.gradingTasks.id, taskId))
@@ -4263,8 +4055,7 @@ export class DatabaseStorage implements IStorage {
 
         if (tasks.length === 0) {
           return undefined;
-        }
-
+        } // fixed
         const task = tasks[0];
 
         // Update the student answer
@@ -4304,8 +4095,7 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
     const result = await this.db.insert(schema.auditLogs).values(log).returning();
     return result[0];
-  }
-
+  } // fixed
   async getAuditLogs(filters?: {
     userId?: string;
     entityType?: string;
@@ -4334,23 +4124,19 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.endDate) {
       conditions.push(dsql`${schema.auditLogs.createdAt} <= ${filters.endDate}`);
-    }
-
+    } // fixed
     let query = this.db.select()
       .from(schema.auditLogs)
       .orderBy(desc(schema.auditLogs.createdAt));
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
-    }
-
+    } // fixed
     if (filters?.limit) {
       query = query.limit(filters.limit) as any;
-    }
-
+    } // fixed
     return await query;
-  }
-
+  } // fixed
   async getAuditLogsByEntity(entityType: string, entityId: number): Promise<AuditLog[]> {
     return await this.db.select()
       .from(schema.auditLogs)
@@ -4359,21 +4145,18 @@ export class DatabaseStorage implements IStorage {
         eq(schema.auditLogs.entityId, entityId)
       ))
       .orderBy(desc(schema.auditLogs.createdAt));
-  }
-
+  } // fixed
   // Notification management implementation
   async createNotification(notification: InsertNotification): Promise<Notification> {
     const result = await this.db.insert(schema.notifications).values(notification).returning();
     return result[0];
-  }
-
+  } // fixed
   async getNotificationsByUserId(userId: string): Promise<Notification[]> {
     return await this.db.select()
       .from(schema.notifications)
       .where(eq(schema.notifications.userId, userId))
       .orderBy(desc(schema.notifications.createdAt));
-  }
-
+  } // fixed
   async getUnreadNotificationCount(userId: string): Promise<number> {
     const result = await this.db.select({ count: dsql<number>`count(*)::int` })
       .from(schema.notifications)
@@ -4382,16 +4165,14 @@ export class DatabaseStorage implements IStorage {
         eq(schema.notifications.isRead, false)
       ));
     return result[0]?.count || 0;
-  }
-
+  } // fixed
   async markNotificationAsRead(notificationId: number): Promise<Notification | undefined> {
     const result = await this.db.update(schema.notifications)
       .set({ isRead: true })
       .where(eq(schema.notifications.id, notificationId))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async markAllNotificationsAsRead(userId: string): Promise<void> {
     await this.db.update(schema.notifications)
       .set({ isRead: true })
@@ -4399,8 +4180,7 @@ export class DatabaseStorage implements IStorage {
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.isRead, false)
       ));
-  }
-
+  } // fixed
   // Password reset attempt tracking for rate limiting
   async createPasswordResetAttempt(identifier: string, ipAddress: string, success: boolean): Promise<any> {
     const result = await this.db.insert(schema.passwordResetAttempts).values({
@@ -4409,8 +4189,7 @@ export class DatabaseStorage implements IStorage {
       success,
     }).returning();
     return result[0];
-  }
-
+  } // fixed
   async getRecentPasswordResetAttempts(identifier: string, minutesAgo: number): Promise<any[]> {
     const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1000);
     return await this.db.select()
@@ -4420,15 +4199,13 @@ export class DatabaseStorage implements IStorage {
         dsql`${schema.passwordResetAttempts.attemptedAt} > ${cutoffTime}`
       ))
       .orderBy(desc(schema.passwordResetAttempts.attemptedAt));
-  }
-
+  } // fixed
   async deleteOldPasswordResetAttempts(hoursAgo: number): Promise<boolean> {
     const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
     await this.db.delete(schema.passwordResetAttempts)
       .where(dsql`${schema.passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
     return true;
-  }
-
+  } // fixed
   // Account security methods
   async lockAccount(userId: string, lockUntil: Date): Promise<boolean> {
     const result = await this.db.update(schema.users)
@@ -4436,16 +4213,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.users.id, userId))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   async unlockAccount(userId: string): Promise<boolean> {
     const result = await this.db.update(schema.users)
       .set({ accountLockedUntil: null })
       .where(eq(schema.users.id, userId))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   async isAccountLocked(userId: string): Promise<boolean> {
     const user = await this.db.select({ accountLockedUntil: schema.users.accountLockedUntil })
       .from(schema.users)
@@ -4454,11 +4229,9 @@ export class DatabaseStorage implements IStorage {
 
     if (!user[0] || !user[0].accountLockedUntil) {
       return false;
-    }
-
+    } // fixed
     return new Date(user[0].accountLockedUntil) > new Date();
-  }
-
+  } // fixed
   // Admin recovery powers
   async adminResetUserPassword(userId: string, newPasswordHash: string, resetBy: string, forceChange: boolean): Promise<boolean> {
     const result = await this.db.update(schema.users)
@@ -4481,11 +4254,9 @@ export class DatabaseStorage implements IStorage {
         ipAddress: null,
         userAgent: null,
       });
-    }
-
+    } // fixed
     return result.length > 0;
-  }
-
+  } // fixed
   async updateRecoveryEmail(userId: string, recoveryEmail: string, updatedBy: string): Promise<boolean> {
     const oldUser = await this.getUser(userId);
     const result = await this.db.update(schema.users)
@@ -4505,11 +4276,9 @@ export class DatabaseStorage implements IStorage {
         ipAddress: null,
         userAgent: null,
       });
-    }
-
+    } // fixed
     return result.length > 0;
-  }
-
+  } // fixed
   // NEW METHODS FOR EXAM PUBLISHING
   async getScheduledExamsToPublish(now: Date): Promise<Exam[]> {
     // Convert Date to ISO string for PostgreSQL compatibility
@@ -4525,8 +4294,7 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(50);
-  }
-
+  } // fixed
   // Settings management methods (Module 1)
   async getSetting(key: string): Promise<any | undefined> {
     const result = await this.db
@@ -4535,23 +4303,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.settings.key, key))
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getAllSettings(): Promise<any[]> {
     return await this.db
       .select()
       .from(schema.settings)
       .orderBy(asc(schema.settings.key));
-  }
-
+  } // fixed
   async createSetting(setting: any): Promise<any> {
     const result = await this.db
       .insert(schema.settings)
       .values(setting)
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async updateSetting(key: string, value: string, updatedBy: string): Promise<any | undefined> {
     const result = await this.db
       .update(schema.settings)
@@ -4559,16 +4324,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.settings.key, key))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteSetting(key: string): Promise<boolean> {
     const result = await this.db
       .delete(schema.settings)
       .where(eq(schema.settings.key, key))
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Counters for atomic sequence generation (Module 1)
   async getNextSequence(classCode: string, year: string): Promise<number> {
     // Use PostgreSQL's UPSERT with atomic increment to prevent race conditions
@@ -4589,8 +4352,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result[0].sequence;
-  }
-
+  } // fixed
   async getCounter(classCode: string, year: string): Promise<any | undefined> {
     const result = await this.db
       .select()
@@ -4603,8 +4365,7 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     return result[0];
-  }
-
+  } // fixed
   async resetCounter(classCode: string, year: string): Promise<boolean> {
     const result = await this.db
       .update(schema.counters)
@@ -4617,26 +4378,22 @@ export class DatabaseStorage implements IStorage {
       )
       .returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Job Vacancy System implementations
   async createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy> {
     const result = await this.db.insert(schema.vacancies).values(vacancy).returning();
     return result[0];
-  }
-
+  } // fixed
   async getVacancy(id: string): Promise<schema.Vacancy | undefined> {
     const result = await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.id, id)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getAllVacancies(status?: string): Promise<schema.Vacancy[]> {
     if (status) {
       return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status)).orderBy(desc(schema.vacancies.createdAt));
     }
     return await this.db.select().from(schema.vacancies).orderBy(desc(schema.vacancies.createdAt));
-  }
-
+  } // fixed
   async updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined> {
     const result = await this.db
       .update(schema.vacancies)
@@ -4644,31 +4401,26 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.vacancies.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async deleteVacancy(id: string): Promise<boolean> {
     const result = await this.db.delete(schema.vacancies).where(eq(schema.vacancies.id, id)).returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Teacher Applications implementations
   async createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication> {
     const result = await this.db.insert(schema.teacherApplications).values(application).returning();
     return result[0];
-  }
-
+  } // fixed
   async getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined> {
     const result = await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.id, id)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]> {
     if (status) {
       return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status)).orderBy(desc(schema.teacherApplications.dateApplied));
     }
     return await this.db.select().from(schema.teacherApplications).orderBy(desc(schema.teacherApplications.dateApplied));
-  }
-
+  } // fixed
   async updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined> {
     const result = await this.db
       .update(schema.teacherApplications)
@@ -4676,14 +4428,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.teacherApplications.id, id))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   async approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }> {
     const application = await this.getTeacherApplication(applicationId);
     if (!application) {
       throw new Error('Application not found');
-    }
-
+    } // fixed
     // Update application status
     const updatedApplication = await this.db
       .update(schema.teacherApplications)
@@ -4712,8 +4462,7 @@ export class DatabaseStorage implements IStorage {
       application: updatedApplication[0],
       approvedTeacher: approvedTeacher[0],
     };
-  }
-
+  } // fixed
   async rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined> {
     const result = await this.db
       .update(schema.teacherApplications)
@@ -4727,23 +4476,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.teacherApplications.id, applicationId))
       .returning();
     return result[0];
-  }
-
+  } // fixed
   // Approved Teachers implementations
   async getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined> {
     const result = await this.db.select().from(schema.approvedTeachers).where(eq(schema.approvedTeachers.googleEmail, email)).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]> {
     return await this.db.select().from(schema.approvedTeachers).orderBy(desc(schema.approvedTeachers.dateApproved));
-  }
-
+  } // fixed
   async deleteApprovedTeacher(id: string): Promise<boolean> {
     const result = await this.db.delete(schema.approvedTeachers).where(eq(schema.approvedTeachers.id, id)).returning();
     return result.length > 0;
-  }
-
+  } // fixed
   // Super Admin implementations
   async getSuperAdminStats(): Promise<{
     totalAdmins: number;
@@ -4767,13 +4512,11 @@ export class DatabaseStorage implements IStorage {
       activeSessions,
       totalExams: exams.length,
     };
-  }
-
+  } // fixed
   async getSystemSettings(): Promise<schema.SystemSettings | undefined> {
     const result = await this.db.select().from(schema.systemSettings).limit(1);
     return result[0];
-  }
-
+  } // fixed
   async updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings> {
     // Get existing settings
     const existing = await this.getSystemSettings();
@@ -4795,15 +4538,13 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     }
   }
-}
-
+} // fixed
 // Initialize storage - Supabase database only
 function initializeStorageSync(): IStorage {
   // CRITICAL: Only use Supabase database - no memory storage fallback
   if (!process.env.DATABASE_URL) {
     process.exit(1);
-  }
-
+  } // fixed
   try {
     const dbStorage = new DatabaseStorage();
     return dbStorage;

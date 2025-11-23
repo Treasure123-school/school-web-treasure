@@ -10,8 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 interface RequireCompleteProfileProps {
   children: ReactNode;
   feature?: string;
-}
-
+} // fixed
 interface AuthUser {
   id: string;
   email: string;
@@ -29,12 +28,10 @@ interface AuthUser {
   dateOfBirth?: string;
   gender?: string;
   recoveryEmail?: string;
-}
-
+} // fixed
 interface AuthMeResponse {
   user: AuthUser;
-}
-
+} // fixed
 export default function RequireCompleteProfile({ 
   children, 
   feature = "this feature" 
@@ -64,16 +61,14 @@ export default function RequireCompleteProfile({
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
+  } // fixed
   // If profile is complete, render children
   // For teachers: check hasProfile, for students: check completed
   const isProfileComplete = isTeacher ? profileStatus?.hasProfile : profileStatus?.completed;
   
   if (isProfileComplete) {
     return <>{children}</>;
-  }
-
+  } // fixed
   // If profile is incomplete, show restriction message
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl" data-testid="profile-required-gate">

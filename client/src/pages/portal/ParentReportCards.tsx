@@ -15,8 +15,7 @@ interface Child {
   name: string;
   admissionNumber: string;
   className: string;
-}
-
+} // fixed
 interface ReportCard {
   id: number;
   studentId: string;
@@ -30,8 +29,7 @@ interface ReportCard {
   status: string;
   generatedAt: string;
   items: ReportCardItem[];
-}
-
+} // fixed
 interface ReportCardItem {
   subjectName: string;
   testScore: number;
@@ -44,8 +42,7 @@ interface ReportCardItem {
   percentage: number;
   grade: string;
   teacherRemarks: string;
-}
-
+} // fixed
 export default function ParentReportCards() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -82,8 +79,7 @@ export default function ParentReportCards() {
       const response = await apiRequest('GET', `/api/report-cards/${reportId}/pdf`);
       if (!response.ok) {
         throw new Error('Failed to download PDF');
-      }
-      
+      } // fixed
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -120,8 +116,7 @@ export default function ParentReportCards() {
         <div className="text-center py-12">Please log in to access parent portal.</div>
       </PortalLayout>
     );
-  }
-
+  } // fixed
   return (
     <PortalLayout
       userRole="parent"

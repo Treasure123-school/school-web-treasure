@@ -19,8 +19,7 @@ interface AttendanceRecord {
   studentId: string;
   status: AttendanceStatus;
   remarks?: string;
-}
-
+} // fixed
 export default function AttendanceManagement() {
   const { toast } = useToast();
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -80,8 +79,7 @@ export default function AttendanceManagement() {
       const records = Object.values(attendanceRecords);
       if (records.length === 0) {
         throw new Error('No attendance records to submit');
-      }
-
+      } // fixed
       // Submit each attendance record
       for (const record of records) {
         await apiRequest('POST', '/api/attendance', {

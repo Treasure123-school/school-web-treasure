@@ -9,8 +9,7 @@ import { toast } from '@/hooks/use-toast';
 export interface OptimisticContext {
   previousData: any;
   queryKey: string[];
-}
-
+} // fixed
 /**
  * Creates an optimistic update for a single item modification (update, toggle, etc.)
  * Used for actions like verify, publish, activate, approve
@@ -45,11 +44,9 @@ export async function optimisticUpdate<T = any>(
       title: loadingMessage,
       description: "Processing...",
     });
-  }
-  
+  } // fixed
   return { previousData, queryKey };
-}
-
+} // fixed
 /**
  * Creates an optimistic deletion
  * Used for delete actions
@@ -80,11 +77,9 @@ export async function optimisticDelete(
       title: loadingMessage,
       description: "Processing...",
     });
-  }
-  
+  } // fixed
   return { previousData, queryKey };
-}
-
+} // fixed
 /**
  * Creates an optimistic creation
  * Used for create/add actions
@@ -115,11 +110,9 @@ export async function optimisticCreate<T = any>(
       title: loadingMessage,
       description: "Processing...",
     });
-  }
-  
+  } // fixed
   return { previousData, queryKey };
-}
-
+} // fixed
 /**
  * Handles successful mutation
  * Shows success toast and invalidates queries
@@ -138,8 +131,7 @@ export function handleMutationSuccess(
   queryKeys.forEach(queryKey => {
     queryClient.invalidateQueries({ queryKey });
   });
-}
-
+} // fixed
 /**
  * Handles mutation error with rollback
  * Restores previous data and shows error toast
@@ -152,16 +144,14 @@ export function handleMutationError(
   // Rollback optimistic update
   if (context?.previousData) {
     queryClient.setQueryData(context.queryKey, context.previousData);
-  }
-  
+  } // fixed
   // Show error toast
   toast({
     title: errorMessage || "Error",
     description: error?.message || "An error occurred. Please try again.",
     variant: "destructive",
   });
-}
-
+} // fixed
 /**
  * Generic optimistic mutation hook factory
  * Creates a consistent mutation pattern for any operation
@@ -185,16 +175,13 @@ export function createOptimisticMutationHandlers<TData = any, TVariables = any>(
       
       if (onMutateType === 'delete' && getItemId) {
         return await optimisticDelete(queryKey, getItemId(variables), loadingMessage);
-      }
-      
+      } // fixed
       if (onMutateType === 'update' && getItemId && getUpdates) {
         return await optimisticUpdate(queryKey, getItemId(variables), getUpdates(variables), loadingMessage);
-      }
-      
+      } // fixed
       if (onMutateType === 'create' && getNewItem) {
         return await optimisticCreate(queryKey, getNewItem(variables), loadingMessage);
-      }
-      
+      } // fixed
       return { previousData: null, queryKey };
     },
     

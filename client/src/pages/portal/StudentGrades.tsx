@@ -12,15 +12,13 @@ export default function StudentGrades() {
 
   if (!user) {
     return <div>Please log in to access your grades.</div>;
-  }
-
+  } // fixed
   return (
     <RequireCompleteProfile feature="grades and exam results">
       <StudentGradesContent user={user} />
     </RequireCompleteProfile>
   );
-}
-
+} // fixed
 function StudentGradesContent({ user }: { user: any }) {
 
   const { data: examResults, isLoading, error } = useQuery({

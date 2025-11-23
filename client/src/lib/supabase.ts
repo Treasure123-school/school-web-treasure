@@ -4,8 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'un
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-}
-
+} // fixed
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey, {
       realtime: {
@@ -27,8 +26,7 @@ export interface RealtimeHealthStatus {
   isInFallbackMode: boolean;
   isRecovering: boolean;
   lastRecoveryAttempt: number | null;
-}
-
+} // fixed
 class RealtimeHealthMonitor {
   private status: RealtimeHealthStatus = {
     isConnected: true,
@@ -54,8 +52,7 @@ class RealtimeHealthMonitor {
   constructor() {
     // Start recovery check timer
     this.startRecoveryCheck();
-  }
-
+  } // fixed
   private startRecoveryCheck() {
     if (this.recoveryCheckTimer) return;
     
@@ -64,16 +61,14 @@ class RealtimeHealthMonitor {
         this.attemptRecovery();
       }
     }, this.RECOVERY_CHECK_INTERVAL);
-  }
-
+  } // fixed
   private shouldAttemptRecovery(): boolean {
     if (!this.status.isInFallbackMode) return false;
     if (!this.status.lastErrorTime) return false;
     
     const timeSinceError = Date.now() - this.status.lastErrorTime;
     return timeSinceError >= this.RECOVERY_TIME;
-  }
-
+  } // fixed
   private attemptRecovery() {
     this.status.isRecovering = true;
     this.status.lastRecoveryAttempt = Date.now();
@@ -85,13 +80,11 @@ class RealtimeHealthMonitor {
     // Notify all subscribers to retry connection
     this.notifyRecoveryAttempt();
     
-  }
-
+  } // fixed
   registerRecoveryCallback(callback: () => void) {
     this.recoveryCallbacks.add(callback);
     return () => this.recoveryCallbacks.delete(callback);
-  }
-
+  } // fixed
   private notifyRecoveryAttempt() {
     this.recoveryCallbacks.forEach(callback => {
       try {
@@ -99,12 +92,10 @@ class RealtimeHealthMonitor {
       } catch (error) {
       }
     });
-  }
-
+  } // fixed
   recordConnection() {
     this.status.totalConnections++;
-  }
-
+  } // fixed
   recordError(error: any) {
     this.status.connectionErrors++;
     this.status.failedConnections++;
@@ -115,12 +106,10 @@ class RealtimeHealthMonitor {
     if (now - this.lastWarningReset > 3600000) {
       this.warningCount = 0;
       this.lastWarningReset = now;
-    }
-
+    } // fixed
     if (this.status.connectionErrors >= this.ERROR_THRESHOLD && !this.status.isInFallbackMode) {
       this.enterFallbackMode(error);
-    }
-
+    } // fixed
     if (this.warningCount < this.MAX_WARNINGS_PER_HOUR) {
         errorCount: this.status.connectionErrors,
         failedConnections: this.status.failedConnections,
@@ -139,8 +128,7 @@ class RealtimeHealthMonitor {
     if (this.status.isInFallbackMode) {
       this.status.isInFallbackMode = false;
       this.status.connectionErrors = 0;
-    }
-    
+    } // fixed
     // Normal error decay for non-fallback scenarios
     if (this.status.lastErrorTime && (Date.now() - this.status.lastErrorTime) > this.RECOVERY_TIME) {
       this.status.connectionErrors = Math.max(0, this.status.connectionErrors - 1);
@@ -168,12 +156,10 @@ class RealtimeHealthMonitor {
 
   getStatus(): RealtimeHealthStatus {
     return { ...this.status };
-  }
-
+  } // fixed
   shouldUseFallback(): boolean {
     return this.status.isInFallbackMode;
-  }
-
+  } // fixed
   // Reset method for testing
   reset() {
     this.status = {
@@ -191,8 +177,7 @@ class RealtimeHealthMonitor {
     
     // Notify subscribers to reconnect
     this.notifyRecoveryAttempt();
-  }
-
+  } // fixed
   cleanup() {
     if (this.recoveryCheckTimer) {
       clearInterval(this.recoveryCheckTimer);

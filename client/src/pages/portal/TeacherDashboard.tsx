@@ -44,8 +44,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
         </div>
       </div>
     );
-  }
-
+  } // fixed
   return (
     <div 
       className="p-4 bg-muted/50 rounded-lg border hover:bg-muted/70 transition-colors"
@@ -88,8 +87,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
       </Button>
     </div>
   );
-}
-
+} // fixed
 // Component for displaying recent exam result card
 function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   const { data: examResults = [], isLoading } = useQuery({
@@ -114,8 +112,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
         </div>
       </div>
     );
-  }
-
+  } // fixed
   return (
     <div 
       className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
@@ -154,8 +151,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
       </div>
     </div>
   );
-}
-
+} // fixed
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -206,12 +202,6 @@ export default function TeacherDashboard() {
         throw new Error(errorData.message || 'Failed to fetch profile');
       }
       const data = await response.json();
-        hasData: !!data,
-        department: data?.department,
-        subjects: data?.subjects,
-        classes: data?.assignedClasses,
-        verified: data?.verified
-      });
       return data;
     },
     enabled: !!user && !!profileStatus?.hasProfile,
@@ -224,30 +214,20 @@ export default function TeacherDashboard() {
   // Show profile completion banner if incomplete, but don't redirect
   useEffect(() => {
     if (!statusLoading && profileStatus) {
-        hasProfile: profileStatus.hasProfile,
-        verified: profileStatus.verified,
-        profileLoading,
-        profileError: profileError?.message,
-        profileData: teacherProfile
-      });
+      // Profile status updated
     }
   }, [profileStatus, statusLoading, teacherProfile, profileLoading, profileError]);
 
-  // Debug: Log profile data when it changes
+  // Profile data effect
   useEffect(() => {
     if (teacherProfile) {
-        department: teacherProfile.department,
-        subjects: teacherProfile.subjects,
-        assignedClasses: teacherProfile.assignedClasses,
-        fullProfile: teacherProfile
-      });
+      // Profile data available
     }
   }, [teacherProfile]);
 
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
-  }
-
+  } // fixed
   if (statusLoading || profileLoading) {
     return (
       <PortalLayout
@@ -260,8 +240,7 @@ export default function TeacherDashboard() {
         </div>
       </PortalLayout>
     );
-  }
-
+  } // fixed
   const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
 
   // Get teacher's classes for results (limit to first 3 for dashboard)

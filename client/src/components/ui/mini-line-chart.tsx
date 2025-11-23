@@ -2,13 +2,11 @@ interface MiniLineChartProps {
   data: number[];
   color?: string;
   height?: number;
-}
-
+} // fixed
 export function MiniLineChart({ data, color = '#6C63FF', height = 40 }: MiniLineChartProps) {
   if (!data || data.length === 0) {
     return <div style={{ height }} className="flex items-center justify-center text-xs text-muted-foreground">No data</div>;
-  }
-
+  } // fixed
   const max = Math.max(...data, 1);
   const min = Math.min(...data, 0);
   const range = max - min || 1;

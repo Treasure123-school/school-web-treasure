@@ -34,8 +34,7 @@ interface Vacancy {
   deadline: string;
   status: string;
   createdAt: string;
-}
-
+} // fixed
 export default function JobVacancy() {
   const { toast } = useToast();
   const [selectedVacancy, setSelectedVacancy] = useState<string | null>(null);

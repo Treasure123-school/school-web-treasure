@@ -8,8 +8,7 @@ interface GradeChartProps {
     maxScore: number;
     grade: string;
   }>;
-}
-
+} // fixed
 export function GradeChart({ grades }: GradeChartProps) {
   const maxPossibleScore = Math.max(...grades.map(g => g.maxScore));
   

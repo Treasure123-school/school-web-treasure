@@ -43,8 +43,7 @@ interface GradingTask {
   status: 'pending' | 'graded';
   currentScore?: number;
   graderComment?: string;
-}
-
+} // fixed
 export default function TeacherGradingQueue() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -114,8 +113,7 @@ export default function TeacherGradingQueue() {
         variant: "destructive",
       });
       return;
-    }
-
+    } // fixed
     if (comment.trim().length < 5) {
       toast({
         title: "Comment Required",
@@ -123,8 +121,7 @@ export default function TeacherGradingQueue() {
         variant: "destructive",
       });
       return;
-    }
-
+    } // fixed
     setIsGrading(true);
     gradeTaskMutation.mutate({
       taskId: selectedTask.id,
@@ -145,8 +142,7 @@ export default function TeacherGradingQueue() {
 
   if (!user) {
     return <div>Please log in to access the grading queue.</div>;
-  }
-
+  } // fixed
   // Map roleId to role name
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {

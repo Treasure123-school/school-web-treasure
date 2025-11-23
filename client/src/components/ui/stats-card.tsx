@@ -8,8 +8,7 @@ interface StatsCardProps {
   color?: string;
   change?: string;
   changeType?: 'positive' | 'negative' | 'neutral';
-}
-
+} // fixed
 export function StatsCard({ title, value, icon: Icon, color = 'primary', change, changeType = 'neutral' }: StatsCardProps) {
   const getColorClasses = () => {
     switch (color) {

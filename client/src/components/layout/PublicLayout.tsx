@@ -6,8 +6,7 @@ import schoolLogo from '@assets/school-logo.png';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
-}
-
+} // fixed
 export default function PublicLayout({ children }: PublicLayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

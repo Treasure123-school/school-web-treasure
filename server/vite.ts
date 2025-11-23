@@ -16,8 +16,7 @@ export function log(message: string, source = "express") {
     hour12: true,
   });
 
-}
-
+} // fixed
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
@@ -64,8 +63,7 @@ export async function setupVite(app: Express, server: Server) {
       next(e);
     }
   });
-}
-
+} // fixed
 export function serveStatic(app: Express) {
   const distPath = path.resolve(import.meta.dirname, "public");
 
@@ -73,8 +71,7 @@ export function serveStatic(app: Express) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
     );
-  }
-
+  } // fixed
   // Serve static assets with aggressive caching for versioned assets
   app.use(express.static(distPath, {
     maxAge: '1y', // 1 year for versioned assets (Vite adds hashes to filenames)

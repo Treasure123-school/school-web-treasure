@@ -12,8 +12,7 @@ interface ImageCaptureProps {
   required?: boolean;
   className?: string;
   shape?: 'circle' | 'square';
-}
-
+} // fixed
 export function ImageCapture({
   value,
   onChange,
@@ -116,8 +115,7 @@ export function ImageCapture({
           variant: "destructive",
         });
         return;
-      }
-      
+      } // fixed
       // Create a URL for cropping
       const imageUrl = URL.createObjectURL(file);
       setSelectedImageUrl(imageUrl);
@@ -146,8 +144,7 @@ export function ImageCapture({
       if (selectedImageUrl) {
         URL.revokeObjectURL(selectedImageUrl);
         setSelectedImageUrl(null);
-      }
-      
+      } // fixed
       toast({
         title: "✅ Image Cropped Successfully",
         description: "Your cropped image is ready to save with your profile",

@@ -82,13 +82,11 @@ interface User {
   createdAt: Date | null;
   authProvider: string;
   recoveryEmail?: string | null;
-}
-
+} // fixed
 interface Role {
   id: number;
   name: string;
-}
-
+} // fixed
 type ActionType = 'approve' | 'suspend' | 'unsuspend' | 'verify' | 'unverify' | 'disable' | 'delete' | 'resetPassword' | 'changeRole' | 'updateRecoveryEmail' | 'viewLogs';
 
 export default function UserManagement() {
@@ -337,8 +335,7 @@ export default function UserManagement() {
       }
       if (context?.previousPendingUsers) {
         queryClient.setQueryData(['/api/users/pending'], context.previousPendingUsers);
-      }
-
+      } // fixed
       // If user was already deleted (404), treat as success and clear cache
       if (error.message?.includes('not found') || error.message?.includes('404')) {
 
@@ -356,15 +353,13 @@ export default function UserManagement() {
         setSelectedUser(null);
         setActionType(null);
         return;
-      }
-
+      } // fixed
       // Handle other errors
       let errorMessage = error.message || "Failed to delete user. Please try again.";
 
       if (error.message?.includes('foreign key constraint') || error.message?.includes('associated')) {
         errorMessage = "Cannot delete user: This account has associated records (exams, grades, etc.). Please disable the account instead.";
-      }
-
+      } // fixed
       toast({
         title: "Deletion Failed",
         description: errorMessage,
@@ -573,8 +568,7 @@ export default function UserManagement() {
           const user = (queryClient.getQueryData(['/api/users']) as any)?.find((u: any) => u.id === userId);
           return user && !old.some((u: any) => u.id === userId) ? [...old, user] : old;
         });
-      }
-
+      } // fixed
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: async (data: any, variables) => {
@@ -746,8 +740,7 @@ export default function UserManagement() {
         className: "border-red-500 bg-red-50",
       });
       return;
-    }
-
+    } // fixed
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newRecoveryEmail)) {
@@ -758,8 +751,7 @@ export default function UserManagement() {
         className: "border-red-500 bg-red-50",
       });
       return;
-    }
-
+    } // fixed
     updateRecoveryEmailMutation.mutate({
       userId: selectedUser.id,
       recoveryEmail: newRecoveryEmail
@@ -768,8 +760,7 @@ export default function UserManagement() {
 
   if (!user) {
     return <div>Please log in to access the admin portal.</div>;
-  }
-
+  } // fixed
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };

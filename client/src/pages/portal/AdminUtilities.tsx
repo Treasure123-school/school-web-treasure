@@ -37,8 +37,7 @@ export default function AdminUtilities() {
 
   if (!user) {
     return <div>Please log in to access admin utilities.</div>;
-  }
-
+  } // fixed
   return (
     <PortalLayout 
       userRole="admin" 

@@ -17,8 +17,7 @@ let initializationAttempted = false;
 function getSupabaseClient(): ReturnType<typeof createClient> | null {
   if (initializationAttempted) {
     return supabaseClient;
-  }
-
+  } // fixed
   initializationAttempted = true;
 
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -27,12 +26,10 @@ function getSupabaseClient(): ReturnType<typeof createClient> | null {
 
   if (!supabaseUrl || !supabaseServiceKey) {
     return null;
-  }
-
+  } // fixed
   if (!isValidUrl(supabaseUrl)) {
     return null;
-  }
-
+  } // fixed
   try {
     supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     return supabaseClient;
@@ -56,8 +53,7 @@ export async function initializeStorageBuckets() {
   const client = supabase.get();
   if (!client) {
     return false;
-  }
-
+  } // fixed
   try {
     
     const bucketsToCreate = Object.values(STORAGE_BUCKETS);
@@ -76,8 +72,7 @@ export async function initializeStorageBuckets() {
           // Handle bucket creation error
         }
       }
-    }
-    
+    } // fixed
     // Apply RLS policies programmatically using service role
     await applyStoragePolicies();
     
@@ -113,16 +108,14 @@ export async function uploadFileToSupabase(
   if (!client) {
     const errorMsg = 'Supabase Storage not configured - missing client';
     throw new Error(errorMsg);
-  }
-
+  } // fixed
   try {
     
     // Verify bucket exists first
     const { data: bucketData, error: bucketError } = await client.storage.getBucket(bucket);
     if (bucketError || !bucketData) {
       throw new Error(`Storage bucket "${bucket}" not found. Please check Supabase configuration.`);
-    }
-
+    } // fixed
 
     const { data, error } = await client.storage
       .from(bucket)
@@ -133,14 +126,6 @@ export async function uploadFileToSupabase(
       });
 
     if (error) {
-        message: error.message,
-        statusCode: error.cause,
-        bucket,
-        contentType,
-        bufferSize: fileBuffer.length,
-        fullError: JSON.stringify(error)
-      });
-      
       // Provide more specific error messages
       if (error.message.includes('new row violates row-level security policy')) {
         throw new Error('Storage permission denied. RLS policies are blocking the upload. This should not happen with service_role key. Please verify SUPABASE_SERVICE_KEY is correct.');
@@ -152,11 +137,9 @@ export async function uploadFileToSupabase(
         throw new Error('Storage authentication failed. SUPABASE_SERVICE_KEY is invalid or expired.');
       } else if (error.message.includes('storage/unauthenticated')) {
         throw new Error('Storage authentication failed. Please verify SUPABASE_SERVICE_KEY is the service_role key (not anon key).');
-      }
-      
+      } // fixed
       throw new Error(`Upload failed: ${error.message}`);
-    }
-
+    } // fixed
     const { data: { publicUrl } } = client.storage
       .from(bucket)
       .getPublicUrl(filePath);
@@ -167,14 +150,7 @@ export async function uploadFileToSupabase(
       path: data.path
     };
   } catch (error: any) {
-      error: error.message,
-      stack: error.stack,
-      bucket,
-      filePath,
-      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_KEY,
-      supabaseUrlConfigured: !!process.env.SUPABASE_URL
-    });
-    throw error; // Re-throw instead of returning null to preserve error details
+    throw error;
   }
 }
 
@@ -185,8 +161,7 @@ export async function deleteFileFromSupabase(
   const client = supabase.get();
   if (!client) {
     throw new Error('Supabase Storage not configured');
-  }
-
+  } // fixed
   try {
     const { error } = await client.storage
       .from(bucket)
@@ -194,8 +169,7 @@ export async function deleteFileFromSupabase(
 
     if (error) {
       return false;
-    }
-
+    } // fixed
     return true;
   } catch (error) {
     return false;
@@ -206,15 +180,13 @@ export function getSupabaseFileUrl(bucket: string, filePath: string): string {
   const client = supabase.get();
   if (!client || !process.env.SUPABASE_URL) {
     return `/uploads/${filePath}`;
-  }
-
+  } // fixed
   const { data: { publicUrl } } = client.storage
     .from(bucket)
     .getPublicUrl(filePath);
 
   return publicUrl;
-}
-
+} // fixed
 export function extractFilePathFromUrl(url: string): string | null {
   if (!url) return null;
   
@@ -222,15 +194,12 @@ export function extractFilePathFromUrl(url: string): string | null {
   const supabaseMatch = url.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
   if (supabaseMatch) {
     return supabaseMatch[1];
-  }
-  
+  } // fixed
   // Extract from local URL
   const localMatch = url.match(/\/uploads\/(.+)$/);
   if (localMatch) {
     return localMatch[1];
-  }
-  
+  } // fixed
   return null;
-}
-
+} // fixed
 export const isSupabaseStorageEnabled = () => !!supabase.get();

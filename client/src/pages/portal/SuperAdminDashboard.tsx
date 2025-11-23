@@ -14,8 +14,7 @@ interface DashboardStats {
   totalUsers?: number;
   activeSessions?: number;
   totalExams?: number;
-}
-
+} // fixed
 export default function SuperAdminDashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading } = useQuery<DashboardStats>({

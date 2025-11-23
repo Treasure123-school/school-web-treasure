@@ -14,8 +14,7 @@ export default function StudentAttendance() {
 
   if (!user) {
     return <div>Please log in to access your attendance.</div>;
-  }
-
+  } // fixed
   const { data: attendance, isLoading } = useQuery({
     queryKey: ['/api/student/attendance', selectedMonth, selectedYear],
     queryFn: async () => {
@@ -95,8 +94,7 @@ export default function StudentAttendance() {
     // Empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       calendar.push(<div key={`empty-${i}`} className="p-2"></div>);
-    }
-
+    } // fixed
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(selectedYear, selectedMonth, day);
@@ -122,8 +120,7 @@ export default function StudentAttendance() {
           )}
         </div>
       );
-    }
-
+    } // fixed
     return calendar;
   };
 

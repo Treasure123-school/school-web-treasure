@@ -148,8 +148,7 @@ export default function ProfileOnboarding() {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to update profile");
-      }
-
+      } // fixed
       return response.json();
     },
     onSuccess: (data: any) => {
@@ -224,8 +223,7 @@ export default function ProfileOnboarding() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  }
-
+  } // fixed
   const completionPercentage = profileData ? (profileData as any).completionPercentage || 0 : 0;
 
   return (

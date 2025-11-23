@@ -23,8 +23,7 @@ interface LogEntry {
   entityType?: string;
   ipAddress?: string;
   createdAt?: string;
-}
-
+} // fixed
 export default function SuperAdminLogs() {
   const [searchQuery, setSearchQuery] = useState("");
 

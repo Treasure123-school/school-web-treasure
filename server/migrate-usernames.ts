@@ -31,8 +31,7 @@ interface MigrationStats {
     teachers: number;
     admins: number;
   };
-}
-
+} // fixed
 /**
  * Check if username is in old format
  */
@@ -45,8 +44,7 @@ function isOldFormat(username: string): boolean {
   // THS-TCH-2025-MTH-002 (5 parts)
   const parts = username.split('-');
   return parts.length >= 4 && /^\d{4}$/.test(parts[2]); // Has year in third position
-}
-
+} // fixed
 /**
  * Extract sequence number from old username
  */
@@ -54,8 +52,7 @@ function extractSequenceNumber(username: string): number {
   const parts = username.split('-');
   const lastPart = parts[parts.length - 1];
   return parseInt(lastPart, 10) || 1;
-}
-
+} // fixed
 /**
  * Initialize counters for all roles
  */
@@ -74,8 +71,7 @@ async function initializeCounters(): Promise<void> {
     } catch (error) {
     }
   }
-}
-
+} // fixed
 /**
  * Get next sequence number for a role
  */
@@ -90,8 +86,7 @@ async function getNextSequence(roleCode: string): Promise<number> {
     .returning();
 
   return result[0].sequence;
-}
-
+} // fixed
 /**
  * Main migration function
  */
@@ -144,14 +139,12 @@ async function migrateUsernames(): Promise<void> {
         if (!oldUsername) {
           stats.skipped++;
           continue;
-        }
-
+        } // fixed
         // Check if already in new format
         if (!isOldFormat(oldUsername)) {
           stats.skipped++;
           continue;
-        }
-
+        } // fixed
         try {
           // Generate new username
           const sequence = await getNextSequence(roleCode);
@@ -175,14 +168,12 @@ async function migrateUsernames(): Promise<void> {
           stats.errors++;
         }
       }
-    }
-
+    } // fixed
     // Print summary
     
     if (stats.migrated > 0) {
     } else {
-    }
-
+    } // fixed
   } catch (error) {
     throw error;
   }
@@ -197,6 +188,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .catch((error) => {
       process.exit(1);
     });
-}
-
+} // fixed
 export { migrateUsernames };

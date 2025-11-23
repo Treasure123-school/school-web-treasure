@@ -10,6 +10,5 @@ function Skeleton({
       {...props}
     />
   )
-}
-
+} // fixed
 export { Skeleton }

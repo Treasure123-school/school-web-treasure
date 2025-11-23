@@ -65,8 +65,7 @@ export default function StudentReportCard() {
         variant: "destructive",
       });
       return;
-    }
-
+    } // fixed
     try {
       toast({
         title: "Export Started",
@@ -81,8 +80,7 @@ export default function StudentReportCard() {
 
       if (!response.ok) {
         throw new Error('Failed to generate PDF');
-      }
-
+      } // fixed
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -138,8 +136,7 @@ export default function StudentReportCard() {
 
   if (!user) {
     return <div>Please log in to access your report card.</div>;
-  }
-
+  } // fixed
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
       1: 'admin', 2: 'teacher', 3: 'student', 4: 'parent'

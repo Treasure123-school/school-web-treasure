@@ -4,8 +4,7 @@ interface CircularProgressProps {
   strokeWidth?: number;
   label?: string;
   color?: string;
-}
-
+} // fixed
 export function CircularProgress({
   value,
   size = 120,
