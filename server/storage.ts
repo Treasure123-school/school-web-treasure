@@ -729,7 +729,7 @@ export class DatabaseStorage implements IStorage {
         .from(schema.examSessions)
         .where(eq(schema.examSessions.studentId, id));
       
-      const sessionIds = examSessions.map(s => s.id);
+      const sessionIds = examSessions.map((s: { id: number }) => s.id);
       
       if (sessionIds.length > 0) {
         // Delete student answers
@@ -2047,18 +2047,25 @@ export class DatabaseStorage implements IStorage {
       const bankItem = await this.getQuestionBankItemById(itemId);
       if (!bankItem) continue;
 
+      // Validate questionType to ensure data integrity
+      const validTypes: Array<"multiple_choice" | "text" | "essay" | "true_false" | "fill_blank"> = 
+        ["multiple_choice", "text", "essay", "true_false", "fill_blank"];
+      const questionType = validTypes.includes(bankItem.questionType as any) 
+        ? bankItem.questionType as "multiple_choice" | "text" | "essay" | "true_false" | "fill_blank"
+        : "text"; // Default to text if invalid
+
       const questionData: InsertExamQuestion = {
         examId,
         questionText: bankItem.questionText,
-        questionType: bankItem.questionType,
+        questionType,
         points: bankItem.points || 1,
         orderNumber: orderNumber++,
-        imageUrl: bankItem.imageUrl,
+        imageUrl: bankItem.imageUrl ?? undefined,
         autoGradable: bankItem.autoGradable,
-        expectedAnswers: bankItem.expectedAnswers,
-        caseSensitive: bankItem.caseSensitive,
-        explanationText: bankItem.explanationText,
-        hintText: bankItem.hintText
+        expectedAnswers: bankItem.expectedAnswers ?? undefined,
+        caseSensitive: bankItem.caseSensitive ?? undefined,
+        explanationText: bankItem.explanationText ?? undefined,
+        hintText: bankItem.hintText ?? undefined
       };
 
       const question = await this.createExamQuestion(questionData);
@@ -2073,7 +2080,7 @@ export class DatabaseStorage implements IStorage {
             isCorrect: bankOption.isCorrect,
             orderNumber: bankOption.orderNumber,
             partialCreditValue: 0,
-            explanationText: bankOption.explanationText
+            explanationText: bankOption.explanationText ?? undefined
           });
         }
       }
@@ -2094,8 +2101,8 @@ export class DatabaseStorage implements IStorage {
       if (assignments.length === 0) {
         return [];
       }
-      const classIds = assignments.map(a => a.classId);
-      const subjectIds = assignments.map(a => a.subjectId);
+      const classIds = assignments.map((a: any) => a.classId);
+      const subjectIds = assignments.map((a: any) => a.subjectId);
 
       // Get exams for these classes/subjects
       const exams = await this.db.select()
@@ -2105,7 +2112,7 @@ export class DatabaseStorage implements IStorage {
           inArray(schema.exams.subjectId, subjectIds)
         ));
 
-      const examIds = exams.map(e => e.id);
+      const examIds = exams.map((e: any) => e.id);
       if (examIds.length === 0) {
         return [];
       }
@@ -2117,7 +2124,7 @@ export class DatabaseStorage implements IStorage {
           eq(schema.examSessions.isCompleted, true)
         ));
 
-      const sessionIds = sessions.map(s => s.id);
+      const sessionIds = sessions.map((s: any) => s.id);
       if (sessionIds.length === 0) {
         return [];
       }
@@ -2159,7 +2166,7 @@ export class DatabaseStorage implements IStorage {
       const results = await query;
 
       // Get student names
-      const studentIds = [...new Set(results.map(r => r.studentId))];
+      const studentIds = Array.from(new Set(results.map((r: any) => r.studentId))) as string[];
       const students = await this.db.select({
         id: schema.users.id,
         firstName: schema.users.firstName,

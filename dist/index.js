@@ -2423,12 +2423,12 @@ var init_storage = __esm({
             questionType: bankItem.questionType,
             points: bankItem.points || 1,
             orderNumber: orderNumber++,
-            imageUrl: bankItem.imageUrl,
+            imageUrl: bankItem.imageUrl ?? void 0,
             autoGradable: bankItem.autoGradable,
-            expectedAnswers: bankItem.expectedAnswers,
-            caseSensitive: bankItem.caseSensitive,
-            explanationText: bankItem.explanationText,
-            hintText: bankItem.hintText
+            expectedAnswers: bankItem.expectedAnswers ?? void 0,
+            caseSensitive: bankItem.caseSensitive ?? void 0,
+            explanationText: bankItem.explanationText ?? void 0,
+            hintText: bankItem.hintText ?? void 0
           };
           const question = await this.createExamQuestion(questionData);
           questions.push(question);
@@ -2441,7 +2441,7 @@ var init_storage = __esm({
                 isCorrect: bankOption.isCorrect,
                 orderNumber: bankOption.orderNumber,
                 partialCreditValue: 0,
-                explanationText: bankOption.explanationText
+                explanationText: bankOption.explanationText ?? void 0
               });
             }
           }
@@ -2504,7 +2504,7 @@ var init_storage = __esm({
             query = query.where(sql2`(${studentAnswers.autoScored} = true OR ${studentAnswers.manualOverride} = true)`);
           }
           const results = await query;
-          const studentIds = [...new Set(results.map((r) => r.studentId))];
+          const studentIds = Array.from(new Set(results.map((r) => r.studentId)));
           const students2 = await this.db.select({
             id: users.id,
             firstName: users.firstName,
@@ -6149,7 +6149,7 @@ async function registerRoutes(app2) {
     try {
       const teacherId = req.user.id;
       const status = req.query.status;
-      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
+      const tasks = await storage.getGradingTasksByTeacher(teacherId, status);
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch AI-suggested tasks" });
@@ -6429,12 +6429,12 @@ async function registerRoutes(app2) {
         return res.status(403).json({ message: "Exam is not published yet" });
       }
       const now = /* @__PURE__ */ new Date();
-      const endTime = new Date(now.getTime() + (exam.duration || 60) * 60 * 1e3);
+      const endTime = new Date(now.getTime() + (exam.timeLimit || 60) * 60 * 1e3);
       const sessionData = {
         examId,
         studentId,
         startedAt: now,
-        timeRemaining: (exam.duration || 60) * 60,
+        timeRemaining: (exam.timeLimit || 60) * 60,
         isCompleted: false,
         status: "in_progress",
         endTime,
@@ -6449,10 +6449,11 @@ async function registerRoutes(app2) {
   app2.get("/api/exam-sessions/student/:studentId/active", authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.studentId;
-      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN) {
+      if (req.user.id !== studentId && req.user.roleId !== ROLES.ADMIN) {
         return res.status(403).json({ message: "Unauthorized access to parent records" });
       }
-      const session2 = await storage.getStudentActiveSession(studentId);
+      const allSessions = await storage.getExamSessionsByStudent(studentId);
+      const session2 = allSessions.find((s) => !s.isCompleted) || null;
       if (!session2) {
         return res.json(null);
       }
@@ -6468,7 +6469,7 @@ async function registerRoutes(app2) {
       if (!session2) {
         return res.status(404).json({ message: "Session not found" });
       }
-      if (req.user.id !== session2.studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+      if (req.user.id !== session2.studentId && req.user.roleId !== ROLES.ADMIN && req.user.roleId !== ROLES.TEACHER) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       res.json(session2);
@@ -6580,7 +6581,7 @@ async function registerRoutes(app2) {
       if (!session2) {
         return res.status(404).json({ message: "Session not found" });
       }
-      if (req.user.id !== session2.studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+      if (req.user.id !== session2.studentId && req.user.roleId !== ROLES.ADMIN && req.user.roleId !== ROLES.TEACHER) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       const answers = await storage.getStudentAnswers(sessionId);
@@ -6740,7 +6741,7 @@ async function registerRoutes(app2) {
           isRead: false
         });
         try {
-          const { sendEmail: sendEmail2, getTeacherVerifiedEmailHTML } = await Promise.resolve().then(() => (init_email_service(), email_service_exports));
+          const { sendEmail: sendEmail2 } = await Promise.resolve().then(() => (init_email_service(), email_service_exports));
           let subjectNames = [];
           let classNames = [];
           try {
@@ -6761,19 +6762,22 @@ async function registerRoutes(app2) {
           } catch (error) {
             classNames = parsedClasses.map((id) => `Class #${id}`);
           }
+          const dashboardUrl = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/portal/admin/teachers`;
+          const emailBody = `
+            <h2>\u{1F389} New Teacher Auto-Verified</h2>
+            <p><strong>Teacher:</strong> ${teacherFullName}</p>
+            <p><strong>Department:</strong> ${department}</p>
+            <p><strong>Subjects:</strong> ${subjectNames.join(", ")}</p>
+            <p><strong>Classes:</strong> ${classNames.join(", ")}</p>
+            <p><strong>Qualification:</strong> ${qualification}</p>
+            <p><strong>Years of Experience:</strong> ${yearsOfExperience}</p>
+            <p><strong>Staff ID:</strong> ${staffId || "Pending"}</p>
+            <p><a href="${dashboardUrl}">View in Admin Dashboard</a></p>
+          `;
           await sendEmail2({
             to: admin.email,
             subject: "\u{1F389} New Teacher Auto-Verified - THS Portal",
-            html: getTeacherVerifiedEmailHTML(
-              teacherFullName,
-              department,
-              subjectNames.join(", "),
-              classNames.join(", "),
-              qualification,
-              yearsOfExperience,
-              staffId || "Pending",
-              `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/portal/admin/teachers`
-            )
+            html: emailBody
           });
         } catch (emailError) {
         }
@@ -7115,10 +7119,11 @@ async function registerRoutes(app2) {
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      if (!user.isActive) {
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser || !fullUser.isActive) {
         return res.status(403).json({ message: "Account is inactive" });
       }
-      const { passwordHash, ...userWithoutPassword } = user;
+      const { passwordHash, ...userWithoutPassword } = fullUser;
       res.json(userWithoutPassword);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -8314,9 +8319,10 @@ Treasure-Home School Administration
       }
       const { generateUsername: generateUsername3, getNextUserNumber: getNextUserNumber3 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
-      const existingUsernames = await storage.getAllUsers();
-      const nextNumber = getNextUserNumber3(existingUsernames, invite.roleId, currentYear);
-      const username = generateUsername3(invite.roleId, currentYear, "", nextNumber);
+      const allUsers = await storage.getAllUsers();
+      const existingUsernames = allUsers.map((u) => u.username).filter((u) => !!u);
+      const nextNumber = getNextUserNumber3(existingUsernames, invite.roleId);
+      const username = generateUsername3(invite.roleId, nextNumber);
       const passwordHash = await bcrypt2.hash(password, BCRYPT_ROUNDS);
       const user = await storage.createUser({
         email: invite.email,
@@ -9154,7 +9160,8 @@ Treasure-Home School Administration
       }
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
       const { generateUsername: generateUsername3, generatePassword: generatePassword2 } = await Promise.resolve().then(() => (init_auth_utils(), auth_utils_exports));
-      const existingUsernames = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers();
+      const existingUsernames = allUsers.map((u) => u.username).filter((u) => !!u);
       const createdUsers = [];
       const errors = [];
       const studentRoleData = await storage.getRoleByName("Student");
@@ -9186,8 +9193,8 @@ Treasure-Home School Administration
           let parentId;
           let parentCredentials = null;
           if (!parent) {
-            const parentCount = existingUsernames.filter((u) => u.startsWith(`THS-PAR-${currentYear}-`)).length + 1;
-            const parentUsername = generateUsername3(parentRoleData.id, currentYear, "", parentCount);
+            const parentCount = existingUsernames.filter((u) => u.startsWith(`THS-PAR-`)).length + 1;
+            const parentUsername = generateUsername3(parentRoleData.id, parentCount);
             const parentPassword = generatePassword2(currentYear);
             const parentPasswordHash = await bcrypt2.hash(parentPassword, BCRYPT_ROUNDS);
             parent = await storage.createUser({
@@ -9215,9 +9222,8 @@ Treasure-Home School Administration
             errors.push(`Row ${i + 1}: Class "${className}" not found`);
             continue;
           }
-          const classPrefix = `THS-STU-${currentYear}-${className.toUpperCase()}-`;
-          const studentCount = existingUsernames.filter((u) => u.startsWith(classPrefix)).length + 1;
-          const studentUsername = generateUsername3(studentRoleData.id, currentYear, className.toUpperCase(), studentCount);
+          const studentCount = existingUsernames.filter((u) => u.startsWith(`THS-STU-`)).length + 1;
+          const studentUsername = generateUsername3(studentRoleData.id, studentCount);
           const studentPassword = generatePassword2(currentYear);
           const studentPasswordHash = await bcrypt2.hash(studentPassword, BCRYPT_ROUNDS);
           const studentUser = await storage.createUser({
@@ -9503,7 +9509,7 @@ Treasure-Home School Administration
   app2.get("/api/students/:id", authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.id;
-      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+      if (req.user.id !== studentId && req.user.roleId !== ROLES.ADMIN && req.user.roleId !== ROLES.TEACHER) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       const student = await storage.getStudent(studentId);
@@ -9518,10 +9524,11 @@ Treasure-Home School Administration
   app2.get("/api/students/:id/classes", authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.id;
-      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.TEACHER) {
+      if (req.user.id !== studentId && req.user.roleId !== ROLES.ADMIN && req.user.roleId !== ROLES.TEACHER) {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      const classes2 = await storage.getStudentClasses(studentId);
+      const student = await storage.getStudent(studentId);
+      const classes2 = student?.classId ? await storage.getClass(student.classId) : null;
       res.json(classes2);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch classes" });
@@ -9530,7 +9537,7 @@ Treasure-Home School Administration
   app2.patch("/api/students/:id", authenticateUser, async (req, res) => {
     try {
       const studentId = req.params.id;
-      if (req.user.id !== studentId && req.user.role !== ROLES.ADMIN) {
+      if (req.user.id !== studentId && req.user.roleId !== ROLES.ADMIN) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       const updates = req.body;
@@ -9619,7 +9626,8 @@ Treasure-Home School Administration
         completed: user?.profileCompleted || false,
         skipped: user?.profileSkipped || false,
         percentage: user?.profileCompletionPercentage || completionPercentage,
-        firstLogin: student?.firstLogin !== false
+        firstLogin: !user?.profileCompleted
+        // First login if profile not completed
       };
       res.json(status);
     } catch (error) {

@@ -882,8 +882,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacherId = req.user!.id;
       const status = req.query.status as string;
 
-      // Get all pending grading tasks for the teacher
-      const tasks = await storage.getGradingTasksByTeacher(teacherId, status);
+      // Get all AI-suggested grading tasks for the teacher
+      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
 
       res.json(tasks);
     } catch (error) {
