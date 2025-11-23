@@ -15,7 +15,7 @@ if (!DATABASE_URL) {
 const SUPER_ADMIN_ROLE_ID = 0;
 
 async function cleanupDatabase() {
-  const sql = postgres(DATABASE_URL, {
+  const sql = postgres(DATABASE_URL!, {
     ssl: { rejectUnauthorized: false },
     prepare: false
   });

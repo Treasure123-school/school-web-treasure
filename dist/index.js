@@ -1164,7 +1164,6 @@ import postgres from "postgres";
 import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
 function initializeDatabase() {
   if (!pg && process.env.DATABASE_URL) {
-    console.log("\u{1F517} CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ":***@"));
     const connectionConfig = {
       ssl: process.env.DATABASE_URL?.includes("supabase.com") ? "require" : false,
       prepare: false,
@@ -1182,21 +1181,17 @@ function initializeDatabase() {
       debug: process.env.NODE_ENV === "development" ? (connection, query, params) => {
         const queryString = typeof query === "string" ? query : query?.text || String(query);
         if (queryString?.includes("ERROR") || queryString?.includes("TIMEOUT")) {
-          console.warn(`\u{1F50D} Database Debug - Query: ${queryString.slice(0, 100)}...`);
         }
       } : false,
       // Connection health checks
       onnotice: (notice) => {
         if (notice.severity === "WARNING" || notice.severity === "ERROR") {
-          console.warn(`\u{1F4CA} Database Notice [${notice.severity}]: ${notice.message}`);
         }
       },
       // Connection parameter logging
       onparameter: (key, value) => {
         if (key === "server_version") {
-          console.log(`\u{1F5C4}\uFE0F Connected to PostgreSQL version: ${value}`);
         } else if (key === "application_name") {
-          console.log(`\u{1F4F1} Application name set: ${value}`);
         }
       },
       // Connection lifecycle events
@@ -1206,16 +1201,12 @@ function initializeDatabase() {
           await connection.query("SET statement_timeout = $1", ["60s"]);
           await connection.query("SET lock_timeout = $1", ["30s"]);
         } catch (error) {
-          console.warn("\u26A0\uFE0F Failed to set connection parameters:", error);
         }
       }
     };
     pg = postgres(process.env.DATABASE_URL, connectionConfig);
     db = drizzle(pg, { schema: schema_exports });
-    console.log("\u2705 POSTGRESQL DATABASE CONNECTION ESTABLISHED");
-    console.log(`\u{1F4CA} Connection Pool: max=${connectionConfig.max}, idle_timeout=${connectionConfig.idle_timeout}s`);
   } else if (!process.env.DATABASE_URL) {
-    console.log("\u26A0\uFE0F  WARNING: DATABASE_URL not set - falling back to memory storage");
   }
   return { pg, db };
 }
@@ -1240,25 +1231,16 @@ function normalizeUuid(raw) {
     const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
   }
-  console.warn("Failed to normalize UUID:", raw);
   return void 0;
 }
 function initializeStorageSync() {
   if (!process.env.DATABASE_URL) {
-    console.error("\u{1F6A8} CRITICAL: DATABASE_URL environment variable is required");
-    console.error("\u{1F6A8} This application ONLY stores data in Supabase database");
-    console.error("\u{1F6A8} Please ensure your Supabase DATABASE_URL is properly configured");
     process.exit(1);
   }
   try {
     const dbStorage = new DatabaseStorage();
-    console.log("\u2705 STORAGE: Using SUPABASE PostgreSQL Database - ALL DATA STORED IN SUPABASE");
     return dbStorage;
   } catch (error) {
-    console.error("\u{1F6A8} CRITICAL: Failed to connect to Supabase database");
-    console.error("\u{1F6A8} All data MUST be stored in Supabase database as requested");
-    console.error("\u{1F6A8} Database connection error:", error instanceof Error ? error.message : "Unknown error");
-    console.error("\u{1F6A8} Application cannot continue without Supabase database connection");
     process.exit(1);
   }
 }
@@ -1404,7 +1386,6 @@ var init_storage = __esm({
         } catch (error) {
           if (error?.cause?.code === "42703") {
             const missingColumn = error?.cause?.message?.match(/column "(\w+)" does not exist/)?.[1];
-            console.warn(`\u26A0\uFE0F Column "${missingColumn}" does not exist, retrying without it`);
             const { [missingColumn]: removed, ...safeUser } = user;
             if (Object.keys(safeUser).length > 0) {
               const result = await this.db.update(users).set(safeUser).where(eq2(users.id, id)).returning();
@@ -1423,27 +1404,18 @@ var init_storage = __esm({
       }
       async deleteUser(id) {
         try {
-          console.log(`\u{1F5D1}\uFE0F Starting cascade delete for user ${id}...`);
           await this.db.delete(teacherProfiles).where(eq2(teacherProfiles.userId, id));
-          console.log(`\u2705 Deleted teacher profile for user ${id}`);
           await this.db.delete(adminProfiles).where(eq2(adminProfiles.userId, id));
-          console.log(`\u2705 Deleted admin profile for user ${id}`);
           await this.db.delete(parentProfiles).where(eq2(parentProfiles.userId, id));
-          console.log(`\u2705 Deleted parent profile for user ${id}`);
           await this.db.delete(passwordResetTokens).where(eq2(passwordResetTokens.userId, id));
-          console.log(`\u2705 Deleted password reset tokens for user ${id}`);
           await this.db.delete(invites).where(eq2(invites.acceptedBy, id));
-          console.log(`\u2705 Deleted invites for user ${id}`);
           await this.db.delete(notifications).where(eq2(notifications.userId, id));
-          console.log(`\u2705 Deleted notifications for user ${id}`);
           try {
             if (teacherClassAssignments) {
               await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.teacherId, id));
-              console.log(`\u2705 Deleted teacher assignments for user ${id}`);
             }
           } catch (assignmentError) {
             if (assignmentError?.cause?.code === "42P01") {
-              console.log(`\u26A0\uFE0F Skipped teacher_class_assignments (table doesn't exist)`);
             } else {
               throw assignmentError;
             }
@@ -1452,23 +1424,15 @@ var init_storage = __esm({
           const sessionIds = examSessions2.map((s) => s.id);
           if (sessionIds.length > 0) {
             await this.db.delete(studentAnswers).where(inArray(studentAnswers.sessionId, sessionIds));
-            console.log(`\u2705 Deleted student answers for user ${id}`);
             await this.db.delete(examSessions).where(inArray(examSessions.id, sessionIds));
-            console.log(`\u2705 Deleted exam sessions for user ${id}`);
           }
           await this.db.delete(examResults).where(eq2(examResults.studentId, id));
-          console.log(`\u2705 Deleted exam results for user ${id}`);
           await this.db.delete(attendance).where(eq2(attendance.studentId, id));
-          console.log(`\u2705 Deleted attendance records for user ${id}`);
           await this.db.update(students).set({ parentId: null }).where(eq2(students.parentId, id));
-          console.log(`\u2705 Unlinked parent relationship for user ${id}`);
           await this.db.delete(students).where(eq2(students.id, id));
-          console.log(`\u2705 Deleted student record for user ${id}`);
           const result = await this.db.delete(users).where(eq2(users.id, id)).returning();
-          console.log(`\u2705 Successfully deleted user ${id} and all related records`);
           return result.length > 0;
         } catch (error) {
-          console.error(`\u274C Error deleting user ${id}:`, error);
           throw error;
         }
       }
@@ -1562,15 +1526,12 @@ var init_storage = __esm({
         return user;
       }
       async updateUserStatus(userId, status, updatedBy, reason) {
-        console.log(`\u{1F504} UPDATE USER STATUS CALLED: User ID: ${userId}, New Status: ${status}, Updated By: ${updatedBy}`);
         const updates = { status };
         if (status === "active") {
           updates.approvedBy = updatedBy;
           updates.approvedAt = /* @__PURE__ */ new Date();
         }
-        console.log(`\u{1F504} UPDATE USER STATUS: About to update with:`, updates);
         const result = await this.db.update(users).set(updates).where(eq2(users.id, userId)).returning();
-        console.log(`\u{1F504} UPDATE USER STATUS RESULT: Updated ${result.length} user record(s)`, result[0]);
         const user = result[0];
         if (user && user.id) {
           const normalizedId = normalizeUuid(user.id);
@@ -1821,7 +1782,6 @@ var init_storage = __esm({
             const userResult = await tx.delete(users).where(eq2(users.id, id)).returning();
             return userResult.length > 0;
           } catch (error) {
-            console.error("Error in hard delete transaction:", error);
             throw error;
           }
         });
@@ -1907,10 +1867,8 @@ var init_storage = __esm({
       async getAcademicTerms() {
         try {
           const terms = await db.select().from(academicTerms).orderBy(desc(academicTerms.startDate));
-          console.log(`\u{1F4C5} Retrieved ${terms.length} academic terms from database`);
           return terms;
         } catch (error) {
-          console.error("\u274C Error fetching academic terms:", error);
           throw error;
         }
       }
@@ -1919,17 +1877,14 @@ var init_storage = __esm({
           const result = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
           return result[0];
         } catch (error) {
-          console.error(`\u274C Error fetching academic term ${id}:`, error);
           throw error;
         }
       }
       async createAcademicTerm(term) {
         try {
           const result = await db.insert(academicTerms).values(term).returning();
-          console.log(`\u2705 Created academic term: ${result[0].name} (${result[0].year})`);
           return result[0];
         } catch (error) {
-          console.error("\u274C Error creating academic term:", error);
           throw error;
         }
       }
@@ -1937,38 +1892,29 @@ var init_storage = __esm({
         try {
           const result = await db.update(academicTerms).set(term).where(eq2(academicTerms.id, id)).returning();
           if (result[0]) {
-            console.log(`\u2705 Updated academic term: ${result[0].name} (${result[0].year})`);
           }
           return result[0];
         } catch (error) {
-          console.error(`\u274C Error updating academic term ${id}:`, error);
           throw error;
         }
       }
       async deleteAcademicTerm(id) {
         try {
-          console.log(`\u{1F5D1}\uFE0F Attempting to delete academic term ${id}...`);
           const existingTerm = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
           if (!existingTerm || existingTerm.length === 0) {
-            console.error(`\u274C Term ${id} not found in database`);
             return false;
           }
-          console.log(`\u{1F4CB} Found term to delete: ${existingTerm[0].name} (${existingTerm[0].year})`);
           const examsUsingTerm = await db.select({ id: exams.id }).from(exams).where(eq2(exams.termId, id));
           if (examsUsingTerm && examsUsingTerm.length > 0) {
-            console.error(`\u274C Cannot delete term ${id}: ${examsUsingTerm.length} exams are linked to it`);
             throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
           }
           const result = await db.delete(academicTerms).where(eq2(academicTerms.id, id)).returning();
           const success = result && result.length > 0;
           if (success) {
-            console.log(`\u2705 Successfully deleted academic term ${id}: ${result[0].name} (${result[0].year})`);
           } else {
-            console.error(`\u274C Delete operation failed for term ${id} - no rows affected`);
           }
           return success;
         } catch (error) {
-          console.error(`\u274C Error deleting academic term ${id}:`, error);
           if (error?.code === "23503") {
             throw new Error("Cannot delete this term because it is being used by other records (exams, classes, etc.). Please remove those associations first.");
           }
@@ -1980,11 +1926,9 @@ var init_storage = __esm({
           await db.update(academicTerms).set({ isCurrent: false });
           const result = await db.update(academicTerms).set({ isCurrent: true }).where(eq2(academicTerms.id, id)).returning();
           if (result[0]) {
-            console.log(`\u2705 Marked term as current: ${result[0].name} (${result[0].year})`);
           }
           return result[0];
         } catch (error) {
-          console.error(`\u274C Error marking term ${id} as current:`, error);
           throw error;
         }
       }
@@ -1994,7 +1938,6 @@ var init_storage = __esm({
           const result = await db.select().from(exams).where(eq2(exams.termId, termId));
           return result;
         } catch (error) {
-          console.error(`\u274C Error fetching exams for term ${termId}:`, error);
           return [];
         }
       }
@@ -2022,7 +1965,6 @@ var init_storage = __esm({
           const result = await db.select().from(exams).orderBy(desc(exams.date));
           return result || [];
         } catch (error) {
-          console.error("Error in getAllExams:", error);
           return [];
         }
       }
@@ -2035,7 +1977,6 @@ var init_storage = __esm({
           const result = await db.select().from(exams).where(eq2(exams.classId, classId)).orderBy(desc(exams.date));
           return result || [];
         } catch (error) {
-          console.error("Error in getExamsByClass:", error);
           return [];
         }
       }
@@ -2053,7 +1994,6 @@ var init_storage = __esm({
           const result = await db.delete(exams).where(eq2(exams.id, id)).returning();
           return result.length > 0;
         } catch (error) {
-          console.error("Error in deleteExam:", error);
           throw error;
         }
       }
@@ -2063,7 +2003,6 @@ var init_storage = __esm({
           return examResult[0];
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
-            console.log("\u26A0\uFE0F Database schema mismatch detected - auto_scored column missing, using fallback insert");
             const { autoScored, ...resultWithoutAutoScored } = result;
             const compatibleResult = {
               ...resultWithoutAutoScored,
@@ -2085,7 +2024,6 @@ var init_storage = __esm({
           return updated[0];
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
-            console.log("\u26A0\uFE0F Database schema mismatch detected - auto_scored column missing, using fallback update");
             const { autoScored, ...resultWithoutAutoScored } = result;
             const compatibleResult = {
               ...resultWithoutAutoScored,
@@ -2103,7 +2041,6 @@ var init_storage = __esm({
       }
       async getExamResultsByStudent(studentId) {
         try {
-          console.log(`\u{1F50D} Fetching exam results for student: ${studentId}`);
           const SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
           try {
             const results = await this.db.select({
@@ -2119,10 +2056,8 @@ var init_storage = __esm({
               createdAt: examResults.createdAt,
               autoScored: sql2`COALESCE(${examResults.autoScored}, ${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
             }).from(examResults).leftJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
-            console.log(`\u{1F4CA} Found ${results.length} exam results for student ${studentId}`);
             return results;
           } catch (mainError) {
-            console.warn("Main query failed, trying fallback:", mainError);
             const fallbackResults = await this.db.select({
               id: examResults.id,
               examId: examResults.examId,
@@ -2144,14 +2079,11 @@ var init_storage = __esm({
                   result.maxScore = exam[0].totalMarks;
                 }
               } catch (examError) {
-                console.warn(`Failed to get exam details for examId ${result.examId}:`, examError);
               }
             }
-            console.log(`\u2705 Fallback query successful, found ${fallbackResults.length} results`);
             return fallbackResults;
           }
         } catch (error) {
-          console.error(`\u274C Error fetching exam results for student ${studentId}:`, error);
           return [];
         }
       }
@@ -2160,7 +2092,6 @@ var init_storage = __esm({
           return await db.select().from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
-            console.log("\u26A0\uFE0F Database schema mismatch detected, using fallback query with existing columns only");
             try {
               return await db.select({
                 id: examResults.id,
@@ -2179,7 +2110,6 @@ var init_storage = __esm({
                 autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
               }).from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
             } catch (fallbackError) {
-              console.error("\u274C Fallback query also failed:", fallbackError);
               return [];
             }
           }
@@ -2217,9 +2147,7 @@ var init_storage = __esm({
           }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).innerJoin(students, eq2(examResults.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).leftJoin(classes, eq2(exams.classId, classes.id)).leftJoin(subjects, eq2(exams.subjectId, subjects.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
           return results;
         } catch (error) {
-          console.error("Error in getExamResultsByClass:", error);
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
-            console.log("\u26A0\uFE0F Database schema mismatch detected, using fallback query for getExamResultsByClass");
             try {
               const results = await db.select({
                 id: examResults.id,
@@ -2238,7 +2166,6 @@ var init_storage = __esm({
               }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
               return results;
             } catch (fallbackError) {
-              console.error("\u274C Fallback query also failed for getExamResultsByClass:", fallbackError);
               return [];
             }
           }
@@ -2302,7 +2229,6 @@ var init_storage = __esm({
             }
             return createdQuestion;
           } catch (error) {
-            console.error("\u274C Failed to create exam question with options:", error);
             throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : "Unknown error"}`);
           }
         });
@@ -2310,30 +2236,24 @@ var init_storage = __esm({
       async createExamQuestionsBulk(questionsData) {
         const createdQuestions = [];
         const errors = [];
-        console.log(`\u{1F504} Starting SEQUENTIAL bulk creation of ${questionsData.length} questions`);
         for (let i = 0; i < questionsData.length; i++) {
           const { question, options } = questionsData[i];
           try {
-            console.log(`\u{1F4DD} Creating question ${i + 1}/${questionsData.length}: "${question.questionText.substring(0, 50)}..."`);
             const createdQuestion = await this.createExamQuestionWithOptions(question, options);
             createdQuestions.push(createdQuestion);
-            console.log(`\u2705 Successfully created question ${i + 1}`);
             if (i < questionsData.length - 1) {
               await new Promise((resolve) => setTimeout(resolve, 150));
             }
           } catch (error) {
             const errorMsg = `Question ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`;
-            console.error(`\u274C Failed to create question ${i + 1}:`, errorMsg);
             errors.push(errorMsg);
             if (error instanceof Error && (error.message.includes("circuit") || error.message.includes("breaker") || error.message.includes("pool") || error.message.includes("connection"))) {
-              console.warn(`\u26A0\uFE0F Detected potential circuit breaker issue. Implementing backoff...`);
               await new Promise((resolve) => setTimeout(resolve, 1e3));
             } else {
               await new Promise((resolve) => setTimeout(resolve, 200));
             }
           }
         }
-        console.log(`\u2705 SEQUENTIAL bulk creation completed: ${createdQuestions.length} created, ${errors.length} errors`);
         return {
           created: createdQuestions.length,
           questions: createdQuestions,
@@ -2377,7 +2297,6 @@ var init_storage = __esm({
             const count = await this.getExamQuestionCount(examId);
             counts[examId] = count;
           } catch (error) {
-            console.warn(`Failed to get question count for exam ${examId}:`, error);
             counts[examId] = 0;
           }
         }
@@ -2394,7 +2313,6 @@ var init_storage = __esm({
           const result = await db.delete(examQuestions).where(eq2(examQuestions.id, id)).returning();
           return result.length > 0;
         } catch (error) {
-          console.error("Error in deleteExamQuestion:", error);
           throw error;
         }
       }
@@ -2599,7 +2517,6 @@ var init_storage = __esm({
             aiSuggested: r.pointsEarned > 0 && !r.autoScored && !r.manualOverride
           }));
         } catch (error) {
-          console.error("Error fetching AI-suggested tasks:", error);
           return [];
         }
       }
@@ -2749,7 +2666,6 @@ var init_storage = __esm({
             createdAt: examSessions.createdAt
           });
           if (insertResult.length > 0) {
-            console.log(`Created new exam session ${insertResult[0].id} for student ${studentId} exam ${examId}`);
             return { ...insertResult[0], wasCreated: true };
           }
           const existingSession = await db.select({
@@ -2770,12 +2686,10 @@ var init_storage = __esm({
             eq2(examSessions.isCompleted, false)
           )).limit(1);
           if (existingSession.length > 0) {
-            console.log(`Retrieved existing exam session ${existingSession[0].id} for student ${studentId} exam ${examId}`);
             return { ...existingSession[0], wasCreated: false };
           }
           throw new Error(`Unable to create or retrieve exam session for student ${studentId} exam ${examId}`);
         } catch (error) {
-          console.error("Error in createOrGetActiveExamSession:", error);
           throw error;
         }
       }
@@ -2854,7 +2768,6 @@ var init_storage = __esm({
       // OPTIMIZED SCORING: Get all scoring data in a single query for <2s performance
       async getExamScoringData(sessionId) {
         try {
-          console.log(`\u{1F50D} DIAGNOSTIC: Starting scoring data fetch for session ${sessionId}`);
           const sessionResult = await this.db.select({
             id: examSessions.id,
             examId: examSessions.examId,
@@ -2872,7 +2785,6 @@ var init_storage = __esm({
             throw new Error(`Exam session ${sessionId} not found`);
           }
           const session2 = sessionResult[0];
-          console.log(`\u{1F50D} DIAGNOSTIC: Found session for exam ${session2.examId}, student ${session2.studentId}`);
           const questionsQuery = await this.db.select({
             questionId: examQuestions.id,
             questionType: examQuestions.questionType,
@@ -2943,7 +2855,6 @@ var init_storage = __esm({
                   questionData.points,
                   selectedOptionData.partialCreditValue
                 );
-                console.log(`\u{1F524} OPTION PARTIAL CREDIT: Question ${question.questionId} awarded ${questionData.partialCreditEarned}/${questionData.points} pts for selected option`);
               }
             }
           }
@@ -2952,13 +2863,11 @@ var init_storage = __esm({
             if ((question.questionType === "text" || question.questionType === "fill_blank") && question.expectedAnswers && question.textAnswer) {
               const studentAnswer = question.textAnswer.trim();
               if (!studentAnswer) continue;
-              console.log(`\u{1F524} AUTO-SCORING TEXT: Question ${questionId} - Student: "${studentAnswer}", Expected: [${question.expectedAnswers.join(", ")}]`);
               for (const expectedAnswer of question.expectedAnswers) {
                 const normalizedExpected = question.caseSensitive ? expectedAnswer.trim() : expectedAnswer.trim().toLowerCase();
                 const normalizedStudent = question.caseSensitive ? studentAnswer : studentAnswer.toLowerCase();
                 if (normalizedStudent === normalizedExpected) {
                   question.isCorrect = true;
-                  console.log(`\u2705 TEXT MATCH: Exact match found for question ${questionId}`);
                   break;
                 }
                 if (question.allowPartialCredit && !question.isCorrect) {
@@ -2967,11 +2876,9 @@ var init_storage = __esm({
                     const partialRules = question.partialCreditRules ? JSON.parse(question.partialCreditRules) : { minSimilarity: 0.8, partialPercentage: 0.5 };
                     if (similarity >= (partialRules.minSimilarity || 0.8)) {
                       question.partialCreditEarned = Math.ceil(question.points * (partialRules.partialPercentage || 0.5));
-                      console.log(`\u{1F524} PARTIAL CREDIT: Question ${questionId} similarity ${similarity.toFixed(2)} awarded ${question.partialCreditEarned}/${question.points} points`);
                       break;
                     }
                   } catch (err) {
-                    console.warn(`\u26A0\uFE0F Invalid partial credit rules for question ${questionId}:`, err);
                   }
                 }
               }
@@ -2985,7 +2892,6 @@ var init_storage = __esm({
           let maxScore = 0;
           let studentScore = 0;
           let autoScoredQuestions = 0;
-          console.log(`\u{1F50D} DIAGNOSTIC: Found ${totalQuestions} total questions for scoring`);
           const questionTypeCount = {};
           for (const question of scoringData) {
             maxScore += question.points;
@@ -2994,20 +2900,13 @@ var init_storage = __esm({
               autoScoredQuestions++;
               if (question.isCorrect) {
                 studentScore += question.points;
-                console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): CORRECT (+${question.points} pts) - Full credit awarded`);
               } else if (question.partialCreditEarned > 0) {
                 studentScore += question.partialCreditEarned;
-                console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): PARTIAL CREDIT (+${question.partialCreditEarned}/${question.points} pts)`);
               } else {
-                console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): INCORRECT (0 pts)`);
               }
             } else {
-              console.log(`\u{1F50D} DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): MANUAL GRADING REQUIRED`);
             }
           }
-          console.log(`\u{1F50D} DIAGNOSTIC: Question type breakdown:`, questionTypeCount);
-          console.log(`\u{1F50D} DIAGNOSTIC: Auto-scored questions: ${autoScoredQuestions}/${totalQuestions}`);
-          console.log(`\u{1F50D} DIAGNOSTIC: Student score: ${studentScore}/${maxScore}`);
           return {
             session: session2,
             scoringData,
@@ -3019,7 +2918,6 @@ var init_storage = __esm({
             }
           };
         } catch (error) {
-          console.error("\u{1F6A8} OPTIMIZED SCORING ERROR:", error);
           throw error;
         }
       }
@@ -3192,7 +3090,6 @@ var init_storage = __esm({
           const result = await pgClient.unsafe(query, params);
           return result;
         } catch (error) {
-          console.error("Error fetching grading tasks:", error);
           throw error;
         }
       }
@@ -3218,7 +3115,6 @@ var init_storage = __esm({
       `;
           return result[0];
         } catch (error) {
-          console.error("Error submitting manual grade:", error);
           throw error;
         }
       }
@@ -3248,7 +3144,6 @@ var init_storage = __esm({
       `;
           return result;
         } catch (error) {
-          console.error("Error fetching exam sessions:", error);
           throw error;
         }
       }
@@ -3308,7 +3203,6 @@ var init_storage = __esm({
           const result = await pgClient.unsafe(query, params);
           return result;
         } catch (error) {
-          console.error("Error fetching exam reports:", error);
           throw error;
         }
       }
@@ -3348,7 +3242,6 @@ var init_storage = __esm({
       `;
           return result;
         } catch (error) {
-          console.error("Error fetching student reports:", error);
           throw error;
         }
       }
@@ -3417,7 +3310,6 @@ var init_storage = __esm({
             return result[0];
           }
         } catch (error) {
-          console.error("Error recording comprehensive grade:", error);
           throw error;
         }
       }
@@ -3448,7 +3340,6 @@ var init_storage = __esm({
           }
           return await query.orderBy(subjects.name);
         } catch (error) {
-          console.error("Error fetching comprehensive grades by student:", error);
           return [];
         }
       }
@@ -3473,7 +3364,6 @@ var init_storage = __esm({
           }
           return await query.orderBy(users.firstName, users.lastName, subjects.name);
         } catch (error) {
-          console.error("Error fetching comprehensive grades by class:", error);
           return [];
         }
       }
@@ -3492,7 +3382,6 @@ var init_storage = __esm({
               grades
             };
           } catch (error) {
-            console.error("Error creating report card:", error);
             throw error;
           }
         });
@@ -3502,7 +3391,6 @@ var init_storage = __esm({
           const result = await db.select().from(reportCards).where(eq2(reportCards.id, id)).limit(1);
           return result[0];
         } catch (error) {
-          console.error("Error fetching report card:", error);
           return void 0;
         }
       }
@@ -3510,7 +3398,6 @@ var init_storage = __esm({
         try {
           return await db.select().from(reportCards).where(eq2(reportCards.studentId, studentId)).orderBy(desc(reportCards.generatedAt));
         } catch (error) {
-          console.error("Error fetching student report cards:", error);
           return [];
         }
       }
@@ -3518,7 +3405,6 @@ var init_storage = __esm({
         try {
           return await db.select().from(reportCardItems).where(eq2(reportCardItems.reportCardId, reportCardId));
         } catch (error) {
-          console.error("Error fetching report card items:", error);
           return [];
         }
       }
@@ -3526,7 +3412,6 @@ var init_storage = __esm({
         try {
           return await db.select().from(students).where(eq2(students.parentId, parentId));
         } catch (error) {
-          console.error("Error fetching students by parent:", error);
           return [];
         }
       }
@@ -3570,7 +3455,6 @@ var init_storage = __esm({
             }
           };
         } catch (error) {
-          console.error("Error in getAnalyticsOverview:", error);
           return this.getFallbackAnalytics();
         }
       }
@@ -3604,7 +3488,6 @@ var init_storage = __esm({
             passRate: Math.round(examResults2.filter((r) => (r.marksObtained || 0) >= 50).length / totalExams * 100)
           };
         } catch (error) {
-          console.error("Error in getPerformanceAnalytics:", error);
           return { error: "Failed to calculate performance analytics" };
         }
       }
@@ -3646,7 +3529,6 @@ var init_storage = __esm({
             }
           };
         } catch (error) {
-          console.error("Error in getTrendAnalytics:", error);
           return { error: "Failed to calculate trend analytics" };
         }
       }
@@ -3683,7 +3565,6 @@ var init_storage = __esm({
             classComparison: await this.calculateClassAttendanceComparison()
           };
         } catch (error) {
-          console.error("Error in getAttendanceAnalytics:", error);
           return { error: "Failed to calculate attendance analytics" };
         }
       }
@@ -3803,7 +3684,6 @@ var init_storage = __esm({
           const result = await this.db.select().from(examResults).where(eq2(examResults.id, id)).limit(1);
           return result[0];
         } catch (error) {
-          console.error("Error fetching exam result by ID:", error);
           return void 0;
         }
       }
@@ -3816,7 +3696,6 @@ var init_storage = __esm({
           )).orderBy(desc(examResults.createdAt));
           return results;
         } catch (error) {
-          console.error("Error fetching finalized reports by exams:", error);
           return [];
         }
       }
@@ -3825,7 +3704,6 @@ var init_storage = __esm({
           const results = await this.db.select().from(examResults).orderBy(desc(examResults.createdAt));
           return results;
         } catch (error) {
-          console.error("Error fetching all finalized reports:", error);
           return [];
         }
       }
@@ -3873,7 +3751,6 @@ var init_storage = __esm({
             eventsByType
           };
         } catch (error) {
-          console.error("Error in getPerformanceMetrics:", error);
           return {
             totalEvents: 0,
             goalAchievementRate: 0,
@@ -3893,7 +3770,6 @@ var init_storage = __esm({
           )).orderBy(desc(performanceEvents.createdAt)).limit(50);
           return alerts;
         } catch (error) {
-          console.error("Error in getRecentPerformanceAlerts:", error);
           return [];
         }
       }
@@ -3990,7 +3866,6 @@ var init_storage = __esm({
           return result[0];
         } catch (error) {
           if (error?.cause?.code === "42P01") {
-            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet - skipping task creation");
             return { id: 0, ...task };
           }
           throw error;
@@ -4006,7 +3881,6 @@ var init_storage = __esm({
           return result[0];
         } catch (error) {
           if (error?.cause?.code === "42P01") {
-            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet");
             return void 0;
           }
           throw error;
@@ -4024,7 +3898,6 @@ var init_storage = __esm({
           return await query;
         } catch (error) {
           if (error?.cause?.code === "42P01") {
-            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet - returning empty array");
             return [];
           }
           throw error;
@@ -4035,7 +3908,6 @@ var init_storage = __esm({
           return await this.db.select().from(gradingTasks).where(eq2(gradingTasks.sessionId, sessionId)).orderBy(desc(gradingTasks.priority), asc(gradingTasks.createdAt));
         } catch (error) {
           if (error?.cause?.code === "42P01") {
-            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet - returning empty array");
             return [];
           }
           throw error;
@@ -4051,7 +3923,6 @@ var init_storage = __esm({
           return result[0];
         } catch (error) {
           if (error?.cause?.code === "42P01") {
-            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet");
             return void 0;
           }
           throw error;
@@ -4082,7 +3953,6 @@ var init_storage = __esm({
           });
         } catch (error) {
           if (error?.cause?.code === "42P01") {
-            console.warn("\u26A0\uFE0F grading_tasks table does not exist yet");
             return void 0;
           }
           throw error;
@@ -4688,43 +4558,24 @@ function getSupabaseClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
   const isProduction2 = process.env.NODE_ENV === "production";
   if (!supabaseUrl || !supabaseServiceKey) {
-    const errorMsg = `\u{1F6A8} CRITICAL: Supabase Storage not configured! Missing: ${!supabaseUrl ? "SUPABASE_URL" : ""} ${!supabaseServiceKey ? "SUPABASE_SERVICE_KEY" : ""}`;
-    if (isProduction2) {
-      console.error(errorMsg);
-      console.error("   \u2192 Image uploads WILL FAIL in production without these credentials!");
-      console.error("   \u2192 Set SUPABASE_URL and SUPABASE_SERVICE_KEY in your deployment platform's environment variables");
-      console.error("   \u2192 Get these from: Supabase Dashboard \u2192 Project Settings \u2192 API");
-    } else {
-      console.warn(`\u26A0\uFE0F ${errorMsg} - Development mode will use fallback if available`);
-    }
     return null;
   }
   if (!isValidUrl(supabaseUrl)) {
-    const errorMsg = `\u{1F6A8} CRITICAL: Invalid SUPABASE_URL format: ${supabaseUrl}`;
-    console.error(errorMsg);
-    console.error("   \u2192 Expected format: https://your-project.supabase.co");
     return null;
   }
   try {
     supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    console.log("\u2705 Supabase Storage client initialized successfully");
-    console.log(`   \u2192 Project URL: ${supabaseUrl}`);
-    console.log(`   \u2192 Service key configured: Yes (service_role)`);
     return supabaseClient;
-  } catch (error) {
-    console.error("\u274C Failed to initialize Supabase Storage client:", error);
-    console.error("   \u2192 Verify your SUPABASE_SERVICE_KEY is the service_role key (not anon key)");
+  } catch {
     return null;
   }
 }
 async function initializeStorageBuckets() {
   const client = supabase.get();
   if (!client) {
-    console.log("\u{1F4E6} Supabase Storage: Not configured, using local filesystem");
     return false;
   }
   try {
-    console.log("\u{1F4E6} Initializing Supabase Storage buckets...");
     const bucketsToCreate = Object.values(STORAGE_BUCKETS);
     for (const bucketName of bucketsToCreate) {
       const { data: existingBucket } = await client.storage.getBucket(bucketName);
@@ -4732,28 +4583,15 @@ async function initializeStorageBuckets() {
         const { error } = await client.storage.createBucket(bucketName, {
           public: true,
           fileSizeLimit: 10485760,
-          // 10MB
           allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
         });
-        if (error) {
-          if (error.message.includes("already exists")) {
-            console.log(`  \u2705 Bucket "${bucketName}" already exists`);
-          } else {
-            console.error(`  \u274C Failed to create bucket "${bucketName}":`, error.message);
-          }
-        } else {
-          console.log(`  \u2705 Created bucket: ${bucketName}`);
+        if (error && !error.message.includes("already exists")) {
         }
-      } else {
-        console.log(`  \u2705 Bucket "${bucketName}" already exists`);
       }
     }
-    console.log("\u{1F510} Applying storage RLS policies via service role...");
     await applyStoragePolicies();
-    console.log("\u2705 Supabase Storage initialization complete");
     return true;
   } catch (error) {
-    console.error("\u274C Supabase Storage initialization failed:", error);
     return false;
   }
 }
@@ -4764,46 +4602,28 @@ async function applyStoragePolicies() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_KEY;
     if (!supabaseUrl || !serviceKey) {
-      console.warn("\u26A0\uFE0F Missing Supabase credentials for policy application");
       return;
     }
-    console.log("\u{1F510} Checking storage configuration...");
-    console.log("\u2705 Using service_role key - This bypasses ALL RLS policies");
-    console.log("\u2705 Buckets configured as public for read access");
-    console.log("\u2139\uFE0F Note: If uploads still fail, run the SQL in supabase-storage-policies.sql manually");
-  } catch (error) {
-    console.error("\u274C Storage configuration check failed:", error);
+  } catch {
   }
 }
 async function uploadFileToSupabase(bucket, filePath, fileBuffer, contentType) {
   const client = supabase.get();
   if (!client) {
     const errorMsg = "Supabase Storage not configured - missing client";
-    console.error(`\u274C ${errorMsg}`);
     throw new Error(errorMsg);
   }
   try {
-    console.log(`\u{1F4E4} Uploading to Supabase: bucket="${bucket}", path="${filePath}", size=${fileBuffer.length} bytes, type="${contentType}"`);
     const { data: bucketData, error: bucketError } = await client.storage.getBucket(bucket);
     if (bucketError || !bucketData) {
-      console.error(`\u274C Bucket "${bucket}" not found or inaccessible:`, bucketError);
       throw new Error(`Storage bucket "${bucket}" not found. Please check Supabase configuration.`);
     }
-    console.log(`\u2705 Bucket "${bucket}" verified, proceeding with upload...`);
     const { data, error } = await client.storage.from(bucket).upload(filePath, fileBuffer, {
       contentType,
       upsert: true,
       cacheControl: "3600"
     });
     if (error) {
-      console.error(`\u274C Supabase upload error for "${filePath}":`, {
-        message: error.message,
-        statusCode: error.cause,
-        bucket,
-        contentType,
-        bufferSize: fileBuffer.length,
-        fullError: JSON.stringify(error)
-      });
       if (error.message.includes("new row violates row-level security policy")) {
         throw new Error("Storage permission denied. RLS policies are blocking the upload. This should not happen with service_role key. Please verify SUPABASE_SERVICE_KEY is correct.");
       } else if (error.message.includes("Bucket not found")) {
@@ -4818,20 +4638,11 @@ async function uploadFileToSupabase(bucket, filePath, fileBuffer, contentType) {
       throw new Error(`Upload failed: ${error.message}`);
     }
     const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(filePath);
-    console.log(`\u2705 Successfully uploaded to Supabase: ${publicUrl}`);
     return {
       publicUrl,
       path: data.path
     };
   } catch (error) {
-    console.error("\u274C Failed to upload to Supabase:", {
-      error: error.message,
-      stack: error.stack,
-      bucket,
-      filePath,
-      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_KEY,
-      supabaseUrlConfigured: !!process.env.SUPABASE_URL
-    });
     throw error;
   }
 }
@@ -4843,12 +4654,10 @@ async function deleteFileFromSupabase(bucket, filePath) {
   try {
     const { error } = await client.storage.from(bucket).remove([filePath]);
     if (error) {
-      console.error("Supabase delete error:", error);
       return false;
     }
     return true;
   } catch (error) {
-    console.error("Failed to delete from Supabase:", error);
     return false;
   }
 }
@@ -4901,11 +4710,6 @@ import { Resend } from "resend";
 async function sendEmail({ to, subject, html }) {
   try {
     if (!process.env.RESEND_API_KEY) {
-      console.log("\n\u{1F4E7} EMAIL (Development Mode - No API Key):");
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Body: ${html}
-`);
       return true;
     }
     const { data, error } = await resend.emails.send({
@@ -4916,13 +4720,10 @@ async function sendEmail({ to, subject, html }) {
       html
     });
     if (error) {
-      console.error("\u274C Email sending failed:", error);
       return false;
     }
-    console.log("\u2705 Email sent successfully:", data?.id);
     return true;
   } catch (error) {
-    console.error("\u274C Email service error:", error);
     return false;
   }
 }
@@ -5358,7 +5159,6 @@ async function commitCSVImport(validRows, adminUserId) {
         successCount++;
       });
     } catch (error) {
-      console.error(`Failed to import row ${item.row}:`, error);
       failedRows.push(item.row);
     }
   }
@@ -5433,16 +5233,12 @@ async function seedSystemSettings() {
         tempPasswordFormat: "Welcome{YEAR}!",
         hideAdminAccountsFromAdmins: true
       });
-      console.log("\u2705 Default system settings created");
     } else {
-      console.log("\u2139\uFE0F  System settings already exist");
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     if (errorMessage.includes("already exists") || errorMessage.includes("42P07")) {
-      console.log("\u2139\uFE0F  System settings table already exists");
     } else {
-      console.error(`\u26A0\uFE0F  System settings seeding error: ${errorMessage}`);
       throw error;
     }
   }
@@ -5466,7 +5262,6 @@ import postgres2 from "postgres";
 import { eq as eq6 } from "drizzle-orm";
 async function seedSuperAdmin() {
   try {
-    console.log("\u{1F510} Starting Super Admin seed...");
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is not set");
     }
@@ -5487,17 +5282,14 @@ async function seedSuperAdmin() {
     for (const roleData of requiredRoles) {
       const existingRole = existingRoles.find((r) => r.name === roleData.name);
       if (!existingRole) {
-        console.log(`Creating ${roleData.name} role...`);
         const [newRole] = await db2.insert(roles).values(roleData).returning();
         if (roleData.name === "Super Admin") {
           superAdminRole = newRole;
         }
-        console.log(`\u2705 ${roleData.name} role created`);
       } else {
         if (roleData.name === "Super Admin") {
           superAdminRole = existingRole;
         }
-        console.log(`\u2705 ${roleData.name} role already exists`);
       }
     }
     if (!superAdminRole) {
@@ -5505,7 +5297,6 @@ async function seedSuperAdmin() {
     }
     const existingSuperAdmin = await db2.select().from(users).where(eq6(users.username, "superadmin")).limit(1);
     if (existingSuperAdmin.length === 0) {
-      console.log("Creating default Super Admin user...");
       const passwordHash = await bcrypt3.hash("Temp@123", 12);
       const [newSuperAdmin] = await db2.insert(users).values({
         username: "superadmin",
@@ -5526,17 +5317,11 @@ async function seedSuperAdmin() {
         accessLevel: "full",
         department: "System Administration"
       });
-      console.log("\u2705 Default Super Admin created");
-      console.log("   Username: superadmin");
-      console.log("   \u26A0\uFE0F  IMPORTANT: Default password has been set. Please login and change it immediately!");
-      console.log("   \u26A0\uFE0F  Check your secure documentation or contact the system administrator for the initial password.");
     } else {
-      console.log("\u2705 Super Admin user already exists");
     }
     try {
       const existingSettings = await db2.select().from(systemSettings).limit(1);
       if (existingSettings.length === 0) {
-        console.log("Creating initial system settings...");
         await db2.insert(systemSettings).values({
           schoolName: "Treasure-Home School",
           schoolMotto: "HONESTY AND SUCCESS",
@@ -5546,15 +5331,11 @@ async function seedSuperAdmin() {
           maintenanceMode: false,
           themeColor: "blue"
         });
-        console.log("\u2705 System settings initialized");
       }
     } catch (settingsError) {
-      console.log("\u2139\uFE0F  System settings table not found - skipping (optional feature)");
     }
-    console.log("\u{1F389} Super Admin seed completed successfully!");
     await pg2.end();
   } catch (error) {
-    console.error("\u274C Error seeding Super Admin:", error);
     throw error;
   }
 }
@@ -5564,7 +5345,6 @@ var init_seed_superadmin = __esm({
     init_schema();
     if (import.meta.url === `file://${process.argv[1]}`) {
       seedSuperAdmin().then(() => process.exit(0)).catch((error) => {
-        console.error(error);
         process.exit(1);
       });
     }
@@ -5685,7 +5465,6 @@ function log(message, source = "express") {
     second: "2-digit",
     hour12: true
   });
-  console.log(`${formattedTime} [${source}] ${message}`);
 }
 async function setupVite(app2, server) {
   const serverOptions = {
@@ -5787,12 +5566,9 @@ var contactSchema = z2.object({
 });
 var JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "development" ? "dev-secret-key-change-in-production" : void 0);
 if (!JWT_SECRET) {
-  console.error("CRITICAL: JWT_SECRET environment variable is required but not set!");
-  console.error("Please set a secure JWT_SECRET environment variable before starting the server.");
   process.exit(1);
 }
 if (process.env.NODE_ENV === "development" && JWT_SECRET === "dev-secret-key-change-in-production") {
-  console.warn("\u26A0\uFE0F WARNING: Using default JWT_SECRET for development. Set JWT_SECRET environment variable for production!");
 }
 var SECRET_KEY = JWT_SECRET;
 var JWT_EXPIRES_IN = "24h";
@@ -5817,7 +5593,6 @@ function normalizeUuid2(raw) {
     const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
   }
-  console.warn("Failed to normalize UUID:", raw);
   return void 0;
 }
 var ROLES = {
@@ -5861,12 +5636,10 @@ var authenticateUser = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, SECRET_KEY);
     } catch (jwtError) {
-      console.error("JWT verification failed:", jwtError);
       return res.status(401).json({ message: "Invalid or expired token" });
     }
     const normalizedUserId = normalizeUuid2(decoded.userId);
     if (!normalizedUserId) {
-      console.error("Invalid userId in token:", decoded.userId);
       return res.status(401).json({ message: "Invalid token format" });
     }
     const user = await storage.getUser(normalizedUserId);
@@ -5882,7 +5655,6 @@ var authenticateUser = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error("Authentication error:", error);
     res.status(401).json({ message: "Authentication failed" });
   }
 };
@@ -5897,7 +5669,6 @@ var authorizeRoles = (...allowedRoles) => {
       }
       next();
     } catch (error) {
-      console.error("Authorization error:", error);
       res.status(403).json({ message: "Authorization failed" });
     }
   };
@@ -6002,63 +5773,49 @@ var uploadCSV = multer({
 });
 async function autoPublishScheduledExams() {
   try {
-    console.log("\u{1F4C5} AUTO-PUBLISH: Checking for scheduled exams...");
     const now = /* @__PURE__ */ new Date();
     const scheduledExams = await storage.getScheduledExamsToPublish(now);
     if (scheduledExams.length > 0) {
-      console.log(`\u{1F4C5} Found ${scheduledExams.length} exams ready to publish`);
       for (const exam of scheduledExams) {
         try {
-          console.log(`\u{1F680} AUTO-PUBLISH: Publishing exam ${exam.id} - ${exam.name}`);
           await storage.updateExam(exam.id, {
             isPublished: true
           });
-          console.log(`\u2705 Successfully published exam ${exam.id}`);
         } catch (error) {
-          console.error(`\u274C Failed to auto-publish exam ${exam.id}:`, error);
         }
       }
     }
   } catch (error) {
-    console.error("\u274C Auto-publish service error:", error);
   }
 }
 async function cleanupExpiredExamSessions() {
   try {
-    console.log("\u{1F9F9} TIMEOUT CLEANUP: Checking for expired exam sessions...");
     const now = /* @__PURE__ */ new Date();
     const rawResult = await storage.getExpiredExamSessions(now, 50);
     const expiredSessions = Array.isArray(rawResult) ? rawResult : [];
-    console.log(`\u{1F9F9} Found ${expiredSessions.length} expired sessions to cleanup`);
     for (const session2 of expiredSessions) {
       try {
-        console.log(`\u23F0 AUTO-CLEANUP: Force submitting expired session ${session2.id} for student ${session2.studentId}`);
         await storage.updateExamSession(session2.id, {
           isCompleted: true,
           submittedAt: now,
           status: "submitted"
         });
         await autoScoreExamSession(session2.id, storage);
-        console.log(`\u2705 Successfully cleaned up expired session ${session2.id}`);
       } catch (error) {
-        console.error(`\u274C Failed to cleanup session ${session2.id}:`, error);
       }
     }
   } catch (error) {
-    console.error("\u274C Background cleanup service error:", error);
   }
 }
 var autoPublishInterval = 60 * 1e3;
 setInterval(autoPublishScheduledExams, autoPublishInterval);
 autoPublishScheduledExams();
-console.log("\u{1F4C5} AUTO-PUBLISH: Background service started (runs every 1 minute)");
 var cleanupInterval = 3 * 60 * 1e3;
 var jitter = Math.random() * 3e4;
 setTimeout(() => {
   setInterval(cleanupExpiredExamSessions, cleanupInterval);
   cleanupExpiredExamSessions();
 }, jitter);
-console.log(`\u{1F9F9} TIMEOUT PROTECTION: Background cleanup service started (every ${cleanupInterval / 1e3 / 60} minutes with jitter)`);
 async function scoreTheoryAnswer(studentAnswer, expectedAnswers, sampleAnswer, points) {
   if (!studentAnswer || studentAnswer.trim().length === 0) {
     return {
@@ -6126,18 +5883,15 @@ async function scoreTheoryAnswer(studentAnswer, expectedAnswers, sampleAnswer, p
 async function autoScoreExamSession(sessionId, storage2) {
   const startTime = Date.now();
   try {
-    console.log(`\u{1F680} OPTIMIZED AUTO-SCORING: Starting session ${sessionId} scoring...`);
     const scoringResult = await storage2.getExamScoringData(sessionId);
     const { session: session2, summary, scoringData } = scoringResult;
     const databaseQueryTime = Date.now() - startTime;
-    console.log(`\u26A1 PERFORMANCE: Database query completed in ${databaseQueryTime}ms (was 3000-8000ms before)`);
     const { totalQuestions, maxScore: maxPossibleScore, studentScore, autoScoredQuestions } = summary;
     const studentAnswers2 = await storage2.getStudentAnswers(sessionId);
     const examQuestions2 = await storage2.getExamQuestions(session2.examId);
     let totalAutoScore = studentScore;
     const hasMultipleChoiceQuestions = autoScoredQuestions > 0;
     const hasEssayQuestions = totalQuestions > autoScoredQuestions;
-    console.log(`\u2705 OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + " MC" : "no MC"}, ${hasEssayQuestions ? totalQuestions - autoScoredQuestions + " Essays" : "no Essays"})`);
     const questionDetails = [];
     for (const q of scoringData) {
       const question = examQuestions2.find((eq7) => eq7.id === q.questionId);
@@ -6183,7 +5937,6 @@ async function autoScoreExamSession(sessionId, storage2) {
       }
       questionDetails.push(questionDetail);
     }
-    console.log("\u{1F4BE} Persisting scores to student_answers for score merging...");
     for (const detail of questionDetails) {
       if (detail.questionId) {
         const studentAnswer = studentAnswers2.find((sa) => sa.questionId === detail.questionId);
@@ -6195,9 +5948,7 @@ async function autoScoreExamSession(sessionId, storage2) {
               autoScored: detail.autoScored,
               feedbackText: detail.feedback
             });
-            console.log(`\u2705 Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points (auto: ${detail.autoScored})`);
           } catch (updateError) {
-            console.error(`\u274C Failed to update answer ${studentAnswer.id}:`, updateError);
           }
         }
       }
@@ -6214,13 +5965,9 @@ async function autoScoreExamSession(sessionId, storage2) {
       earnedScore: totalAutoScore
     };
     if (process.env.NODE_ENV === "development") {
-      console.log(`\u{1F4CA} DETAILED BREAKDOWN:`, breakdown);
       questionDetails.forEach((q, index2) => {
-        console.log(`Question ${index2 + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? q.isCorrect ? "Correct!" : "Incorrect" : "Manual Review"} - ${q.pointsEarned}/${q.points}`);
       });
     }
-    console.log(`\u{1F3AF} Preparing exam result for student ${session2.studentId}, exam ${session2.examId}`);
-    console.log(`\u{1F4CA} Score calculation: ${totalAutoScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
     if (!session2.studentId) {
       throw new Error("CRITICAL: Session missing studentId - cannot create exam result");
     }
@@ -6228,53 +5975,41 @@ async function autoScoreExamSession(sessionId, storage2) {
       throw new Error("CRITICAL: Session missing examId - cannot create exam result");
     }
     if (maxPossibleScore === 0 && totalQuestions > 0) {
-      console.warn("\u26A0\uFE0F WARNING: Max possible score is 0 but exam has questions - check question points configuration");
     }
     const existingResults = await storage2.getExamResultsByStudent(session2.studentId);
-    console.log(`\u{1F50D} Found ${existingResults.length} existing results for student ${session2.studentId}`);
     const existingResult = existingResults.find((r) => r.examId === session2.examId);
     if (existingResult) {
-      console.log(`\u{1F4CB} Found existing result ID ${existingResult.id} for exam ${session2.examId} - will update`);
     } else {
-      console.log(`\u{1F195} No existing result found for exam ${session2.examId} - will create new`);
     }
     let SYSTEM_AUTO_SCORING_UUID;
     try {
       const adminUsers = await storage2.getUsersByRole(ROLES.ADMIN);
       if (adminUsers && adminUsers.length > 0 && adminUsers[0].id) {
         SYSTEM_AUTO_SCORING_UUID = adminUsers[0].id;
-        console.log(`\u2705 Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
       } else {
-        console.log(`\u26A0\uFE0F No admin users found, verifying student ${session2.studentId} exists in users table...`);
         try {
           const studentUser = await storage2.getUser(session2.studentId);
           if (studentUser && studentUser.id) {
             SYSTEM_AUTO_SCORING_UUID = studentUser.id;
-            console.log(`\u2705 Verified student ${SYSTEM_AUTO_SCORING_UUID} exists in users table, using for recordedBy`);
           } else {
             throw new Error(`Student ${session2.studentId} not found in users table`);
           }
         } catch (studentError) {
-          console.error(`\u274C Student ${session2.studentId} not found in users table:`, studentError);
-          console.log(`\u{1F504} Last resort: Finding any active user for recordedBy...`);
           const allUsers = await storage2.getAllUsers();
           const activeUser = allUsers.find((u) => u.isActive && u.id);
           if (activeUser && activeUser.id) {
             SYSTEM_AUTO_SCORING_UUID = activeUser.id;
-            console.log(`\u2705 Using active user ${SYSTEM_AUTO_SCORING_UUID} as fallback for recordedBy`);
           } else {
             throw new Error("CRITICAL: No valid user ID found for auto-scoring recordedBy - cannot save exam result");
           }
         }
       }
     } catch (userError) {
-      console.error("\u274C CRITICAL ERROR: Failed to find valid user for auto-scoring recordedBy:", userError);
       throw new Error(`Auto-scoring failed: Cannot find valid user ID for recordedBy. Error: ${userError instanceof Error ? userError.message : String(userError)}`);
     }
     if (!SYSTEM_AUTO_SCORING_UUID || typeof SYSTEM_AUTO_SCORING_UUID !== "string") {
       throw new Error(`CRITICAL: Invalid recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
     }
-    console.log(`\u{1F4DD} Final recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
     const resultData = {
       examId: session2.examId,
       studentId: session2.studentId,
@@ -6294,36 +6029,23 @@ async function autoScoreExamSession(sessionId, storage2) {
         summary: breakdown
       }
     };
-    console.log("\u{1F4BE} Result data to save:", JSON.stringify(resultData, null, 2));
     try {
       if (existingResult) {
-        console.log(`\u{1F504} Updating existing exam result ID: ${existingResult.id}`);
         const updatedResult = await storage2.updateExamResult(existingResult.id, resultData);
         if (!updatedResult) {
           throw new Error(`Failed to update exam result ID: ${existingResult.id} - updateExamResult returned null/undefined`);
         }
-        console.log(`\u2705 Updated exam result for student ${session2.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
-        console.log(`\u{1F389} INSTANT FEEDBACK READY: Result updated successfully!`);
       } else {
-        console.log("\u{1F195} Creating new exam result...");
         const newResult = await storage2.recordExamResult(resultData);
         if (!newResult || !newResult.id) {
           throw new Error("Failed to create exam result - recordExamResult returned null/undefined or missing ID");
         }
-        console.log(`\u2705 Created new exam result for student ${session2.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${newResult.id})`);
-        console.log(`\u{1F389} INSTANT FEEDBACK READY: New result created successfully!`);
       }
-      console.log(`\u{1F50D} Verifying result was saved - fetching results for student ${session2.studentId}...`);
       const verificationResults = await storage2.getExamResultsByStudent(session2.studentId);
-      console.log(`\u{1F50D} DEBUG: Found ${verificationResults.length} results. Looking for examId ${session2.examId} (type: ${typeof session2.examId})`);
-      console.log(`\u{1F50D} DEBUG: Result examIds:`, verificationResults.map((r) => `${r.examId} (type: ${typeof r.examId})`));
       const savedResult = verificationResults.find((r) => Number(r.examId) === Number(session2.examId));
       if (!savedResult) {
-        console.error(`\u274C VERIFICATION FAILED: Could not find result for examId ${session2.examId}`);
-        console.error(`\u274C Available results:`, JSON.stringify(verificationResults, null, 2));
         throw new Error("CRITICAL: Result was not properly saved - verification fetch failed to find the result");
       }
-      console.log(`\u2705 Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
       const totalResponseTime = Date.now() - startTime;
       const scoringTime = totalResponseTime - databaseQueryTime;
       const performanceMetrics = {
@@ -6335,11 +6057,7 @@ async function autoScoreExamSession(sessionId, storage2) {
         goalAchieved: totalResponseTime <= 2e3
       };
       if (totalResponseTime > 2e3) {
-        console.warn(`\u{1F6A8} PERFORMANCE ALERT: Auto-scoring took ${totalResponseTime}ms (exceeded 2-second goal by ${totalResponseTime - 2e3}ms)`);
-        console.warn(`\u{1F4A1} OPTIMIZATION NEEDED: Consider query optimization or caching for session ${sessionId}`);
       } else {
-        console.log(`\u{1F3AF} PERFORMANCE SUCCESS: Auto-scoring completed in ${totalResponseTime}ms (within 2-second goal! \u2705)`);
-        console.log(`\u{1F4CA} PERFORMANCE METRICS: DB Query: ${databaseQueryTime}ms, Scoring: ${scoringTime}ms, Total: ${totalResponseTime}ms`);
       }
       try {
         await storage2.logPerformanceEvent({
@@ -6358,35 +6076,26 @@ async function autoScoreExamSession(sessionId, storage2) {
           clientSide: false
           // Server-side auto-scoring
         });
-        console.log(`\u{1F4CA} Performance event logged to database: ${totalResponseTime}ms auto-scoring`);
       } catch (perfLogError) {
-        console.warn("\u26A0\uFE0F Failed to log performance event to database:", perfLogError);
       }
       if (process.env.NODE_ENV === "development") {
-        console.log(`\u{1F52C} DETAILED METRICS:`, JSON.stringify(performanceMetrics, null, 2));
       }
-      console.log(`\u{1F680} AUTO-SCORING COMPLETE - Student should see instant results!`);
     } catch (error) {
       const totalErrorTime = Date.now() - startTime;
-      console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
       throw error;
     }
   } catch (error) {
     const totalErrorTime = Date.now() - startTime;
-    console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
     throw error;
   }
 }
 async function mergeExamScores(answerId, storage2) {
   try {
-    console.log(`\u{1F504} SCORE MERGE: Starting merge for answer ${answerId}...`);
     const answer = await storage2.getStudentAnswerById(answerId);
     if (!answer) {
-      console.error(`\u274C SCORE MERGE: Answer ${answerId} not found`);
       return;
     }
     const sessionId = answer.sessionId;
-    console.log(`\u{1F4DD} SCORE MERGE: Processing session ${sessionId}`);
     const allAnswers = await storage2.getStudentAnswers(sessionId);
     const session2 = await storage2.getExamSessionById(sessionId);
     const examQuestions2 = await storage2.getExamQuestions(session2.examId);
@@ -6400,10 +6109,8 @@ async function mergeExamScores(answerId, storage2) {
     });
     const allEssaysGraded = essayQuestions.length === gradedEssayAnswers.length;
     if (!allEssaysGraded) {
-      console.log(`\u23F3 SCORE MERGE: Not all essays graded yet (${gradedEssayAnswers.length}/${essayQuestions.length}). Skipping merge.`);
       return;
     }
-    console.log(`\u2705 SCORE MERGE: All essays graded! Calculating final score...`);
     let totalScore = 0;
     let maxScore = 0;
     for (const question of examQuestions2) {
@@ -6413,7 +6120,6 @@ async function mergeExamScores(answerId, storage2) {
         totalScore += studentAnswer.pointsEarned || 0;
       }
     }
-    console.log(`\u{1F4CA} SCORE MERGE: Final score = ${totalScore}/${maxScore}`);
     const existingResult = await storage2.getExamResultByExamAndStudent(session2.examId, session2.studentId);
     if (existingResult) {
       await storage2.updateExamResult(existingResult.id, {
@@ -6423,7 +6129,6 @@ async function mergeExamScores(answerId, storage2) {
         autoScored: false
         // Now includes manual scores
       });
-      console.log(`\u2705 SCORE MERGE: Updated exam result ${existingResult.id} with merged score`);
     } else {
       await storage2.recordExamResult({
         examId: session2.examId,
@@ -6435,11 +6140,8 @@ async function mergeExamScores(answerId, storage2) {
         recordedBy: session2.studentId
         // System recorded
       });
-      console.log(`\u2705 SCORE MERGE: Created new exam result with merged score`);
     }
-    console.log(`\u{1F389} SCORE MERGE: Complete! Final score saved.`);
   } catch (error) {
-    console.error(`\u274C SCORE MERGE ERROR:`, error);
   }
 }
 async function registerRoutes(app2) {
@@ -6450,7 +6152,6 @@ async function registerRoutes(app2) {
       const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
       res.json(tasks);
     } catch (error) {
-      console.error("Error fetching AI-suggested tasks:", error);
       res.status(500).json({ message: "Failed to fetch AI-suggested tasks" });
     }
   });
@@ -6459,7 +6160,6 @@ async function registerRoutes(app2) {
       const exams2 = await storage.getAllExams();
       res.json(exams2);
     } catch (error) {
-      console.error("Error fetching exams:", error);
       res.status(500).json({ message: "Failed to fetch exams" });
     }
   });
@@ -6472,7 +6172,6 @@ async function registerRoutes(app2) {
       const exam = await storage.createExam(examData);
       res.status(201).json(exam);
     } catch (error) {
-      console.error("Error creating exam:", error);
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid exam data", errors: error.errors });
       }
@@ -6488,7 +6187,6 @@ async function registerRoutes(app2) {
       }
       res.json(exam);
     } catch (error) {
-      console.error("Error fetching exam:", error);
       res.status(500).json({ message: "Failed to fetch exam" });
     }
   });
@@ -6505,7 +6203,6 @@ async function registerRoutes(app2) {
       const exam = await storage.updateExam(examId, req.body);
       res.json(exam);
     } catch (error) {
-      console.error("Error updating exam:", error);
       res.status(500).json({ message: "Failed to update exam" });
     }
   });
@@ -6522,7 +6219,6 @@ async function registerRoutes(app2) {
       const success = await storage.deleteExam(examId);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting exam:", error);
       res.status(500).json({ message: "Failed to delete exam" });
     }
   });
@@ -6540,7 +6236,6 @@ async function registerRoutes(app2) {
       const exam = await storage.updateExam(examId, { isPublished });
       res.json(exam);
     } catch (error) {
-      console.error("Error updating exam publish status:", error);
       res.status(500).json({ message: "Failed to update exam publish status" });
     }
   });
@@ -6549,7 +6244,6 @@ async function registerRoutes(app2) {
       const examId = parseInt(req.params.examId);
       const studentId = req.user.id;
       const startTime = Date.now();
-      console.log(`\u{1F680} SUBMIT EXAM: Student ${studentId} submitting exam ${examId}`);
       const sessions = await storage.getExamSessionsByStudent(studentId);
       const activeSession = sessions.find((s) => s.examId === examId && !s.isCompleted);
       if (!activeSession) {
@@ -6564,11 +6258,9 @@ async function registerRoutes(app2) {
         submittedAt: now,
         status: "submitted"
       });
-      console.log(`\u2705 SUBMIT: Session ${activeSession.id} marked as submitted`);
       const scoringStartTime = Date.now();
       await autoScoreExamSession(activeSession.id, storage);
       const scoringTime = Date.now() - scoringStartTime;
-      console.log(`\u26A1 SCORING: Completed in ${scoringTime}ms`);
       const updatedSession = await storage.getExamSessionById(activeSession.id);
       const studentAnswers2 = await storage.getStudentAnswers(activeSession.id);
       const examQuestions2 = await storage.getExamQuestions(examId);
@@ -6587,7 +6279,6 @@ async function registerRoutes(app2) {
         };
       });
       const totalTime = Date.now() - startTime;
-      console.log(`\u{1F4CA} TOTAL SUBMISSION TIME: ${totalTime}ms`);
       res.json({
         submitted: true,
         result: {
@@ -6610,7 +6301,6 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("\u274C SUBMIT ERROR:", error);
       res.status(500).json({ message: error.message || "Failed to submit exam" });
     }
   });
@@ -6633,7 +6323,6 @@ async function registerRoutes(app2) {
       }
       res.json(counts);
     } catch (error) {
-      console.error("Error fetching question counts:", error);
       res.status(500).json({ message: "Failed to fetch question counts" });
     }
   });
@@ -6643,7 +6332,6 @@ async function registerRoutes(app2) {
       const questions = await storage.getExamQuestions(examId);
       res.json(questions);
     } catch (error) {
-      console.error("Error fetching exam questions:", error);
       res.status(500).json({ message: "Failed to fetch exam questions" });
     }
   });
@@ -6658,7 +6346,6 @@ async function registerRoutes(app2) {
         res.status(201).json(question);
       }
     } catch (error) {
-      console.error("Error creating exam question:", error);
       res.status(500).json({ message: error.message || "Failed to create exam question" });
     }
   });
@@ -6671,7 +6358,6 @@ async function registerRoutes(app2) {
       }
       res.json(question);
     } catch (error) {
-      console.error("Error updating exam question:", error);
       res.status(500).json({ message: "Failed to update exam question" });
     }
   });
@@ -6684,7 +6370,6 @@ async function registerRoutes(app2) {
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting exam question:", error);
       res.status(500).json({ message: "Failed to delete exam question" });
     }
   });
@@ -6694,7 +6379,6 @@ async function registerRoutes(app2) {
       const options = await storage.getQuestionOptions(questionId);
       res.json(options);
     } catch (error) {
-      console.error("Error fetching question options:", error);
       res.status(500).json({ message: "Failed to fetch question options" });
     }
   });
@@ -6707,7 +6391,6 @@ async function registerRoutes(app2) {
       if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return res.status(400).json({ message: "Questions array is required and must not be empty" });
       }
-      console.log(`\u{1F4E4} Bulk upload: ${questions.length} questions for exam ${examId}`);
       const questionsData = questions.map((q, index2) => ({
         question: {
           examId,
@@ -6722,10 +6405,8 @@ async function registerRoutes(app2) {
         options: q.options || []
       }));
       const result = await storage.createExamQuestionsBulk(questionsData);
-      console.log(`\u2705 Bulk upload complete: ${result.created} created, ${result.errors.length} errors`);
       res.status(201).json(result);
     } catch (error) {
-      console.error("Error in bulk question upload:", error);
       res.status(500).json({
         message: error.message || "Failed to upload questions",
         created: 0,
@@ -6740,7 +6421,6 @@ async function registerRoutes(app2) {
       if (!examId) {
         return res.status(400).json({ message: "Exam ID is required" });
       }
-      console.log(`\u{1F3AF} Starting exam ${examId} for student ${studentId}`);
       const exam = await storage.getExamById(examId);
       if (!exam) {
         return res.status(404).json({ message: "Exam not found" });
@@ -6761,10 +6441,8 @@ async function registerRoutes(app2) {
         maxScore: exam.totalMarks || 0
       };
       const session2 = await storage.createOrGetActiveExamSession(examId, studentId, sessionData);
-      console.log(`\u2705 Exam session ${session2.wasCreated ? "created" : "retrieved"}:`, session2.id);
       res.status(201).json(session2);
     } catch (error) {
-      console.error("Error starting exam:", error);
       res.status(500).json({ message: error.message || "Failed to start exam" });
     }
   });
@@ -6780,7 +6458,6 @@ async function registerRoutes(app2) {
       }
       res.json(session2);
     } catch (error) {
-      console.error("Error fetching active session:", error);
       res.status(500).json({ message: "Failed to fetch active session" });
     }
   });
@@ -6796,7 +6473,6 @@ async function registerRoutes(app2) {
       }
       res.json(session2);
     } catch (error) {
-      console.error("Error fetching exam session:", error);
       res.status(500).json({ message: "Failed to fetch exam session" });
     }
   });
@@ -6810,7 +6486,6 @@ async function registerRoutes(app2) {
       }
       res.json(session2);
     } catch (error) {
-      console.error("Error updating session metadata:", error);
       res.status(500).json({ message: "Failed to update session metadata" });
     }
   });
@@ -6829,7 +6504,6 @@ async function registerRoutes(app2) {
       }
       res.json(session2);
     } catch (error) {
-      console.error("Error updating session progress:", error);
       res.status(500).json({ message: "Failed to update session progress" });
     }
   });
@@ -6896,7 +6570,6 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Error saving student answer:", error);
       res.status(500).json({ message: error.message || "Failed to save answer" });
     }
   });
@@ -6913,7 +6586,6 @@ async function registerRoutes(app2) {
       const answers = await storage.getStudentAnswers(sessionId);
       res.json(answers);
     } catch (error) {
-      console.error("Error fetching student answers:", error);
       res.status(500).json({ message: "Failed to fetch student answers" });
     }
   });
@@ -6924,37 +6596,6 @@ async function registerRoutes(app2) {
     try {
       const teacherId = req.user.id;
       const files = req.files;
-      console.log("\u{1F4E5} RECEIVED PROFILE SETUP REQUEST:", {
-        teacherId,
-        hasFiles: Object.keys(files || {}).length,
-        fileFields: Object.keys(files || {}),
-        profileImageExists: !!files["profileImage"]?.[0],
-        signatureExists: !!files["signature"]?.[0],
-        bodyKeys: Object.keys(req.body),
-        staffId: req.body.staffId,
-        subjects: req.body.subjects,
-        assignedClasses: req.body.assignedClasses
-      });
-      if (files["profileImage"]?.[0]) {
-        console.log("\u{1F4F8} Profile Image Details:", {
-          filename: files["profileImage"][0].filename,
-          originalname: files["profileImage"][0].originalname,
-          mimetype: files["profileImage"][0].mimetype,
-          size: files["profileImage"][0].size,
-          path: files["profileImage"][0].path
-        });
-      } else {
-        console.log("\u26A0\uFE0F No profile image received in upload");
-      }
-      if (files["signature"]?.[0]) {
-        console.log("\u270D\uFE0F Signature Details:", {
-          filename: files["signature"][0].filename,
-          originalname: files["signature"][0].originalname,
-          mimetype: files["signature"][0].mimetype,
-          size: files["signature"][0].size,
-          path: files["signature"][0].path
-        });
-      }
       const {
         gender,
         dateOfBirth,
@@ -7004,7 +6645,6 @@ async function registerRoutes(app2) {
           }
           finalStaffId = staffId.trim();
         } catch (staffIdError) {
-          console.error("\u274C Staff ID validation error:", staffIdError);
           finalStaffId = null;
         }
       }
@@ -7021,9 +6661,7 @@ async function registerRoutes(app2) {
           }).filter((n) => !isNaN(n));
           const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
           finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, "0")}`;
-          console.log(`\u2705 Auto-generated Staff ID: ${finalStaffId}`);
         } catch (autoGenError) {
-          console.error("\u274C Auto-generation error:", autoGenError);
           finalStaffId = `THS/TCH/${(/* @__PURE__ */ new Date()).getFullYear()}/${Date.now().toString().slice(-3)}`;
         }
       }
@@ -7059,7 +6697,6 @@ async function registerRoutes(app2) {
         userUpdateData.recoveryEmail = recoveryEmail.trim();
       }
       await storage.updateUser(teacherId, userUpdateData);
-      console.log("\u2705 User data updated successfully");
       const isSuspicious = parsedSubjects.length === 0 || parsedClasses.length === 0 || !department || yearsOfExperience === 0;
       const profile = await storage.createTeacherProfile({
         ...profileData,
@@ -7113,7 +6750,6 @@ async function registerRoutes(app2) {
               return subject?.name || `Subject #${subjectId}`;
             });
           } catch (error) {
-            console.error("Failed to fetch subject names:", error);
             subjectNames = parsedSubjects.map((id) => `Subject #${id}`);
           }
           try {
@@ -7123,7 +6759,6 @@ async function registerRoutes(app2) {
               return cls?.name || `Class #${classId}`;
             });
           } catch (error) {
-            console.error("Failed to fetch class names:", error);
             classNames = parsedClasses.map((id) => `Class #${id}`);
           }
           await sendEmail2({
@@ -7140,9 +6775,7 @@ async function registerRoutes(app2) {
               `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/portal/admin/teachers`
             )
           });
-          console.log(`\u2705 Auto-verification email sent to admin: ${admin.email}`);
         } catch (emailError) {
-          console.error("Failed to send admin notification email:", emailError);
         }
       }
       await storage.createAuditLog({
@@ -7170,7 +6803,6 @@ async function registerRoutes(app2) {
         verified: profile.verified,
         firstLogin: profile.firstLogin
       };
-      console.log("\u{1F4E4} Sending profile response to frontend:", completeProfileResponse);
       res.json({
         message: "Profile setup completed successfully! You can now access your dashboard.",
         hasProfile: true,
@@ -7178,25 +6810,6 @@ async function registerRoutes(app2) {
         profile: completeProfileResponse
       });
     } catch (error) {
-      console.error("\u274C TEACHER PROFILE SETUP ERROR - Full Details:", {
-        error,
-        message: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : void 0,
-        errorName: error instanceof Error ? error.name : void 0,
-        errorCode: error?.code,
-        errorDetail: error?.detail,
-        errorConstraint: error?.constraint,
-        errorSeverity: error?.severity,
-        errorTable: error?.table,
-        errorColumn: error?.column,
-        teacherId: req.user?.id,
-        requestBody: {
-          ...req.body,
-          // Redact sensitive data in logs
-          password: req.body.password ? "[REDACTED]" : void 0
-        },
-        files: Object.keys(req.files || {})
-      });
       let errorMessage = "Failed to setup teacher profile";
       let statusCode = 500;
       let errorCode = "UNKNOWN_ERROR";
@@ -7249,10 +6862,8 @@ async function registerRoutes(app2) {
         verified: profile?.verified || false,
         firstLogin: profile?.firstLogin !== false
       };
-      console.log("\u{1F4CB} Profile status check:", { teacherId, ...status });
       res.json(status);
     } catch (error) {
-      console.error("\u274C Get teacher profile status error:", error);
       res.status(500).json({ message: "Failed to check profile status" });
     }
   });
@@ -7272,7 +6883,6 @@ async function registerRoutes(app2) {
         skipped: true
       });
     } catch (error) {
-      console.error("Error skipping teacher profile:", error);
       res.status(500).json({ message: "Failed to skip profile setup" });
     }
   });
@@ -7321,17 +6931,8 @@ async function registerRoutes(app2) {
         signatureUrl: profile.signatureUrl,
         updatedAt: profile.updatedAt
       };
-      console.log("\u2705 Teacher profile API response:", {
-        userId,
-        staffId: completeProfile.staffId,
-        hasNationalId: !!completeProfile.nationalId,
-        nationalId: completeProfile.nationalId,
-        hasProfileImage: !!completeProfile.profileImageUrl,
-        profileImageUrl: completeProfile.profileImageUrl
-      });
       res.json(completeProfile);
     } catch (error) {
-      console.error("\u274C Error fetching teacher profile:", error);
       res.status(500).json({ message: "Failed to fetch profile", error: error.message });
     }
   });
@@ -7341,7 +6942,6 @@ async function registerRoutes(app2) {
       const dashboardData = await storage.getTeacherDashboardData(teacherId);
       res.json(dashboardData);
     } catch (error) {
-      console.error("Error fetching teacher dashboard data:", error);
       res.status(500).json({ message: "Failed to fetch dashboard data", error: error.message });
     }
   });
@@ -7352,24 +6952,14 @@ async function registerRoutes(app2) {
     try {
       const teacherId = req.user.id;
       const files = req.files;
-      console.log("\u{1F4DD} PROFILE UPDATE REQUEST:", {
-        teacherId,
-        hasFiles: Object.keys(files || {}).length,
-        fileFields: Object.keys(files || {}),
-        hasProfileImage: !!files["profileImage"]?.[0],
-        hasSignature: !!files["signature"]?.[0],
-        bodyKeys: Object.keys(req.body)
-      });
       const updateData = req.body;
       let profileImageUrl = updateData.profileImageUrl;
       let signatureUrl = updateData.signatureUrl;
       if (files["profileImage"]?.[0]) {
         profileImageUrl = `/${files["profileImage"][0].path.replace(/\\/g, "/")}`;
-        console.log("\u{1F4F8} New profile image uploaded:", profileImageUrl);
       }
       if (files["signature"]?.[0]) {
         signatureUrl = `/${files["signature"][0].path.replace(/\\/g, "/")}`;
-        console.log("\u270D\uFE0F New signature uploaded:", signatureUrl);
       }
       const subjects2 = typeof updateData.subjects === "string" ? JSON.parse(updateData.subjects) : updateData.subjects;
       const assignedClasses = typeof updateData.assignedClasses === "string" ? JSON.parse(updateData.assignedClasses) : updateData.assignedClasses;
@@ -7387,7 +6977,6 @@ async function registerRoutes(app2) {
         userUpdateData.profileImageUrl = profileImageUrl;
       }
       await storage.updateUser(teacherId, userUpdateData);
-      console.log("\u2705 User data updated successfully");
       const profileUpdateData = {
         qualification: updateData.qualification || null,
         specialization: updateData.specialization || null,
@@ -7404,7 +6993,6 @@ async function registerRoutes(app2) {
         profileUpdateData.signatureUrl = signatureUrl;
       }
       await storage.updateTeacherProfile(teacherId, profileUpdateData);
-      console.log("\u2705 Teacher profile updated successfully");
       const updatedProfile = await storage.getTeacherProfile(teacherId);
       const updatedUser = await storage.getUser(teacherId);
       const completeProfile = {
@@ -7425,7 +7013,6 @@ async function registerRoutes(app2) {
         profile: completeProfile
       });
     } catch (error) {
-      console.error("\u274C PROFILE UPDATE ERROR:", error);
       res.status(500).json({
         message: "Failed to update profile",
         error: error instanceof Error ? error.message : "Unknown error"
@@ -7454,7 +7041,6 @@ async function registerRoutes(app2) {
       }));
       res.json(overview);
     } catch (error) {
-      console.error("Get teacher overview error:", error);
       res.status(500).json({ message: "Failed to fetch teacher overview" });
     }
   });
@@ -7486,14 +7072,12 @@ async function registerRoutes(app2) {
         answer: await storage.getStudentAnswerById(answerId)
       });
     } catch (error) {
-      console.error("Error reviewing AI-suggested score:", error);
       res.status(500).json({ message: "Failed to review AI-suggested score" });
     }
   });
   const isProduction2 = process.env.NODE_ENV === "production";
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "development" ? "dev-session-secret-change-in-production" : process.env.JWT_SECRET || SECRET_KEY);
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
-    console.warn("\u26A0\uFE0F WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.");
   }
   const PgStore = connectPgSimple(session);
   const sessionStore = new PgStore({
@@ -7538,7 +7122,6 @@ async function registerRoutes(app2) {
       const { passwordHash, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
-      console.error("Error in /api/auth/me:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -7552,7 +7135,6 @@ async function registerRoutes(app2) {
       const children = await storage.getStudentsByParentId(parentId);
       res.json(children);
     } catch (error) {
-      console.error("Error fetching parent children:", error);
       res.status(500).json({ message: "Failed to fetch children records" });
     }
   });
@@ -7565,7 +7147,6 @@ async function registerRoutes(app2) {
       const notifications2 = await storage.getNotificationsByUserId(user.id);
       res.json(notifications2);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
       res.status(500).json({ message: "Failed to fetch notifications" });
     }
   });
@@ -7578,7 +7159,6 @@ async function registerRoutes(app2) {
       const count = await storage.getUnreadNotificationCount(user.id);
       res.json({ count });
     } catch (error) {
-      console.error("Error fetching unread count:", error);
       res.status(500).json({ message: "Failed to fetch unread count" });
     }
   });
@@ -7597,7 +7177,6 @@ async function registerRoutes(app2) {
       const updated = await storage.markNotificationAsRead(notificationId);
       res.json(updated);
     } catch (error) {
-      console.error("Error marking notification as read:", error);
       res.status(500).json({ message: "Failed to update notification" });
     }
   });
@@ -7610,7 +7189,6 @@ async function registerRoutes(app2) {
       await storage.markAllNotificationsAsRead(user.id);
       res.json({ message: "All notifications marked as read" });
     } catch (error) {
-      console.error("Error marking all notifications as read:", error);
       res.status(500).json({ message: "Failed to update notifications" });
     }
   });
@@ -7619,7 +7197,6 @@ async function registerRoutes(app2) {
       const classes2 = await storage.getClasses();
       res.json(classes2);
     } catch (error) {
-      console.error("Error fetching classes:", error);
       res.status(500).json({ message: "Failed to fetch classes" });
     }
   });
@@ -7628,32 +7205,25 @@ async function registerRoutes(app2) {
       const subjects2 = await storage.getSubjects();
       res.json(subjects2);
     } catch (error) {
-      console.error("Error fetching subjects:", error);
       res.status(500).json({ message: "Failed to fetch subjects" });
     }
   });
   app2.get("/api/terms", authenticateUser, async (req, res) => {
     try {
-      console.log("\u{1F4C5} Fetching academic terms for user:", req.user?.email);
       const terms = await storage.getAcademicTerms();
-      console.log(`\u2705 Found ${terms.length} academic terms`);
       res.json(terms);
     } catch (error) {
-      console.error("\u274C Error fetching academic terms:", error);
       res.status(500).json({ message: "Failed to fetch academic terms" });
     }
   });
   app2.post("/api/terms", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      console.log("\u{1F4C5} Creating academic term:", req.body);
       if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
         return res.status(400).json({ message: "Missing required fields: name, year, startDate, endDate" });
       }
       const term = await storage.createAcademicTerm(req.body);
-      console.log("\u2705 Academic term created successfully:", term.id);
       res.json(term);
     } catch (error) {
-      console.error("\u274C Error creating academic term:", error);
       res.status(500).json({ message: error.message || "Failed to create academic term" });
     }
   });
@@ -7663,17 +7233,13 @@ async function registerRoutes(app2) {
       if (isNaN(termId)) {
         return res.status(400).json({ message: "Invalid term ID" });
       }
-      console.log("\u{1F4C5} Updating academic term:", termId, req.body);
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
-        console.warn(`\u26A0\uFE0F Term ${termId} not found for update`);
         return res.status(404).json({ message: "Academic term not found" });
       }
       const term = await storage.updateAcademicTerm(termId, req.body);
-      console.log("\u2705 Academic term updated successfully:", term?.id);
       res.json(term);
     } catch (error) {
-      console.error("\u274C Error updating academic term:", error);
       res.status(500).json({ message: error.message || "Failed to update academic term" });
     }
   });
@@ -7683,22 +7249,18 @@ async function registerRoutes(app2) {
       if (isNaN(termId)) {
         return res.status(400).json({ message: "Invalid term ID" });
       }
-      console.log("\u{1F4C5} DELETE REQUEST: Attempting to delete academic term:", termId);
       const success = await storage.deleteAcademicTerm(termId);
       if (!success) {
-        console.error(`\u274C DELETE FAILED: Term ${termId} deletion returned false`);
         return res.status(500).json({
           message: "Failed to delete academic term. The term may not exist or could not be removed from the database."
         });
       }
-      console.log("\u2705 DELETE SUCCESS: Academic term deleted:", termId);
       res.json({
         message: "Academic term deleted successfully",
         id: termId,
         success: true
       });
     } catch (error) {
-      console.error("\u274C DELETE ERROR:", error);
       if (error.code === "23503" || error.message?.includes("linked to it")) {
         return res.status(400).json({
           message: error.message || "Cannot delete this term because it is being used by other records."
@@ -7716,17 +7278,13 @@ async function registerRoutes(app2) {
       if (isNaN(termId)) {
         return res.status(400).json({ message: "Invalid term ID" });
       }
-      console.log("\u{1F4C5} Marking term as current:", termId);
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
-        console.warn(`\u26A0\uFE0F Term ${termId} not found`);
         return res.status(404).json({ message: "Academic term not found" });
       }
       const term = await storage.markTermAsCurrent(termId);
-      console.log("\u2705 Term marked as current successfully:", term?.id);
       res.json(term);
     } catch (error) {
-      console.error("\u274C Error marking term as current:", error);
       res.status(500).json({ message: error.message || "Failed to mark term as current" });
     }
   });
@@ -7741,12 +7299,9 @@ async function registerRoutes(app2) {
           if (user) {
             await storage.deleteUser(user.id);
             deletedUsers.push(email);
-            console.log(`\u2705 Deleted demo account: ${email}`);
           } else {
-            console.log(`\u26A0\uFE0F Demo account not found: ${email}`);
           }
         } catch (error) {
-          console.error(`\u274C Failed to delete ${email}:`, error);
           errors.push(`${email}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
       }
@@ -7756,7 +7311,6 @@ async function registerRoutes(app2) {
         errors: errors.length > 0 ? errors : void 0
       });
     } catch (error) {
-      console.error("Delete demo accounts error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Unknown error",
         message: "Failed to delete demo accounts"
@@ -7765,7 +7319,6 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      console.log("Admin password reset requested by:", req.user?.email);
       const allRoles = await storage.getRoles();
       let allUsers = [];
       for (const role of allRoles) {
@@ -7781,11 +7334,9 @@ async function registerRoutes(app2) {
               usersToUpdate.push(user);
             }
           } catch (error) {
-            console.warn(`Skipping user ${user.email} - invalid password hash`);
           }
         }
       }
-      console.log(`Found ${usersToUpdate.length} users with weak passwords`);
       if (usersToUpdate.length === 0) {
         return res.json({
           message: "No users found with weak passwords",
@@ -7806,10 +7357,8 @@ async function registerRoutes(app2) {
               newPassword: strongPassword
             });
             updateCount++;
-            console.log(`\u2705 Updated password for ${user.email}`);
           }
         } catch (error) {
-          console.error(`\u274C Failed to update password for ${user.email}:`, error);
         }
       }
       res.json({
@@ -7819,7 +7368,6 @@ async function registerRoutes(app2) {
         passwordUpdates
       });
     } catch (error) {
-      console.error("Password reset error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Unknown error",
         message: "Failed to reset passwords"
@@ -7844,25 +7392,16 @@ async function registerRoutes(app2) {
           return res.status(500).json({ message: "Failed to upload file to cloud storage" });
         }
         fileUrl = uploadResult.publicUrl;
-        console.log(`\u{1F4E6} Profile image uploaded to Supabase Storage: ${fileUrl}`);
       } else {
         fileUrl = `/${req.file.path.replace(/\\/g, "/")}`;
-        console.log(`\u{1F4BE} Profile image saved to local filesystem: ${fileUrl}`);
       }
       res.json({ url: fileUrl });
     } catch (error) {
-      console.error("File upload error:", error);
       res.status(500).json({ message: "Failed to upload file" });
     }
   });
   app2.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single("homePageImage"), async (req, res) => {
     try {
-      console.log("\u{1F3AF} Homepage upload request received:", {
-        file: req.file?.originalname,
-        contentType: req.body.contentType,
-        userId: req.user.id,
-        supabaseEnabled: isSupabaseStorageEnabled()
-      });
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
@@ -7872,16 +7411,9 @@ async function registerRoutes(app2) {
       let imageUrl;
       let storedFilePath;
       if (isSupabaseStorageEnabled()) {
-        console.log("\u{1F4E6} Using Supabase Storage for upload");
         const timestamp2 = Date.now();
         const filename = `${req.body.contentType}-${timestamp2}${path3.extname(req.file.originalname)}`;
         const filePath = `homepage/${filename}`;
-        console.log(" \u09AA\u09BE\u09A0\u09BE\u09A8\u09CB\u09B0 Supabase:", {
-          bucket: STORAGE_BUCKETS.HOMEPAGE,
-          path: filePath,
-          size: req.file.buffer.length,
-          contentType: req.file.mimetype
-        });
         try {
           const uploadResult = await uploadFileToSupabase(
             STORAGE_BUCKETS.HOMEPAGE,
@@ -7894,9 +7426,7 @@ async function registerRoutes(app2) {
           }
           imageUrl = uploadResult.publicUrl;
           storedFilePath = uploadResult.path;
-          console.log("\u2705 Successfully uploaded to Supabase:", imageUrl);
         } catch (uploadError) {
-          console.error("\u274C Supabase upload failed:", uploadError);
           if (uploadError.message?.includes("new row violates row-level security policy")) {
             throw new Error("Storage permission denied. RLS policies are not configured correctly in Supabase. Please contact your administrator.");
           } else if (uploadError.message?.includes("Bucket not found")) {
@@ -7908,12 +7438,9 @@ async function registerRoutes(app2) {
           }
         }
       } else {
-        console.log("\u{1F4C1} Using local filesystem for upload");
         imageUrl = `/uploads/homepage/${req.file.filename}`;
         storedFilePath = req.file.filename;
-        console.log("\u2705 Successfully uploaded to local filesystem:", imageUrl);
       }
-      console.log("\u{1F4DD} Creating homepage content record in database...");
       const content = await storage.createHomePageContent({
         contentType: req.body.contentType,
         imageUrl,
@@ -7922,14 +7449,8 @@ async function registerRoutes(app2) {
         displayOrder: parseInt(req.body.displayOrder) || 0,
         isActive: true
       });
-      console.log("\u2705 Homepage content created successfully:", content.id);
       res.json(content);
     } catch (error) {
-      console.error("\u274C Homepage upload error:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
       res.status(500).json({
         message: error.message || "Failed to upload homepage image",
         error: process.env.NODE_ENV === "development" ? error.toString() : void 0
@@ -7942,7 +7463,6 @@ async function registerRoutes(app2) {
       const content = await storage.getHomePageContent(contentType);
       res.json(content);
     } catch (error) {
-      console.error("Get homepage content error:", error);
       res.status(500).json({ message: "Failed to get homepage content" });
     }
   });
@@ -7964,7 +7484,6 @@ async function registerRoutes(app2) {
         content: updated
       });
     } catch (error) {
-      console.error("Update homepage content error:", error);
       res.status(500).json({ message: "Failed to update homepage content" });
     }
   });
@@ -7980,7 +7499,6 @@ async function registerRoutes(app2) {
         const filePath = extractFilePathFromUrl(content.imageUrl);
         if (filePath) {
           await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
-          console.log(`\u{1F5D1}\uFE0F Deleted from Supabase Storage: ${filePath}`);
         }
       }
       const deleted = await storage.deleteHomePageContent(id);
@@ -7989,7 +7507,6 @@ async function registerRoutes(app2) {
       }
       res.json({ message: "Homepage content deleted successfully" });
     } catch (error) {
-      console.error("Delete homepage content error:", error);
       res.status(500).json({ message: "Failed to delete homepage content" });
     }
   });
@@ -7998,7 +7515,6 @@ async function registerRoutes(app2) {
       const content = await storage.getHomePageContent();
       res.json(content);
     } catch (error) {
-      console.error("Get public homepage content error:", error);
       res.status(500).json({ message: "Failed to get homepage content" });
     }
   });
@@ -8008,7 +7524,6 @@ async function registerRoutes(app2) {
       const content = await storage.getHomePageContent(contentType);
       res.json(content);
     } catch (error) {
-      console.error("Get public homepage content error:", error);
       res.status(500).json({ message: "Failed to get homepage content" });
     }
   });
@@ -8038,12 +7553,9 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/setup-demo", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      console.log("Setting up demo data...");
       try {
         const existingRoles = await storage.getRoles();
-        console.log("Existing roles:", existingRoles.length);
         if (existingRoles.length === 0) {
-          console.log("No roles found in database");
           return res.json({
             message: "No roles found. Database tables may need to be created first.",
             rolesCount: 0
@@ -8098,12 +7610,9 @@ async function registerRoutes(app2) {
             if (!existingUser) {
               await storage.createUser(userData);
               createdCount++;
-              console.log(`Created demo user: ${userData.email}`);
             } else {
-              console.log(`User already exists: ${userData.email}`);
             }
           } catch (userError) {
-            console.error(`Failed to create user ${userData.email}:`, userError);
           }
         }
         res.json({
@@ -8113,21 +7622,18 @@ async function registerRoutes(app2) {
           roles: existingRoles.map((r) => r.name)
         });
       } catch (dbError) {
-        console.error("Database error:", dbError);
         res.status(500).json({
           message: "Database connection failed",
           error: dbError instanceof Error ? dbError.message : "Unknown database error"
         });
       }
     } catch (error) {
-      console.error("Setup demo error:", error);
       res.status(500).json({ message: "Setup failed", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
   app2.post("/api/auth/login", async (req, res) => {
     try {
       const { identifier, password } = loginSchema.parse(req.body);
-      console.log("Login attempt for:", identifier || "unknown");
       const clientIp = req.ip || req.connection.remoteAddress || "unknown";
       const attemptKey = `${clientIp}:${identifier || "no-identifier"}`;
       const now = Date.now();
@@ -8138,7 +7644,6 @@ async function registerRoutes(app2) {
       }
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && now - attempts.lastAttempt < RATE_LIMIT_WINDOW) {
-        console.warn(`Rate limit exceeded for ${attemptKey}`);
         if (identifier) {
           const violationData = lockoutViolations.get(identifier) || { count: 0, timestamps: [] };
           const recentViolations = violationData.timestamps.filter((ts) => now - ts < LOCKOUT_VIOLATION_WINDOW);
@@ -8154,7 +7659,6 @@ async function registerRoutes(app2) {
               }
               if (userToSuspend && userToSuspend.status !== "suspended") {
                 await storage.updateUserStatus(userToSuspend.id, "suspended", "system", `Automatic suspension due to ${recentViolations.length} rate limit violations within 1 hour`);
-                console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
                 lockoutViolations.delete(identifier);
                 const userRoleForSuspension = await storage.getRole(userToSuspend.roleId);
                 const roleNameForSuspension = userRoleForSuspension?.name?.toLowerCase();
@@ -8181,7 +7685,6 @@ async function registerRoutes(app2) {
                 }
               }
             } catch (err) {
-              console.error("Failed to suspend account:", err);
             }
           }
         }
@@ -8208,28 +7711,15 @@ async function registerRoutes(app2) {
           count: attempts.count + 1,
           lastAttempt: now
         });
-        console.log(`Login failed: User not found for identifier ${identifier}`);
         return res.status(401).json({
           message: "Invalid username or password. Please check your credentials and try again.",
           hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
-        });
-      }
-      if (process.env.NODE_ENV === "development") {
-        console.log("\u{1F510} LOGIN ATTEMPT:", {
-          identifier,
-          userId: user.id,
-          roleId: user.roleId,
-          isActive: user.isActive,
-          status: user.status,
-          profileCompleted: user.profileCompleted,
-          profileSkipped: user.profileSkipped
         });
       }
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
       const isStaffAccount = roleName === "admin" || roleName === "teacher";
       if (user.status === "suspended") {
-        console.warn(`Login blocked: Account ${identifier} is suspended (showing detailed message)`);
         if (isStaffAccount) {
           return res.status(403).json({
             message: "Account Suspended",
@@ -8255,7 +7745,6 @@ async function registerRoutes(app2) {
         lastAttempt: now
       });
       if (user.status === "pending") {
-        console.warn(`Login blocked: Account ${identifier} is pending approval`);
         if (isStaffAccount) {
           return res.status(403).json({
             message: "Account Pending Approval",
@@ -8271,7 +7760,6 @@ async function registerRoutes(app2) {
         }
       }
       if (user.status === "disabled") {
-        console.warn(`Login blocked: Account ${identifier} is disabled`);
         return res.status(403).json({
           message: "Account Disabled",
           description: "Your account has been disabled and is no longer active. Please contact the school administrator if you believe this is an error.",
@@ -8279,7 +7767,6 @@ async function registerRoutes(app2) {
         });
       }
       if ((roleName === "admin" || roleName === "teacher") && user.authProvider === "google") {
-        console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
         return res.status(401).json({
           message: "Google Sign-In Required",
           description: "Admins and Teachers must sign in using their authorized Google account. Please click the 'Sign in with Google' button below to access your account.",
@@ -8294,7 +7781,6 @@ async function registerRoutes(app2) {
             statusType: "google_required"
           });
         }
-        console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
         return res.status(401).json({
           message: "Account Setup Incomplete",
           description: "Your account setup is incomplete. Please contact the school administrator for assistance.",
@@ -8303,7 +7789,6 @@ async function registerRoutes(app2) {
       }
       const isPasswordValid = await bcrypt2.compare(password, user.passwordHash);
       if (!isPasswordValid) {
-        console.log(`Login failed: Invalid password for identifier ${identifier}`);
         return res.status(401).json({
           message: "Invalid Credentials",
           description: "Invalid username or password. Please check your credentials and try again. Make sure CAPS LOCK is off and you're using the correct username and password.",
@@ -8321,7 +7806,6 @@ async function registerRoutes(app2) {
         iat: Math.floor(Date.now() / 1e3)
       };
       const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
-      console.log(`Login successful for ${identifier} with roleId: ${user.roleId}`);
       res.json({
         token,
         mustChangePassword: user.mustChangePassword || false,
@@ -8338,7 +7822,6 @@ async function registerRoutes(app2) {
         }
       });
     } catch (error) {
-      console.error("Login error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid identifier or password format" });
       }
@@ -8362,10 +7845,8 @@ async function registerRoutes(app2) {
         passwordHash: newPasswordHash,
         mustChangePassword: false
       });
-      console.log(`Password changed successfully for user ${userId}`);
       res.json({ message: "Password changed successfully" });
     } catch (error) {
-      console.error("Password change error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid password format" });
       }
@@ -8467,14 +7948,12 @@ async function registerRoutes(app2) {
         message: "If an account exists with that email/username, a password reset link will be sent."
       });
     } catch (error) {
-      console.error("Forgot password error:", error);
       try {
         const { identifier } = req.body;
         if (identifier) {
           await storage.createPasswordResetAttempt(identifier, ipAddress, false);
         }
       } catch (trackError) {
-        console.error("Failed to track attempt:", trackError);
       }
       res.status(500).json({ message: "Failed to process password reset request" });
     }
@@ -8520,7 +7999,6 @@ async function registerRoutes(app2) {
       log(`\u2705 Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
-      console.error("Reset password error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
@@ -8567,13 +8045,6 @@ Thank you,
 Treasure-Home School Administration
 `;
       if (process.env.NODE_ENV === "development") {
-        console.log(`
-\u{1F4E7} ADMIN PASSWORD RESET NOTIFICATION:`);
-        console.log(`To: ${recoveryEmail}`);
-        console.log(`Subject: ${notificationSubject}`);
-        console.log(`Body:
-${notificationBody}
-`);
       }
       log(`\u2705 Admin ${req.user?.email} reset password for user ${userId}`);
       res.json({
@@ -8583,7 +8054,6 @@ ${notificationBody}
         email: recoveryEmail
       });
     } catch (error) {
-      console.error("Admin password reset error:", error);
       res.status(500).json({ message: "Failed to reset password" });
     }
   });
@@ -8601,14 +8071,12 @@ ${notificationBody}
       if (!success) {
         return res.status(500).json({ message: "Failed to update recovery email" });
       }
-      console.log(`\u2705 Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
       res.json({
         message: "Recovery email updated successfully",
         oldEmail: user.recoveryEmail || user.email,
         newEmail: recoveryEmail
       });
     } catch (error) {
-      console.error("Update recovery email error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid email format" });
       }
@@ -8647,14 +8115,12 @@ ${notificationBody}
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
       });
-      console.log(`\u2705 User ${req.user?.email} updated recovery email for account ${id}`);
       res.json({
         message: "Recovery email updated successfully",
         user: { ...updatedUser, recoveryEmail: updatedUser.recoveryEmail }
         // Explicitly return updated recoveryEmail
       });
     } catch (error) {
-      console.error("Error updating recovery email:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Invalid request data",
@@ -8694,7 +8160,6 @@ ${notificationBody}
         username: user.username || user.email
       });
     } catch (error) {
-      console.error("Unlock account error:", error);
       res.status(500).json({ message: "Failed to unlock account" });
     }
   });
@@ -8707,7 +8172,6 @@ ${notificationBody}
       });
       res.json(sanitizedUsers);
     } catch (error) {
-      console.error("Failed to fetch suspended accounts:", error);
       res.status(500).json({ message: "Failed to fetch suspended accounts" });
     }
   });
@@ -8730,14 +8194,12 @@ ${notificationBody}
       );
       if (user.email) lockoutViolations.delete(user.email);
       if (user.username) lockoutViolations.delete(user.username);
-      console.log(`Admin ${req.user.email} unlocked account ${user.email || user.username}`);
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "Account unlocked successfully",
         user: safeUser
       });
     } catch (error) {
-      console.error("Failed to unlock account:", error);
       res.status(500).json({ message: "Failed to unlock account" });
     }
   });
@@ -8774,7 +8236,6 @@ ${notificationBody}
       });
       const inviteLink = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000")}/invite/${token}`;
       if (process.env.NODE_ENV === "development") {
-        console.log(`Invite created for ${email}: ${inviteLink}`);
         return res.json({
           message: "Invite created successfully",
           invite: {
@@ -8798,7 +8259,6 @@ ${notificationBody}
         }
       });
     } catch (error) {
-      console.error("Create invite error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid request format" });
       }
@@ -8810,7 +8270,6 @@ ${notificationBody}
       const invites2 = await storage.getAllInvites();
       res.json(invites2);
     } catch (error) {
-      console.error("List invites error:", error);
       res.status(500).json({ message: "Failed to list invites" });
     }
   });
@@ -8819,7 +8278,6 @@ ${notificationBody}
       const invites2 = await storage.getPendingInvites();
       res.json(invites2);
     } catch (error) {
-      console.error("List pending invites error:", error);
       res.status(500).json({ message: "Failed to list pending invites" });
     }
   });
@@ -8836,7 +8294,6 @@ ${notificationBody}
         expiresAt: invite.expiresAt
       });
     } catch (error) {
-      console.error("Get invite error:", error);
       res.status(500).json({ message: "Failed to get invite" });
     }
   });
@@ -8885,7 +8342,6 @@ ${notificationBody}
         SECRET_KEY,
         { expiresIn: "24h" }
       );
-      console.log(`Invite accepted by ${user.email} (${username})`);
       res.json({
         message: "Account created successfully",
         user: {
@@ -8899,7 +8355,6 @@ ${notificationBody}
         token: token_jwt
       });
     } catch (error) {
-      console.error("Accept invite error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid request format" });
       }
@@ -8915,7 +8370,6 @@ ${notificationBody}
       }
       res.json({ message: "Invite deleted successfully" });
     } catch (error) {
-      console.error("Delete invite error:", error);
       res.status(500).json({ message: "Failed to delete invite" });
     }
   });
@@ -8948,13 +8402,11 @@ ${notificationBody}
         isRead: false
       });
       const savedMessage = await storage.createContactMessage(contactMessageData);
-      console.log("\u2705 Contact form saved to database:", { id: savedMessage.id, email: data.email });
       res.json({
         message: "Message sent successfully! We'll get back to you soon.",
         id: savedMessage.id
       });
     } catch (error) {
-      console.error("\u274C Contact form error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({ message: "Invalid request data" });
       }
@@ -8997,7 +8449,6 @@ ${notificationBody}
         }
       });
     } catch (error) {
-      console.error("Error fetching analytics:", error);
       res.status(500).json({ message: "Failed to fetch analytics data" });
     }
   });
@@ -9030,7 +8481,6 @@ ${notificationBody}
           users2 = users2.filter(
             (user) => user.roleId !== ROLES.SUPER_ADMIN && user.roleId !== ROLES.ADMIN
           );
-          console.log(`\u{1F512} SECURITY: Filtered ${users2.length} users for Admin user ${currentUser.email} (Admin accounts hidden)`);
         }
       }
       const allRoles = await storage.getRoles();
@@ -9044,7 +8494,6 @@ ${notificationBody}
       });
       res.json(sanitizedUsers);
     } catch (error) {
-      console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
@@ -9064,7 +8513,6 @@ ${notificationBody}
         const settings2 = await storage.getSystemSettings();
         const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to verify admin account ${user.email}`);
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -9084,14 +8532,13 @@ ${notificationBody}
         reason: `Admin ${adminUser2.email} verified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "User verified and activated successfully",
         user: safeUser
       });
     } catch (error) {
-      console.error("Error verifying user:", error);
       res.status(500).json({ message: "Failed to verify user" });
     }
   });
@@ -9111,7 +8558,6 @@ ${notificationBody}
         const settings2 = await storage.getSystemSettings();
         const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to unverify admin account ${user.email}`);
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -9131,14 +8577,13 @@ ${notificationBody}
         reason: `Admin ${adminUser2.email} unverified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "User unverified and moved to pending status",
         user: safeUser
       });
     } catch (error) {
-      console.error("Error unverifying user:", error);
       res.status(500).json({ message: "Failed to unverify user" });
     }
   });
@@ -9159,7 +8604,6 @@ ${notificationBody}
         const settings2 = await storage.getSystemSettings();
         const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to suspend admin account ${user.email}`);
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -9179,14 +8623,13 @@ ${notificationBody}
         reason: reason || `Admin ${adminUser2.email} suspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "User suspended successfully",
         user: safeUser
       });
     } catch (error) {
-      console.error("Error suspending user:", error);
       res.status(500).json({ message: "Failed to suspend user" });
     }
   });
@@ -9206,7 +8649,6 @@ ${notificationBody}
         const settings2 = await storage.getSystemSettings();
         const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to unsuspend admin account ${user.email}`);
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -9226,14 +8668,13 @@ ${notificationBody}
         reason: `Admin ${adminUser2.email} unsuspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "User unsuspended successfully",
         user: safeUser
       });
     } catch (error) {
-      console.error("Error unsuspending user:", error);
       res.status(500).json({ message: "Failed to unsuspend user" });
     }
   });
@@ -9266,14 +8707,13 @@ ${notificationBody}
         reason: reason || `Admin ${adminUser2.email} changed status of user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: `User status updated to ${status}`,
         user: safeUser
       });
     } catch (error) {
-      console.error("Error updating user status:", error);
       res.status(500).json({ message: "Failed to update user status" });
     }
   });
@@ -9300,7 +8740,6 @@ ${notificationBody}
         const settings2 = await storage.getSystemSettings();
         const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to update admin account ${user.email}`);
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -9333,7 +8772,7 @@ ${notificationBody}
         reason: `Admin ${adminUser2.email} updated user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const { passwordHash, ...safeUser } = updatedUser;
       res.json({
         message: "User updated successfully",
@@ -9343,7 +8782,6 @@ ${notificationBody}
       if (error instanceof ZodError) {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
-      console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
     }
   });
@@ -9355,14 +8793,11 @@ ${notificationBody}
       if (!adminUser2) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      console.log(`\u{1F5D1}\uFE0F DELETE REQUEST: Admin ${adminUser2.email} attempting to delete user ${id}`);
       const user = await storage.getUser(id);
       if (!user) {
-        console.warn(`\u274C DELETE FAILED: User ${id} not found`);
         return res.status(404).json({ message: "User not found" });
       }
       if (user.id === adminUser2.id) {
-        console.warn(`\u274C DELETE BLOCKED: User attempted to delete own account`);
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
       const isCurrentUserSuperAdmin = adminUser2.roleId === ROLES.SUPER_ADMIN;
@@ -9370,7 +8805,6 @@ ${notificationBody}
         const settings2 = await storage.getSystemSettings();
         const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to delete admin account ${user.email}`);
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -9378,38 +8812,30 @@ ${notificationBody}
         }
       }
       if (user.roleId === ROLES.SUPER_ADMIN && adminUser2.roleId !== ROLES.SUPER_ADMIN) {
-        console.log(`\u{1F6AB} BLOCKED: Non-Super Admin ${adminUser2.email} attempted to delete Super Admin account ${user.email}`);
         return res.status(403).json({
           message: "Only Super Admins can delete Super Admin accounts.",
           code: "SUPER_ADMIN_PROTECTED"
         });
       }
       if (user.roleId === ROLES.ADMIN && adminUser2.roleId === ROLES.ADMIN) {
-        console.log(`\u{1F6AB} BLOCKED: Admin ${adminUser2.email} attempted to delete another Admin account ${user.email}`);
         return res.status(403).json({
           message: "Admins cannot delete other Admin accounts.",
           code: "ADMIN_PROTECTED"
         });
       }
-      console.log(`\u{1F4CB} DELETING USER: ${user.email || user.username} (ID: ${id}, Role: ${user.roleId})`);
       let deleted = false;
       let lastError = null;
       const maxRetries = 3;
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          console.log(`\u{1F504} DELETE ATTEMPT ${attempt}/${maxRetries} for user ${id}`);
           deleted = await storage.deleteUser(id);
           if (deleted) {
-            console.log(`\u2705 DELETE SUCCESS on attempt ${attempt}: User ${id} deleted in ${Date.now() - startTime}ms`);
             break;
           } else {
-            console.warn(`\u26A0\uFE0F DELETE RETURNED FALSE on attempt ${attempt}: User ${id}`);
           }
         } catch (deleteError) {
           lastError = deleteError;
-          console.error(`\u274C DELETE ERROR on attempt ${attempt}:`, deleteError);
           if (deleteError?.code === "42501" || deleteError?.message?.includes("permission denied")) {
-            console.error(`\u{1F6AB} RLS/PERMISSION ERROR: Supabase Row Level Security may be blocking delete for user ${id}`);
             return res.status(403).json({
               message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
               technicalDetails: "RLS_PERMISSION_DENIED"
@@ -9420,14 +8846,12 @@ ${notificationBody}
           }
           if (attempt < maxRetries) {
             const backoffMs = 100 * Math.pow(2, attempt - 1);
-            console.log(`\u23F1\uFE0F RETRY BACKOFF: Waiting ${backoffMs}ms before attempt ${attempt + 1}`);
             await new Promise((resolve) => setTimeout(resolve, backoffMs));
           }
         }
       }
       if (!deleted) {
         const errorMsg = lastError?.message || "Unknown error";
-        console.error(`\u274C DELETE FAILED AFTER ${maxRetries} ATTEMPTS: ${errorMsg}`);
         if (lastError?.cause?.code === "23503" || errorMsg.includes("foreign key")) {
           const relatedTable = lastError?.cause?.table_name || "related records";
           return res.status(409).json({
@@ -9442,13 +8866,11 @@ ${notificationBody}
       }
       const verifyUser = await storage.getUser(id);
       if (verifyUser) {
-        console.error(`\u{1F6A8} CRITICAL: User ${id} still exists after delete operation! Possible RLS issue.`);
         return res.status(500).json({
           message: "Delete operation completed but user still exists. This may be a database policy issue.",
           technicalDetails: "DELETE_VERIFICATION_FAILED"
         });
       }
-      console.log(`\u2705 DELETE VERIFIED: User ${id} successfully removed from database`);
       storage.createAuditLog({
         userId: adminUser2.id,
         action: "user_deleted",
@@ -9464,9 +8886,8 @@ ${notificationBody}
         reason: `Admin ${adminUser2.email} permanently deleted user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"]
-      }).catch((err) => console.error("Audit log failed (non-critical):", err));
+      });
       const totalTime = Date.now() - startTime;
-      console.log(`\u26A1 DELETE COMPLETED in ${totalTime}ms`);
       res.json({
         message: "User deleted successfully",
         deletedUserId: id,
@@ -9474,8 +8895,6 @@ ${notificationBody}
       });
     } catch (error) {
       const totalTime = Date.now() - startTime;
-      console.error(`\u{1F4A5} UNEXPECTED DELETE ERROR after ${totalTime}ms:`, error);
-      console.error("Error stack:", error.stack);
       res.status(500).json({
         message: "An unexpected error occurred while deleting user",
         technicalDetails: error.message
@@ -9503,7 +8922,6 @@ ${notificationBody}
         const { generateTempPassword: generateTempPassword2 } = await Promise.resolve().then(() => (init_username_generator(), username_generator_exports));
         generatedPassword = generateTempPassword2();
         passwordToUse = generatedPassword;
-        console.log(`\u{1F510} Auto-generated temporary password for user: ${user.username}`);
       }
       const passwordHash = await bcrypt2.hash(passwordToUse, BCRYPT_ROUNDS);
       await storage.updateUser(id, {
@@ -9529,7 +8947,6 @@ ${notificationBody}
         // Include generated password if auto-generated
       });
     } catch (error) {
-      console.error("Error resetting password:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Invalid request data",
@@ -9583,7 +9000,6 @@ ${notificationBody}
         user: safeUser
       });
     } catch (error) {
-      console.error("Error changing user role:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Invalid request data",
@@ -9617,7 +9033,6 @@ ${notificationBody}
       }));
       res.json(enrichedLogs);
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Invalid query parameters",
@@ -9675,7 +9090,6 @@ ${notificationBody}
         temporaryPassword: password
       });
     } catch (error) {
-      console.error("User creation error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Invalid user data",
@@ -9712,7 +9126,6 @@ ${notificationBody}
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
     } catch (error) {
-      console.error("User update error:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: "Invalid user data",
@@ -9844,7 +9257,6 @@ ${notificationBody}
             }
           });
         } catch (error) {
-          console.error(`Error processing row ${i + 1}:`, error);
           errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
       }
@@ -9855,7 +9267,6 @@ ${notificationBody}
         errors: errors.length > 0 ? errors : void 0
       });
     } catch (error) {
-      console.error("CSV upload error:", error);
       if (req.file?.path) {
         try {
           await fs2.unlink(req.file.path);
@@ -9876,7 +9287,6 @@ ${notificationBody}
       await fs2.unlink(req.file.path);
       res.json(preview);
     } catch (error) {
-      console.error("CSV preview error:", error);
       res.status(500).json({ message: error.message || "Failed to preview CSV" });
     }
   });
@@ -9891,7 +9301,6 @@ ${notificationBody}
       await fs2.unlink(req.file.path);
       res.json(preview);
     } catch (error) {
-      console.error("CSV preview error:", error);
       res.status(500).json({ message: error.message || "Failed to preview CSV" });
     }
   });
@@ -9922,7 +9331,6 @@ ${notificationBody}
         credentials: result.credentials
       });
     } catch (error) {
-      console.error("CSV commit error:", error);
       res.status(500).json({ message: error.message || "Failed to import students" });
     }
   });
@@ -9962,7 +9370,6 @@ ${notificationBody}
       );
       res.json(enrichedStudents);
     } catch (error) {
-      console.error("Error fetching students:", error);
       res.status(500).json({ message: "Failed to fetch students" });
     }
   });
@@ -10083,7 +9490,6 @@ ${notificationBody}
         parentCreated: result.parentCredentials !== null
       });
     } catch (error) {
-      console.error("Error creating student:", error);
       if (error instanceof ZodError) {
         return res.status(400).json({
           message: "Validation error",
@@ -10107,7 +9513,6 @@ ${notificationBody}
       }
       res.json(student);
     } catch (error) {
-      console.error("Error fetching student:", error);
       res.status(500).json({ message: "Failed to fetch student data" });
     }
   });
@@ -10120,7 +9525,6 @@ ${notificationBody}
       const classes2 = await storage.getStudentClasses(studentId);
       res.json(classes2);
     } catch (error) {
-      console.error("Error fetching student classes:", error);
       res.status(500).json({ message: "Failed to fetch classes" });
     }
   });
@@ -10153,7 +9557,6 @@ ${notificationBody}
       }
       res.json(updatedStudent);
     } catch (error) {
-      console.error("Error updating student:", error);
       res.status(500).json({ message: "Failed to update student profile" });
     }
   });
@@ -10172,14 +9575,12 @@ ${notificationBody}
       if (!deleted) {
         return res.status(500).json({ message: "Failed to delete student" });
       }
-      console.log(`\u2705 Student ${studentId} successfully deactivated by admin ${req.user.email}`);
       res.json({
         success: true,
         message: "Student deleted successfully",
         studentId
       });
     } catch (error) {
-      console.error("Error deleting student:", error);
       res.status(500).json({ message: "Failed to delete student" });
     }
   });
@@ -10203,7 +9604,6 @@ ${notificationBody}
         completionPercentage = Math.round(filledFields / fields.length * 100);
       }
       if (completionPercentage === 100 && !user?.profileCompleted) {
-        console.log("\u{1F527} AUTO-FIX: Detected 100% profile but profileCompleted is false/null, fixing...");
         const updated = await storage.updateStudent(userId, {
           userPatch: {
             profileCompleted: true,
@@ -10213,7 +9613,6 @@ ${notificationBody}
         });
         if (updated) {
           user = updated.user;
-          console.log("\u2705 AUTO-FIX: Profile completion status fixed for user:", userId);
         }
       }
       const status = {
@@ -10223,20 +9622,8 @@ ${notificationBody}
         percentage: user?.profileCompletionPercentage || completionPercentage,
         firstLogin: student?.firstLogin !== false
       };
-      if (process.env.NODE_ENV === "development") {
-        console.log("\u{1F4CA} PROFILE STATUS CHECK:", {
-          userId,
-          hasProfile: status.hasProfile,
-          completed: status.completed,
-          skipped: status.skipped,
-          percentage: status.percentage,
-          rawProfileCompleted: user?.profileCompleted,
-          rawProfileSkipped: user?.profileSkipped
-        });
-      }
       res.json(status);
     } catch (error) {
-      console.error("Error checking student profile status:", error);
       res.status(500).json({ message: "Failed to check profile status" });
     }
   });
@@ -10244,8 +9631,6 @@ ${notificationBody}
     try {
       const userId = req.user.id;
       const profileData = req.body;
-      console.log("\u{1F4DD} PROFILE SETUP: Received data for user:", userId);
-      console.log("\u{1F4DD} PROFILE SETUP: Profile data:", JSON.stringify(profileData, null, 2));
       const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
       const updatedStudent = await storage.updateStudent(userId, {
         userPatch: {
@@ -10266,24 +9651,14 @@ ${notificationBody}
         }
       });
       if (!updatedStudent) {
-        console.error("\u274C PROFILE SETUP: Student not found");
         return res.status(404).json({ message: "Student not found" });
       }
-      console.log("\u2705 PROFILE SETUP: Successfully updated profile for user:", userId);
-      console.log("\u2705 PROFILE SETUP: Updated user data:", {
-        profileCompleted: updatedStudent.user.profileCompleted,
-        profileSkipped: updatedStudent.user.profileSkipped,
-        profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
-        phone: updatedStudent.user.phone ? "***" : null,
-        address: updatedStudent.user.address ? "***" : null
-      });
       res.json({
         message: "Profile setup completed successfully",
         student: updatedStudent.student,
         user: updatedStudent.user
       });
     } catch (error) {
-      console.error("\u274C PROFILE SETUP ERROR:", error);
       res.status(500).json({ message: "Failed to setup profile", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
@@ -10303,7 +9678,6 @@ ${notificationBody}
         skipped: true
       });
     } catch (error) {
-      console.error("Error skipping student profile:", error);
       res.status(500).json({ message: "Failed to skip profile setup" });
     }
   });
@@ -10313,7 +9687,6 @@ ${notificationBody}
       const vacancies2 = await storage.getAllVacancies(status);
       res.json(vacancies2);
     } catch (error) {
-      console.error("Error fetching vacancies:", error);
       res.status(500).json({ message: "Failed to fetch vacancies" });
     }
   });
@@ -10325,7 +9698,6 @@ ${notificationBody}
       }
       res.json(vacancy);
     } catch (error) {
-      console.error("Error fetching vacancy:", error);
       res.status(500).json({ message: "Failed to fetch vacancy" });
     }
   });
@@ -10372,7 +9744,6 @@ ${notificationBody}
       if (error instanceof ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
-      console.error("Error submitting teacher application:", error);
       res.status(500).json({ message: "Failed to submit application" });
     }
   });
@@ -10384,7 +9755,6 @@ ${notificationBody}
       });
       res.status(201).json(vacancy);
     } catch (error) {
-      console.error("Error creating vacancy:", error);
       res.status(500).json({ message: "Failed to create vacancy" });
     }
   });
@@ -10396,7 +9766,6 @@ ${notificationBody}
       }
       res.json(vacancy);
     } catch (error) {
-      console.error("Error closing vacancy:", error);
       res.status(500).json({ message: "Failed to close vacancy" });
     }
   });
@@ -10406,7 +9775,6 @@ ${notificationBody}
       const applications = await storage.getAllTeacherApplications(status);
       res.json(applications);
     } catch (error) {
-      console.error("Error fetching teacher applications:", error);
       res.status(500).json({ message: "Failed to fetch applications" });
     }
   });
@@ -10444,7 +9812,6 @@ ${notificationBody}
         res.status(400).json({ message: "Invalid status" });
       }
     } catch (error) {
-      console.error("Error updating application:", error);
       res.status(500).json({ message: "Failed to update application" });
     }
   });
@@ -10453,7 +9820,6 @@ ${notificationBody}
       const approvedTeachers2 = await storage.getAllApprovedTeachers();
       res.json(approvedTeachers2);
     } catch (error) {
-      console.error("Error fetching approved teachers:", error);
       res.status(500).json({ message: "Failed to fetch approved teachers" });
     }
   });
@@ -10462,18 +9828,14 @@ ${notificationBody}
       const stats = await storage.getSuperAdminStats();
       res.json(stats);
     } catch (error) {
-      console.error("Error fetching super admin stats:", error);
       res.status(500).json({ message: "Failed to fetch system statistics" });
     }
   });
   app2.get("/api/superadmin/admins", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
     try {
-      console.log(`\u{1F50D} Fetching admins with roleId: ${ROLES.ADMIN}`);
       const admins = await storage.getUsersByRole(ROLES.ADMIN);
-      console.log(`\u2705 Found ${admins.length} admins:`, admins.map((a) => ({ id: a.id, username: a.username, roleId: a.roleId })));
       res.json(admins);
     } catch (error) {
-      console.error("Error fetching admins:", error);
       res.status(500).json({ message: "Failed to fetch administrators" });
     }
   });
@@ -10493,9 +9855,7 @@ ${notificationBody}
       const { generateAdminUsername: generateAdminUsername3, generateTempPassword: generateTempPassword2 } = await Promise.resolve().then(() => (init_username_generator(), username_generator_exports));
       const username = await generateAdminUsername3();
       const tempPassword = generateTempPassword2();
-      console.log(`\u{1F510} Auto-generating credentials for admin: ${firstName} ${lastName}`);
       const passwordHash = await bcrypt2.hash(tempPassword, 12);
-      console.log(`\u{1F464} Creating admin with roleId: ${ROLES.ADMIN}`);
       const newAdmin = await storage.createUser({
         username,
         email,
@@ -10512,7 +9872,6 @@ ${notificationBody}
         approvedBy: req.user.id,
         approvedAt: /* @__PURE__ */ new Date()
       });
-      console.log(`\u2705 Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
       await storage.createAdminProfile({
         userId: newAdmin.id,
         department: "Administration",
@@ -10525,7 +9884,6 @@ ${notificationBody}
         entityId: newAdmin.id,
         reason: `New admin created: ${username} (auto-generated credentials)`
       });
-      console.log(`\u2705 New admin created: ${username} by ${req.user.username}`);
       res.status(201).json({
         message: "Admin created successfully with auto-generated credentials",
         admin: {
@@ -10542,7 +9900,6 @@ ${notificationBody}
         }
       });
     } catch (error) {
-      console.error("Error creating admin:", error);
       if (error instanceof z2.ZodError) {
         return res.status(400).json({
           message: error.errors[0].message || "Validation error",
@@ -10557,7 +9914,6 @@ ${notificationBody}
       const logs = await storage.getAuditLogs();
       res.json(logs);
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
       res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
@@ -10566,7 +9922,6 @@ ${notificationBody}
       const settings2 = await storage.getSystemSettings();
       res.json(settings2);
     } catch (error) {
-      console.error("Error fetching system settings:", error);
       res.status(500).json({ message: "Failed to fetch system settings" });
     }
   });
@@ -10582,7 +9937,6 @@ ${notificationBody}
       });
       res.json(settings2);
     } catch (error) {
-      console.error("Error updating system settings:", error);
       res.status(500).json({ message: "Failed to update system settings" });
     }
   });
@@ -10612,10 +9966,8 @@ ${notificationBody}
         assignedBy: req.user.id,
         isActive: true
       });
-      console.log(`\u2705 Admin ${req.user.email} assigned teacher ${teacher.email} to class ${classExists.name} for subject ${subjectExists.name}`);
       res.status(201).json(assignment);
     } catch (error) {
-      console.error("Error creating teacher assignment:", error);
       res.status(500).json({ message: "Failed to create teacher assignment" });
     }
   });
@@ -10655,7 +10007,6 @@ ${notificationBody}
       }
       res.json({ message: "Please specify teacherId parameter" });
     } catch (error) {
-      console.error("Error fetching teacher assignments:", error);
       res.status(500).json({ message: "Failed to fetch teacher assignments" });
     }
   });
@@ -10669,7 +10020,6 @@ ${notificationBody}
       });
       res.json(sanitizedTeachers);
     } catch (error) {
-      console.error("Error fetching teachers for class/subject:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });
     }
   });
@@ -10701,7 +10051,6 @@ ${notificationBody}
       }
       res.json(Object.values(groupedByClass));
     } catch (error) {
-      console.error("Error fetching teacher assignments:", error);
       res.status(500).json({ message: "Failed to fetch teacher assignments" });
     }
   });
@@ -10713,10 +10062,8 @@ ${notificationBody}
       if (!updatedAssignment) {
         return res.status(404).json({ message: "Assignment not found" });
       }
-      console.log(`\u2705 Admin ${req.user.email} updated teacher assignment ${id}`);
       res.json(updatedAssignment);
     } catch (error) {
-      console.error("Error updating teacher assignment:", error);
       res.status(500).json({ message: "Failed to update teacher assignment" });
     }
   });
@@ -10727,10 +10074,8 @@ ${notificationBody}
       if (!success) {
         return res.status(404).json({ message: "Assignment not found" });
       }
-      console.log(`\u2705 Admin ${req.user.email} deleted teacher assignment ${id}`);
       res.json({ message: "Teacher assignment deleted successfully" });
     } catch (error) {
-      console.error("Error deleting teacher assignment:", error);
       res.status(500).json({ message: "Failed to delete teacher assignment" });
     }
   });
@@ -10753,7 +10098,6 @@ ${notificationBody}
       }));
       res.json(teacherData);
     } catch (error) {
-      console.error("Error fetching teachers for subject:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });
     }
   });
@@ -10820,10 +10164,8 @@ init_storage();
 init_schema();
 async function seedAcademicTerms() {
   try {
-    console.log("\u{1F393} Checking for academic terms...");
     const existingTerms = await exportDb.select().from(academicTerms);
     if (existingTerms.length === 0) {
-      console.log("\u{1F4DA} No terms found. Creating default academic terms...");
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
       const nextYear = currentYear + 1;
       const academicYear = `${currentYear}/${nextYear}`;
@@ -10852,14 +10194,10 @@ async function seedAcademicTerms() {
       ];
       for (const term of defaultTerms) {
         await exportDb.insert(academicTerms).values(term);
-        console.log(`\u2705 Created term: ${term.name} (${term.year})`);
       }
-      console.log("\u{1F393} Academic terms seeded successfully!");
     } else {
-      console.log(`\u2705 Found ${existingTerms.length} existing academic terms`);
     }
   } catch (error) {
-    console.error("\u274C Failed to seed academic terms:", error);
     throw error;
   }
 }
@@ -10934,53 +10272,34 @@ function validateEnvironment(exitOnError = false) {
     warnings: [],
     passed: []
   };
-  console.log("\n\u{1F50D} Validating Environment Variables...\n");
   ENV_VARS.forEach((config) => {
     const value = process.env[config.name];
     const isRequired = config.required === "always" || config.required === "production" && isProduction2;
     if (!value) {
       if (isRequired) {
         result.missing.push(config.name);
-        console.error(`\u274C MISSING (${config.required.toUpperCase()}): ${config.name}`);
-        console.error(`   ${config.description}`);
         if (config.suggestion) {
-          console.error(`   Suggestion: ${config.suggestion}`);
         }
       } else if (config.required === "optional") {
         result.warnings.push(config.name);
-        console.warn(`\u26A0\uFE0F  OPTIONAL: ${config.name} not set`);
-        console.warn(`   ${config.description}`);
       }
       return;
     }
     if (config.validateFn && !config.validateFn(value)) {
       result.invalid.push(config.name);
-      console.error(`\u274C INVALID: ${config.name}`);
-      console.error(`   ${config.description}`);
       if (config.suggestion) {
-        console.error(`   Expected format: ${config.suggestion}`);
       }
       return;
     }
     result.passed.push(config.name);
     const displayValue = config.name.includes("SECRET") || config.name.includes("KEY") || config.name.includes("PASSWORD") ? "***" + value.slice(-4) : value.slice(0, 50) + (value.length > 50 ? "..." : "");
-    console.log(`\u2705 ${config.name}: ${displayValue}`);
   });
-  console.log("\n\u{1F4CA} Validation Summary:");
-  console.log(`   \u2705 Passed: ${result.passed.length}`);
-  console.log(`   \u274C Missing: ${result.missing.length}`);
-  console.log(`   \u274C Invalid: ${result.invalid.length}`);
-  console.log(`   \u26A0\uFE0F  Warnings: ${result.warnings.length}`);
   const hasErrors = result.missing.length > 0 || result.invalid.length > 0;
   if (hasErrors) {
-    console.error("\n\u{1F6A8} CRITICAL: Missing or invalid environment variables detected!");
-    console.error("   Fix these issues before deploying to production.\n");
     if (isProduction2 && exitOnError) {
-      console.error("   Exiting due to production environment validation failure...\n");
       process.exit(1);
     }
   } else {
-    console.log("\n\u2705 All required environment variables are properly configured!\n");
   }
   return result;
 }
@@ -11023,8 +10342,6 @@ var corsOptions = {
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.warn(`\u26A0\uFE0F CORS: Rejected origin: ${origin}`);
-      console.warn(`   Allowed origins:`, allowedOrigins);
       callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
@@ -11128,11 +10445,8 @@ function sanitizeLogData(data) {
     if (isIdempotencyError) {
       log(`\u2139\uFE0F Migrations already applied: ${errorMessage}`);
     } else {
-      console.error(`\u{1F6A8} MIGRATION ERROR: ${errorMessage}`);
-      console.error(error);
       log(`\u26A0\uFE0F Migration failed: ${errorMessage}`);
       if (process.env.NODE_ENV === "production") {
-        console.error("Production migration failure detected. Review required.");
       }
     }
   }
@@ -11156,8 +10470,6 @@ function sanitizeLogData(data) {
     log("\u2705 Academic terms seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`\u{1F6A8} ACADEMIC TERMS SEEDING ERROR: ${errorMessage}`);
-    console.error(error);
     log(`\u26A0\uFE0F Academic terms seeding failed: ${errorMessage}`);
   }
   try {
@@ -11167,8 +10479,6 @@ function sanitizeLogData(data) {
     log("\u2705 System settings seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`\u{1F6A8} SYSTEM SETTINGS SEEDING ERROR: ${errorMessage}`);
-    console.error(error);
     log(`\u26A0\uFE0F System settings seeding failed: ${errorMessage}`);
   }
   try {
@@ -11178,19 +10488,11 @@ function sanitizeLogData(data) {
     log("\u2705 Super admin seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`\u{1F6A8} SUPER ADMIN SEEDING ERROR: ${errorMessage}`);
-    console.error(error);
     log(`\u26A0\uFE0F Super admin seeding failed: ${errorMessage}`);
   }
   if (isProduction) {
     const { isSupabaseStorageEnabled: isSupabaseStorageEnabled2 } = await Promise.resolve().then(() => (init_supabase_storage(), supabase_storage_exports));
     if (!isSupabaseStorageEnabled2()) {
-      console.error("\n\u{1F6A8} PRODUCTION CRITICAL ERROR: Supabase Storage is NOT configured!");
-      console.error("   \u2192 Image uploads will FAIL without SUPABASE_URL and SUPABASE_SERVICE_KEY");
-      console.error("   \u2192 Set these environment variables in your deployment platform (Render/Vercel/etc)");
-      console.error("   \u2192 Get credentials from: Supabase Dashboard \u2192 Project Settings \u2192 API");
-      console.error("   \u2192 Use the service_role key, NOT the anon key\n");
-      console.error("   \u2192 Exiting to prevent production deployment with broken uploads...\n");
       process.exit(1);
     }
     log("\u2705 Supabase Storage verified for production deployment");
@@ -11218,7 +10520,6 @@ function sanitizeLogData(data) {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
-    console.error(err.stack);
     if (!res.headersSent) {
       res.status(status).json({ message });
     }

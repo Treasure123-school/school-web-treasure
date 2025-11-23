@@ -18,17 +18,17 @@ async function cleanupUsers() {
     const allUsers = await db.select().from(schema.users);
 
     // Step 2: Identify Super Admin users
-    const superAdmins = allUsers.filter(user => user.roleId === SUPER_ADMIN_ROLE_ID);
+    const superAdmins = allUsers.filter((user: typeof schema.users.$inferSelect) => user.roleId === SUPER_ADMIN_ROLE_ID);
 
     // Step 3: Identify users to delete
-    const usersToDelete = allUsers.filter(user => user.roleId !== SUPER_ADMIN_ROLE_ID);
+    const usersToDelete = allUsers.filter((user: typeof schema.users.$inferSelect) => user.roleId !== SUPER_ADMIN_ROLE_ID);
     
     if (usersToDelete.length === 0) {
       process.exit(0);
     }
     
     // Use SQL to bypass Drizzle's ORM issues
-    const userIdsToDelete = usersToDelete.map(u => `'${u.id}'`).join(',');
+    const userIdsToDelete = usersToDelete.map((u: typeof schema.users.$inferSelect) => `'${u.id}'`).join(',');
     
     // Execute raw SQL to delete all related data in proper order
     const sqlClient = (db as any).$client;
@@ -65,7 +65,7 @@ async function cleanupUsers() {
 
     // Verify cleanup
     const remainingUsers = await db.select().from(schema.users);
-    remainingUsers.forEach(user => {
+    remainingUsers.forEach((user: typeof schema.users.$inferSelect) => {
     });
 
     process.exit(0);

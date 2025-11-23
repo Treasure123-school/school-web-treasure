@@ -417,13 +417,13 @@ export interface IStorage {
   getAuditLogs(filters?: {
     userId?: string;
     entityType?: string;
-    entityId?: number;
+    entityId?: string;
     action?: string;
     startDate?: Date;
     endDate?: Date;
     limit?: number;
   }): Promise<AuditLog[]>;
-  getAuditLogsByEntity(entityType: string, entityId: number): Promise<AuditLog[]>;
+  getAuditLogsByEntity(entityType: string, entityId: string): Promise<AuditLog[]>;
 
   // Grading system methods
   getGradingTasks(teacherId: string, status?: string): Promise<any[]>;
@@ -4099,7 +4099,7 @@ export class DatabaseStorage implements IStorage {
   async getAuditLogs(filters?: {
     userId?: string;
     entityType?: string;
-    entityId?: number;
+    entityId?: string;
     action?: string;
     startDate?: Date;
     endDate?: Date;
@@ -4137,7 +4137,7 @@ export class DatabaseStorage implements IStorage {
     }
     return await query;
   }
-  async getAuditLogsByEntity(entityType: string, entityId: number): Promise<AuditLog[]> {
+  async getAuditLogsByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
     return await this.db.select()
       .from(schema.auditLogs)
       .where(and(
@@ -4247,7 +4247,7 @@ export class DatabaseStorage implements IStorage {
         userId: resetBy,
         action: 'admin_password_reset',
         entityType: 'user',
-        entityId: 0,
+        entityId: '0',
         oldValue: null,
         newValue: JSON.stringify({ targetUserId: userId, forceChange }),
         reason: 'Admin initiated password reset',
@@ -4269,7 +4269,7 @@ export class DatabaseStorage implements IStorage {
         userId: updatedBy,
         action: 'recovery_email_updated',
         entityType: 'user',
-        entityId: 0,
+        entityId: '0',
         oldValue: oldUser?.recoveryEmail || null,
         newValue: recoveryEmail,
         reason: 'Recovery email updated by admin',
@@ -4390,7 +4390,7 @@ export class DatabaseStorage implements IStorage {
   }
   async getAllVacancies(status?: string): Promise<schema.Vacancy[]> {
     if (status) {
-      return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status)).orderBy(desc(schema.vacancies.createdAt));
+      return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status as "open" | "closed" | "filled")).orderBy(desc(schema.vacancies.createdAt));
     }
     return await this.db.select().from(schema.vacancies).orderBy(desc(schema.vacancies.createdAt));
   }
@@ -4417,7 +4417,7 @@ export class DatabaseStorage implements IStorage {
   }
   async getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]> {
     if (status) {
-      return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status)).orderBy(desc(schema.teacherApplications.dateApplied));
+      return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status as "pending" | "approved" | "rejected")).orderBy(desc(schema.teacherApplications.dateApplied));
     }
     return await this.db.select().from(schema.teacherApplications).orderBy(desc(schema.teacherApplications.dateApplied));
   }

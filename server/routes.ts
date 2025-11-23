@@ -1674,12 +1674,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Log audit event - FIX: profile.id is already a number, don't convert to BigInt
+      // Log audit event
       await storage.createAuditLog({
         userId: teacherId,
         action: 'teacher_profile_setup_completed',
         entityType: 'teacher_profile',
-        entityId: profile.id, // Already a number from database
+        entityId: String(profile.id),
         newValue: JSON.stringify({ staffId: finalStaffId, subjects: parsedSubjects, classes: parsedClasses }),
         reason: 'Teacher completed first-time profile setup',
         ipAddress: req.ip || 'unknown',
@@ -3024,7 +3024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId: user.id,
               action: 'account_locked_suspicious_activity',
               entityType: 'user',
-              entityId: 0,
+              entityId: '0',
               oldValue: null,
               newValue: JSON.stringify({ reason: 'Excessive password reset attempts', lockUntil }),
               reason: 'Suspicious password reset activity detected',
@@ -3077,7 +3077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id,
         action: 'password_reset_requested',
         entityType: 'user',
-        entityId: 0,
+        entityId: '0',
         newValue: JSON.stringify({ requestedAt: new Date(), ipAddress }),
         reason: 'User requested password reset',
         ipAddress,
@@ -3178,7 +3178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: resetToken.userId,
         action: 'password_reset_completed',
         entityType: 'user',
-        entityId: 0,
+        entityId: '0',
         newValue: JSON.stringify({ completedAt: new Date(), ipAddress }),
         reason: 'Password was successfully reset via reset token',
         ipAddress,
@@ -3338,7 +3338,7 @@ Treasure-Home School Administration
         userId: req.user!.id,
         action: 'recovery_email_updated',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, recoveryEmail: user.recoveryEmail }),
         newValue: JSON.stringify({ userId: user.id, recoveryEmail }),
         reason: `User ${req.user!.email} updated recovery email`,
@@ -3384,7 +3384,7 @@ Treasure-Home School Administration
         userId: req.user!.id,
         action: 'account_unlocked',
         entityType: 'user',
-        entityId: 0,
+        entityId: '0',
         oldValue: JSON.stringify({ accountLockedUntil: user.accountLockedUntil }),
         newValue: JSON.stringify({ accountLockedUntil: null }),
         reason: 'Account manually unlocked by admin',
@@ -3602,7 +3602,7 @@ Treasure-Home School Administration
       // Generate THS username for the new staff member
       const { generateUsername, getNextUserNumber } = await import('./auth-utils');
       const currentYear = new Date().getFullYear().toString();
-      const existingUsernames = await storage.getAllUsernames();
+      const existingUsernames = await storage.getAllUsers();
       const nextNumber = getNextUserNumber(existingUsernames, invite.roleId, currentYear);
       const username = generateUsername(invite.roleId, currentYear, '', nextNumber);
 
@@ -3869,7 +3869,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_verified',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'active' }),
         reason: `Admin ${adminUser.email} verified user ${user.email}`,
@@ -3927,7 +3927,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_unverified',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'pending' }),
         reason: `Admin ${adminUser.email} unverified user ${user.email}`,
@@ -3986,7 +3986,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_suspended',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'suspended' }),
         reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
@@ -4044,7 +4044,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_unsuspended',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status: 'active' }),
         reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
@@ -4094,7 +4094,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_status_changed',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, status: oldStatus }),
         newValue: JSON.stringify({ userId: user.id, status }),
         reason: reason || `Admin ${adminUser.email} changed status of user ${user.email || user.username}`,
@@ -4174,7 +4174,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_updated',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: '0',
         oldValue: JSON.stringify({
           firstName: user.firstName,
           lastName: user.lastName,
@@ -4315,7 +4315,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'user_deleted',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: '0',
         oldValue: JSON.stringify({
           userId: user.id,
           email: user.email,
@@ -4386,7 +4386,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'password_reset',
         entityType: 'user',
-        entityId: BigInt(0),
+        entityId: '0',
         oldValue: JSON.stringify({ userId: user.id, mustChangePassword: user.mustChangePassword }),
         newValue: JSON.stringify({ userId: user.id, mustChangePassword: forceChange }),
         reason: `Admin ${adminUser.email} reset password for user ${user.email || user.username}${forceChange ? ' (force change on next login)' : ''}${generatedPassword ? ' (auto-generated)' : ''}`,
@@ -4452,7 +4452,7 @@ Treasure-Home School Administration
         userId: adminUser.id,
         action: 'role_changed',
         entityType: 'user',
-        entityId: BigInt(0), // Placeholder, needs proper entity ID if applicable
+        entityId: '0', // Placeholder, needs proper entity ID if applicable
         oldValue: JSON.stringify({ userId: user.id, roleId: user.roleId, roleName: oldRole?.name }),
         newValue: JSON.stringify({ userId: user.id, roleId: roleId, roleName: newRole.name }),
         reason: `Admin ${adminUser.email} changed role of user ${user.email || user.username} from ${oldRole?.name} to ${newRole.name}`,
@@ -4481,16 +4481,14 @@ Treasure-Home School Administration
   // Get audit logs (Admin only)
   app.get("/api/audit-logs", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const { limit, offset, action, entityType } = z.object({
+      const { limit, action, entityType } = z.object({
         limit: z.coerce.number().int().positive().max(1000).optional().default(100),
-        offset: z.coerce.number().int().nonnegative().optional().default(0),
         action: z.string().optional(),
         entityType: z.string().optional()
       }).parse(req.query);
 
       const logs = await storage.getAuditLogs({
         limit,
-        offset,
         action,
         entityType
       });
@@ -4659,7 +4657,7 @@ Treasure-Home School Administration
       const { generateUsername, generatePassword } = await import('./auth-utils');
 
       // Get all existing usernames to ensure uniqueness
-      const existingUsernames = await storage.getAllUsernames();
+      const existingUsernames = await storage.getAllUsers();
       const createdUsers: any[] = [];
       const errors: string[] = [];
 
@@ -4862,10 +4860,10 @@ Treasure-Home School Administration
 
         // Log audit event
         await storage.createAuditLog({
-          userId: adminUser.id,
+          userId: adminUserId,
           action: 'bulk_student_import',
           entityType: 'student',
-          entityId: BigInt(0), // Bulk operation
+          entityId: '0', // Bulk operation
           newValue: JSON.stringify({ count: result.successCount, failed: result.failedRows.length }),
           reason: `Bulk imported ${result.successCount} students via CSV`,
           ipAddress: req.ip || 'unknown',
@@ -5052,7 +5050,7 @@ Treasure-Home School Administration
           userId: adminUserId,
           action: 'create_student',
           entityType: 'student',
-          entityId: BigInt(0),
+          entityId: '0',
           newValue: JSON.stringify({ 
             studentId: result.studentUser.id, 
             username: result.studentCredentials.username 
@@ -5640,7 +5638,7 @@ Treasure-Home School Administration
           userId: req.user!.id,
           action: 'settings_updated',
           entityType: 'system_settings',
-          entityId: settings.id,
+          entityId: String(settings.id),
           reason: 'System settings updated by Super Admin',
         });
 
