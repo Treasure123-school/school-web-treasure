@@ -557,12 +557,6 @@ export default function ExamManagement() {
   });
 
   const onSubmitExam = (data: ExamForm) => {
-      classId: typeof data.classId,
-      subjectId: typeof data.subjectId,
-      termId: typeof data.termId,
-      totalMarks: typeof data.totalMarks,
-      date: typeof data.date,
-    });
     createExamMutation.mutate(data);
   };
 
@@ -870,13 +864,6 @@ export default function ExamManagement() {
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     
-      hasFile: !!file,
-      fileName: file?.name,
-      fileSize: file?.size,
-      hasSelectedExam: !!selectedExam,
-      examId: selectedExam?.id
-    });
-    
     if (!file || !selectedExam) {
       if (!selectedExam) {
         toast({
@@ -917,10 +904,6 @@ export default function ExamManagement() {
           throw new Error('CSV file is empty');
         }
         const questions = parseCSV(csv);
-
-          questionCount: questions.length,
-          firstQuestion: questions[0]
-        });
 
         csvUploadMutation.mutate(questions);
       } catch (error: any) {

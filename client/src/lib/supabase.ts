@@ -111,11 +111,6 @@ class RealtimeHealthMonitor {
       this.enterFallbackMode(error);
     }
     if (this.warningCount < this.MAX_WARNINGS_PER_HOUR) {
-        errorCount: this.status.connectionErrors,
-        failedConnections: this.status.failedConnections,
-        totalConnections: this.status.totalConnections,
-        error: error?.message || error
-      });
       this.warningCount++;
     }
   }
@@ -144,14 +139,6 @@ class RealtimeHealthMonitor {
                         errorMessage.includes('capacity') || 
                         errorMessage.includes('quota') ||
                         errorMessage.includes('too many');
-
-    if (isLimitError) {
-        totalAttempts: this.status.totalConnections,
-        failedConnections: this.status.failedConnections,
-        errorCount: this.status.connectionErrors
-      });
-    } else {
-    }
   }
 
   getStatus(): RealtimeHealthStatus {

@@ -260,16 +260,6 @@ export default function TeacherProfileSetup() {
       }, 3500); // Slightly longer delay to ensure cache is ready
     },
     onError: (error: any) => {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        constraint: error.constraint,
-        status: error.status,
-        existingProfile: error.existingProfile,
-        stack: error.stack,
-        fullError: error
-      });
-
       let errorMessage = error.message || "An error occurred while creating your profile.";
       const errorDetails: string[] = [];
       let actionHint = '';
@@ -423,12 +413,6 @@ export default function TeacherProfileSetup() {
       errors.push("Profile Photo");
     } else {
       // Validate the profile image file
-        name: profileImage.name,
-        size: profileImage.size,
-        type: profileImage.type,
-        lastModified: profileImage.lastModified
-      });
-
       if (profileImage.size === 0) {
         errors.push("Profile Photo (file is empty)");
       }
@@ -501,11 +485,6 @@ export default function TeacherProfileSetup() {
 
     // Ensure cropped profile image is properly sent
     if (profileImage) {
-        name: profileImage.name,
-        size: profileImage.size,
-        type: profileImage.type
-      });
-
       // Create a new File object to ensure proper metadata
       const imageFile = new File(
         [profileImage], 
@@ -519,11 +498,6 @@ export default function TeacherProfileSetup() {
       submitData.append('profileImage', imageFile, imageFile.name);
     }
     if (signatureFile) {
-        name: signatureFile.name,
-        size: signatureFile.size,
-        type: signatureFile.type
-      });
-
       const sigFile = new File(
         [signatureFile],
         signatureFile.name || `signature-${Date.now()}.jpg`,

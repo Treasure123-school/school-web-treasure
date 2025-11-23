@@ -1451,36 +1451,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teacherId = req.user!.id;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-        teacherId,
-        hasFiles: Object.keys(files || {}).length,
-        fileFields: Object.keys(files || {}),
-        profileImageExists: !!files['profileImage']?.[0],
-        signatureExists: !!files['signature']?.[0],
-        bodyKeys: Object.keys(req.body),
-        staffId: req.body.staffId,
-        subjects: req.body.subjects,
-        assignedClasses: req.body.assignedClasses
-      });
-
-      // Log detailed file information
-      if (files['profileImage']?.[0]) {
-          filename: files['profileImage'][0].filename,
-          originalname: files['profileImage'][0].originalname,
-          mimetype: files['profileImage'][0].mimetype,
-          size: files['profileImage'][0].size,
-          path: files['profileImage'][0].path
-        });
-      } else {
-      }
-      if (files['signature']?.[0]) {
-          filename: files['signature'][0].filename,
-          originalname: files['signature'][0].originalname,
-          mimetype: files['signature'][0].mimetype,
-          size: files['signature'][0].size,
-          path: files['signature'][0].path
-        });
-      }
       const {
         gender, dateOfBirth, staffId, nationalId, phoneNumber, recoveryEmail,
         qualification, specialization, yearsOfExperience,
@@ -1739,25 +1709,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profile: completeProfileResponse
       });
     } catch (error) {
-        error: error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        errorName: error instanceof Error ? error.name : undefined,
-        errorCode: (error as any)?.code,
-        errorDetail: (error as any)?.detail,
-        errorConstraint: (error as any)?.constraint,
-        errorSeverity: (error as any)?.severity,
-        errorTable: (error as any)?.table,
-        errorColumn: (error as any)?.column,
-        teacherId: req.user?.id,
-        requestBody: {
-          ...req.body,
-          // Redact sensitive data in logs
-          password: req.body.password ? '[REDACTED]' : undefined
-        },
-        files: Object.keys(req.files || {})
-      });
-
       // Extract meaningful error information
       let errorMessage = 'Failed to setup teacher profile';
       let statusCode = 500;
@@ -1913,14 +1864,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: profile.updatedAt
       };
 
-        userId,
-        staffId: completeProfile.staffId,
-        hasNationalId: !!completeProfile.nationalId,
-        nationalId: completeProfile.nationalId,
-        hasProfileImage: !!completeProfile.profileImageUrl,
-        profileImageUrl: completeProfile.profileImageUrl
-      });
-
       res.json(completeProfile);
     } catch (error: any) {
       res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
@@ -1947,14 +1890,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teacherId = req.user!.id;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-        teacherId,
-        hasFiles: Object.keys(files || {}).length,
-        fileFields: Object.keys(files || {}),
-        hasProfileImage: !!files['profileImage']?.[0],
-        hasSignature: !!files['signature']?.[0],
-        bodyKeys: Object.keys(req.body)
-      });
 
       // Parse the update data
       const updateData = req.body;
@@ -2505,12 +2440,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Homepage image upload endpoint
   app.post('/api/upload/homepage', authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
     try {
-        file: req.file?.originalname,
-        contentType: req.body.contentType,
-        userId: req.user!.id,
-        supabaseEnabled: isSupabaseStorageEnabled()
-      });
-
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
@@ -2524,12 +2453,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timestamp = Date.now();
         const filename = `${req.body.contentType}-${timestamp}${path.extname(req.file.originalname)}`;
         const filePath = `homepage/${filename}`;
-
-          bucket: STORAGE_BUCKETS.HOMEPAGE,
-          path: filePath,
-          size: req.file.buffer.length,
-          contentType: req.file.mimetype
-        });
 
         try {
           const uploadResult = await uploadFileToSupabase(
@@ -2572,11 +2495,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(content);
     } catch (error: any) {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-
       res.status(500).json({ 
         message: error.message || 'Failed to upload homepage image',
         error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
@@ -2903,16 +2821,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
-      if (process.env.NODE_ENV === 'development') {
-          identifier,
-          userId: user.id,
-          roleId: user.roleId,
-          isActive: user.isActive,
-          status: user.status,
-          profileCompleted: user.profileCompleted,
-          profileSkipped: user.profileSkipped,
-        });
-      }
       // Get user role for various checks
       const userRole = await storage.getRole(user.roleId);
       const roleName = userRole?.name?.toLowerCase();
@@ -3967,6 +3875,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} verified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4024,6 +3933,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} unverified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4082,6 +3992,7 @@ Treasure-Home School Administration
         reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4139,6 +4050,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4188,6 +4100,7 @@ Treasure-Home School Administration
         reason: reason || `Admin ${adminUser.email} changed status of user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4271,6 +4184,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} updated user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4412,6 +4326,7 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
+      });
 
       const totalTime = Date.now() - startTime;
 
@@ -5334,16 +5249,6 @@ Treasure-Home School Administration
         };
 
         // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
-        if (process.env.NODE_ENV === 'development') {
-            userId,
-            hasProfile: status.hasProfile,
-            completed: status.completed,
-            skipped: status.skipped,
-            percentage: status.percentage,
-            rawProfileCompleted: user?.profileCompleted,
-            rawProfileSkipped: user?.profileSkipped,
-          });
-        }
         res.json(status);
       } catch (error) {
         res.status(500).json({ message: 'Failed to check profile status' });
@@ -5384,12 +5289,6 @@ Treasure-Home School Administration
         if (!updatedStudent) {
           return res.status(404).json({ message: 'Student not found' });
         }
-          profileCompleted: updatedStudent.user.profileCompleted,
-          profileSkipped: updatedStudent.user.profileSkipped,
-          profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
-          phone: updatedStudent.user.phone ? '***' : null,
-          address: updatedStudent.user.address ? '***' : null,
-        });
 
         res.json({ 
           message: 'Profile setup completed successfully',

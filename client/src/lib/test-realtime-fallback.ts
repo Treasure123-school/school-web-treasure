@@ -55,12 +55,6 @@ export function simulateConnectionErrors(count: number, errorType: 'generic' | '
     realtimeHealthMonitor.recordError(errors[errorType]);
   }
   const status = realtimeHealthMonitor.getStatus();
-    isConnected: status.isConnected,
-    isInFallbackMode: status.isInFallbackMode,
-    connectionErrors: status.connectionErrors,
-    failedConnections: status.failedConnections,
-    totalConnections: status.totalConnections
-  });
 
   return status;
 }
@@ -74,12 +68,6 @@ export function simulateSuccessfulConnections(count: number) {
     realtimeHealthMonitor.recordSuccess();
   }
   const status = realtimeHealthMonitor.getStatus();
-    isConnected: status.isConnected,
-    isInFallbackMode: status.isInFallbackMode,
-    connectionErrors: status.connectionErrors,
-    failedConnections: status.failedConnections,
-    totalConnections: status.totalConnections
-  });
 
   return status;
 }
