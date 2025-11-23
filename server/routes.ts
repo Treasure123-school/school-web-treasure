@@ -882,8 +882,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacherId = req.user!.id;
       const status = req.query.status as string;
 
-      // Get all exam sessions with AI-suggested answers
-      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
+      // Get all pending grading tasks for the teacher
+      const tasks = await storage.getGradingTasksByTeacher(teacherId, status);
 
       res.json(tasks);
     } catch (error) {
@@ -1240,13 +1240,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Exam is not published yet' });
       }
       const now = new Date();
-      const endTime = new Date(now.getTime() + (exam.duration || 60) * 60 * 1000);
+      const endTime = new Date(now.getTime() + (exam.timeLimit || 60) * 60 * 1000);
 
       const sessionData = {
         examId,
         studentId,
         startedAt: now,
-        timeRemaining: (exam.duration || 60) * 60,
+        timeRemaining: (exam.timeLimit || 60) * 60,
         isCompleted: false,
         status: 'in_progress' as const,
         endTime,
@@ -1269,10 +1269,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const studentId = req.params.studentId;
 
       // Ensure student can only access their own session
-      if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
+      if (req.user!.id !== studentId && req.user!.roleId !== ROLES.ADMIN) {
         return res.status(403).json({ message: 'Unauthorized access to parent records' });
       }
-      const session = await storage.getStudentActiveSession(studentId);
+      // Get active session for this student
+      const allSessions = await storage.getExamSessionsByStudent(studentId);
+      const session = allSessions.find(s => !s.isCompleted) || null;
 
       if (!session) {
         return res.json(null);
@@ -1293,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Session not found' });
       }
       // Ensure student can only access their own session
-      if (req.user!.id !== session.studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+      if (req.user!.id !== session.studentId && req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.TEACHER) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
       res.json(session);
@@ -1433,7 +1435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Session not found' });
       }
       // Ensure student can only access their own answers
-      if (req.user!.id !== session.studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+      if (req.user!.id !== session.studentId && req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.TEACHER) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
       const answers = await storage.getStudentAnswers(sessionId);
@@ -1631,7 +1633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Send email notification to admin with enhanced details
         try {
-          const { sendEmail, getTeacherVerifiedEmailHTML } = await import('./email-service');
+          const { sendEmail } = await import('./email-service');
 
           // Get subject and class names for better readability with error handling
           let subjectNames: string[] = [];
@@ -1655,19 +1657,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } catch (error) {
             classNames = parsedClasses.map((id: number) => `Class #${id}`);
           }
+          
+          const dashboardUrl = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/portal/admin/teachers`;
+          const emailBody = `
+            <h2>🎉 New Teacher Auto-Verified</h2>
+            <p><strong>Teacher:</strong> ${teacherFullName}</p>
+            <p><strong>Department:</strong> ${department}</p>
+            <p><strong>Subjects:</strong> ${subjectNames.join(', ')}</p>
+            <p><strong>Classes:</strong> ${classNames.join(', ')}</p>
+            <p><strong>Qualification:</strong> ${qualification}</p>
+            <p><strong>Years of Experience:</strong> ${yearsOfExperience}</p>
+            <p><strong>Staff ID:</strong> ${staffId || 'Pending'}</p>
+            <p><a href="${dashboardUrl}">View in Admin Dashboard</a></p>
+          `;
+          
           await sendEmail({
             to: admin.email,
             subject: '🎉 New Teacher Auto-Verified - THS Portal',
-            html: getTeacherVerifiedEmailHTML(
-              teacherFullName,
-              department,
-              subjectNames.join(', '),
-              classNames.join(', '),
-              qualification,
-              yearsOfExperience,
-              staffId || 'Pending',
-              `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/portal/admin/teachers`
-            )
+            html: emailBody
           });
         } catch (emailError) {
           // Don't fail the entire process if email fails
@@ -2089,10 +2096,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
       }
-      if (!user.isActive) {
+      // Fetch full user details from database to check isActive status
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser || !fullUser.isActive) {
         return res.status(403).json({ message: 'Account is inactive' });
       }
-      const { passwordHash, ...userWithoutPassword } = user;
+      const { passwordHash, ...userWithoutPassword } = fullUser;
       res.json(userWithoutPassword);
     } catch (error) {
       res.status(500).json({ message: 'Internal server error' });
@@ -3602,9 +3611,10 @@ Treasure-Home School Administration
       // Generate THS username for the new staff member
       const { generateUsername, getNextUserNumber } = await import('./auth-utils');
       const currentYear = new Date().getFullYear().toString();
-      const existingUsernames = await storage.getAllUsers();
-      const nextNumber = getNextUserNumber(existingUsernames, invite.roleId, currentYear);
-      const username = generateUsername(invite.roleId, currentYear, '', nextNumber);
+      const allUsers = await storage.getAllUsers();
+      const existingUsernames = allUsers.map(u => u.username).filter((u): u is string => !!u);
+      const nextNumber = getNextUserNumber(existingUsernames, invite.roleId);
+      const username = generateUsername(invite.roleId, nextNumber);
 
       // Hash password
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -4659,7 +4669,8 @@ Treasure-Home School Administration
       const { generateUsername, generatePassword } = await import('./auth-utils');
 
       // Get all existing usernames to ensure uniqueness
-      const existingUsernames = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers();
+      const existingUsernames = allUsers.map(u => u.username).filter((u): u is string => !!u);
       const createdUsers: any[] = [];
       const errors: string[] = [];
 
@@ -4706,8 +4717,8 @@ Treasure-Home School Administration
 
           if (!parent) {
             // Create parent account - calculate correct sequence number
-            const parentCount = existingUsernames.filter(u => u.startsWith(`THS-PAR-${currentYear}-`)).length + 1;
-            const parentUsername = generateUsername(parentRoleData.id, currentYear, '', parentCount);
+            const parentCount = existingUsernames.filter(u => u.startsWith(`THS-PAR-`)).length + 1;
+            const parentUsername = generateUsername(parentRoleData.id, parentCount);
             const parentPassword = generatePassword(currentYear);
             const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
 
@@ -4739,9 +4750,8 @@ Treasure-Home School Administration
             continue;
           }
           // Create student account - calculate correct sequence number
-          const classPrefix = `THS-STU-${currentYear}-${className.toUpperCase()}-`;
-          const studentCount = existingUsernames.filter(u => u.startsWith(classPrefix)).length + 1;
-          const studentUsername = generateUsername(studentRoleData.id, currentYear, className.toUpperCase(), studentCount);
+          const studentCount = existingUsernames.filter(u => u.startsWith(`THS-STU-`)).length + 1;
+          const studentUsername = generateUsername(studentRoleData.id, studentCount);
           const studentPassword = generatePassword(currentYear);
           const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
 
@@ -5099,7 +5109,7 @@ Treasure-Home School Administration
         const studentId = req.params.id;
 
         // Ensure student can only access their own profile (or admin/teacher can access)
-        if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+        if (req.user!.id !== studentId && req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.TEACHER) {
           return res.status(403).json({ message: 'Unauthorized' });
         }
         const student = await storage.getStudent(studentId);
@@ -5119,10 +5129,11 @@ Treasure-Home School Administration
         const studentId = req.params.id;
 
         // Ensure student can only access their own classes (or admin/teacher can access)
-        if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN && req.user!.role !== ROLES.TEACHER) {
+        if (req.user!.id !== studentId && req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.TEACHER) {
           return res.status(403).json({ message: 'Unauthorized' });
         }
-        const classes = await storage.getStudentClasses(studentId);
+        const student = await storage.getStudent(studentId);
+        const classes = student?.classId ? await storage.getClass(student.classId) : null;
         res.json(classes);
       } catch (error) {
         res.status(500).json({ message: 'Failed to fetch classes' });
@@ -5135,7 +5146,7 @@ Treasure-Home School Administration
         const studentId = req.params.id;
 
         // Ensure student can only update their own profile (or admin can update)
-        if (req.user!.id !== studentId && req.user!.role !== ROLES.ADMIN) {
+        if (req.user!.id !== studentId && req.user!.roleId !== ROLES.ADMIN) {
           return res.status(403).json({ message: 'Unauthorized' });
         }
         const updates = req.body;
@@ -5245,7 +5256,7 @@ Treasure-Home School Administration
           completed: user?.profileCompleted || false,
           skipped: user?.profileSkipped || false,
           percentage: user?.profileCompletionPercentage || completionPercentage,
-          firstLogin: student?.firstLogin !== false
+          firstLogin: !user?.profileCompleted // First login if profile not completed
         };
 
         // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
