@@ -7206,7 +7206,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch classes" });
     }
   });
-  app2.get("/api/subjects", authenticateUser, async (req, res) => {
+  app2.get("/api/subjects", async (req, res) => {
     try {
       const subjects2 = await storage.getSubjects();
       res.json(subjects2);
@@ -7531,6 +7531,15 @@ async function registerRoutes(app2) {
       res.json(content);
     } catch (error) {
       res.status(500).json({ message: "Failed to get homepage content" });
+    }
+  });
+  app2.get("/api/announcements", async (req, res) => {
+    try {
+      const { targetRole } = req.query;
+      const announcements2 = await storage.getAnnouncements(targetRole);
+      res.json(announcements2);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get announcements" });
     }
   });
   app2.get("/uploads/homepage/:filename", (req, res) => {

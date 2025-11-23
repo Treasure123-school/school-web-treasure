@@ -2198,7 +2198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Subjects API endpoint
-  app.get('/api/subjects', authenticateUser, async (req, res) => {
+  app.get('/api/subjects', async (req, res) => {
     try {
       const subjects = await storage.getSubjects();
       res.json(subjects);
@@ -2596,6 +2596,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(content);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get homepage content' });
+    }
+  });
+
+  // Public endpoint to get announcements (no auth required for public website)
+  app.get('/api/announcements', async (req, res) => {
+    try {
+      const { targetRole } = req.query;
+      const announcements = await storage.getAnnouncements(targetRole as string);
+      res.json(announcements);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to get announcements' });
     }
   });
 

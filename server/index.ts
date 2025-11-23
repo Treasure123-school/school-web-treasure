@@ -134,6 +134,12 @@ app.use((req, res, next) => {
   }
   res.on("finish", () => {
     const duration = Date.now() - start;
+    
+    // ENHANCED: Log ALL 4xx errors to help debug (not just API)
+    if (res.statusCode >= 400 && res.statusCode < 500) {
+      log(`❌ 4xx ERROR: ${req.method} ${req.originalUrl || path} - Status ${res.statusCode} - Referer: ${req.get('referer') || 'none'}`);
+    }
+    
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
 
@@ -142,6 +148,7 @@ app.use((req, res, next) => {
         const sanitizedResponse = sanitizeLogData(capturedJsonResponse);
         logLine += ` :: ${JSON.stringify(sanitizedResponse)}`;
       }
+      
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }

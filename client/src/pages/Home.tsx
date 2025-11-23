@@ -2,7 +2,6 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect, useRef } from 'react';
@@ -26,10 +25,9 @@ export default function Home() {
   );
   
   const heroLoading = contentLoading;
-  const galleryLoading = contentLoading;
 
   // Fetch latest published announcements for homepage preview
-  const { data: allAnnouncements = [], isLoading: announcementsLoading } = useQuery<any[]>({
+  const { data: allAnnouncements = [] } = useQuery<any[]>({
     queryKey: ['/api', 'announcements'],
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
@@ -269,14 +267,20 @@ export default function Home() {
                   <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
                     {/* Hero Image with transition */}
                     <div className="relative aspect-[4/3]">
-                      <img 
-                        src={currentHeroImage?.imageUrl || ''} 
-                        alt={currentHeroImage?.altText || "Treasure-Home School"} 
-                        className={`w-full h-full object-cover transition-all duration-500 ${isTransitioning ? 'opacity-70 scale-105' : 'opacity-100 scale-100'}`}
-                        loading="eager"
-                        decoding="async"
-                        data-testid="img-hero-school"
-                      />
+                      {currentHeroImage?.imageUrl ? (
+                        <img 
+                          src={currentHeroImage.imageUrl} 
+                          alt={currentHeroImage.altText || "Treasure-Home School"} 
+                          className={`w-full h-full object-cover transition-all duration-500 ${isTransitioning ? 'opacity-70 scale-105' : 'opacity-100 scale-100'}`}
+                          loading="eager"
+                          decoding="async"
+                          data-testid="img-hero-school"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center">
+                          <span className="text-white text-lg">Loading image...</span>
+                        </div>
+                      )}
                       
                       {/* Gradient overlay for better text visibility */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
