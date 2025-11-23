@@ -14,7 +14,7 @@ export interface CSVRow {
   parentEmail?: string;
   parentPhone?: string;
   admissionNo?: string;
-} // fixed
+}
 export interface ValidationResult {
   row: number;
   data: CSVRow;
@@ -22,7 +22,7 @@ export interface ValidationResult {
   parentExists?: boolean;
   errors: string[];
   warnings: string[];
-} // fixed
+}
 export interface ImportPreview {
   valid: ValidationResult[];
   invalid: ValidationResult[];
@@ -33,7 +33,7 @@ export interface ImportPreview {
     newParents: number;
     existingParents: number;
   };
-} // fixed
+}
 /**
  * Validates CSV file and returns preview without DB writes
  */
@@ -74,7 +74,7 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
     }
     if (!row.gender || !['Male', 'Female', 'Other'].includes(row.gender)) {
       errors.push('Gender must be Male, Female, or Other');
-    } // fixed
+    }
     // Check if parent exists by phone
     let parentExists = false;
     if (row.parentPhone) {
@@ -94,7 +94,7 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
       }
     } else {
       warnings.push('No parent phone provided - student will have no parent link');
-    } // fixed
+    }
     const result: ValidationResult = {
       row: i + 1,
       data: {
@@ -133,7 +133,7 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
       existingParents: existingParentCount
     }
   };
-} // fixed
+}
 /**
  * Commits validated CSV import with batch processing
  */
@@ -156,7 +156,7 @@ export async function commitCSVImport(
         
         if (!classInfo) {
           throw new Error(`Class not found: ${item.data.classCode}`);
-        } // fixed
+        }
         // Split full name into first and last
         const nameParts = item.data.fullName.trim().split(' ');
         const firstName = nameParts[0];

@@ -46,7 +46,7 @@ interface StudentProfileData {
   gender: string;
   bloodGroup: string;
   agreement: boolean;
-} // fixed
+}
 export default function StudentProfileSetup() {
   const { user, updateUser } = useAuth();
   const [, navigate] = useLocation();
@@ -68,7 +68,7 @@ export default function StudentProfileSetup() {
 
   if (!user) {
     return <div>Please log in to continue.</div>;
-  } // fixed
+  }
   // Calculate profile completeness percentage
   const calculateCompleteness = (): number => {
     const totalFields = 9;
@@ -123,7 +123,7 @@ export default function StudentProfileSetup() {
           gender: data.user.gender,
           recoveryEmail: data.user.recoveryEmail,
         });
-      } // fixed
+      }
       // Clear draft
       localStorage.removeItem('student_profile_draft');
 
@@ -168,7 +168,7 @@ export default function StudentProfileSetup() {
           profileCompleted: data.user.profileCompleted,
           profileCompletionPercentage: data.user.profileCompletionPercentage,
         });
-      } // fixed
+      }
       // Invalidate profile queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/student/profile/status'] });
       queryClient.invalidateQueries({ queryKey: ['student', user.id] });
@@ -206,7 +206,7 @@ export default function StudentProfileSetup() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     if (completeness < 100) {
       toast({
         title: "Incomplete Profile",
@@ -214,7 +214,7 @@ export default function StudentProfileSetup() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     createProfileMutation.mutate(formData);
   };
 

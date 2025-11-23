@@ -16,7 +16,7 @@ interface GalleryImage {
   categoryId?: number;
   uploadedBy?: string;
   createdAt: string;
-} // fixed
+}
 export default function Gallery() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -25,7 +25,7 @@ export default function Gallery() {
 
   if (!user) {
     return <div>Please log in to access the gallery.</div>;
-  } // fixed
+  }
   const { data: galleryImages, isLoading } = useQuery({
     queryKey: ['gallery-images'],
     queryFn: async () => {

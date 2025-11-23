@@ -9,7 +9,7 @@ async function seedSuperAdmin() {
 
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is not set');
-    } // fixed
+    }
     // Initialize database connection with conditional SSL (match server/storage.ts)
     const pg = postgres(process.env.DATABASE_URL, {
       ssl: (process.env.DATABASE_URL?.includes('supabase.com') ? 'require' : false) as 'require' | false,
@@ -41,10 +41,10 @@ async function seedSuperAdmin() {
           superAdminRole = existingRole;
         }
       }
-    } // fixed
+    }
     if (!superAdminRole) {
       superAdminRole = existingRoles.find(r => r.name === 'Super Admin')!;
-    } // fixed
+    }
     // 2. Check if superadmin user exists
     const existingSuperAdmin = await db.select()
       .from(schema.users)
@@ -79,7 +79,7 @@ async function seedSuperAdmin() {
       });
 
     } else {
-    } // fixed
+    }
     // 3. Initialize system settings if not exists (optional - skip if table doesn't exist)
     try {
       const existingSettings = await db.select().from(schema.systemSettings).limit(1);
@@ -96,7 +96,7 @@ async function seedSuperAdmin() {
       }
     } catch (settingsError) {
       // Silently skip if system_settings table doesn't exist - it's optional
-    } // fixed
+    }
     await pg.end();
   } catch (error) {
     throw error;
@@ -110,5 +110,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .catch((error) => {
       process.exit(1);
     });
-} // fixed
+}
 export { seedSuperAdmin };

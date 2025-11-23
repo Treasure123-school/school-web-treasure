@@ -7,7 +7,7 @@ interface RealtimeTableConfig {
   table: string;
   queryKeys: string[][];
   throttleMs?: number;
-} // fixed
+}
 const HIGH_VOLUME_TABLES = new Set(['student_answers', 'attendance', 'messages', 'notifications']);
 
 const GLOBAL_REALTIME_TABLES: RealtimeTableConfig[] = [
@@ -62,7 +62,7 @@ function createThrottledInvalidator(throttleMs: number) {
       timeoutId = null;
     }, throttleMs);
   };
-} // fixed
+}
 export function useGlobalRealtime() {
   const channelsRef = useRef<RealtimeChannel[]>([]);
   const throttlersRef = useRef<Map<string, (keys: string[][]) => void>>(new Map());
@@ -105,14 +105,14 @@ export function useGlobalRealtime() {
     if (!isRealtimeEnabled() || !supabase) {
       startPollingForAllTables();
       return () => stopAllPolling();
-    } // fixed
+    }
 
     GLOBAL_REALTIME_TABLES.forEach(({ table, queryKeys, throttleMs }) => {
       if (!supabase) return;
 
       if (throttleMs) {
         throttlersRef.current.set(table, createThrottledInvalidator(throttleMs));
-      } // fixed
+      }
       realtimeHealthMonitor.recordConnection();
 
       const channel = supabase

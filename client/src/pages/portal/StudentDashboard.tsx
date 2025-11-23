@@ -20,7 +20,7 @@ export default function StudentDashboard() {
 
   if (!user) {
     return <div>Please log in to access the student portal.</div>;
-  } // fixed
+  }
   // Fetch fresh user data to sync AuthContext with database
   const { data: freshUserData } = useQuery({
     queryKey: ['/api/auth/me'],

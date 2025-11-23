@@ -16,7 +16,7 @@ interface FileUploadProps {
   maxSizeMB?: number;
   accept?: string;
   className?: string;
-} // fixed
+}
 export function FileUpload({ 
   type, 
   userId, 
@@ -45,7 +45,7 @@ export function FileUpload({
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
@@ -54,7 +54,7 @@ export function FileUpload({
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     setSelectedFile(file);
 
     // Create preview
@@ -97,7 +97,7 @@ export function FileUpload({
 
       if (!response.ok) {
         throw new Error('Upload failed');
-      } // fixed
+      }
       const result = await response.json();
       
       toast({
@@ -111,7 +111,7 @@ export function FileUpload({
       setCaption('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
-      } // fixed
+      }
       onUploadSuccess?.(result);
     } catch (error) {
       toast({

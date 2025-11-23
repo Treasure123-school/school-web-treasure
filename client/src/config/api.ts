@@ -12,7 +12,7 @@ export function getApiUrl(path: string): string {
   // If API_BASE_URL is empty (development), return relative path
   if (!API_BASE_URL) {
     return normalizedPath;
-  } // fixed
+  }
   // In production, combine base URL with path
   return `${API_BASE_URL}${normalizedPath}`;
 }

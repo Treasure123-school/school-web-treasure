@@ -17,14 +17,14 @@ interface AuthUser {
   dateOfBirth?: string;
   gender?: string;
   recoveryEmail?: string;
-} // fixed
+}
 interface AuthContextType {
   user: AuthUser | null;
   login: (userData: AuthUser, token: string) => void;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
   isAuthenticated: boolean;
-} // fixed
+}
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-} // fixed
+}
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

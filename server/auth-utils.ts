@@ -32,7 +32,7 @@ function generateRandomString(length: number): string {
     result += chars[bytes[i] % chars.length];
   }
   return result;
-} // fixed
+}
 /**
  * Generate THS-branded username with NEW simplified format
  * @param roleId - User role ID (1=Admin, 2=Teacher, 3=Student, 4=Parent)
@@ -46,7 +46,7 @@ export function generateUsername(
   const roleCode = ROLE_CODES[roleId as keyof typeof ROLE_CODES] || 'USR';
   const paddedNumber = String(number).padStart(3, '0');
   return `THS-${roleCode}-${paddedNumber}`;
-} // fixed
+}
 /**
  * Generate THS-branded password with strong cryptographic randomness
  * Format: THS@<YEAR>#<RANDOM>
@@ -59,7 +59,7 @@ export function generatePassword(year: string = new Date().getFullYear().toStrin
   // This gives us 62^12 ≈ 3.2×10^21 possible combinations
   const randomPart = generateRandomString(12);
   return `THS@${year}#${randomPart}`;
-} // fixed
+}
 /**
  * Generate student-specific username with NEW simplified format
  * @param nextNumber - Sequential number for this student
@@ -67,7 +67,7 @@ export function generatePassword(year: string = new Date().getFullYear().toStrin
  */
 export function generateStudentUsername(nextNumber: number): string {
   return `THS-STU-${String(nextNumber).padStart(3, '0')}`;
-} // fixed
+}
 /**
  * Generate student password with year
  */
@@ -76,7 +76,7 @@ export function generateStudentPassword(currentYear: string = new Date().getFull
   // Example: THS@2025#A7B3
   const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
   return `THS@${currentYear}#${randomHex}`;
-} // fixed
+}
 /**
  * Parse a THS username to extract components (supports both NEW and OLD formats)
  * @param username - THS username to parse
@@ -94,7 +94,7 @@ export function parseUsername(username: string): {
 
   if (parts.length < 3 || parts[0] !== 'THS') {
     return null;
-  } // fixed
+  }
   // NEW format: THS-ROLE-NUMBER (3 parts)
   if (parts.length === 3) {
     return {
@@ -103,7 +103,7 @@ export function parseUsername(username: string): {
       format: 'new',
       number: parts[2],
     };
-  } // fixed
+  }
   // OLD format: THS-ROLE-YEAR-NUMBER (4 parts)
   if (parts.length === 4) {
     return {
@@ -113,7 +113,7 @@ export function parseUsername(username: string): {
       year: parts[2],
       number: parts[3],
     };
-  } // fixed
+  }
   // OLD format: THS-ROLE-YEAR-OPTIONAL-NUMBER (5 parts)
   if (parts.length === 5) {
     return {
@@ -124,9 +124,9 @@ export function parseUsername(username: string): {
       optional: parts[3],
       number: parts[4],
     };
-  } // fixed
+  }
   return null;
-} // fixed
+}
 /**
  * Get the next available number for a given role (used for legacy purposes)
  * @param existingUsernames - Array of existing usernames to check against
@@ -151,9 +151,9 @@ export function getNextUserNumber(
 
   if (numbers.length === 0) {
     return 1;
-  } // fixed
+  }
   return Math.max(...numbers) + 1;
-} // fixed
+}
 /**
  * Validate THS username format (supports both NEW and OLD formats)
  * Checks for proper format, valid role code, and numeric suffix
@@ -174,7 +174,7 @@ export function isValidThsUsername(username: string): boolean {
   // For NEW format, no additional validation needed
   if (parsed.format === 'new') {
     return true;
-  } // fixed
+  }
   // For OLD format, validate year and optional fields
   if (parsed.format === 'old') {
     // Validate year format (4 digits)
@@ -184,9 +184,9 @@ export function isValidThsUsername(username: string): boolean {
     if (parsed.optional && !/^[A-Z0-9]{2,4}$/i.test(parsed.optional)) return false;
 
     return true;
-  } // fixed
+  }
   return false;
-} // fixed
+}
 /**
  * Get role ID from role code
  * @param roleCode - Role code (ADM, TCH, STU, PAR)

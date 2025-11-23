@@ -33,7 +33,7 @@ export default function StudentProfile() {
 
   if (!user) {
     return <div>Please log in to access your profile.</div>;
-  } // fixed
+  }
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', user.id],
     queryFn: async () => {
@@ -86,7 +86,7 @@ export default function StudentProfile() {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to update profile');
-      } // fixed
+      }
       const result = await response.json();
       
       toast({

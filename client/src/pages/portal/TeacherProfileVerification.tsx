@@ -30,7 +30,7 @@ interface TeacherProfileData {
   };
   profile: TeacherProfile;
   assignedClassDetails?: Array<{ name: string }>;
-} // fixed
+}
 export default function TeacherProfileVerification() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -84,7 +84,7 @@ export default function TeacherProfileVerification() {
         queryClient.setQueryData(['/api/admin/teacher-profiles/pending'], (old: TeacherProfileData[] | undefined) => 
           old?.filter((t) => t.teacher.id !== userId)
         );
-      } // fixed
+      }
       toast({
         title: action === 'approve' ? "Approving..." : "Rejecting...",
         description: "Processing teacher profile",
@@ -296,7 +296,7 @@ export default function TeacherProfileVerification() {
 
   if (!user) {
     return <div>Please log in to access this page.</div>;
-  } // fixed
+  }
   return (
     <PortalLayout
       userRole="admin"

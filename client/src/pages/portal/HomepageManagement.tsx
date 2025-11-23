@@ -44,7 +44,7 @@ export default function HomepageManagement() {
       
       if (!token) {
         throw new Error('Authentication required. Please log in again.');
-      } // fixed
+      }
       const formData = new FormData();
       formData.append('homePageImage', file);
       formData.append('contentType', data.contentType);
@@ -70,7 +70,7 @@ export default function HomepageManagement() {
           errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
-      } // fixed
+      }
       const result = await response.json();
       return result;
     },
@@ -100,7 +100,7 @@ export default function HomepageManagement() {
       
       if (!token) {
         throw new Error('Authentication required. Please log in again.');
-      } // fixed
+      }
       const response = await fetch(getApiUrl(`/api/homepage-content/${id}`), {
         method: 'PUT',
         headers: {
@@ -120,7 +120,7 @@ export default function HomepageManagement() {
           errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
-      } // fixed
+      }
       return response.json();
     },
     onMutate: async ({ id, data }) => {
@@ -163,7 +163,7 @@ export default function HomepageManagement() {
       
       if (!token) {
         throw new Error('Authentication required. Please log in again.');
-      } // fixed
+      }
       const response = await fetch(getApiUrl(`/api/homepage-content/${id}`), {
         method: 'DELETE',
         headers: {
@@ -181,7 +181,7 @@ export default function HomepageManagement() {
           errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
-      } // fixed
+      }
       return response.json();
     },
     onMutate: async (id: number) => {
@@ -222,7 +222,7 @@ export default function HomepageManagement() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     uploadMutation.mutate({
       file: uploadFile,
       data: newContent
@@ -260,7 +260,7 @@ export default function HomepageManagement() {
 
   if (!user) {
     return <div>Loading...</div>;
-  } // fixed
+  }
   return (
     <PortalLayout 
       userRole="admin" 

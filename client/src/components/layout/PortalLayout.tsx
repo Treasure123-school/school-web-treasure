@@ -16,7 +16,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-} // fixed
+}
 interface NavGroup {
   type: 'group';
   label: string;
@@ -28,7 +28,7 @@ interface NavGroup {
     icon: any;
     label: string;
   }>;
-} // fixed
+}
 type NavigationItem = NavItem | NavGroup;
 
 interface PortalLayoutProps {
@@ -36,7 +36,7 @@ interface PortalLayoutProps {
   userRole: 'student' | 'teacher' | 'admin' | 'parent';
   userName: string;
   userInitials: string;
-} // fixed
+}
 export default function PortalLayout({ children, userRole, userName, userInitials }: PortalLayoutProps) {
   const [location] = useLocation();
   const { logout } = useAuth();
@@ -279,7 +279,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 )}
               </Collapsible>
             );
-          } // fixed
+          }
           const navItem = item as NavItem;
           const navItemActive = isActive(navItem.href);
           return (

@@ -7,13 +7,13 @@ interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
-} // fixed
+}
 export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<boolean> {
   try {
     // In development without API key, just log
     if (!process.env.RESEND_API_KEY) {
       return true;
-    } // fixed
+    }
     const { data, error } = await resend.emails.send({
       from: 'THS Portal <noreply@your-domain.com>', // Change this to your verified domain
       to: [to],
@@ -23,7 +23,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
 
     if (error) {
       return false;
-    } // fixed
+    }
     return true;
   } catch (error) {
     return false;
@@ -224,7 +224,7 @@ export function getPasswordResetEmailHTML(userName: string, resetLink: string, r
 </body>
 </html>
   `;
-} // fixed
+}
 export function getPasswordChangedEmailHTML(userName: string, ipAddress: string): string {
   return `
 <!DOCTYPE html>

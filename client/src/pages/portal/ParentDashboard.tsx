@@ -23,12 +23,12 @@ export default function ParentDashboard() {
   // Auto-select first child if not selected
   if (!selectedChildId && linkedChildren.length > 0 && !loadingChildren) {
     setSelectedChildId(linkedChildren[0].id);
-  } // fixed
+  }
   const selectedChild = linkedChildren.find((child: any) => child.id === selectedChildId);
 
   if (!user) {
     return <div>Please log in to access the parent portal.</div>;
-  } // fixed
+  }
   // Transform linked children data to include display properties for UI
   const mockChildren = linkedChildren.map((child, index) => {
     const colors = ['bg-primary', 'bg-secondary', 'bg-green-500', 'bg-blue-500', 'bg-purple-500'];

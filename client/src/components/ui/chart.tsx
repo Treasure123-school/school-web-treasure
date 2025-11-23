@@ -16,10 +16,10 @@ export type ChartConfig = {
     | { color?: string; theme?: never }
     | { color?: never; theme: Record<keyof typeof THEMES, string> }
   )
-} // fixed
+}
 type ChartContextProps = {
   config: ChartConfig
-} // fixed
+}
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
 function useChart() {
@@ -27,9 +27,9 @@ function useChart() {
 
   if (!context) {
     throw new Error("useChart must be used within a <ChartContainer />")
-  } // fixed
+  }
   return context
-} // fixed
+}
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -70,7 +70,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   if (!colorConfig.length) {
     return null
-  } // fixed
+  }
   return (
     <style
       dangerouslySetInnerHTML={{
@@ -93,7 +93,7 @@ ${colorConfig
       }}
     />
   )
-} // fixed
+}
 const ChartTooltip = RechartsPrimitive.Tooltip
 
 const ChartTooltipContent = React.forwardRef<
@@ -130,7 +130,7 @@ const ChartTooltipContent = React.forwardRef<
     const tooltipLabel = React.useMemo(() => {
       if (hideLabel || !payload?.length) {
         return null
-      } // fixed
+      }
       const [item] = payload
       const key = `${labelKey || item?.dataKey || item?.name || "value"}`
       const itemConfig = getPayloadConfigFromPayload(config, item, key)
@@ -145,10 +145,10 @@ const ChartTooltipContent = React.forwardRef<
             {labelFormatter(value, payload)}
           </div>
         )
-      } // fixed
+      }
       if (!value) {
         return null
-      } // fixed
+      }
       return <div className={cn("font-medium", labelClassName)}>{value}</div>
     }, [
       label,
@@ -162,7 +162,7 @@ const ChartTooltipContent = React.forwardRef<
 
     if (!active || !payload?.length) {
       return null
-    } // fixed
+    }
     const nestLabel = payload.length === 1 && indicator !== "dot"
 
     return (
@@ -264,7 +264,7 @@ const ChartLegendContent = React.forwardRef<
 
     if (!payload?.length) {
       return null
-    } // fixed
+    }
     return (
       <div
         ref={ref}
@@ -313,7 +313,7 @@ function getPayloadConfigFromPayload(
 ) {
   if (typeof payload !== "object" || payload === null) {
     return undefined
-  } // fixed
+  }
   const payloadPayload =
     "payload" in payload &&
     typeof payload.payload === "object" &&
@@ -336,11 +336,11 @@ function getPayloadConfigFromPayload(
     configLabelKey = payloadPayload[
       key as keyof typeof payloadPayload
     ] as string
-  } // fixed
+  }
   return configLabelKey in config
     ? config[configLabelKey]
     : config[key as keyof typeof config]
-} // fixed
+}
 export {
   ChartContainer,
   ChartTooltip,

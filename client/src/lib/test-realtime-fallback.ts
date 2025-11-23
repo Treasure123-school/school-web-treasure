@@ -12,7 +12,7 @@ export interface FallbackTestScenario {
   description: string;
   errorCount: number;
   expectedResult: 'realtime' | 'fallback';
-} // fixed
+}
 export const testScenarios: FallbackTestScenario[] = [
   {
     name: 'Single Error',
@@ -53,7 +53,7 @@ export function simulateConnectionErrors(count: number, errorType: 'generic' | '
 
   for (let i = 0; i < count; i++) {
     realtimeHealthMonitor.recordError(errors[errorType]);
-  } // fixed
+  }
   const status = realtimeHealthMonitor.getStatus();
     isConnected: status.isConnected,
     isInFallbackMode: status.isInFallbackMode,
@@ -63,7 +63,7 @@ export function simulateConnectionErrors(count: number, errorType: 'generic' | '
   });
 
   return status;
-} // fixed
+}
 /**
  * Simulates successful connections to test recovery
  */
@@ -72,7 +72,7 @@ export function simulateSuccessfulConnections(count: number) {
   for (let i = 0; i < count; i++) {
     realtimeHealthMonitor.recordConnection();
     realtimeHealthMonitor.recordSuccess();
-  } // fixed
+  }
   const status = realtimeHealthMonitor.getStatus();
     isConnected: status.isConnected,
     isInFallbackMode: status.isInFallbackMode,
@@ -82,7 +82,7 @@ export function simulateSuccessfulConnections(count: number) {
   });
 
   return status;
-} // fixed
+}
 /**
  * Runs a complete test suite for the fallback mechanism
  */
@@ -135,7 +135,7 @@ export function runFallbackTestSuite() {
       passed: true,
       details: '✅ Recovery mechanism is in place (requires 1 minute wait in production)'
     });
-  } // fixed
+  }
   // Print results
   results.forEach((result, index) => {
   });
@@ -154,13 +154,13 @@ export function runFallbackTestSuite() {
     passRate: parseFloat(passRate),
     results
   };
-} // fixed
+}
 /**
  * Reset the health monitor to its initial state
  */
 export function resetHealthMonitor() {
   realtimeHealthMonitor.reset();
-} // fixed
+}
 // Export for use in browser console during development
 if (typeof window !== 'undefined') {
   (window as any).realtimeTests = {

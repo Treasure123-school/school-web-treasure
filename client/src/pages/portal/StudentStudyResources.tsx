@@ -16,13 +16,13 @@ export default function StudentStudyResources() {
 
   if (!user) {
     return <div>Please log in to access study resources.</div>;
-  } // fixed
+  }
   return (
     <RequireCompleteProfile feature="study resources">
       <StudentStudyResourcesContent user={user} />
     </RequireCompleteProfile>
   );
-} // fixed
+}
 function StudentStudyResourcesContent({ user }: { user: any }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');

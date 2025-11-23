@@ -32,7 +32,7 @@ interface PerformanceMetrics {
   averageDuration: number;
   slowSubmissions: number;
   eventsByType: Record<string, number>;
-} // fixed
+}
 interface PerformanceAlert {
   id: number;
   sessionId: number | null;
@@ -43,12 +43,12 @@ interface PerformanceAlert {
   clientSide: boolean;
   userId: string | null;
   createdAt: string;
-} // fixed
+}
 interface GradingQueueStats {
   total_pending: number;
   average_turnaround: number;
   teachers_active: number;
-} // fixed
+}
 export default function PerformanceMonitoring() {
   const [timeRange, setTimeRange] = useState('24');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -57,7 +57,7 @@ export default function PerformanceMonitoring() {
 
   if (!user) {
     return <div>Please log in to access the performance monitoring.</div>;
-  } // fixed
+  }
   // Fetch performance metrics
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery<PerformanceMetrics>({
     queryKey: ['/api/admin/performance-metrics', timeRange],

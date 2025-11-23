@@ -44,7 +44,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
         </div>
       </div>
     );
-  } // fixed
+  }
   return (
     <div 
       className="p-4 bg-muted/50 rounded-lg border hover:bg-muted/70 transition-colors"
@@ -87,7 +87,7 @@ function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
       </Button>
     </div>
   );
-} // fixed
+}
 // Component for displaying recent exam result card
 function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   const { data: examResults = [], isLoading } = useQuery({
@@ -112,7 +112,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
         </div>
       </div>
     );
-  } // fixed
+  }
   return (
     <div 
       className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
@@ -151,7 +151,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
       </div>
     </div>
   );
-} // fixed
+}
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -227,7 +227,7 @@ export default function TeacherDashboard() {
 
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
-  } // fixed
+  }
   if (statusLoading || profileLoading) {
     return (
       <PortalLayout
@@ -240,7 +240,7 @@ export default function TeacherDashboard() {
         </div>
       </PortalLayout>
     );
-  } // fixed
+  }
   const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
 
   // Get teacher's classes for results (limit to first 3 for dashboard)
@@ -351,13 +351,6 @@ export default function TeacherDashboard() {
               </p>
               {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (
                 <div className="flex gap-2 mt-2 flex-wrap">
-                    hasProfile: !!teacherProfile,
-                    subjects: teacherProfile.subjects,
-                    classes: teacherProfile.assignedClasses,
-                    subjectsArray: subjects,
-                    classesArray: classes
-                  })}
-
                   {/* Subject Badges - Get actual subject names from subjects array */}
                   {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
                     <>

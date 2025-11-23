@@ -40,7 +40,7 @@ export async function seedAcademicTerms() {
       
       for (const term of defaultTerms) {
         await db.insert(academicTerms).values(term);
-      } // fixed
+      }
     } else {
     }
   } catch (error) {

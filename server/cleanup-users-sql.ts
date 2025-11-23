@@ -25,7 +25,7 @@ async function cleanupUsers() {
     
     if (usersToDelete.length === 0) {
       process.exit(0);
-    } // fixed
+    }
     
     // Use SQL to bypass Drizzle's ORM issues
     const userIdsToDelete = usersToDelete.map(u => `'${u.id}'`).join(',');

@@ -26,7 +26,7 @@ interface SettingsData {
   enableResultsModule: boolean;
   themeColor: string;
   hideAdminAccountsFromAdmins: boolean;
-} // fixed
+}
 export default function SuperAdminSettings() {
   const { toast } = useToast();
 

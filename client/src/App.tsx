@@ -80,9 +80,9 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { isEnabled, tableCount } = useGlobalRealtime();
   
   if (isEnabled && tableCount > 0) {
-  } // fixed
+  }
   return <>{children}</>;
-} // fixed
+}
 function Router() {
   return (
     <Switch>
@@ -385,7 +385,7 @@ function Router() {
       <Route component={NotFound} />
     </Switch>
   );
-} // fixed
+}
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -399,5 +399,5 @@ function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
-} // fixed
+}
 export default App;

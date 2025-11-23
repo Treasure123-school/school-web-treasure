@@ -20,14 +20,14 @@ interface Notification {
   createdAt: string;
   relatedEntityType?: string;
   relatedEntityId?: string;
-} // fixed
+}
 export function NotificationBell() {
   const { user } = useAuth();
 
   // Only show notifications for admin users
   if (!user || user.roleId !== ROLE_IDS.ADMIN) {
     return null;
-  } // fixed
+  }
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
     refetchInterval: 10000, // Refresh every 10 seconds for real-time feel

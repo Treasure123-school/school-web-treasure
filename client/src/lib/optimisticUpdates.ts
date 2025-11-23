@@ -5,22 +5,22 @@ export interface OptimisticUpdateOptions<TData = any> {
   queryKey: QueryKey;
   updateFn: (oldData: TData) => TData;
   onError?: (error: any) => void;
-} // fixed
+}
 export interface OptimisticDeleteOptions<TData = any[]> {
   queryKey: QueryKey;
   idToDelete: number | string;
   idField?: string;
-} // fixed
+}
 export interface OptimisticCreateOptions<TData = any[], TItem = any> {
   queryKey: QueryKey;
   newItem: TItem;
-} // fixed
+}
 export interface OptimisticToggleOptions<TData = any[]> {
   queryKey: QueryKey;
   id: number | string;
   field: string;
   idField?: string;
-} // fixed
+}
 export async function optimisticUpdate<TData = any>(
   options: OptimisticUpdateOptions<TData>
 ) {
@@ -33,9 +33,9 @@ export async function optimisticUpdate<TData = any>(
   if (previousData) {
     const updatedData = updateFn(previousData);
     queryClient.setQueryData<TData>(queryKey, updatedData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticDelete<TData = any[]>(
   options: OptimisticDeleteOptions<TData>
 ) {
@@ -50,9 +50,9 @@ export async function optimisticDelete<TData = any[]>(
       (item: any) => item[idField] !== idToDelete
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticCreate<TData = any[], TItem = any>(
   options: OptimisticCreateOptions<TData, TItem>
 ) {
@@ -65,9 +65,9 @@ export async function optimisticCreate<TData = any[], TItem = any>(
   if (previousData && Array.isArray(previousData)) {
     const updatedData = [newItem, ...previousData];
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticToggle<TData = any[]>(
   options: OptimisticToggleOptions<TData>
 ) {
@@ -82,9 +82,9 @@ export async function optimisticToggle<TData = any[]>(
       item[idField] === id ? { ...item, [field]: !item[field] } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticUpdateItem<TData = any[], TItem = any>(
   queryKey: QueryKey,
   id: number | string,
@@ -100,9 +100,9 @@ export async function optimisticUpdateItem<TData = any[], TItem = any>(
       item[idField] === id ? { ...item, ...updates } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export function rollbackOnError<TData = any>(
   queryKey: QueryKey | QueryKey[],
   previousData: TData | undefined
@@ -116,14 +116,14 @@ export function rollbackOnError<TData = any>(
       queryClient.setQueryData<TData>(queryKey as QueryKey, previousData);
     }
   }
-} // fixed
+}
 export async function invalidateAndRefetch(queryKeys: QueryKey[]) {
   await Promise.all(
     queryKeys.map(key =>
       queryClient.invalidateQueries({ queryKey: key, refetchType: 'active' })
     )
   );
-} // fixed
+}
 export async function optimisticStatusChange<TData = any[]>(
   queryKey: QueryKey,
   id: number | string,
@@ -139,9 +139,9 @@ export async function optimisticStatusChange<TData = any[]>(
       item[idField] === id ? { ...item, [statusField]: newStatus } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticPublishToggle<TData = any[]>(
   queryKey: QueryKey,
   id: number | string,
@@ -156,9 +156,9 @@ export async function optimisticPublishToggle<TData = any[]>(
       item[idField] === id ? { ...item, isPublished } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticVerifyToggle<TData = any[]>(
   queryKey: QueryKey,
   id: number | string,
@@ -173,9 +173,9 @@ export async function optimisticVerifyToggle<TData = any[]>(
       item[idField] === id ? { ...item, isVerified } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticApprovalStatusChange<TData = any[]>(
   queryKey: QueryKey,
   id: number | string,
@@ -190,9 +190,9 @@ export async function optimisticApprovalStatusChange<TData = any[]>(
       item[idField] === id ? { ...item, status } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
-} // fixed
+}
 export async function optimisticActiveToggle<TData = any[]>(
   queryKey: QueryKey,
   id: number | string,
@@ -207,6 +207,6 @@ export async function optimisticActiveToggle<TData = any[]>(
       item[idField] === id ? { ...item, isActive } : item
     );
     queryClient.setQueryData<TData>(queryKey, updatedData as TData);
-  } // fixed
+  }
   return { previousData };
 }

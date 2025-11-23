@@ -21,7 +21,7 @@ export default function AdminExamOverview() {
 
   if (!user) {
     return <div>Loading...</div>;
-  } // fixed
+  }
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
 

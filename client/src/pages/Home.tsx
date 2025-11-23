@@ -166,7 +166,7 @@ export default function Home() {
       // Destroy previous instance if it exists
       if (typedInstance.current) {
         typedInstance.current.destroy();
-      } // fixed
+      }
       // Create new Typed instance
       typedInstance.current = new Typed(typedElementRef.current, {
         strings: ["Integrity", "Excellence", "Confidence", "Creativity", "Compassion"],
@@ -179,7 +179,7 @@ export default function Home() {
         cursorChar: "|",
         smartBackspace: true
       });
-    } // fixed
+    }
     // Cleanup on unmount
     return () => {
       if (typedInstance.current) {

@@ -65,7 +65,7 @@ interface GeneratedCredentials {
   password: string;
   role: string;
   fullName: string;
-} // fixed
+}
 export default function SuperAdminManagement() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,7 +180,7 @@ export default function SuperAdminManagement() {
       
       if (!response.ok) {
         throw new Error(result.message || "Failed to reset password");
-      } // fixed
+      }
       return result;
     },
     onSuccess: (data) => {
@@ -214,7 +214,7 @@ export default function SuperAdminManagement() {
       
       if (!response.ok) {
         throw new Error(result.message || "Failed to create admin");
-      } // fixed
+      }
       return result;
     },
     onSuccess: (data) => {
@@ -299,7 +299,7 @@ export default function SuperAdminManagement() {
       // Only include password if it's provided
       if (data.newPassword && data.newPassword.trim().length > 0) {
         updateData.password = data.newPassword;
-      } // fixed
+      }
       const response = await apiRequest("PUT", `/api/users/${id}`, updateData);
       if (!response.ok) {
         const result = await response.json();

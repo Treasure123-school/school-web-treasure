@@ -37,7 +37,7 @@ class CircuitBreaker {
     // Don't count client errors (4xx) toward circuit breaker failures
     if (error.errorType === 'client' || error.errorType === 'auth') {
       return false;
-    } // fixed
+    }
     // Count network, timeout, and server errors
     return (
       error.errorType === 'network' ||
@@ -48,11 +48,11 @@ class CircuitBreaker {
       error?.name === 'TypeError' ||
       error?.name === 'AbortError'
     );
-  } // fixed
+  }
   private onSuccess() {
     this.failures = 0;
     this.state = 'CLOSED';
-  } // fixed
+  }
   private onFailure() {
     this.failures++;
     this.lastFailureTime = Date.now();
@@ -68,7 +68,7 @@ class CircuitBreaker {
       failures: this.failures,
       lastFailureTime: this.lastFailureTime
     };
-  } // fixed
+  }
   reset() {
     this.failures = 0;
     this.lastFailureTime = 0;
@@ -82,11 +82,11 @@ const apiCircuitBreaker = new CircuitBreaker();
 // Global function to reset circuit breaker - useful when users encounter circuit breaker errors
 export function resetCircuitBreaker() {
   apiCircuitBreaker.reset();
-} // fixed
+}
 // Global function to get circuit breaker status
 export function getCircuitBreakerStatus() {
   return apiCircuitBreaker.getState();
-} // fixed
+}
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -107,10 +107,10 @@ async function makeRequest(
     // Handle different data types appropriately
     if (data && !(data instanceof FormData)) {
       headers["Content-Type"] = "application/json";
-    } // fixed
+    }
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    } // fixed
+    }
     // Create AbortController for request timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -138,13 +138,13 @@ async function makeRequest(
           error.errorType = 'client';
         } else if (res.status >= 500 || res.status === 429) {
           error.errorType = 'server';
-        } // fixed
+        }
         // Add specific properties for easier identification
         error.status = res.status;
         error.statusText = res.statusText;
 
         throw error;
-      } // fixed
+      }
       return res;
     } catch (error: any) {
       clearTimeout(timeoutId);
@@ -161,11 +161,11 @@ async function makeRequest(
                  error.message?.includes('fetch') || error.message?.includes('network')) {
         classifiedError.errorType = 'network';
         classifiedError.message = 'Network connection failed - please check your internet connection';
-      } // fixed
+      }
       throw classifiedError;
     }
   });
-} // fixed
+}
 export async function apiRequest(
   method: string,
   url: string,
@@ -185,14 +185,14 @@ export async function apiRequest(
 
   if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     config.body = JSON.stringify(data);
-  } // fixed
+  }
   try {
     const response = await fetch(getApiUrl(url), config);
 
     // For successful responses, return as-is
     if (response.ok) {
       return response;
-    } // fixed
+    }
     // For error responses, check if we got JSON or HTML
     const contentType = response.headers.get('content-type');
     
@@ -245,7 +245,7 @@ export async function apiRequest(
       errorMessage = 'Connection Failed';
       errorDetails = 'Unable to reach the server. Please check:\n• Your internet connection is active\n• You\'re not in offline mode\n• Try refreshing the page';
       statusCode = 0;
-    } // fixed
+    }
     const networkErrorResponse = new Response(
       JSON.stringify({ message: errorMessage }),
       {
@@ -273,7 +273,7 @@ export const getQueryFn: <T>(options: {
       if (unauthorizedBehavior === "returnNull" && 
           (error.errorType === 'auth' || error?.message?.includes('401'))) {
         return null;
-      } // fixed
+      }
       throw error;
     }
   };
@@ -284,17 +284,17 @@ interface ClassifiedError extends Error {
   originalError?: Error;
   status?: number;
   statusText?: string;
-} // fixed
+}
 // Advanced retry strategy with proper error classification
 const intelligentRetryFn = (failureCount: number, error: ClassifiedError) => {
   // Don't retry on authentication/authorization errors
   if (error.errorType === 'auth' || error?.message?.includes('401') || error?.message?.includes('403')) {
     return false;
-  } // fixed
+  }
   // Don't retry on client-side validation errors
   if (error.errorType === 'client' || error?.message?.match(/^(400|404|409|422):/)) {
     return false;
-  } // fixed
+  }
   // Retry on network errors, timeouts, server errors (5xx), and rate limiting (429)
   if (
     error.errorType === 'network' ||
@@ -310,7 +310,7 @@ const intelligentRetryFn = (failureCount: number, error: ClassifiedError) => {
   ) {
     // Maximum 3 retries for critical operations
     return failureCount < 3;
-  } // fixed
+  }
   // Default: no retry for other errors
   return false;
 };

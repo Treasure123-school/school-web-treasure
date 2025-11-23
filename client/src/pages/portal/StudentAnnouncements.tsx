@@ -15,7 +15,7 @@ export default function StudentAnnouncements() {
 
   if (!user) {
     return <div>Please log in to access announcements.</div>;
-  } // fixed
+  }
   const { data: announcements, isLoading } = useQuery({
     queryKey: ['announcements', 'Student'],
     queryFn: async () => {

@@ -32,7 +32,7 @@ interface ReportCardProps {
   teacherSignature?: string;
   principalSignature?: string;
   dateGenerated: string;
-} // fixed
+}
 export function ProfessionalReportCard({ 
   student, 
   grades, 

@@ -270,7 +270,7 @@ export default function AcademicTermsManagement() {
 
   if (!user) {
     return <div className="flex items-center justify-center h-screen">Please log in</div>;
-  } // fixed
+  }
 
   return (
     <PortalLayout

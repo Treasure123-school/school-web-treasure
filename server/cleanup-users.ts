@@ -26,7 +26,7 @@ async function cleanupUsers() {
     
     if (usersToDelete.length === 0) {
       process.exit(0);
-    } // fixed
+    }
     // Step 4: Delete users and all related data (non-interactive mode)
     
     // Helper function to safely delete from tables
@@ -53,7 +53,7 @@ async function cleanupUsers() {
           await safeDelete('studentAnswers', () =>
             db.delete(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, session.id))
           );
-        } // fixed
+        }
         // Now delete exam sessions
         await safeDelete('examSessions', () =>
           db.delete(schema.examSessions).where(eq(schema.examSessions.studentId, user.id))
@@ -85,7 +85,7 @@ async function cleanupUsers() {
             await safeDelete('studentAnswers-session', () =>
               db.delete(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, session.id))
             );
-          } // fixed
+          }
           // Delete exam questions and their answers/options
           const examQuestions = await db.select({ id: schema.examQuestions.id })
             .from(schema.examQuestions)
@@ -101,7 +101,7 @@ async function cleanupUsers() {
             await safeDelete('questionOptions', () =>
               db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, question.id))
             );
-          } // fixed
+          }
           // Delete exam questions
           await safeDelete('examQuestions', () =>
             db.delete(schema.examQuestions).where(eq(schema.examQuestions.examId, exam.id))
@@ -121,7 +121,7 @@ async function cleanupUsers() {
           await safeDelete('exams', () =>
             db.delete(schema.exams).where(eq(schema.exams.id, exam.id))
           );
-        } // fixed
+        }
         // Delete messages
         await safeDelete('messages-sender', () =>
           db.delete(schema.messages).where(eq(schema.messages.senderId, user.id))
@@ -193,7 +193,7 @@ async function cleanupUsers() {
         if (error?.cause?.detail) {
         }
       }
-    } // fixed
+    }
     // Step 6: Verify cleanup
     const remainingUsers = await db.select().from(schema.users);
     remainingUsers.forEach(user => {

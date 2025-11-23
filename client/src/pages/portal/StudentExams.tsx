@@ -65,7 +65,7 @@ export default function StudentExams() {
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch exams: ${response.status}`);
-      } // fixed
+      }
       const examsData = await response.json();
 
       return examsData;
@@ -103,7 +103,7 @@ export default function StudentExams() {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       return shuffled;
-    } // fixed
+    }
     // Otherwise return in original order
     return examQuestionsRaw;
   }, [examQuestionsRaw, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
@@ -140,7 +140,7 @@ export default function StudentExams() {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       return shuffled;
-    } // fixed
+    }
     // Otherwise return in original order
     return questionOptionsRaw;
   }, [questionOptionsRaw, currentQuestion, activeSession?.examId, activeSession?.isCompleted, activeSession?.id, exams]);
@@ -202,7 +202,7 @@ export default function StudentExams() {
             const exam = exams.find(e => e.id === session.examId);
             if (exam) {
               setSelectedExam(exam);
-            } // fixed
+            }
             // Restore session state
             try {
               const metadata = session.metadata ? JSON.parse(session.metadata) : {};
@@ -442,7 +442,7 @@ export default function StudentExams() {
         return { isValid: false, error: 'Please select an option' };
       }
       return { isValid: true };
-    } // fixed
+    }
     if (questionType === 'text' || questionType === 'essay') {
       // Only validate that answer exists and is a string
       if (answer === null || answer === undefined) {
@@ -453,7 +453,7 @@ export default function StudentExams() {
       }
       // Allow even single character answers for auto-save
       return { isValid: true };
-    } // fixed
+    }
     return { isValid: false, error: 'Unknown question type' };
   };
 
@@ -517,7 +517,7 @@ export default function StudentExams() {
     mutationFn: async (examId: number) => {
       if (!user?.id) {
         throw new Error('User not authenticated');
-      } // fixed
+      }
 
       const response = await apiRequest('POST', '/api/exam-sessions', {
         examId: examId,
@@ -537,9 +537,9 @@ export default function StudentExams() {
           }
         } catch (parseError) {
           errorMessage = 'Server error - please try again';
-        } // fixed
+        }
         throw new Error(errorMessage);
-      } // fixed
+      }
       const sessionData = await response.json();
       return sessionData;
     },
@@ -552,7 +552,7 @@ export default function StudentExams() {
           variant: "destructive",
         });
         return;
-      } // fixed
+      }
       setActiveSession(session);
       setCurrentQuestionIndex(0);
       setAnswers({}); // Clear any previous answers
@@ -566,7 +566,7 @@ export default function StudentExams() {
         setTimeRemaining(timeInSeconds);
       } else {
         setTimeRemaining(null);
-      } // fixed
+      }
       toast({
         title: "Exam Started Successfully!",
         description: "Good luck with your exam! Stay on this page during the exam.",
@@ -583,7 +583,7 @@ export default function StudentExams() {
         errorMessage = "This exam is not yet available. Please check with your instructor.";
       } else if (error.message.includes('not authenticated')) {
         errorMessage = "Please log in again to start the exam.";
-      } // fixed
+      }
       toast({
         title: "Unable to Start Exam",
         description: errorMessage,
@@ -599,7 +599,7 @@ export default function StudentExams() {
       const validation = validateAnswer(questionType, answer);
       if (!validation.isValid) {
         throw new Error(validation.error || 'Invalid answer');
-      } // fixed
+      }
       const answerData = questionType === 'multiple_choice'
         ? { sessionId: activeSession!.id, questionId, selectedOptionId: answer }
         : { sessionId: activeSession!.id, questionId, textAnswer: answer };
@@ -615,7 +615,7 @@ export default function StudentExams() {
           if (attempt > 0) {
             const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5 seconds
             await new Promise(resolve => setTimeout(resolve, delay));
-          } // fixed
+          }
           const response = await apiRequest('POST', '/api/student-answers', answerData);
 
           if (!response.ok) {
@@ -696,7 +696,7 @@ export default function StudentExams() {
                networkError.message?.includes('timeout')) && 
                attempt < maxRetries) {
             continue; // Retry network errors
-          } // fixed
+          }
           // Last attempt or non-retryable error
           throw new Error('Network connection failed. Please check your internet connection and try again.');
         }
@@ -787,7 +787,7 @@ export default function StudentExams() {
           description: userFriendlyMessage,
           variant: "destructive",
         });
-      } // fixed
+      }
       // Auto-retry logic for recoverable errors
       if (shouldAutoRetry && answers[variables.questionId] && isOnline) {
         const retryDelay = 2000; // 2 second delay for retries
@@ -814,7 +814,7 @@ export default function StudentExams() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to submit exam');
-      } // fixed
+      }
       const submissionData = await response.json();
       const totalTime = Date.now() - startTime;
 
@@ -833,7 +833,7 @@ export default function StudentExams() {
           }
         });
       } catch (perfError) {
-      } // fixed
+      }
 
       return { ...submissionData, clientPerformance: { totalTime } };
     },
@@ -871,7 +871,7 @@ export default function StudentExams() {
           toastTitle = "Previous Results Retrieved";
         } else if (data.timedOut) {
           toastTitle = "Exam Submitted (Time Limit Exceeded)";
-        } // fixed
+        }
         toast({
           title: toastTitle,
           description: data.message || `Your Score: ${score}/${maxScore} (${percentage}%)`,
@@ -897,7 +897,7 @@ export default function StudentExams() {
         setAnswers({});
         setTimeRemaining(null);
         setCurrentQuestionIndex(0);
-      } // fixed
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
     },
     onError: (error: Error) => {
@@ -951,7 +951,7 @@ export default function StudentExams() {
       } else if (error.message.includes('timeout')) {
         errorTitle = "Request Timeout";
         errorDescription = "The submission request timed out. Your answers are saved. Please try again.";
-      } // fixed
+      }
       toast({
         title: errorTitle,
         description: errorDescription,
@@ -971,7 +971,7 @@ export default function StudentExams() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     if (!user?.id) {
       toast({
         title: "Authentication Required", 
@@ -979,7 +979,7 @@ export default function StudentExams() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     if (!exam.isPublished) {
       toast({
         title: "Exam Not Available",
@@ -987,7 +987,7 @@ export default function StudentExams() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     // Check if already has an active session
     if (activeSession && !activeSession.isCompleted) {
       toast({
@@ -996,7 +996,7 @@ export default function StudentExams() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     // Pre-flight check: confirm exam has questions
     toast({
       title: "Starting Exam",
@@ -1027,7 +1027,7 @@ export default function StudentExams() {
     // Clear existing debounce timer for this question
     if (debounceTimersRef.current[questionId]) {
       clearTimeout(debounceTimersRef.current[questionId]);
-    } // fixed
+    }
     // Immediately mark as ready to save (visual feedback)
     setQuestionSaveStatus(prev => ({ ...prev, [questionId]: 'idle' }));
 
@@ -1093,7 +1093,7 @@ export default function StudentExams() {
   const forceSubmitExam = async () => {
     if (isSubmitting || isScoring) {
       return;
-    } // fixed
+    }
     setIsSubmitting(true);
 
     try {
@@ -1118,7 +1118,7 @@ export default function StudentExams() {
         variant: "default",
       });
       return;
-    } // fixed
+    }
     setIsSubmitting(true);
     
     try {
@@ -1203,7 +1203,7 @@ export default function StudentExams() {
 
   if (!user) {
     return <div>Please log in to access the exam portal.</div>;
-  } // fixed
+  }
   // Map roleId to role name
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
@@ -1532,7 +1532,7 @@ export default function StudentExams() {
         </div>
       </RequireCompleteProfile>
     );
-  } // fixed
+  }
   // Render exam list and results with PortalLayout wrapper
   return (
     <RequireCompleteProfile feature="exams">
@@ -1648,7 +1648,7 @@ export default function StudentExams() {
               if (normalizedResults.maxScore > 0) {
                 normalizedResults.percentage = Math.round((normalizedResults.score / normalizedResults.maxScore) * 100);
                 normalizedResults.percentage = Math.max(0, Math.min(100, normalizedResults.percentage)); // Clamp to [0,100]
-              } // fixed
+              }
               // SVG progress calculations
               const radius = 85;
               const circumference = 2 * Math.PI * radius;

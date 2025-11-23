@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoleIds: number[];
   fallbackPath?: string;
-} // fixed
+}
 export default function ProtectedRoute({ 
   children, 
   allowedRoleIds, 
@@ -21,7 +21,7 @@ export default function ProtectedRoute({
     if (!isAuthenticated) {
       navigate(fallbackPath);
       return;
-    } // fixed
+    }
     // If authenticated but wrong role, redirect based on user's actual role
     if (user && !isRoleAllowed(user.roleId, allowedRoleIds)) {
       const correctPortal = getPortalByRoleId(user.roleId);
@@ -38,10 +38,10 @@ export default function ProtectedRoute({
   // Show loading or nothing while checking authentication
   if (!isAuthenticated || !user) {
     return null;
-  } // fixed
+  }
   // Check if user has the right role
   if (!isRoleAllowed(user.roleId, allowedRoleIds)) {
     return null;
-  } // fixed
+  }
   return <>{children}</>;
 }

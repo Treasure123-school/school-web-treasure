@@ -6,7 +6,7 @@ interface AnimatedCounterProps {
   className?: string;
   suffix?: string;
   prefix?: string;
-} // fixed
+}
 export function AnimatedCounter({
   value,
   duration = 1000,

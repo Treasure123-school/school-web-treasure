@@ -30,7 +30,7 @@ interface TimetableEntry {
   className: string;
   subjectName: string;
   location: string | null;
-} // fixed
+}
 interface Assignment {
   id: number;
   className: string;
@@ -38,26 +38,26 @@ interface Assignment {
   subjectCode: string;
   classLevel: string;
   termName?: string;
-} // fixed
+}
 interface TeacherProfile {
   department?: string;
   qualification?: string;
   yearsOfExperience?: number;
   staffId?: string;
-} // fixed
+}
 interface UserData {
   firstName?: string;
   lastName?: string;
   email?: string;
   phone?: string;
   profileImageUrl?: string;
-} // fixed
+}
 interface DashboardData {
   profile?: TeacherProfile;
   user?: UserData;
   assignments: Assignment[];
   timetable: TimetableEntry[];
-} // fixed
+}
 export default function TeacherProfileAssignmentDashboard() {
   const { user } = useAuth();
 
@@ -78,7 +78,7 @@ export default function TeacherProfileAssignmentDashboard() {
         </div>
       </PortalLayout>
     );
-  } // fixed
+  }
   if (isLoading) {
     return (
       <PortalLayout
@@ -93,7 +93,7 @@ export default function TeacherProfileAssignmentDashboard() {
         </div>
       </PortalLayout>
     );
-  } // fixed
+  }
   if (error) {
     return (
       <PortalLayout
@@ -108,7 +108,7 @@ export default function TeacherProfileAssignmentDashboard() {
         </Card>
       </PortalLayout>
     );
-  } // fixed
+  }
   const { profile, user: userData, assignments = [], timetable = [] } = dashboardData || {};
 
   const groupedTimetable: Record<string, TimetableEntry[]> = {};

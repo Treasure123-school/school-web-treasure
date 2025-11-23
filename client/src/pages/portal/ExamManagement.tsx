@@ -88,10 +88,10 @@ function QuestionOptions({ questionId }: { questionId: number }) {
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Loading options...</div>;
-  } // fixed
+  }
   if (options.length === 0) {
     return <div className="text-sm text-muted-foreground">No options added yet</div>;
-  } // fixed
+  }
   return (
     <div className="space-y-1">
       {options.map((option: any, index: number) => (
@@ -107,7 +107,7 @@ function QuestionOptions({ questionId }: { questionId: number }) {
       ))}
     </div>
   );
-} // fixed
+}
 export default function ExamManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -348,7 +348,7 @@ export default function ExamManagement() {
         setSelectedExam(null);
         setEditingExam(null);
         setEditingQuestion(null);
-      } // fixed
+      }
       toast({
         title: "Deleting...",
         description: "Removing exam from the system",
@@ -615,7 +615,7 @@ export default function ExamManagement() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     // Enhanced validation for question text
     if (!data.questionText || data.questionText.trim().length < 5) {
       toast({
@@ -624,7 +624,7 @@ export default function ExamManagement() {
         variant: "destructive",
       });
       return;
-    } // fixed
+    }
     const nextOrderNumber = examQuestions.length + 1;
 
     // Prepare the question data
@@ -654,7 +654,7 @@ export default function ExamManagement() {
           variant: "destructive",
         });
         return;
-      } // fixed
+      }
       const hasCorrectAnswer = validOptions.some(opt => opt.isCorrect);
       if (!hasCorrectAnswer) {
         toast({
@@ -663,12 +663,12 @@ export default function ExamManagement() {
           variant: "destructive",
         });
         return;
-      } // fixed
+      }
       questionData.options = validOptions;
     } else {
       // For non-multiple choice questions, don't send options
       delete questionData.options;
-    } // fixed
+    }
     createQuestionMutation.mutate(questionData);
   };
 
@@ -767,7 +767,7 @@ export default function ExamManagement() {
           return [...nonOptimistic, ...data.questions];
         });
         
-      } // fixed
+      }
       // Invalidate question counts
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'], exact: false });
 
@@ -789,7 +789,7 @@ export default function ExamManagement() {
       // Rollback optimistic update on error
       if (context?.previousQuestions) {
         queryClient.setQueryData(context.queryKey, context.previousQuestions);
-      } // fixed
+      }
       // Enhanced error handling for CSV uploads using classified error types
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
@@ -822,7 +822,7 @@ export default function ExamManagement() {
         if (error?.errors && Array.isArray(error.errors)) {
           const firstFewErrors = error.errors.slice(0, 2).join('; ');
           errorDetails = `${firstFewErrors}${error.errors.length > 2 ? ' (and more)' : ''}`;
-        } // fixed
+        }
         toast({
           title: "CSV Validation Errors",
           description: errorDetails,
@@ -887,7 +887,7 @@ export default function ExamManagement() {
       }
       event.target.value = '';
       return;
-    } // fixed
+    }
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.csv')) {
       toast({
@@ -897,7 +897,7 @@ export default function ExamManagement() {
       });
       event.target.value = '';
       return;
-    } // fixed
+    }
     // Validate file size (max 1MB)
     if (file.size > 1024 * 1024) {
       toast({
@@ -907,7 +907,7 @@ export default function ExamManagement() {
       });
       event.target.value = '';
       return;
-    } // fixed
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -915,7 +915,7 @@ export default function ExamManagement() {
         
         if (!csv || csv.trim().length === 0) {
           throw new Error('CSV file is empty');
-        } // fixed
+        }
         const questions = parseCSV(csv);
 
           questionCount: questions.length,
@@ -952,12 +952,12 @@ export default function ExamManagement() {
     
     if (!csvContent || csvContent.trim().length === 0) {
       throw new Error('CSV file is empty. Please provide a valid CSV file with question data.');
-    } // fixed
+    }
     const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
 
     if (lines.length < 2) {
       throw new Error(`CSV must have at least a header row and one question row. Found only ${lines.length} line(s). Please download the template for the correct format.`);
-    } // fixed
+    }
     // Parse headers more carefully to handle quoted content
     const headers = parseCSVLine(lines[0]);
     const requiredHeaders = ['QuestionText', 'Type', 'Points'];
@@ -978,7 +978,7 @@ export default function ExamManagement() {
         `Found headers: ${headers.join(', ')}\n\n` +
         `Please download the template to see the correct format.`
       );
-    } // fixed
+    }
     const questions = [];
     const errors = [];
 
@@ -989,7 +989,7 @@ export default function ExamManagement() {
         if (row.length < headers.length) {
           errors.push(`Row ${i + 1}: Incomplete row (expected ${headers.length} columns, found ${row.length})`);
           continue;
-        } // fixed
+        }
         // Use case-insensitive header matching for robustness
         const getColumnValue = (expectedHeader: string) => {
           const headerIndex = normalizedHeaders.findIndex(h => h.toLowerCase() === expectedHeader.toLowerCase());
@@ -1006,16 +1006,16 @@ export default function ExamManagement() {
         if (!questionText || questionText.length < 5) {
           errors.push(`Row ${i + 1}: Question text is required and must be at least 5 characters`);
           continue;
-        } // fixed
+        }
         if (!['multiple_choice', 'text', 'essay'].includes(questionType)) {
           errors.push(`Row ${i + 1}: Invalid question type "${questionType}". Must be: multiple_choice, text, or essay`);
           continue;
-        } // fixed
+        }
         const points = parseInt(pointsText) || 1;
         if (points < 1 || points > 100) {
           errors.push(`Row ${i + 1}: Points must be between 1 and 100 (found: ${pointsText})`);
           continue;
-        } // fixed
+        }
         // Enhanced validation for theory questions
         if (questionType === 'essay') {
           if (questionText.length < 20) {
@@ -1048,7 +1048,7 @@ export default function ExamManagement() {
           if (!optionLetters.includes(correctAnswer)) {
             errors.push(`Row ${i + 1}: Multiple choice questions require correct answer A, B, C, or D (found: "${correctAnswer}")`);
             continue;
-          } // fixed
+          }
           const options = optionLetters.map(letter => ({
             optionText: getColumnValue(`Option${letter}`),
             isCorrect: letter === correctAnswer
@@ -1057,12 +1057,12 @@ export default function ExamManagement() {
           if (options.length < 2) {
             errors.push(`Row ${i + 1}: Multiple choice questions need at least 2 non-empty options`);
             continue;
-          } // fixed
+          }
           const hasCorrectOption = options.some(opt => opt.isCorrect);
           if (!hasCorrectOption) {
             errors.push(`Row ${i + 1}: The correct answer "${correctAnswer}" doesn't match any provided options`);
             continue;
-          } // fixed
+          }
           question.options = options.map((opt, index) => ({
             ...opt,
             optionText: opt.optionText.trim()
@@ -1088,10 +1088,10 @@ export default function ExamManagement() {
     // Report any errors found
     if (errors.length > 0) {
       throw new Error(`Found ${errors.length} error(s) in CSV:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n... and ' + (errors.length - 5) + ' more errors.' : ''}`);
-    } // fixed
+    }
     if (questions.length === 0) {
       throw new Error('No valid questions found in CSV. Please check the format and content.');
-    } // fixed
+    }
     return questions;
   };
 
@@ -1143,7 +1143,7 @@ export default function ExamManagement() {
 
   if (!user) {
     return <div>Please log in to access the exam management portal.</div>;
-  } // fixed
+  }
   // Map roleId to role name (lowercase as expected by PortalLayout)
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {

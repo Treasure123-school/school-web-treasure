@@ -14,7 +14,7 @@ interface ProfileUser {
   profileCompleted: boolean;
   completionPercentage: number;
   lastLogin: string | null;
-} // fixed
+}
 export default function ProfileCompletionMonitoring() {
   const { data: users, isLoading } = useQuery<ProfileUser[]>({
     queryKey: ["/api/admin/profile-completion"],
@@ -40,7 +40,7 @@ export default function ProfileCompletionMonitoring() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  } // fixed
+  }
   return (
     <div className="p-6 space-y-6">
       <div>
