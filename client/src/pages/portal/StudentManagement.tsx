@@ -497,7 +497,6 @@ export default function StudentManagement() {
           description: `Created ${data.successCount} students successfully`,
         });
       } catch (error) {
-        console.error('CSV import error:', error);
         toast({
           title: 'Import Failed',
           description: error instanceof Error ? error.message : 'Unknown error occurred',

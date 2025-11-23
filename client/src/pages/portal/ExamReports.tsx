@@ -135,7 +135,6 @@ export default function ExamReports() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Export failed:', error);
     }
   };
 

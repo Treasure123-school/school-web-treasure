@@ -101,7 +101,6 @@ export default function StudentProfile() {
       // Refresh student data
       queryClient.invalidateQueries({ queryKey: ['student', user.id] });
     } catch (error) {
-      console.error('Failed to update profile:', error);
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",

@@ -26,35 +26,17 @@ function getSupabaseClient(): ReturnType<typeof createClient> | null {
   const isProduction = process.env.NODE_ENV === 'production';
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    const errorMsg = `🚨 CRITICAL: Supabase Storage not configured! Missing: ${!supabaseUrl ? 'SUPABASE_URL' : ''} ${!supabaseServiceKey ? 'SUPABASE_SERVICE_KEY' : ''}`;
-    
-    if (isProduction) {
-      console.error(errorMsg);
-      console.error('   → Image uploads WILL FAIL in production without these credentials!');
-      console.error('   → Set SUPABASE_URL and SUPABASE_SERVICE_KEY in your deployment platform\'s environment variables');
-      console.error('   → Get these from: Supabase Dashboard → Project Settings → API');
-    } else {
-      console.warn(`⚠️ ${errorMsg} - Development mode will use fallback if available`);
-    }
     return null;
   }
 
   if (!isValidUrl(supabaseUrl)) {
-    const errorMsg = `🚨 CRITICAL: Invalid SUPABASE_URL format: ${supabaseUrl}`;
-    console.error(errorMsg);
-    console.error('   → Expected format: https://your-project.supabase.co');
     return null;
   }
 
   try {
     supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    console.log('✅ Supabase Storage client initialized successfully');
-    console.log(`   → Project URL: ${supabaseUrl}`);
-    console.log(`   → Service key configured: Yes (service_role)`);
     return supabaseClient;
-  } catch (error) {
-    console.error('❌ Failed to initialize Supabase Storage client:', error);
-    console.error('   → Verify your SUPABASE_SERVICE_KEY is the service_role key (not anon key)');
+  } catch {
     return null;
   }
 }
@@ -73,12 +55,10 @@ export const STORAGE_BUCKETS = {
 export async function initializeStorageBuckets() {
   const client = supabase.get();
   if (!client) {
-    console.log('📦 Supabase Storage: Not configured, using local filesystem');
     return false;
   }
 
   try {
-    console.log('📦 Initializing Supabase Storage buckets...');
     
     const bucketsToCreate = Object.values(STORAGE_BUCKETS);
     
@@ -88,32 +68,21 @@ export async function initializeStorageBuckets() {
       if (!existingBucket) {
         const { error } = await client.storage.createBucket(bucketName, {
           public: true,
-          fileSizeLimit: 10485760, // 10MB
+          fileSizeLimit: 10485760,
           allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
         });
         
-        if (error) {
-          if (error.message.includes('already exists')) {
-            console.log(`  ✅ Bucket "${bucketName}" already exists`);
-          } else {
-            console.error(`  ❌ Failed to create bucket "${bucketName}":`, error.message);
-          }
-        } else {
-          console.log(`  ✅ Created bucket: ${bucketName}`);
+        if (error && !error.message.includes('already exists')) {
+          // Handle bucket creation error
         }
-      } else {
-        console.log(`  ✅ Bucket "${bucketName}" already exists`);
       }
     }
     
     // Apply RLS policies programmatically using service role
-    console.log('🔐 Applying storage RLS policies via service role...');
     await applyStoragePolicies();
     
-    console.log('✅ Supabase Storage initialization complete');
     return true;
   } catch (error) {
-    console.error('❌ Supabase Storage initialization failed:', error);
     return false;
   }
 }
@@ -127,17 +96,10 @@ async function applyStoragePolicies() {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY;
     
     if (!supabaseUrl || !serviceKey) {
-      console.warn('⚠️ Missing Supabase credentials for policy application');
       return;
     }
-
-    console.log('🔐 Checking storage configuration...');
-    console.log('✅ Using service_role key - This bypasses ALL RLS policies');
-    console.log('✅ Buckets configured as public for read access');
-    console.log('ℹ️ Note: If uploads still fail, run the SQL in supabase-storage-policies.sql manually');
-    
-  } catch (error) {
-    console.error('❌ Storage configuration check failed:', error);
+  } catch {
+    // Handle policy application error
   }
 }
 
@@ -150,21 +112,17 @@ export async function uploadFileToSupabase(
   const client = supabase.get();
   if (!client) {
     const errorMsg = 'Supabase Storage not configured - missing client';
-    console.error(`❌ ${errorMsg}`);
     throw new Error(errorMsg);
   }
 
   try {
-    console.log(`📤 Uploading to Supabase: bucket="${bucket}", path="${filePath}", size=${fileBuffer.length} bytes, type="${contentType}"`);
     
     // Verify bucket exists first
     const { data: bucketData, error: bucketError } = await client.storage.getBucket(bucket);
     if (bucketError || !bucketData) {
-      console.error(`❌ Bucket "${bucket}" not found or inaccessible:`, bucketError);
       throw new Error(`Storage bucket "${bucket}" not found. Please check Supabase configuration.`);
     }
 
-    console.log(`✅ Bucket "${bucket}" verified, proceeding with upload...`);
 
     const { data, error } = await client.storage
       .from(bucket)
@@ -175,7 +133,6 @@ export async function uploadFileToSupabase(
       });
 
     if (error) {
-      console.error(`❌ Supabase upload error for "${filePath}":`, {
         message: error.message,
         statusCode: error.cause,
         bucket,
@@ -204,14 +161,12 @@ export async function uploadFileToSupabase(
       .from(bucket)
       .getPublicUrl(filePath);
 
-    console.log(`✅ Successfully uploaded to Supabase: ${publicUrl}`);
 
     return {
       publicUrl,
       path: data.path
     };
   } catch (error: any) {
-    console.error('❌ Failed to upload to Supabase:', {
       error: error.message,
       stack: error.stack,
       bucket,
@@ -238,13 +193,11 @@ export async function deleteFileFromSupabase(
       .remove([filePath]);
 
     if (error) {
-      console.error('Supabase delete error:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Failed to delete from Supabase:', error);
     return false;
   }
 }

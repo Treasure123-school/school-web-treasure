@@ -14,36 +14,27 @@ const SUPER_ADMIN_ROLE_ID = 0;
 
 async function cleanupUsers() {
   try {
-    console.log('🧹 Starting user cleanup process...\n');
 
     // Step 1: Get all users
     const allUsers = await db.select().from(schema.users);
-    console.log(`📊 Total users in database: ${allUsers.length}`);
 
     // Step 2: Identify Super Admin users
     const superAdmins = allUsers.filter(user => user.roleId === SUPER_ADMIN_ROLE_ID);
-    console.log(`👑 Super Admin users found: ${superAdmins.length}`);
     superAdmins.forEach(admin => {
-      console.log(`   - ${admin.username} (${admin.email})`);
     });
 
     // Step 3: Identify users to delete
     const usersToDelete = allUsers.filter(user => user.roleId !== SUPER_ADMIN_ROLE_ID);
-    console.log(`\n🗑️  Users to be deleted: ${usersToDelete.length}`);
     
     if (usersToDelete.length === 0) {
-      console.log('✅ No users to delete. Database already clean.');
       process.exit(0);
     }
 
     // Show which users will be deleted
-    console.log('\nUsers that will be deleted:');
     usersToDelete.forEach(user => {
-      console.log(`   - ${user.username || 'no-username'} (${user.email}) - Role ID: ${user.roleId}`);
     });
 
     // Step 4: Delete users and all related data (non-interactive mode)
-    console.log('\n🗑️  Starting deletion process...');
     
     // Helper function to safely delete from tables
     const safeDelete = async (tableName: string, deleteOperation: () => Promise<any>) => {
@@ -59,7 +50,6 @@ async function cleanupUsers() {
     // Delete all related data for each user
     for (const user of usersToDelete) {
       try {
-        console.log(`   🗑️  Processing ${user.username || user.email}...`);
         
         // Delete student exam sessions and their answers first
         const userSessions = await db.select({ id: schema.examSessions.id })
@@ -210,28 +200,19 @@ async function cleanupUsers() {
         // Finally delete the user
         await db.delete(schema.users).where(eq(schema.users.id, user.id));
         
-        console.log(`      ✅ Deleted: ${user.username || user.email}`);
       } catch (error: any) {
-        console.error(`      ❌ Failed to delete ${user.username || user.email}:`);
-        console.error(`         ${error?.message || error}`);
         if (error?.cause?.detail) {
-          console.error(`         Detail: ${error.cause.detail}`);
         }
       }
     }
 
     // Step 6: Verify cleanup
     const remainingUsers = await db.select().from(schema.users);
-    console.log(`\n✅ Cleanup complete!`);
-    console.log(`📊 Remaining users: ${remainingUsers.length}`);
-    console.log('\nRemaining users:');
     remainingUsers.forEach(user => {
-      console.log(`   - ${user.username} (${user.email}) - Role ID: ${user.roleId}`);
     });
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error during cleanup:', error);
     process.exit(1);
   }
 }

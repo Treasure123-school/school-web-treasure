@@ -458,12 +458,10 @@ export default function ExamManagement() {
   const createQuestionMutation = useMutation({
     retry: false, // Disable retries for question creation to prevent circuit breaker amplification
     mutationFn: async (questionData: QuestionForm & { examId: number }) => {
-      console.log('🔄 Creating question:', questionData);
       const response = await apiRequest('POST', '/api/exam-questions', questionData);
 
       // apiRequest already handles error classification for non-OK responses
       const result = await response.json();
-      console.log('✅ Question created:', result);
       return result;
     },
     onSuccess: (createdQuestion) => {
@@ -494,7 +492,6 @@ export default function ExamManagement() {
       });
     },
     onError: (error: any) => {
-      console.error('❌ Question creation mutation error:', error);
 
       // Use classified error types for better error handling
       if (error?.message?.includes('Circuit breaker is OPEN')) {
@@ -564,8 +561,6 @@ export default function ExamManagement() {
   });
 
   const onSubmitExam = (data: ExamForm) => {
-    console.log('📤 Submitting exam data to server:', JSON.stringify(data, null, 2));
-    console.log('📤 Data types:', {
       classId: typeof data.classId,
       subjectId: typeof data.subjectId,
       termId: typeof data.termId,
@@ -576,7 +571,6 @@ export default function ExamManagement() {
   };
 
   const onInvalidExam = (errors: any) => {
-    console.log('Form validation errors:', errors);
     const errorFields = Object.keys(errors);
     const friendlyFieldNames = {
       classId: 'Class',
@@ -598,7 +592,6 @@ export default function ExamManagement() {
   };
 
   const onInvalidQuestion = (errors: any) => {
-    console.log('Question form validation errors:', errors);
     const errorFields = Object.keys(errors);
     const errorMessages = errorFields.map(field => `${field}: ${errors[field].message}`).join(', ');
     toast({
@@ -618,7 +611,6 @@ export default function ExamManagement() {
   };
 
   const onSubmitQuestion = (data: QuestionForm) => {
-    console.log('📝 Manual question submission:', data);
 
     if (!selectedExam) {
       toast({
@@ -681,14 +673,11 @@ export default function ExamManagement() {
       }
 
       questionData.options = validOptions;
-      console.log('✅ Multiple choice validation passed:', validOptions);
     } else {
       // For non-multiple choice questions, don't send options
       delete questionData.options;
-      console.log('✅ Non-multiple choice question ready');
     }
 
-    console.log('🚀 Submitting question data:', questionData);
     createQuestionMutation.mutate(questionData);
   };
 
@@ -714,14 +703,12 @@ export default function ExamManagement() {
   const csvUploadMutation = useMutation({
     retry: false,
     mutationFn: async (questions: any[]) => {
-      console.log('🔄 Starting CSV upload with', questions.length, 'questions');
       const response = await apiRequest('POST', '/api/exam-questions/bulk', { 
         examId: selectedExam?.id,
         questions 
       });
 
       const result = await response.json();
-      console.log('✅ CSV upload result:', result);
       return result;
     },
     onMutate: async (newQuestions) => {
@@ -764,7 +751,6 @@ export default function ExamManagement() {
       // Immediately update UI with optimistic data
       queryClient.setQueryData<ExamQuestion[]>(queryKey, (old: ExamQuestion[] = []) => [...old, ...optimisticQuestions]);
       
-      console.log('⚡ Optimistic update applied:', optimisticQuestions.length, 'questions added to UI');
       
       return { previousQuestions, queryKey };
     },
@@ -790,14 +776,12 @@ export default function ExamManagement() {
           return [...nonOptimistic, ...data.questions];
         });
         
-        console.log('✅ Updated cache with real questions from backend:', data.questions.length);
       }
       
       // Invalidate question counts
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'], exact: false });
 
       if (data.errors && data.errors.length > 0) {
-        console.warn('⚠️ Upload errors:', data.errors);
         setTimeout(() => {
           const errorSummary = data.errors.slice(0, 3).join('; ');
           const moreErrors = data.errors.length > 3 ? ` (and ${data.errors.length - 3} more)` : '';
@@ -815,9 +799,7 @@ export default function ExamManagement() {
       // Rollback optimistic update on error
       if (context?.previousQuestions) {
         queryClient.setQueryData(context.queryKey, context.previousQuestions);
-        console.log('↩️ Rolled back optimistic update due to error');
       }
-      console.error('❌ CSV upload mutation error:', error);
 
       // Enhanced error handling for CSV uploads using classified error types
       if (error?.message?.includes('Circuit breaker is OPEN')) {
@@ -900,7 +882,6 @@ export default function ExamManagement() {
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     
-    console.log('📂 CSV file selected:', {
       hasFile: !!file,
       fileName: file?.name,
       fileSize: file?.size,
@@ -951,17 +932,14 @@ export default function ExamManagement() {
           throw new Error('CSV file is empty');
         }
         
-        console.log('📄 CSV content loaded, parsing...');
         const questions = parseCSV(csv);
 
-        console.log('✅ CSV parsed successfully:', {
           questionCount: questions.length,
           firstQuestion: questions[0]
         });
 
         csvUploadMutation.mutate(questions);
       } catch (error: any) {
-        console.error('❌ CSV parsing error:', error);
         toast({
           title: "CSV Format Error",
           description: error.message || "Failed to parse CSV file. Please check the format and try again.",
@@ -972,7 +950,6 @@ export default function ExamManagement() {
     };
 
     reader.onerror = () => {
-      console.error('❌ File read error');
       toast({
         title: "File Read Error",
         description: "Failed to read the CSV file. Please try again.",
@@ -988,7 +965,6 @@ export default function ExamManagement() {
 
   // Parse CSV content into questions array
   const parseCSV = (csvContent: string) => {
-    console.log('📊 Starting enhanced CSV parsing...');
     
     if (!csvContent || csvContent.trim().length === 0) {
       throw new Error('CSV file is empty. Please provide a valid CSV file with question data.');
@@ -1005,9 +981,6 @@ export default function ExamManagement() {
     const requiredHeaders = ['QuestionText', 'Type', 'Points'];
     const optionalHeaders = ['OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Instructions', 'SampleAnswer'];
 
-    console.log('📋 CSV headers found:', headers);
-    console.log('📋 Expected headers (required):', requiredHeaders);
-    console.log('📋 Expected headers (optional):', optionalHeaders);
 
     // Validate required headers with case-insensitive matching
     const normalizedHeaders = headers.map(h => h.trim());
@@ -1073,13 +1046,11 @@ export default function ExamManagement() {
             continue;
           }
           if (points < 5) {
-            console.warn(`Row ${i + 1}: Essay questions typically have 5+ points. Current: ${points}`);
           }
         }
 
         if (questionType === 'text') {
           if (points > 10) {
-            console.warn(`Row ${i + 1}: Text questions typically have 10 or fewer points. Current: ${points}`);
           }
         }
 
@@ -1131,12 +1102,10 @@ export default function ExamManagement() {
           });
 
           if (hasOptions) {
-            console.warn(`Row ${i + 1}: ${questionType} questions don't need option columns. Options will be ignored.`);
           }
         }
 
         questions.push(question);
-        console.log(`✅ Parsed question ${i}: ${questionText.substring(0, 50)}...`);
       } catch (rowError: any) {
         errors.push(`Row ${i + 1}: ${rowError.message}`);
       }
@@ -1144,7 +1113,6 @@ export default function ExamManagement() {
 
     // Report any errors found
     if (errors.length > 0) {
-      console.warn('⚠️ CSV parsing errors:', errors);
       throw new Error(`Found ${errors.length} error(s) in CSV:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n... and ' + (errors.length - 5) + ' more errors.' : ''}`);
     }
 
@@ -1152,7 +1120,6 @@ export default function ExamManagement() {
       throw new Error('No valid questions found in CSV. Please check the format and content.');
     }
 
-    console.log(`✅ CSV parsing completed: ${questions.length} questions parsed`);
     return questions;
   };
 

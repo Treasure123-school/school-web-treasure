@@ -105,13 +105,10 @@ export function useGlobalRealtime() {
 
   useEffect(() => {
     if (!isRealtimeEnabled() || !supabase) {
-      console.log('⚠️ Supabase Realtime is not enabled - using polling fallback for all tables');
       startPollingForAllTables();
       return () => stopAllPolling();
     }
 
-    console.log('🔴 Initializing global Supabase Realtime system...');
-    console.log(`📊 Monitoring ${GLOBAL_REALTIME_TABLES.length} tables for instant updates`);
 
     GLOBAL_REALTIME_TABLES.forEach(({ table, queryKeys, throttleMs }) => {
       if (!supabase) return;
@@ -128,7 +125,6 @@ export function useGlobalRealtime() {
           'postgres_changes',
           { event: '*', schema: 'public', table },
           (payload) => {
-            console.log(`🔴 Realtime: ${table} ${payload.eventType}`);
             realtimeHealthMonitor.recordSuccess();
             
             const throttler = throttlersRef.current.get(table);
@@ -143,15 +139,12 @@ export function useGlobalRealtime() {
         )
         .subscribe((status, error) => {
           if (status === 'SUBSCRIBED') {
-            console.log(`✅ Global subscription active: ${table}`);
             realtimeHealthMonitor.recordSuccess();
             stopPollingForTable(table);
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error(`❌ ${status} for ${table}:`, error);
             realtimeHealthMonitor.recordError(error || new Error(status));
             
             if (realtimeHealthMonitor.shouldUseFallback()) {
-              console.log(`🔄 Switching ${table} to polling fallback`);
               setIsFallbackMode(true);
               startPollingForTable(table, queryKeys);
               
@@ -163,7 +156,6 @@ export function useGlobalRealtime() {
               }
             }
           } else if (status === 'CLOSED') {
-            console.log(`🔌 Channel closed for ${table}`);
             if (realtimeHealthMonitor.shouldUseFallback()) {
               startPollingForTable(table, queryKeys);
             }
@@ -174,13 +166,11 @@ export function useGlobalRealtime() {
     });
 
     const unregisterRecovery = realtimeHealthMonitor.registerRecoveryCallback(() => {
-      console.log('🔄 Global Realtime: Attempting recovery...');
       setIsFallbackMode(false);
       stopAllPolling();
     });
 
     return () => {
-      console.log('🔌 Cleaning up global Supabase Realtime subscriptions...');
       channelsRef.current.forEach(channel => supabase?.removeChannel(channel));
       channelsRef.current = [];
       stopAllPolling();

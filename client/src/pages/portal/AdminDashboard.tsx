@@ -676,7 +676,6 @@ export default function AdminDashboard() {
         setRecentTeachers(todayTeachers);
       }
     } catch (error) {
-      console.error("Failed to fetch dashboard stats:", error);
     } finally {
       setLoading(false);
     }

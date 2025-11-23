@@ -128,7 +128,6 @@ export function ImageCapture({
 
   const handleCropComplete = (croppedBlob: Blob) => {
     try {
-      console.log('📸 Crop complete - creating file from blob:', croppedBlob.size, 'bytes');
       
       // Create a proper File object from the cropped blob
       const timestamp = Date.now();
@@ -138,7 +137,6 @@ export function ImageCapture({
         { type: 'image/jpeg', lastModified: timestamp }
       );
       
-      console.log('✅ File created:', file.name, file.size, 'bytes');
       
       // Update the parent component with the new file
       onChange(file);
@@ -155,7 +153,6 @@ export function ImageCapture({
         description: "Your cropped image is ready to save with your profile",
       });
     } catch (error) {
-      console.error('❌ Error in handleCropComplete:', error);
       toast({
         title: "Error",
         description: "Failed to process cropped image. Please try again.",

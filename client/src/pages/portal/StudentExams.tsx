@@ -60,18 +60,14 @@ export default function StudentExams() {
     queryKey: ['/api/exams'],
     enabled: !!user,
     queryFn: async () => {
-      console.log('🔍 Fetching exams for student:', user?.id);
       const response = await apiRequest('GET', '/api/exams');
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Failed to fetch exams:', response.status, errorText);
         throw new Error(`Failed to fetch exams: ${response.status}`);
       }
 
       const examsData = await response.json();
-      console.log('📚 Fetched exams:', examsData.length, 'exams');
-      console.log('📋 Published exams:', examsData.filter((e: Exam) => e.isPublished).length);
 
       return examsData;
     },
@@ -205,7 +201,6 @@ export default function StudentExams() {
         .then(response => response.json())
         .then(session => {
           if (session) {
-            console.log('🔄 Found existing active session, resuming...', session);
             setActiveSession(session);
             const exam = exams.find(e => e.id === session.examId);
             if (exam) {
@@ -225,12 +220,10 @@ export default function StudentExams() {
                 setViolationPenalty(calculatedPenalty);
               }
             } catch (e) {
-              console.warn('Could not parse session metadata:', e);
             }
           }
         })
         .catch(error => {
-          console.error('Error checking for active session:', error);
         });
     }
   }, [user?.id, exams]);
@@ -340,7 +333,6 @@ export default function StudentExams() {
         }
       } catch (error) {
         // Silent fail - network issues will be handled by other mechanisms
-        console.warn('Session health check failed:', error);
       }
     };
 
@@ -392,7 +384,6 @@ export default function StudentExams() {
                 });
               } else {
                 // After max warnings, just log silently
-                console.warn(`Tab switch detected: ${newCount} times`);
                 // Optionally show a persistent warning if penalty is applied
                 if (calculatedPenalty > 0) {
                   setShowTabSwitchWarning(true);
@@ -407,7 +398,6 @@ export default function StudentExams() {
                     tabSwitchCount: newCount,
                     violationPenalty: calculatedPenalty
                   })
-                }).catch(error => console.warn('Failed to save tab switch metadata:', error));
               }
 
               return newCount;
@@ -426,7 +416,6 @@ export default function StudentExams() {
     const handleBlur = () => {
       // Window lost focus (less strict than tab switch)
       if (!document.hidden) {
-        console.log('Window lost focus (may be normal user behavior)');
       }
     };
 
@@ -481,7 +470,6 @@ export default function StudentExams() {
   const handleAutoSubmitOnTimeout = async () => {
     const startTime = Date.now();
 
-    console.log(`⏰ AUTO-SUBMIT TRIGGERED: Time limit reached for exam ${activeSession?.examId}`);
 
     if (hasPendingSaves()) {
       toast({
@@ -496,7 +484,6 @@ export default function StudentExams() {
       const checkSaves = () => {
         if (!hasPendingSaves()) {
           const totalWaitTime = Date.now() - startTime;
-          console.log(`✅ All pending saves completed in ${totalWaitTime}ms, submitting exam`);
           toast({
             title: "Submitting Exam",
             description: "All answers saved successfully. Submitting exam...",
@@ -504,7 +491,6 @@ export default function StudentExams() {
           forceSubmitExam();
         } else if (waitTime >= maxWaitTime) {
           const totalWaitTime = Date.now() - startTime;
-          console.warn(`⚠️ Force submit after ${totalWaitTime}ms wait - some answers may still be saving`);
           toast({
             title: "Submitting Exam",
             description: "Time limit exceeded. Submitting exam now...",
@@ -514,7 +500,6 @@ export default function StudentExams() {
         } else {
           waitTime += checkInterval;
           if (waitTime % 500 === 0) {
-            console.log(`Waiting for ${pendingSaves.size} answer(s) to save... (${waitTime}ms elapsed)`);
           }
           setTimeout(checkSaves, checkInterval);
         }
@@ -522,7 +507,6 @@ export default function StudentExams() {
 
       checkSaves();
     } else {
-      console.log(`✅ No pending saves, immediate submit`);
       toast({
         title: "Time's Up!",
         description: "Time limit reached. Submitting exam...",
@@ -539,7 +523,6 @@ export default function StudentExams() {
         throw new Error('User not authenticated');
       }
 
-      console.log('🎯 Starting exam with ID:', examId, 'for student:', user.id);
 
       const response = await apiRequest('POST', '/api/exam-sessions', {
         examId: examId,
@@ -555,11 +538,9 @@ export default function StudentExams() {
             errorMessage = errorData.message || errorMessage;
           } else {
             const errorText = await response.text();
-            console.error('❌ Non-JSON error response:', errorText);
             errorMessage = 'Server error - please try again';
           }
         } catch (parseError) {
-          console.error('❌ Error parsing response:', parseError);
           errorMessage = 'Server error - please try again';
         }
 
@@ -567,14 +548,11 @@ export default function StudentExams() {
       }
 
       const sessionData = await response.json();
-      console.log('✅ Exam session response:', sessionData);
       return sessionData;
     },
     onSuccess: (session: ExamSession) => {
-      console.log('✅ Exam session created successfully:', session);
 
       if (!session || !session.id) {
-        console.error('❌ Invalid session data received:', session);
         toast({
           title: "Error",
           description: "Invalid session data received. Please try again.",
@@ -594,7 +572,6 @@ export default function StudentExams() {
       if (exam?.timeLimit) {
         const timeInSeconds = exam.timeLimit * 60;
         setTimeRemaining(timeInSeconds);
-        console.log(`⏰ Timer set to ${exam.timeLimit} minutes (${timeInSeconds} seconds)`);
       } else {
         setTimeRemaining(null);
       }
@@ -605,7 +582,6 @@ export default function StudentExams() {
       });
     },
     onError: (error: Error) => {
-      console.error('❌ Failed to start exam:', error);
 
       let errorMessage = error.message || "Unable to start exam. Please try again.";
 
@@ -639,7 +615,6 @@ export default function StudentExams() {
         ? { sessionId: activeSession!.id, questionId, selectedOptionId: answer }
         : { sessionId: activeSession!.id, questionId, textAnswer: answer };
 
-      console.log(`📝 Submitting answer for question ${questionId}:`, answerData);
 
       // Enhanced retry logic with exponential backoff
       let lastError: Error | null = null;
@@ -650,7 +625,6 @@ export default function StudentExams() {
           // Add delay for retry attempts (exponential backoff)
           if (attempt > 0) {
             const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5 seconds
-            console.log(`🔄 Retry attempt ${attempt} for question ${questionId} after ${delay}ms delay`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
 
@@ -670,9 +644,7 @@ export default function StudentExams() {
                   ? errorData.errors.map((e: any) => e.message).join(', ')
                   : 'Validation failed';
               }
-              console.error(`❌ Answer submission failed for question ${questionId} (attempt ${attempt + 1}):`, errorData);
             } catch (parseError) {
-              console.error(`❌ Failed to parse error response for question ${questionId}:`, parseError);
 
               // Provide more specific error messages based on status code
               if (response.status === 401) {
@@ -715,10 +687,8 @@ export default function StudentExams() {
 
           try {
             const result = await response.json();
-            console.log(`✅ Answer submitted successfully for question ${questionId} (attempt ${attempt + 1}):`, result);
             return result;
           } catch (parseError) {
-            console.error(`❌ Failed to parse success response for question ${questionId}:`, parseError);
             const error = new Error('Invalid response from server. Please try again.');
             lastError = error;
 
@@ -728,7 +698,6 @@ export default function StudentExams() {
             throw error;
           }
         } catch (networkError: any) {
-          console.error(`❌ Network error for question ${questionId} (attempt ${attempt + 1}):`, networkError);
           lastError = networkError;
 
           // Check if it's a network/timeout error that should be retried
@@ -778,7 +747,6 @@ export default function StudentExams() {
         queryKey: ['/api/student-answers/session', activeSession?.id] 
       });
 
-      console.log(`Answer saved for question ${variables.questionId}:`, data);
     },
     onError: (error: Error, variables) => {
       // Mark as failed and remove from pending
@@ -789,7 +757,6 @@ export default function StudentExams() {
         return newSet;
       });
 
-      console.error(`❌ Answer save failed for question ${variables.questionId}:`, error.message);
 
       // Determine error category and response
       let shouldShowToast = false;
@@ -800,7 +767,6 @@ export default function StudentExams() {
       if (error.message.includes('fetch') || error.message.includes('Network') || 
           error.message.includes('timeout') || error.message.includes('500')) {
         shouldAutoRetry = true;
-        console.log(`🔄 Network issue detected, will auto-retry question ${variables.questionId}`);
       }
       // Authentication errors - show to user
       else if (error.message.includes('401') || error.message.includes('session') || 
@@ -816,7 +782,6 @@ export default function StudentExams() {
       // Validation errors - silent (user sees status indicator)
       else if (error.message.includes('Please select') || error.message.includes('Please enter') ||
                error.message.includes('validation') || error.message.includes('Invalid')) {
-        console.log(`Validation issue for question ${variables.questionId}, showing status only`);
       }
       // Unknown errors - show after multiple failures
       else {
@@ -840,7 +805,6 @@ export default function StudentExams() {
       // Auto-retry logic for recoverable errors
       if (shouldAutoRetry && answers[variables.questionId] && isOnline) {
         const retryDelay = 2000; // 2 second delay for retries
-        console.log(`🔄 Retrying question ${variables.questionId} in ${retryDelay}ms`);
 
         setTimeout(() => {
           if (isOnline && answers[variables.questionId]) {
@@ -857,7 +821,6 @@ export default function StudentExams() {
       if (!activeSession) throw new Error('No active session');
 
       const startTime = Date.now();
-      console.log('🚀 MILESTONE 1: Synchronous submission for exam:', activeSession.examId);
 
       // Use the new synchronous submit endpoint - no polling needed!
       const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
@@ -871,7 +834,6 @@ export default function StudentExams() {
       const totalTime = Date.now() - startTime;
 
       // Log client-side performance metrics
-      console.log(`📊 CLIENT PERFORMANCE: Exam submission took ${totalTime}ms`);
 
       // Send performance metrics to server (fire and forget)
       try {
@@ -886,24 +848,19 @@ export default function StudentExams() {
           }
         });
       } catch (perfError) {
-        console.warn('Failed to log performance metrics:', perfError);
       }
 
-      console.log('✅ INSTANT FEEDBACK received:', submissionData);
 
       return { ...submissionData, clientPerformance: { totalTime } };
     },
     onMutate: () => {
-      console.log('🔄 Exam submission started, setting scoring state...');
       setIsScoring(true);
     },
     onSuccess: (data) => {
-      console.log('✅ MILESTONE 1: Instant feedback received:', data);
       setIsScoring(false);
 
       // Handle the new synchronous response format
       if (data.submitted && data.result) {
-        console.log('🎉 INSTANT FEEDBACK: Results available immediately!', data.result);
         setExamResults(data.result);
 
         // Enhanced cache invalidation for all related data
@@ -923,7 +880,6 @@ export default function StudentExams() {
         const maxScore = data.result.maxScore ?? 0;
         const percentage = data.result.percentage ?? 0;
 
-        console.log(`📊 INSTANT FEEDBACK: ${score}/${maxScore} = ${percentage}%`);
 
         // Handle different submission scenarios
         let toastTitle = "Exam Submitted Successfully!";
@@ -939,7 +895,6 @@ export default function StudentExams() {
           variant: data.timedOut ? "destructive" : "default",
         });
       } else if (data.submitted && !data.result) {
-        console.log('📝 Exam submitted successfully, awaiting manual grading');
         toast({
           title: "Exam Submitted Successfully",
           description: data.message || "Your exam has been submitted. Results will be available after manual grading by your instructor.",
@@ -950,7 +905,6 @@ export default function StudentExams() {
         setTimeRemaining(null);
         setCurrentQuestionIndex(0);
       } else {
-        console.warn('⚠️ Unexpected response format:', data);
         toast({
           title: "Submission Complete",
           description: data.message || "Your exam has been submitted successfully.",
@@ -965,7 +919,6 @@ export default function StudentExams() {
       queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
     },
     onError: (error: Error) => {
-      console.error('❌ MILESTONE 1: Synchronous submission failed:', error);
       setIsScoring(false);
       setIsSubmitting(false);
 
@@ -978,7 +931,6 @@ export default function StudentExams() {
       if (error.message.includes('<!DOCTYPE') || error.message.includes('Unexpected token') || error.message.includes('JSON')) {
         errorTitle = "Server Error";
         errorDescription = "The server encountered an error while processing your submission. Your answers have been saved. Please try submitting again.";
-        console.error('🔥 Server returned HTML instead of JSON - critical backend error');
       }
       // Check for specific error types that can happen with synchronous submission
       else if (error.message.includes('already submitted') || error.message.includes('Exam already submitted')) {
@@ -1029,11 +981,9 @@ export default function StudentExams() {
   });
 
   const handleStartExam = (exam: Exam) => {
-    console.log('🎯 Starting exam:', exam.name, 'ID:', exam.id);
 
     // Comprehensive validation checks
     if (!exam.id) {
-      console.error('❌ Invalid exam - missing ID:', exam);
       toast({
         title: "Error",
         description: "Invalid exam selected. Please refresh and try again.",
@@ -1043,7 +993,6 @@ export default function StudentExams() {
     }
 
     if (!user?.id) {
-      console.error('❌ User not authenticated:', user);
       toast({
         title: "Authentication Required", 
         description: "Please log in again to start the exam.",
@@ -1053,7 +1002,6 @@ export default function StudentExams() {
     }
 
     if (!exam.isPublished) {
-      console.error('❌ Exam not published:', exam);
       toast({
         title: "Exam Not Available",
         description: "This exam is not yet published. Please check with your instructor.",
@@ -1064,7 +1012,6 @@ export default function StudentExams() {
 
     // Check if already has an active session
     if (activeSession && !activeSession.isCompleted) {
-      console.warn('⚠️ Student already has active session:', activeSession);
       toast({
         title: "Active Session Detected",
         description: "You already have an active exam session. Complete it first before starting a new exam.",
@@ -1079,7 +1026,6 @@ export default function StudentExams() {
       description: "Preparing exam session, please wait...",
     });
 
-    console.log('✅ All validation checks passed, starting exam...');
     setSelectedExam(exam);
 
     // Reset all state for clean start
@@ -1119,7 +1065,6 @@ export default function StudentExams() {
           (questionType === 'multiple_choice' ? existingAnswer.selectedOptionId !== answer : existingAnswer.textAnswer !== answer);
 
         if (isNewAnswer) {
-          console.log(`💾 Auto-saving answer for question ${questionId}:`, answer);
           submitAnswerMutation.mutate({ questionId, answer, questionType });
         }
       }
@@ -1137,7 +1082,6 @@ export default function StudentExams() {
             tabSwitchCount, // Save tab switch count and penalty
             violationPenalty
           }).catch(error => {
-            console.warn('Failed to save session progress:', error);
           });
         }
       }, 30000); // Save every 30 seconds
@@ -1172,18 +1116,14 @@ export default function StudentExams() {
   // Force submit without checking pending saves (used for auto-submit)
   const forceSubmitExam = async () => {
     if (isSubmitting || isScoring) {
-      console.log('🔄 Submit already in progress, skipping duplicate submission');
       return;
     }
 
-    console.log('🚀 FORCE SUBMIT: Starting exam submission...');
     setIsSubmitting(true);
 
     try {
       await submitExamMutation.mutateAsync();
-      console.log('✅ FORCE SUBMIT: Exam submitted successfully');
     } catch (error) {
-      console.error('❌ FORCE SUBMIT: Failed to submit exam:', error);
       toast({
         title: "Submission Error",
         description: "Failed to submit exam. Please try again or contact your instructor.",
@@ -1205,14 +1145,11 @@ export default function StudentExams() {
       return;
     }
 
-    console.log('🚀 User clicked Submit Exam button');
     setIsSubmitting(true);
     
     try {
       await submitExamMutation.mutateAsync();
-      console.log('✅ Submission completed successfully');
     } catch (error) {
-      console.error('❌ Submission failed:', error);
     } finally {
       setIsSubmitting(false);
     }

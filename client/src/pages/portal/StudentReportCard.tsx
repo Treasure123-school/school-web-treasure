@@ -98,7 +98,6 @@ export default function StudentReportCard() {
         description: "Report card PDF has been downloaded.",
       });
     } catch (error) {
-      console.error('PDF export error:', error);
       toast({
         title: "Export Failed",
         description: "Failed to generate PDF report card",

@@ -154,7 +154,6 @@ export default function TeacherProfileSetup() {
           description: "Your previous progress has been restored.",
         });
       } catch (e) {
-        console.error('Failed to restore draft:', e);
       }
     }
   }, []);
@@ -195,7 +194,6 @@ export default function TeacherProfileSetup() {
       return await response.json();
     },
     onSuccess: async (data) => {
-      console.log('✅ Profile creation successful, response:', data);
 
       // Trigger confetti celebration
       const duration = 3000;
@@ -267,7 +265,6 @@ export default function TeacherProfileSetup() {
       }, 3500); // Slightly longer delay to ensure cache is ready
     },
     onError: (error: any) => {
-      console.error('❌ PROFILE CREATION ERROR - Full Diagnostic:', {
         message: error.message,
         code: error.code,
         details: error.details,
@@ -436,7 +433,6 @@ export default function TeacherProfileSetup() {
       errors.push("Profile Photo");
     } else {
       // Validate the profile image file
-      console.log('📸 Profile image to upload:', {
         name: profileImage.name,
         size: profileImage.size,
         type: profileImage.type,
@@ -524,7 +520,6 @@ export default function TeacherProfileSetup() {
 
     // Ensure cropped profile image is properly sent
     if (profileImage) {
-      console.log('📤 Appending profile image to FormData:', {
         name: profileImage.name,
         size: profileImage.size,
         type: profileImage.type
@@ -544,7 +539,6 @@ export default function TeacherProfileSetup() {
     }
 
     if (signatureFile) {
-      console.log('📤 Appending signature to FormData:', {
         name: signatureFile.name,
         size: signatureFile.size,
         type: signatureFile.type
@@ -563,12 +557,9 @@ export default function TeacherProfileSetup() {
     }
 
     // Log FormData contents for debugging
-    console.log('📦 FormData contents:');
     for (const [key, value] of Array.from(submitData.entries())) {
       if (value instanceof File) {
-        console.log(`  ${key}: [File: ${value.name}, ${value.size} bytes]`);
       } else {
-        console.log(`  ${key}: ${value}`);
       }
     }
 
@@ -611,7 +602,6 @@ export default function TeacherProfileSetup() {
         throw new Error('Failed to skip profile');
       }
     } catch (error) {
-      console.error('Error skipping profile:', error);
       toast({
         title: "Error",
         description: "Failed to skip profile setup. Please try again.",

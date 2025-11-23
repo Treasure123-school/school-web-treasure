@@ -29,7 +29,6 @@ export function useSupabaseRealtime({
   const startPolling = () => {
     if (pollingIntervalRef.current) return; // Already polling
 
-    console.log(`🔄 Starting polling fallback for ${table} (interval: ${fallbackPollingInterval}ms)`);
     setIsFallbackMode(true);
 
     const filteredQueryKey = Array.isArray(queryKey) 
@@ -43,7 +42,6 @@ export function useSupabaseRealtime({
 
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
-      console.log(`⏸️ Stopping polling fallback for ${table}`);
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
       setIsFallbackMode(false);
@@ -84,7 +82,6 @@ export function useSupabaseRealtime({
 
     // Clean up previous channel if it exists
     if (channelRef.current) {
-      console.log(`🔌 Unsubscribing from previous ${table} channel`);
       supabase!.removeChannel(channelRef.current);
       channelRef.current = null;
     }
@@ -95,7 +92,6 @@ export function useSupabaseRealtime({
     // Create unique channel name
     const channelName = `realtime:${table}:${queryKeyString}`;
     
-    console.log(`🔗 Setting up realtime for ${table} with key:`, filteredQueryKey);
 
     // Record connection attempt
     realtimeHealthMonitor.recordConnection();
@@ -112,7 +108,6 @@ export function useSupabaseRealtime({
           table: table,
         },
         (payload) => {
-          console.log(`🔄 Realtime update for ${table}:`, payload.eventType);
           
           // Record successful update
           realtimeHealthMonitor.recordSuccess();
@@ -123,17 +118,14 @@ export function useSupabaseRealtime({
       )
       .subscribe((status, error) => {
         if (status === 'SUBSCRIBED') {
-          console.log(`✅ Subscribed to realtime updates for table: ${table}`);
           realtimeHealthMonitor.recordSuccess();
           subscriptionAttempts.current = 0; // Reset attempts on success
           setIsFallbackMode(false);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`❌ Error subscribing to ${table} realtime updates`, error);
           realtimeHealthMonitor.recordError(error || new Error('Channel error'));
           
           // After max retries, switch to polling
           if (subscriptionAttempts.current >= maxRetries || realtimeHealthMonitor.shouldUseFallback()) {
-            console.log(`🔄 Switching ${table} to polling mode after ${subscriptionAttempts.current} failed attempts`);
             if (channelRef.current) {
               supabase!.removeChannel(channelRef.current);
               channelRef.current = null;
@@ -142,12 +134,10 @@ export function useSupabaseRealtime({
             startPolling();
           }
         } else if (status === 'TIMED_OUT') {
-          console.warn(`⏱️ Subscription to ${table} timed out`);
           realtimeHealthMonitor.recordError(new Error('Subscription timeout'));
           
           // Switch to polling on timeout
           if (subscriptionAttempts.current >= maxRetries || realtimeHealthMonitor.shouldUseFallback()) {
-            console.log(`🔄 Switching ${table} to polling mode after timeout`);
             if (channelRef.current) {
               supabase!.removeChannel(channelRef.current);
               channelRef.current = null;
@@ -156,7 +146,6 @@ export function useSupabaseRealtime({
             startPolling();
           }
         } else if (status === 'CLOSED') {
-          console.log(`🔌 Channel closed for ${table}`);
           lastQueryKeyRef.current = ''; // Allow reconnection
           // If closed unexpectedly and we're in fallback mode, start polling
           if (realtimeHealthMonitor.shouldUseFallback() && enabled) {
@@ -173,7 +162,6 @@ export function useSupabaseRealtime({
     if (!enabled || !isRealtimeEnabled()) {
       // Clean up channel if it exists when disabled
       if (channelRef.current) {
-        console.log(`🔌 Unsubscribing from ${table} (disabled)`);
         supabase!.removeChannel(channelRef.current);
         channelRef.current = null;
         lastQueryKeyRef.current = '';
@@ -192,7 +180,6 @@ export function useSupabaseRealtime({
 
     // Register for recovery notifications
     const unregister = realtimeHealthMonitor.registerRecoveryCallback(() => {
-      console.log(`🔄 Recovery triggered for ${table} - attempting to reconnect...`);
       subscriptionAttempts.current = 0; // Reset retry counter
       lastQueryKeyRef.current = ''; // Clear to allow new connection
       setRetryTrigger(prev => prev + 1); // Trigger reconnection by updating state
@@ -201,7 +188,6 @@ export function useSupabaseRealtime({
     // Cleanup function
     return () => {
       if (channelRef.current) {
-        console.log(`🔌 Unsubscribing from ${table} realtime updates`);
         supabase!.removeChannel(channelRef.current);
         channelRef.current = null;
       }

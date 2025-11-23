@@ -232,7 +232,6 @@ export default function Login() {
     onSuccess: (data) => {
       // Check if user must change password (applies to all newly created accounts)
       if (data.mustChangePassword || data.user.mustChangePassword) {
-        console.log('🔐 Password change required for user:', data.user.username);
         setTempUserData(data);
         setShowPasswordChange(true);
         return;

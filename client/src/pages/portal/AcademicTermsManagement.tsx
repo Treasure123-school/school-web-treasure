@@ -33,15 +33,12 @@ export default function AcademicTermsManagement() {
   const { data: terms = [], isLoading, error, refetch } = useQuery({
     queryKey: ['/api/terms'],
     queryFn: async () => {
-      console.log('Fetching academic terms...');
       const response = await apiRequest('GET', '/api/terms');
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to fetch terms:', response.status, errorText);
         throw new Error('Failed to fetch terms');
       }
       const data = await response.json();
-      console.log('Academic terms fetched:', data);
       return data;
     },
     retry: 3,
@@ -99,7 +96,6 @@ export default function AcademicTermsManagement() {
 
   const updateTermMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      console.log('Updating term:', id, data);
       const response = await apiRequest('PUT', `/api/terms/${id}`, data);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to update term' }));
@@ -132,7 +128,6 @@ export default function AcademicTermsManagement() {
       refetch();
     },
     onError: (error: any, variables, context: any) => {
-      console.error('Update term error:', error);
       if (context?.previousTerms) {
         queryClient.setQueryData(['/api/terms'], context.previousTerms);
       }
@@ -146,7 +141,6 @@ export default function AcademicTermsManagement() {
 
   const deleteTermMutation = useMutation({
     mutationFn: async (id: number) => {
-      console.log('Deleting term:', id);
       const response = await apiRequest('DELETE', `/api/terms/${id}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to delete term' }));
@@ -166,7 +160,6 @@ export default function AcademicTermsManagement() {
       return { previousTerms };
     },
     onSuccess: (data) => {
-      console.log('Delete success:', data);
       toast({
         title: "Success",
         description: "Academic term deleted successfully",
@@ -175,7 +168,6 @@ export default function AcademicTermsManagement() {
       refetch();
     },
     onError: (error: any, id: number, context: any) => {
-      console.error('Delete term error:', error);
       if (context?.previousTerms) {
         queryClient.setQueryData(['/api/terms'], context.previousTerms);
       }
@@ -232,7 +224,6 @@ export default function AcademicTermsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submitting form:', formData, 'Editing:', editingTerm);
     
     if (editingTerm) {
       updateTermMutation.mutate({ id: editingTerm.id, data: formData });
@@ -281,7 +272,6 @@ export default function AcademicTermsManagement() {
     return <div className="flex items-center justify-center h-screen">Please log in</div>;
   }
 
-  console.log('Rendering Academic Terms page:', { isLoading, error, termsCount: terms?.length });
 
   return (
     <PortalLayout

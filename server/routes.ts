@@ -60,12 +60,9 @@ const contactSchema = z.object({
 // JWT secret - use environment variable for production, fallback for development
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-secret-key-change-in-production' : undefined);
 if (!JWT_SECRET) {
-  console.error('CRITICAL: JWT_SECRET environment variable is required but not set!');
-  console.error('Please set a secure JWT_SECRET environment variable before starting the server.');
   process.exit(1);
 }
 if (process.env.NODE_ENV === 'development' && JWT_SECRET === 'dev-secret-key-change-in-production') {
-  console.warn('⚠️ WARNING: Using default JWT_SECRET for development. Set JWT_SECRET environment variable for production!');
 }
 const SECRET_KEY = JWT_SECRET as string;
 const JWT_EXPIRES_IN = '24h';
@@ -102,7 +99,6 @@ function normalizeUuid(raw: any): string | undefined {
     return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
   }
 
-  console.warn('Failed to normalize UUID:', raw);
   return undefined;
 }
 
@@ -162,14 +158,12 @@ const authenticateUser = async (req: any, res: any, next: any) => {
     try {
       decoded = jwt.verify(token, SECRET_KEY);
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError);
       return res.status(401).json({ message: "Invalid or expired token" });
     }
 
     // Normalize decoded userId before database lookup
     const normalizedUserId = normalizeUuid(decoded.userId);
     if (!normalizedUserId) {
-      console.error('Invalid userId in token:', decoded.userId);
       return res.status(401).json({ message: "Invalid token format" });
     }
 
@@ -192,7 +186,6 @@ const authenticateUser = async (req: any, res: any, next: any) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
     res.status(401).json({ message: "Authentication failed" });
   }
 };
@@ -211,7 +204,6 @@ const authorizeRoles = (...allowedRoles: number[]) => {
 
       next();
     } catch (error) {
-      console.error('Authorization error:', error);
       res.status(403).json({ message: "Authorization failed" });
     }
   };
@@ -328,37 +320,30 @@ const uploadCSV = multer({
 // BACKGROUND AUTO-PUBLISHING SERVICE - Makes scheduled exams live
 async function autoPublishScheduledExams(): Promise<void> {
   try {
-    console.log('📅 AUTO-PUBLISH: Checking for scheduled exams...');
 
     const now = new Date();
     const scheduledExams = await storage.getScheduledExamsToPublish(now);
 
     if (scheduledExams.length > 0) {
-      console.log(`📅 Found ${scheduledExams.length} exams ready to publish`);
 
       for (const exam of scheduledExams) {
         try {
-          console.log(`🚀 AUTO-PUBLISH: Publishing exam ${exam.id} - ${exam.name}`);
 
           await storage.updateExam(exam.id, {
             isPublished: true
           });
 
-          console.log(`✅ Successfully published exam ${exam.id}`);
         } catch (error) {
-          console.error(`❌ Failed to auto-publish exam ${exam.id}:`, error);
         }
       }
     }
   } catch (error) {
-    console.error('❌ Auto-publish service error:', error);
   }
 }
 
 // BACKGROUND TIMEOUT CLEANUP SERVICE - Prevents infinite waiting
 async function cleanupExpiredExamSessions(): Promise<void> {
   try {
-    console.log('🧹 TIMEOUT CLEANUP: Checking for expired exam sessions...');
 
     // PERFORMANCE IMPROVEMENT: Get only expired sessions directly from database
     // instead of fetching all active sessions and filtering in memory
@@ -366,12 +351,10 @@ async function cleanupExpiredExamSessions(): Promise<void> {
     const rawResult = await storage.getExpiredExamSessions(now, 50);
     const expiredSessions = Array.isArray(rawResult) ? rawResult : []; // Ensure it's always an array
 
-    console.log(`🧹 Found ${expiredSessions.length} expired sessions to cleanup`);
 
     // Process in smaller batches to avoid overwhelming the database
     for (const session of expiredSessions) {
       try {
-        console.log(`⏰ AUTO-CLEANUP: Force submitting expired session ${session.id} for student ${session.studentId}`);
 
         // Mark session as auto-submitted by server cleanup
         await storage.updateExamSession(session.id, {
@@ -383,14 +366,11 @@ async function cleanupExpiredExamSessions(): Promise<void> {
         // Auto-score the session using our optimized scoring
         await autoScoreExamSession(session.id, storage);
 
-        console.log(`✅ Successfully cleaned up expired session ${session.id}`);
       } catch (error) {
-        console.error(`❌ Failed to cleanup session ${session.id}:`, error);
         // Continue with other sessions even if one fails
       }
     }
   } catch (error) {
-    console.error('❌ Background cleanup service error:', error);
   }
 }
 
@@ -398,7 +378,6 @@ async function cleanupExpiredExamSessions(): Promise<void> {
 const autoPublishInterval = 60 * 1000; // 1 minute
 setInterval(autoPublishScheduledExams, autoPublishInterval);
 autoPublishScheduledExams(); // Run immediately on startup
-console.log('📅 AUTO-PUBLISH: Background service started (runs every 1 minute)');
 
 // PERFORMANCE FIX: Reduce cleanup frequency from 30s to 3 minutes to prevent database contention
 const cleanupInterval = 3 * 60 * 1000; // 3 minutes (was 30 seconds)
@@ -407,7 +386,6 @@ setTimeout(() => {
   setInterval(cleanupExpiredExamSessions, cleanupInterval);
   cleanupExpiredExamSessions(); // Run immediately after jitter delay
 }, jitter);
-console.log(`🧹 TIMEOUT PROTECTION: Background cleanup service started (every ${cleanupInterval/1000/60} minutes with jitter)`);
 
 // AI-assisted theory scoring helper
 async function scoreTheoryAnswer(
@@ -505,14 +483,12 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
   const startTime = Date.now();
 
   try {
-    console.log(`🚀 OPTIMIZED AUTO-SCORING: Starting session ${sessionId} scoring...`);
 
     // Get scoring data efficiently with detailed question breakdown
     const scoringResult = await storage.getExamScoringData(sessionId);
     const { session, summary, scoringData } = scoringResult;
 
     const databaseQueryTime = Date.now() - startTime;
-    console.log(`⚡ PERFORMANCE: Database query completed in ${databaseQueryTime}ms (was 3000-8000ms before)`);
 
     const { totalQuestions, maxScore: maxPossibleScore, studentScore, autoScoredQuestions } = summary; // Renamed maxScore to maxPossibleScore
 
@@ -524,7 +500,6 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const hasMultipleChoiceQuestions = autoScoredQuestions > 0;
     const hasEssayQuestions = totalQuestions > autoScoredQuestions;
 
-    console.log(`✅ OPTIMIZED SCORING: Session ${sessionId} - ${totalQuestions} questions (${hasMultipleChoiceQuestions ? autoScoredQuestions + ' MC' : 'no MC'}, ${hasEssayQuestions ? (totalQuestions - autoScoredQuestions) + ' Essays' : 'no Essays'})`);
 
     // Enhanced question-by-question breakdown for detailed feedback
     const questionDetails = [];
@@ -585,7 +560,6 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     }
 
     // CRITICAL FIX: Persist all scores to student_answers for accurate score merging
-    console.log('💾 Persisting scores to student_answers for score merging...');
     for (const detail of questionDetails) {
       if (detail.questionId) {
         const studentAnswer = studentAnswers.find(sa => sa.questionId === detail.questionId);
@@ -597,9 +571,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
               autoScored: detail.autoScored,
               feedbackText: detail.feedback
             });
-            console.log(`✅ Updated answer ${studentAnswer.id} with ${detail.pointsEarned} points (auto: ${detail.autoScored})`);
           } catch (updateError) {
-            console.error(`❌ Failed to update answer ${studentAnswer.id}:`, updateError);
           }
         }
       }
@@ -620,15 +592,11 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
     // Log detailed scoring for debugging
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📊 DETAILED BREAKDOWN:`, breakdown);
       questionDetails.forEach((q: any, index: number) => {
-        console.log(`Question ${index + 1} (ID: ${q.questionId}): ${q.isCorrect !== null ? (q.isCorrect ? 'Correct!' : 'Incorrect') : 'Manual Review'} - ${q.pointsEarned}/${q.points}`);
       });
     }
 
     // Create or update exam result - CRITICAL for instant feedback
-    console.log(`🎯 Preparing exam result for student ${session.studentId}, exam ${session.examId}`);
-    console.log(`📊 Score calculation: ${totalAutoScore}/${maxPossibleScore} (${breakdown.correctAnswers} correct, ${breakdown.incorrectAnswers} incorrect, ${breakdown.pendingManualReview} pending manual review)`);
 
     // ENHANCED ERROR HANDLING: Add validation before database operations
     if (!session.studentId) {
@@ -638,17 +606,13 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       throw new Error('CRITICAL: Session missing examId - cannot create exam result');
     }
     if (maxPossibleScore === 0 && totalQuestions > 0) {
-      console.warn('⚠️ WARNING: Max possible score is 0 but exam has questions - check question points configuration');
     }
 
     const existingResults = await storage.getExamResultsByStudent(session.studentId);
-    console.log(`🔍 Found ${existingResults.length} existing results for student ${session.studentId}`);
 
     const existingResult = existingResults.find((r: any) => r.examId === session.examId);
     if (existingResult) {
-      console.log(`📋 Found existing result ID ${existingResult.id} for exam ${session.examId} - will update`);
     } else {
-      console.log(`🆕 No existing result found for exam ${session.examId} - will create new`);
     }
 
     // CRITICAL FIX: Ensure recordedBy uses a valid user ID that exists in users table
@@ -662,37 +626,30 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       const adminUsers = await storage.getUsersByRole(ROLES.ADMIN);
       if (adminUsers && adminUsers.length > 0 && adminUsers[0].id) {
         SYSTEM_AUTO_SCORING_UUID = adminUsers[0].id;
-        console.log(`✅ Using admin user ${SYSTEM_AUTO_SCORING_UUID} for auto-scoring recordedBy`);
       } else {
         // No admin found, verify student ID exists in users table
-        console.log(`⚠️ No admin users found, verifying student ${session.studentId} exists in users table...`);
 
         try {
           const studentUser = await storage.getUser(session.studentId);
           if (studentUser && studentUser.id) {
             SYSTEM_AUTO_SCORING_UUID = studentUser.id;
-            console.log(`✅ Verified student ${SYSTEM_AUTO_SCORING_UUID} exists in users table, using for recordedBy`);
           } else {
             throw new Error(`Student ${session.studentId} not found in users table`);
           }
         } catch (studentError) {
           // Last resort: Find ANY active user
-          console.error(`❌ Student ${session.studentId} not found in users table:`, studentError);
-          console.log(`🔄 Last resort: Finding any active user for recordedBy...`);
 
           const allUsers = await storage.getAllUsers();
           const activeUser = allUsers.find((u: any) => u.isActive && u.id);
 
           if (activeUser && activeUser.id) {
             SYSTEM_AUTO_SCORING_UUID = activeUser.id;
-            console.log(`✅ Using active user ${SYSTEM_AUTO_SCORING_UUID} as fallback for recordedBy`);
           } else {
             throw new Error('CRITICAL: No valid user ID found for auto-scoring recordedBy - cannot save exam result');
           }
         }
       }
     } catch (userError) {
-      console.error('❌ CRITICAL ERROR: Failed to find valid user for auto-scoring recordedBy:', userError);
       throw new Error(`Auto-scoring failed: Cannot find valid user ID for recordedBy. Error: ${userError instanceof Error ? userError.message : String(userError)}`);
     }
 
@@ -701,7 +658,6 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       throw new Error(`CRITICAL: Invalid recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
     }
 
-    console.log(`📝 Final recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
 
     const resultData = {
       examId: session.examId,
@@ -720,43 +676,30 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       }
     };
 
-    console.log('💾 Result data to save:', JSON.stringify(resultData, null, 2));
 
     try {
       if (existingResult) {
         // Update existing result
-        console.log(`🔄 Updating existing exam result ID: ${existingResult.id}`);
         const updatedResult = await storage.updateExamResult(existingResult.id, resultData);
         if (!updatedResult) {
           throw new Error(`Failed to update exam result ID: ${existingResult.id} - updateExamResult returned null/undefined`);
         }
-        console.log(`✅ Updated exam result for student ${session.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${existingResult.id})`);
-        console.log(`🎉 INSTANT FEEDBACK READY: Result updated successfully!`);
       } else {
         // Create new result
-        console.log('🆕 Creating new exam result...');
         const newResult = await storage.recordExamResult(resultData);
         if (!newResult || !newResult.id) {
           throw new Error('Failed to create exam result - recordExamResult returned null/undefined or missing ID');
         }
-        console.log(`✅ Created new exam result for student ${session.studentId}: ${totalAutoScore}/${maxPossibleScore} (ID: ${newResult.id})`);
-        console.log(`🎉 INSTANT FEEDBACK READY: New result created successfully!`);
       }
 
       // Verify the result was saved by immediately retrieving it
-      console.log(`🔍 Verifying result was saved - fetching results for student ${session.studentId}...`);
       const verificationResults = await storage.getExamResultsByStudent(session.studentId);
-      console.log(`🔍 DEBUG: Found ${verificationResults.length} results. Looking for examId ${session.examId} (type: ${typeof session.examId})`);
-      console.log(`🔍 DEBUG: Result examIds:`, verificationResults.map((r: any) => `${r.examId} (type: ${typeof r.examId})`));
       const savedResult = verificationResults.find((r: any) => Number(r.examId) === Number(session.examId));
 
       if (!savedResult) {
-        console.error(`❌ VERIFICATION FAILED: Could not find result for examId ${session.examId}`);
-        console.error(`❌ Available results:`, JSON.stringify(verificationResults, null, 2));
         throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the result');
       }
 
-      console.log(`✅ Verification successful: Result found with score ${savedResult.score}/${savedResult.maxScore}, autoScored: ${savedResult.autoScored}`);
 
       // ENHANCED PERFORMANCE MONITORING - Track 2-second submission goal
       const totalResponseTime = Date.now() - startTime;
@@ -774,11 +717,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 
       // Alert if submission exceeds 2-second goal
       if (totalResponseTime > 2000) {
-        console.warn(`🚨 PERFORMANCE ALERT: Auto-scoring took ${totalResponseTime}ms (exceeded 2-second goal by ${totalResponseTime - 2000}ms)`);
-        console.warn(`💡 OPTIMIZATION NEEDED: Consider query optimization or caching for session ${sessionId}`);
       } else {
-        console.log(`🎯 PERFORMANCE SUCCESS: Auto-scoring completed in ${totalResponseTime}ms (within 2-second goal! ✅)`);
-        console.log(`📊 PERFORMANCE METRICS: DB Query: ${databaseQueryTime}ms, Scoring: ${scoringTime}ms, Total: ${totalResponseTime}ms`);
       }
 
       // Store performance event in database for monitoring
@@ -797,27 +736,21 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
           userId: session.studentId, // Track which student's exam was auto-scored
           clientSide: false // Server-side auto-scoring
         });
-        console.log(`📊 Performance event logged to database: ${totalResponseTime}ms auto-scoring`);
       } catch (perfLogError) {
-        console.warn('⚠️ Failed to log performance event to database:', perfLogError);
         // Don't throw - this shouldn't break the auto-scoring process
       }
 
       // Log detailed metrics in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🔬 DETAILED METRICS:`, JSON.stringify(performanceMetrics, null, 2));
       }
 
-      console.log(`🚀 AUTO-SCORING COMPLETE - Student should see instant results!`);
 
     } catch (error) {
       const totalErrorTime = Date.now() - startTime;
-      console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
       throw error;
     }
   } catch (error) {
     const totalErrorTime = Date.now() - startTime;
-    console.error(`Auto-scoring error after ${totalErrorTime}ms:`, error);
     throw error;
   }
 }
@@ -825,17 +758,14 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
 // Score Merging Function: Combine auto-scored + manually graded results
 async function mergeExamScores(answerId: number, storage: any): Promise<void> {
   try {
-    console.log(`🔄 SCORE MERGE: Starting merge for answer ${answerId}...`);
 
     // Get the answer details to find session and exam info
     const answer = await storage.getStudentAnswerById(answerId);
     if (!answer) {
-      console.error(`❌ SCORE MERGE: Answer ${answerId} not found`);
       return;
     }
 
     const sessionId = answer.sessionId;
-    console.log(`📝 SCORE MERGE: Processing session ${sessionId}`);
 
     // Get all answers and questions for this session
     const allAnswers = await storage.getStudentAnswers(sessionId);
@@ -856,11 +786,9 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
     const allEssaysGraded = essayQuestions.length === gradedEssayAnswers.length;
 
     if (!allEssaysGraded) {
-      console.log(`⏳ SCORE MERGE: Not all essays graded yet (${gradedEssayAnswers.length}/${essayQuestions.length}). Skipping merge.`);
       return;
     }
 
-    console.log(`✅ SCORE MERGE: All essays graded! Calculating final score...`);
 
     // Calculate total score by summing all points earned
     let totalScore = 0;
@@ -876,7 +804,6 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
       }
     }
 
-    console.log(`📊 SCORE MERGE: Final score = ${totalScore}/${maxScore}`);
 
     // Update or create the exam result with merged score
     const existingResult = await storage.getExamResultByExamAndStudent(session.examId, session.studentId);
@@ -889,7 +816,6 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
         marksObtained: totalScore,
         autoScored: false, // Now includes manual scores
       });
-      console.log(`✅ SCORE MERGE: Updated exam result ${existingResult.id} with merged score`);
     } else {
       // Create new result (shouldn't happen, but handle it)
       await storage.recordExamResult({
@@ -901,13 +827,10 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
         autoScored: false,
         recordedBy: session.studentId, // System recorded
       });
-      console.log(`✅ SCORE MERGE: Created new exam result with merged score`);
     }
 
-    console.log(`🎉 SCORE MERGE: Complete! Final score saved.`);
 
   } catch (error) {
-    console.error(`❌ SCORE MERGE ERROR:`, error);
     // Don't throw - log and return so grading flow isn't blocked
     // The merge can be retried later or triggered manually
   }
@@ -916,7 +839,6 @@ async function mergeExamScores(answerId: number, storage: any): Promise<void> {
 // Create Grading Tasks Function: Triggered after auto-scoring or manual grading
 async function createGradingTasksForSession(sessionId: number, examId: number, storage: any): Promise<void> {
   try {
-    console.log(`📝 Creating grading tasks for session ${sessionId}, exam ${examId}`);
 
     // Get exam details to find the assigned teacher
     const exam = await storage.getExamById(examId);
@@ -933,11 +855,9 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
     });
 
     if (manualGradingQuestions.length === 0) {
-      console.log(`✅ No manual grading questions found for exam ${examId}`);
       return;
     }
 
-    console.log(`📝 Found ${manualGradingQuestions.length} questions requiring manual grading`);
 
     // Get student answers for this session
     const studentAnswers = await storage.getStudentAnswers(sessionId);
@@ -951,15 +871,11 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
         const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
         if (teachers && teachers.length > 0) {
           assignedTeacherId = teachers[0].id; // Assign to first teacher found
-          console.log(`👨‍ teacher Assigning grading tasks to class-subject teacher: ${assignedTeacherId}`);
         } else {
-          console.log(`ℹ️ No specific teacher found for class ${exam.classId} and subject ${exam.subjectId}. Using exam creator ${exam.createdBy}.`);
         }
       } catch (error) {
-        console.warn(`⚠️ Could not find class-subject teacher, using exam creator: ${error}`);
       }
     } else {
-      console.log(`ℹ️ Exam ${examId} has no classId or subjectId, assigning to exam creator ${exam.createdBy}.`);
     }
 
     // Create grading tasks for each essay answer
@@ -982,16 +898,12 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
           });
           tasksCreated++;
         } else {
-          console.log(`ℹ️ Grading task for answer ${studentAnswer.id} already exists. Skipping.`);
         }
       } else {
-        console.warn(`⚠️ No student answer found for question ${question.id} in session ${sessionId}. Cannot create grading task.`);
       }
     }
 
-    console.log(`✅ Created ${tasksCreated} new grading tasks for session ${sessionId}.`);
   } catch (error) {
-    console.error(`❌ Error creating grading tasks for session ${sessionId}:`, error);
     throw error; // Re-throw to indicate failure
   }
 }
@@ -1010,7 +922,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(tasks);
     } catch (error) {
-      console.error('Error fetching AI-suggested tasks:', error);
       res.status(500).json({ message: 'Failed to fetch AI-suggested tasks' });
     }
   });
@@ -1022,7 +933,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exams = await storage.getAllExams();
       res.json(exams);
     } catch (error) {
-      console.error('Error fetching exams:', error);
       res.status(500).json({ message: 'Failed to fetch exams' });
     }
   });
@@ -1038,7 +948,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exam = await storage.createExam(examData);
       res.status(201).json(exam);
     } catch (error: any) {
-      console.error('Error creating exam:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: 'Invalid exam data', errors: error.errors });
       }
@@ -1058,7 +967,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(exam);
     } catch (error) {
-      console.error('Error fetching exam:', error);
       res.status(500).json({ message: 'Failed to fetch exam' });
     }
   });
@@ -1080,7 +988,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exam = await storage.updateExam(examId, req.body);
       res.json(exam);
     } catch (error) {
-      console.error('Error updating exam:', error);
       res.status(500).json({ message: 'Failed to update exam' });
     }
   });
@@ -1102,7 +1009,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const success = await storage.deleteExam(examId);
       res.status(204).send();
     } catch (error) {
-      console.error('Error deleting exam:', error);
       res.status(500).json({ message: 'Failed to delete exam' });
     }
   });
@@ -1125,7 +1031,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exam = await storage.updateExam(examId, { isPublished });
       res.json(exam);
     } catch (error) {
-      console.error('Error updating exam publish status:', error);
       res.status(500).json({ message: 'Failed to update exam publish status' });
     }
   });
@@ -1137,7 +1042,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const studentId = req.user!.id;
       const startTime = Date.now();
 
-      console.log(`🚀 SUBMIT EXAM: Student ${studentId} submitting exam ${examId}`);
 
       // Find the active exam session
       const sessions = await storage.getExamSessionsByStudent(studentId);
@@ -1161,14 +1065,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'submitted'
       });
 
-      console.log(`✅ SUBMIT: Session ${activeSession.id} marked as submitted`);
 
       // Auto-score the exam
       const scoringStartTime = Date.now();
       await autoScoreExamSession(activeSession.id, storage);
       const scoringTime = Date.now() - scoringStartTime;
 
-      console.log(`⚡ SCORING: Completed in ${scoringTime}ms`);
 
       // Get the updated session with scores
       const updatedSession = await storage.getExamSessionById(activeSession.id);
@@ -1194,7 +1096,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const totalTime = Date.now() - startTime;
-      console.log(`📊 TOTAL SUBMISSION TIME: ${totalTime}ms`);
 
       // Return instant results
       res.json({
@@ -1219,7 +1120,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error: any) {
-      console.error('❌ SUBMIT ERROR:', error);
       res.status(500).json({ message: error.message || 'Failed to submit exam' });
     }
   });
@@ -1250,7 +1150,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(counts);
     } catch (error) {
-      console.error('Error fetching question counts:', error);
       res.status(500).json({ message: 'Failed to fetch question counts' });
     }
   });
@@ -1263,7 +1162,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const questions = await storage.getExamQuestions(examId);
       res.json(questions);
     } catch (error) {
-      console.error('Error fetching exam questions:', error);
       res.status(500).json({ message: 'Failed to fetch exam questions' });
     }
   });
@@ -1281,7 +1179,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(201).json(question);
       }
     } catch (error: any) {
-      console.error('Error creating exam question:', error);
       res.status(500).json({ message: error.message || 'Failed to create exam question' });
     }
   });
@@ -1298,7 +1195,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(question);
     } catch (error) {
-      console.error('Error updating exam question:', error);
       res.status(500).json({ message: 'Failed to update exam question' });
     }
   });
@@ -1315,7 +1211,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(204).send();
     } catch (error) {
-      console.error('Error deleting exam question:', error);
       res.status(500).json({ message: 'Failed to delete exam question' });
     }
   });
@@ -1327,7 +1222,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const options = await storage.getQuestionOptions(questionId);
       res.json(options);
     } catch (error) {
-      console.error('Error fetching question options:', error);
       res.status(500).json({ message: 'Failed to fetch question options' });
     }
   });
@@ -1345,7 +1239,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Questions array is required and must not be empty' });
       }
 
-      console.log(`📤 Bulk upload: ${questions.length} questions for exam ${examId}`);
 
       // Prepare questions data with examId and order number
       const questionsData = questions.map((q, index) => ({
@@ -1364,11 +1257,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = await storage.createExamQuestionsBulk(questionsData);
 
-      console.log(`✅ Bulk upload complete: ${result.created} created, ${result.errors.length} errors`);
 
       res.status(201).json(result);
     } catch (error: any) {
-      console.error('Error in bulk question upload:', error);
       res.status(500).json({
         message: error.message || 'Failed to upload questions',
         created: 0,
@@ -1389,7 +1280,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Exam ID is required' });
       }
 
-      console.log(`🎯 Starting exam ${examId} for student ${studentId}`);
 
       // Get exam details to calculate end time
       const exam = await storage.getExamById(examId);
@@ -1419,11 +1309,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use idempotent session creation to prevent duplicates
       const session = await storage.createOrGetActiveExamSession(examId, studentId, sessionData);
 
-      console.log(`✅ Exam session ${session.wasCreated ? 'created' : 'retrieved'}:`, session.id);
 
       res.status(201).json(session);
     } catch (error: any) {
-      console.error('Error starting exam:', error);
       res.status(500).json({ message: error.message || 'Failed to start exam' });
     }
   });
@@ -1446,7 +1334,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(session);
     } catch (error) {
-      console.error('Error fetching active session:', error);
       res.status(500).json({ message: 'Failed to fetch active session' });
     }
   });
@@ -1468,7 +1355,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(session);
     } catch (error) {
-      console.error('Error fetching exam session:', error);
       res.status(500).json({ message: 'Failed to fetch exam session' });
     }
   });
@@ -1487,7 +1373,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(session);
     } catch (error) {
-      console.error('Error updating session metadata:', error);
       res.status(500).json({ message: 'Failed to update session metadata' });
     }
   });
@@ -1513,7 +1398,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(session);
     } catch (error) {
-      console.error('Error updating session progress:', error);
       res.status(500).json({ message: 'Failed to update session progress' });
     }
   });
@@ -1605,7 +1489,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } catch (error: any) {
-      console.error('Error saving student answer:', error);
       res.status(500).json({ message: error.message || 'Failed to save answer' });
     }
   });
@@ -1628,7 +1511,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const answers = await storage.getStudentAnswers(sessionId);
       res.json(answers);
     } catch (error) {
-      console.error('Error fetching student answers:', error);
       res.status(500).json({ message: 'Failed to fetch student answers' });
     }
   });
@@ -1642,7 +1524,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacherId = req.user!.id;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      console.log('📥 RECEIVED PROFILE SETUP REQUEST:', {
         teacherId,
         hasFiles: Object.keys(files || {}).length,
         fileFields: Object.keys(files || {}),
@@ -1656,7 +1537,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log detailed file information
       if (files['profileImage']?.[0]) {
-        console.log('📸 Profile Image Details:', {
           filename: files['profileImage'][0].filename,
           originalname: files['profileImage'][0].originalname,
           mimetype: files['profileImage'][0].mimetype,
@@ -1664,11 +1544,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           path: files['profileImage'][0].path
         });
       } else {
-        console.log('⚠️ No profile image received in upload');
       }
 
       if (files['signature']?.[0]) {
-        console.log('✍️ Signature Details:', {
           filename: files['signature'][0].filename,
           originalname: files['signature'][0].originalname,
           mimetype: files['signature'][0].mimetype,
@@ -1728,7 +1606,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           finalStaffId = staffId.trim();
         } catch (staffIdError) {
-          console.error('❌ Staff ID validation error:', staffIdError);
           // Don't fail - just auto-generate instead
           finalStaffId = null;
         }
@@ -1754,9 +1631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
           finalStaffId = `THS/TCH/${currentYear}/${String(nextNumber).padStart(3, '0')}`;
 
-          console.log(`✅ Auto-generated Staff ID: ${finalStaffId}`);
         } catch (autoGenError) {
-          console.error('❌ Auto-generation error:', autoGenError);
           // Last resort - use timestamp
           finalStaffId = `THS/TCH/${new Date().getFullYear()}/${Date.now().toString().slice(-3)}`;
         }
@@ -1800,7 +1675,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateUser(teacherId, userUpdateData);
-      console.log('✅ User data updated successfully');
 
       // Detect suspicious patterns for admin notification (informational only)
       const isSuspicious = (
@@ -1879,7 +1753,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return subject?.name || `Subject #${subjectId}`;
             });
           } catch (error) {
-            console.error('Failed to fetch subject names:', error);
             subjectNames = parsedSubjects.map((id: number) => `Subject #${id}`);
           }
 
@@ -1890,7 +1763,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return cls?.name || `Class #${classId}`;
             });
           } catch (error) {
-            console.error('Failed to fetch class names:', error);
             classNames = parsedClasses.map((id: number) => `Class #${id}`);
           }
 
@@ -1908,9 +1780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/portal/admin/teachers`
             )
           });
-          console.log(`✅ Auto-verification email sent to admin: ${admin.email}`);
         } catch (emailError) {
-          console.error('Failed to send admin notification email:', emailError);
           // Don't fail the entire process if email fails
         }
       }
@@ -1942,7 +1812,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstLogin: profile.firstLogin
       };
 
-      console.log('📤 Sending profile response to frontend:', completeProfileResponse);
 
       res.json({
         message: 'Profile setup completed successfully! You can now access your dashboard.',
@@ -1951,7 +1820,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profile: completeProfileResponse
       });
     } catch (error) {
-      console.error('❌ TEACHER PROFILE SETUP ERROR - Full Details:', {
         error: error,
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
@@ -2045,11 +1913,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstLogin: profile?.firstLogin !== false
       };
 
-      console.log('📋 Profile status check:', { teacherId, ...status });
 
       res.json(status);
     } catch (error) {
-      console.error('❌ Get teacher profile status error:', error);
       res.status(500).json({ message: 'Failed to check profile status' });
     }
   });
@@ -2075,7 +1941,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skipped: true
       });
     } catch (error) {
-      console.error('Error skipping teacher profile:', error);
       res.status(500).json({ message: 'Failed to skip profile setup' });
     }
   });
@@ -2133,7 +1998,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: profile.updatedAt
       };
 
-      console.log('✅ Teacher profile API response:', {
         userId,
         staffId: completeProfile.staffId,
         hasNationalId: !!completeProfile.nationalId,
@@ -2144,7 +2008,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(completeProfile);
     } catch (error: any) {
-      console.error('❌ Error fetching teacher profile:', error);
       res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
     }
   });
@@ -2157,7 +2020,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(dashboardData);
     } catch (error: any) {
-      console.error('Error fetching teacher dashboard data:', error);
       res.status(500).json({ message: 'Failed to fetch dashboard data', error: error.message });
     }
   });
@@ -2171,7 +2033,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacherId = req.user!.id;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      console.log('📝 PROFILE UPDATE REQUEST:', {
         teacherId,
         hasFiles: Object.keys(files || {}).length,
         fileFields: Object.keys(files || {}),
@@ -2189,12 +2050,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (files['profileImage']?.[0]) {
         profileImageUrl = `/${files['profileImage'][0].path.replace(/\\/g, '/')}`;
-        console.log('📸 New profile image uploaded:', profileImageUrl);
       }
 
       if (files['signature']?.[0]) {
         signatureUrl = `/${files['signature'][0].path.replace(/\\/g, '/')}`;
-        console.log('✍️ New signature uploaded:', signatureUrl);
       }
 
       // Parse JSON fields
@@ -2218,7 +2077,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateUser(teacherId, userUpdateData);
-      console.log('✅ User data updated successfully');
 
       // Update teacher profile table (professional information)
       const profileUpdateData: any = {
@@ -2239,7 +2097,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateTeacherProfile(teacherId, profileUpdateData);
-      console.log('✅ Teacher profile updated successfully');
 
       // Fetch and return updated profile
       const updatedProfile = await storage.getTeacherProfile(teacherId);
@@ -2265,7 +2122,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error('❌ PROFILE UPDATE ERROR:', error);
       res.status(500).json({
         message: 'Failed to update profile',
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -2301,7 +2157,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(overview);
     } catch (error) {
-      console.error('Get teacher overview error:', error);
       res.status(500).json({ message: 'Failed to fetch teacher overview' });
     }
   });
@@ -2342,7 +2197,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         answer: await storage.getStudentAnswerById(answerId)
       });
     } catch (error) {
-      console.error('Error reviewing AI-suggested score:', error);
       res.status(500).json({ message: 'Failed to review AI-suggested score' });
     }
   });
@@ -2353,7 +2207,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-session-secret-change-in-production' : process.env.JWT_SECRET || SECRET_KEY);
 
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-    console.warn('⚠️ WARNING: SESSION_SECRET not set in production! Using JWT_SECRET as fallback. Set SESSION_SECRET for better security.');
   }
 
   // Configure PostgreSQL session store for production persistence
@@ -2401,7 +2254,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { passwordHash, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
-      console.error('Error in /api/auth/me:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -2420,7 +2272,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const children = await storage.getStudentsByParentId(parentId);
       res.json(children);
     } catch (error) {
-      console.error('Error fetching parent children:', error);
       res.status(500).json({ message: 'Failed to fetch children records' });
     }
   });
@@ -2436,7 +2287,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const notifications = await storage.getNotificationsByUserId(user.id);
       res.json(notifications);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
       res.status(500).json({ message: 'Failed to fetch notifications' });
     }
   });
@@ -2451,7 +2301,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const count = await storage.getUnreadNotificationCount(user.id);
       res.json({ count });
     } catch (error) {
-      console.error('Error fetching unread count:', error);
       res.status(500).json({ message: 'Failed to fetch unread count' });
     }
   });
@@ -2476,7 +2325,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.markNotificationAsRead(notificationId);
       res.json(updated);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
       res.status(500).json({ message: 'Failed to update notification' });
     }
   });
@@ -2491,7 +2339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.markAllNotificationsAsRead(user.id);
       res.json({ message: 'All notifications marked as read' });
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
       res.status(500).json({ message: 'Failed to update notifications' });
     }
   });
@@ -2502,7 +2349,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const classes = await storage.getClasses();
       res.json(classes);
     } catch (error) {
-      console.error('Error fetching classes:', error);
       res.status(500).json({ message: 'Failed to fetch classes' });
     }
   });
@@ -2513,7 +2359,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subjects = await storage.getSubjects();
       res.json(subjects);
     } catch (error) {
-      console.error('Error fetching subjects:', error);
       res.status(500).json({ message: 'Failed to fetch subjects' });
     }
   });
@@ -2521,19 +2366,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Academic Terms API endpoints
   app.get('/api/terms', authenticateUser, async (req, res) => {
     try {
-      console.log('📅 Fetching academic terms for user:', req.user?.email);
       const terms = await storage.getAcademicTerms();
-      console.log(`✅ Found ${terms.length} academic terms`);
       res.json(terms);
     } catch (error) {
-      console.error('❌ Error fetching academic terms:', error);
       res.status(500).json({ message: 'Failed to fetch academic terms' });
     }
   });
 
   app.post('/api/terms', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      console.log('📅 Creating academic term:', req.body);
 
       // Validate required fields
       if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
@@ -2541,10 +2382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const term = await storage.createAcademicTerm(req.body);
-      console.log('✅ Academic term created successfully:', term.id);
       res.json(term);
     } catch (error: any) {
-      console.error('❌ Error creating academic term:', error);
       res.status(500).json({ message: error.message || 'Failed to create academic term' });
     }
   });
@@ -2557,20 +2396,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
-      console.log('📅 Updating academic term:', termId, req.body);
 
       // Check if term exists first
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
-        console.warn(`⚠️ Term ${termId} not found for update`);
         return res.status(404).json({ message: 'Academic term not found' });
       }
 
       const term = await storage.updateAcademicTerm(termId, req.body);
-      console.log('✅ Academic term updated successfully:', term?.id);
       res.json(term);
     } catch (error: any) {
-      console.error('❌ Error updating academic term:', error);
       res.status(500).json({ message: error.message || 'Failed to update academic term' });
     }
   });
@@ -2583,25 +2418,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
-      console.log('📅 DELETE REQUEST: Attempting to delete academic term:', termId);
 
       const success = await storage.deleteAcademicTerm(termId);
 
       if (!success) {
-        console.error(`❌ DELETE FAILED: Term ${termId} deletion returned false`);
         return res.status(500).json({
           message: 'Failed to delete academic term. The term may not exist or could not be removed from the database.'
         });
       }
 
-      console.log('✅ DELETE SUCCESS: Academic term deleted:', termId);
       res.json({
         message: 'Academic term deleted successfully',
         id: termId,
         success: true
       });
     } catch (error: any) {
-      console.error('❌ DELETE ERROR:', error);
 
       // Handle specific errors
       if (error.code === '23503' || error.message?.includes('linked to it')) {
@@ -2625,20 +2456,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
-      console.log('📅 Marking term as current:', termId);
 
       // Check if term exists first
       const existingTerm = await storage.getAcademicTerm(termId);
       if (!existingTerm) {
-        console.warn(`⚠️ Term ${termId} not found`);
         return res.status(404).json({ message: 'Academic term not found' });
       }
 
       const term = await storage.markTermAsCurrent(termId);
-      console.log('✅ Term marked as current successfully:', term?.id);
       res.json(term);
     } catch (error: any) {
-      console.error('❌ Error marking term as current:', error);
       res.status(500).json({ message: error.message || 'Failed to mark term as current' });
     }
   });
@@ -2657,12 +2484,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Delete user (will cascade delete related records)
             await storage.deleteUser(user.id);
             deletedUsers.push(email);
-            console.log(`✅ Deleted demo account: ${email}`);
           } else {
-            console.log(`⚠️ Demo account not found: ${email}`);
           }
         } catch (error) {
-          console.error(`❌ Failed to delete ${email}:`, error);
           errors.push(`${email}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
@@ -2673,7 +2497,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errors: errors.length > 0 ? errors : undefined
       });
     } catch (error) {
-      console.error('Delete demo accounts error:', error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         message: "Failed to delete demo accounts"
@@ -2684,7 +2507,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Secure admin-only route to reset weak passwords
   app.post("/api/admin/reset-weak-passwords", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      console.log('Admin password reset requested by:', req.user?.email);
 
       // Get all users to check for weak passwords
       const allRoles = await storage.getRoles();
@@ -2705,12 +2527,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (error) {
             // Skip users with invalid password hashes
-            console.warn(`Skipping user ${user.email} - invalid password hash`);
           }
         }
       }
 
-      console.log(`Found ${usersToUpdate.length} users with weak passwords`);
 
       if (usersToUpdate.length === 0) {
         return res.json({
@@ -2739,10 +2559,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               newPassword: strongPassword
             });
             updateCount++;
-            console.log(`✅ Updated password for ${user.email}`);
           }
         } catch (error) {
-          console.error(`❌ Failed to update password for ${user.email}:`, error);
         }
       }
 
@@ -2755,7 +2573,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error('Password reset error:', error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         message: "Failed to reset passwords"
@@ -2787,15 +2604,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         fileUrl = uploadResult.publicUrl;
-        console.log(`📦 Profile image uploaded to Supabase Storage: ${fileUrl}`);
       } else {
         fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
-        console.log(`💾 Profile image saved to local filesystem: ${fileUrl}`);
       }
 
       res.json({ url: fileUrl });
     } catch (error) {
-      console.error('File upload error:', error);
       res.status(500).json({ message: 'Failed to upload file' });
     }
   });
@@ -2805,7 +2619,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Homepage image upload endpoint
   app.post('/api/upload/homepage', authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
     try {
-      console.log('🎯 Homepage upload request received:', {
         file: req.file?.originalname,
         contentType: req.body.contentType,
         userId: req.user!.id,
@@ -2824,12 +2637,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let storedFilePath: string;
 
       if (isSupabaseStorageEnabled()) {
-        console.log('📦 Using Supabase Storage for upload');
         const timestamp = Date.now();
         const filename = `${req.body.contentType}-${timestamp}${path.extname(req.file.originalname)}`;
         const filePath = `homepage/${filename}`;
 
-        console.log(' পাঠানোর Supabase:', {
           bucket: STORAGE_BUCKETS.HOMEPAGE,
           path: filePath,
           size: req.file.buffer.length,
@@ -2850,9 +2661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           imageUrl = uploadResult.publicUrl;
           storedFilePath = uploadResult.path;
-          console.log('✅ Successfully uploaded to Supabase:', imageUrl);
         } catch (uploadError: any) {
-          console.error('❌ Supabase upload failed:', uploadError);
 
           // Provide detailed error information
           if (uploadError.message?.includes('new row violates row-level security policy')) {
@@ -2866,13 +2675,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       } else {
-        console.log('📁 Using local filesystem for upload');
         imageUrl = `/uploads/homepage/${req.file.filename}`;
         storedFilePath = req.file.filename;
-        console.log('✅ Successfully uploaded to local filesystem:', imageUrl);
       }
 
-      console.log('📝 Creating homepage content record in database...');
       const content = await storage.createHomePageContent({
         contentType: req.body.contentType,
         imageUrl,
@@ -2882,10 +2688,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: true,
       });
 
-      console.log('✅ Homepage content created successfully:', content.id);
       res.json(content);
     } catch (error: any) {
-      console.error('❌ Homepage upload error:', {
         message: error.message,
         stack: error.stack,
         name: error.name
@@ -2905,7 +2709,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const content = await storage.getHomePageContent(contentType as string);
       res.json(content);
     } catch (error) {
-      console.error('Get homepage content error:', error);
       res.status(500).json({ message: 'Failed to get homepage content' });
     }
   });
@@ -2932,7 +2735,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: updated
       });
     } catch (error) {
-      console.error('Update homepage content error:', error);
       res.status(500).json({ message: 'Failed to update homepage content' });
     }
   });
@@ -2955,7 +2757,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const filePath = extractFilePathFromUrl(content.imageUrl);
         if (filePath) {
           await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
-          console.log(`🗑️ Deleted from Supabase Storage: ${filePath}`);
         }
       }
 
@@ -2967,7 +2768,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ message: 'Homepage content deleted successfully' });
     } catch (error) {
-      console.error('Delete homepage content error:', error);
       res.status(500).json({ message: 'Failed to delete homepage content' });
     }
   });
@@ -2978,7 +2778,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const content = await storage.getHomePageContent();
       res.json(content);
     } catch (error) {
-      console.error('Get public homepage content error:', error);
       res.status(500).json({ message: 'Failed to get homepage content' });
     }
   });
@@ -2990,7 +2789,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const content = await storage.getHomePageContent(contentType);
       res.json(content);
     } catch (error) {
-      console.error('Get public homepage content error:', error);
       res.status(500).json({ message: 'Failed to get homepage content' });
     }
   });
@@ -3032,17 +2830,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup/Demo data route (for development) - Admin only for security
   app.post("/api/setup-demo", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      console.log('Setting up demo data...');
 
       // First check if roles exist, if not this will tell us about database structure
       try {
         const existingRoles = await storage.getRoles();
-        console.log('Existing roles:', existingRoles.length);
 
         // If no roles, we can't proceed without proper role creation method
         // For now, let's just log what we found and return a helpful message
         if (existingRoles.length === 0) {
-          console.log('No roles found in database');
           return res.json({
             message: "No roles found. Database tables may need to be created first.",
             rolesCount: 0
@@ -3093,12 +2888,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!existingUser) {
               await storage.createUser(userData);
               createdCount++;
-              console.log(`Created demo user: ${userData.email}`);
             } else {
-              console.log(`User already exists: ${userData.email}`);
             }
           } catch (userError) {
-            console.error(`Failed to create user ${userData.email}:`, userError);
           }
         }
 
@@ -3110,14 +2902,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
       } catch (dbError) {
-        console.error('Database error:', dbError);
         res.status(500).json({
           message: "Database connection failed",
           error: dbError instanceof Error ? dbError.message : "Unknown database error"
         });
       }
     } catch (error) {
-      console.error('Setup demo error:', error);
       res.status(500).json({ message: "Setup failed", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
@@ -3126,7 +2916,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { identifier, password } = loginSchema.parse(req.body);
-      console.log('Login attempt for:', identifier || 'unknown');
 
       // Rate limiting to prevent brute force attacks
       const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
@@ -3143,7 +2932,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check rate limit - Message 12: Account Temporarily Locked (show once, then suspension message)
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.count >= MAX_LOGIN_ATTEMPTS && (now - attempts.lastAttempt) < RATE_LIMIT_WINDOW) {
-        console.warn(`Rate limit exceeded for ${attemptKey}`);
 
         // Track violation for account lockout with timestamp
         if (identifier) {
@@ -3168,7 +2956,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               if (userToSuspend && userToSuspend.status !== 'suspended') {
                 await storage.updateUserStatus(userToSuspend.id, 'suspended', 'system', `Automatic suspension due to ${recentViolations.length} rate limit violations within 1 hour`);
-                console.warn(`Account ${identifier} suspended after ${recentViolations.length} rate limit violations`);
                 lockoutViolations.delete(identifier); // Clear violations after suspension
 
                 // Get user role to provide appropriate message - SHOW DETAILED SUSPENSION MESSAGE
@@ -3199,7 +2986,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
             } catch (err) {
-              console.error('Failed to suspend account:', err);
             }
           }
         }
@@ -3239,7 +3025,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastAttempt: now
         });
 
-        console.log(`Login failed: User not found for identifier ${identifier}`);
         return res.status(401).json({
           message: "Invalid username or password. Please check your credentials and try again.",
           hint: "Make sure CAPS LOCK is off and you're using the correct username and password."
@@ -3248,7 +3033,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
       if (process.env.NODE_ENV === 'development') {
-        console.log('🔐 LOGIN ATTEMPT:', {
           identifier,
           userId: user.id,
           roleId: user.roleId,
@@ -3267,7 +3051,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY CHECK: Block suspended accounts BEFORE incrementing attempts
       // This shows the detailed suspension message on all subsequent login attempts
       if (user.status === 'suspended') {
-        console.warn(`Login blocked: Account ${identifier} is suspended (showing detailed message)`);
 
         if (isStaffAccount) {
           // Message 9: Staff Account Suspended
@@ -3301,7 +3084,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // SECURITY CHECK: Block pending accounts - Message 4 & 5
       if (user.status === 'pending') {
-        console.warn(`Login blocked: Account ${identifier} is pending approval`);
 
         if (isStaffAccount) {
           // Message 4: Admin/Teacher Pending Approval
@@ -3322,7 +3104,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // SECURITY CHECK: Block disabled accounts - Message 11
       if (user.status === 'disabled') {
-        console.warn(`Login blocked: Account ${identifier} is disabled`);
         return res.status(403).json({
           message: "Account Disabled",
           description: "Your account has been disabled and is no longer active. Please contact the school administrator if you believe this is an error.",
@@ -3332,7 +3113,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // STRICT ENFORCEMENT: Admin/Teacher with Google OAuth CANNOT use password login - Message 8
       if ((roleName === 'admin' || roleName === 'teacher') && user.authProvider === 'google') {
-        console.log(`Login blocked: Admin/Teacher ${identifier} trying to use password login instead of Google OAuth`);
         return res.status(401).json({
           message: "Google Sign-In Required",
           description: "Admins and Teachers must sign in using their authorized Google account. Please click the 'Sign in with Google' button below to access your account.",
@@ -3350,7 +3130,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             statusType: "google_required"
           });
         }
-        console.error(`SECURITY WARNING: User ${identifier} has no password hash set`);
         return res.status(401).json({
           message: "Account Setup Incomplete",
           description: "Your account setup is incomplete. Please contact the school administrator for assistance.",
@@ -3361,7 +3140,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Compare provided password with stored hash - Message 1 (Invalid Credentials)
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
-        console.log(`Login failed: Invalid password for identifier ${identifier}`);
         return res.status(401).json({
           message: "Invalid Credentials",
           description: "Invalid username or password. Please check your credentials and try again. Make sure CAPS LOCK is off and you're using the correct username and password.",
@@ -3385,7 +3163,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
 
-      console.log(`Login successful for ${identifier} with roleId: ${user.roleId}`);
 
       // Ensure mustChangePassword is included in the response
       res.json({
@@ -3402,7 +3179,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('Login error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid identifier or password format" });
       }
@@ -3437,11 +3213,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mustChangePassword: false
       });
 
-      console.log(`Password changed successfully for user ${userId}`);
 
       res.json({ message: "Password changed successfully" });
     } catch (error) {
-      console.error('Password change error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid password format" });
       }
@@ -3585,7 +3359,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "If an account exists with that email/username, a password reset link will be sent."
       });
     } catch (error) {
-      console.error('Forgot password error:', error);
 
       // Track failed attempt
       try {
@@ -3594,7 +3367,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createPasswordResetAttempt(identifier, ipAddress, false);
         }
       } catch (trackError) {
-        console.error('Failed to track attempt:', trackError);
       }
 
       res.status(500).json({ message: "Failed to process password reset request" });
@@ -3664,7 +3436,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       log(`✅ Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
-      console.error('Reset password error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
@@ -3727,10 +3498,6 @@ Treasure-Home School Administration
 
       // In development, log the notification
       if (process.env.NODE_ENV === 'development') {
-        console.log(`\n📧 ADMIN PASSWORD RESET NOTIFICATION:`);
-        console.log(`To: ${recoveryEmail}`);
-        console.log(`Subject: ${notificationSubject}`);
-        console.log(`Body:\n${notificationBody}\n`);
       }
 
       // TODO: In production, send actual email
@@ -3745,7 +3512,6 @@ Treasure-Home School Administration
         email: recoveryEmail
       });
     } catch (error) {
-      console.error('Admin password reset error:', error);
       res.status(500).json({ message: "Failed to reset password" });
     }
   });
@@ -3770,7 +3536,6 @@ Treasure-Home School Administration
         return res.status(500).json({ message: "Failed to update recovery email" });
       }
 
-      console.log(`✅ Admin ${req.user?.email} updated recovery email for user ${userId} to ${recoveryEmail}`);
 
       res.json({
         message: "Recovery email updated successfully",
@@ -3778,7 +3543,6 @@ Treasure-Home School Administration
         newEmail: recoveryEmail
       });
     } catch (error) {
-      console.error('Update recovery email error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid email format" });
       }
@@ -3827,14 +3591,12 @@ Treasure-Home School Administration
         userAgent: req.headers['user-agent']
       });
 
-      console.log(`✅ User ${req.user?.email} updated recovery email for account ${id}`);
 
       res.json({
         message: "Recovery email updated successfully",
         user: { ...updatedUser, recoveryEmail: updatedUser.recoveryEmail } // Explicitly return updated recoveryEmail
       });
     } catch (error) {
-      console.error('Error updating recovery email:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Invalid request data",
@@ -3884,7 +3646,6 @@ Treasure-Home School Administration
         username: user.username || user.email
       });
     } catch (error) {
-      console.error('Unlock account error:', error);
       res.status(500).json({ message: "Failed to unlock account" });
     }
   });
@@ -3904,7 +3665,6 @@ Treasure-Home School Administration
 
       res.json(sanitizedUsers);
     } catch (error) {
-      console.error('Failed to fetch suspended accounts:', error);
       res.status(500).json({ message: "Failed to fetch suspended accounts" });
     }
   });
@@ -3936,7 +3696,6 @@ Treasure-Home School Administration
       if (user.email) lockoutViolations.delete(user.email);
       if (user.username) lockoutViolations.delete(user.username);
 
-      console.log(`Admin ${req.user!.email} unlocked account ${user.email || user.username}`);
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -3946,7 +3705,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Failed to unlock account:', error);
       res.status(500).json({ message: "Failed to unlock account" });
     }
   });
@@ -4004,7 +3762,6 @@ Treasure-Home School Administration
       const inviteLink = `${process.env.FRONTEND_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000')}/invite/${token}`;
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Invite created for ${email}: ${inviteLink}`);
         return res.json({
           message: "Invite created successfully",
           invite: {
@@ -4029,7 +3786,6 @@ Treasure-Home School Administration
         }
       });
     } catch (error) {
-      console.error('Create invite error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid request format" });
       }
@@ -4043,7 +3799,6 @@ Treasure-Home School Administration
       const invites = await storage.getAllInvites();
       res.json(invites);
     } catch (error) {
-      console.error('List invites error:', error);
       res.status(500).json({ message: "Failed to list invites" });
     }
   });
@@ -4054,7 +3809,6 @@ Treasure-Home School Administration
       const invites = await storage.getPendingInvites();
       res.json(invites);
     } catch (error) {
-      console.error('List pending invites error:', error);
       res.status(500).json({ message: "Failed to list pending invites" });
     }
   });
@@ -4076,7 +3830,6 @@ Treasure-Home School Administration
         expiresAt: invite.expiresAt
       });
     } catch (error) {
-      console.error('Get invite error:', error);
       res.status(500).json({ message: "Failed to get invite" });
     }
   });
@@ -4139,7 +3892,6 @@ Treasure-Home School Administration
         { expiresIn: '24h' }
       );
 
-      console.log(`Invite accepted by ${user.email} (${username})`);
 
       res.json({
         message: "Account created successfully",
@@ -4154,7 +3906,6 @@ Treasure-Home School Administration
         token: token_jwt
       });
     } catch (error) {
-      console.error('Accept invite error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid request format" });
       }
@@ -4174,7 +3925,6 @@ Treasure-Home School Administration
 
       res.json({ message: "Invite deleted successfully" });
     } catch (error) {
-      console.error('Delete invite error:', error);
       res.status(500).json({ message: "Failed to delete invite" });
     }
   });
@@ -4215,14 +3965,12 @@ Treasure-Home School Administration
       });
 
       const savedMessage = await storage.createContactMessage(contactMessageData);
-      console.log("✅ Contact form saved to database:", { id: savedMessage.id, email: data.email });
 
       res.json({
         message: "Message sent successfully! We'll get back to you soon.",
         id: savedMessage.id
       });
     } catch (error) {
-      console.error("❌ Contact form error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid request data" });
       }
@@ -4277,7 +4025,6 @@ Treasure-Home School Administration
         }
       });
     } catch (error) {
-      console.error('Error fetching analytics:', error);
       res.status(500).json({ message: "Failed to fetch analytics data" });
     }
   });
@@ -4322,7 +4069,6 @@ Treasure-Home School Administration
           users = users.filter(user => 
             user.roleId !== ROLES.SUPER_ADMIN && user.roleId !== ROLES.ADMIN
           );
-          console.log(`🔒 SECURITY: Filtered ${users.length} users for Admin user ${currentUser.email} (Admin accounts hidden)`);
         }
       }
 
@@ -4340,7 +4086,6 @@ Treasure-Home School Administration
       });
       res.json(sanitizedUsers);
     } catch (error) {
-      console.error('Error fetching users:', error);
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
@@ -4369,7 +4114,6 @@ Treasure-Home School Administration
         const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
         
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to verify admin account ${user.email}`);
           return res.status(403).json({ 
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -4393,7 +4137,6 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} verified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4403,7 +4146,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Error verifying user:', error);
       res.status(500).json({ message: "Failed to verify user" });
     }
   });
@@ -4431,7 +4173,6 @@ Treasure-Home School Administration
         const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
         
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to unverify admin account ${user.email}`);
           return res.status(403).json({ 
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -4455,7 +4196,6 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} unverified user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4465,7 +4205,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Error unverifying user:', error);
       res.status(500).json({ message: "Failed to unverify user" });
     }
   });
@@ -4494,7 +4233,6 @@ Treasure-Home School Administration
         const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
         
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to suspend admin account ${user.email}`);
           return res.status(403).json({ 
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -4518,7 +4256,6 @@ Treasure-Home School Administration
         reason: reason || `Admin ${adminUser.email} suspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4528,7 +4265,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Error suspending user:', error);
       res.status(500).json({ message: "Failed to suspend user" });
     }
   });
@@ -4556,7 +4292,6 @@ Treasure-Home School Administration
         const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
         
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to unsuspend admin account ${user.email}`);
           return res.status(403).json({ 
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -4580,7 +4315,6 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} unsuspended user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4590,7 +4324,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Error unsuspending user:', error);
       res.status(500).json({ message: "Failed to unsuspend user" });
     }
   });
@@ -4634,7 +4367,6 @@ Treasure-Home School Administration
         reason: reason || `Admin ${adminUser.email} changed status of user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4644,7 +4376,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Error updating user status:', error);
       res.status(500).json({ message: "Failed to update user status" });
     }
   });
@@ -4682,7 +4413,6 @@ Treasure-Home School Administration
         const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
         
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to update admin account ${user.email}`);
           return res.status(403).json({ 
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -4724,7 +4454,6 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} updated user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       // Remove sensitive data
       const { passwordHash, ...safeUser } = updatedUser;
@@ -4737,7 +4466,6 @@ Treasure-Home School Administration
       if (error instanceof ZodError) {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
-      console.error('Error updating user:', error);
       res.status(500).json({ message: "Failed to update user" });
     }
   });
@@ -4754,18 +4482,15 @@ Treasure-Home School Administration
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      console.log(`🗑️ DELETE REQUEST: Admin ${adminUser.email} attempting to delete user ${id}`);
 
       // Check if user exists
       const user = await storage.getUser(id);
       if (!user) {
-        console.warn(`❌ DELETE FAILED: User ${id} not found`);
         return res.status(404).json({ message: "User not found" });
       }
 
       // Prevent deleting your own account
       if (user.id === adminUser.id) {
-        console.warn(`❌ DELETE BLOCKED: User attempted to delete own account`);
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
 
@@ -4776,7 +4501,6 @@ Treasure-Home School Administration
         const hideAdminAccounts = settings?.hideAdminAccountsFromAdmins ?? true;
         
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
-          console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to delete admin account ${user.email}`);
           return res.status(403).json({ 
             message: "You do not have permission to manage admin accounts.",
             code: "ADMIN_ACCOUNT_PROTECTED"
@@ -4786,7 +4510,6 @@ Treasure-Home School Administration
       
       // CRITICAL SECURITY: Only Super Admins can delete Super Admin accounts
       if (user.roleId === ROLES.SUPER_ADMIN && adminUser.roleId !== ROLES.SUPER_ADMIN) {
-        console.log(`🚫 BLOCKED: Non-Super Admin ${adminUser.email} attempted to delete Super Admin account ${user.email}`);
         return res.status(403).json({ 
           message: "Only Super Admins can delete Super Admin accounts.",
           code: "SUPER_ADMIN_PROTECTED"
@@ -4795,14 +4518,12 @@ Treasure-Home School Administration
 
       // CRITICAL SECURITY: Admins cannot delete other Admin accounts
       if (user.roleId === ROLES.ADMIN && adminUser.roleId === ROLES.ADMIN) {
-        console.log(`🚫 BLOCKED: Admin ${adminUser.email} attempted to delete another Admin account ${user.email}`);
         return res.status(403).json({ 
           message: "Admins cannot delete other Admin accounts.",
           code: "ADMIN_PROTECTED"
         });
       }
 
-      console.log(`📋 DELETING USER: ${user.email || user.username} (ID: ${id}, Role: ${user.roleId})`);
 
       // RETRY LOGIC: Attempt delete with retries for transient errors
       let deleted = false;
@@ -4811,22 +4532,17 @@ Treasure-Home School Administration
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          console.log(`🔄 DELETE ATTEMPT ${attempt}/${maxRetries} for user ${id}`);
           deleted = await storage.deleteUser(id);
 
           if (deleted) {
-            console.log(`✅ DELETE SUCCESS on attempt ${attempt}: User ${id} deleted in ${Date.now() - startTime}ms`);
             break;
           } else {
-            console.warn(`⚠️ DELETE RETURNED FALSE on attempt ${attempt}: User ${id}`);
           }
         } catch (deleteError: any) {
           lastError = deleteError;
-          console.error(`❌ DELETE ERROR on attempt ${attempt}:`, deleteError);
 
           // Check for Supabase RLS or permission errors
           if (deleteError?.code === '42501' || deleteError?.message?.includes('permission denied')) {
-            console.error(`🚫 RLS/PERMISSION ERROR: Supabase Row Level Security may be blocking delete for user ${id}`);
             return res.status(403).json({
               message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
               technicalDetails: "RLS_PERMISSION_DENIED"
@@ -4841,7 +4557,6 @@ Treasure-Home School Administration
           // Wait before retry (TRUE exponential backoff: 100ms, 200ms, 400ms)
           if (attempt < maxRetries) {
             const backoffMs = 100 * Math.pow(2, attempt - 1);
-            console.log(`⏱️ RETRY BACKOFF: Waiting ${backoffMs}ms before attempt ${attempt + 1}`);
             await new Promise(resolve => setTimeout(resolve, backoffMs));
           }
         }
@@ -4849,7 +4564,6 @@ Treasure-Home School Administration
 
       if (!deleted) {
         const errorMsg = lastError?.message || "Unknown error";
-        console.error(`❌ DELETE FAILED AFTER ${maxRetries} ATTEMPTS: ${errorMsg}`);
 
         // Provide specific error messages
         if (lastError?.cause?.code === '23503' || errorMsg.includes('foreign key')) {
@@ -4869,14 +4583,12 @@ Treasure-Home School Administration
       // Verify deletion was successful
       const verifyUser = await storage.getUser(id);
       if (verifyUser) {
-        console.error(`🚨 CRITICAL: User ${id} still exists after delete operation! Possible RLS issue.`);
         return res.status(500).json({
           message: "Delete operation completed but user still exists. This may be a database policy issue.",
           technicalDetails: "DELETE_VERIFICATION_FAILED"
         });
       }
 
-      console.log(`✅ DELETE VERIFIED: User ${id} successfully removed from database`);
 
       // PERFORMANCE: Log audit event asynchronously (non-blocking for instant response)
       storage.createAuditLog({
@@ -4894,10 +4606,8 @@ Treasure-Home School Administration
         reason: `Admin ${adminUser.email} permanently deleted user ${user.email || user.username}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
-      }).catch(err => console.error('Audit log failed (non-critical):', err));
 
       const totalTime = Date.now() - startTime;
-      console.log(`⚡ DELETE COMPLETED in ${totalTime}ms`);
 
       res.json({
         message: "User deleted successfully",
@@ -4906,8 +4616,6 @@ Treasure-Home School Administration
       });
     } catch (error: any) {
       const totalTime = Date.now() - startTime;
-      console.error(`💥 UNEXPECTED DELETE ERROR after ${totalTime}ms:`, error);
-      console.error('Error stack:', error.stack);
 
       res.status(500).json({
         message: "An unexpected error occurred while deleting user",
@@ -4944,7 +4652,6 @@ Treasure-Home School Administration
         const { generateTempPassword } = await import('./username-generator');
         generatedPassword = generateTempPassword();
         passwordToUse = generatedPassword;
-        console.log(`🔐 Auto-generated temporary password for user: ${user.username}`);
       }
 
       // Hash the password
@@ -4978,7 +4685,6 @@ Treasure-Home School Administration
         ...(generatedPassword && { temporaryPassword: generatedPassword }) // Include generated password if auto-generated
       });
     } catch (error) {
-      console.error('Error resetting password:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Invalid request data",
@@ -5049,7 +4755,6 @@ Treasure-Home School Administration
         user: safeUser
       });
     } catch (error) {
-      console.error('Error changing user role:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Invalid request data",
@@ -5089,7 +4794,6 @@ Treasure-Home School Administration
 
       res.json(enrichedLogs);
     } catch (error) {
-      console.error('Error fetching audit logs:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Invalid query parameters",
@@ -5161,7 +4865,6 @@ Treasure-Home School Administration
         temporaryPassword: password
       });
     } catch (error) {
-      console.error('User creation error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Invalid user data",
@@ -5212,7 +4915,6 @@ Treasure-Home School Administration
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
     } catch (error) {
-      console.error('User update error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Invalid user data",
@@ -5383,7 +5085,6 @@ Treasure-Home School Administration
             });
 
           } catch (error) {
-            console.error(`Error processing row ${i + 1}:`, error);
             errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         }
@@ -5398,7 +5099,6 @@ Treasure-Home School Administration
         });
 
       } catch (error) {
-        console.error('CSV upload error:', error);
         // Clean up file if it exists
         if (req.file?.path) {
           try {
@@ -5426,7 +5126,6 @@ Treasure-Home School Administration
 
         res.json(preview);
       } catch (error: any) {
-        console.error('CSV preview error:', error);
         res.status(500).json({ message: error.message || 'Failed to preview CSV' });
       }
     });
@@ -5448,7 +5147,6 @@ Treasure-Home School Administration
 
         res.json(preview);
       } catch (error: any) {
-        console.error('CSV preview error:', error);
         res.status(500).json({ message: error.message || 'Failed to preview CSV' });
       }
     });
@@ -5486,7 +5184,6 @@ Treasure-Home School Administration
           credentials: result.credentials
         });
       } catch (error: any) {
-        console.error('CSV commit error:', error);
         res.status(500).json({ message: error.message || 'Failed to import students' });
       }
     });
@@ -5535,7 +5232,6 @@ Treasure-Home School Administration
         
         res.json(enrichedStudents);
       } catch (error: any) {
-        console.error('Error fetching students:', error);
         res.status(500).json({ message: 'Failed to fetch students' });
       }
     });
@@ -5689,7 +5385,6 @@ Treasure-Home School Administration
           parentCreated: result.parentCredentials !== null
         });
       } catch (error: any) {
-        console.error('Error creating student:', error);
         
         if (error instanceof ZodError) {
           return res.status(400).json({ 
@@ -5722,7 +5417,6 @@ Treasure-Home School Administration
 
         res.json(student);
       } catch (error) {
-        console.error('Error fetching student:', error);
         res.status(500).json({ message: 'Failed to fetch student data' });
       }
     });
@@ -5740,7 +5434,6 @@ Treasure-Home School Administration
         const classes = await storage.getStudentClasses(studentId);
         res.json(classes);
       } catch (error) {
-        console.error('Error fetching student classes:', error);
         res.status(500).json({ message: 'Failed to fetch classes' });
       }
     });
@@ -5787,7 +5480,6 @@ Treasure-Home School Administration
 
         res.json(updatedStudent);
       } catch (error) {
-        console.error('Error updating student:', error);
         res.status(500).json({ message: 'Failed to update student profile' });
       }
     });
@@ -5816,14 +5508,12 @@ Treasure-Home School Administration
           return res.status(500).json({ message: 'Failed to delete student' });
         }
 
-        console.log(`✅ Student ${studentId} successfully deactivated by admin ${req.user!.email}`);
         res.json({ 
           success: true, 
           message: 'Student deleted successfully',
           studentId: studentId
         });
       } catch (error) {
-        console.error('Error deleting student:', error);
         res.status(500).json({ message: 'Failed to delete student' });
       }
     });
@@ -5853,7 +5543,6 @@ Treasure-Home School Administration
 
         // 🔧 AUTO-FIX: If profile is 100% complete but profileCompleted is NULL/false, fix it
         if (completionPercentage === 100 && !user?.profileCompleted) {
-          console.log('🔧 AUTO-FIX: Detected 100% profile but profileCompleted is false/null, fixing...');
           const updated = await storage.updateStudent(userId, {
             userPatch: {
               profileCompleted: true,
@@ -5863,7 +5552,6 @@ Treasure-Home School Administration
           });
           if (updated) {
             user = updated.user;
-            console.log('✅ AUTO-FIX: Profile completion status fixed for user:', userId);
           }
         }
 
@@ -5877,7 +5565,6 @@ Treasure-Home School Administration
 
         // 🔧 DEBUG: Log profile status for troubleshooting (dev only)
         if (process.env.NODE_ENV === 'development') {
-          console.log('📊 PROFILE STATUS CHECK:', {
             userId,
             hasProfile: status.hasProfile,
             completed: status.completed,
@@ -5890,7 +5577,6 @@ Treasure-Home School Administration
 
         res.json(status);
       } catch (error) {
-        console.error('Error checking student profile status:', error);
         res.status(500).json({ message: 'Failed to check profile status' });
       }
     });
@@ -5901,8 +5587,6 @@ Treasure-Home School Administration
         const userId = req.user!.id;
         const profileData = req.body;
 
-        console.log('📝 PROFILE SETUP: Received data for user:', userId);
-        console.log('📝 PROFILE SETUP: Profile data:', JSON.stringify(profileData, null, 2));
 
         // Extract user-level fields
         const { phone, address, dateOfBirth, gender, recoveryEmail, bloodGroup, emergencyContact, emergencyPhone, agreement, ...studentFields } = profileData;
@@ -5929,12 +5613,9 @@ Treasure-Home School Administration
         });
 
         if (!updatedStudent) {
-          console.error('❌ PROFILE SETUP: Student not found');
           return res.status(404).json({ message: 'Student not found' });
         }
 
-        console.log('✅ PROFILE SETUP: Successfully updated profile for user:', userId);
-        console.log('✅ PROFILE SETUP: Updated user data:', {
           profileCompleted: updatedStudent.user.profileCompleted,
           profileSkipped: updatedStudent.user.profileSkipped,
           profileCompletionPercentage: updatedStudent.user.profileCompletionPercentage,
@@ -5948,7 +5629,6 @@ Treasure-Home School Administration
           user: updatedStudent.user
         });
       } catch (error) {
-        console.error('❌ PROFILE SETUP ERROR:', error);
         res.status(500).json({ message: 'Failed to setup profile', error: error instanceof Error ? error.message : 'Unknown error' });
       }
     });
@@ -5974,7 +5654,6 @@ Treasure-Home School Administration
           skipped: true
         });
       } catch (error) {
-        console.error('Error skipping student profile:', error);
         res.status(500).json({ message: 'Failed to skip profile setup' });
       }
     });
@@ -5990,7 +5669,6 @@ Treasure-Home School Administration
         const vacancies = await storage.getAllVacancies(status);
         res.json(vacancies);
       } catch (error) {
-        console.error('Error fetching vacancies:', error);
         res.status(500).json({ message: 'Failed to fetch vacancies' });
       }
     });
@@ -6003,7 +5681,6 @@ Treasure-Home School Administration
         }
         res.json(vacancy);
       } catch (error) {
-        console.error('Error fetching vacancy:', error);
         res.status(500).json({ message: 'Failed to fetch vacancy' });
       }
     });
@@ -6063,7 +5740,6 @@ Treasure-Home School Administration
         if (error instanceof ZodError) {
           return res.status(400).json({ message: error.errors[0].message });
         }
-        console.error('Error submitting teacher application:', error);
         res.status(500).json({ message: 'Failed to submit application' });
       }
     });
@@ -6077,7 +5753,6 @@ Treasure-Home School Administration
         });
         res.status(201).json(vacancy);
       } catch (error) {
-        console.error('Error creating vacancy:', error);
         res.status(500).json({ message: 'Failed to create vacancy' });
       }
     });
@@ -6090,7 +5765,6 @@ Treasure-Home School Administration
         }
         res.json(vacancy);
       } catch (error) {
-        console.error('Error closing vacancy:', error);
         res.status(500).json({ message: 'Failed to close vacancy' });
       }
     });
@@ -6102,7 +5776,6 @@ Treasure-Home School Administration
         const applications = await storage.getAllTeacherApplications(status);
         res.json(applications);
       } catch (error) {
-        console.error('Error fetching teacher applications:', error);
         res.status(500).json({ message: 'Failed to fetch applications' });
       }
     });
@@ -6146,7 +5819,6 @@ Treasure-Home School Administration
           res.status(400).json({ message: 'Invalid status' });
         }
       } catch (error) {
-        console.error('Error updating application:', error);
         res.status(500).json({ message: 'Failed to update application' });
       }
     });
@@ -6157,7 +5829,6 @@ Treasure-Home School Administration
         const approvedTeachers = await storage.getAllApprovedTeachers();
         res.json(approvedTeachers);
       } catch (error) {
-        console.error('Error fetching approved teachers:', error);
         res.status(500).json({ message: 'Failed to fetch approved teachers' });
       }
     });
@@ -6172,7 +5843,6 @@ Treasure-Home School Administration
         const stats = await storage.getSuperAdminStats();
         res.json(stats);
       } catch (error) {
-        console.error('Error fetching super admin stats:', error);
         res.status(500).json({ message: 'Failed to fetch system statistics' });
       }
     });
@@ -6180,12 +5850,9 @@ Treasure-Home School Administration
     // Get all admins (Super Admin only)
     app.get('/api/superadmin/admins', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
-        console.log(`🔍 Fetching admins with roleId: ${ROLES.ADMIN}`);
         const admins = await storage.getUsersByRole(ROLES.ADMIN);
-        console.log(`✅ Found ${admins.length} admins:`, admins.map(a => ({ id: a.id, username: a.username, roleId: a.roleId })));
         res.json(admins);
       } catch (error) {
-        console.error('Error fetching admins:', error);
         res.status(500).json({ message: 'Failed to fetch administrators' });
       }
     });
@@ -6215,13 +5882,11 @@ Treasure-Home School Administration
         const username = await generateAdminUsername();
         const tempPassword = generateTempPassword();
 
-        console.log(`🔐 Auto-generating credentials for admin: ${firstName} ${lastName}`);
 
         // Hash password
         const passwordHash = await bcrypt.hash(tempPassword, 12);
 
         // Create admin user
-        console.log(`👤 Creating admin with roleId: ${ROLES.ADMIN}`);
         const newAdmin = await storage.createUser({
           username,
           email,
@@ -6238,7 +5903,6 @@ Treasure-Home School Administration
           approvedAt: new Date(),
         });
 
-        console.log(`✅ Admin user created with ID: ${newAdmin.id}, username: ${newAdmin.username}, roleId: ${newAdmin.roleId}`);
 
         // Create admin profile
         await storage.createAdminProfile({
@@ -6256,7 +5920,6 @@ Treasure-Home School Administration
           reason: `New admin created: ${username} (auto-generated credentials)`,
         });
 
-        console.log(`✅ New admin created: ${username} by ${req.user!.username}`);
 
         res.status(201).json({
           message: 'Admin created successfully with auto-generated credentials',
@@ -6274,7 +5937,6 @@ Treasure-Home School Administration
           }
         });
       } catch (error) {
-        console.error('Error creating admin:', error);
 
         // Handle Zod validation errors
         if (error instanceof z.ZodError) {
@@ -6294,7 +5956,6 @@ Treasure-Home School Administration
         const logs = await storage.getAuditLogs();
         res.json(logs);
       } catch (error) {
-        console.error('Error fetching audit logs:', error);
         res.status(500).json({ message: 'Failed to fetch audit logs' });
       }
     });
@@ -6305,7 +5966,6 @@ Treasure-Home School Administration
         const settings = await storage.getSystemSettings();
         res.json(settings);
       } catch (error) {
-        console.error('Error fetching system settings:', error);
         res.status(500).json({ message: 'Failed to fetch system settings' });
       }
     });
@@ -6326,7 +5986,6 @@ Treasure-Home School Administration
 
         res.json(settings);
       } catch (error) {
-        console.error('Error updating system settings:', error);
         res.status(500).json({ message: 'Failed to update system settings' });
       }
     });
@@ -6371,11 +6030,9 @@ Treasure-Home School Administration
           isActive: true
         });
 
-        console.log(`✅ Admin ${req.user!.email} assigned teacher ${teacher.email} to class ${classExists.name} for subject ${subjectExists.name}`);
 
         res.status(201).json(assignment);
       } catch (error) {
-        console.error('Error creating teacher assignment:', error);
         res.status(500).json({ message: "Failed to create teacher assignment" });
       }
     });
@@ -6431,7 +6088,6 @@ Treasure-Home School Administration
         // Note: This could be large, consider pagination in future
         res.json({ message: "Please specify teacherId parameter" });
       } catch (error) {
-        console.error('Error fetching teacher assignments:', error);
         res.status(500).json({ message: "Failed to fetch teacher assignments" });
       }
     });
@@ -6450,7 +6106,6 @@ Treasure-Home School Administration
 
         res.json(sanitizedTeachers);
       } catch (error) {
-        console.error('Error fetching teachers for class/subject:', error);
         res.status(500).json({ message: "Failed to fetch teachers" });
       }
     });
@@ -6493,7 +6148,6 @@ Treasure-Home School Administration
 
         res.json(Object.values(groupedByClass));
       } catch (error) {
-        console.error('Error fetching teacher assignments:', error);
         res.status(500).json({ message: "Failed to fetch teacher assignments" });
       }
     });
@@ -6510,11 +6164,9 @@ Treasure-Home School Administration
           return res.status(404).json({ message: "Assignment not found" });
         }
 
-        console.log(`✅ Admin ${req.user!.email} updated teacher assignment ${id}`);
 
         res.json(updatedAssignment);
       } catch (error) {
-        console.error('Error updating teacher assignment:', error);
         res.status(500).json({ message: "Failed to update teacher assignment" });
       }
     });
@@ -6530,11 +6182,9 @@ Treasure-Home School Administration
           return res.status(404).json({ message: "Assignment not found" });
         }
 
-        console.log(`✅ Admin ${req.user!.email} deleted teacher assignment ${id}`);
 
         res.json({ message: "Teacher assignment deleted successfully" });
       } catch (error) {
-        console.error('Error deleting teacher assignment:', error);
         res.status(500).json({ message: "Failed to delete teacher assignment" });
       }
     });
@@ -6565,7 +6215,6 @@ Treasure-Home School Administration
 
         res.json(teacherData);
       } catch (error) {
-        console.error('Error fetching teachers for subject:', error);
         res.status(500).json({ message: "Failed to fetch teachers" });
       }
     });

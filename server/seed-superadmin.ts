@@ -6,7 +6,6 @@ import { eq } from 'drizzle-orm';
 
 async function seedSuperAdmin() {
   try {
-    console.log('🔐 Starting Super Admin seed...');
 
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is not set');
@@ -34,17 +33,14 @@ async function seedSuperAdmin() {
     for (const roleData of requiredRoles) {
       const existingRole = existingRoles.find(r => r.name === roleData.name);
       if (!existingRole) {
-        console.log(`Creating ${roleData.name} role...`);
         const [newRole] = await db.insert(schema.roles).values(roleData).returning();
         if (roleData.name === 'Super Admin') {
           superAdminRole = newRole;
         }
-        console.log(`✅ ${roleData.name} role created`);
       } else {
         if (roleData.name === 'Super Admin') {
           superAdminRole = existingRole;
         }
-        console.log(`✅ ${roleData.name} role already exists`);
       }
     }
 
@@ -59,7 +55,6 @@ async function seedSuperAdmin() {
       .limit(1);
 
     if (existingSuperAdmin.length === 0) {
-      console.log('Creating default Super Admin user...');
       
       // Hash the default password only when creating new user
       const passwordHash = await bcrypt.hash('Temp@123', 12);
@@ -86,19 +81,13 @@ async function seedSuperAdmin() {
         department: 'System Administration',
       });
 
-      console.log('✅ Default Super Admin created');
-      console.log('   Username: superadmin');
-      console.log('   ⚠️  IMPORTANT: Default password has been set. Please login and change it immediately!');
-      console.log('   ⚠️  Check your secure documentation or contact the system administrator for the initial password.');
     } else {
-      console.log('✅ Super Admin user already exists');
     }
 
     // 3. Initialize system settings if not exists (optional - skip if table doesn't exist)
     try {
       const existingSettings = await db.select().from(schema.systemSettings).limit(1);
       if (existingSettings.length === 0) {
-        console.log('Creating initial system settings...');
         await db.insert(schema.systemSettings).values({
           schoolName: 'Treasure-Home School',
           schoolMotto: 'HONESTY AND SUCCESS',
@@ -108,17 +97,13 @@ async function seedSuperAdmin() {
           maintenanceMode: false,
           themeColor: 'blue',
         });
-        console.log('✅ System settings initialized');
       }
     } catch (settingsError) {
       // Silently skip if system_settings table doesn't exist - it's optional
-      console.log('ℹ️  System settings table not found - skipping (optional feature)');
     }
 
-    console.log('🎉 Super Admin seed completed successfully!');
     await pg.end();
   } catch (error) {
-    console.error('❌ Error seeding Super Admin:', error);
     throw error;
   }
 }
@@ -128,7 +113,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   seedSuperAdmin()
     .then(() => process.exit(0))
     .catch((error) => {
-      console.error(error);
       process.exit(1);
     });
 }

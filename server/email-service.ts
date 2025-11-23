@@ -13,10 +13,6 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
   try {
     // In development without API key, just log
     if (!process.env.RESEND_API_KEY) {
-      console.log('\n📧 EMAIL (Development Mode - No API Key):');
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Body: ${html}\n`);
       return true;
     }
 
@@ -28,14 +24,11 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
     });
 
     if (error) {
-      console.error('❌ Email sending failed:', error);
       return false;
     }
 
-    console.log('✅ Email sent successfully:', data?.id);
     return true;
   } catch (error) {
-    console.error('❌ Email service error:', error);
     return false;
   }
 }

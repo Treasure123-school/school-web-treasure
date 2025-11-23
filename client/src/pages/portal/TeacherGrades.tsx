@@ -167,7 +167,6 @@ export default function TeacherGrades() {
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/grading/stats');
       if (!response.ok) {
-        console.warn('Failed to fetch grading stats - feature may not be fully configured');
         return { pendingTasks: 0, gradedToday: 0, avgTimePerTask: 0 };
       }
       return response.json();
@@ -180,7 +179,6 @@ export default function TeacherGrades() {
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/grading/tasks?status=pending&limit=100');
       if (!response.ok) {
-        console.warn('Failed to fetch grading tasks - feature may not be fully configured');
         return [];
       }
       return response.json();

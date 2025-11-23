@@ -20,15 +20,11 @@ export function RealtimeHealthMonitor() {
 
   const handleRunTests = () => {
     setIsRunningTests(true);
-    console.log('🧪 Running realtime fallback tests...');
-    console.log('📝 Open browser console to see detailed test results');
     
     try {
       const results = runFallbackTestSuite();
-      console.log('✅ Test suite completed:', results);
       alert(`Test suite completed!\n\n${results.passed}/${results.total} tests passed (${results.passRate}%)\n\nCheck the browser console for detailed results.`);
     } catch (error) {
-      console.error('❌ Test suite failed:', error);
       alert('Test suite encountered an error. Check the browser console for details.');
     } finally {
       setIsRunningTests(false);

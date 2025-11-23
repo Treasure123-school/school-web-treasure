@@ -8,7 +8,6 @@ import bcrypt from 'bcrypt';
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
-  console.error('❌ DATABASE_URL not set');
   process.exit(1);
 }
 
@@ -19,24 +18,19 @@ async function restoreSuperAdmin() {
   });
 
   try {
-    console.log('🔐 Restoring Super Admin...\n');
 
     // Check if Super Admin role exists
     const roles = await sql`SELECT id, name FROM roles WHERE id = 0`;
     
     if (roles.length === 0) {
-      console.log('Creating Super Admin role...');
       await sql`INSERT INTO roles (id, name, permissions) VALUES (0, 'Super Admin', ARRAY['*'])`;
-      console.log('✅ Super Admin role created');
     } else {
-      console.log('✅ Super Admin role exists');
     }
 
     // Check if super admin user exists
     const existing = await sql`SELECT id, username FROM users WHERE username = 'superadmin'`;
     
     if (existing.length > 0) {
-      console.log('✅ Super Admin user already exists');
       await sql.end();
       process.exit(0);
     }
@@ -69,16 +63,10 @@ async function restoreSuperAdmin() {
       )
     `;
 
-    console.log('✅ Super Admin user created');
-    console.log('\nLogin credentials:');
-    console.log('   Username: superadmin');
-    console.log('   Password: Temp@123');
-    console.log('   (You will be prompted to change this on first login)');
 
     await sql.end();
     process.exit(0);
   } catch (error: any) {
-    console.error('❌ Error:', error.message);
     await sql.end();
     process.exit(1);
   }

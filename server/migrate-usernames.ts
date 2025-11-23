@@ -60,7 +60,6 @@ function extractSequenceNumber(username: string): number {
  * Initialize counters for all roles
  */
 async function initializeCounters(): Promise<void> {
-  console.log('\n🔧 Initializing role-based counters...');
   
   for (const [roleId, roleCode] of Object.entries(ROLE_CODES)) {
     try {
@@ -72,9 +71,7 @@ async function initializeCounters(): Promise<void> {
         })
         .onConflictDoNothing();
       
-      console.log(`   ✅ Initialized counter for ${roleCode}`);
     } catch (error) {
-      console.log(`   ℹ️  Counter already exists for ${roleCode}`);
     }
   }
 }
@@ -99,9 +96,6 @@ async function getNextSequence(roleCode: string): Promise<number> {
  * Main migration function
  */
 async function migrateUsernames(): Promise<void> {
-  console.log('\n╔════════════════════════════════════════════════════════════╗');
-  console.log('║  USERNAME MIGRATION: Old Format → New Simplified Format   ║');
-  console.log('╚════════════════════════════════════════════════════════════╝\n');
 
   const stats: MigrationStats = {
     total: 0,
@@ -121,10 +115,8 @@ async function migrateUsernames(): Promise<void> {
     await initializeCounters();
 
     // Get all users
-    console.log('\n📊 Fetching all users...');
     const allUsers = await db.select().from(users);
     stats.total = allUsers.length;
-    console.log(`   Found ${stats.total} users\n`);
 
     // Group users by role
     const usersByRole: Record<string, typeof allUsers> = {
@@ -145,20 +137,17 @@ async function migrateUsernames(): Promise<void> {
     for (const [roleCode, roleUsers] of Object.entries(usersByRole)) {
       if (roleUsers.length === 0) continue;
 
-      console.log(`\n🔄 Processing ${roleCode} users (${roleUsers.length})...`);
 
       for (const user of roleUsers) {
         const oldUsername = user.username;
         
         if (!oldUsername) {
-          console.log(`   ⚠️  User ${user.id} has no username, skipping...`);
           stats.skipped++;
           continue;
         }
 
         // Check if already in new format
         if (!isOldFormat(oldUsername)) {
-          console.log(`   ℹ️  ${oldUsername} already in new format, skipping...`);
           stats.skipped++;
           continue;
         }
@@ -174,7 +163,6 @@ async function migrateUsernames(): Promise<void> {
             .set({ username: newUsername, updatedAt: new Date() })
             .where(eq(users.id, user.id));
 
-          console.log(`   ✅ ${oldUsername} → ${newUsername}`);
           stats.migrated++;
 
           // Update role-specific stats
@@ -184,35 +172,18 @@ async function migrateUsernames(): Promise<void> {
           else if (roleCode === 'ADM') stats.details.admins++;
 
         } catch (error) {
-          console.error(`   ❌ Error migrating ${oldUsername}:`, error);
           stats.errors++;
         }
       }
     }
 
     // Print summary
-    console.log('\n╔════════════════════════════════════════════════════════════╗');
-    console.log('║                    MIGRATION SUMMARY                       ║');
-    console.log('╚════════════════════════════════════════════════════════════╝');
-    console.log(`\n   📊 Total Users:      ${stats.total}`);
-    console.log(`   ✅ Migrated:         ${stats.migrated}`);
-    console.log(`   ⏭️  Skipped:          ${stats.skipped}`);
-    console.log(`   ❌ Errors:           ${stats.errors}`);
-    console.log('\n   By Role:');
-    console.log(`      - Students:       ${stats.details.students}`);
-    console.log(`      - Parents:        ${stats.details.parents}`);
-    console.log(`      - Teachers:       ${stats.details.teachers}`);
-    console.log(`      - Admins:         ${stats.details.admins}`);
     
     if (stats.migrated > 0) {
-      console.log('\n   ✨ Migration completed successfully!');
     } else {
-      console.log('\n   ℹ️  No usernames needed migration.');
     }
-    console.log('');
 
   } catch (error) {
-    console.error('\n❌ MIGRATION FAILED:', error);
     throw error;
   }
 }
@@ -221,11 +192,9 @@ async function migrateUsernames(): Promise<void> {
 if (import.meta.url === `file://${process.argv[1]}`) {
   migrateUsernames()
     .then(() => {
-      console.log('✅ Migration script completed.');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Migration script failed:', error);
       process.exit(1);
     });
 }

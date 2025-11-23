@@ -77,7 +77,6 @@ class CircuitBreaker {
     this.failures = 0;
     this.lastFailureTime = 0;
     this.state = 'CLOSED';
-    console.log('🔄 Circuit breaker manually reset - retries enabled');
   }
 }
 
@@ -246,7 +245,6 @@ export async function apiRequest(
       return errorResponse;
     }
   } catch (error: any) {
-    console.error('API Request failed:', error);
     
     // Handle specific error types
     let errorMessage = 'Network connection failed. Please check your internet connection and try again.';

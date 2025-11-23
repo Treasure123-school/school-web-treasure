@@ -40,7 +40,6 @@ function StudentGradesContent({ user }: { user: any }) {
         }
         return response.json();
       } catch (error) {
-        console.error('Error fetching exam results:', error);
         throw error;
       }
     }

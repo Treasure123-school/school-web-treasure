@@ -276,7 +276,6 @@ export async function commitCSVImport(
         successCount++;
       });
     } catch (error) {
-      console.error(`Failed to import row ${item.row}:`, error);
       failedRows.push(item.row);
     }
   }

@@ -61,17 +61,13 @@ export async function seedSystemSettings() {
         hideAdminAccountsFromAdmins: true,
       });
 
-      console.log("✅ Default system settings created");
     } else {
-      console.log("ℹ️  System settings already exist");
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     // If it's just a "table already exists" error, that's fine
     if (errorMessage.includes("already exists") || errorMessage.includes("42P07")) {
-      console.log("ℹ️  System settings table already exists");
     } else {
-      console.error(`⚠️  System settings seeding error: ${errorMessage}`);
       throw error;
     }
   }

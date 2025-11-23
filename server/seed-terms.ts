@@ -5,12 +5,10 @@ import { eq } from 'drizzle-orm';
 
 export async function seedAcademicTerms() {
   try {
-    console.log('🎓 Checking for academic terms...');
     
     const existingTerms = await db.select().from(academicTerms);
     
     if (existingTerms.length === 0) {
-      console.log('📚 No terms found. Creating default academic terms...');
       
       const currentYear = new Date().getFullYear();
       const nextYear = currentYear + 1;
@@ -42,15 +40,11 @@ export async function seedAcademicTerms() {
       
       for (const term of defaultTerms) {
         await db.insert(academicTerms).values(term);
-        console.log(`✅ Created term: ${term.name} (${term.year})`);
       }
       
-      console.log('🎓 Academic terms seeded successfully!');
     } else {
-      console.log(`✅ Found ${existingTerms.length} existing academic terms`);
     }
   } catch (error) {
-    console.error('❌ Failed to seed academic terms:', error);
     throw error;
   }
 }

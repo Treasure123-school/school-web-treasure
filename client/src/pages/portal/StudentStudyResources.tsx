@@ -115,7 +115,6 @@ function StudentStudyResourcesContent({ user }: { user: any }) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Download error:', error);
     }
   };
 

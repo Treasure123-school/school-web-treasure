@@ -309,7 +309,6 @@ export default function UserManagement() {
       return { previousUsers, previousPendingUsers };
     },
     onSuccess: async (data: any, userId) => {
-      console.log(`✅ User ${userId} deleted successfully. Forcing cache refresh...`);
 
       // AGGRESSIVE REFETCH: Force immediate background refetch for guaranteed consistency
       await Promise.all([
@@ -329,7 +328,6 @@ export default function UserManagement() {
       setActionType(null);
     },
     onError: (error: any, userId: string, context: any) => {
-      console.error(`❌ Failed to delete user ${userId}:`, error);
 
       setDeletingUserId(null); // Clear deleting state
 
@@ -343,7 +341,6 @@ export default function UserManagement() {
 
       // If user was already deleted (404), treat as success and clear cache
       if (error.message?.includes('not found') || error.message?.includes('404')) {
-        console.log(`⚠️ User ${userId} already deleted. Forcing cache refresh...`);
 
         // Force immediate refetch to get accurate state
         queryClient.invalidateQueries({ queryKey: ['/api/users'], refetchType: 'active' });
@@ -946,7 +943,6 @@ export default function UserManagement() {
               variant="destructive"
               onClick={() => {
                 if (selectedUser) {
-                  console.log(`🗑️ Confirm delete clicked for user ${selectedUser.id}`);
                   deleteUserMutation.mutate(selectedUser.id);
                 }
               }}

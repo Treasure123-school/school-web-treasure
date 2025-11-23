@@ -63,7 +63,6 @@ export function ProfessionalReportCard({
 
   const handleExportExcel = () => {
     // Excel export logic would go here
-    console.log('Export to Excel');
   };
 
   return (

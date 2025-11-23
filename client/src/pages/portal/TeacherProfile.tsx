@@ -140,10 +140,6 @@ export default function TeacherProfile() {
   // Initialize form data when teacher profile loads - ALL DATA IS IN teacherProfile
   React.useEffect(() => {
     if (teacherProfile) {
-      console.log('🔄 Initializing complete personal data from teacherProfile');
-      console.log('  - teacherProfile data:', teacherProfile);
-      console.log('  - nationalId:', teacherProfile.nationalId);
-      console.log('  - profileImageUrl:', teacherProfile.profileImageUrl);
 
       // teacherProfile from /api/teacher/profile/me already has everything merged (user + profile)
       // Use ONLY teacherProfile data, no fallbacks to avoid overwriting
@@ -160,9 +156,6 @@ export default function TeacherProfile() {
         profileImageUrl: teacherProfile.profileImageUrl || ''
       };
 
-      console.log('✅ Setting complete personal data:', newProfileData);
-      console.log('  - National ID in state:', newProfileData.nationalId);
-      console.log('  - Profile Image in state:', newProfileData.profileImageUrl);
       setProfileData(newProfileData);
     }
   }, [teacherProfile]); // Remove 'user' from dependencies to prevent re-initialization
@@ -170,7 +163,6 @@ export default function TeacherProfile() {
   // Initialize professional data when teacher profile loads
   React.useEffect(() => {
     if (teacherProfile) {
-      console.log('🔄 Initializing professional data from profile:', teacherProfile);
 
       // Handle subjects - ensure it's always an array
       const subjectsArray = Array.isArray(teacherProfile.subjects) 
@@ -196,7 +188,6 @@ export default function TeacherProfile() {
         signatureUrl: teacherProfile.signatureUrl || ''
       };
 
-      console.log('✅ Setting professional data:', newProfessionalData);
       setProfessionalData(newProfessionalData);
     }
   }, [teacherProfile]);
@@ -214,7 +205,6 @@ export default function TeacherProfile() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      console.log('🔍 DEBUG - Save triggered:', {
         hasProfileImageFile: !!profileImageFile,
         profileImageFileName: profileImageFile?.name,
         hasSignatureFile: !!signatureFile,
@@ -226,13 +216,11 @@ export default function TeacherProfile() {
 
       // Add profile image if changed
       if (profileImageFile) {
-        console.log('📸 Adding profile image to FormData:', profileImageFile.name);
         formData.append('profileImage', profileImageFile);
       }
 
       // Add signature if changed
       if (signatureFile) {
-        console.log('✍️ Adding signature to FormData:', signatureFile.name);
         formData.append('signature', signatureFile);
       }
 
@@ -301,7 +289,6 @@ export default function TeacherProfile() {
       await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
 
     } catch (error) {
-      console.error('Failed to update profile:', error);
       toast({
         title: "❌ Update Failed",
         description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
@@ -337,11 +324,9 @@ export default function TeacherProfile() {
   }
 
   if (teacherError) {
-    console.error('Teacher data error:', teacherError);
   }
 
   // Debug: Log current state with detailed info
-  console.log('📊 Profile render state:', {
     hasTeacher: !!teacher,
     hasTeacherProfile: !!teacherProfile,
     profileDataState: profileData,

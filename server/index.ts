@@ -64,8 +64,6 @@ const corsOptions = {
       callback(null, true);
     } else {
       // Log rejected origins to help debug CORS issues
-      console.warn(`⚠️ CORS: Rejected origin: ${origin}`);
-      console.warn(`   Allowed origins:`, allowedOrigins);
       callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
@@ -212,13 +210,10 @@ function sanitizeLogData(data: any): any {
       log(`ℹ️ Migrations already applied: ${errorMessage}`);
     } else {
       // This is a real migration error - log it prominently but still continue
-      console.error(`🚨 MIGRATION ERROR: ${errorMessage}`);
-      console.error(error);
       log(`⚠️ Migration failed: ${errorMessage}`);
 
       // In production, we might want to fail fast on real migration errors
       if (process.env.NODE_ENV === 'production') {
-        console.error('Production migration failure detected. Review required.');
         // Uncomment the next line if you want to fail fast in production:
         // process.exit(1);
       }
@@ -248,8 +243,6 @@ function sanitizeLogData(data: any): any {
     log("✅ Academic terms seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`🚨 ACADEMIC TERMS SEEDING ERROR: ${errorMessage}`);
-    console.error(error);
     log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
   }
 
@@ -261,8 +254,6 @@ function sanitizeLogData(data: any): any {
     log("✅ System settings seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`🚨 SYSTEM SETTINGS SEEDING ERROR: ${errorMessage}`);
-    console.error(error);
     log(`⚠️ System settings seeding failed: ${errorMessage}`);
   }
 
@@ -274,8 +265,6 @@ function sanitizeLogData(data: any): any {
     log("✅ Super admin seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`🚨 SUPER ADMIN SEEDING ERROR: ${errorMessage}`);
-    console.error(error);
     log(`⚠️ Super admin seeding failed: ${errorMessage}`);
   }
 
@@ -283,14 +272,8 @@ function sanitizeLogData(data: any): any {
   if (isProduction) {
     const { isSupabaseStorageEnabled } = await import("./supabase-storage");
     if (!isSupabaseStorageEnabled()) {
-      console.error('\n🚨 PRODUCTION CRITICAL ERROR: Supabase Storage is NOT configured!');
-      console.error('   → Image uploads will FAIL without SUPABASE_URL and SUPABASE_SERVICE_KEY');
-      console.error('   → Set these environment variables in your deployment platform (Render/Vercel/etc)');
-      console.error('   → Get credentials from: Supabase Dashboard → Project Settings → API');
-      console.error('   → Use the service_role key, NOT the anon key\n');
       
       // Fail fast in production to prevent silent upload failures
-      console.error('   → Exiting to prevent production deployment with broken uploads...\n');
       process.exit(1);
     }
     log("✅ Supabase Storage verified for production deployment");
@@ -329,7 +312,6 @@ function sanitizeLogData(data: any): any {
     const message = err.message || "Internal Server Error";
 
     log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
-    console.error(err.stack);
 
     if (!res.headersSent) {
       res.status(status).json({ message });

@@ -206,7 +206,6 @@ export default function TeacherDashboard() {
         throw new Error(errorData.message || 'Failed to fetch profile');
       }
       const data = await response.json();
-      console.log('📊 Profile data received:', {
         hasData: !!data,
         department: data?.department,
         subjects: data?.subjects,
@@ -225,7 +224,6 @@ export default function TeacherDashboard() {
   // Show profile completion banner if incomplete, but don't redirect
   useEffect(() => {
     if (!statusLoading && profileStatus) {
-      console.log('✅ Teacher dashboard access granted:', {
         hasProfile: profileStatus.hasProfile,
         verified: profileStatus.verified,
         profileLoading,
@@ -238,7 +236,6 @@ export default function TeacherDashboard() {
   // Debug: Log profile data when it changes
   useEffect(() => {
     if (teacherProfile) {
-      console.log('📋 TeacherProfile data structure:', {
         department: teacherProfile.department,
         subjects: teacherProfile.subjects,
         assignedClasses: teacherProfile.assignedClasses,
@@ -375,7 +372,6 @@ export default function TeacherDashboard() {
               </p>
               {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  {console.log('🎨 Rendering badges:', {
                     hasProfile: !!teacherProfile,
                     subjects: teacherProfile.subjects,
                     classes: teacherProfile.assignedClasses,
@@ -388,7 +384,6 @@ export default function TeacherDashboard() {
                     <>
                       {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
                         const subject = subjects.find((s: any) => s.id === subjectId);
-                        console.log(`🔍 Subject ${subjectId}:`, subject);
                         return subject ? (
                           <span key={`subject-${subjectId}-${idx}`} className="px-2 py-1 bg-white/20 rounded-full text-xs">
                             {subject.name}
@@ -408,7 +403,6 @@ export default function TeacherDashboard() {
                     <>
                       {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
                         const classObj = classes.find((c: any) => c.id === classId);
-                        console.log(`🔍 Class ${classId}:`, classObj);
                         return classObj ? (
                           <span key={`class-${classId}-${idx}`} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
                             {classObj.name}

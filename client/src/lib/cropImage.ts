@@ -2,11 +2,9 @@ export const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.addEventListener('load', () => {
-      console.log('✅ Image loaded successfully');
       resolve(image);
     });
     image.addEventListener('error', (error) => {
-      console.error('❌ Image loading failed:', error);
       reject(new Error('Failed to load image'));
     });
     
@@ -24,10 +22,8 @@ export async function getCroppedImg(
   pixelCrop: { x: number; y: number; width: number; height: number },
   rotation = 0
 ): Promise<Blob> {
-  console.log('🔄 Starting crop with params:', { pixelCrop, rotation });
   
   const image = await createImage(imageSrc);
-  console.log('✅ Image loaded:', image.width, 'x', image.height);
   
   const rotatedCanvas = document.createElement('canvas');
   const rotatedCtx = rotatedCanvas.getContext('2d', { willReadFrequently: true });
@@ -63,7 +59,6 @@ export async function getCroppedImg(
   const width = Math.max(1, Math.min(Math.floor(pixelCrop.width), safeArea));
   const height = Math.max(1, Math.min(Math.floor(pixelCrop.height), safeArea));
   
-  console.log('📐 Crop dimensions:', width, 'x', height);
   
   croppedCanvas.width = width;
   croppedCanvas.height = height;
@@ -71,7 +66,6 @@ export async function getCroppedImg(
   const offsetX = safeArea / 2 - image.width * 0.5 + pixelCrop.x;
   const offsetY = safeArea / 2 - image.height * 0.5 + pixelCrop.y;
 
-  console.log('📍 Drawing at offset:', { offsetX, offsetY });
 
   croppedCtx.drawImage(
     rotatedCanvas,
@@ -90,10 +84,8 @@ export async function getCroppedImg(
       croppedCanvas.toBlob(
         (blob) => {
           if (blob && blob.size > 0) {
-            console.log('✅ Crop successful - blob created:', blob.size, 'bytes');
             resolve(blob);
           } else {
-            console.error('❌ Crop failed - empty blob or null');
             reject(new Error('Failed to create image blob - canvas may be empty'));
           }
         },
@@ -101,7 +93,6 @@ export async function getCroppedImg(
         0.95
       );
     } catch (error) {
-      console.error('❌ toBlob error:', error);
       reject(error);
     }
   });

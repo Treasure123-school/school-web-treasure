@@ -89,7 +89,6 @@ export function validateEnvironment(exitOnError = false): ValidationResult {
     passed: []
   };
 
-  console.log('\n🔍 Validating Environment Variables...\n');
 
   ENV_VARS.forEach((config) => {
     const value = process.env[config.name];
@@ -99,15 +98,10 @@ export function validateEnvironment(exitOnError = false): ValidationResult {
     if (!value) {
       if (isRequired) {
         result.missing.push(config.name);
-        console.error(`❌ MISSING (${config.required.toUpperCase()}): ${config.name}`);
-        console.error(`   ${config.description}`);
         if (config.suggestion) {
-          console.error(`   Suggestion: ${config.suggestion}`);
         }
       } else if (config.required === 'optional') {
         result.warnings.push(config.name);
-        console.warn(`⚠️  OPTIONAL: ${config.name} not set`);
-        console.warn(`   ${config.description}`);
       }
       return;
     }
@@ -115,10 +109,7 @@ export function validateEnvironment(exitOnError = false): ValidationResult {
     // Check if invalid format
     if (config.validateFn && !config.validateFn(value)) {
       result.invalid.push(config.name);
-      console.error(`❌ INVALID: ${config.name}`);
-      console.error(`   ${config.description}`);
       if (config.suggestion) {
-        console.error(`   Expected format: ${config.suggestion}`);
       }
       return;
     }
@@ -128,28 +119,18 @@ export function validateEnvironment(exitOnError = false): ValidationResult {
     const displayValue = config.name.includes('SECRET') || config.name.includes('KEY') || config.name.includes('PASSWORD')
       ? '***' + value.slice(-4)
       : value.slice(0, 50) + (value.length > 50 ? '...' : '');
-    console.log(`✅ ${config.name}: ${displayValue}`);
   });
 
   // Summary
-  console.log('\n📊 Validation Summary:');
-  console.log(`   ✅ Passed: ${result.passed.length}`);
-  console.log(`   ❌ Missing: ${result.missing.length}`);
-  console.log(`   ❌ Invalid: ${result.invalid.length}`);
-  console.log(`   ⚠️  Warnings: ${result.warnings.length}`);
 
   const hasErrors = result.missing.length > 0 || result.invalid.length > 0;
 
   if (hasErrors) {
-    console.error('\n🚨 CRITICAL: Missing or invalid environment variables detected!');
-    console.error('   Fix these issues before deploying to production.\n');
     
     if (isProduction && exitOnError) {
-      console.error('   Exiting due to production environment validation failure...\n');
       process.exit(1);
     }
   } else {
-    console.log('\n✅ All required environment variables are properly configured!\n');
   }
 
   return result;

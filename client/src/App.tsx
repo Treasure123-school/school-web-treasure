@@ -80,7 +80,6 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { isEnabled, tableCount } = useGlobalRealtime();
   
   if (isEnabled && tableCount > 0) {
-    console.log(`🔴 Global Supabase Realtime active: ${tableCount} tables monitored`);
   }
   
   return <>{children}</>;

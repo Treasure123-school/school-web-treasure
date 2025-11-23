@@ -22,7 +22,6 @@ let db: any;
 
 function initializeDatabase() {
   if (!pg && process.env.DATABASE_URL) {
-    console.log("🔗 CONNECTING TO POSTGRESQL DATABASE:", process.env.DATABASE_URL.replace(/:[^:]*@/, ':***@'));
 
     // Enhanced connection pool configuration for optimal performance
     const connectionConfig = {
@@ -40,23 +39,19 @@ function initializeDatabase() {
         // Only log queries if they contain error indicators or are long-running
         const queryString = typeof query === 'string' ? query : query?.text || String(query);
         if (queryString?.includes('ERROR') || queryString?.includes('TIMEOUT')) {
-          console.warn(`🔍 Database Debug - Query: ${queryString.slice(0, 100)}...`);
         }
       } : false,
 
       // Connection health checks
       onnotice: (notice: any) => {
         if (notice.severity === 'WARNING' || notice.severity === 'ERROR') {
-          console.warn(`📊 Database Notice [${notice.severity}]: ${notice.message}`);
         }
       },
 
       // Connection parameter logging
       onparameter: (key: string, value: any) => {
         if (key === 'server_version') {
-          console.log(`🗄️ Connected to PostgreSQL version: ${value}`);
         } else if (key === 'application_name') {
-          console.log(`📱 Application name set: ${value}`);
         }
       },
 
@@ -68,17 +63,13 @@ function initializeDatabase() {
           await connection.query('SET statement_timeout = $1', ['60s']);
           await connection.query('SET lock_timeout = $1', ['30s']);
         } catch (error) {
-          console.warn('⚠️ Failed to set connection parameters:', error);
         }
       }
     };
 
     pg = postgres(process.env.DATABASE_URL, connectionConfig);
     db = drizzle(pg, { schema });
-    console.log("✅ POSTGRESQL DATABASE CONNECTION ESTABLISHED");
-    console.log(`📊 Connection Pool: max=${connectionConfig.max}, idle_timeout=${connectionConfig.idle_timeout}s`);
   } else if (!process.env.DATABASE_URL) {
-    console.log("⚠️  WARNING: DATABASE_URL not set - falling back to memory storage");
   }
   return { pg, db };
 }
@@ -521,7 +512,6 @@ function normalizeUuid(raw: any): string | undefined {
     return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
   }
 
-  console.warn('Failed to normalize UUID:', raw);
   return undefined;
 }
 
@@ -683,7 +673,6 @@ export class DatabaseStorage implements IStorage {
       // Handle missing column errors by filtering out non-existent fields
       if (error?.cause?.code === '42703') {
         const missingColumn = error?.cause?.message?.match(/column "(\w+)" does not exist/)?.[1];
-        console.warn(`⚠️ Column "${missingColumn}" does not exist, retrying without it`);
 
         // Remove the problematic field and retry
         const { [missingColumn]: removed, ...safeUser } = user as any;
@@ -710,49 +699,40 @@ export class DatabaseStorage implements IStorage {
       // CRITICAL FIX: Manual cascade delete due to foreign key constraints
       // We must delete in correct order to avoid constraint violations
       
-      console.log(`🗑️ Starting cascade delete for user ${id}...`);
       
       // 1. Delete teacher profile first (has foreign key to users)
       await this.db.delete(schema.teacherProfiles)
         .where(eq(schema.teacherProfiles.userId, id));
-      console.log(`✅ Deleted teacher profile for user ${id}`);
       
       // 2. Delete admin profile
       await this.db.delete(schema.adminProfiles)
         .where(eq(schema.adminProfiles.userId, id));
-      console.log(`✅ Deleted admin profile for user ${id}`);
       
       // 3. Delete parent profile
       await this.db.delete(schema.parentProfiles)
         .where(eq(schema.parentProfiles.userId, id));
-      console.log(`✅ Deleted parent profile for user ${id}`);
       
       // 4. Delete password reset tokens
       await this.db.delete(schema.passwordResetTokens)
         .where(eq(schema.passwordResetTokens.userId, id));
-      console.log(`✅ Deleted password reset tokens for user ${id}`);
       
       // 5. Delete invites (if user was invited)
       await this.db.delete(schema.invites)
         .where(eq(schema.invites.acceptedBy, id));
-      console.log(`✅ Deleted invites for user ${id}`);
       
       // 6. Delete notifications
       await this.db.delete(schema.notifications)
         .where(eq(schema.notifications.userId, id));
-      console.log(`✅ Deleted notifications for user ${id}`);
       
       // 7. Delete teacher class assignments (if table exists)
       try {
         if (schema.teacherClassAssignments) {
           await this.db.delete(schema.teacherClassAssignments)
             .where(eq(schema.teacherClassAssignments.teacherId, id));
-          console.log(`✅ Deleted teacher assignments for user ${id}`);
         }
       } catch (assignmentError: any) {
         // Table might not exist yet, skip it
         if (assignmentError?.cause?.code === '42P01') {
-          console.log(`⚠️ Skipped teacher_class_assignments (table doesn't exist)`);
         } else {
           throw assignmentError;
         }
@@ -769,44 +749,36 @@ export class DatabaseStorage implements IStorage {
         // Delete student answers
         await this.db.delete(schema.studentAnswers)
           .where(inArray(schema.studentAnswers.sessionId, sessionIds));
-        console.log(`✅ Deleted student answers for user ${id}`);
         
         // Delete exam sessions
         await this.db.delete(schema.examSessions)
           .where(inArray(schema.examSessions.id, sessionIds));
-        console.log(`✅ Deleted exam sessions for user ${id}`);
       }
       
       // 9. Delete exam results
       await this.db.delete(schema.examResults)
         .where(eq(schema.examResults.studentId, id));
-      console.log(`✅ Deleted exam results for user ${id}`);
       
       // 10. Delete attendance records
       await this.db.delete(schema.attendance)
         .where(eq(schema.attendance.studentId, id));
-      console.log(`✅ Deleted attendance records for user ${id}`);
       
       // 11. Update students who have this user as a parent (set parent_id to null)
       await this.db.update(schema.students)
         .set({ parentId: null })
         .where(eq(schema.students.parentId, id));
-      console.log(`✅ Unlinked parent relationship for user ${id}`);
       
       // 12. Delete student record if exists
       await this.db.delete(schema.students)
         .where(eq(schema.students.id, id));
-      console.log(`✅ Deleted student record for user ${id}`);
       
       // 13. Finally, delete the user
       const result = await this.db.delete(schema.users)
         .where(eq(schema.users.id, id))
         .returning();
       
-      console.log(`✅ Successfully deleted user ${id} and all related records`);
       return result.length > 0;
     } catch (error) {
-      console.error(`❌ Error deleting user ${id}:`, error);
       throw error;
     }
   }
@@ -909,7 +881,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserStatus(userId: string, status: string, updatedBy: string, reason?: string): Promise<User> {
-    console.log(`🔄 UPDATE USER STATUS CALLED: User ID: ${userId}, New Status: ${status}, Updated By: ${updatedBy}`);
     // Only set approvedBy/approvedAt for actual approvals (status='active')
     // For other status changes (reject/suspend/disable), only update status
     const updates: any = { status };
@@ -919,12 +890,10 @@ export class DatabaseStorage implements IStorage {
       updates.approvedAt = new Date();
     }
 
-    console.log(`🔄 UPDATE USER STATUS: About to update with:`, updates);
     const result = await this.db.update(schema.users)
       .set(updates)
       .where(eq(schema.users.id, userId))
       .returning();
-    console.log(`🔄 UPDATE USER STATUS RESULT: Updated ${result.length} user record(s)`, result[0]);
 
     const user = result[0];
     if (user && user.id) {
@@ -1292,7 +1261,6 @@ export class DatabaseStorage implements IStorage {
 
         return userResult.length > 0;
       } catch (error) {
-        console.error('Error in hard delete transaction:', error);
         throw error;
       }
     });
@@ -1402,10 +1370,8 @@ export class DatabaseStorage implements IStorage {
   async getAcademicTerms(): Promise<AcademicTerm[]> {
     try {
       const terms = await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
-      console.log(`📅 Retrieved ${terms.length} academic terms from database`);
       return terms;
     } catch (error) {
-      console.error('❌ Error fetching academic terms:', error);
       throw error;
     }
   }
@@ -1415,7 +1381,6 @@ export class DatabaseStorage implements IStorage {
       const result = await db.select().from(schema.academicTerms).where(eq(schema.academicTerms.id, id)).limit(1);
       return result[0];
     } catch (error) {
-      console.error(`❌ Error fetching academic term ${id}:`, error);
       throw error;
     }
   }
@@ -1423,10 +1388,8 @@ export class DatabaseStorage implements IStorage {
   async createAcademicTerm(term: any): Promise<AcademicTerm> {
     try {
       const result = await db.insert(schema.academicTerms).values(term).returning();
-      console.log(`✅ Created academic term: ${result[0].name} (${result[0].year})`);
       return result[0];
     } catch (error) {
-      console.error('❌ Error creating academic term:', error);
       throw error;
     }
   }
@@ -1435,18 +1398,15 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db.update(schema.academicTerms).set(term).where(eq(schema.academicTerms.id, id)).returning();
       if (result[0]) {
-        console.log(`✅ Updated academic term: ${result[0].name} (${result[0].year})`);
       }
       return result[0];
     } catch (error) {
-      console.error(`❌ Error updating academic term ${id}:`, error);
       throw error;
     }
   }
 
   async deleteAcademicTerm(id: number): Promise<boolean> {
     try {
-      console.log(`🗑️ Attempting to delete academic term ${id}...`);
       
       // First check if the term exists
       const existingTerm = await db.select().from(schema.academicTerms)
@@ -1454,11 +1414,9 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       
       if (!existingTerm || existingTerm.length === 0) {
-        console.error(`❌ Term ${id} not found in database`);
         return false;
       }
       
-      console.log(`📋 Found term to delete: ${existingTerm[0].name} (${existingTerm[0].year})`);
       
       // Check for foreign key constraints - exams using this term
       const examsUsingTerm = await db.select({ id: schema.exams.id })
@@ -1466,7 +1424,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.exams.termId, id));
       
       if (examsUsingTerm && examsUsingTerm.length > 0) {
-        console.error(`❌ Cannot delete term ${id}: ${examsUsingTerm.length} exams are linked to it`);
         throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
       }
       
@@ -1478,14 +1435,11 @@ export class DatabaseStorage implements IStorage {
       const success = result && result.length > 0;
       
       if (success) {
-        console.log(`✅ Successfully deleted academic term ${id}: ${result[0].name} (${result[0].year})`);
       } else {
-        console.error(`❌ Delete operation failed for term ${id} - no rows affected`);
       }
       
       return success;
     } catch (error: any) {
-      console.error(`❌ Error deleting academic term ${id}:`, error);
       
       // Handle specific PostgreSQL errors
       if (error?.code === '23503') {
@@ -1503,11 +1457,9 @@ export class DatabaseStorage implements IStorage {
       // Then mark the specified term as current
       const result = await db.update(schema.academicTerms).set({ isCurrent: true }).where(eq(schema.academicTerms.id, id)).returning();
       if (result[0]) {
-        console.log(`✅ Marked term as current: ${result[0].name} (${result[0].year})`);
       }
       return result[0];
     } catch (error) {
-      console.error(`❌ Error marking term ${id} as current:`, error);
       throw error;
     }
   }
@@ -1518,7 +1470,6 @@ export class DatabaseStorage implements IStorage {
       const result = await db.select().from(schema.exams).where(eq(schema.exams.termId, termId));
       return result;
     } catch (error) {
-      console.error(`❌ Error fetching exams for term ${termId}:`, error);
       return [];
     }
   }
@@ -1556,7 +1507,6 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(schema.exams.date));
       return result || [];
     } catch (error) {
-      console.error('Error in getAllExams:', error);
       return [];
     }
   }
@@ -1575,7 +1525,6 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(schema.exams.date));
       return result || [];
     } catch (error) {
-      console.error('Error in getExamsByClass:', error);
       return [];
     }
   }
@@ -1617,7 +1566,6 @@ export class DatabaseStorage implements IStorage {
 
       return result.length > 0;
     } catch (error) {
-      console.error('Error in deleteExam:', error);
       throw error;
     }
   }
@@ -1629,7 +1577,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       // Handle missing columns by removing autoScored from the insert
       if (error?.cause?.code === '42703' && error?.cause?.message?.includes('auto_scored')) {
-        console.log('⚠️ Database schema mismatch detected - auto_scored column missing, using fallback insert');
         const { autoScored, ...resultWithoutAutoScored } = result;
         // Map score to marksObtained for compatibility with existing schema
         const compatibleResult = {
@@ -1657,7 +1604,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       // Handle missing columns by removing autoScored from the update
       if (error?.cause?.code === '42703' && error?.cause?.message?.includes('auto_scored')) {
-        console.log('⚠️ Database schema mismatch detected - auto_scored column missing, using fallback update');
         const { autoScored, ...resultWithoutAutoScored } = result;
         // Map score to marksObtained for compatibility with existing schema
         const compatibleResult = {
@@ -1680,7 +1626,6 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
     try {
-      console.log(`🔍 Fetching exam results for student: ${studentId}`);
 
       const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
 
@@ -1703,10 +1648,8 @@ export class DatabaseStorage implements IStorage {
           .where(eq(schema.examResults.studentId, studentId))
           .orderBy(desc(schema.examResults.createdAt));
 
-        console.log(`📊 Found ${results.length} exam results for student ${studentId}`);
         return results;
       } catch (mainError: any) {
-        console.warn('Main query failed, trying fallback:', mainError);
 
         // Fallback query without autoScored column reference
         const fallbackResults = await this.db.select({
@@ -1736,15 +1679,12 @@ export class DatabaseStorage implements IStorage {
               result.maxScore = exam[0].totalMarks;
             }
           } catch (examError) {
-            console.warn(`Failed to get exam details for examId ${result.examId}:`, examError);
           }
         }
 
-        console.log(`✅ Fallback query successful, found ${fallbackResults.length} results`);
         return fallbackResults;
       }
     } catch (error: any) {
-      console.error(`❌ Error fetching exam results for student ${studentId}:`, error);
       return [];
     }
   }
@@ -1757,7 +1697,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       // Handle missing columns by selecting only the columns that exist
       if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
-        console.log('⚠️ Database schema mismatch detected, using fallback query with existing columns only');
         try {
           return await db.select({
             id: schema.examResults.id,
@@ -1777,7 +1716,6 @@ export class DatabaseStorage implements IStorage {
             .where(eq(schema.examResults.examId, examId))
             .orderBy(desc(schema.examResults.createdAt));
         } catch (fallbackError) {
-          console.error('❌ Fallback query also failed:', fallbackError);
           return [];
         }
       }
@@ -1830,11 +1768,9 @@ export class DatabaseStorage implements IStorage {
       // Results already contain all needed data from joins
       return results;
     } catch (error: any) {
-      console.error('Error in getExamResultsByClass:', error);
 
       // Handle missing columns by using a fallback query
       if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
-        console.log('⚠️ Database schema mismatch detected, using fallback query for getExamResultsByClass');
         try {
           // Fallback query using only existing columns
           const results = await db.select({
@@ -1860,7 +1796,6 @@ export class DatabaseStorage implements IStorage {
           // Return fallback results as-is
           return results;
         } catch (fallbackError) {
-          console.error('❌ Fallback query also failed for getExamResultsByClass:', fallbackError);
           return [];
         }
       }
@@ -1942,7 +1877,6 @@ export class DatabaseStorage implements IStorage {
         return createdQuestion;
       } catch (error) {
         // Transaction will automatically rollback, no manual cleanup needed
-        console.error('❌ Failed to create exam question with options:', error);
         throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -1957,19 +1891,16 @@ export class DatabaseStorage implements IStorage {
     const createdQuestions: ExamQuestion[] = [];
     const errors: string[] = [];
 
-    console.log(`🔄 Starting SEQUENTIAL bulk creation of ${questionsData.length} questions`);
 
     // SEQUENTIAL processing to prevent circuit breaker - NO parallel requests
     for (let i = 0; i < questionsData.length; i++) {
       const { question, options } = questionsData[i];
 
       try {
-        console.log(`📝 Creating question ${i + 1}/${questionsData.length}: "${question.questionText.substring(0, 50)}..."`);
 
         const createdQuestion = await this.createExamQuestionWithOptions(question, options);
         createdQuestions.push(createdQuestion);
 
-        console.log(`✅ Successfully created question ${i + 1}`);
 
         // Throttling delay between EACH question to prevent circuit breaker
         if (i < questionsData.length - 1) {
@@ -1978,7 +1909,6 @@ export class DatabaseStorage implements IStorage {
 
       } catch (error) {
         const errorMsg = `Question ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(`❌ Failed to create question ${i + 1}:`, errorMsg);
         errors.push(errorMsg);
 
         // Check if this is a circuit breaker error and implement backoff
@@ -1988,7 +1918,6 @@ export class DatabaseStorage implements IStorage {
           error.message.includes('pool') ||
           error.message.includes('connection')
         )) {
-          console.warn(`⚠️ Detected potential circuit breaker issue. Implementing backoff...`);
           await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second backoff on connection issues
         } else {
           // Normal error delay
@@ -1997,7 +1926,6 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    console.log(`✅ SEQUENTIAL bulk creation completed: ${createdQuestions.length} created, ${errors.length} errors`);
 
     return {
       created: createdQuestions.length,
@@ -2053,7 +1981,6 @@ export class DatabaseStorage implements IStorage {
         const count = await this.getExamQuestionCount(examId);
         counts[examId] = count;
       } catch (error) {
-        console.warn(`Failed to get question count for exam ${examId}:`, error);
         counts[examId] = 0;
       }
     }
@@ -2086,7 +2013,6 @@ export class DatabaseStorage implements IStorage {
 
       return result.length > 0;
     } catch (error) {
-      console.error('Error in deleteExamQuestion:', error);
       throw error;
     }
   }
@@ -2368,7 +2294,6 @@ export class DatabaseStorage implements IStorage {
       }));
 
     } catch (error) {
-      console.error('Error fetching AI-suggested tasks:', error);
       return [];
     }
   }
@@ -2561,7 +2486,6 @@ export class DatabaseStorage implements IStorage {
 
       // If insert succeeded, return the new session
       if (insertResult.length > 0) {
-        console.log(`Created new exam session ${insertResult[0].id} for student ${studentId} exam ${examId}`);
         return { ...insertResult[0], wasCreated: true };
       }
 
@@ -2587,7 +2511,6 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
 
       if (existingSession.length > 0) {
-        console.log(`Retrieved existing exam session ${existingSession[0].id} for student ${studentId} exam ${examId}`);
         return { ...existingSession[0], wasCreated: false };
       }
 
@@ -2595,7 +2518,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Unable to create or retrieve exam session for student ${studentId} exam ${examId}`);
 
     } catch (error: any) {
-      console.error('Error in createOrGetActiveExamSession:', error);
       throw error;
     }
   }
@@ -2719,7 +2641,6 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      console.log(`🔍 DIAGNOSTIC: Starting scoring data fetch for session ${sessionId}`);
 
       // First, get the session - select only existing columns
       const sessionResult = await this.db.select({
@@ -2744,7 +2665,6 @@ export class DatabaseStorage implements IStorage {
       }
 
       const session = sessionResult[0];
-      console.log(`🔍 DIAGNOSTIC: Found session for exam ${session.examId}, student ${session.studentId}`);
 
       // CORRECTED QUERY: Get question data and correct options separately to avoid row multiplication issues
       const questionsQuery = await this.db.select({
@@ -2861,7 +2781,6 @@ export class DatabaseStorage implements IStorage {
               questionData.points,
               selectedOptionData.partialCreditValue
             );
-            console.log(`🔤 OPTION PARTIAL CREDIT: Question ${question.questionId} awarded ${questionData.partialCreditEarned}/${questionData.points} pts for selected option`);
           }
         }
       }
@@ -2877,7 +2796,6 @@ export class DatabaseStorage implements IStorage {
           const studentAnswer = question.textAnswer.trim();
           if (!studentAnswer) continue; // Skip empty answers
 
-          console.log(`🔤 AUTO-SCORING TEXT: Question ${questionId} - Student: "${studentAnswer}", Expected: [${question.expectedAnswers.join(', ')}]`);
 
           // Check against all expected answers
           for (const expectedAnswer of question.expectedAnswers) {
@@ -2892,7 +2810,6 @@ export class DatabaseStorage implements IStorage {
             // Exact match
             if (normalizedStudent === normalizedExpected) {
               question.isCorrect = true;
-              console.log(`✅ TEXT MATCH: Exact match found for question ${questionId}`);
               break;
             }
 
@@ -2907,11 +2824,9 @@ export class DatabaseStorage implements IStorage {
 
                 if (similarity >= (partialRules.minSimilarity || 0.8)) {
                   question.partialCreditEarned = Math.ceil(question.points * (partialRules.partialPercentage || 0.5));
-                  console.log(`🔤 PARTIAL CREDIT: Question ${questionId} similarity ${similarity.toFixed(2)} awarded ${question.partialCreditEarned}/${question.points} points`);
                   break;
                 }
               } catch (err) {
-                console.warn(`⚠️ Invalid partial credit rules for question ${questionId}:`, err);
               }
             }
           }
@@ -2930,7 +2845,6 @@ export class DatabaseStorage implements IStorage {
       let studentScore = 0;
       let autoScoredQuestions = 0;
 
-      console.log(`🔍 DIAGNOSTIC: Found ${totalQuestions} total questions for scoring`);
 
       // Track question types for debugging
       const questionTypeCount: Record<string, number> = {};
@@ -2949,25 +2863,18 @@ export class DatabaseStorage implements IStorage {
           // Award full points for correct answers
           if (question.isCorrect) {
             studentScore += question.points;
-            console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): CORRECT (+${question.points} pts) - Full credit awarded`);
           }
           // Award partial credit if earned
           else if (question.partialCreditEarned > 0) {
             studentScore += question.partialCreditEarned;
-            console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): PARTIAL CREDIT (+${question.partialCreditEarned}/${question.points} pts)`);
           }
           // No credit
           else {
-            console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): INCORRECT (0 pts)`);
           }
         } else {
-          console.log(`🔍 DIAGNOSTIC: Question ${question.questionId} (${question.questionType}, auto_gradable=${question.autoGradable}): MANUAL GRADING REQUIRED`);
         }
       }
 
-      console.log(`🔍 DIAGNOSTIC: Question type breakdown:`, questionTypeCount);
-      console.log(`🔍 DIAGNOSTIC: Auto-scored questions: ${autoScoredQuestions}/${totalQuestions}`);
-      console.log(`🔍 DIAGNOSTIC: Student score: ${studentScore}/${maxScore}`);
 
       return {
         session,
@@ -2980,7 +2887,6 @@ export class DatabaseStorage implements IStorage {
         }
       };
     } catch (error) {
-      console.error('🚨 OPTIMIZED SCORING ERROR:', error);
       throw error;
     }
   }
@@ -3215,7 +3121,6 @@ export class DatabaseStorage implements IStorage {
       const result = await pgClient.unsafe(query, params);
       return result as any[];
     } catch (error) {
-      console.error('Error fetching grading tasks:', error);
       throw error;
     }
   }
@@ -3247,7 +3152,6 @@ export class DatabaseStorage implements IStorage {
 
       return result[0] as any;
     } catch (error) {
-      console.error('Error submitting manual grade:', error);
       throw error;
     }
   }
@@ -3279,7 +3183,6 @@ export class DatabaseStorage implements IStorage {
 
       return result as any[];
     } catch (error) {
-      console.error('Error fetching exam sessions:', error);
       throw error;
     }
   }
@@ -3345,7 +3248,6 @@ export class DatabaseStorage implements IStorage {
       const result = await pgClient.unsafe(query, params);
       return result as any[];
     } catch (error) {
-      console.error('Error fetching exam reports:', error);
       throw error;
     }
   }
@@ -3387,7 +3289,6 @@ export class DatabaseStorage implements IStorage {
 
       return result as any[];
     } catch (error) {
-      console.error('Error fetching student reports:', error);
       throw error;
     }
   }
@@ -3494,7 +3395,6 @@ export class DatabaseStorage implements IStorage {
         return result[0];
       }
     } catch (error) {
-      console.error('Error recording comprehensive grade:', error);
       throw error;
     }
   }
@@ -3532,7 +3432,6 @@ export class DatabaseStorage implements IStorage {
 
       return await query.orderBy(schema.subjects.name);
     } catch (error) {
-      console.error('Error fetching comprehensive grades by student:', error);
       return [];
     }
   }
@@ -3566,7 +3465,6 @@ export class DatabaseStorage implements IStorage {
 
       return await query.orderBy(schema.users.firstName, schema.users.lastName, schema.subjects.name);
     } catch (error) {
-      console.error('Error fetching comprehensive grades by class:', error);
       return [];
     }
   }
@@ -3595,7 +3493,6 @@ export class DatabaseStorage implements IStorage {
           grades: grades
         };
       } catch (error) {
-        console.error('Error creating report card:', error);
         throw error;
       }
     });
@@ -3609,7 +3506,6 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       return result[0];
     } catch (error) {
-      console.error('Error fetching report card:', error);
       return undefined;
     }
   }
@@ -3621,7 +3517,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.reportCards.studentId, studentId))
         .orderBy(desc(schema.reportCards.generatedAt));
     } catch (error) {
-      console.error('Error fetching student report cards:', error);
       return [];
     }
   }
@@ -3632,7 +3527,6 @@ export class DatabaseStorage implements IStorage {
         .from(schema.reportCardItems)
         .where(eq(schema.reportCardItems.reportCardId, reportCardId));
     } catch (error) {
-      console.error('Error fetching report card items:', error);
       return [];
     }
   }
@@ -3643,7 +3537,6 @@ export class DatabaseStorage implements IStorage {
         .from(schema.students)
         .where(eq(schema.students.parentId, parentId));
     } catch (error) {
-      console.error('Error fetching students by parent:', error);
       return [];
     }
   }
@@ -3695,7 +3588,6 @@ export class DatabaseStorage implements IStorage {
         }
       };
     } catch (error) {
-      console.error('Error in getAnalyticsOverview:', error);
       return this.getFallbackAnalytics();
     }
   }
@@ -3743,7 +3635,6 @@ export class DatabaseStorage implements IStorage {
         passRate: Math.round((examResults.filter((r: any) => (r.marksObtained || 0) >= 50).length / totalExams) * 100)
       };
     } catch (error) {
-      console.error('Error in getPerformanceAnalytics:', error);
       return { error: 'Failed to calculate performance analytics' };
     }
   }
@@ -3794,7 +3685,6 @@ export class DatabaseStorage implements IStorage {
         }
       };
     } catch (error) {
-      console.error('Error in getTrendAnalytics:', error);
       return { error: 'Failed to calculate trend analytics' };
     }
   }
@@ -3842,7 +3732,6 @@ export class DatabaseStorage implements IStorage {
         classComparison: await this.calculateClassAttendanceComparison()
       };
     } catch (error) {
-      console.error('Error in getAttendanceAnalytics:', error);
       return { error: 'Failed to calculate attendance analytics' };
     }
   }
@@ -3983,7 +3872,6 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       return result[0];
     } catch (error) {
-      console.error('Error fetching exam result by ID:', error);
       return undefined;
     }
   }
@@ -4006,7 +3894,6 @@ export class DatabaseStorage implements IStorage {
 
       return results;
     } catch (error) {
-      console.error('Error fetching finalized reports by exams:', error);
       return [];
     }
   }
@@ -4023,7 +3910,6 @@ export class DatabaseStorage implements IStorage {
 
       return results;
     } catch (error) {
-      console.error('Error fetching all finalized reports:', error);
       return [];
     }
   }
@@ -4098,7 +3984,6 @@ export class DatabaseStorage implements IStorage {
         eventsByType
       };
     } catch (error) {
-      console.error('Error in getPerformanceMetrics:', error);
       // Return a default structure to prevent errors downstream
       return {
         totalEvents: 0,
@@ -4125,7 +4010,6 @@ export class DatabaseStorage implements IStorage {
         .limit(50);
       return alerts;
     } catch (error) {
-      console.error('Error in getRecentPerformanceAlerts:', error);
       return [];
     }
   }
@@ -4289,7 +4173,6 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
-        console.warn('⚠️ grading_tasks table does not exist yet - skipping task creation');
         return { id: 0, ...task } as GradingTask;
       }
       throw error;
@@ -4309,7 +4192,6 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
-        console.warn('⚠️ grading_tasks table does not exist yet');
         return undefined;
       }
       throw error;
@@ -4332,7 +4214,6 @@ export class DatabaseStorage implements IStorage {
       return await query;
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
-        console.warn('⚠️ grading_tasks table does not exist yet - returning empty array');
         return [];
       }
       throw error;
@@ -4346,7 +4227,6 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
-        console.warn('⚠️ grading_tasks table does not exist yet - returning empty array');
         return [];
       }
       throw error;
@@ -4367,7 +4247,6 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
-        console.warn('⚠️ grading_tasks table does not exist yet');
         return undefined;
       }
       throw error;
@@ -4415,7 +4294,6 @@ export class DatabaseStorage implements IStorage {
       });
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
-        console.warn('⚠️ grading_tasks table does not exist yet');
         return undefined;
       }
       throw error;
@@ -4923,21 +4801,13 @@ export class DatabaseStorage implements IStorage {
 function initializeStorageSync(): IStorage {
   // CRITICAL: Only use Supabase database - no memory storage fallback
   if (!process.env.DATABASE_URL) {
-    console.error('🚨 CRITICAL: DATABASE_URL environment variable is required');
-    console.error('🚨 This application ONLY stores data in Supabase database');
-    console.error('🚨 Please ensure your Supabase DATABASE_URL is properly configured');
     process.exit(1);
   }
 
   try {
     const dbStorage = new DatabaseStorage();
-    console.log('✅ STORAGE: Using SUPABASE PostgreSQL Database - ALL DATA STORED IN SUPABASE');
     return dbStorage;
   } catch (error) {
-    console.error('🚨 CRITICAL: Failed to connect to Supabase database');
-    console.error('🚨 All data MUST be stored in Supabase database as requested');
-    console.error('🚨 Database connection error:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('🚨 Application cannot continue without Supabase database connection');
     process.exit(1);
   }
 }
