@@ -5376,15 +5376,21 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 var vite_config_default = defineConfig({
   plugins: [
-    react(),
-    ...process.env.NODE_ENV !== "production" ? [
-      (await import("@replit/vite-plugin-runtime-error-modal")).default()
-    ] : [],
-    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
-      await import("@replit/vite-plugin-cartographer").then(
-        (m) => m.cartographer()
-      )
-    ] : []
+    react()
+    // Replit plugins temporarily commented out due to installation issues
+    // ...(process.env.NODE_ENV !== "production"
+    //   ? [
+    //       (await import("@replit/vite-plugin-runtime-error-modal")).default(),
+    //     ]
+    //   : []),
+    // ...(process.env.NODE_ENV !== "production" &&
+    // process.env.REPL_ID !== undefined
+    //   ? [
+    //       await import("@replit/vite-plugin-cartographer").then((m) =>
+    //         m.cartographer(),
+    //       ),
+    //     ]
+    //   : []),
   ],
   resolve: {
     alias: {
@@ -10415,6 +10421,9 @@ app.use((req, res, next) => {
   }
   res.on("finish", () => {
     const duration = Date.now() - start;
+    if (res.statusCode >= 400 && res.statusCode < 500) {
+      log(`\u274C 4xx ERROR: ${req.method} ${req.originalUrl || path4} - Status ${res.statusCode} - Referer: ${req.get("referer") || "none"}`);
+    }
     if (path4.startsWith("/api")) {
       let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
       if (!isProduction2 && capturedJsonResponse) {
