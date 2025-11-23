@@ -2169,9 +2169,9 @@ export class DatabaseStorage implements IStorage {
         .where(inArray(schema.users.id, studentIds));
 
       // Enrich results with student names
-      return results.map(r => ({
+      return results.map((r: any) => ({
         ...r,
-        studentName: `${students.find(s => s.id === r.studentId)?.firstName} ${students.find(s => s.id === r.studentId)?.lastName}`,
+        studentName: `${students.find((s: any) => s.id === r.studentId)?.firstName} ${students.find((s: any) => s.id === r.studentId)?.lastName}`,
         status: r.autoScored || r.manualOverride ? 'reviewed' : 'pending',
         aiSuggested: r.pointsEarned > 0 && !r.autoScored && !r.manualOverride
       }));

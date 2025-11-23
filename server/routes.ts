@@ -486,8 +486,8 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     const questionDetails = [];
 
     for (const q of scoringData) {
-      const question = examQuestions.find(eq => eq.id === q.questionId);
-      const studentAnswer = studentAnswers.find(sa => sa.questionId === q.questionId);
+      const question = examQuestions.find((examQ: any) => examQ.id === q.questionId);
+      const studentAnswer = studentAnswers.find((ans: any) => ans.questionId === q.questionId);
 
       let questionDetail: any = {
         questionId: q.questionId,
@@ -542,7 +542,7 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
     // CRITICAL FIX: Persist all scores to student_answers for accurate score merging
     for (const detail of questionDetails) {
       if (detail.questionId) {
-        const studentAnswer = studentAnswers.find(sa => sa.questionId === detail.questionId);
+        const studentAnswer = studentAnswers.find((ans: any) => ans.questionId === detail.questionId);
         if (studentAnswer) {
           try {
             await storage.updateStudentAnswer(studentAnswer.id, {
@@ -3746,6 +3746,7 @@ Treasure-Home School Administration
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const newStudentsThisMonth = allStudents.filter(student => {
+        if (!student.createdAt) return false;
         const createdAt = new Date(student.createdAt);
         return createdAt >= startOfMonth;
       }).length;
@@ -3753,6 +3754,7 @@ Treasure-Home School Administration
       // Calculate teachers added this term (approximation: last 3 months)
       const startOfTerm = new Date(now.getFullYear(), now.getMonth() - 3, 1);
       const newTeachersThisTerm = allTeachers.filter(teacher => {
+        if (!teacher.createdAt) return false;
         const createdAt = new Date(teacher.createdAt);
         return createdAt >= startOfTerm;
       }).length;
@@ -4495,7 +4497,7 @@ Treasure-Home School Administration
 
       // Enrich logs with user information
       const enrichedLogs = await Promise.all(logs.map(async (log) => {
-        const user = await storage.getUser(log.userId);
+        const user = log.userId ? await storage.getUser(log.userId) : null;
         return {
           ...log,
           userEmail: user?.email,
