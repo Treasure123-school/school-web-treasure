@@ -2417,10 +2417,12 @@ var init_storage = __esm({
         for (const itemId of selectedItemIds) {
           const bankItem = await this.getQuestionBankItemById(itemId);
           if (!bankItem) continue;
+          const validTypes = ["multiple_choice", "text", "essay", "true_false", "fill_blank"];
+          const questionType = validTypes.includes(bankItem.questionType) ? bankItem.questionType : "text";
           const questionData = {
             examId,
             questionText: bankItem.questionText,
-            questionType: bankItem.questionType,
+            questionType,
             points: bankItem.points || 1,
             orderNumber: orderNumber++,
             imageUrl: bankItem.imageUrl ?? void 0,
@@ -6149,7 +6151,7 @@ async function registerRoutes(app2) {
     try {
       const teacherId = req.user.id;
       const status = req.query.status;
-      const tasks = await storage.getGradingTasksByTeacher(teacherId, status);
+      const tasks = await storage.getAISuggestedGradingTasks(teacherId, status);
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch AI-suggested tasks" });

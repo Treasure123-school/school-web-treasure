@@ -411,6 +411,7 @@ export interface IStorage {
   getGradingTasksBySession(sessionId: number): Promise<GradingTask[]>;
   updateGradingTaskStatus(taskId: number, status: string, completedAt?: Date): Promise<GradingTask | undefined>;
   completeGradingTask(taskId: number, pointsEarned: number, feedbackText?: string): Promise<{ task: GradingTask; answer: StudentAnswer } | undefined>;
+  getAISuggestedGradingTasks(teacherId: string, status?: string): Promise<any[]>;
 
   // Audit logging
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
