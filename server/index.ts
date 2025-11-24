@@ -3,8 +3,6 @@ import compression from "compression";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { sql } from "drizzle-orm";
 import { db } from "./storage";
 import { seedAcademicTerms } from "./seed-terms";
 import { validateEnvironment } from "./validate-env";
@@ -188,52 +186,9 @@ function sanitizeLogData(data: any): any {
   return data;
 }
 (async () => {
-  // Apply database migrations at startup
-  try {
-    console.log("Applying database migrations...");
-    await migrate(db, { migrationsFolder: "./migrations" });
-    console.log("✅ Database migrations completed successfully");
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-    // Check if this is a benign idempotency case (migrations already applied)
-    const errorCode = (error as any)?.cause?.code;
-    const isIdempotencyError = errorMessage.includes('already exists') ||
-                              (errorMessage.includes('relation') && errorMessage.includes('already exists')) ||
-                              errorMessage.includes('duplicate key') ||
-                              errorMessage.includes('nothing to migrate') ||
-                              errorMessage.includes('PostgresError: relation') ||
-                              errorCode === '42P07' || // relation already exists
-                              errorCode === '42710'; // type already exists
-
-    if (isIdempotencyError) {
-      console.log(`ℹ️ Migrations already applied: ${errorMessage}`);
-    } else {
-      // This is a real migration error - log it prominently but still continue
-      console.log(`⚠️ Migration failed: ${errorMessage}`);
-
-      // In production, we might want to fail fast on real migration errors
-      if (process.env.NODE_ENV === 'production') {
-        // Uncomment the next line if you want to fail fast in production:
-        // process.exit(1);
-      }
-    }
-  }
-  // Add roleCode column to counters table if it doesn't exist (username migration)
-  try {
-    await db.execute(sql`
-      ALTER TABLE counters 
-      ADD COLUMN IF NOT EXISTS role_code VARCHAR(10) UNIQUE;
-    `);
-    await db.execute(sql`
-      CREATE UNIQUE INDEX IF NOT EXISTS counters_role_code_idx 
-      ON counters(role_code) WHERE role_code IS NOT NULL;
-    `);
-    console.log("✅ Username migration: roleCode column ready");
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.log(`ℹ️  Username migration note: ${errorMessage}`);
-  }
+  // SQLite Note: Database schema is managed via drizzle-kit push, not migrations
+  // Run `npx drizzle-kit push` to sync schema changes to your app.db file
+  console.log("✅ Using SQLite database at ./app.db (schema managed via drizzle-kit push)");
   // Seed academic terms if they don't exist
   try {
     console.log("Seeding academic terms if needed...");
