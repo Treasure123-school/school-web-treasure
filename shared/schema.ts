@@ -380,7 +380,7 @@ export const examSessions = pgTable("exam_sessions", {
   examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
   examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
   // UNIQUE CONSTRAINT: Prevent duplicate active sessions (critical for circuit breaker fix)
-  examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(eq(table.isCompleted, false)),
+  examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(sql`${table.isCompleted} = false`),
 }));
 
 // Student answers table
