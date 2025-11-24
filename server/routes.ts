@@ -21,6 +21,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { minioStorage } from "./minio-storage";
 import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
+import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
 
 // Storage buckets configuration
 const STORAGE_BUCKETS = {
@@ -2434,40 +2435,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Profile image upload endpoint
+  // Profile image upload endpoint (using organized storage system)
   app.post('/api/upload', authenticateUser, upload.single('profileImage'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
-      let fileUrl: string;
 
-      // Use MinIO Storage if enabled, otherwise fall back to local filesystem
-      if (minioStorage.isInitialized()) {
-        const filePath = getProfileImagePath(req.user!.id, req.file.originalname);
-        const uploadResult = await minioStorage.uploadFile(
-          STORAGE_BUCKETS.PROFILES,
-          filePath,
-          req.file.buffer,
-          req.file.mimetype
-        );
+      // Use new organized upload system
+      const result = await uploadFileToStorage(req.file, {
+        uploadType: 'profile',
+        userId: req.user!.id,
+        maxSizeMB: 5,
+      });
 
-        if (!uploadResult) {
-          return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
-        }
-        fileUrl = uploadResult.url;
-      } else {
-        fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+      if (!result.success) {
+        return res.status(500).json({ message: result.error || 'Failed to upload file to cloud storage' });
       }
-      res.json({ url: fileUrl });
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to upload file' });
+
+      res.json({ url: result.url });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to upload file' });
     }
   });
 
   // ==================== HOMEPAGE CONTENT MANAGEMENT ROUTES ====================
 
-  // Homepage image upload endpoint
+  // Homepage image upload endpoint (using organized storage system)
   app.post('/api/upload/homepage', authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single('homePageImage'), async (req, res) => {
     try {
       if (!req.file) {
@@ -2476,45 +2470,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.body.contentType) {
         return res.status(400).json({ message: 'Content type is required' });
       }
-      let imageUrl: string;
-      let storedFilePath: string;
 
-      if (minioStorage.isInitialized()) {
-        const filePath = getHomepageImagePath(req.file.originalname);
+      // Determine category based on content type (hero, featured, about, slider)
+      const category = req.body.contentType || 'general';
 
-        try {
-          const uploadResult = await minioStorage.uploadFile(
-            STORAGE_BUCKETS.HOMEPAGE,
-            filePath,
-            req.file.buffer,
-            req.file.mimetype
-          );
+      // Use new organized upload system
+      const result = await uploadFileToStorage(req.file, {
+        uploadType: 'homepage',
+        category,
+        maxSizeMB: 5,
+      });
 
-          if (!uploadResult) {
-            throw new Error('Upload returned null - check MinIO configuration');
-          }
-          imageUrl = uploadResult.url;
-          storedFilePath = uploadResult.path;
-        } catch (uploadError: any) {
-
-          // Provide detailed error information
-          if (uploadError.message?.includes('new row violates row-level security policy')) {
-            throw new Error('Storage permission denied. RLS policies are not configured correctly in MinIO. Please contact your administrator.');
-          } else if (uploadError.message?.includes('Bucket not found')) {
-            throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in MinIO. Please verify bucket exists.`);
-          } else if (uploadError.message?.includes('Invalid JWT')) {
-            throw new Error('Storage authentication failed. MinIO credentials may be invalid or expired.');
-          } else {
-            throw new Error(`Storage upload failed: ${uploadError.message}`);
-          }
-        }
-      } else {
-        imageUrl = `/uploads/homepage/${req.file.filename}`;
-        storedFilePath = req.file.filename;
+      if (!result.success) {
+        return res.status(500).json({ 
+          message: result.error || 'Failed to upload homepage image' 
+        });
       }
+
       const content = await storage.createHomePageContent({
         contentType: req.body.contentType,
-        imageUrl,
+        imageUrl: result.url!,
         altText: req.body.altText || '',
         caption: req.body.caption || null,
         displayOrder: parseInt(req.body.displayOrder) || 0,
