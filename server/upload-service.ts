@@ -71,7 +71,17 @@ export async function uploadFileToStorage(
       if (file.buffer) {
         // File is in memory (memory storage mode) - write to disk ourselves
         try {
-          const uploadDir = path.join('uploads', options.uploadType || 'general');
+          // Map upload types to existing directory structure (pluralized)
+          const dirMap: Record<string, string> = {
+            'profile': 'profiles',
+            'homepage': 'homepage',
+            'gallery': 'gallery',
+            'study-resource': 'study-resources',
+            'general': '', // Root uploads directory
+          };
+          
+          const dirName = dirMap[options.uploadType || 'general'];
+          const uploadDir = dirName ? path.join('uploads', dirName) : 'uploads';
           await fs.mkdir(uploadDir, { recursive: true });
           
           const timestamp = Date.now();
@@ -199,6 +209,22 @@ export async function deleteFileFromStorage(
   url: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Check if this is a local filesystem path (starts with /uploads/)
+    if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+      try {
+        const filePath = url.startsWith('/') ? url.substring(1) : url;
+        await fs.unlink(filePath);
+        return { success: true };
+      } catch (error: any) {
+        console.error('Failed to delete local file:', error);
+        return {
+          success: false,
+          error: `Failed to delete file: ${error.message}`,
+        };
+      }
+    }
+
+    // Otherwise, assume it's a MinIO URL
     if (!minioStorage.isInitialized()) {
       return {
         success: false,
