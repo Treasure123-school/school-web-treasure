@@ -2504,7 +2504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else if (uploadError.message?.includes('Bucket not found')) {
             throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in MinIO. Please verify bucket exists.`);
           } else if (uploadError.message?.includes('Invalid JWT')) {
-            throw new Error('Storage authentication failed. SUPABASE_SERVICE_KEY may be invalid or expired.');
+            throw new Error('Storage authentication failed. MinIO credentials may be invalid or expired.');
           } else {
             throw new Error(`Storage upload failed: ${uploadError.message}`);
           }

@@ -751,7 +751,7 @@ export default function ExamManagement() {
       });
 
       // Replace optimistic data with real data from backend response
-      // This ensures instant update even if Supabase Realtime doesn't fire for bulk inserts
+      // This ensures instant update even if Socket.IO doesn't fire for bulk inserts
       if (data.questions && Array.isArray(data.questions)) {
         const queryKey = ['/api/exam-questions', selectedExam?.id];
         

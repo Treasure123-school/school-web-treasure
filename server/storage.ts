@@ -16,7 +16,7 @@ import type {
   QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption
 } from "@shared/schema";
 
-// Configure PostgreSQL connection for Supabase (lazy initialization)
+// Configure PostgreSQL connection (lazy initialization)
 let pg: any;
 let db: any;
 
@@ -26,7 +26,7 @@ function initializeDatabase() {
     // Enhanced connection pool configuration for optimal performance
     const connectionConfig = {
       ssl: (process.env.DATABASE_URL?.includes('supabase.com') ? 'require' : false) as 'require' | false,
-      prepare: false, // Required for Supabase transaction pooler
+      prepare: false, // Required for PostgreSQL transaction pooler compatibility
 
       // Optimized connection pool settings
       max: 20, // Maximum connections in pool (increased from default 10)
@@ -3652,7 +3652,7 @@ export class DatabaseStorage implements IStorage {
       error: 'Unable to calculate analytics - database unavailable'
     };
   }
-  // Contact messages management - ensuring 100% Supabase persistence
+  // Contact messages management - ensuring 100% database persistence
   async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
     const result = await this.db.insert(schema.contactMessages).values(message).returning();
     return result[0];
@@ -4526,9 +4526,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 }
-// Initialize storage - Supabase database only
+// Initialize storage - PostgreSQL database only
 function initializeStorageSync(): IStorage {
-  // CRITICAL: Only use Supabase database - no memory storage fallback
+  // CRITICAL: Only use PostgreSQL database - no memory storage fallback
   if (!process.env.DATABASE_URL) {
     process.exit(1);
   }
@@ -4540,5 +4540,5 @@ function initializeStorageSync(): IStorage {
   }
 }
 
-// Initialize storage - Supabase database only
+// Initialize storage - PostgreSQL database only
 export const storage: IStorage = initializeStorageSync();
