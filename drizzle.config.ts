@@ -11,7 +11,7 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
-  schemaFilter: ['public'], // Only manage public schema, avoid Supabase managed schemas
+  schemaFilter: ['public'], // Only manage public schema
   strict: false, // Disable confirmation prompts
   verbose: true, // Show SQL statements
 });

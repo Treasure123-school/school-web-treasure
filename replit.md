@@ -125,8 +125,6 @@ When adding new environment variables that the frontend needs:
    ```typescript
    interface ImportMetaEnv {
      readonly VITE_API_URL?: string;
-     readonly VITE_SUPABASE_URL?: string;
-     readonly VITE_SUPABASE_ANON_KEY?: string;
      readonly VITE_YOUR_NEW_VAR?: string; // Add new variables here
    }
    ```
