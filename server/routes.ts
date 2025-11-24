@@ -18,7 +18,28 @@ import passport from "passport";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { and, eq, sql } from "drizzle-orm";
-import { initializeStorageBuckets, uploadFileToSupabase, deleteFileFromSupabase, STORAGE_BUCKETS, isSupabaseStorageEnabled, extractFilePathFromUrl } from "./supabase-storage";
+import { minioStorage } from "./minio-storage";
+import { realtimeService } from "./realtime-service";
+
+// Storage buckets configuration
+const STORAGE_BUCKETS = {
+  HOMEPAGE: 'homepage-images',
+  GALLERY: 'gallery-images',
+  PROFILES: 'profile-images',
+  STUDY_RESOURCES: 'study-resources',
+  GENERAL: 'general-uploads'
+} as const;
+
+// Helper function to extract file path from URL
+function extractFilePathFromUrl(url: string): string {
+  // Extract the file path from MinIO URL
+  // Format: http://endpoint:port/bucket/path/to/file.jpg
+  const parts = url.split('/');
+  // Remove protocol, host, port, and bucket name
+  const bucketIndex = parts.findIndex(part => Object.values(STORAGE_BUCKETS).includes(part as any));
+  if (bucketIndex === -1) return url;
+  return parts.slice(bucketIndex + 1).join('/');
+}
 
 // Type for authenticated user
 interface AuthenticatedUser {
@@ -209,8 +230,8 @@ fs.mkdir(profileDir, { recursive: true }).catch(() => {});
 fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {});
 fs.mkdir(homepageDir, { recursive: true }).catch(() => {});
 
-// Use memory storage for Supabase uploads, disk storage for local filesystem
-const storage_multer = isSupabaseStorageEnabled()
+// Use memory storage for MinIO uploads, disk storage for local filesystem
+const storage_multer = minioStorage.isInitialized()
   ? multer.memoryStorage()
   : multer.diskStorage({
       destination: (req, file, cb) => {
@@ -2086,8 +2107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Initialize Supabase Storage buckets
-  await initializeStorageBuckets();
+  // Initialize MinIO Storage buckets
+  await minioStorage.ensureBucketsExist();
 
   app.get('/api/auth/me', authenticateUser, async (req, res) => {
     try {
@@ -2420,10 +2441,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       let fileUrl: string;
 
-      // Use Supabase Storage if enabled, otherwise fall back to local filesystem
-      if (isSupabaseStorageEnabled()) {
+      // Use MinIO Storage if enabled, otherwise fall back to local filesystem
+      if (minioStorage.isInitialized()) {
         const fileName = `${Date.now()}-${req.file.originalname}`;
-        const uploadResult = await uploadFileToSupabase(
+        const uploadResult = await minioStorage.uploadFile(
           STORAGE_BUCKETS.PROFILES,
           fileName,
           req.file.buffer,
@@ -2433,7 +2454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!uploadResult) {
           return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
         }
-        fileUrl = uploadResult.publicUrl;
+        fileUrl = uploadResult.url;
       } else {
         fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
       }
@@ -2457,13 +2478,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let imageUrl: string;
       let storedFilePath: string;
 
-      if (isSupabaseStorageEnabled()) {
+      if (minioStorage.isInitialized()) {
         const timestamp = Date.now();
         const filename = `${req.body.contentType}-${timestamp}${path.extname(req.file.originalname)}`;
         const filePath = `homepage/${filename}`;
 
         try {
-          const uploadResult = await uploadFileToSupabase(
+          const uploadResult = await minioStorage.uploadFile(
             STORAGE_BUCKETS.HOMEPAGE,
             filePath,
             req.file.buffer,
@@ -2471,17 +2492,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
           if (!uploadResult) {
-            throw new Error('Upload returned null - check Supabase configuration');
+            throw new Error('Upload returned null - check MinIO configuration');
           }
-          imageUrl = uploadResult.publicUrl;
+          imageUrl = uploadResult.url;
           storedFilePath = uploadResult.path;
         } catch (uploadError: any) {
 
           // Provide detailed error information
           if (uploadError.message?.includes('new row violates row-level security policy')) {
-            throw new Error('Storage permission denied. RLS policies are not configured correctly in Supabase. Please contact your administrator.');
+            throw new Error('Storage permission denied. RLS policies are not configured correctly in MinIO. Please contact your administrator.');
           } else if (uploadError.message?.includes('Bucket not found')) {
-            throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in Supabase. Please verify bucket exists.`);
+            throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in MinIO. Please verify bucket exists.`);
           } else if (uploadError.message?.includes('Invalid JWT')) {
             throw new Error('Storage authentication failed. SUPABASE_SERVICE_KEY may be invalid or expired.');
           } else {
@@ -2558,11 +2579,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!content) {
         return res.status(404).json({ message: 'Homepage content not found' });
       }
-      // Delete file from Supabase Storage if enabled
-      if (isSupabaseStorageEnabled() && content.imageUrl) {
+      // Delete file from MinIO Storage if enabled
+      if (minioStorage.isInitialized() && content.imageUrl) {
         const filePath = extractFilePathFromUrl(content.imageUrl);
         if (filePath) {
-          await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
+          await minioStorage.deleteFile(STORAGE_BUCKETS.HOMEPAGE, filePath);
         }
       }
 
@@ -3712,12 +3733,12 @@ Treasure-Home School Administration
     }
   });
 
-  // Public contact form with 100% Supabase persistence
+  // Public contact form with 100% PostgreSQL persistence
   app.post("/api/contact", async (req, res) => {
     try {
       const data = contactSchema.parse(req.body);
 
-      // Save to Supabase database permanently
+      // Save to PostgreSQL database permanently
       const contactMessageData = insertContactMessageSchema.parse({
         name: data.name,
         email: data.email,
@@ -4292,7 +4313,7 @@ Treasure-Home School Administration
           // Check for Supabase RLS or permission errors
           if (deleteError?.code === '42501' || deleteError?.message?.includes('permission denied')) {
             return res.status(403).json({
-              message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
+              message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check database RLS settings or use 'Disable Account' instead.",
               technicalDetails: "RLS_PERMISSION_DENIED"
             });
           }
