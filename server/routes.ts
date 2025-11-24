@@ -1649,7 +1649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subjectNames = parsedSubjects.map((id: number) => `Subject #${id}`);
           }
           try {
-            const classes = await storage.getClasses();
+            const classes = await storage.getAllClasses(true);
             classNames = parsedClasses.map((classId: number) => {
               const cls = classes.find((c: any) => c.id === classId);
               return cls?.name || `Class #${classId}`;
@@ -2187,10 +2187,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Classes API endpoint
+  // Classes API endpoint - returns all classes (including inactive) for dropdown population
   app.get('/api/classes', authenticateUser, async (req, res) => {
     try {
-      const classes = await storage.getClasses();
+      const classes = await storage.getAllClasses(true);
       res.json(classes);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch classes' });
@@ -4752,8 +4752,8 @@ Treasure-Home School Administration
           } else {
             parentId = parent.id;
           }
-          // Get class
-          const classObj = await storage.getClasses(); // Assuming this fetches classes
+          // Get class (including inactive classes to allow CSV uploads to any existing class)
+          const classObj = await storage.getAllClasses(true);
           const studentClass = classObj.find(c => c.name.toLowerCase() === className.toLowerCase());
 
           if (!studentClass) {
