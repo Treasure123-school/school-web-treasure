@@ -4,6 +4,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
+import * as schema from "@shared/schema";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, InsertStudentAnswer, users, students } from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
@@ -3733,8 +3734,8 @@ Treasure-Home School Administration
   // Health check endpoint for monitoring
   app.get("/api/health", async (_req, res) => {
     try {
-      // Simple database connection check using raw SQL
-      await db.execute(sql`SELECT 1`);
+      // Simple database connection check using drizzle query
+      await db.select().from(schema.roles).limit(1);
 
       res.json({
         status: 'healthy',
