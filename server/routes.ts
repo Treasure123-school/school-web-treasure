@@ -6,7 +6,6 @@ import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, InsertStudentAnswer, users, students } from "@shared/schema";
 import { z, ZodError } from "zod";
-import { log } from "./vite";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
@@ -3025,7 +3024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recentAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
 
       if (recentAttempts.length >= 3) {
-        log(`🚨 Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
+        console.log(`🚨 Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
 
         // Track failed attempt
         await storage.createPasswordResetAttempt(identifier, ipAddress, false);
@@ -3037,7 +3036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (user) {
             const lockUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
             await storage.lockAccount(user.id, lockUntil);
-            log(`🔒 Account temporarily locked due to suspicious password reset activity: ${user.id}`);
+            console.log(`🔒 Account temporarily locked due to suspicious password reset activity: ${user.id}`);
 
             // Create audit log
             await storage.createAuditLog({
@@ -3118,15 +3117,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!emailSent && process.env.NODE_ENV === 'production') {
-        log(`❌ Failed to send password reset email to ${recoveryEmail}`);
+        console.log(`❌ Failed to send password reset email to ${recoveryEmail}`);
         return res.status(500).json({
           message: "Failed to send password reset email. Please try again later or contact administrator."
         });
       }
       // In development without API key, show the reset code/token for testing
       if (process.env.NODE_ENV === 'development' && !process.env.RESEND_API_KEY) {
-        log(`📧 DEV MODE - Password Reset Token: ${resetToken}`);
-        log(`📧 DEV MODE - Reset Link: ${resetLink}`);
+        console.log(`📧 DEV MODE - Password Reset Token: ${resetToken}`);
+        console.log(`📧 DEV MODE - Reset Link: ${resetLink}`);
 
         return res.json({
           message: "Password reset code generated (Development Mode).",
@@ -3138,7 +3137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           instructions: "Use the resetToken as your reset code, or click the resetLink"
         });
       }
-      log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
+      console.log(`✅ Password reset email sent to ${recoveryEmail} for user ${user.id}`);
 
       res.json({
         message: "If an account exists with that email/username, a password reset link will be sent."
@@ -3215,7 +3214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         html: getPasswordChangedEmailHTML(`${user.firstName} ${user.lastName}`, ipAddress)
       });
 
-      log(`✅ Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
+      console.log(`✅ Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -3283,7 +3282,7 @@ Treasure-Home School Administration
       // TODO: In production, send actual email
       // await sendEmail({ to: recoveryEmail, subject: notificationSubject, text: notificationBody });
 
-      log(`✅ Admin ${req.user?.email} reset password for user ${userId}`);
+      console.log(`✅ Admin ${req.user?.email} reset password for user ${userId}`);
 
       res.json({
         message: "Password reset successfully",
@@ -3412,7 +3411,7 @@ Treasure-Home School Administration
         userAgent: req.headers['user-agent'] || null,
       });
 
-      log(`✅ Admin ${req.user?.email} unlocked account for user ${userId}`);
+      console.log(`✅ Admin ${req.user?.email} unlocked account for user ${userId}`);
 
       res.json({
         message: "Account unlocked successfully",

@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import cors from "cors";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, serveStatic } from "./vite";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { sql } from "drizzle-orm";
 import { db } from "./storage";
@@ -137,7 +137,7 @@ app.use((req, res, next) => {
     
     // ENHANCED: Log ALL 4xx errors to help debug (not just API)
     if (res.statusCode >= 400 && res.statusCode < 500) {
-      log(`❌ 4xx ERROR: ${req.method} ${req.originalUrl || path} - Status ${res.statusCode} - Referer: ${req.get('referer') || 'none'}`);
+      console.log(`❌ 4xx ERROR: ${req.method} ${req.originalUrl || path} - Status ${res.statusCode} - Referer: ${req.get('referer') || 'none'}`);
     }
     
     if (path.startsWith("/api")) {
@@ -152,7 +152,7 @@ app.use((req, res, next) => {
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-      log(logLine);
+      console.log(logLine);
     }
   });
 
@@ -190,9 +190,9 @@ function sanitizeLogData(data: any): any {
 (async () => {
   // Apply database migrations at startup
   try {
-    log("Applying database migrations...");
+    console.log("Applying database migrations...");
     await migrate(db, { migrationsFolder: "./migrations" });
-    log("✅ Database migrations completed successfully");
+    console.log("✅ Database migrations completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
@@ -207,10 +207,10 @@ function sanitizeLogData(data: any): any {
                               errorCode === '42710'; // type already exists
 
     if (isIdempotencyError) {
-      log(`ℹ️ Migrations already applied: ${errorMessage}`);
+      console.log(`ℹ️ Migrations already applied: ${errorMessage}`);
     } else {
       // This is a real migration error - log it prominently but still continue
-      log(`⚠️ Migration failed: ${errorMessage}`);
+      console.log(`⚠️ Migration failed: ${errorMessage}`);
 
       // In production, we might want to fail fast on real migration errors
       if (process.env.NODE_ENV === 'production') {
@@ -229,39 +229,39 @@ function sanitizeLogData(data: any): any {
       CREATE UNIQUE INDEX IF NOT EXISTS counters_role_code_idx 
       ON counters(role_code) WHERE role_code IS NOT NULL;
     `);
-    log("✅ Username migration: roleCode column ready");
+    console.log("✅ Username migration: roleCode column ready");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`ℹ️  Username migration note: ${errorMessage}`);
+    console.log(`ℹ️  Username migration note: ${errorMessage}`);
   }
   // Seed academic terms if they don't exist
   try {
-    log("Seeding academic terms if needed...");
+    console.log("Seeding academic terms if needed...");
     await seedAcademicTerms();
-    log("✅ Academic terms seeding completed successfully");
+    console.log("✅ Academic terms seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
+    console.log(`⚠️ Academic terms seeding failed: ${errorMessage}`);
   }
   // Seed system settings if they don't exist
   try {
-    log("Seeding system settings if needed...");
+    console.log("Seeding system settings if needed...");
     const { seedSystemSettings } = await import("./seed-system-settings");
     await seedSystemSettings();
-    log("✅ System settings seeding completed successfully");
+    console.log("✅ System settings seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`⚠️ System settings seeding failed: ${errorMessage}`);
+    console.log(`⚠️ System settings seeding failed: ${errorMessage}`);
   }
   // Seed super admin account if it doesn't exist
   try {
-    log("Checking for super admin account...");
+    console.log("Checking for super admin account...");
     const { seedSuperAdmin } = await import("./seed-superadmin");
     await seedSuperAdmin();
-    log("✅ Super admin seeding completed successfully");
+    console.log("✅ Super admin seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`⚠️ Super admin seeding failed: ${errorMessage}`);
+    console.log(`⚠️ Super admin seeding failed: ${errorMessage}`);
   }
   // CRITICAL: Verify Supabase Storage is initialized in production
   if (isProduction) {
@@ -271,11 +271,11 @@ function sanitizeLogData(data: any): any {
       // Fail fast in production to prevent silent upload failures
       process.exit(1);
     }
-    log("✅ Supabase Storage verified for production deployment");
+    console.log("✅ Supabase Storage verified for production deployment");
   }
   // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
-    log(`🚨 BLOCKED dangerous route: ${req.method} ${req.path}`);
+    console.log(`🚨 BLOCKED dangerous route: ${req.method} ${req.path}`);
     res.status(410).json({ message: "Gone - Route disabled for security" });
   });
 
@@ -284,7 +284,7 @@ function sanitizeLogData(data: any): any {
   // Multer error handling middleware - must come before general error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err.name === 'MulterError' || err.message?.includes('Only image files') || err.message?.includes('Only document files') || err.message?.includes('Only CSV files')) {
-      log(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
+      console.log(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
       
       let status = 400;
       let message = err.message;
@@ -304,7 +304,7 @@ function sanitizeLogData(data: any): any {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
+    console.log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
 
     if (!res.headersSent) {
       res.status(status).json({ message });
@@ -336,6 +336,6 @@ function sanitizeLogData(data: any): any {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    console.log(`serving on port ${port}`);
   });
 })();
