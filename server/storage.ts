@@ -34,27 +34,6 @@ function initializeDatabase() {
       connect_timeout: 30, // Connection timeout: 30 seconds
       max_lifetime: 3600, // Maximum connection lifetime: 1 hour
 
-      // Enhanced logging for debugging (development only)
-      debug: process.env.NODE_ENV === 'development' ? (connection: any, query: any, params: any) => {
-        // Only log queries if they contain error indicators or are long-running
-        const queryString = typeof query === 'string' ? query : query?.text || String(query);
-        if (queryString?.includes('ERROR') || queryString?.includes('TIMEOUT')) {
-        }
-      } : false,
-
-      // Connection health checks
-      onnotice: (notice: any) => {
-        if (notice.severity === 'WARNING' || notice.severity === 'ERROR') {
-        }
-      },
-
-      // Connection parameter logging
-      onparameter: (key: string, value: any) => {
-        if (key === 'server_version') {
-        } else if (key === 'application_name') {
-        }
-      },
-
       // Connection lifecycle events
       onconnect: async (connection: any) => {
         // Set application name and timeout settings at connection time
@@ -63,13 +42,13 @@ function initializeDatabase() {
           await connection.query('SET statement_timeout = $1', ['60s']);
           await connection.query('SET lock_timeout = $1', ['30s']);
         } catch (error) {
+          // Silently handle connection initialization errors
         }
       }
     };
 
     pg = postgres(process.env.DATABASE_URL, connectionConfig);
     db = drizzle(pg, { schema });
-  } else if (!process.env.DATABASE_URL) {
   }
   return { pg, db };
 }
