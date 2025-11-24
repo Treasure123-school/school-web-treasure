@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
 import * as schema from "@shared/schema";
 import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull } from "drizzle-orm";
 import type {
@@ -16,42 +16,28 @@ import type {
   QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption
 } from "@shared/schema";
 
-// Configure PostgreSQL connection (lazy initialization)
-let pg: any;
+// Configure SQLite connection
+let sqlite: Database.Database | null = null;
 let db: any;
 
 function initializeDatabase() {
-  if (!pg && process.env.DATABASE_URL) {
-
-    // Enhanced connection pool configuration for optimal performance
-    const connectionConfig = {
-      ssl: (process.env.DATABASE_URL?.includes('supabase.com') ? 'require' : false) as 'require' | false,
-      prepare: false, // Required for PostgreSQL transaction pooler compatibility
-
-      // Optimized connection pool settings
-      max: 20, // Maximum connections in pool (increased from default 10)
-      idle_timeout: 300, // Close idle connections after 5 minutes
-      connect_timeout: 30, // Connection timeout: 30 seconds
-      max_lifetime: 3600, // Maximum connection lifetime: 1 hour
-
-      // Connection lifecycle events
-      onconnect: async (connection: any) => {
-        // Set application name and timeout settings at connection time
-        try {
-          await connection.query('SET application_name = $1', ['treasure_home_school']);
-          await connection.query('SET statement_timeout = $1', ['60s']);
-          await connection.query('SET lock_timeout = $1', ['30s']);
-        } catch (error) {
-          // Silently handle connection initialization errors
-        }
-      }
-    };
-
-    pg = postgres(process.env.DATABASE_URL, connectionConfig);
-    db = drizzle(pg, { schema });
+  if (!sqlite) {
+    // Create SQLite database in your project folder
+    sqlite = new Database('./app.db');
+    
+    // Enable foreign keys (SQLite has them disabled by default)
+    sqlite.pragma('foreign_keys = ON');
+    
+    // Performance optimizations for SQLite
+    sqlite.pragma('journal_mode = WAL'); // Write-Ahead Logging for better concurrency
+    sqlite.pragma('synchronous = NORMAL'); // Balance between safety and speed
+    
+    db = drizzle(sqlite, { schema });
+    console.log('✅ SQLite database initialized at ./app.db');
   }
-  return { pg, db };
+  return { sqlite, db };
 }
+
 // Export db for migrations (initialize if needed)
 const { db: exportDb } = initializeDatabase();
 export { exportDb as db };

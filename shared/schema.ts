@@ -1,70 +1,72 @@
-import { sql, eq } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Enums
-export const genderEnum = pgEnum('gender', ['Male', 'Female', 'Other']);
-export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Late', 'Excused']);
-export const reportCardStatusEnum = pgEnum('report_card_status', ['draft', 'finalized', 'published']);
-export const examTypeEnum = pgEnum('exam_type', ['test', 'exam']);
-export const userStatusEnum = pgEnum('user_status', ['pending', 'active', 'suspended', 'disabled']);
-export const createdViaEnum = pgEnum('created_via', ['bulk', 'invite', 'self', 'google', 'admin']);
+// SQLite doesn't support enums, so we use text columns with defaults
+// Gender values: 'Male', 'Female', 'Other'
+// AttendanceStatus values: 'Present', 'Absent', 'Late', 'Excused'
+// ReportCardStatus values: 'draft', 'finalized', 'published'
+// ExamType values: 'test', 'exam'
+// UserStatus values: 'pending', 'active', 'suspended', 'disabled'
+// CreatedVia values: 'bulk', 'invite', 'self', 'google', 'admin'
+// VacancyStatus values: 'open', 'closed', 'filled'
+// ApplicationStatus values: 'pending', 'approved', 'rejected'
 
 // Roles table
-export const roles = pgTable("roles", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 50 }).notNull().unique(),
-  permissions: text("permissions").array().default(sql`'{}'::text[]`),
-  createdAt: timestamp("created_at").defaultNow(),
+export const roles = sqliteTable("roles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  permissions: text("permissions").notNull().default('[]'), // JSON array as text
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Users table
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  username: varchar("username", { length: 100 }).unique(),
-  email: varchar("email", { length: 255 }).notNull(),
-  recoveryEmail: varchar("recovery_email", { length: 255 }), // For password recovery
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").unique(),
+  email: text("email").notNull(),
+  recoveryEmail: text("recovery_email"),
   passwordHash: text("password_hash"),
-  mustChangePassword: boolean("must_change_password").default(true),
-  roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-  firstName: varchar("first_name", { length: 100 }).notNull(),
-  lastName: varchar("last_name", { length: 100 }).notNull(),
-  phone: varchar("phone", { length: 20 }),
+  mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(true),
+  roleId: integer("role_id").notNull().references(() => roles.id),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phone: text("phone"),
   address: text("address"),
-  dateOfBirth: date("date_of_birth"),
-  gender: genderEnum("gender"),
-  nationalId: varchar("national_id", { length: 50 }),
+  dateOfBirth: text("date_of_birth"), // YYYY-MM-DD format
+  gender: text("gender"), // 'Male', 'Female', 'Other'
+  nationalId: text("national_id"),
   profileImageUrl: text("profile_image_url"),
-  isActive: boolean("is_active").default(true),
-  authProvider: varchar("auth_provider", { length: 20 }).default('local'),
-  googleId: varchar("google_id", { length: 255 }).unique(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  authProvider: text("auth_provider").notNull().default('local'),
+  googleId: text("google_id").unique(),
 
   // Security & audit fields
-  status: userStatusEnum("status").default('active'), // New accounts are automatically active
-  createdVia: createdViaEnum("created_via").default('admin'),
-  createdBy: uuid("created_by"),
-  approvedBy: uuid("approved_by"),
-  approvedAt: timestamp("approved_at"),
-  lastLoginAt: timestamp("last_login_at"),
-  lastLoginIp: varchar("last_login_ip", { length: 45 }),
-  mfaEnabled: boolean("mfa_enabled").default(false),
+  status: text("status").notNull().default('active'), // 'pending', 'active', 'suspended', 'disabled'
+  createdVia: text("created_via").notNull().default('admin'), // 'bulk', 'invite', 'self', 'google', 'admin'
+  createdBy: text("created_by"),
+  approvedBy: text("approved_by"),
+  approvedAt: integer("approved_at", { mode: "timestamp" }),
+  lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
+  lastLoginIp: text("last_login_ip"),
+  mfaEnabled: integer("mfa_enabled", { mode: "boolean" }).notNull().default(false),
   mfaSecret: text("mfa_secret"),
-  accountLockedUntil: timestamp("account_locked_until"), // For suspicious activity lock
+  accountLockedUntil: integer("account_locked_until", { mode: "timestamp" }),
 
   // Profile completion fields
-  profileCompleted: boolean("profile_completed").default(false),
-  profileSkipped: boolean("profile_skipped").default(false),
-  profileCompletionPercentage: integer("profile_completion_percentage").default(0),
-  state: varchar("state", { length: 100 }),
-  country: varchar("country", { length: 100 }),
+  profileCompleted: integer("profile_completed", { mode: "boolean" }).notNull().default(false),
+  profileSkipped: integer("profile_skipped", { mode: "boolean" }).notNull().default(false),
+  profileCompletionPercentage: integer("profile_completion_percentage").notNull().default(0),
+  state: text("state"),
+  country: text("country"),
   securityQuestion: text("security_question"),
   securityAnswerHash: text("security_answer_hash"),
-  dataPolicyAgreed: boolean("data_policy_agreed").default(false),
-  dataPolicyAgreedAt: timestamp("data_policy_agreed_at"),
+  dataPolicyAgreed: integer("data_policy_agreed", { mode: "boolean" }).notNull().default(false),
+  dataPolicyAgreedAt: integer("data_policy_agreed_at", { mode: "timestamp" }),
 
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   usersEmailIdx: index("users_email_idx").on(table.email),
   usersStatusIdx: index("users_status_idx").on(table.status),
@@ -74,667 +76,691 @@ export const users = pgTable("users", {
 }));
 
 // Password reset tokens table
-export const passwordResetTokens = pgTable("password_reset_tokens", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  token: varchar("token", { length: 255 }).notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"),
-  ipAddress: varchar("ip_address", { length: 45 }), // Track IP for security
-  resetBy: uuid("reset_by").references(() => users.id, { onDelete: 'set null' }), // Admin who initiated reset, null if self-service
-  createdAt: timestamp("created_at").defaultNow(),
+export const passwordResetTokens = sqliteTable("password_reset_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text("token").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  usedAt: integer("used_at", { mode: "timestamp" }),
+  ipAddress: text("ip_address"),
+  resetBy: text("reset_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
   passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token),
 }));
 
-// Password reset attempts table - for rate limiting
-export const passwordResetAttempts = pgTable("password_reset_attempts", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  identifier: varchar("identifier", { length: 255 }).notNull(), // Email or username
-  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
-  attemptedAt: timestamp("attempted_at").defaultNow(),
-  success: boolean("success").default(false),
+// Password reset attempts table
+export const passwordResetAttempts = sqliteTable("password_reset_attempts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  identifier: text("identifier").notNull(),
+  ipAddress: text("ip_address").notNull(),
+  attemptedAt: integer("attempted_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  success: integer("success", { mode: "boolean" }).notNull().default(false),
 }, (table) => ({
   passwordResetAttemptsIdentifierIdx: index("password_reset_attempts_identifier_idx").on(table.identifier),
   passwordResetAttemptsIpIdx: index("password_reset_attempts_ip_idx").on(table.ipAddress),
   passwordResetAttemptsTimeIdx: index("password_reset_attempts_time_idx").on(table.attemptedAt),
 }));
 
-// Invites table for staff onboarding
-export const invites = pgTable("invites", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  token: varchar("token", { length: 255 }).notNull().unique(),
-  email: varchar("email", { length: 255 }).notNull(),
-  roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
-  expiresAt: timestamp("expires_at").notNull(),
-  acceptedAt: timestamp("accepted_at"),
-  acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp("created_at").defaultNow(),
+// Invites table
+export const invites = sqliteTable("invites", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  token: text("token").notNull().unique(),
+  email: text("email").notNull(),
+  roleId: integer("role_id").notNull().references(() => roles.id),
+  createdBy: text("created_by").references(() => users.id, { onDelete: 'set null' }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  acceptedAt: integer("accepted_at", { mode: "timestamp" }),
+  acceptedBy: text("accepted_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   invitesTokenIdx: index("invites_token_idx").on(table.token),
   invitesEmailIdx: index("invites_email_idx").on(table.email),
 }));
 
-// Notifications table for admin alerts
-export const notifications = pgTable("notifications", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(), // Admin receiving the notification
-  type: varchar("type", { length: 50 }).notNull(), // 'pending_user', 'approval_request', etc.
-  title: varchar("title", { length: 200 }).notNull(),
+// Notifications table
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
   message: text("message").notNull(),
-  relatedEntityType: varchar("related_entity_type", { length: 50 }), // 'user', 'student', etc.
-  relatedEntityId: varchar("related_entity_id", { length: 255 }), // ID of the related entity
-  isRead: boolean("is_read").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  relatedEntityType: text("related_entity_type"),
+  relatedEntityId: text("related_entity_id"),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   notificationsUserIdIdx: index("notifications_user_id_idx").on(table.userId),
   notificationsIsReadIdx: index("notifications_is_read_idx").on(table.isRead),
 }));
 
 // Academic terms table
-export const academicTerms = pgTable("academic_terms", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 50 }).notNull(),
-  year: varchar("year", { length: 9 }).notNull(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
-  isCurrent: boolean("is_current").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+export const academicTerms = sqliteTable("academic_terms", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  year: text("year").notNull(),
+  startDate: text("start_date").notNull(), // YYYY-MM-DD format
+  endDate: text("end_date").notNull(),
+  isCurrent: integer("is_current", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Classes table
-export const classes = pgTable("classes", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 50 }).notNull().unique(),
-  level: varchar("level", { length: 20 }).notNull(),
-  capacity: integer("capacity").default(30),
-  classTeacherId: uuid("class_teacher_id").references(() => users.id, { onDelete: 'set null' }),
+export const classes = sqliteTable("classes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  level: text("level").notNull(),
+  capacity: integer("capacity").notNull().default(30),
+  classTeacherId: text("class_teacher_id").references(() => users.id, { onDelete: 'set null' }),
   currentTermId: integer("current_term_id").references(() => academicTerms.id),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Subjects table
-export const subjects = pgTable("subjects", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  code: varchar("code", { length: 20 }).notNull().unique(),
+export const subjects = sqliteTable("subjects", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Students table
-export const students = pgTable("students", {
-  id: uuid("id").references(() => users.id, { onDelete: 'cascade' }).primaryKey(),
-  admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
+export const students = sqliteTable("students", {
+  id: text("id").primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  admissionNumber: text("admission_number").notNull().unique(),
   classId: integer("class_id").references(() => classes.id),
-  parentId: uuid("parent_id").references(() => users.id, { onDelete: 'set null' }),
-  admissionDate: date("admission_date").defaultNow(),
-  emergencyContact: varchar("emergency_contact", { length: 200 }),
-  emergencyPhone: varchar("emergency_phone", { length: 20 }),
+  parentId: text("parent_id").references(() => users.id, { onDelete: 'set null' }),
+  admissionDate: text("admission_date").notNull(), // YYYY-MM-DD format
+  emergencyContact: text("emergency_contact"),
+  emergencyPhone: text("emergency_phone"),
   medicalInfo: text("medical_info"),
-  guardianName: varchar("guardian_name", { length: 200 }),
-  createdAt: timestamp("created_at").defaultNow(),
+  guardianName: text("guardian_name"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Teacher profiles table
-export const teacherProfiles = pgTable("teacher_profiles", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
-  staffId: varchar("staff_id", { length: 50 }).unique(),
-  subjects: integer("subjects").array(),
-  assignedClasses: integer("assigned_classes").array(),
-  qualification: varchar("qualification", { length: 100 }),
-  yearsOfExperience: integer("years_of_experience").default(0),
-  specialization: varchar("specialization", { length: 200 }),
-  department: varchar("department", { length: 100 }),
+export const teacherProfiles = sqliteTable("teacher_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  staffId: text("staff_id").unique(),
+  subjects: text("subjects").notNull().default('[]'), // JSON array of integers
+  assignedClasses: text("assigned_classes").notNull().default('[]'), // JSON array of integers
+  qualification: text("qualification"),
+  yearsOfExperience: integer("years_of_experience").notNull().default(0),
+  specialization: text("specialization"),
+  department: text("department"),
   signatureUrl: text("signature_url"),
-  gradingMode: varchar("grading_mode", { length: 50 }).default('manual'),
-  autoGradeTheoryQuestions: boolean("auto_grade_theory_questions").default(false),
+  gradingMode: text("grading_mode").notNull().default('manual'),
+  autoGradeTheoryQuestions: integer("auto_grade_theory_questions", { mode: "boolean" }).notNull().default(false),
   theoryGradingInstructions: text("theory_grading_instructions"),
-  notificationPreference: varchar("notification_preference", { length: 50 }).default('all'),
-  availability: varchar("availability", { length: 50 }),
-  firstLogin: boolean("first_login").default(true),
-  verified: boolean("verified").default(false),
-  verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: 'set null' }),
-  verifiedAt: timestamp("verified_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  notificationPreference: text("notification_preference").notNull().default('all'),
+  availability: text("availability"),
+  firstLogin: integer("first_login", { mode: "boolean" }).notNull().default(true),
+  verified: integer("verified", { mode: "boolean" }).notNull().default(false),
+  verifiedBy: text("verified_by").references(() => users.id, { onDelete: 'set null' }),
+  verifiedAt: integer("verified_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Admin profiles table
-export const adminProfiles = pgTable("admin_profiles", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
-  department: varchar("department", { length: 100 }),
+export const adminProfiles = sqliteTable("admin_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  department: text("department"),
   roleDescription: text("role_description"),
-  accessLevel: varchar("access_level", { length: 50 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  accessLevel: text("access_level"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Parent profiles table
-export const parentProfiles = pgTable("parent_profiles", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
-  occupation: varchar("occupation", { length: 100 }),
-  contactPreference: varchar("contact_preference", { length: 50 }),
-  linkedStudents: uuid("linked_students").array(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const parentProfiles = sqliteTable("parent_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  occupation: text("occupation"),
+  contactPreference: text("contact_preference"),
+  linkedStudents: text("linked_students").notNull().default('[]'), // JSON array of UUIDs
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Super Admin profiles table
-export const superAdminProfiles = pgTable("super_admin_profiles", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
-  department: varchar("department", { length: 100 }),
-  accessLevel: varchar("access_level", { length: 50 }).default('full'),
-  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+export const superAdminProfiles = sqliteTable("super_admin_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  department: text("department"),
+  accessLevel: text("access_level").notNull().default('full'),
+  twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
   twoFactorSecret: text("two_factor_secret"),
-  lastPasswordChange: timestamp("last_password_change"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  lastPasswordChange: integer("last_password_change", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// System settings table for global configuration
-export const systemSettings = pgTable("system_settings", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  schoolName: varchar("school_name", { length: 200 }),
+// System settings table
+export const systemSettings = sqliteTable("system_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  schoolName: text("school_name"),
   schoolMotto: text("school_motto"),
   schoolLogo: text("school_logo"),
-  schoolEmail: varchar("school_email", { length: 255 }),
-  schoolPhone: varchar("school_phone", { length: 50 }),
+  schoolEmail: text("school_email"),
+  schoolPhone: text("school_phone"),
   schoolAddress: text("school_address"),
-  maintenanceMode: boolean("maintenance_mode").default(false),
+  maintenanceMode: integer("maintenance_mode", { mode: "boolean" }).notNull().default(false),
   maintenanceModeMessage: text("maintenance_mode_message"),
-  enableSmsNotifications: boolean("enable_sms_notifications").default(false),
-  enableEmailNotifications: boolean("enable_email_notifications").default(true),
-  enableExamsModule: boolean("enable_exams_module").default(true),
-  enableAttendanceModule: boolean("enable_attendance_module").default(true),
-  enableResultsModule: boolean("enable_results_module").default(true),
-  themeColor: varchar("theme_color", { length: 50 }).default('blue'),
+  enableSmsNotifications: integer("enable_sms_notifications", { mode: "boolean" }).notNull().default(false),
+  enableEmailNotifications: integer("enable_email_notifications", { mode: "boolean" }).notNull().default(true),
+  enableExamsModule: integer("enable_exams_module", { mode: "boolean" }).notNull().default(true),
+  enableAttendanceModule: integer("enable_attendance_module", { mode: "boolean" }).notNull().default(true),
+  enableResultsModule: integer("enable_results_module", { mode: "boolean" }).notNull().default(true),
+  themeColor: text("theme_color").notNull().default('blue'),
   favicon: text("favicon"),
-  usernameStudentPrefix: varchar("username_student_prefix", { length: 20 }).default('THS-STU'),
-  usernameParentPrefix: varchar("username_parent_prefix", { length: 20 }).default('THS-PAR'),
-  usernameTeacherPrefix: varchar("username_teacher_prefix", { length: 20 }).default('THS-TCH'),
-  usernameAdminPrefix: varchar("username_admin_prefix", { length: 20 }).default('THS-ADM'),
-  tempPasswordFormat: varchar("temp_password_format", { length: 50 }).default('THS@{year}#{random4}'),
-  hideAdminAccountsFromAdmins: boolean("hide_admin_accounts_from_admins").default(true),
-  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  usernameStudentPrefix: text("username_student_prefix").notNull().default('THS-STU'),
+  usernameParentPrefix: text("username_parent_prefix").notNull().default('THS-PAR'),
+  usernameTeacherPrefix: text("username_teacher_prefix").notNull().default('THS-TCH'),
+  usernameAdminPrefix: text("username_admin_prefix").notNull().default('THS-ADM'),
+  tempPasswordFormat: text("temp_password_format").notNull().default('THS@{year}#{random4}'),
+  hideAdminAccountsFromAdmins: integer("hide_admin_accounts_from_admins", { mode: "boolean" }).notNull().default(true),
+  updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Attendance table
-export const attendance = pgTable("attendance", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  classId: integer("class_id").references(() => classes.id).notNull(),
-  date: date("date").notNull(),
-  status: attendanceStatusEnum("status"),
-  recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: 'set null' }),
+export const attendance = sqliteTable("attendance", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  status: text("status").notNull(), // 'Present', 'Absent', 'Late', 'Excused'
+  recordedBy: text("recorded_by").references(() => users.id, { onDelete: 'set null' }),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Exams table
-export const exams = pgTable("exams", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+export const exams = sqliteTable("exams", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
   totalMarks: integer("total_marks").notNull(),
-  date: text("date").notNull(), // Store as YYYY-MM-DD string to avoid Date object conversion
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
-  teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id, { onDelete: 'set null' }), // Teacher responsible for grading
-  createdAt: timestamp("created_at").defaultNow(),
-  // Exam type: 'test' (40 marks) or 'exam' (60 marks)
-  examType: examTypeEnum("exam_type").notNull().default('exam'),
-  // Timer mode: 'global' (fixed start/end times) or 'individual' (duration per student)
-  timerMode: varchar("timer_mode", { length: 20 }).default('individual'), // 'global' or 'individual'
-  // Enhanced exam delivery fields
-  timeLimit: integer("time_limit"), // in minutes (used for individual timer mode)
-  startTime: timestamp("start_time"),
-  endTime: timestamp("end_time"),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  termId: integer("term_id").notNull().references(() => academicTerms.id),
+  createdBy: text("created_by").references(() => users.id, { onDelete: 'set null' }),
+  teacherInChargeId: text("teacher_in_charge_id").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  examType: text("exam_type").notNull().default('exam'), // 'test', 'exam'
+  timerMode: text("timer_mode").notNull().default('individual'), // 'global', 'individual'
+  timeLimit: integer("time_limit"), // in minutes
+  startTime: integer("start_time", { mode: "timestamp" }),
+  endTime: integer("end_time", { mode: "timestamp" }),
   instructions: text("instructions"),
-  isPublished: boolean("is_published").default(false),
-  allowRetakes: boolean("allow_retakes").default(false),
-  shuffleQuestions: boolean("shuffle_questions").default(false),
-  // Enhanced auto-grading features (will be added via migration)
-  autoGradingEnabled: boolean("auto_grading_enabled").default(true),
-  instantFeedback: boolean("instant_feedback").default(false), // Show correct/incorrect immediately
-  showCorrectAnswers: boolean("show_correct_answers").default(false), // Show answers after submission
-  passingScore: integer("passing_score"), // Minimum score to pass (percentage)
-  gradingScale: text("grading_scale").default('standard'), // 'standard', 'custom'
-  // Proctoring and security settings
-  enableProctoring: boolean("enable_proctoring").default(false),
-  lockdownMode: boolean("lockdown_mode").default(false), // Prevents tab switching, copy-paste
-  requireWebcam: boolean("require_webcam").default(false),
-  requireFullscreen: boolean("require_fullscreen").default(false),
-  maxTabSwitches: integer("max_tab_switches").default(3), // Auto-submit after this many violations
-  shuffleOptions: boolean("shuffle_options").default(false), // Randomize option order
+  isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+  allowRetakes: integer("allow_retakes", { mode: "boolean" }).notNull().default(false),
+  shuffleQuestions: integer("shuffle_questions", { mode: "boolean" }).notNull().default(false),
+  autoGradingEnabled: integer("auto_grading_enabled", { mode: "boolean" }).notNull().default(true),
+  instantFeedback: integer("instant_feedback", { mode: "boolean" }).notNull().default(false),
+  showCorrectAnswers: integer("show_correct_answers", { mode: "boolean" }).notNull().default(false),
+  passingScore: integer("passing_score"),
+  gradingScale: text("grading_scale").notNull().default('standard'),
+  enableProctoring: integer("enable_proctoring", { mode: "boolean" }).notNull().default(false),
+  lockdownMode: integer("lockdown_mode", { mode: "boolean" }).notNull().default(false),
+  requireWebcam: integer("require_webcam", { mode: "boolean" }).notNull().default(false),
+  requireFullscreen: integer("require_fullscreen", { mode: "boolean" }).notNull().default(false),
+  maxTabSwitches: integer("max_tab_switches").notNull().default(3),
+  shuffleOptions: integer("shuffle_options", { mode: "boolean" }).notNull().default(false),
 });
 
 // Exam questions table
-export const examQuestions = pgTable("exam_questions", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+export const examQuestions = sqliteTable("exam_questions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  examId: integer("exam_id").notNull().references(() => exams.id),
   questionText: text("question_text").notNull(),
-  questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'
-  points: integer("points").default(1),
+  questionType: text("question_type").notNull(), // 'multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'
+  points: integer("points").notNull().default(1),
   orderNumber: integer("order_number").notNull(),
-  imageUrl: text("image_url"), // for questions with images
-  // Enhanced auto-grading features
-  autoGradable: boolean("auto_gradable").default(true), // Can this question be auto-graded?
-  expectedAnswers: text("expected_answers").array(), // For text questions - expected answer variations
-  caseSensitive: boolean("case_sensitive").default(false), // For text answers
-  allowPartialCredit: boolean("allow_partial_credit").default(false),
-  partialCreditRules: text("partial_credit_rules"), // JSON config for partial credit
-  explanationText: text("explanation_text"), // Explanation shown after answering
-  hintText: text("hint_text"), // Optional hint for students
-  createdAt: timestamp("created_at").defaultNow(),
+  imageUrl: text("image_url"),
+  autoGradable: integer("auto_gradable", { mode: "boolean" }).notNull().default(true),
+  expectedAnswers: text("expected_answers").notNull().default('[]'), // JSON array
+  caseSensitive: integer("case_sensitive", { mode: "boolean" }).notNull().default(false),
+  allowPartialCredit: integer("allow_partial_credit", { mode: "boolean" }).notNull().default(false),
+  partialCreditRules: text("partial_credit_rules"),
+  explanationText: text("explanation_text"),
+  hintText: text("hint_text"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // PERFORMANCE INDEX: Critical for scoring JOIN queries
   examQuestionsExamIdIdx: index("exam_questions_exam_id_idx").on(table.examId),
   examQuestionsOrderIdx: index("exam_questions_order_idx").on(table.examId, table.orderNumber),
 }));
 
-// Question options table (for multiple choice questions)
-export const questionOptions = pgTable("question_options", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
+// Question options table
+export const questionOptions = sqliteTable("question_options", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  questionId: integer("question_id").notNull().references(() => examQuestions.id),
   optionText: text("option_text").notNull(),
-  isCorrect: boolean("is_correct").default(false),
+  isCorrect: integer("is_correct", { mode: "boolean" }).notNull().default(false),
   orderNumber: integer("order_number").notNull(),
-  // Enhanced auto-grading features
-  partialCreditValue: integer("partial_credit_value").default(0), // Points if selected (for partial credit)
-  explanationText: text("explanation_text"), // Why this option is correct/incorrect
-  createdAt: timestamp("created_at").defaultNow(),
+  partialCreditValue: integer("partial_credit_value").notNull().default(0),
+  explanationText: text("explanation_text"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // PERFORMANCE INDEX: Critical for scoring JOIN queries - find correct options fast
   questionOptionsQuestionIdIdx: index("question_options_question_id_idx").on(table.questionId),
   questionOptionsCorrectIdx: index("question_options_correct_idx").on(table.questionId, table.isCorrect),
 }));
 
 // Student exam sessions table
-export const examSessions = pgTable("exam_sessions", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  startedAt: timestamp("started_at").defaultNow(),
-  submittedAt: timestamp("submitted_at"),
-  timeRemaining: integer("time_remaining"), // in seconds
-  isCompleted: boolean("is_completed").default(false),
+export const examSessions = sqliteTable("exam_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  examId: integer("exam_id").notNull().references(() => exams.id),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
+  startedAt: integer("started_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  submittedAt: integer("submitted_at", { mode: "timestamp" }),
+  timeRemaining: integer("time_remaining"),
+  isCompleted: integer("is_completed", { mode: "boolean" }).notNull().default(false),
   score: integer("score"),
   maxScore: integer("max_score"),
-  status: varchar("status", { length: 20 }).default('in_progress'), // 'in_progress', 'submitted', 'graded'
-  metadata: text("metadata"), // JSON string for violation tracking, progress saving, etc.
-  createdAt: timestamp("created_at").defaultNow(),
+  status: text("status").notNull().default('in_progress'), // 'in_progress', 'submitted', 'graded'
+  metadata: text("metadata"), // JSON string
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // PERFORMANCE INDEX: Critical for session lookups
   examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
   examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
   examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
-  // UNIQUE CONSTRAINT: Prevent duplicate active sessions (critical for circuit breaker fix)
-  examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(sql`${table.isCompleted} = false`),
 }));
 
 // Student answers table
-export const studentAnswers = pgTable("student_answers", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id).notNull(),
-  questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
-  selectedOptionId: bigint("selected_option_id", { mode: "number" }).references(() => questionOptions.id), // for multiple choice
-  textAnswer: text("text_answer"), // for text/essay questions
-  isCorrect: boolean("is_correct"),
-  pointsEarned: integer("points_earned").default(0),
-  answeredAt: timestamp("answered_at").defaultNow(),
-  // Enhanced auto-grading features
-  autoScored: boolean("auto_scored").default(false), // Was this answer auto-scored?
-  manualOverride: boolean("manual_override").default(false), // Teacher manually adjusted score
-  feedbackText: text("feedback_text"), // Instant feedback shown to student
-  partialCreditReason: text("partial_credit_reason"), // Why partial credit was given
+export const studentAnswers = sqliteTable("student_answers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: integer("session_id").notNull().references(() => examSessions.id),
+  questionId: integer("question_id").notNull().references(() => examQuestions.id),
+  selectedOptionId: integer("selected_option_id").references(() => questionOptions.id),
+  textAnswer: text("text_answer"),
+  isCorrect: integer("is_correct", { mode: "boolean" }),
+  pointsEarned: integer("points_earned").notNull().default(0),
+  answeredAt: integer("answered_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  autoScored: integer("auto_scored", { mode: "boolean" }).notNull().default(false),
+  manualOverride: integer("manual_override", { mode: "boolean" }).notNull().default(false),
+  feedbackText: text("feedback_text"),
+  partialCreditReason: text("partial_credit_reason"),
 }, (table) => ({
-  // PERFORMANCE INDEX: Critical for scoring JOIN queries - fetch all answers for a session fast
   studentAnswersSessionIdIdx: index("student_answers_session_id_idx").on(table.sessionId),
   studentAnswersSessionQuestionIdx: index("student_answers_session_question_idx").on(table.sessionId, table.questionId),
   studentAnswersQuestionIdx: index("student_answers_question_id_idx").on(table.questionId),
 }));
 
 // Exam results table
-export const examResults = pgTable("exam_results", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
+export const examResults = sqliteTable("exam_results", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  examId: integer("exam_id").notNull().references(() => exams.id),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
   score: integer("score"),
   maxScore: integer("max_score"),
-  marksObtained: integer("marks_obtained"), // Legacy field for backward compatibility
-  grade: varchar("grade", { length: 5 }),
+  marksObtained: integer("marks_obtained"),
+  grade: text("grade"),
   remarks: text("remarks"),
-  autoScored: boolean("auto_scored").default(false),
-  recordedBy: uuid("recorded_by").references(() => users.id).notNull(), // UUID field to match database schema, must be a valid user ID
-  createdAt: timestamp("created_at").defaultNow(),
+  autoScored: integer("auto_scored", { mode: "boolean" }).notNull().default(false),
+  recordedBy: text("recorded_by").notNull().references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // PERFORMANCE INDEX: Critical for fast result lookups by exam/student
   examResultsExamIdIdx: index("exam_results_exam_id_idx").on(table.examId),
   examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
   examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
   examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId),
 }));
 
-// Question Bank tables - For reusable question management
-export const questionBanks = pgTable("question_banks", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 200 }).notNull(),
+// Question Bank tables
+export const questionBanks = sqliteTable("question_banks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
   description: text("description"),
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-  classLevel: varchar("class_level", { length: 50 }), // e.g., "JSS2", "SSS1"
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
-  isPublic: boolean("is_public").default(false), // Shared across teachers or private
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  classLevel: text("class_level"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: 'set null' }),
+  isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   questionBanksSubjectIdx: index("question_banks_subject_idx").on(table.subjectId),
   questionBanksCreatedByIdx: index("question_banks_created_by_idx").on(table.createdBy),
 }));
 
-// Question bank items - Individual questions in the bank
-export const questionBankItems = pgTable("question_bank_items", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  bankId: bigint("bank_id", { mode: "number" }).references(() => questionBanks.id, { onDelete: 'cascade' }).notNull(),
+// Question bank items
+export const questionBankItems = sqliteTable("question_bank_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  bankId: integer("bank_id").notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
   questionText: text("question_text").notNull(),
-  questionType: varchar("question_type", { length: 50 }).notNull(), // 'multiple_choice', 'text', 'essay', 'practical'
-  points: integer("points").default(1),
-  difficulty: varchar("difficulty", { length: 20 }).default('medium'), // 'easy', 'medium', 'hard'
-  tags: text("tags").array(), // For filtering and search
+  questionType: text("question_type").notNull(),
+  points: integer("points").notNull().default(1),
+  difficulty: text("difficulty").notNull().default('medium'),
+  tags: text("tags").notNull().default('[]'), // JSON array
   imageUrl: text("image_url"),
-  // Auto-grading features
-  autoGradable: boolean("auto_gradable").default(true),
-  expectedAnswers: text("expected_answers").array(),
-  caseSensitive: boolean("case_sensitive").default(false),
+  autoGradable: integer("auto_gradable", { mode: "boolean" }).notNull().default(true),
+  expectedAnswers: text("expected_answers").notNull().default('[]'), // JSON array
+  caseSensitive: integer("case_sensitive", { mode: "boolean" }).notNull().default(false),
   explanationText: text("explanation_text"),
   hintText: text("hint_text"),
-  // For practical questions
   practicalInstructions: text("practical_instructions"),
   practicalFileUrl: text("practical_file_url"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   questionBankItemsBankIdIdx: index("question_bank_items_bank_id_idx").on(table.bankId),
   questionBankItemsTypeIdx: index("question_bank_items_type_idx").on(table.questionType),
   questionBankItemsDifficultyIdx: index("question_bank_items_difficulty_idx").on(table.difficulty),
 }));
 
-// Question bank item options - For multiple choice questions in the bank
-export const questionBankOptions = pgTable("question_bank_options", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  questionItemId: bigint("question_item_id", { mode: "number" }).references(() => questionBankItems.id, { onDelete: 'cascade' }).notNull(),
+// Question bank item options
+export const questionBankOptions = sqliteTable("question_bank_options", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  questionItemId: integer("question_item_id").notNull().references(() => questionBankItems.id, { onDelete: 'cascade' }),
   optionText: text("option_text").notNull(),
-  isCorrect: boolean("is_correct").default(false),
+  isCorrect: integer("is_correct", { mode: "boolean" }).notNull().default(false),
   orderNumber: integer("order_number").notNull(),
   explanationText: text("explanation_text"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   questionBankOptionsItemIdIdx: index("question_bank_options_item_id_idx").on(table.questionItemId),
 }));
 
 // Announcements table
-export const announcements = pgTable("announcements", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
+export const announcements = sqliteTable("announcements", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
   content: text("content").notNull(),
-  authorId: uuid("author_id").references(() => users.id, { onDelete: 'set null' }),
-  targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
-  targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
-  isPublished: boolean("is_published").default(false),
-  publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+  authorId: text("author_id").references(() => users.id, { onDelete: 'set null' }),
+  targetRoles: text("target_roles").notNull().default('["All"]'), // JSON array
+  targetClasses: text("target_classes").notNull().default('[]'), // JSON array
+  isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Messages table
-export const messages = pgTable("messages", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  senderId: uuid("sender_id").references(() => users.id, { onDelete: 'set null' }),
-  recipientId: uuid("recipient_id").references(() => users.id, { onDelete: 'set null' }),
-  subject: varchar("subject", { length: 200 }).notNull(),
+export const messages = sqliteTable("messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  senderId: text("sender_id").references(() => users.id, { onDelete: 'set null' }),
+  recipientId: text("recipient_id").references(() => users.id, { onDelete: 'set null' }),
+  subject: text("subject").notNull(),
   content: text("content").notNull(),
-  isRead: boolean("is_read").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Gallery categories table
-export const galleryCategories = pgTable("gallery_categories", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
+export const galleryCategories = sqliteTable("gallery_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Gallery table
-export const gallery = pgTable("gallery", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
+export const gallery = sqliteTable("gallery", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   imageUrl: text("image_url").notNull(),
   caption: text("caption"),
   categoryId: integer("category_id").references(() => galleryCategories.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp("created_at").defaultNow(),
+  uploadedBy: text("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// Home page content management
-export const homePageContent = pgTable("home_page_content", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  contentType: varchar("content_type", { length: 50 }).notNull(), // 'hero_image', 'gallery_preview_1', 'gallery_preview_2', etc.
+// Home page content table
+export const homePageContent = sqliteTable("home_page_content", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  contentType: text("content_type").notNull(),
   imageUrl: text("image_url"),
   altText: text("alt_text"),
   caption: text("caption"),
-  isActive: boolean("is_active").default(true).notNull(),
-  displayOrder: integer("display_order").default(0).notNull(),
-  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  uploadedBy: text("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// Contact messages table for permanent storage of contact form submissions
-export const contactMessages = pgTable("contact_messages", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull(),
-  subject: varchar("subject", { length: 200 }),
+// Contact messages table
+export const contactMessages = sqliteTable("contact_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject"),
   message: text("message").notNull(),
-  isRead: boolean("is_read").default(false),
-  respondedAt: timestamp("responded_at"),
-  respondedBy: uuid("responded_by").references(() => users.id, { onDelete: 'set null' }),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  respondedAt: integer("responded_at", { mode: "timestamp" }),
+  respondedBy: text("responded_by").references(() => users.id, { onDelete: 'set null' }),
   response: text("response"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// Report cards table for consolidated term-based student reports
-export const reportCards = pgTable("report_cards", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  studentId: uuid("student_id").references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  classId: integer("class_id").references(() => classes.id).notNull(),
-  termId: integer("term_id").references(() => academicTerms.id).notNull(),
-  averagePercentage: integer("average_percentage"), // Overall percentage
-  overallGrade: varchar("overall_grade", { length: 5 }), // A+, A, B+, etc.
+// Report cards table
+export const reportCards = sqliteTable("report_cards", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  termId: integer("term_id").notNull().references(() => academicTerms.id),
+  averagePercentage: integer("average_percentage"),
+  overallGrade: text("overall_grade"),
   teacherRemarks: text("teacher_remarks"),
-  status: reportCardStatusEnum("status").default('draft'),
-  locked: boolean("locked").default(false),
-  generatedAt: timestamp("generated_at").defaultNow(),
-  finalizedAt: timestamp("finalized_at"),
-  publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+  status: text("status").notNull().default('draft'), // 'draft', 'finalized', 'published'
+  locked: integer("locked", { mode: "boolean" }).notNull().default(false),
+  generatedAt: integer("generated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  finalizedAt: integer("finalized_at", { mode: "timestamp" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// Report card items table for per-subject breakdown
-export const reportCardItems = pgTable("report_card_items", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  reportCardId: integer("report_card_id").references(() => reportCards.id).notNull(),
-  subjectId: integer("subject_id").references(() => subjects.id).notNull(),
-  // Test and Exam scores with their respective exam IDs for reference
-  testExamId: bigint("test_exam_id", { mode: "number" }).references(() => exams.id),
-  testScore: integer("test_score"), // Score obtained in test (out of testMaxScore)
-  testMaxScore: integer("test_max_score"), // Maximum marks for test
-  testWeightedScore: integer("test_weighted_score"), // Normalized to 40
-  examExamId: bigint("exam_exam_id", { mode: "number" }).references(() => exams.id),
-  examScore: integer("exam_score"), // Score obtained in exam (out of examMaxScore)
-  examMaxScore: integer("exam_max_score"), // Maximum marks for exam
-  examWeightedScore: integer("exam_weighted_score"), // Normalized to 60
-  // Combined scores
-  totalMarks: integer("total_marks").notNull().default(100), // Always 100 for the weighted system
-  obtainedMarks: integer("obtained_marks").notNull(), // testWeightedScore + examWeightedScore
+// Report card items table
+export const reportCardItems = sqliteTable("report_card_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportCardId: integer("report_card_id").notNull().references(() => reportCards.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  testExamId: integer("test_exam_id").references(() => exams.id),
+  testScore: integer("test_score"),
+  testMaxScore: integer("test_max_score"),
+  testWeightedScore: integer("test_weighted_score"),
+  examExamId: integer("exam_exam_id").references(() => exams.id),
+  examScore: integer("exam_score"),
+  examMaxScore: integer("exam_max_score"),
+  examWeightedScore: integer("exam_weighted_score"),
+  totalMarks: integer("total_marks").notNull().default(100),
+  obtainedMarks: integer("obtained_marks").notNull(),
   percentage: integer("percentage").notNull(),
-  grade: varchar("grade", { length: 5 }), // A+, A, B+, etc.
+  grade: text("grade"),
   teacherRemarks: text("teacher_remarks"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// Study resources table for past papers and study materials
-export const studyResources = pgTable("study_resources", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
+// Study resources table
+export const studyResources = sqliteTable("study_resources", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
   description: text("description"),
   fileUrl: text("file_url").notNull(),
-  fileName: varchar("file_name", { length: 255 }).notNull(),
-  fileSize: integer("file_size"), // in bytes
-  resourceType: varchar("resource_type", { length: 50 }).notNull(), // 'past_paper', 'study_guide', 'notes', 'assignment'
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
-  isPublished: boolean("is_published").default(true),
-  downloads: integer("downloads").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
+  fileName: text("file_name").notNull(),
+  fileSize: integer("file_size"),
+  resourceType: text("resource_type").notNull(),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  classId: integer("class_id").references(() => classes.id),
+  termId: integer("term_id").references(() => academicTerms.id),
+  uploadedBy: text("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
+  isPublished: integer("is_published", { mode: "boolean" }).notNull().default(true),
+  downloads: integer("downloads").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
-// Performance events table for monitoring and analytics
-export const performanceEvents = pgTable("performance_events", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id),
-  eventType: varchar("event_type", { length: 50 }).notNull(), // 'submission', 'auto_submit', 'timeout_cleanup', 'answer_save'
-  duration: integer("duration").notNull(), // in milliseconds
-  goalAchieved: boolean("goal_achieved").notNull(), // whether it met the < 2000ms goal
-  metadata: text("metadata"), // JSON string for additional data
-  clientSide: boolean("client_side").default(false), // whether logged from client or server
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }), // for attribution
-  createdAt: timestamp("created_at").defaultNow(),
+// Performance events table
+export const performanceEvents = sqliteTable("performance_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: integer("session_id").references(() => examSessions.id),
+  eventType: text("event_type").notNull(),
+  duration: integer("duration").notNull(),
+  goalAchieved: integer("goal_achieved", { mode: "boolean" }).notNull(),
+  metadata: text("metadata"),
+  clientSide: integer("client_side", { mode: "boolean" }).notNull().default(false),
+  userId: text("user_id").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // Performance indexes for analytics queries
   performanceEventsTypeIdx: index("performance_events_type_idx").on(table.eventType),
   performanceEventsDateIdx: index("performance_events_date_idx").on(table.createdAt),
   performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType),
 }));
 
-// Teacher class assignments table for mapping which teachers teach which subjects in which classes
-export const teacherClassAssignments = pgTable("teacher_class_assignments", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  teacherId: uuid("teacher_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  assignedBy: uuid("assigned_by").references(() => users.id, { onDelete: 'set null' }),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+// Teacher class assignments table
+export const teacherClassAssignments = sqliteTable("teacher_class_assignments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  teacherId: text("teacher_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  termId: integer("term_id").references(() => academicTerms.id),
+  assignedBy: text("assigned_by").references(() => users.id, { onDelete: 'set null' }),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // Performance indexes for quick teacher assignment lookups
   teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
   teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId),
 }));
 
-// Timetable table for teacher weekly schedules
-export const timetable = pgTable("timetable", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  teacherId: uuid("teacher_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-  subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-  dayOfWeek: varchar("day_of_week", { length: 10 }).notNull(), // 'Monday', 'Tuesday', etc.
-  startTime: varchar("start_time", { length: 5 }).notNull(), // '09:00' format
-  endTime: varchar("end_time", { length: 5 }).notNull(), // '10:00' format
-  location: varchar("location", { length: 100 }), // Room/classroom location
-  termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+// Timetable table
+export const timetable = sqliteTable("timetable", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  teacherId: text("teacher_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  dayOfWeek: text("day_of_week").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  location: text("location"),
+  termId: integer("term_id").references(() => academicTerms.id),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // Performance indexes for timetable queries
   timetableTeacherIdx: index("timetable_teacher_idx").on(table.teacherId, table.isActive),
   timetableDayIdx: index("timetable_day_idx").on(table.dayOfWeek, table.teacherId),
 }));
 
-// Manual grading tasks queue table for essays and subjective questions
-export const gradingTasks = pgTable("grading_tasks", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id, { onDelete: 'cascade' }).notNull(),
-  answerId: bigint("answer_id", { mode: "number" }).references(() => studentAnswers.id, { onDelete: 'cascade' }).notNull(),
-  assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id, { onDelete: 'set null' }), // Teacher assigned to grade this
-  status: varchar("status", { length: 20 }).default('pending'), // 'pending', 'in_progress', 'completed', 'skipped'
-  priority: integer("priority").default(0), // Higher number = higher priority
-  assignedAt: timestamp("assigned_at"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+// Grading tasks table
+export const gradingTasks = sqliteTable("grading_tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: integer("session_id").notNull().references(() => examSessions.id, { onDelete: 'cascade' }),
+  answerId: integer("answer_id").notNull().references(() => studentAnswers.id, { onDelete: 'cascade' }),
+  assignedTeacherId: text("assigned_teacher_id").references(() => users.id, { onDelete: 'set null' }),
+  status: text("status").notNull().default('pending'),
+  priority: integer("priority").notNull().default(0),
+  assignedAt: integer("assigned_at", { mode: "timestamp" }),
+  startedAt: integer("started_at", { mode: "timestamp" }),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // Performance indexes for grading queue management
   gradingTasksAssignedIdx: index("grading_tasks_assigned_idx").on(table.assignedTeacherId, table.status),
   gradingTasksStatusIdx: index("grading_tasks_status_idx").on(table.status, table.priority),
   gradingTasksSessionIdx: index("grading_tasks_session_idx").on(table.sessionId),
-  // Unique constraint to prevent duplicate tasks for the same answer
   gradingTasksAnswerUniqueIdx: uniqueIndex("grading_tasks_answer_unique_idx").on(table.answerId),
 }));
 
-// Audit logs table for tracking all grade changes and important actions
-export const auditLogs = pgTable("audit_logs", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: 'set null' }), // Who made the change - PRESERVE audit trail
-  action: varchar("action", { length: 100 }).notNull(), // 'grade_change', 'manual_override', 'report_publish', etc.
-  entityType: varchar("entity_type", { length: 50 }).notNull(), // 'exam_result', 'student_answer', 'report_card'
-  entityId: varchar("entity_id", { length: 255 }).notNull(), // ID of the affected entity (supports both UUIDs and numeric IDs)
-  oldValue: text("old_value"), // JSON of old values
-  newValue: text("new_value"), // JSON of new values
-  reason: text("reason"), // Why the change was made
-  ipAddress: varchar("ip_address", { length: 45 }), // IPv4 or IPv6
+// Audit logs table
+export const auditLogs = sqliteTable("audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id, { onDelete: 'set null' }),
+  action: text("action").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  reason: text("reason"),
+  ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  // Performance indexes for audit queries
   auditLogsUserIdx: index("audit_logs_user_idx").on(table.userId),
   auditLogsEntityIdx: index("audit_logs_entity_idx").on(table.entityType, table.entityId),
   auditLogsDateIdx: index("audit_logs_date_idx").on(table.createdAt),
   auditLogsActionIdx: index("audit_logs_action_idx").on(table.action),
 }));
 
-// Settings table for super admin configuration (Module 1 requirement)
-export const settings = pgTable("settings", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  key: varchar("key", { length: 100 }).notNull().unique(),
+// Settings table
+export const settings = sqliteTable("settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
   value: text("value").notNull(),
   description: text("description"),
-  dataType: varchar("data_type", { length: 20 }).notNull().default('string'), // 'string', 'number', 'boolean', 'json'
-  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  dataType: text("data_type").notNull().default('string'),
+  updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   settingsKeyIdx: index("settings_key_idx").on(table.key),
 }));
 
-// Counters table for atomic username sequence generation (Module 1 requirement)
-// Prevents race conditions when generating sequential usernames
-export const counters = pgTable("counters", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  // New role-based counter fields
-  roleCode: varchar("role_code", { length: 10 }), // 'STU', 'PAR', 'TCH', 'ADM'
-  // Legacy fields kept for backwards compatibility
-  classCode: varchar("class_code", { length: 50 }),
-  year: varchar("year", { length: 9 }),
+// Counters table
+export const counters = sqliteTable("counters", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  roleCode: text("role_code"),
+  classCode: text("class_code"),
+  year: text("year"),
   sequence: integer("sequence").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   countersRoleCodeIdx: uniqueIndex("counters_role_code_idx").on(table.roleCode),
 }));
 
+// Job Vacancy System tables
+export const vacancies = sqliteTable("vacancies", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  requirements: text("requirements"),
+  deadline: integer("deadline", { mode: "timestamp" }).notNull(),
+  status: text("status").notNull().default('open'), // 'open', 'closed', 'filled'
+  createdBy: text("created_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  vacanciesStatusIdx: index("vacancies_status_idx").on(table.status),
+  vacanciesDeadlineIdx: index("vacancies_deadline_idx").on(table.deadline),
+}));
+
+export const teacherApplications = sqliteTable("teacher_applications", {
+  id: text("id").primaryKey(),
+  vacancyId: text("vacancy_id").references(() => vacancies.id, { onDelete: 'set null' }),
+  fullName: text("full_name").notNull(),
+  googleEmail: text("google_email").notNull(),
+  phone: text("phone").notNull(),
+  subjectSpecialty: text("subject_specialty").notNull(),
+  qualification: text("qualification").notNull(),
+  experienceYears: integer("experience_years").notNull(),
+  bio: text("bio").notNull(),
+  resumeUrl: text("resume_url"),
+  status: text("status").notNull().default('pending'), // 'pending', 'approved', 'rejected'
+  reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  rejectionReason: text("rejection_reason"),
+  dateApplied: integer("date_applied", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  teacherApplicationsStatusIdx: index("teacher_applications_status_idx").on(table.status),
+  teacherApplicationsEmailIdx: index("teacher_applications_email_idx").on(table.googleEmail),
+  teacherApplicationsVacancyIdx: index("teacher_applications_vacancy_idx").on(table.vacancyId),
+}));
+
+export const approvedTeachers = sqliteTable("approved_teachers", {
+  id: text("id").primaryKey(),
+  applicationId: text("application_id").references(() => teacherApplications.id, { onDelete: 'set null' }),
+  googleEmail: text("google_email").notNull().unique(),
+  fullName: text("full_name").notNull(),
+  subjectSpecialty: text("subject_specialty"),
+  approvedBy: text("approved_by").references(() => users.id, { onDelete: 'set null' }),
+  dateApproved: integer("date_approved", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail),
+}));
 
 // Insert schemas
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
@@ -747,9 +773,7 @@ export const insertClassSchema = createInsertSchema(classes).omit({ id: true, cr
 export const insertSubjectSchema = createInsertSchema(subjects).omit({ id: true, createdAt: true });
 export const insertAcademicTermSchema = createInsertSchema(academicTerms).omit({ id: true, createdAt: true });
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
-// Enhanced exam schema with proper data coercion and empty string handling
 export const insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
-  // Required fields - coerce to numbers with clear error messages
   classId: z.preprocess(
     (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
     z.number().positive("Please select a valid class")
@@ -766,11 +790,7 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
     (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
     z.number().positive("Total marks must be a positive number")
   ),
-
-  // Exam name is required
   name: z.string().min(1, "Exam name is required"),
-
-  // Handle date string from frontend - keep as string for database
   date: z.string()
     .min(1, "Exam date is required")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
@@ -778,14 +798,8 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
       const date = new Date(dateStr);
       return !isNaN(date.getTime()) && date.toISOString().startsWith(dateStr);
     }, "Please enter a valid date"),
-
-  // Exam type with default
   examType: z.enum(['test', 'exam']).default('exam'),
-
-  // Timer mode with default
   timerMode: z.string().default('individual'),
-
-  // Optional numeric fields - handle empty strings properly
   timeLimit: z.preprocess(
     (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
     z.number().int().min(1, "Time limit must be at least 1 minute").optional()
@@ -794,8 +808,6 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
     (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
     z.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()
   ),
-
-  // Optional timestamp fields - handle empty strings and convert to Date
   startTime: z.preprocess(
     (val) => val === '' || val === null || val === undefined ? undefined : new Date(val as string),
     z.date().optional()
@@ -804,8 +816,6 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
     (val) => val === '' || val === null || val === undefined ? undefined : new Date(val as string),
     z.date().optional()
   ),
-
-  // Optional text fields - handle empty strings
   instructions: z.preprocess(
     (val) => val === '' || val === null || val === undefined ? undefined : val,
     z.string().optional()
@@ -814,14 +824,10 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
     (val) => val === '' || val === null || val === undefined ? 'standard' : val,
     z.string().default('standard')
   ),
-
-  // Optional teacher in charge
   teacherInChargeId: z.preprocess(
     (val) => val === '' || val === null || val === undefined ? undefined : val,
-    z.string().uuid().optional()
+    z.string().optional()
   ),
-
-  // Boolean fields with defaults
   isPublished: z.boolean().default(false),
   allowRetakes: z.boolean().default(false),
   shuffleQuestions: z.boolean().default(false),
@@ -847,9 +853,8 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: tru
 export const insertSettingSchema = createInsertSchema(settings).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCounterSchema = createInsertSchema(counters).omit({ id: true, createdAt: true, updatedAt: true });
 
-// Shared schema for creating students with auto-generated credentials (admin use)
+// Student schemas
 export const createStudentWithAutoCredsSchema = z.object({
-  // User fields - email/password/username auto-generated
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
@@ -857,23 +862,19 @@ export const createStudentWithAutoCredsSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
   gender: z.enum(['Male', 'Female', 'Other'], { required_error: "Gender is required" }),
   profileImageUrl: z.string().optional(),
-  // Student-specific fields
   admissionNumber: z.string().min(1, "Admission number is required"),
   classId: z.coerce.number().positive("Please select a valid class"),
-  parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
+  parentId: z.string().optional().nullable(),
   admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
   emergencyContact: z.string().min(1, "Emergency contact is required"),
   medicalInfo: z.string().optional(),
-  parentEmail: z.string().email("Invalid parent email").optional(), // For linking/creating parent accounts
-  parentPhone: z.string().optional(), // For linking/creating parent accounts
+  parentEmail: z.string().email("Invalid parent email").optional(),
+  parentPhone: z.string().optional(),
 });
 
 export type CreateStudentWithAutoCredsRequest = z.infer<typeof createStudentWithAutoCredsSchema>;
 
-// Shared schema for creating students - SIMPLIFIED MODE
-// password, username, email, and admissionNumber are ALWAYS auto-generated by system
 export const createStudentSchema = z.object({
-  // User fields - password, username, and email auto-generated
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
@@ -881,10 +882,9 @@ export const createStudentSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
   gender: z.enum(['Male', 'Female', 'Other'], { required_error: "Gender is required" }),
   profileImageUrl: z.string().optional(),
-  // Student-specific fields - admissionNumber auto-generated
   classId: z.coerce.number().positive("Please select a valid class"),
-  parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
-  parentPhone: z.string().optional(), // For parent linking/creation by phone only
+  parentId: z.string().optional().nullable(),
+  parentPhone: z.string().optional(),
   admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
   emergencyContact: z.string().optional(),
   medicalInfo: z.string().optional(),
@@ -893,7 +893,6 @@ export const createStudentSchema = z.object({
 
 export type CreateStudentRequest = z.infer<typeof createStudentSchema>;
 
-// CSV bulk upload schema for students
 export const csvStudentSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
   class: z.string().min(1, "Class is required"),
@@ -909,16 +908,12 @@ export const csvStudentSchema = z.object({
 
 export type CsvStudentData = z.infer<typeof csvStudentSchema>;
 
-// New exam delivery schemas with proper coercion for numeric fields
 export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
-  // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
   examId: z.coerce.number().positive("Please select a valid exam"),
   questionText: z.string().min(1, "Question text is required"),
   questionType: z.enum(['multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'], { required_error: "Question type is required" }),
   points: z.preprocess((val) => val === '' ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
   orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-
-  // Handle optional text fields - convert empty strings to undefined
   imageUrl: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   expectedAnswers: z.preprocess((val) => {
     if (val === '' || val === null || val === undefined) return undefined;
@@ -929,39 +924,28 @@ export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   hintText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
   partialCreditRules: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
-  // Added fields for theory questions
-  instructions: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
-  sampleAnswer: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });
 
 export const insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
-  // Coerce string IDs and numeric values to numbers
   questionId: z.coerce.number().positive("Please select a valid question"),
   orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-
-  // Handle optional numeric fields - convert empty strings to undefined or 0
   partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
-
-  // Handle optional text fields - convert empty strings to undefined
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });
 
-// Schema for creating question options during question creation (without questionId)
 export const createQuestionOptionSchema = insertQuestionOptionSchema.omit({ questionId: true, orderNumber: true }).extend({
-  // Optional fields that can be provided during creation
   partialCreditValue: z.preprocess((val) => val === '' ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
   explanationText: z.preprocess((val) => val === '' ? undefined : val, z.string().optional()),
 });
-// For exam sessions, only require examId from client - studentId is set from authenticated user
+
 export const insertExamSessionSchema = createInsertSchema(examSessions).omit({ 
   id: true, 
   createdAt: true, 
   startedAt: true,
-  studentId: true  // Server sets this from authenticated user
+  studentId: true
 }).partial().required({ 
   examId: true
 }).extend({
-  // Handle date strings from frontend (JSON serialization converts Date objects to strings)
   submittedAt: z.union([z.date(), z.string()]).optional().transform((val) => {
     if (typeof val === 'string') {
       return new Date(val);
@@ -970,24 +954,59 @@ export const insertExamSessionSchema = createInsertSchema(examSessions).omit({
   })
 });
 
-// For updating exam sessions - SECURITY: Only allow students to update safe fields
 export const updateExamSessionSchema = z.object({
-  // Students can only update these specific fields when submitting exams
   isCompleted: z.boolean().optional(),
   submittedAt: z.coerce.date().refine(d => !isNaN(d.getTime()), 'Invalid date').optional(),
   timeRemaining: z.number().int().min(0).optional(),
-  // Only allow valid status transitions for student updates
   status: z.enum(['in_progress', 'submitted']).optional(),
-  // Server-side fields for auto-submission and tracking
   submissionMethod: z.string().optional(),
   autoSubmitted: z.boolean().optional()
-}).strict(); // .strict() prevents any additional fields from being accepted
-export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
+}).strict();
 
+export const insertStudentAnswerSchema = createInsertSchema(studentAnswers).omit({ id: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertTeacherProfileSchema = createInsertSchema(teacherProfiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAdminProfileSchema = createInsertSchema(adminProfiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertParentProfileSchema = createInsertSchema(parentProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+
+// Vacancy schemas
+export const insertVacancySchema = createInsertSchema(vacancies).omit({ 
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTeacherApplicationSchema = createInsertSchema(teacherApplications).omit({ 
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  dateApplied: true,
+  reviewedAt: true,
+  reviewedBy: true,
+  status: true,
+});
+
+export const insertApprovedTeacherSchema = createInsertSchema(approvedTeachers).omit({ 
+  id: true,
+  createdAt: true,
+  dateApproved: true,
+});
+
+export const insertSuperAdminProfileSchema = createInsertSchema(superAdminProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertQuestionBankSchema = createInsertSchema(questionBanks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertQuestionBankItemSchema = createInsertSchema(questionBankItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertQuestionBankOptionSchema = createInsertSchema(questionBankOptions).omit({ id: true, createdAt: true });
 
 // Types
 export type Role = typeof roles.$inferSelect;
@@ -1023,10 +1042,7 @@ export type ParentProfile = typeof parentProfiles.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
 export type Counter = typeof counters.$inferSelect;
 
-// Merged profile types that include user data
-// These match the API responses from endpoints like /api/teacher/profile/me
 export type TeacherProfileWithUser = TeacherProfile & {
-  // User fields merged from users table
   firstName: string;
   lastName: string;
   email: string;
@@ -1039,13 +1055,11 @@ export type TeacherProfileWithUser = TeacherProfile & {
   profileImageUrl: string | null;
 };
 
-// New exam delivery types
 export type ExamQuestion = typeof examQuestions.$inferSelect;
 export type QuestionOption = typeof questionOptions.$inferSelect;
 export type ExamSession = typeof examSessions.$inferSelect;
 export type StudentAnswer = typeof studentAnswers.$inferSelect;
 
-// Question Bank types
 export type QuestionBank = typeof questionBanks.$inferSelect;
 export type QuestionBankItem = typeof questionBankItems.$inferSelect;
 export type QuestionBankOption = typeof questionBankOptions.$inferSelect;
@@ -1083,7 +1097,6 @@ export type InsertParentProfile = z.infer<typeof insertParentProfileSchema>;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type InsertCounter = z.infer<typeof insertCounterSchema>;
 
-// New exam delivery insert types
 export type InsertExamQuestion = z.infer<typeof insertExamQuestionSchema>;
 export type InsertQuestionOption = z.infer<typeof insertQuestionOptionSchema>;
 export type CreateQuestionOption = z.infer<typeof createQuestionOptionSchema>;
@@ -1091,95 +1104,10 @@ export type InsertExamSession = z.infer<typeof insertExamSessionSchema>;
 export type UpdateExamSession = z.infer<typeof updateExamSessionSchema>;
 export type InsertStudentAnswer = z.infer<typeof insertStudentAnswerSchema>;
 
-// Question Bank insert schemas
-export const insertQuestionBankSchema = createInsertSchema(questionBanks).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertQuestionBankItemSchema = createInsertSchema(questionBankItems).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertQuestionBankOptionSchema = createInsertSchema(questionBankOptions).omit({ id: true, createdAt: true });
-
 export type InsertQuestionBank = z.infer<typeof insertQuestionBankSchema>;
 export type InsertQuestionBankItem = z.infer<typeof insertQuestionBankItemSchema>;
 export type InsertQuestionBankOption = z.infer<typeof insertQuestionBankOptionSchema>;
 
-// Job Vacancy System tables
-export const vacancyStatusEnum = pgEnum('vacancy_status', ['open', 'closed', 'filled']);
-export const applicationStatusEnum = pgEnum('application_status', ['pending', 'approved', 'rejected']);
-
-export const vacancies = pgTable("vacancies", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
-  description: text("description").notNull(),
-  requirements: text("requirements"),
-  deadline: timestamp("deadline").notNull(),
-  status: vacancyStatusEnum("status").default('open'),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  vacanciesStatusIdx: index("vacancies_status_idx").on(table.status),
-  vacanciesDeadlineIdx: index("vacancies_deadline_idx").on(table.deadline),
-}));
-
-export const teacherApplications = pgTable("teacher_applications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  vacancyId: uuid("vacancy_id").references(() => vacancies.id, { onDelete: 'set null' }),
-  fullName: varchar("full_name", { length: 200 }).notNull(),
-  googleEmail: varchar("google_email", { length: 255 }).notNull(),
-  phone: varchar("phone", { length: 20 }).notNull(),
-  subjectSpecialty: varchar("subject_specialty", { length: 100 }).notNull(),
-  qualification: varchar("qualification", { length: 200 }).notNull(),
-  experienceYears: integer("experience_years").notNull(),
-  bio: text("bio").notNull(),
-  resumeUrl: text("resume_url"),
-  status: applicationStatusEnum("status").default('pending'),
-  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: 'set null' }),
-  reviewedAt: timestamp("reviewed_at"),
-  rejectionReason: text("rejection_reason"),
-  dateApplied: timestamp("date_applied").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  teacherApplicationsStatusIdx: index("teacher_applications_status_idx").on(table.status),
-  teacherApplicationsEmailIdx: index("teacher_applications_email_idx").on(table.googleEmail),
-  teacherApplicationsVacancyIdx: index("teacher_applications_vacancy_idx").on(table.vacancyId),
-}));
-
-export const approvedTeachers = pgTable("approved_teachers", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  applicationId: uuid("application_id").references(() => teacherApplications.id, { onDelete: 'set null' }),
-  googleEmail: varchar("google_email", { length: 255 }).notNull().unique(),
-  fullName: varchar("full_name", { length: 200 }).notNull(),
-  subjectSpecialty: varchar("subject_specialty", { length: 100 }),
-  approvedBy: uuid("approved_by").references(() => users.id, { onDelete: 'set null' }),
-  dateApproved: timestamp("date_approved").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail),
-}));
-
-// Job Vacancy insert schemas
-export const insertVacancySchema = createInsertSchema(vacancies).omit({ 
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertTeacherApplicationSchema = createInsertSchema(teacherApplications).omit({ 
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  dateApplied: true,
-  reviewedAt: true,
-  reviewedBy: true,
-  status: true,
-});
-
-export const insertApprovedTeacherSchema = createInsertSchema(approvedTeachers).omit({ 
-  id: true,
-  createdAt: true,
-  dateApproved: true,
-});
-
-// Job Vacancy types
 export type Vacancy = typeof vacancies.$inferSelect;
 export type TeacherApplication = typeof teacherApplications.$inferSelect;
 export type ApprovedTeacher = typeof approvedTeachers.$inferSelect;
@@ -1188,20 +1116,6 @@ export type InsertVacancy = z.infer<typeof insertVacancySchema>;
 export type InsertTeacherApplication = z.infer<typeof insertTeacherApplicationSchema>;
 export type InsertApprovedTeacher = z.infer<typeof insertApprovedTeacherSchema>;
 
-// Super Admin insert schemas
-export const insertSuperAdminProfileSchema = createInsertSchema(superAdminProfiles).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Super Admin types
 export type SuperAdminProfile = typeof superAdminProfiles.$inferSelect;
 export type SystemSettings = typeof systemSettings.$inferSelect;
 export type InsertSuperAdminProfile = z.infer<typeof insertSuperAdminProfileSchema>;
