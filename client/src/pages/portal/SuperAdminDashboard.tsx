@@ -7,6 +7,7 @@ import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { useSocketIORealtime } from "@/hooks/useSocketIORealtime";
 
 interface DashboardStats {
   totalAdmins?: number;
@@ -18,6 +19,17 @@ export default function SuperAdminDashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/superadmin/stats"],
+  });
+
+  // Enable real-time updates for dashboard stats when users or exams change
+  useSocketIORealtime({ 
+    table: 'users', 
+    queryKey: ["/api/superadmin/stats"]
+  });
+  
+  useSocketIORealtime({ 
+    table: 'exams', 
+    queryKey: ["/api/superadmin/stats"]
   });
 
   const statCards = [
