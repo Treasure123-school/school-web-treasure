@@ -1,6 +1,6 @@
 // DEPRECATED: Supabase realtime has been removed
-// This is a stub to prevent import errors
-// Real-time functionality is now handled by Socket.IO on the backend
+// This stub maintains compatibility while real-time features are migrated to Socket.IO
+// TODO: Implement Socket.IO-based real-time hooks for frontend
 
 interface UseSupabaseRealtimeOptions {
   table: string;
@@ -10,7 +10,11 @@ interface UseSupabaseRealtimeOptions {
 }
 
 export function useSupabaseRealtime(_options: UseSupabaseRealtimeOptions) {
-  // No-op stub - Socket.IO handles real-time updates on backend
-  // Frontend uses React Query's built-in cache invalidation
-  return null;
+  // Stub that maintains interface compatibility
+  // Real-time updates temporarily disabled - pages will use polling via React Query
+  return {
+    isConnected: false,
+    status: 'disabled' as const,
+    error: null,
+  };
 }

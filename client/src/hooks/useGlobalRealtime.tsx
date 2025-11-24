@@ -1,8 +1,14 @@
 // DEPRECATED: Supabase realtime has been removed
-// This is a stub to prevent import errors
-// Real-time functionality is now handled by Socket.IO on the backend
+// This stub maintains compatibility while real-time features are migrated to Socket.IO
+// TODO: Implement Socket.IO-based real-time hooks for frontend
 
 export function useGlobalRealtime() {
-  // No-op stub - Socket.IO handles real-time updates on backend
-  return null;
+  // Stub that maintains interface compatibility
+  // Real-time updates temporarily disabled - pages will use polling via React Query
+  return {
+    isEnabled: false,
+    tableCount: 0,
+    status: 'disabled' as const,
+    error: null,
+  };
 }
