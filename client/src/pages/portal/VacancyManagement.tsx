@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useToast } from '@/hooks/use-toast';
 import { Briefcase, Plus, Edit, Trash2, CheckCircle, XCircle, FileText, Mail, Phone, Calendar, User, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -60,12 +60,12 @@ export default function VacancyManagement() {
     queryKey: ['/api/admin/applications'],
   });
 
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'job_vacancies', 
     queryKey: ['/api/vacancies']
   });
   
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'teacher_applications', 
     queryKey: ['/api/admin/applications']
   });

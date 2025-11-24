@@ -38,7 +38,7 @@ import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { UserPlus, Search, Ban, RefreshCw, Trash2, Key, Copy, CheckCircle2, MoreVertical, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -100,7 +100,7 @@ export default function SuperAdminManagement() {
     queryKey: ["/api/superadmin/admins"],
   });
 
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'users', 
     queryKey: ["/api/superadmin/admins"]
   });

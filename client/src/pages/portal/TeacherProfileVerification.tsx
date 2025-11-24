@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { CheckCircle, XCircle, Eye, Users, UserCheck, Clock, GraduationCap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -47,12 +47,12 @@ export default function TeacherProfileVerification() {
     enabled: !!user
   });
 
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'teacher_profiles', 
     queryKey: ['/api/admin/teacher-profiles/pending']
   });
   
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'teacher_profiles', 
     queryKey: ['/api/admin/teacher-profiles/verified']
   });

@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Plus, Calendar, Edit, Trash2, CheckCircle } from 'lucide-react';
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 export default function AcademicTermsManagement() {
   const { toast } = useToast();
@@ -45,7 +45,7 @@ export default function AcademicTermsManagement() {
     retryDelay: 1000,
   });
 
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'academic_terms', 
     queryKey: ['/api/terms']
   });

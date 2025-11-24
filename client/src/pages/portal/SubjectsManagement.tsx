@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2 } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 const subjectFormSchema = z.object({
   name: z.string().min(1, 'Subject name is required'),
@@ -59,7 +59,7 @@ export default function SubjectsManagement() {
     },
   });
 
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'subjects', 
     queryKey: ['/api/subjects']
   });

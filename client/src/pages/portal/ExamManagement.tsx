@@ -21,7 +21,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { insertExamSchema, insertExamQuestionSchema, insertQuestionOptionSchema, type Exam, type ExamQuestion, type QuestionOption, type Class, type Subject } from '@shared/schema';
 import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload, Save, Shield } from 'lucide-react';
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 // Form schemas - Use the shared insertExamSchema which has proper preprocessing
 const examFormSchema = insertExamSchema.omit({ createdBy: true });
@@ -181,7 +181,7 @@ export default function ExamManagement() {
   const exams = rawExams.filter((exam: Exam) => !pendingDeletionsRef.current.has(exam.id));
 
   // Enable real-time updates for exams
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'exams', 
     queryKey: ['/api/exams']
   });

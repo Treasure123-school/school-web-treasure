@@ -45,7 +45,7 @@ Preferred communication style: Simple, everyday language.
   - **Loading States**: All action buttons show disabled states and loading indicators during processing
   - **Utility Functions**: Reusable optimistic update helpers in `client/src/lib/optimistic-utils.ts`
   - **Documentation**: Complete pattern guide in `client/src/docs/OPTIMISTIC_UI_PATTERN.md`
-- **Real-time Synchronization**: Supabase Realtime integration for instant data synchronization across clients on all major tables (announcements, classes, subjects, users, students, exams, attendance, academic_terms), with auto-recovery and fallback to polling when connection limits are reached.
+- **Real-time Synchronization**: Socket.IO real-time integration for instant data synchronization across clients on all major tables (announcements, classes, subjects, users, students, exams, attendance, academic_terms), with automatic reconnection and fallback to polling when connection is unavailable.
 - **Automatic Account Activation**: New user accounts are automatically activated upon registration.
 - **Unified Login System**: All users utilize a single login page at `/login` and are routed based on their role.
 - **Automatic Seeding**: Automatic creation of roles and a super admin account on server startup.
@@ -56,8 +56,8 @@ Preferred communication style: Simple, everyday language.
 - **Monorepo Design**: Client, server, and shared code in a single repository.
 - **Shared Schema**: Centralized TypeScript types and Zod schemas.
 - **Environment Configuration**: Supports environment-specific configurations for development and production.
-- **Deployment**: Configured for Replit Development, Local Development, and Production (Render backend + Vercel frontend + Supabase database + Supabase Storage).
-- **File Storage**: Development uses local `uploads/` directory; Production uses Supabase Storage buckets.
+- **Deployment**: Configured for Replit Development, Local Development, and Production (fully self-hosted with PostgreSQL database + MinIO object storage).
+- **File Storage**: MinIO object storage with 5 buckets (homepage-images, gallery-images, profile-images, study-resources, general-uploads) for development and production environments.
 - **Cross-Domain Authentication**: Configured with `sameSite: 'none'` cookies and `trust proxy` for secure session sharing.
 - **CORS**: Auto-configured for development and production environments.
 - **Port Configuration**: Vite server with `allowedHosts: true`; Express binds to `0.0.0.0:5000`.
@@ -72,10 +72,11 @@ Preferred communication style: Simple, everyday language.
 - **UI Framework**: Radix UI primitives, Tailwind CSS.
 
 ### Backend Services
-- **Database**: Neon PostgreSQL, Supabase PostgreSQL.
-- **File Storage**: Supabase Storage.
-- **Session Store**: `connect-pg-simple`.
-- **Authentication**: Passport.js with `passport-google-oauth20`.
+- **Database**: PostgreSQL with Drizzle ORM (self-hosted or Neon).
+- **File Storage**: MinIO object storage (self-hosted S3-compatible).
+- **Real-time Updates**: Socket.IO server for live data synchronization.
+- **Session Store**: `connect-pg-simple` with PostgreSQL.
+- **Authentication**: Passport.js with JWT tokens and bcrypt password hashing.
 
 ### Data Management
 - **Database ORM**: Drizzle ORM.

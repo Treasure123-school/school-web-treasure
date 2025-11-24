@@ -7,7 +7,6 @@ import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { RealtimeHealthMonitor } from "@/components/RealtimeHealthMonitor";
 
 interface DashboardStats {
   totalAdmins?: number;

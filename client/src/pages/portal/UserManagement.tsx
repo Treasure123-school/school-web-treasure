@@ -31,7 +31,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,7 +122,7 @@ export default function UserManagement() {
   });
 
   // Enable real-time updates for users
-  useSupabaseRealtime({ 
+  useSocketIORealtime({ 
     table: 'users', 
     queryKey: ['/api/users']
   });
