@@ -208,15 +208,25 @@ function sanitizeLogData(data: any): any {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.log(`⚠️ System settings seeding failed: ${errorMessage}`);
   }
-  // Seed super admin account if it doesn't exist
+  // Seed core roles first
   try {
-    console.log("Checking for super admin account...");
-    const { seedSuperAdmin } = await import("./seed-superadmin");
-    await seedSuperAdmin();
-    console.log("✅ Super admin seeding completed successfully");
+    console.log("Creating core roles...");
+    const { seedRoles } = await import("./seed-roles");
+    await seedRoles();
+    console.log("✅ Roles seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.log(`⚠️ Super admin seeding failed: ${errorMessage}`);
+    console.log(`⚠️ Roles seeding failed: ${errorMessage}`);
+  }
+  // Seed test user accounts for all 5 roles
+  try {
+    console.log("Creating test user accounts for all roles...");
+    const { seedTestUsers } = await import("./seed-test-users");
+    await seedTestUsers();
+    console.log("✅ Test users seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log(`⚠️ Test users seeding failed: ${errorMessage}`);
   }
   // Initialize MinIO Storage
   try {
