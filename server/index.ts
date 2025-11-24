@@ -263,15 +263,27 @@ function sanitizeLogData(data: any): any {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.log(`⚠️ Super admin seeding failed: ${errorMessage}`);
   }
-  // CRITICAL: Verify Supabase Storage is initialized in production
-  if (isProduction) {
-    const { isSupabaseStorageEnabled } = await import("./supabase-storage");
-    if (!isSupabaseStorageEnabled()) {
-      
-      // Fail fast in production to prevent silent upload failures
+  // Initialize MinIO Storage
+  try {
+    console.log("Initializing MinIO Storage...");
+    const { minioStorage } = await import("./minio-storage");
+    
+    if (minioStorage.initialize()) {
+      await minioStorage.ensureBucketsExist();
+      console.log("✅ MinIO Storage initialized and buckets verified");
+    } else {
+      console.warn("⚠️  MinIO Storage initialization failed - uploads will not work");
+      if (isProduction) {
+        console.error("🚨 CRITICAL: MinIO Storage required in production!");
+        process.exit(1);
+      }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`❌ MinIO initialization error: ${errorMessage}`);
+    if (isProduction) {
       process.exit(1);
     }
-    console.log("✅ Supabase Storage verified for production deployment");
   }
   // IMMEDIATE SECURITY BLOCK: Block dangerous maintenance routes
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
@@ -280,6 +292,16 @@ function sanitizeLogData(data: any): any {
   });
 
   const server = await registerRoutes(app);
+
+  // Initialize Socket.IO for realtime features
+  try {
+    console.log("Initializing Socket.IO Realtime Service...");
+    const { realtimeService } = await import("./realtime-service");
+    realtimeService.initialize(server);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`❌ Socket.IO initialization error: ${errorMessage}`);
+  }
 
   // Multer error handling middleware - must come before general error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
