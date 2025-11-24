@@ -1486,9 +1486,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsedSubjects = typeof subjects === 'string' ? JSON.parse(subjects) : subjects;
       const parsedClasses = typeof assignedClasses === 'string' ? JSON.parse(assignedClasses) : assignedClasses;
 
-      // Get file paths
-      const profilePhotoPath = files['profileImage']?.[0]?.path;
-      const signaturePath = files['signature']?.[0]?.path;
+      // Upload files using organized storage system
+      let profileImageUrl: string | null = null;
+      let signatureUrl: string | null = null;
+
+      if (files['profileImage']?.[0]) {
+        const profileResult = await uploadFileToStorage(files['profileImage'][0], {
+          uploadType: 'profile',
+          userId: teacherId,
+          maxSizeMB: 5,
+        });
+        if (profileResult.success) {
+          profileImageUrl = profileResult.url!;
+        }
+      }
+
+      if (files['signature']?.[0]) {
+        const signatureResult = await uploadFileToStorage(files['signature'][0], {
+          uploadType: 'profile',
+          userId: teacherId,
+          category: 'signature',
+          maxSizeMB: 2,
+        });
+        if (signatureResult.success) {
+          signatureUrl = signatureResult.url!;
+        }
+      }
 
       // Normalize gender to match database enum (Male, Female, Other)
       const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
@@ -1565,7 +1588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         yearsOfExperience: parseInt(yearsOfExperience) || 0,
         specialization,
         department,
-        signatureUrl: signaturePath ? `/${signaturePath}` : null,
+        signatureUrl,
         gradingMode,
         notificationPreference,
         availability: availability || null,
@@ -1579,7 +1602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         phone: phoneNumber,
         gender: normalizedGender,
         dateOfBirth,
-        profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
+        profileImageUrl
       };
 
       // Only include nationalId if provided
@@ -1923,15 +1946,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse the update data
       const updateData = req.body;
 
-      // Handle file uploads
+      // Handle file uploads using organized storage system
       let profileImageUrl = updateData.profileImageUrl;
       let signatureUrl = updateData.signatureUrl;
 
       if (files['profileImage']?.[0]) {
-        profileImageUrl = `/${files['profileImage'][0].path.replace(/\\/g, '/')}`;
+        const profileResult = await replaceFile(
+          profileImageUrl || null,
+          files['profileImage'][0],
+          {
+            uploadType: 'profile',
+            userId: teacherId,
+            maxSizeMB: 5,
+          }
+        );
+        if (profileResult.success) {
+          profileImageUrl = profileResult.url!;
+        }
       }
+
       if (files['signature']?.[0]) {
-        signatureUrl = `/${files['signature'][0].path.replace(/\\/g, '/')}`;
+        const signatureResult = await replaceFile(
+          signatureUrl || null,
+          files['signature'][0],
+          {
+            uploadType: 'profile',
+            userId: teacherId,
+            category: 'signature',
+            maxSizeMB: 2,
+          }
+        );
+        if (signatureResult.success) {
+          signatureUrl = signatureResult.url!;
+        }
       }
       // Parse JSON fields
       const subjects = typeof updateData.subjects === 'string' ? JSON.parse(updateData.subjects) : updateData.subjects;
@@ -2553,12 +2600,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!content) {
         return res.status(404).json({ message: 'Homepage content not found' });
       }
-      // Delete file from MinIO Storage if enabled
-      if (minioStorage.isInitialized() && content.imageUrl) {
-        const filePath = extractFilePathFromUrl(content.imageUrl);
-        if (filePath) {
-          await minioStorage.deleteFile(STORAGE_BUCKETS.HOMEPAGE, filePath);
-        }
+      // Delete file using organized storage system
+      if (content.imageUrl) {
+        await deleteFileFromStorage(content.imageUrl);
       }
 
       const deleted = await storage.deleteHomePageContent(id);

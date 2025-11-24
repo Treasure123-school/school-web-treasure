@@ -139,27 +139,23 @@ To support runtime switching between MinIO and disk:
 
 ## 📊 Routes Status
 
-### ✅ Migrated (Using New System)
-- `/api/upload` - Profile images
-- `/api/upload/homepage` - Homepage images
+### ✅ MIGRATION COMPLETE! (100%)
+All file upload routes now use the organized storage system:
 
-### ⏳ Pending Migration
-These routes still use legacy direct MinIO calls:
+1. `/api/upload` - Profile images
+2. `/api/upload/homepage` - Homepage images  
+3. `/api/teacher/profile/setup` - Teacher profile setup with image & signature ✨ **NEW**
+4. `/api/teacher/profile/me` - Teacher profile updates with image & signature ✨ **NEW**
+5. `/api/homepage-content/:id` (DELETE) - Uses `deleteFileFromStorage()` helper ✨ **NEW**
 
-1. **Gallery Uploads**
-   - Teacher signature uploads
-   - Gallery image uploads
-   - Multiple file uploads
+### ✅ Benefits Achieved
+- ✅ Smart path organization (user-based for profiles, category-based for homepage)
+- ✅ Automatic fallback to disk storage when MinIO unavailable
+- ✅ Consistent error handling across all upload routes
+- ✅ File replacement with automatic cleanup of old files
+- ✅ Proper use of `replaceFile()` helper for atomic updates
 
-2. **Study Resources**
-   - Document uploads
-   - PDF uploads
-
-3. **Profile Updates**
-   - Teacher profile setup with signature
-   - User profile updates
-
-**Estimated Time to Migrate:** 30-60 minutes per route type.
+**Migration Completed:** November 24, 2025
 
 ## 🎯 Benefits of New System
 
