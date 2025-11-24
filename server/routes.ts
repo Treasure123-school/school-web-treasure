@@ -20,6 +20,7 @@ import connectPgSimple from "connect-pg-simple";
 import { and, eq, sql } from "drizzle-orm";
 import { minioStorage } from "./minio-storage";
 import { realtimeService } from "./realtime-service";
+import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 
 // Storage buckets configuration
 const STORAGE_BUCKETS = {
@@ -2443,10 +2444,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use MinIO Storage if enabled, otherwise fall back to local filesystem
       if (minioStorage.isInitialized()) {
-        const fileName = `${Date.now()}-${req.file.originalname}`;
+        const filePath = getProfileImagePath(req.user!.id, req.file.originalname);
         const uploadResult = await minioStorage.uploadFile(
           STORAGE_BUCKETS.PROFILES,
-          fileName,
+          filePath,
           req.file.buffer,
           req.file.mimetype
         );
@@ -2479,9 +2480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let storedFilePath: string;
 
       if (minioStorage.isInitialized()) {
-        const timestamp = Date.now();
-        const filename = `${req.body.contentType}-${timestamp}${path.extname(req.file.originalname)}`;
-        const filePath = `homepage/${filename}`;
+        const filePath = getHomepageImagePath(req.file.originalname);
 
         try {
           const uploadResult = await minioStorage.uploadFile(

@@ -1,11 +1,8 @@
 /**
  * Storage path organization utility
  * Generates organized folder structures within MinIO buckets
- * Format: {bucket}/{category}/{date}/{uuid_filename}
+ * Format: {bucket}/{category}/{date}/{prefix_filename}
  */
-
-import { v4 as uuidv4 } from 'crypto';
-import { createHash } from 'crypto';
 
 export interface PathOptions {
   userId?: string;
