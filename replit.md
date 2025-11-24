@@ -17,7 +17,7 @@ Full-stack REST API school management system with:
 
 ### Backend
 - **Runtime:** Node.js + Express
-- **Database:** PostgreSQL (Replit-hosted via Neon)
+- **Database:** SQLite (Local file: app.db)
 - **ORM:** Drizzle ORM
 - **Auth:** JWT + Passport.js
 - **File Storage:** Disk-based (FREE) + MinIO support for cloud upgrade
@@ -32,11 +32,11 @@ Full-stack REST API school management system with:
 ### Deployment
 - **Frontend:** Ready for Vercel (FREE)
 - **Backend:** Ready for Render (FREE)
-- **Database:** PostgreSQL on Replit (included, unlimited)
+- **Database:** SQLite file (app.db) - portable, no external dependencies
 
 ## Database Structure
 
-**50+ tables** organized into:
+**40+ tables** organized into:
 - User Management (users, roles, sessions, permissions)
 - Academic (classes, students, teachers, terms)
 - Assessments (exams, questions, sessions, answers, results)
@@ -49,8 +49,9 @@ Full-stack REST API school management system with:
 
 ```
 workspace/
-├── shared/                 # Shared types & database schema
-│   └── schema.ts          # 50+ table definitions (YOU OWN THIS!)
+├── app.db                 # SQLite database file (YOUR DATA!)
+├── shared/                # Shared types & database schema
+│   └── schema.ts          # 40+ table definitions (YOU OWN THIS!)
 ├── server/                # Backend (Express + Node)
 │   ├── index.ts           # Entry point
 │   ├── routes.ts          # All API endpoints
@@ -61,13 +62,12 @@ workspace/
 │   ├── pages/             # Page components
 │   ├── components/        # Reusable UI components
 │   └── lib/               # Utilities, API calls
-├── uploads/               # User uploads (profiles, files, images)
-│   ├── profiles/          # User profile pictures & signatures
-│   ├── homepage/          # Website content images
-│   ├── gallery/           # School gallery
-│   ├── study-resources/   # Educational materials
-│   └── general/           # Misc uploads
-└── migrations/            # Database migrations (auto-managed by Drizzle)
+└── uploads/               # User uploads (profiles, files, images)
+    ├── profiles/          # User profile pictures & signatures
+    ├── homepage/          # Website content images
+    ├── gallery/           # School gallery
+    ├── study-resources/   # Educational materials
+    └── general/           # Misc uploads
 ```
 
 ## Cost Breakdown
@@ -100,8 +100,8 @@ workspace/
 - Study resources
 
 ✅ **Database**
-- Complete schema with 50+ tables
-- All migrations applied
+- Complete schema with 40+ tables in SQLite
+- Local file storage (app.db)
 - Data seeding (admin, roles, academic terms, settings)
 
 ✅ **API Endpoints**
@@ -113,30 +113,35 @@ workspace/
 
 ## Data Safety & Portability
 
-**Your data is YOURS:**
-- ✅ Database schema in your code (`shared/schema.ts`)
-- ✅ Can export anytime with `pg_dump`
-- ✅ Works with ANY PostgreSQL provider
-- ✅ NOT locked to Replit
-- ✅ Completely portable
+**Your data is YOURS - 100% local file control:**
+- ✅ Database is a single file: `app.db` (copy it anywhere!)
+- ✅ No external dependencies or API connections
+- ✅ Works on ANY system (Windows, Mac, Linux, Replit, VPS)
+- ✅ NOT locked to ANY provider
+- ✅ Completely portable and future-proof
 
-**Migration path when leaving Replit:**
+**Moving your database is as simple as:**
 ```bash
-# 1. Export data
-pg_dump postgresql://[replit-connection] > backup.sql
+# 1. Copy the file
+cp app.db my-backup.db
 
-# 2. Create database on new provider (DigitalOcean, Neon, etc.)
+# 2. Move it anywhere
+# - USB drive
+# - Cloud storage (Dropbox, Google Drive, etc.)
+# - New server
+# - Your local machine
 
-# 3. Import data
-psql postgresql://[new-connection] < backup.sql
-
-# 4. Update connection string in your app
-DATABASE_URL=postgresql://[new-connection]
-
-# 5. Done! All data transferred!
+# 3. That's it! Your entire database moves with the file!
 ```
 
-See `DATA_SAFETY_AND_PORTABILITY.md` for complete guide.
+**Backup strategy:**
+```bash
+# Simple backup (recommended daily)
+cp app.db backups/app-$(date +%Y%m%d).db
+
+# Or use SQLite's built-in backup
+sqlite3 app.db ".backup backups/app-backup.db"
+```
 
 ## Storage Architecture
 
@@ -157,11 +162,11 @@ See `IMAGE_STORAGE_LOCATIONS.md` for folder structure details.
 ## User Record Storage
 
 **When a user is created:**
-- ✅ Stored in `users` table in PostgreSQL
+- ✅ Stored in `users` table in SQLite (app.db)
 - ✅ Assigned automatic UUID
 - ✅ Role assigned (student/teacher/parent)
 - ✅ All records linked to this UUID
-- ✅ Data completely portable
+- ✅ Data stored locally in your file
 
 **Related records automatically created:**
 - Exams taken → exam_sessions table
@@ -171,9 +176,9 @@ See `IMAGE_STORAGE_LOCATIONS.md` for folder structure details.
 - All linked to user UUID
 
 **Access user data:**
-1. Replit Database tab → click `users` table
+1. Use any SQLite browser tool (DB Browser for SQLite, SQLiteStudio)
 2. Or via app code: `db.select().from(users)`
-3. Or SQL: `SELECT * FROM users`
+3. Or SQLite CLI: `sqlite3 app.db "SELECT * FROM users"`
 
 ## Workflow Configuration
 
@@ -185,12 +190,12 @@ npm run dev  # Starts backend (Express) + frontend (Vite)
 
 ## Environment Variables
 
-**Currently using Replit's included PostgreSQL:**
-- `DATABASE_URL` - Auto-configured by Replit
-- No additional configuration needed!
+**Currently using SQLite (local file):**
+- No database connection string needed!
+- Database is in `./app.db` file
 
 **For production on Render + Vercel:**
-- `DATABASE_URL` - Point to your PostgreSQL provider
+- Database file deploys with your app
 - `JWT_SECRET` - For authentication
 - `STORAGE_MODE` - Set to 'disk' or configure MinIO
 
@@ -198,15 +203,15 @@ npm run dev  # Starts backend (Express) + frontend (Vite)
 
 ### Immediate
 1. ✅ App is running and ready to use
-2. ✅ Database is fully operational
+2. ✅ SQLite database fully operational (app.db)
 3. ✅ Super admin account created
-4. ✅ All 50+ tables ready
+4. ✅ All 40+ tables ready
 
 ### For Production Deployment
 1. Deploy frontend to Vercel (FREE)
 2. Deploy backend to Render (FREE)
-3. Switch database to PostgreSQL provider (DigitalOcean $12/month, or Neon $5/month)
-4. See `SELF_HOSTED_DATABASE_GUIDE.md`
+3. Database deploys with your app (app.db file)
+4. Set up automated backups for app.db
 
 ### For Cloud File Storage (Optional)
 1. Switch from disk storage to Cloudflare R2 or Backblaze B2 (recommended, ~$5/month)
@@ -228,26 +233,29 @@ npm run dev  # Starts backend (Express) + frontend (Vite)
 - `WORK_COMPLETED.md` - Summary of what's been done
 
 ### Configuration
-- `drizzle.config.ts` - Drizzle ORM config (PostgreSQL)
+- `drizzle.config.ts` - Drizzle ORM config (SQLite)
 - `package.json` - Dependencies (do not modify without asking)
 
 ## User Preferences
 
-- Prefers FREE solutions ($0/month)
-- Wants data portability (not locked to Replit)
+- **Prefers FREE solutions ($0/month)** ✅ ACHIEVED
+- **Wants full data control** ✅ ACHIEVED (local file)
+- **Wants data portability** ✅ ACHIEVED (just copy app.db)
+- **NOT locked to any provider** ✅ ACHIEVED (SQLite works everywhere)
 - Plans production deployment on Render + Vercel
-- Concerned about data safety when migrating
 
 ## Important Reminders
 
-1. **Database is portable** - You own it completely
-2. **Always backup before moving** - Use `pg_dump`
-3. **No vendor lock-in** - Works with any PostgreSQL
+1. **Database is a single file** - `app.db` (copy it anywhere!)
+2. **Always backup** - Just copy the file: `cp app.db backup.db`
+3. **Zero vendor lock-in** - Works on ANY system
 4. **Uploads are in your folder** - `uploads/` directory
 5. **Schema is in your code** - `shared/schema.ts`
+6. **100% FREE forever** - No database provider needed
 
 ---
 
 **Last Updated:** November 24, 2025
-**Status:** ✅ Production Ready
-**Cost:** $0/month (Completely FREE!)
+**Status:** ✅ Production Ready with SQLite
+**Database:** Local file (app.db) - 100% portable
+**Cost:** $0/month (Completely FREE forever!)
