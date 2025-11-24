@@ -55,20 +55,30 @@ const ENV_VARS: EnvVarConfig[] = [
     suggestion: 'https://your-backend.onrender.com'
   },
 
-  // Critical - Supabase Storage (ALWAYS REQUIRED for uploads)
+  // MinIO Storage (Optional - has fallback to local storage)
   {
-    name: 'SUPABASE_URL',
-    required: 'always',
-    description: 'Supabase project URL for file storage (CRITICAL for uploads)',
-    validateFn: (val) => val.includes('supabase.co'),
-    suggestion: 'https://your-project.supabase.co'
+    name: 'MINIO_ENDPOINT',
+    required: 'optional',
+    description: 'MinIO endpoint for file storage',
+    suggestion: 'localhost'
   },
   {
-    name: 'SUPABASE_SERVICE_KEY',
-    required: 'always',
-    description: 'Supabase service role key for file storage (CRITICAL for uploads)',
-    validateFn: (val) => val.length > 50,
-    suggestion: 'Get from Supabase Dashboard → Settings → API (use service_role key, NOT anon key)'
+    name: 'MINIO_PORT',
+    required: 'optional',
+    description: 'MinIO port for file storage',
+    suggestion: '9000'
+  },
+  {
+    name: 'MINIO_ACCESS_KEY',
+    required: 'optional',
+    description: 'MinIO access key for file storage',
+    suggestion: 'minioadmin'
+  },
+  {
+    name: 'MINIO_SECRET_KEY',
+    required: 'optional',
+    description: 'MinIO secret key for file storage',
+    suggestion: 'minioadmin'
   },
 ];
 
