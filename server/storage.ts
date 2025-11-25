@@ -22,8 +22,8 @@ let db: any;
 
 function initializeDatabase() {
   if (!sqlite) {
-    // Create SQLite database in your project folder
-    sqlite = new Database('./app.db');
+    // Create SQLite database in dedicated server data folder
+    sqlite = new Database('./server/data/app.db');
     
     // Enable foreign keys (SQLite has them disabled by default)
     sqlite.pragma('foreign_keys = ON');
@@ -33,7 +33,7 @@ function initializeDatabase() {
     sqlite.pragma('synchronous = NORMAL'); // Balance between safety and speed
     
     db = drizzle(sqlite, { schema });
-    console.log('✅ SQLite database initialized at ./app.db');
+    console.log('✅ SQLite database initialized at ./server/data/app.db');
   }
   return { sqlite, db };
 }

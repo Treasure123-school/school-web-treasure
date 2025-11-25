@@ -50,11 +50,20 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+server/data/
+!server/data/.gitkeep
+sessions.db
+
+# Backups
+server/backups/
+!server/backups/.gitkeep
 
 # OS
 Thumbs.db
 
-# Uploads (production uses Supabase Storage)
+# Uploads (stored locally in server/uploads)
+server/uploads/
+!server/uploads/.gitkeep
 uploads/
 !uploads/.gitkeep
 

@@ -6,6 +6,7 @@ import { setupVite, serveStatic } from "./vite";
 import { db } from "./storage";
 import { seedAcademicTerms } from "./seed-terms";
 import { validateEnvironment } from "./validate-env";
+import fs from "fs/promises";
 
 // Validate environment variables at startup - fail fast in production if critical vars missing
 const isProduction = process.env.NODE_ENV === 'production';
@@ -101,8 +102,8 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' })); // Increased limit for file uploads
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Serve uploaded files as static assets
-app.use('/uploads', express.static('uploads'));
+// Serve uploaded files as static assets from server/uploads
+app.use('/uploads', express.static('server/uploads'));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -187,8 +188,8 @@ function sanitizeLogData(data: any): any {
 }
 (async () => {
   // SQLite Note: Database schema is managed via drizzle-kit push, not migrations
-  // Run `npx drizzle-kit push` to sync schema changes to your app.db file
-  console.log("✅ Using SQLite database at ./app.db (schema managed via drizzle-kit push)");
+  // Run `npx drizzle-kit push` to sync schema changes to server/data/app.db
+  console.log("✅ Using SQLite database at ./server/data/app.db (schema managed via drizzle-kit push)");
   // Seed academic terms if they don't exist
   try {
     console.log("Seeding academic terms if needed...");
@@ -228,24 +229,19 @@ function sanitizeLogData(data: any): any {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.log(`⚠️ Test users seeding failed: ${errorMessage}`);
   }
-  // Initialize MinIO Storage
+  // Local File Storage Setup
   try {
-    console.log("Initializing MinIO Storage...");
-    const { minioStorage } = await import("./minio-storage");
-    
-    if (minioStorage.initialize()) {
-      await minioStorage.ensureBucketsExist();
-      console.log("✅ MinIO Storage initialized and buckets verified");
-    } else {
-      console.warn("⚠️  MinIO Storage initialization failed - uploads will not work");
-      if (isProduction) {
-        console.error("🚨 CRITICAL: MinIO Storage required in production!");
-        process.exit(1);
-      }
-    }
+    console.log("Initializing local file storage...");
+    await fs.mkdir('server/uploads/profiles', { recursive: true });
+    await fs.mkdir('server/uploads/homepage', { recursive: true });
+    await fs.mkdir('server/uploads/gallery', { recursive: true });
+    await fs.mkdir('server/uploads/study-resources', { recursive: true });
+    await fs.mkdir('server/uploads/general', { recursive: true });
+    await fs.mkdir('server/uploads/csv', { recursive: true });
+    console.log("✅ Local file storage initialized in server/uploads/");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`❌ MinIO initialization error: ${errorMessage}`);
+    console.error(`❌ File storage initialization error: ${errorMessage}`);
     if (isProduction) {
       process.exit(1);
     }

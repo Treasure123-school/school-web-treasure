@@ -5,7 +5,7 @@ export default defineConfig({
   schema: "./shared/schema.ts",
   dialect: "sqlite",
   dbCredentials: {
-    url: "file:./app.db", // SQLite database file in your project folder
+    url: "file:./server/data/app.db", // SQLite database file in dedicated server folder
   },
   verbose: true,
 });

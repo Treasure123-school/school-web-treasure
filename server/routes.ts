@@ -17,31 +17,17 @@ import { generateUsername, generatePassword, getNextUserNumber, generateStudentP
 import { generateStudentUsername, generateParentUsername, generateTeacherUsername, generateAdminUsername } from "./username-generator";
 import passport from "passport";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import connectSqlite3 from "connect-sqlite3";
 import { and, eq, sql } from "drizzle-orm";
-import { minioStorage } from "./minio-storage";
 import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
 
-// Storage buckets configuration
-const STORAGE_BUCKETS = {
-  HOMEPAGE: 'homepage-images',
-  GALLERY: 'gallery-images',
-  PROFILES: 'profile-images',
-  STUDY_RESOURCES: 'study-resources',
-  GENERAL: 'general-uploads'
-} as const;
-
-// Helper function to extract file path from URL
+// Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
-  // Extract the file path from MinIO URL
-  // Format: http://endpoint:port/bucket/path/to/file.jpg
-  const parts = url.split('/');
-  // Remove protocol, host, port, and bucket name
-  const bucketIndex = parts.findIndex(part => Object.values(STORAGE_BUCKETS).includes(part as any));
-  if (bucketIndex === -1) return url;
-  return parts.slice(bucketIndex + 1).join('/');
+  // For local filesystem URLs (e.g., /server/uploads/profiles/image.jpg)
+  // Just return the path as-is for deletion
+  return url.startsWith('/') ? url.substring(1) : url;
 }
 
 // Type for authenticated user
@@ -219,12 +205,12 @@ const authorizeRoles = (...allowedRoles: number[]) => {
   };
 };
 
-// Configure multer for file uploads
-const uploadDir = 'uploads';
-const galleryDir = 'uploads/gallery';
-const profileDir = 'uploads/profiles';
-const studyResourcesDir = 'uploads/study-resources';
-const homepageDir = 'uploads/homepage';
+// Configure multer for file uploads - ALL files stored locally in server/uploads
+const uploadDir = 'server/uploads';
+const galleryDir = 'server/uploads/gallery';
+const profileDir = 'server/uploads/profiles';
+const studyResourcesDir = 'server/uploads/study-resources';
+const homepageDir = 'server/uploads/homepage';
 
 // Ensure upload directories exist
 fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
@@ -233,32 +219,30 @@ fs.mkdir(profileDir, { recursive: true }).catch(() => {});
 fs.mkdir(studyResourcesDir, { recursive: true }).catch(() => {});
 fs.mkdir(homepageDir, { recursive: true }).catch(() => {});
 
-// Use memory storage for MinIO uploads, disk storage for local filesystem
-const storage_multer = minioStorage.isInitialized()
-  ? multer.memoryStorage()
-  : multer.diskStorage({
-      destination: (req, file, cb) => {
-        const uploadType = req.body.uploadType || 'general';
-        let dir = uploadDir;
+// Use disk storage for all uploads (local server/uploads directory)
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadType = req.body.uploadType || 'general';
+    let dir = uploadDir;
 
-        if (uploadType === 'gallery') {
-          dir = galleryDir;
-        } else if (uploadType === 'profile') {
-          dir = profileDir;
-        } else if (uploadType === 'study-resource') {
-          dir = studyResourcesDir;
-        } else if (uploadType === 'homepage') {
-          dir = homepageDir;
-        }
-        cb(null, dir);
-      },
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        const name = path.basename(file.originalname, ext);
-        cb(null, `${name}-${uniqueSuffix}${ext}`);
-      }
-    });
+    if (uploadType === 'gallery') {
+      dir = galleryDir;
+    } else if (uploadType === 'profile') {
+      dir = profileDir;
+    } else if (uploadType === 'study-resource') {
+      dir = studyResourcesDir;
+    } else if (uploadType === 'homepage') {
+      dir = homepageDir;
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const name = path.basename(file.originalname, ext);
+    cb(null, `${name}-${uniqueSuffix}${ext}`);
+  }
+});
 
 const upload = multer({
   storage: storage_multer,
@@ -298,7 +282,7 @@ const uploadDocument = multer({
 });
 
 // CSV upload configuration for bulk user provisioning
-const csvDir = 'uploads/csv';
+const csvDir = 'server/uploads/csv';
 fs.mkdir(csvDir, { recursive: true }).catch(() => {});
 
 const uploadCSV = multer({
@@ -2128,17 +2112,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-session-secret-change-in-production' : process.env.JWT_SECRET || SECRET_KEY);
 
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️  SESSION_SECRET not set in production - using JWT_SECRET as fallback');
   }
-  // Configure PostgreSQL session store for production persistence
-  const PgStore = connectPgSimple(session);
-  const sessionStore = new PgStore({
-    conString: process.env.DATABASE_URL,
-    tableName: 'session',
-    createTableIfMissing: true,
+
+  // Configure SQLite session store for persistence
+  const SQLiteStore = connectSqlite3(session);
+  const sessionStore = new SQLiteStore({
+    db: 'sessions.db', // Store sessions in a separate SQLite database
+    dir: './server/data', // Store in server/data directory
+    table: 'sessions', // Table name for sessions
   });
 
   app.use(session({
-    store: sessionStore, // Use PostgreSQL instead of MemoryStore
+    store: sessionStore, // Use SQLite session store
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -2157,8 +2143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Initialize MinIO Storage buckets
-  await minioStorage.ensureBucketsExist();
+  // File storage already initialized in server/index.ts
 
   app.get('/api/auth/me', authenticateUser, async (req, res) => {
     try {

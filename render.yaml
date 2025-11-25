@@ -5,11 +5,15 @@ services:
     region: oregon
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start
+    # IMPORTANT: This app uses local SQLite database (server/data/app.db)
+    # You MUST enable persistent disk storage in Render dashboard:
+    # 1. Go to your service settings
+    # 2. Add a persistent disk mounted at /opt/render/project/src/server/data
+    # 3. Set size to at least 1GB to store database and backups
+    # 4. File uploads are stored in server/uploads/ (also requires persistent disk)
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
       - key: FRONTEND_URL
         sync: false
       - key: SESSION_SECRET
@@ -21,10 +25,6 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: BACKEND_URL
         sync: false
