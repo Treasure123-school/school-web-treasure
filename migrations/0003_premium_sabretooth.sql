@@ -1,1 +1,0 @@
-ALTER TABLE "users" ADD COLUMN "national_id" varchar(50);

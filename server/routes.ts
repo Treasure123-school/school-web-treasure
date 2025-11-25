@@ -4314,7 +4314,7 @@ Treasure-Home School Administration
         } catch (deleteError: any) {
           lastError = deleteError;
 
-          // Check for Supabase RLS or permission errors
+          // Check for permission or database errors
           if (deleteError?.code === '42501' || deleteError?.message?.includes('permission denied')) {
             return res.status(403).json({
               message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check database RLS settings or use 'Disable Account' instead.",

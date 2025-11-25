@@ -11,9 +11,7 @@
     "check:types": "tsc --noEmit",
     "prebuild": "npm run check:types",
     "predeploy": "npm run check:types && npm run build",
-    "db:push": "drizzle-kit push",
-    "verify-storage": "npx tsx verify-storage-config.ts",
-    "apply-storage-policies": "npx tsx apply-storage-policies.ts"
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
