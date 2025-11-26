@@ -1,11 +1,11 @@
 import { defineConfig } from "drizzle-kit";
 
 // Database configuration based on environment
-const isProduction = process.env.NODE_ENV === 'production';
 const databaseUrl = process.env.DATABASE_URL;
 
-// Use PostgreSQL in production with DATABASE_URL, SQLite otherwise
-const usePostgres = !!(databaseUrl && isProduction);
+// Use PostgreSQL if DATABASE_URL is present, SQLite otherwise
+// This matches the logic in server/db.ts
+const usePostgres = !!databaseUrl;
 
 export default defineConfig(
   usePostgres

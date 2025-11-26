@@ -4,6 +4,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { db } from "./storage";
+import { isPostgres, dbInfo } from "./db";
 import { seedAcademicTerms } from "./seed-terms";
 import { validateEnvironment } from "./env-validation";
 import fs from "fs/promises";
@@ -187,9 +188,13 @@ function sanitizeLogData(data: any): any {
   return data;
 }
 (async () => {
-  // SQLite Note: Database schema is managed via drizzle-kit push, not migrations
-  // Run `npx drizzle-kit push` to sync schema changes to server/data/app.db
-  console.log("✅ Using SQLite database at ./server/data/app.db (schema managed via drizzle-kit push)");
+  // Database Note: Schema is managed via drizzle-kit push, not migrations
+  // Run `npx drizzle-kit push` to sync schema changes
+  if (isPostgres) {
+    console.log(`✅ Using ${dbInfo.type.toUpperCase()} database (schema managed via drizzle-kit push)`);
+  } else {
+    console.log(`✅ Using ${dbInfo.type.toUpperCase()} database at ${dbInfo.connectionString} (schema managed via drizzle-kit push)`);
+  }
   // Seed academic terms if they don't exist
   try {
     console.log("Seeding academic terms if needed...");
