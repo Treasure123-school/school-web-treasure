@@ -14,8 +14,9 @@ import type {
   QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption,
   Invite, InsertInvite, InsertAuditLog as InsertAuditLogType, InsertNotification as InsertNotificationType,
   AdminProfile, InsertAdminProfile, ParentProfile, InsertParentProfile, InsertTeacherProfile,
-  SuperAdminProfile, InsertSuperAdminProfile, SystemSettings, Vacancy, InsertVacancy,
-  TeacherApplication, InsertTeacherApplication, ApprovedTeacher
+  SuperAdminProfile, InsertSuperAdminProfile, SystemSettings, InsertSystemSettings, Vacancy, InsertVacancy,
+  TeacherApplication, InsertTeacherApplication, ApprovedTeacher,
+  Timetable, InsertTimetable
 } from "@shared/schema";
 
 // Get centralized database instance and schema from db.ts
@@ -326,14 +327,14 @@ export interface IStorage {
   deleteTeacherClassAssignment(id: number): Promise<boolean>;
 
   // Teacher timetable
-  createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable>;
-  getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]>;
-  updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined>;
+  createTimetableEntry(entry: InsertTimetable): Promise<Timetable>;
+  getTimetableByTeacher(teacherId: string, termId?: number): Promise<Timetable[]>;
+  updateTimetableEntry(id: number, entry: Partial<InsertTimetable>): Promise<Timetable | undefined>;
   deleteTimetableEntry(id: number): Promise<boolean>;
 
   // Teacher dashboard data
   getTeacherDashboardData(teacherId: string): Promise<{
-    profile: schema.TeacherProfile | undefined;
+    profile: TeacherProfile | undefined;
     user: User | undefined;
     assignments: Array<{
       id: number;
@@ -400,23 +401,23 @@ export interface IStorage {
   resetCounter(classCode: string, year: string): Promise<boolean>;
 
   // Job Vacancy System
-  createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy>;
-  getVacancy(id: string): Promise<schema.Vacancy | undefined>;
-  getAllVacancies(status?: string): Promise<schema.Vacancy[]>;
-  updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined>;
+  createVacancy(vacancy: InsertVacancy): Promise<Vacancy>;
+  getVacancy(id: string): Promise<Vacancy | undefined>;
+  getAllVacancies(status?: string): Promise<Vacancy[]>;
+  updateVacancy(id: string, updates: Partial<InsertVacancy>): Promise<Vacancy | undefined>;
   deleteVacancy(id: string): Promise<boolean>;
   
   // Teacher Applications
-  createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication>;
-  getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined>;
-  getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]>;
-  updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined>;
-  approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }>;
-  rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined>;
+  createTeacherApplication(application: InsertTeacherApplication): Promise<TeacherApplication>;
+  getTeacherApplication(id: string): Promise<TeacherApplication | undefined>;
+  getAllTeacherApplications(status?: string): Promise<TeacherApplication[]>;
+  updateTeacherApplication(id: string, updates: Partial<TeacherApplication>): Promise<TeacherApplication | undefined>;
+  approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: TeacherApplication; approvedTeacher: ApprovedTeacher }>;
+  rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<TeacherApplication | undefined>;
   
   // Approved Teachers
-  getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined>;
-  getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]>;
+  getApprovedTeacherByEmail(email: string): Promise<ApprovedTeacher | undefined>;
+  getAllApprovedTeachers(): Promise<ApprovedTeacher[]>;
   deleteApprovedTeacher(id: string): Promise<boolean>;
 
   // Super Admin methods
@@ -426,8 +427,8 @@ export interface IStorage {
     activeSessions: number;
     totalExams: number;
   }>;
-  getSystemSettings(): Promise<schema.SystemSettings | undefined>;
-  updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings>;
+  getSystemSettings(): Promise<SystemSettings | undefined>;
+  updateSystemSettings(settings: Partial<InsertSystemSettings>): Promise<SystemSettings>;
 }
 // Helper to normalize UUIDs from various formats
 function normalizeUuid(raw: any): string | undefined {
@@ -2005,6 +2006,21 @@ export class DatabaseStorage implements IStorage {
         ? bankItem.questionType as "multiple_choice" | "text" | "essay" | "true_false" | "fill_blank"
         : "text"; // Default to text if invalid
 
+      // Parse expectedAnswers from JSON string or comma-separated string to array
+      let expectedAnswersArray: string[] | undefined = undefined;
+      if (bankItem.expectedAnswers) {
+        if (Array.isArray(bankItem.expectedAnswers)) {
+          expectedAnswersArray = bankItem.expectedAnswers;
+        } else if (typeof bankItem.expectedAnswers === 'string') {
+          try {
+            const parsed = JSON.parse(bankItem.expectedAnswers);
+            expectedAnswersArray = Array.isArray(parsed) ? parsed : [bankItem.expectedAnswers];
+          } catch {
+            expectedAnswersArray = bankItem.expectedAnswers.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+        }
+      }
+
       const questionData: InsertExamQuestion = {
         examId,
         questionText: bankItem.questionText,
@@ -2013,7 +2029,7 @@ export class DatabaseStorage implements IStorage {
         orderNumber: orderNumber++,
         imageUrl: bankItem.imageUrl ?? undefined,
         autoGradable: bankItem.autoGradable,
-        expectedAnswers: bankItem.expectedAnswers ?? undefined,
+        expectedAnswers: expectedAnswersArray,
         caseSensitive: bankItem.caseSensitive ?? undefined,
         explanationText: bankItem.explanationText ?? undefined,
         hintText: bankItem.hintText ?? undefined
@@ -2995,7 +3011,9 @@ export class DatabaseStorage implements IStorage {
           WHERE id = ${taskId}
         `;
 
-        return result[0] as any;
+        // Extract first row from PostgreSQL result
+        const rows = result as Record<string, any>[];
+        return rows.length > 0 ? rows[0] : null;
       } else {
         const sqliteConn = getSqliteConnection();
         if (!sqliteConn) throw new Error('SQLite database not available');
