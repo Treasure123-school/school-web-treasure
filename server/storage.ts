@@ -1,8 +1,5 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
-import * as schema from "@shared/schema";
 import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull } from "drizzle-orm";
-import { isPostgres, getPgClient } from "./db";
+import { getDatabase, getSchema, getPgClient, getSqliteConnection, isPostgres, isSqlite } from "./db";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -14,37 +11,21 @@ import type {
   StudyResource, InsertStudyResource, PerformanceEvent, InsertPerformanceEvent,
   TeacherClassAssignment, InsertTeacherClassAssignment, GradingTask, InsertGradingTask, AuditLog, InsertAuditLog, ReportCard, ReportCardItem,
   Notification, InsertNotification, TeacherProfile,
-  QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption
+  QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption,
+  Invite, InsertInvite, InsertAuditLog as InsertAuditLogType, InsertNotification as InsertNotificationType,
+  AdminProfile, InsertAdminProfile, ParentProfile, InsertParentProfile, InsertTeacherProfile,
+  SuperAdminProfile, InsertSuperAdminProfile, SystemSettings, Vacancy, InsertVacancy,
+  TeacherApplication, InsertTeacherApplication, ApprovedTeacher
 } from "@shared/schema";
 
-// Configure SQLite connection for development
-// Note: In production with NODE_ENV=production and DATABASE_URL set,
-// the application uses server/db.ts for PostgreSQL/Neon connection.
-// This file continues to use SQLite for local development compatibility.
-let sqlite: Database.Database | null = null;
-let db: any;
+// Get centralized database instance and schema from db.ts
+// Cast to 'any' to allow dynamic switching between SQLite and PostgreSQL schemas
+// Both schemas have the same table structure, just different column type definitions
+const db: any = getDatabase();
+const schema: any = getSchema();
 
-function initializeDatabase() {
-  if (!sqlite) {
-    // Create SQLite database in dedicated server data folder
-    sqlite = new Database('./server/data/app.db');
-    
-    // Enable foreign keys (SQLite has them disabled by default)
-    sqlite.pragma('foreign_keys = ON');
-    
-    // Performance optimizations for SQLite
-    sqlite.pragma('journal_mode = WAL'); // Write-Ahead Logging for better concurrency
-    sqlite.pragma('synchronous = NORMAL'); // Balance between safety and speed
-    
-    db = drizzle(sqlite, { schema });
-    console.log('✅ SQLite database initialized at ./server/data/app.db');
-  }
-  return { sqlite, db };
-}
-
-// Export db for migrations (initialize if needed)
-const { db: exportDb } = initializeDatabase();
-export { exportDb as db };
+// Re-export for external use
+export { db, isPostgres, isSqlite, getPgClient };
 
 export interface IStorage {
   // User management
@@ -483,7 +464,7 @@ export class DatabaseStorage implements IStorage {
   public db: any;
 
   constructor() {
-    const { db } = initializeDatabase();
+    // Use the centralized database instance from db.ts
     this.db = db;
     if (!this.db) {
       throw new Error('Database not available - DATABASE_URL not set or invalid');
@@ -2934,7 +2915,7 @@ export class DatabaseStorage implements IStorage {
         return result as any[];
       } else {
         // SQLite for development
-        const { sqlite: sqliteConn } = initializeDatabase();
+        const sqliteConn = getSqliteConnection();
         if (!sqliteConn) return [];
         
         let query = `
@@ -3016,7 +2997,7 @@ export class DatabaseStorage implements IStorage {
 
         return result[0] as any;
       } else {
-        const { sqlite: sqliteConn } = initializeDatabase();
+        const sqliteConn = getSqliteConnection();
         if (!sqliteConn) throw new Error('SQLite database not available');
 
         const now = new Date().toISOString();
@@ -3082,7 +3063,7 @@ export class DatabaseStorage implements IStorage {
 
         return result as any[];
       } else {
-        const { sqlite: sqliteConn } = initializeDatabase();
+        const sqliteConn = getSqliteConnection();
         if (!sqliteConn) return [];
         
         const result = sqliteConn.prepare(`
@@ -3178,7 +3159,7 @@ export class DatabaseStorage implements IStorage {
         const result = await (pgClient as any).unsafe(query, params);
         return result as any[];
       } else {
-        const { sqlite: sqliteConn } = initializeDatabase();
+        const sqliteConn = getSqliteConnection();
         if (!sqliteConn) return [];
         
         let query = `
@@ -3280,7 +3261,7 @@ export class DatabaseStorage implements IStorage {
 
         return result as any[];
       } else {
-        const { sqlite: sqliteConn } = initializeDatabase();
+        const sqliteConn = getSqliteConnection();
         if (!sqliteConn) return [];
         
         // SQLite version - uses different syntax for time calculation
