@@ -14,9 +14,8 @@ import type {
   QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption,
   Invite, InsertInvite, InsertAuditLog as InsertAuditLogType, InsertNotification as InsertNotificationType,
   AdminProfile, InsertAdminProfile, ParentProfile, InsertParentProfile, InsertTeacherProfile,
-  SuperAdminProfile, InsertSuperAdminProfile, SystemSettings, InsertSystemSettings, Vacancy, InsertVacancy,
-  TeacherApplication, InsertTeacherApplication, ApprovedTeacher,
-  Timetable, InsertTimetable
+  SuperAdminProfile, InsertSuperAdminProfile, SystemSettings, Vacancy, InsertVacancy,
+  TeacherApplication, InsertTeacherApplication, ApprovedTeacher
 } from "@shared/schema";
 
 // Get centralized database instance and schema from db.ts
@@ -327,14 +326,14 @@ export interface IStorage {
   deleteTeacherClassAssignment(id: number): Promise<boolean>;
 
   // Teacher timetable
-  createTimetableEntry(entry: REPLACED_InsertTimetable): Promise<REPLACED_Timetable>;
-  getTimetableByTeacher(teacherId: string, termId?: number): Promise<REPLACED_Timetable[]>;
-  updateTimetableEntry(id: number, entry: Partial<REPLACED_InsertTimetable>): Promise<REPLACED_Timetable | undefined>;
+  createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable>;
+  getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]>;
+  updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined>;
   deleteTimetableEntry(id: number): Promise<boolean>;
 
   // Teacher dashboard data
   getTeacherDashboardData(teacherId: string): Promise<{
-    profile: REPLACED_TeacherProfile | undefined;
+    profile: schema.TeacherProfile | undefined;
     user: User | undefined;
     assignments: Array<{
       id: number;
@@ -401,23 +400,23 @@ export interface IStorage {
   resetCounter(classCode: string, year: string): Promise<boolean>;
 
   // Job Vacancy System
-  createVacancy(vacancy: REPLACED_InsertVacancy): Promise<REPLACED_Vacancy>;
-  getVacancy(id: string): Promise<REPLACED_Vacancy | undefined>;
-  getAllVacancies(status?: string): Promise<REPLACED_Vacancy[]>;
-  updateVacancy(id: string, updates: Partial<REPLACED_InsertVacancy>): Promise<REPLACED_Vacancy | undefined>;
+  createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy>;
+  getVacancy(id: string): Promise<schema.Vacancy | undefined>;
+  getAllVacancies(status?: string): Promise<schema.Vacancy[]>;
+  updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined>;
   deleteVacancy(id: string): Promise<boolean>;
   
   // Teacher Applications
-  createTeacherApplication(application: REPLACED_InsertTeacherApplication): Promise<REPLACED_TeacherApplication>;
-  getTeacherApplication(id: string): Promise<REPLACED_TeacherApplication | undefined>;
-  getAllTeacherApplications(status?: string): Promise<REPLACED_TeacherApplication[]>;
-  updateTeacherApplication(id: string, updates: Partial<REPLACED_TeacherApplication>): Promise<REPLACED_TeacherApplication | undefined>;
-  approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: REPLACED_TeacherApplication; approvedTeacher: REPLACED_ApprovedTeacher }>;
-  rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<REPLACED_TeacherApplication | undefined>;
+  createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication>;
+  getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined>;
+  getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]>;
+  updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined>;
+  approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }>;
+  rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined>;
   
   // Approved Teachers
-  getApprovedTeacherByEmail(email: string): Promise<REPLACED_ApprovedTeacher | undefined>;
-  getAllApprovedTeachers(): Promise<REPLACED_ApprovedTeacher[]>;
+  getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined>;
+  getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]>;
   deleteApprovedTeacher(id: string): Promise<boolean>;
 
   // Super Admin methods
@@ -427,8 +426,8 @@ export interface IStorage {
     activeSessions: number;
     totalExams: number;
   }>;
-  getSystemSettings(): Promise<REPLACED_SystemSettings | undefined>;
-  updateSystemSettings(settings: Partial<REPLACED_InsertSystemSettings>): Promise<REPLACED_SystemSettings>;
+  getSystemSettings(): Promise<schema.SystemSettings | undefined>;
+  updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings>;
 }
 // Helper to normalize UUIDs from various formats
 function normalizeUuid(raw: any): string | undefined {
@@ -476,27 +475,27 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     // Only select columns that exist in the current database schema
     const result = await this.db.select({
-      id: REPLACED_users.id,
-      username: REPLACED_users.username,
-      email: REPLACED_users.email,
-      recoveryEmail: REPLACED_users.recoveryEmail,
-      passwordHash: REPLACED_users.passwordHash,
-      roleId: REPLACED_users.roleId,
-      firstName: REPLACED_users.firstName,
-      lastName: REPLACED_users.lastName,
-      phone: REPLACED_users.phone,
-      address: REPLACED_users.address,
-      dateOfBirth: REPLACED_users.dateOfBirth,
-      gender: REPLACED_users.gender,
-      nationalId: REPLACED_users.nationalId,
-      profileImageUrl: REPLACED_users.profileImageUrl,
-      isActive: REPLACED_users.isActive,
-      authProvider: REPLACED_users.authProvider,
-      googleId: REPLACED_users.googleId,
-      status: REPLACED_users.status,
-      createdAt: REPLACED_users.createdAt,
-      updatedAt: REPLACED_users.updatedAt,
-    }).from(REPLACED_users).where(eq(REPLACED_users.id, id)).limit(1);
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      recoveryEmail: schema.users.recoveryEmail,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      nationalId: schema.users.nationalId,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
 
     const user = result[0];
     if (user && user.id) {
@@ -510,27 +509,27 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     // Only select columns that exist in the current database schema
     const result = await this.db.select({
-      id: REPLACED_users.id,
-      username: REPLACED_users.username,
-      email: REPLACED_users.email,
-      recoveryEmail: REPLACED_users.recoveryEmail,
-      passwordHash: REPLACED_users.passwordHash,
-      roleId: REPLACED_users.roleId,
-      firstName: REPLACED_users.firstName,
-      lastName: REPLACED_users.lastName,
-      phone: REPLACED_users.phone,
-      address: REPLACED_users.address,
-      dateOfBirth: REPLACED_users.dateOfBirth,
-      gender: REPLACED_users.gender,
-      nationalId: REPLACED_users.nationalId,
-      profileImageUrl: REPLACED_users.profileImageUrl,
-      isActive: REPLACED_users.isActive,
-      authProvider: REPLACED_users.authProvider,
-      googleId: REPLACED_users.googleId,
-      status: REPLACED_users.status,
-      createdAt: REPLACED_users.createdAt,
-      updatedAt: REPLACED_users.updatedAt,
-    }).from(REPLACED_users).where(eq(REPLACED_users.email, email)).limit(1);
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      recoveryEmail: schema.users.recoveryEmail,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      nationalId: schema.users.nationalId,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
 
     const user = result[0];
     if (user && user.id) {
@@ -542,7 +541,7 @@ export class DatabaseStorage implements IStorage {
     return user as User | undefined;
   }
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await this.db.select().from(REPLACED_users).where(eq(REPLACED_users.username, username)).limit(1);
+    const result = await this.db.select().from(schema.users).where(eq(schema.users.username, username)).limit(1);
     const user = result[0];
     if (user && user.id) {
       const normalizedId = normalizeUuid(user.id);
@@ -553,7 +552,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   async createPasswordResetToken(userId: string, token: string, expiresAt: Date, ipAddress?: string, resetBy?: string): Promise<any> {
-    const result = await this.db.insert(REPLACED_passwordResetTokens).values({
+    const result = await this.db.insert(schema.passwordResetTokens).values({
       userId,
       token,
       expiresAt,
@@ -564,29 +563,29 @@ export class DatabaseStorage implements IStorage {
   }
   async getPasswordResetToken(token: string): Promise<any | undefined> {
     const result = await this.db.select()
-      .from(REPLACED_passwordResetTokens)
+      .from(schema.passwordResetTokens)
       .where(and(
-        eq(REPLACED_passwordResetTokens.token, token),
-        dsql`${REPLACED_passwordResetTokens.expiresAt} > NOW()`,
-        dsql`${REPLACED_passwordResetTokens.usedAt} IS NULL`
+        eq(schema.passwordResetTokens.token, token),
+        dsql`${schema.passwordResetTokens.expiresAt} > NOW()`,
+        dsql`${schema.passwordResetTokens.usedAt} IS NULL`
       ))
       .limit(1);
     return result[0];
   }
   async markPasswordResetTokenAsUsed(token: string): Promise<boolean> {
-    const result = await this.db.update(REPLACED_passwordResetTokens)
+    const result = await this.db.update(schema.passwordResetTokens)
       .set({ usedAt: dsql`NOW()` })
-      .where(eq(REPLACED_passwordResetTokens.token, token))
+      .where(eq(schema.passwordResetTokens.token, token))
       .returning();
     return result.length > 0;
   }
   async deleteExpiredPasswordResetTokens(): Promise<boolean> {
-    await this.db.delete(REPLACED_passwordResetTokens)
-      .where(dsql`${REPLACED_passwordResetTokens.expiresAt} < NOW()`);
+    await this.db.delete(schema.passwordResetTokens)
+      .where(dsql`${schema.passwordResetTokens.expiresAt} < NOW()`);
     return true;
   }
   async createUser(user: InsertUser): Promise<User> {
-    const result = await this.db.insert(REPLACED_users).values(user).returning();
+    const result = await this.db.insert(schema.users).values(user).returning();
     const createdUser = result[0];
     if (createdUser && createdUser.id) {
       const normalizedId = normalizeUuid(createdUser.id);
@@ -598,7 +597,7 @@ export class DatabaseStorage implements IStorage {
   }
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
     try {
-      const result = await this.db.update(REPLACED_users).set(user).where(eq(REPLACED_users.id, id)).returning();
+      const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
       const updatedUser = result[0];
       if (updatedUser && updatedUser.id) {
         const normalizedId = normalizeUuid(updatedUser.id);
@@ -617,7 +616,7 @@ export class DatabaseStorage implements IStorage {
 
         // If we removed the field, retry the update
         if (Object.keys(safeUser).length > 0) {
-          const result = await this.db.update(REPLACED_users).set(safeUser).where(eq(REPLACED_users.id, id)).returning();
+          const result = await this.db.update(schema.users).set(safeUser).where(eq(schema.users.id, id)).returning();
           const updatedUser = result[0];
           if (updatedUser && updatedUser.id) {
             const normalizedId = normalizeUuid(updatedUser.id);
@@ -639,34 +638,34 @@ export class DatabaseStorage implements IStorage {
       
       
       // 1. Delete teacher profile first (has foreign key to users)
-      await this.db.delete(REPLACED_teacherProfiles)
-        .where(eq(REPLACED_teacherProfiles.userId, id));
+      await this.db.delete(schema.teacherProfiles)
+        .where(eq(schema.teacherProfiles.userId, id));
       
       // 2. Delete admin profile
-      await this.db.delete(REPLACED_adminProfiles)
-        .where(eq(REPLACED_adminProfiles.userId, id));
+      await this.db.delete(schema.adminProfiles)
+        .where(eq(schema.adminProfiles.userId, id));
       
       // 3. Delete parent profile
-      await this.db.delete(REPLACED_parentProfiles)
-        .where(eq(REPLACED_parentProfiles.userId, id));
+      await this.db.delete(schema.parentProfiles)
+        .where(eq(schema.parentProfiles.userId, id));
       
       // 4. Delete password reset tokens
-      await this.db.delete(REPLACED_passwordResetTokens)
-        .where(eq(REPLACED_passwordResetTokens.userId, id));
+      await this.db.delete(schema.passwordResetTokens)
+        .where(eq(schema.passwordResetTokens.userId, id));
       
       // 5. Delete invites (if user was invited)
-      await this.db.delete(REPLACED_invites)
-        .where(eq(REPLACED_invites.acceptedBy, id));
+      await this.db.delete(schema.invites)
+        .where(eq(schema.invites.acceptedBy, id));
       
       // 6. Delete notifications
-      await this.db.delete(REPLACED_notifications)
-        .where(eq(REPLACED_notifications.userId, id));
+      await this.db.delete(schema.notifications)
+        .where(eq(schema.notifications.userId, id));
       
       // 7. Delete teacher class assignments (if table exists)
       try {
-        if (REPLACED_teacherClassAssignments) {
-          await this.db.delete(REPLACED_teacherClassAssignments)
-            .where(eq(REPLACED_teacherClassAssignments.teacherId, id));
+        if (schema.teacherClassAssignments) {
+          await this.db.delete(schema.teacherClassAssignments)
+            .where(eq(schema.teacherClassAssignments.teacherId, id));
         }
       } catch (assignmentError: any) {
         // Table might not exist yet, skip it
@@ -677,41 +676,41 @@ export class DatabaseStorage implements IStorage {
       }
       
       // 8. Get exam sessions to cascade delete properly
-      const examSessions = await this.db.select({ id: REPLACED_examSessions.id })
-        .from(REPLACED_examSessions)
-        .where(eq(REPLACED_examSessions.studentId, id));
+      const examSessions = await this.db.select({ id: schema.examSessions.id })
+        .from(schema.examSessions)
+        .where(eq(schema.examSessions.studentId, id));
       
       const sessionIds = examSessions.map((s: { id: number }) => s.id);
       
       if (sessionIds.length > 0) {
         // Delete student answers
-        await this.db.delete(REPLACED_studentAnswers)
-          .where(inArray(REPLACED_studentAnswers.sessionId, sessionIds));
+        await this.db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.sessionId, sessionIds));
         
         // Delete exam sessions
-        await this.db.delete(REPLACED_examSessions)
-          .where(inArray(REPLACED_examSessions.id, sessionIds));
+        await this.db.delete(schema.examSessions)
+          .where(inArray(schema.examSessions.id, sessionIds));
       }
       // 9. Delete exam results
-      await this.db.delete(REPLACED_examResults)
-        .where(eq(REPLACED_examResults.studentId, id));
+      await this.db.delete(schema.examResults)
+        .where(eq(schema.examResults.studentId, id));
       
       // 10. Delete attendance records
-      await this.db.delete(REPLACED_attendance)
-        .where(eq(REPLACED_attendance.studentId, id));
+      await this.db.delete(schema.attendance)
+        .where(eq(schema.attendance.studentId, id));
       
       // 11. Update students who have this user as a parent (set parent_id to null)
-      await this.db.update(REPLACED_students)
+      await this.db.update(schema.students)
         .set({ parentId: null })
-        .where(eq(REPLACED_students.parentId, id));
+        .where(eq(schema.students.parentId, id));
       
       // 12. Delete student record if exists
-      await this.db.delete(REPLACED_students)
-        .where(eq(REPLACED_students.id, id));
+      await this.db.delete(schema.students)
+        .where(eq(schema.students.id, id));
       
       // 13. Finally, delete the user
-      const result = await this.db.delete(REPLACED_users)
-        .where(eq(REPLACED_users.id, id))
+      const result = await this.db.delete(schema.users)
+        .where(eq(schema.users.id, id))
         .returning();
       
       return result.length > 0;
@@ -722,25 +721,25 @@ export class DatabaseStorage implements IStorage {
 
   async getUsersByRole(roleId: number): Promise<User[]> {
     const result = await this.db.select({
-      id: REPLACED_users.id,
-      username: REPLACED_users.username,
-      email: REPLACED_users.email,
-      passwordHash: REPLACED_users.passwordHash,
-      roleId: REPLACED_users.roleId,
-      firstName: REPLACED_users.firstName,
-      lastName: REPLACED_users.lastName,
-      phone: REPLACED_users.phone,
-      address: REPLACED_users.address,
-      dateOfBirth: REPLACED_users.dateOfBirth,
-      gender: REPLACED_users.gender,
-      profileImageUrl: REPLACED_users.profileImageUrl,
-      isActive: REPLACED_users.isActive,
-      authProvider: REPLACED_users.authProvider,
-      googleId: REPLACED_users.googleId,
-      status: REPLACED_users.status,
-      createdAt: REPLACED_users.createdAt,
-      updatedAt: REPLACED_users.updatedAt,
-    }).from(REPLACED_users).where(eq(REPLACED_users.roleId, roleId));
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users).where(eq(schema.users.roleId, roleId));
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);
@@ -752,7 +751,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
   async getUsersByStatus(status: string): Promise<User[]> {
-    const result = await this.db.select().from(REPLACED_users).where(sql`${REPLACED_users.status} = ${status}`);
+    const result = await this.db.select().from(schema.users).where(sql`${schema.users.status} = ${status}`);
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);
@@ -765,25 +764,25 @@ export class DatabaseStorage implements IStorage {
   }
   async getAllUsers(): Promise<User[]> {
     const result = await this.db.select({
-      id: REPLACED_users.id,
-      username: REPLACED_users.username,
-      email: REPLACED_users.email,
-      passwordHash: REPLACED_users.passwordHash,
-      roleId: REPLACED_users.roleId,
-      firstName: REPLACED_users.firstName,
-      lastName: REPLACED_users.lastName,
-      phone: REPLACED_users.phone,
-      address: REPLACED_users.address,
-      dateOfBirth: REPLACED_users.dateOfBirth,
-      gender: REPLACED_users.gender,
-      profileImageUrl: REPLACED_users.profileImageUrl,
-      isActive: REPLACED_users.isActive,
-      authProvider: REPLACED_users.authProvider,
-      googleId: REPLACED_users.googleId,
-      status: REPLACED_users.status,
-      createdAt: REPLACED_users.createdAt,
-      updatedAt: REPLACED_users.updatedAt,
-    }).from(REPLACED_users);
+      id: schema.users.id,
+      username: schema.users.username,
+      email: schema.users.email,
+      passwordHash: schema.users.passwordHash,
+      roleId: schema.users.roleId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      phone: schema.users.phone,
+      address: schema.users.address,
+      dateOfBirth: schema.users.dateOfBirth,
+      gender: schema.users.gender,
+      profileImageUrl: schema.users.profileImageUrl,
+      isActive: schema.users.isActive,
+      authProvider: schema.users.authProvider,
+      googleId: schema.users.googleId,
+      status: schema.users.status,
+      createdAt: schema.users.createdAt,
+      updatedAt: schema.users.updatedAt,
+    }).from(schema.users);
     return result.map((user: User) => {
       if (user && user.id) {
         const normalizedId = normalizeUuid(user.id);
@@ -795,13 +794,13 @@ export class DatabaseStorage implements IStorage {
     });
   }
   async approveUser(userId: string, approvedBy: string): Promise<User> {
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({
         status: 'active',
         approvedBy,
         approvedAt: new Date()
       })
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
 
     const user = result[0];
@@ -822,9 +821,9 @@ export class DatabaseStorage implements IStorage {
       updates.approvedBy = updatedBy;
       updates.approvedAt = new Date();
     }
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set(updates)
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
 
     const user = result[0];
@@ -838,137 +837,137 @@ export class DatabaseStorage implements IStorage {
   }
   // Role management
   async getRoles(): Promise<Role[]> {
-    return await this.db.select().from(REPLACED_roles);
+    return await this.db.select().from(schema.roles);
   }
   async getRoleByName(name: string): Promise<Role | undefined> {
-    const result = await this.db.select().from(REPLACED_roles).where(eq(REPLACED_roles.name, name)).limit(1);
+    const result = await this.db.select().from(schema.roles).where(eq(schema.roles.name, name)).limit(1);
     return result[0];
   }
   async getRole(roleId: number): Promise<Role | undefined> {
-    const result = await this.db.select().from(REPLACED_roles).where(eq(REPLACED_roles.id, roleId)).limit(1);
+    const result = await this.db.select().from(schema.roles).where(eq(schema.roles.id, roleId)).limit(1);
     return result[0];
   }
   // Invite management
-  async createInvite(invite: REPLACED_InsertInvite): Promise<REPLACED_Invite> {
-    const result = await this.db.insert(REPLACED_invites).values(invite).returning();
+  async createInvite(invite: schema.InsertInvite): Promise<schema.Invite> {
+    const result = await this.db.insert(schema.invites).values(invite).returning();
     return result[0];
   }
-  async getInviteByToken(token: string): Promise<REPLACED_Invite | undefined> {
-    const result = await this.db.select().from(REPLACED_invites)
+  async getInviteByToken(token: string): Promise<schema.Invite | undefined> {
+    const result = await this.db.select().from(schema.invites)
       .where(and(
-        eq(REPLACED_invites.token, token),
-        isNull(REPLACED_invites.acceptedAt),
-        dsql`${REPLACED_invites.expiresAt} > NOW()`
+        eq(schema.invites.token, token),
+        isNull(schema.invites.acceptedAt),
+        dsql`${schema.invites.expiresAt} > NOW()`
       ))
       .limit(1);
     return result[0];
   }
-  async getPendingInviteByEmail(email: string): Promise<REPLACED_Invite | undefined> {
-    const result = await this.db.select().from(REPLACED_invites)
+  async getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined> {
+    const result = await this.db.select().from(schema.invites)
       .where(and(
-        eq(REPLACED_invites.email, email),
-        isNull(REPLACED_invites.acceptedAt)
+        eq(schema.invites.email, email),
+        isNull(schema.invites.acceptedAt)
       ))
       .limit(1);
     return result[0];
   }
-  async getAllInvites(): Promise<REPLACED_Invite[]> {
-    return await this.db.select().from(REPLACED_invites)
-      .orderBy(desc(REPLACED_invites.createdAt));
+  async getAllInvites(): Promise<schema.Invite[]> {
+    return await this.db.select().from(schema.invites)
+      .orderBy(desc(schema.invites.createdAt));
   }
-  async getPendingInvites(): Promise<REPLACED_Invite[]> {
-    return await this.db.select().from(REPLACED_invites)
-      .where(isNull(REPLACED_invites.acceptedAt))
-      .orderBy(desc(REPLACED_invites.createdAt));
+  async getPendingInvites(): Promise<schema.Invite[]> {
+    return await this.db.select().from(schema.invites)
+      .where(isNull(schema.invites.acceptedAt))
+      .orderBy(desc(schema.invites.createdAt));
   }
   async markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void> {
-    await this.db.update(REPLACED_invites)
+    await this.db.update(schema.invites)
       .set({ acceptedAt: new Date(), acceptedBy })
-      .where(eq(REPLACED_invites.id, inviteId));
+      .where(eq(schema.invites.id, inviteId));
   }
   async deleteInvite(inviteId: number): Promise<boolean> {
-    const result = await this.db.delete(REPLACED_invites)
-      .where(eq(REPLACED_invites.id, inviteId))
+    const result = await this.db.delete(schema.invites)
+      .where(eq(schema.invites.id, inviteId))
       .returning();
     return result.length > 0;
   }
   async deleteExpiredInvites(): Promise<boolean> {
-    const result = await this.db.delete(REPLACED_invites)
+    const result = await this.db.delete(schema.invites)
       .where(and(
-        dsql`${REPLACED_invites.expiresAt} < NOW()`,
-        isNull(REPLACED_invites.acceptedAt)
+        dsql`${schema.invites.expiresAt} < NOW()`,
+        isNull(schema.invites.acceptedAt)
       ))
       .returning();
     return result.length > 0;
   }
   // Profile management
   async updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined> {
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({ ...profileData, updatedAt: new Date() })
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
     return result[0];
   }
-  async getTeacherProfile(userId: string): Promise<REPLACED_TeacherProfile | undefined> {
-    const [profile] = await db.select().from(REPLACED_teacherProfiles).where(eq(REPLACED_teacherProfiles.userId, userId));
+  async getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined> {
+    const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, userId));
     return profile || null;
   }
-  async updateTeacherProfile(userId: string, profile: Partial<REPLACED_InsertTeacherProfile>): Promise<REPLACED_TeacherProfile | undefined> {
-    const result = await this.db.update(REPLACED_teacherProfiles)
+  async updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined> {
+    const result = await this.db.update(schema.teacherProfiles)
       .set({ ...profile, updatedAt: new Date() })
-      .where(eq(REPLACED_teacherProfiles.userId, userId))
+      .where(eq(schema.teacherProfiles.userId, userId))
       .returning();
     return result[0];
   }
-  async getTeacherProfileByStaffId(staffId: string): Promise<REPLACED_TeacherProfile | undefined> {
-    const [profile] = await db.select().from(REPLACED_teacherProfiles).where(eq(REPLACED_teacherProfiles.staffId, staffId));
+  async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
+    const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
     return profile || null;
   }
-  async getAllTeacherProfiles(): Promise<REPLACED_TeacherProfile[]> {
-    const profiles = await db.select().from(REPLACED_teacherProfiles);
+  async getAllTeacherProfiles(): Promise<schema.TeacherProfile[]> {
+    const profiles = await db.select().from(schema.teacherProfiles);
     return profiles;
   }
-  async createTeacherProfile(profile: REPLACED_InsertTeacherProfile): Promise<REPLACED_TeacherProfile> {
-    const result = await this.db.insert(REPLACED_teacherProfiles)
+  async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
+    const result = await this.db.insert(schema.teacherProfiles)
       .values(profile)
       .returning();
     return result[0];
   }
-  async getAdminProfile(userId: string): Promise<REPLACED_AdminProfile | undefined> {
-    const result = await this.db.select().from(REPLACED_adminProfiles)
-      .where(eq(REPLACED_adminProfiles.userId, userId))
+  async getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined> {
+    const result = await this.db.select().from(schema.adminProfiles)
+      .where(eq(schema.adminProfiles.userId, userId))
       .limit(1);
     return result[0];
   }
-  async createAdminProfile(profile: REPLACED_InsertAdminProfile): Promise<REPLACED_AdminProfile> {
-    const result = await this.db.insert(REPLACED_adminProfiles)
+  async createAdminProfile(profile: schema.InsertAdminProfile): Promise<schema.AdminProfile> {
+    const result = await this.db.insert(schema.adminProfiles)
       .values(profile)
       .returning();
     return result[0];
   }
-  async updateAdminProfile(userId: string, profile: Partial<REPLACED_InsertAdminProfile>): Promise<REPLACED_AdminProfile | undefined> {
-    const result = await this.db.update(REPLACED_adminProfiles)
+  async updateAdminProfile(userId: string, profile: Partial<schema.InsertAdminProfile>): Promise<schema.AdminProfile | undefined> {
+    const result = await this.db.update(schema.adminProfiles)
       .set({ ...profile, updatedAt: new Date() })
-      .where(eq(REPLACED_adminProfiles.userId, userId))
+      .where(eq(schema.adminProfiles.userId, userId))
       .returning();
     return result[0];
   }
-  async getParentProfile(userId: string): Promise<REPLACED_ParentProfile | undefined> {
-    const result = await this.db.select().from(REPLACED_parentProfiles)
-      .where(eq(REPLACED_parentProfiles.userId, userId))
+  async getParentProfile(userId: string): Promise<schema.ParentProfile | undefined> {
+    const result = await this.db.select().from(schema.parentProfiles)
+      .where(eq(schema.parentProfiles.userId, userId))
       .limit(1);
     return result[0];
   }
-  async createParentProfile(profile: REPLACED_InsertParentProfile): Promise<REPLACED_ParentProfile> {
-    const result = await this.db.insert(REPLACED_parentProfiles)
+  async createParentProfile(profile: schema.InsertParentProfile): Promise<schema.ParentProfile> {
+    const result = await this.db.insert(schema.parentProfiles)
       .values(profile)
       .returning();
     return result[0];
   }
-  async updateParentProfile(userId: string, profile: Partial<REPLACED_InsertParentProfile>): Promise<REPLACED_ParentProfile | undefined> {
-    const result = await this.db.update(REPLACED_parentProfiles)
+  async updateParentProfile(userId: string, profile: Partial<schema.InsertParentProfile>): Promise<schema.ParentProfile | undefined> {
+    const result = await this.db.update(schema.parentProfiles)
       .set({ ...profile, updatedAt: new Date() })
-      .where(eq(REPLACED_parentProfiles.userId, userId))
+      .where(eq(schema.parentProfiles.userId, userId))
       .returning();
     return result[0];
   }
@@ -1020,33 +1019,33 @@ export class DatabaseStorage implements IStorage {
     const result = await this.db
       .select({
         // Student fields
-        id: REPLACED_students.id,
-        admissionNumber: REPLACED_students.admissionNumber,
-        classId: REPLACED_students.classId,
-        parentId: REPLACED_students.parentId,
-        admissionDate: REPLACED_students.admissionDate,
-        emergencyContact: REPLACED_students.emergencyContact,
-        emergencyPhone: REPLACED_students.emergencyPhone,
-        medicalInfo: REPLACED_students.medicalInfo,
-        guardianName: REPLACED_students.guardianName,
-        createdAt: REPLACED_students.createdAt,
+        id: schema.students.id,
+        admissionNumber: schema.students.admissionNumber,
+        classId: schema.students.classId,
+        parentId: schema.students.parentId,
+        admissionDate: schema.students.admissionDate,
+        emergencyContact: schema.students.emergencyContact,
+        emergencyPhone: schema.students.emergencyPhone,
+        medicalInfo: schema.students.medicalInfo,
+        guardianName: schema.students.guardianName,
+        createdAt: schema.students.createdAt,
         // User fields (merged into student object)
-        firstName: REPLACED_users.firstName,
-        lastName: REPLACED_users.lastName,
-        email: REPLACED_users.email,
-        phone: REPLACED_users.phone,
-        address: REPLACED_users.address,
-        dateOfBirth: REPLACED_users.dateOfBirth,
-        gender: REPLACED_users.gender,
-        profileImageUrl: REPLACED_users.profileImageUrl,
-        recoveryEmail: REPLACED_users.recoveryEmail,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        address: schema.users.address,
+        dateOfBirth: schema.users.dateOfBirth,
+        gender: schema.users.gender,
+        profileImageUrl: schema.users.profileImageUrl,
+        recoveryEmail: schema.users.recoveryEmail,
         // Class name (from classes table)
-        className: REPLACED_classes.name,
+        className: schema.classes.name,
       })
-      .from(REPLACED_students)
-      .leftJoin(REPLACED_users, eq(REPLACED_students.id, REPLACED_users.id))
-      .leftJoin(REPLACED_classes, eq(REPLACED_students.classId, REPLACED_classes.id))
-      .where(eq(REPLACED_students.id, id))
+      .from(schema.students)
+      .leftJoin(schema.users, eq(schema.students.id, schema.users.id))
+      .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+      .where(eq(schema.students.id, id))
       .limit(1);
     
     const student = result[0];
@@ -1059,11 +1058,11 @@ export class DatabaseStorage implements IStorage {
     return student as any;
   }
   async getAllUsernames(): Promise<string[]> {
-    const result = await this.db.select({ username: REPLACED_users.username }).from(REPLACED_users).where(sql`${REPLACED_users.username} IS NOT NULL`);
+    const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql`${schema.users.username} IS NOT NULL`);
     return result.map((r: { username: string | null }) => r.username).filter((u: string | null): u is string => u !== null);
   }
   async createStudent(student: InsertStudent): Promise<Student> {
-    const result = await db.insert(REPLACED_students).values(student).returning();
+    const result = await db.insert(schema.students).values(student).returning();
     return result[0];
   }
   async updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined> {
@@ -1074,26 +1073,26 @@ export class DatabaseStorage implements IStorage {
 
       // Update user if userPatch is provided
       if (updates.userPatch && Object.keys(updates.userPatch).length > 0) {
-        const userResult = await tx.update(REPLACED_users)
+        const userResult = await tx.update(schema.users)
           .set(updates.userPatch)
-          .where(eq(REPLACED_users.id, id))
+          .where(eq(schema.users.id, id))
           .returning();
         updatedUser = userResult[0];
       } else {
         // Get current user data if no updates
-        const userResult = await tx.select().from(REPLACED_users).where(eq(REPLACED_users.id, id)).limit(1);
+        const userResult = await tx.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
         updatedUser = userResult[0];
       }
       // Update student if studentPatch is provided
       if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
-        const studentResult = await tx.update(REPLACED_students)
+        const studentResult = await tx.update(schema.students)
           .set(updates.studentPatch)
-          .where(eq(REPLACED_students.id, id))
+          .where(eq(schema.students.id, id))
           .returning();
         updatedStudent = studentResult[0];
       } else {
         // Get current student data if no updates
-        const studentResult = await tx.select().from(REPLACED_students).where(eq(REPLACED_students.id, id)).limit(1);
+        const studentResult = await tx.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
         updatedStudent = studentResult[0];
       }
       if (updatedUser && updatedStudent) {
@@ -1103,18 +1102,18 @@ export class DatabaseStorage implements IStorage {
     });
   }
   async setUserActive(id: string, isActive: boolean): Promise<User | undefined> {
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({ isActive })
-      .where(eq(REPLACED_users.id, id))
+      .where(eq(schema.users.id, id))
       .returning();
     return result[0];
   }
   async deleteStudent(id: string): Promise<boolean> {
     // Logical deletion by setting user as inactive
     // This preserves referential integrity for attendance, exams, etc.
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({ isActive: false })
-      .where(eq(REPLACED_users.id, id))
+      .where(eq(schema.users.id, id))
       .returning();
     return result.length > 0;
   }
@@ -1124,36 +1123,36 @@ export class DatabaseStorage implements IStorage {
     return await this.db.transaction(async (tx: any) => {
       try {
         // 1. Get all exam sessions for this student
-        const examSessions = await tx.select({ id: REPLACED_examSessions.id })
-          .from(REPLACED_examSessions)
-          .where(eq(REPLACED_examSessions.studentId, id));
+        const examSessions = await tx.select({ id: schema.examSessions.id })
+          .from(schema.examSessions)
+          .where(eq(schema.examSessions.studentId, id));
 
         const sessionIds = examSessions.map((session: any) => session.id);
 
         // 2. Delete student answers for all their exam sessions
         if (sessionIds.length > 0) {
-          await tx.delete(REPLACED_studentAnswers)
-            .where(inArray(REPLACED_studentAnswers.sessionId, sessionIds));
+          await tx.delete(schema.studentAnswers)
+            .where(inArray(schema.studentAnswers.sessionId, sessionIds));
         }
         // 3. Delete exam sessions for this student
-        await tx.delete(REPLACED_examSessions)
-          .where(eq(REPLACED_examSessions.studentId, id));
+        await tx.delete(schema.examSessions)
+          .where(eq(schema.examSessions.studentId, id));
 
         // 4. Delete exam results for this student
-        await tx.delete(REPLACED_examResults)
-          .where(eq(REPLACED_examResults.studentId, id));
+        await tx.delete(schema.examResults)
+          .where(eq(schema.examResults.studentId, id));
 
         // 5. Delete attendance records for this student
-        await tx.delete(REPLACED_attendance)
-          .where(eq(REPLACED_attendance.studentId, id));
+        await tx.delete(schema.attendance)
+          .where(eq(schema.attendance.studentId, id));
 
         // 6. Delete the student record
-        await tx.delete(REPLACED_students)
-          .where(eq(REPLACED_students.id, id));
+        await tx.delete(schema.students)
+          .where(eq(schema.students.id, id));
 
         // 7. Delete the user record
-        const userResult = await tx.delete(REPLACED_users)
-          .where(eq(REPLACED_users.id, id))
+        const userResult = await tx.delete(schema.users)
+          .where(eq(schema.users.id, id))
           .returning();
 
         return userResult.length > 0;
@@ -1164,94 +1163,94 @@ export class DatabaseStorage implements IStorage {
   }
   async getStudentsByClass(classId: number): Promise<Student[]> {
     // Return all students in class regardless of active status for admin management
-    return await db.select().from(REPLACED_students).where(eq(REPLACED_students.classId, classId));
+    return await db.select().from(schema.students).where(eq(schema.students.classId, classId));
   }
   async getAllStudents(includeInactive = false): Promise<Student[]> {
     if (includeInactive) {
       // Return all students regardless of active status
-      return await this.db.select().from(REPLACED_students).orderBy(asc(REPLACED_students.createdAt));
+      return await this.db.select().from(schema.students).orderBy(asc(schema.students.createdAt));
     } else {
       // Only return students with active user accounts
       return await this.db.select({
-        id: REPLACED_students.id,
-        admissionNumber: REPLACED_students.admissionNumber,
-        classId: REPLACED_students.classId,
-        parentId: REPLACED_students.parentId,
-        admissionDate: REPLACED_students.admissionDate,
-        emergencyContact: REPLACED_students.emergencyContact,
-        medicalInfo: REPLACED_students.medicalInfo,
-        createdAt: REPLACED_students.createdAt,
+        id: schema.students.id,
+        admissionNumber: schema.students.admissionNumber,
+        classId: schema.students.classId,
+        parentId: schema.students.parentId,
+        admissionDate: schema.students.admissionDate,
+        emergencyContact: schema.students.emergencyContact,
+        medicalInfo: schema.students.medicalInfo,
+        createdAt: schema.students.createdAt,
       })
-        .from(REPLACED_students)
-        .innerJoin(REPLACED_users, eq(REPLACED_students.id, REPLACED_users.id))
-        .where(eq(REPLACED_users.isActive, true))
-        .orderBy(asc(REPLACED_students.createdAt));
+        .from(schema.students)
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .where(eq(schema.users.isActive, true))
+        .orderBy(asc(schema.students.createdAt));
     }
   }
 
   async getStudentByAdmissionNumber(admissionNumber: string): Promise<Student | undefined> {
-    const result = await db.select().from(REPLACED_students).where(eq(REPLACED_students.admissionNumber, admissionNumber)).limit(1);
+    const result = await db.select().from(schema.students).where(eq(schema.students.admissionNumber, admissionNumber)).limit(1);
     return result[0];
   }
   // Class management
   async getClasses(): Promise<Class[]> {
-    return await db.select().from(REPLACED_classes).where(eq(REPLACED_classes.isActive, true)).orderBy(asc(REPLACED_classes.name));
+    return await db.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
   }
   async getAllClasses(includeInactive = false): Promise<Class[]> {
     if (includeInactive) {
-      return await db.select().from(REPLACED_classes).orderBy(asc(REPLACED_classes.name));
+      return await db.select().from(schema.classes).orderBy(asc(schema.classes.name));
     } else {
-      return await db.select().from(REPLACED_classes).where(eq(REPLACED_classes.isActive, true)).orderBy(asc(REPLACED_classes.name));
+      return await db.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
     }
   }
 
   async getClass(id: number): Promise<Class | undefined> {
-    const result = await db.select().from(REPLACED_classes).where(eq(REPLACED_classes.id, id)).limit(1);
+    const result = await db.select().from(schema.classes).where(eq(schema.classes.id, id)).limit(1);
     return result[0];
   }
   async createClass(classData: InsertClass): Promise<Class> {
-    const result = await db.insert(REPLACED_classes).values(classData).returning();
+    const result = await db.insert(schema.classes).values(classData).returning();
     return result[0];
   }
   async updateClass(id: number, classData: Partial<InsertClass>): Promise<Class | undefined> {
-    const result = await db.update(REPLACED_classes).set(classData).where(eq(REPLACED_classes.id, id)).returning();
+    const result = await db.update(schema.classes).set(classData).where(eq(schema.classes.id, id)).returning();
     return result[0];
   }
   async deleteClass(id: number): Promise<boolean> {
-    const result = await db.delete(REPLACED_classes).where(eq(REPLACED_classes.id, id));
+    const result = await db.delete(schema.classes).where(eq(schema.classes.id, id));
     return result.length > 0;
   }
   // Subject management
   async getSubjects(): Promise<Subject[]> {
-    return await db.select().from(REPLACED_subjects).orderBy(asc(REPLACED_subjects.name));
+    return await db.select().from(schema.subjects).orderBy(asc(schema.subjects.name));
   }
   async getSubject(id: number): Promise<Subject | undefined> {
-    const result = await db.select().from(REPLACED_subjects).where(eq(REPLACED_subjects.id, id)).limit(1);
+    const result = await db.select().from(schema.subjects).where(eq(schema.subjects.id, id)).limit(1);
     return result[0];
   }
   async createSubject(subject: InsertSubject): Promise<Subject> {
-    const result = await db.insert(REPLACED_subjects).values(subject).returning();
+    const result = await db.insert(schema.subjects).values(subject).returning();
     return result[0];
   }
   async updateSubject(id: number, subject: Partial<InsertSubject>): Promise<Subject | undefined> {
-    const result = await db.update(REPLACED_subjects).set(subject).where(eq(REPLACED_subjects.id, id)).returning();
+    const result = await db.update(schema.subjects).set(subject).where(eq(schema.subjects.id, id)).returning();
     return result[0];
   }
   async deleteSubject(id: number): Promise<boolean> {
-    const result = await db.delete(REPLACED_subjects).where(eq(REPLACED_subjects.id, id));
+    const result = await db.delete(schema.subjects).where(eq(schema.subjects.id, id));
     return result.length > 0;
   }
   // Academic terms
   async getCurrentTerm(): Promise<AcademicTerm | undefined> {
-    const result = await db.select().from(REPLACED_academicTerms).where(eq(REPLACED_academicTerms.isCurrent, true)).limit(1);
+    const result = await db.select().from(schema.academicTerms).where(eq(schema.academicTerms.isCurrent, true)).limit(1);
     return result[0];
   }
   async getTerms(): Promise<AcademicTerm[]> {
-    return await db.select().from(REPLACED_academicTerms).orderBy(desc(REPLACED_academicTerms.startDate));
+    return await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
   }
   async getAcademicTerms(): Promise<AcademicTerm[]> {
     try {
-      const terms = await db.select().from(REPLACED_academicTerms).orderBy(desc(REPLACED_academicTerms.startDate));
+      const terms = await db.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
       return terms;
     } catch (error) {
       throw error;
@@ -1260,7 +1259,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAcademicTerm(id: number): Promise<AcademicTerm | undefined> {
     try {
-      const result = await db.select().from(REPLACED_academicTerms).where(eq(REPLACED_academicTerms.id, id)).limit(1);
+      const result = await db.select().from(schema.academicTerms).where(eq(schema.academicTerms.id, id)).limit(1);
       return result[0];
     } catch (error) {
       throw error;
@@ -1269,7 +1268,7 @@ export class DatabaseStorage implements IStorage {
 
   async createAcademicTerm(term: any): Promise<AcademicTerm> {
     try {
-      const result = await db.insert(REPLACED_academicTerms).values(term).returning();
+      const result = await db.insert(schema.academicTerms).values(term).returning();
       return result[0];
     } catch (error) {
       throw error;
@@ -1278,7 +1277,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateAcademicTerm(id: number, term: any): Promise<AcademicTerm | undefined> {
     try {
-      const result = await db.update(REPLACED_academicTerms).set(term).where(eq(REPLACED_academicTerms.id, id)).returning();
+      const result = await db.update(schema.academicTerms).set(term).where(eq(schema.academicTerms.id, id)).returning();
       if (result[0]) {
       }
       return result[0];
@@ -1291,8 +1290,8 @@ export class DatabaseStorage implements IStorage {
     try {
       
       // First check if the term exists
-      const existingTerm = await db.select().from(REPLACED_academicTerms)
-        .where(eq(REPLACED_academicTerms.id, id))
+      const existingTerm = await db.select().from(schema.academicTerms)
+        .where(eq(schema.academicTerms.id, id))
         .limit(1);
       
       if (!existingTerm || existingTerm.length === 0) {
@@ -1300,16 +1299,16 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Check for foreign key constraints - exams using this term
-      const examsUsingTerm = await db.select({ id: REPLACED_exams.id })
-        .from(REPLACED_exams)
-        .where(eq(REPLACED_exams.termId, id));
+      const examsUsingTerm = await db.select({ id: schema.exams.id })
+        .from(schema.exams)
+        .where(eq(schema.exams.termId, id));
       
       if (examsUsingTerm && examsUsingTerm.length > 0) {
         throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
       }
       // Perform the deletion with returning clause for verification
-      const result = await db.delete(REPLACED_academicTerms)
-        .where(eq(REPLACED_academicTerms.id, id))
+      const result = await db.delete(schema.academicTerms)
+        .where(eq(schema.academicTerms.id, id))
         .returning();
       
       const success = result && result.length > 0;
@@ -1331,9 +1330,9 @@ export class DatabaseStorage implements IStorage {
   async markTermAsCurrent(id: number): Promise<AcademicTerm | undefined> {
     try {
       // First, set all terms to not current
-      await db.update(REPLACED_academicTerms).set({ isCurrent: false });
+      await db.update(schema.academicTerms).set({ isCurrent: false });
       // Then mark the specified term as current
-      const result = await db.update(REPLACED_academicTerms).set({ isCurrent: true }).where(eq(REPLACED_academicTerms.id, id)).returning();
+      const result = await db.update(schema.academicTerms).set({ isCurrent: true }).where(eq(schema.academicTerms.id, id)).returning();
       if (result[0]) {
       }
       return result[0];
@@ -1345,7 +1344,7 @@ export class DatabaseStorage implements IStorage {
   // Helper method to check if a term is being used
   async getExamsByTerm(termId: number): Promise<Exam[]> {
     try {
-      const result = await db.select().from(REPLACED_exams).where(eq(REPLACED_exams.termId, termId));
+      const result = await db.select().from(schema.exams).where(eq(schema.exams.termId, termId));
       return result;
     } catch (error) {
       return [];
@@ -1354,31 +1353,31 @@ export class DatabaseStorage implements IStorage {
 
   // Attendance management
   async recordAttendance(attendance: InsertAttendance): Promise<Attendance> {
-    const result = await db.insert(REPLACED_attendance).values(attendance).returning();
+    const result = await db.insert(schema.attendance).values(attendance).returning();
     return result[0];
   }
   async getAttendanceByStudent(studentId: string, date?: string): Promise<Attendance[]> {
     if (date) {
-      return await db.select().from(REPLACED_attendance)
-        .where(and(eq(REPLACED_attendance.studentId, studentId), eq(REPLACED_attendance.date, date)));
+      return await db.select().from(schema.attendance)
+        .where(and(eq(schema.attendance.studentId, studentId), eq(schema.attendance.date, date)));
     }
-    return await db.select().from(REPLACED_attendance)
-      .where(eq(REPLACED_attendance.studentId, studentId))
-      .orderBy(desc(REPLACED_attendance.date));
+    return await db.select().from(schema.attendance)
+      .where(eq(schema.attendance.studentId, studentId))
+      .orderBy(desc(schema.attendance.date));
   }
   async getAttendanceByClass(classId: number, date: string): Promise<Attendance[]> {
-    return await db.select().from(REPLACED_attendance)
-      .where(and(eq(REPLACED_attendance.classId, classId), eq(REPLACED_attendance.date, date)));
+    return await db.select().from(schema.attendance)
+      .where(and(eq(schema.attendance.classId, classId), eq(schema.attendance.date, date)));
   }
   // Exam management
   async createExam(exam: InsertExam): Promise<Exam> {
-    const result = await db.insert(REPLACED_exams).values(exam).returning();
+    const result = await db.insert(schema.exams).values(exam).returning();
     return result[0];
   }
   async getAllExams(): Promise<Exam[]> {
     try {
-      const result = await db.select().from(REPLACED_exams)
-        .orderBy(desc(REPLACED_exams.date));
+      const result = await db.select().from(schema.exams)
+        .orderBy(desc(schema.exams.date));
       return result || [];
     } catch (error) {
       return [];
@@ -1386,16 +1385,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamById(id: number): Promise<Exam | undefined> {
-    const result = await db.select().from(REPLACED_exams)
-      .where(eq(REPLACED_exams.id, id))
+    const result = await db.select().from(schema.exams)
+      .where(eq(schema.exams.id, id))
       .limit(1);
     return result[0];
   }
   async getExamsByClass(classId: number): Promise<Exam[]> {
     try {
-      const result = await db.select().from(REPLACED_exams)
-        .where(eq(REPLACED_exams.classId, classId))
-        .orderBy(desc(REPLACED_exams.date));
+      const result = await db.select().from(schema.exams)
+        .where(eq(schema.exams.classId, classId))
+        .orderBy(desc(schema.exams.date));
       return result || [];
     } catch (error) {
       return [];
@@ -1403,37 +1402,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined> {
-    const result = await db.update(REPLACED_exams)
+    const result = await db.update(schema.exams)
       .set(exam)
-      .where(eq(REPLACED_exams.id, id))
+      .where(eq(schema.exams.id, id))
       .returning();
     return result[0];
   }
   async deleteExam(id: number): Promise<boolean> {
     try {
       // First delete student answers (references exam questions)
-      await db.delete(REPLACED_studentAnswers)
-        .where(sql`${REPLACED_studentAnswers.questionId} IN (SELECT id FROM ${REPLACED_examQuestions} WHERE exam_id = ${id})`);
+      await db.delete(schema.studentAnswers)
+        .where(sql`${schema.studentAnswers.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
 
       // Delete question options (references exam questions)
-      await db.delete(REPLACED_questionOptions)
-        .where(sql`${REPLACED_questionOptions.questionId} IN (SELECT id FROM ${REPLACED_examQuestions} WHERE exam_id = ${id})`);
+      await db.delete(schema.questionOptions)
+        .where(sql`${schema.questionOptions.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
 
       // Delete exam questions (now safe to delete)
-      await db.delete(REPLACED_examQuestions)
-        .where(eq(REPLACED_examQuestions.examId, id));
+      await db.delete(schema.examQuestions)
+        .where(eq(schema.examQuestions.examId, id));
 
       // Delete exam results
-      await db.delete(REPLACED_examResults)
-        .where(eq(REPLACED_examResults.examId, id));
+      await db.delete(schema.examResults)
+        .where(eq(schema.examResults.examId, id));
 
       // Delete exam sessions
-      await db.delete(REPLACED_examSessions)
-        .where(eq(REPLACED_examSessions.examId, id));
+      await db.delete(schema.examSessions)
+        .where(eq(schema.examSessions.examId, id));
 
       // Finally delete the exam itself
-      const result = await db.delete(REPLACED_exams)
-        .where(eq(REPLACED_exams.id, id))
+      const result = await db.delete(schema.exams)
+        .where(eq(schema.exams.id, id))
         .returning();
 
       return result.length > 0;
@@ -1444,7 +1443,7 @@ export class DatabaseStorage implements IStorage {
 
   async recordExamResult(result: InsertExamResult): Promise<ExamResult> {
     try {
-      const examResult = await db.insert(REPLACED_examResults).values(result).returning();
+      const examResult = await db.insert(schema.examResults).values(result).returning();
       return examResult[0];
     } catch (error: any) {
       // Handle missing columns by removing autoScored from the insert
@@ -1455,7 +1454,7 @@ export class DatabaseStorage implements IStorage {
           ...resultWithoutAutoScored,
           marksObtained: result.score || 0
         };
-        const examResult = await db.insert(REPLACED_examResults).values(compatibleResult).returning();
+        const examResult = await db.insert(schema.examResults).values(compatibleResult).returning();
         return {
           ...examResult[0],
           autoScored: result.recordedBy === '00000000-0000-0000-0000-000000000001',
@@ -1468,9 +1467,9 @@ export class DatabaseStorage implements IStorage {
 
   async updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined> {
     try {
-      const updated = await db.update(REPLACED_examResults)
+      const updated = await db.update(schema.examResults)
         .set(result)
-        .where(eq(REPLACED_examResults.id, id))
+        .where(eq(schema.examResults.id, id))
         .returning();
       return updated[0];
     } catch (error: any) {
@@ -1482,9 +1481,9 @@ export class DatabaseStorage implements IStorage {
           ...resultWithoutAutoScored,
           marksObtained: result.score || 0
         };
-        const updated = await db.update(REPLACED_examResults)
+        const updated = await db.update(schema.examResults)
           .set(compatibleResult)
-          .where(eq(REPLACED_examResults.id, id))
+          .where(eq(schema.examResults.id, id))
           .returning();
         return {
           ...updated[0],
@@ -1504,48 +1503,48 @@ export class DatabaseStorage implements IStorage {
       // Try main query first
       try {
         const results = await this.db.select({
-          id: REPLACED_examResults.id,
-          examId: REPLACED_examResults.examId,
-          studentId: REPLACED_examResults.studentId,
-          score: REPLACED_examResults.marksObtained,
-          maxScore: REPLACED_exams.totalMarks,
-          marksObtained: REPLACED_examResults.marksObtained,
-          grade: REPLACED_examResults.grade,
-          remarks: REPLACED_examResults.remarks,
-          recordedBy: REPLACED_examResults.recordedBy,
-          createdAt: REPLACED_examResults.createdAt,
-          autoScored: sql<boolean>`COALESCE(${REPLACED_examResults.autoScored}, ${REPLACED_examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
-        }).from(REPLACED_examResults)
-          .leftJoin(REPLACED_exams, eq(REPLACED_examResults.examId, REPLACED_exams.id))
-          .where(eq(REPLACED_examResults.studentId, studentId))
-          .orderBy(desc(REPLACED_examResults.createdAt));
+          id: schema.examResults.id,
+          examId: schema.examResults.examId,
+          studentId: schema.examResults.studentId,
+          score: schema.examResults.marksObtained,
+          maxScore: schema.exams.totalMarks,
+          marksObtained: schema.examResults.marksObtained,
+          grade: schema.examResults.grade,
+          remarks: schema.examResults.remarks,
+          recordedBy: schema.examResults.recordedBy,
+          createdAt: schema.examResults.createdAt,
+          autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
+        }).from(schema.examResults)
+          .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+          .where(eq(schema.examResults.studentId, studentId))
+          .orderBy(desc(schema.examResults.createdAt));
 
         return results;
       } catch (mainError: any) {
 
         // Fallback query without autoScored column reference
         const fallbackResults = await this.db.select({
-          id: REPLACED_examResults.id,
-          examId: REPLACED_examResults.examId,
-          studentId: REPLACED_examResults.studentId,
-          marksObtained: REPLACED_examResults.marksObtained,
-          grade: REPLACED_examResults.grade,
-          remarks: REPLACED_examResults.remarks,
-          recordedBy: REPLACED_examResults.recordedBy,
-          createdAt: REPLACED_examResults.createdAt,
-          score: REPLACED_examResults.marksObtained,
+          id: schema.examResults.id,
+          examId: schema.examResults.examId,
+          studentId: schema.examResults.studentId,
+          marksObtained: schema.examResults.marksObtained,
+          grade: schema.examResults.grade,
+          remarks: schema.examResults.remarks,
+          recordedBy: schema.examResults.recordedBy,
+          createdAt: schema.examResults.createdAt,
+          score: schema.examResults.marksObtained,
           maxScore: sql<number>`100`.as('maxScore'), // Default to 100 if join fails
-          autoScored: sql<boolean>`(${REPLACED_examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
-        }).from(REPLACED_examResults)
-          .where(eq(REPLACED_examResults.studentId, studentId))
-          .orderBy(desc(REPLACED_examResults.createdAt));
+          autoScored: sql<boolean>`(${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
+        }).from(schema.examResults)
+          .where(eq(schema.examResults.studentId, studentId))
+          .orderBy(desc(schema.examResults.createdAt));
 
         // Try to get exam details separately for maxScore
         for (const result of fallbackResults) {
           try {
-            const exam = await this.db.select({ totalMarks: REPLACED_exams.totalMarks })
-              .from(REPLACED_exams)
-              .where(eq(REPLACED_exams.id, result.examId))
+            const exam = await this.db.select({ totalMarks: schema.exams.totalMarks })
+              .from(schema.exams)
+              .where(eq(schema.exams.id, result.examId))
               .limit(1);
             if (exam[0]?.totalMarks) {
               result.maxScore = exam[0].totalMarks;
@@ -1563,30 +1562,30 @@ export class DatabaseStorage implements IStorage {
 
   async getExamResultsByExam(examId: number): Promise<ExamResult[]> {
     try {
-      return await db.select().from(REPLACED_examResults)
-        .where(eq(REPLACED_examResults.examId, examId))
-        .orderBy(desc(REPLACED_examResults.createdAt));
+      return await db.select().from(schema.examResults)
+        .where(eq(schema.examResults.examId, examId))
+        .orderBy(desc(schema.examResults.createdAt));
     } catch (error: any) {
       // Handle missing columns by selecting only the columns that exist
       if (error?.cause?.code === '42703' && error?.cause?.message?.includes('column') && error?.cause?.message?.includes('does not exist')) {
         try {
           return await db.select({
-            id: REPLACED_examResults.id,
-            examId: REPLACED_examResults.examId,
-            studentId: REPLACED_examResults.studentId,
-            marksObtained: REPLACED_examResults.marksObtained, // Use legacy field
-            grade: REPLACED_examResults.grade,
-            remarks: REPLACED_examResults.remarks,
-            recordedBy: REPLACED_examResults.recordedBy,
-            createdAt: REPLACED_examResults.createdAt,
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            marksObtained: schema.examResults.marksObtained, // Use legacy field
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            recordedBy: schema.examResults.recordedBy,
+            createdAt: schema.examResults.createdAt,
             // Map marksObtained to score for compatibility
-            score: REPLACED_examResults.marksObtained,
+            score: schema.examResults.marksObtained,
             maxScore: dsql`null`.as('maxScore'),
             // Since auto_scored column doesn't exist, determine from recordedBy
             autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
-          }).from(REPLACED_examResults)
-            .where(eq(REPLACED_examResults.examId, examId))
-            .orderBy(desc(REPLACED_examResults.createdAt));
+          }).from(schema.examResults)
+            .where(eq(schema.examResults.examId, examId))
+            .orderBy(desc(schema.examResults.createdAt));
         } catch (fallbackError) {
           return [];
         }
@@ -1596,9 +1595,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamResultByExamAndStudent(examId: number, studentId: string): Promise<ExamResult | undefined> {
-    const result = await db.select().from(REPLACED_examResults)
+    const result = await db.select().from(schema.examResults)
       .where(
-        sql`${REPLACED_examResults.examId} = ${examId} AND ${REPLACED_examResults.studentId} = ${studentId}`
+        sql`${schema.examResults.examId} = ${examId} AND ${schema.examResults.studentId} = ${studentId}`
       )
       .limit(1);
     return result[0];
@@ -1607,34 +1606,34 @@ export class DatabaseStorage implements IStorage {
     try {
       // Join all needed tables to get complete data
       const results = await db.select({
-        id: REPLACED_examResults.id,
-        examId: REPLACED_examResults.examId,
-        studentId: REPLACED_examResults.studentId,
-        score: REPLACED_examResults.score,
-        maxScore: REPLACED_examResults.maxScore,
-        marksObtained: REPLACED_examResults.marksObtained,
-        grade: REPLACED_examResults.grade,
-        remarks: REPLACED_examResults.remarks,
-        recordedBy: REPLACED_examResults.recordedBy,
-        autoScored: REPLACED_examResults.autoScored,
-        createdAt: REPLACED_examResults.createdAt,
-        examName: REPLACED_exams.name,
-        examType: REPLACED_exams.examType,
-        examDate: REPLACED_exams.date,
-        totalMarks: REPLACED_exams.totalMarks,
-        admissionNumber: REPLACED_students.admissionNumber,
-        studentName: sql<string>`${REPLACED_users.firstName} || ' ' || ${REPLACED_users.lastName}`.as('studentName'),
-        className: REPLACED_classes.name,
-        subjectName: REPLACED_subjects.name,
+        id: schema.examResults.id,
+        examId: schema.examResults.examId,
+        studentId: schema.examResults.studentId,
+        score: schema.examResults.score,
+        maxScore: schema.examResults.maxScore,
+        marksObtained: schema.examResults.marksObtained,
+        grade: schema.examResults.grade,
+        remarks: schema.examResults.remarks,
+        recordedBy: schema.examResults.recordedBy,
+        autoScored: schema.examResults.autoScored,
+        createdAt: schema.examResults.createdAt,
+        examName: schema.exams.name,
+        examType: schema.exams.examType,
+        examDate: schema.exams.date,
+        totalMarks: schema.exams.totalMarks,
+        admissionNumber: schema.students.admissionNumber,
+        studentName: sql<string>`${schema.users.firstName} || ' ' || ${schema.users.lastName}`.as('studentName'),
+        className: schema.classes.name,
+        subjectName: schema.subjects.name,
       })
-        .from(REPLACED_examResults)
-        .innerJoin(REPLACED_exams, eq(REPLACED_examResults.examId, REPLACED_exams.id))
-        .innerJoin(REPLACED_students, eq(REPLACED_examResults.studentId, REPLACED_students.id))
-        .innerJoin(REPLACED_users, eq(REPLACED_students.id, REPLACED_users.id))
-        .leftJoin(REPLACED_classes, eq(REPLACED_exams.classId, REPLACED_classes.id))
-        .leftJoin(REPLACED_subjects, eq(REPLACED_exams.subjectId, REPLACED_subjects.id))
-        .where(eq(REPLACED_exams.classId, classId))
-        .orderBy(desc(REPLACED_examResults.createdAt));
+        .from(schema.examResults)
+        .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .innerJoin(schema.students, eq(schema.examResults.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .where(eq(schema.exams.classId, classId))
+        .orderBy(desc(schema.examResults.createdAt));
 
       // Results already contain all needed data from joins
       return results;
@@ -1645,24 +1644,24 @@ export class DatabaseStorage implements IStorage {
         try {
           // Fallback query using only existing columns
           const results = await db.select({
-            id: REPLACED_examResults.id,
-            examId: REPLACED_examResults.examId,
-            studentId: REPLACED_examResults.studentId,
-            marksObtained: REPLACED_examResults.marksObtained,
-            grade: REPLACED_examResults.grade,
-            remarks: REPLACED_examResults.remarks,
-            recordedBy: REPLACED_examResults.recordedBy,
-            createdAt: REPLACED_examResults.createdAt,
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            marksObtained: schema.examResults.marksObtained,
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            recordedBy: schema.examResults.recordedBy,
+            createdAt: schema.examResults.createdAt,
             // Map marksObtained to score for compatibility
-            score: REPLACED_examResults.marksObtained,
+            score: schema.examResults.marksObtained,
             maxScore: dsql`null`.as('maxScore'),
             // Infer autoScored based on recordedBy
             autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as('autoScored')
           })
-            .from(REPLACED_examResults)
-            .innerJoin(REPLACED_exams, eq(REPLACED_examResults.examId, REPLACED_exams.id))
-            .where(eq(REPLACED_exams.classId, classId))
-            .orderBy(desc(REPLACED_examResults.createdAt));
+            .from(schema.examResults)
+            .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+            .where(eq(schema.exams.classId, classId))
+            .orderBy(desc(schema.examResults.createdAt));
 
           // Return fallback results as-is
           return results;
@@ -1693,7 +1692,7 @@ export class DatabaseStorage implements IStorage {
       explanationText: question.explanationText,
       hintText: question.hintText,
     };
-    const result = await db.insert(REPLACED_examQuestions).values(questionData).returning();
+    const result = await db.insert(schema.examQuestions).values(questionData).returning();
     return result[0];
   }
   async createExamQuestionWithOptions(
@@ -1720,7 +1719,7 @@ export class DatabaseStorage implements IStorage {
           hintText: question.hintText,
         };
         // Insert question first
-        const questionResult = await tx.insert(REPLACED_examQuestions).values(questionData).returning();
+        const questionResult = await tx.insert(schema.examQuestions).values(questionData).returning();
         const createdQuestion = questionResult[0];
 
         // Insert options if provided
@@ -1739,7 +1738,7 @@ export class DatabaseStorage implements IStorage {
 
             // Insert batch individually to work around Neon limitations while reducing round trips
             for (const optionData of batch) {
-              await tx.insert(REPLACED_questionOptions).values(optionData);
+              await tx.insert(schema.questionOptions).values(optionData);
             }
           }
         }
@@ -1802,36 +1801,36 @@ export class DatabaseStorage implements IStorage {
   async getExamQuestions(examId: number): Promise<ExamQuestion[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
-      id: REPLACED_examQuestions.id,
-      examId: REPLACED_examQuestions.examId,
-      questionText: REPLACED_examQuestions.questionText,
-      questionType: REPLACED_examQuestions.questionType,
-      points: REPLACED_examQuestions.points,
-      orderNumber: REPLACED_examQuestions.orderNumber,
-      imageUrl: REPLACED_examQuestions.imageUrl,
-      createdAt: REPLACED_examQuestions.createdAt,
-    }).from(REPLACED_examQuestions)
-      .where(eq(REPLACED_examQuestions.examId, examId))
-      .orderBy(asc(REPLACED_examQuestions.orderNumber));
+      id: schema.examQuestions.id,
+      examId: schema.examQuestions.examId,
+      questionText: schema.examQuestions.questionText,
+      questionType: schema.examQuestions.questionType,
+      points: schema.examQuestions.points,
+      orderNumber: schema.examQuestions.orderNumber,
+      imageUrl: schema.examQuestions.imageUrl,
+      createdAt: schema.examQuestions.createdAt,
+    }).from(schema.examQuestions)
+      .where(eq(schema.examQuestions.examId, examId))
+      .orderBy(asc(schema.examQuestions.orderNumber));
   }
   async getExamQuestionById(id: number): Promise<ExamQuestion | undefined> {
     const result = await db.select({
-      id: REPLACED_examQuestions.id,
-      examId: REPLACED_examQuestions.examId,
-      questionText: REPLACED_examQuestions.questionText,
-      questionType: REPLACED_examQuestions.questionType,
-      points: REPLACED_examQuestions.points,
-      orderNumber: REPLACED_examQuestions.orderNumber,
-      imageUrl: REPLACED_examQuestions.imageUrl,
-      createdAt: REPLACED_examQuestions.createdAt,
-    }).from(REPLACED_examQuestions)
-      .where(eq(REPLACED_examQuestions.id, id))
+      id: schema.examQuestions.id,
+      examId: schema.examQuestions.examId,
+      questionText: schema.examQuestions.questionText,
+      questionType: schema.examQuestions.questionType,
+      points: schema.examQuestions.points,
+      orderNumber: schema.examQuestions.orderNumber,
+      imageUrl: schema.examQuestions.imageUrl,
+      createdAt: schema.examQuestions.createdAt,
+    }).from(schema.examQuestions)
+      .where(eq(schema.examQuestions.id, id))
       .limit(1);
     return result[0];
   }
   async getExamQuestionCount(examId: number): Promise<number> {
-    const result = await db.select({ count: dsql`count(*)` }).from(REPLACED_examQuestions)
-      .where(eq(REPLACED_examQuestions.examId, examId));
+    const result = await db.select({ count: dsql`count(*)` }).from(schema.examQuestions)
+      .where(eq(schema.examQuestions.examId, examId));
     return Number(result[0]?.count || 0);
   }
   // Get question counts for multiple exams
@@ -1850,25 +1849,25 @@ export class DatabaseStorage implements IStorage {
     return counts;
   }
   async updateExamQuestion(id: number, question: Partial<InsertExamQuestion>): Promise<ExamQuestion | undefined> {
-    const result = await db.update(REPLACED_examQuestions)
+    const result = await db.update(schema.examQuestions)
       .set(question)
-      .where(eq(REPLACED_examQuestions.id, id))
+      .where(eq(schema.examQuestions.id, id))
       .returning();
     return result[0];
   }
   async deleteExamQuestion(id: number): Promise<boolean> {
     try {
       // First delete question options
-      await db.delete(REPLACED_questionOptions)
-        .where(eq(REPLACED_questionOptions.questionId, id));
+      await db.delete(schema.questionOptions)
+        .where(eq(schema.questionOptions.questionId, id));
 
       // Delete student answers for this question
-      await db.delete(REPLACED_studentAnswers)
-        .where(eq(REPLACED_studentAnswers.questionId, id));
+      await db.delete(schema.studentAnswers)
+        .where(eq(schema.studentAnswers.questionId, id));
 
       // Finally delete the question itself
-      const result = await db.delete(REPLACED_examQuestions)
-        .where(eq(REPLACED_examQuestions.id, id))
+      const result = await db.delete(schema.examQuestions)
+        .where(eq(schema.examQuestions.id, id))
         .returning();
 
       return result.length > 0;
@@ -1879,21 +1878,21 @@ export class DatabaseStorage implements IStorage {
 
   // Question options management
   async createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption> {
-    const result = await db.insert(REPLACED_questionOptions).values(option).returning();
+    const result = await db.insert(schema.questionOptions).values(option).returning();
     return result[0];
   }
   async getQuestionOptions(questionId: number): Promise<QuestionOption[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
-      id: REPLACED_questionOptions.id,
-      questionId: REPLACED_questionOptions.questionId,
-      optionText: REPLACED_questionOptions.optionText,
-      isCorrect: REPLACED_questionOptions.isCorrect,
-      orderNumber: REPLACED_questionOptions.orderNumber,
-      createdAt: REPLACED_questionOptions.createdAt,
-    }).from(REPLACED_questionOptions)
-      .where(eq(REPLACED_questionOptions.questionId, questionId))
-      .orderBy(asc(REPLACED_questionOptions.orderNumber));
+      id: schema.questionOptions.id,
+      questionId: schema.questionOptions.questionId,
+      optionText: schema.questionOptions.optionText,
+      isCorrect: schema.questionOptions.isCorrect,
+      orderNumber: schema.questionOptions.orderNumber,
+      createdAt: schema.questionOptions.createdAt,
+    }).from(schema.questionOptions)
+      .where(eq(schema.questionOptions.questionId, questionId))
+      .orderBy(asc(schema.questionOptions.orderNumber));
   }
   // PERFORMANCE: Bulk fetch question options to eliminate N+1 queries
   async getQuestionOptionsBulk(questionIds: number[]): Promise<QuestionOption[]> {
@@ -1902,47 +1901,47 @@ export class DatabaseStorage implements IStorage {
     }
     // Use inArray for efficient bulk query
     return await db.select({
-      id: REPLACED_questionOptions.id,
-      questionId: REPLACED_questionOptions.questionId,
-      optionText: REPLACED_questionOptions.optionText,
-      isCorrect: REPLACED_questionOptions.isCorrect,
-      orderNumber: REPLACED_questionOptions.orderNumber,
-      createdAt: REPLACED_questionOptions.createdAt,
-    }).from(REPLACED_questionOptions)
-      .where(inArray(REPLACED_questionOptions.questionId, questionIds))
-      .orderBy(asc(REPLACED_questionOptions.questionId), asc(REPLACED_questionOptions.orderNumber));
+      id: schema.questionOptions.id,
+      questionId: schema.questionOptions.questionId,
+      optionText: schema.questionOptions.optionText,
+      isCorrect: schema.questionOptions.isCorrect,
+      orderNumber: schema.questionOptions.orderNumber,
+      createdAt: schema.questionOptions.createdAt,
+    }).from(schema.questionOptions)
+      .where(inArray(schema.questionOptions.questionId, questionIds))
+      .orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
   }
   // Question Bank management
   async createQuestionBank(bank: InsertQuestionBank): Promise<QuestionBank> {
-    const result = await db.insert(REPLACED_questionBanks).values(bank).returning();
+    const result = await db.insert(schema.questionBanks).values(bank).returning();
     return result[0];
   }
   async getAllQuestionBanks(): Promise<QuestionBank[]> {
-    return await db.select().from(REPLACED_questionBanks).orderBy(desc(REPLACED_questionBanks.createdAt));
+    return await db.select().from(schema.questionBanks).orderBy(desc(schema.questionBanks.createdAt));
   }
   async getQuestionBankById(id: number): Promise<QuestionBank | undefined> {
-    const result = await db.select().from(REPLACED_questionBanks).where(eq(REPLACED_questionBanks.id, id));
+    const result = await db.select().from(schema.questionBanks).where(eq(schema.questionBanks.id, id));
     return result[0];
   }
   async getQuestionBanksBySubject(subjectId: number): Promise<QuestionBank[]> {
-    return await db.select().from(REPLACED_questionBanks)
-      .where(eq(REPLACED_questionBanks.subjectId, subjectId))
-      .orderBy(desc(REPLACED_questionBanks.createdAt));
+    return await db.select().from(schema.questionBanks)
+      .where(eq(schema.questionBanks.subjectId, subjectId))
+      .orderBy(desc(schema.questionBanks.createdAt));
   }
   async updateQuestionBank(id: number, bank: Partial<InsertQuestionBank>): Promise<QuestionBank | undefined> {
-    const result = await db.update(REPLACED_questionBanks)
+    const result = await db.update(schema.questionBanks)
       .set({ ...bank, updatedAt: new Date() })
-      .where(eq(REPLACED_questionBanks.id, id))
+      .where(eq(schema.questionBanks.id, id))
       .returning();
     return result[0];
   }
   async deleteQuestionBank(id: number): Promise<boolean> {
-    await db.delete(REPLACED_questionBanks).where(eq(REPLACED_questionBanks.id, id));
+    await db.delete(schema.questionBanks).where(eq(schema.questionBanks.id, id));
     return true;
   }
   // Question Bank Items management
   async createQuestionBankItem(item: InsertQuestionBankItem, options?: Omit<InsertQuestionBankOption, 'questionItemId'>[]): Promise<QuestionBankItem> {
-    const result = await db.insert(REPLACED_questionBankItems).values(item).returning();
+    const result = await db.insert(schema.questionBankItems).values(item).returning();
     const questionItem = result[0];
 
     if (options && options.length > 0) {
@@ -1950,40 +1949,40 @@ export class DatabaseStorage implements IStorage {
         questionItemId: questionItem.id,
         ...option
       }));
-      await db.insert(REPLACED_questionBankOptions).values(optionValues);
+      await db.insert(schema.questionBankOptions).values(optionValues);
     }
     return questionItem;
   }
   async getQuestionBankItems(bankId: number, filters?: {questionType?: string; difficulty?: string; tags?: string[]}): Promise<QuestionBankItem[]> {
-    let query = db.select().from(REPLACED_questionBankItems).where(eq(REPLACED_questionBankItems.bankId, bankId));
+    let query = db.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.bankId, bankId));
     
     if (filters?.questionType) {
-      query = query.where(eq(REPLACED_questionBankItems.questionType, filters.questionType));
+      query = query.where(eq(schema.questionBankItems.questionType, filters.questionType));
     }
     if (filters?.difficulty) {
-      query = query.where(eq(REPLACED_questionBankItems.difficulty, filters.difficulty));
+      query = query.where(eq(schema.questionBankItems.difficulty, filters.difficulty));
     }
-    return await query.orderBy(desc(REPLACED_questionBankItems.createdAt));
+    return await query.orderBy(desc(schema.questionBankItems.createdAt));
   }
   async getQuestionBankItemById(id: number): Promise<QuestionBankItem | undefined> {
-    const result = await db.select().from(REPLACED_questionBankItems).where(eq(REPLACED_questionBankItems.id, id));
+    const result = await db.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
     return result[0];
   }
   async updateQuestionBankItem(id: number, item: Partial<InsertQuestionBankItem>): Promise<QuestionBankItem | undefined> {
-    const result = await db.update(REPLACED_questionBankItems)
+    const result = await db.update(schema.questionBankItems)
       .set({ ...item, updatedAt: new Date() })
-      .where(eq(REPLACED_questionBankItems.id, id))
+      .where(eq(schema.questionBankItems.id, id))
       .returning();
     return result[0];
   }
   async deleteQuestionBankItem(id: number): Promise<boolean> {
-    await db.delete(REPLACED_questionBankItems).where(eq(REPLACED_questionBankItems.id, id));
+    await db.delete(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
     return true;
   }
   async getQuestionBankItemOptions(questionItemId: number): Promise<QuestionBankOption[]> {
-    return await db.select().from(REPLACED_questionBankOptions)
-      .where(eq(REPLACED_questionBankOptions.questionItemId, questionItemId))
-      .orderBy(asc(REPLACED_questionBankOptions.orderNumber));
+    return await db.select().from(schema.questionBankOptions)
+      .where(eq(schema.questionBankOptions.questionItemId, questionItemId))
+      .orderBy(asc(schema.questionBankOptions.orderNumber));
   }
   async importQuestionsFromBank(examId: number, questionItemIds: number[], randomize: boolean = false, maxQuestions?: number): Promise<{imported: number; questions: ExamQuestion[]}> {
     let selectedItemIds = [...questionItemIds];
@@ -2044,10 +2043,10 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get teacher's assigned classes and subjects
       const assignments = await this.db.select()
-        .from(REPLACED_teacherClassAssignments)
+        .from(schema.teacherClassAssignments)
         .where(and(
-          eq(REPLACED_teacherClassAssignments.teacherId, teacherId),
-          eq(REPLACED_teacherClassAssignments.isActive, true)
+          eq(schema.teacherClassAssignments.teacherId, teacherId),
+          eq(schema.teacherClassAssignments.isActive, true)
         ));
 
       if (assignments.length === 0) {
@@ -2058,10 +2057,10 @@ export class DatabaseStorage implements IStorage {
 
       // Get exams for these classes/subjects
       const exams = await this.db.select()
-        .from(REPLACED_exams)
+        .from(schema.exams)
         .where(and(
-          inArray(REPLACED_exams.classId, classIds),
-          inArray(REPLACED_exams.subjectId, subjectIds)
+          inArray(schema.exams.classId, classIds),
+          inArray(schema.exams.subjectId, subjectIds)
         ));
 
       const examIds = exams.map((e: any) => e.id);
@@ -2070,10 +2069,10 @@ export class DatabaseStorage implements IStorage {
       }
       // Get sessions for these exams
       const sessions = await this.db.select()
-        .from(REPLACED_examSessions)
+        .from(schema.examSessions)
         .where(and(
-          inArray(REPLACED_examSessions.examId, examIds),
-          eq(REPLACED_examSessions.isCompleted, true)
+          inArray(schema.examSessions.examId, examIds),
+          eq(schema.examSessions.isCompleted, true)
         ));
 
       const sessionIds = sessions.map((s: any) => s.id);
@@ -2082,50 +2081,50 @@ export class DatabaseStorage implements IStorage {
       }
       // Get student answers that are AI-suggested (not auto-scored, has points)
       let query = this.db.select({
-        id: REPLACED_studentAnswers.id,
-        sessionId: REPLACED_studentAnswers.sessionId,
-        questionId: REPLACED_studentAnswers.questionId,
-        textAnswer: REPLACED_studentAnswers.textAnswer,
-        pointsEarned: REPLACED_studentAnswers.pointsEarned,
-        feedbackText: REPLACED_studentAnswers.feedbackText,
-        autoScored: REPLACED_studentAnswers.autoScored,
-        manualOverride: REPLACED_studentAnswers.manualOverride,
-        answeredAt: REPLACED_studentAnswers.answeredAt,
-        questionText: REPLACED_examQuestions.questionText,
-        questionType: REPLACED_examQuestions.questionType,
-        points: REPLACED_examQuestions.points,
-        expectedAnswers: REPLACED_examQuestions.expectedAnswers,
-        studentId: REPLACED_examSessions.studentId,
-        examId: REPLACED_examSessions.examId,
-        examName: REPLACED_exams.name
+        id: schema.studentAnswers.id,
+        sessionId: schema.studentAnswers.sessionId,
+        questionId: schema.studentAnswers.questionId,
+        textAnswer: schema.studentAnswers.textAnswer,
+        pointsEarned: schema.studentAnswers.pointsEarned,
+        feedbackText: schema.studentAnswers.feedbackText,
+        autoScored: schema.studentAnswers.autoScored,
+        manualOverride: schema.studentAnswers.manualOverride,
+        answeredAt: schema.studentAnswers.answeredAt,
+        questionText: schema.examQuestions.questionText,
+        questionType: schema.examQuestions.questionType,
+        points: schema.examQuestions.points,
+        expectedAnswers: schema.examQuestions.expectedAnswers,
+        studentId: schema.examSessions.studentId,
+        examId: schema.examSessions.examId,
+        examName: schema.exams.name
       })
-        .from(REPLACED_studentAnswers)
-        .innerJoin(REPLACED_examQuestions, eq(REPLACED_studentAnswers.questionId, REPLACED_examQuestions.id))
-        .innerJoin(REPLACED_examSessions, eq(REPLACED_studentAnswers.sessionId, REPLACED_examSessions.id))
-        .innerJoin(REPLACED_exams, eq(REPLACED_examSessions.examId, REPLACED_exams.id))
+        .from(schema.studentAnswers)
+        .innerJoin(schema.examQuestions, eq(schema.studentAnswers.questionId, schema.examQuestions.id))
+        .innerJoin(schema.examSessions, eq(schema.studentAnswers.sessionId, schema.examSessions.id))
+        .innerJoin(schema.exams, eq(schema.examSessions.examId, schema.exams.id))
         .where(and(
-          inArray(REPLACED_studentAnswers.sessionId, sessionIds),
-          sql`(${REPLACED_examQuestions.questionType} = 'text' OR ${REPLACED_examQuestions.questionType} = 'essay')`,
-          sql`${REPLACED_studentAnswers.textAnswer} IS NOT NULL`
+          inArray(schema.studentAnswers.sessionId, sessionIds),
+          sql`(${schema.examQuestions.questionType} = 'text' OR ${schema.examQuestions.questionType} = 'essay')`,
+          sql`${schema.studentAnswers.textAnswer} IS NOT NULL`
         ));
 
       // Filter by status if provided
       if (status === 'pending') {
-        query = query.where(sql`${REPLACED_studentAnswers.autoScored} = false AND ${REPLACED_studentAnswers.manualOverride} = false`);
+        query = query.where(sql`${schema.studentAnswers.autoScored} = false AND ${schema.studentAnswers.manualOverride} = false`);
       } else if (status === 'reviewed') {
-        query = query.where(sql`(${REPLACED_studentAnswers.autoScored} = true OR ${REPLACED_studentAnswers.manualOverride} = true)`);
+        query = query.where(sql`(${schema.studentAnswers.autoScored} = true OR ${schema.studentAnswers.manualOverride} = true)`);
       }
       const results = await query;
 
       // Get student names
       const studentIds = Array.from(new Set(results.map((r: any) => r.studentId))) as string[];
       const students = await this.db.select({
-        id: REPLACED_users.id,
-        firstName: REPLACED_users.firstName,
-        lastName: REPLACED_users.lastName
+        id: schema.users.id,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName
       })
-        .from(REPLACED_users)
-        .where(inArray(REPLACED_users.id, studentIds));
+        .from(schema.users)
+        .where(inArray(schema.users.id, studentIds));
 
       // Enrich results with student names
       return results.map((r: any) => ({
@@ -2143,63 +2142,63 @@ export class DatabaseStorage implements IStorage {
 
   // Exam sessions management
   async createExamSession(session: InsertExamSession): Promise<ExamSession> {
-    const result = await db.insert(REPLACED_examSessions).values(session).returning();
+    const result = await db.insert(schema.examSessions).values(session).returning();
     return result[0];
   }
   async getExamSessionById(id: number): Promise<ExamSession | undefined> {
     // Only select columns that actually exist in the current database
     const result = await db.select({
-      id: REPLACED_examSessions.id,
-      examId: REPLACED_examSessions.examId,
-      studentId: REPLACED_examSessions.studentId,
-      startedAt: REPLACED_examSessions.startedAt,
-      submittedAt: REPLACED_examSessions.submittedAt,
-      timeRemaining: REPLACED_examSessions.timeRemaining,
-      isCompleted: REPLACED_examSessions.isCompleted,
-      score: REPLACED_examSessions.score,
-      maxScore: REPLACED_examSessions.maxScore,
-      status: REPLACED_examSessions.status,
-      createdAt: REPLACED_examSessions.createdAt,
-    }).from(REPLACED_examSessions)
-      .where(eq(REPLACED_examSessions.id, id))
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt,
+    }).from(schema.examSessions)
+      .where(eq(schema.examSessions.id, id))
       .limit(1);
     return result[0];
   }
   async getExamSessionsByExam(examId: number): Promise<ExamSession[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
-      id: REPLACED_examSessions.id,
-      examId: REPLACED_examSessions.examId,
-      studentId: REPLACED_examSessions.studentId,
-      startedAt: REPLACED_examSessions.startedAt,
-      submittedAt: REPLACED_examSessions.submittedAt,
-      timeRemaining: REPLACED_examSessions.timeRemaining,
-      isCompleted: REPLACED_examSessions.isCompleted,
-      score: REPLACED_examSessions.score,
-      maxScore: REPLACED_examSessions.maxScore,
-      status: REPLACED_examSessions.status,
-      createdAt: REPLACED_examSessions.createdAt,
-    }).from(REPLACED_examSessions)
-      .where(eq(REPLACED_examSessions.examId, examId))
-      .orderBy(desc(REPLACED_examSessions.startedAt));
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt,
+    }).from(schema.examSessions)
+      .where(eq(schema.examSessions.examId, examId))
+      .orderBy(desc(schema.examSessions.startedAt));
   }
   async getExamSessionsByStudent(studentId: string): Promise<ExamSession[]> {
     // Only select columns that actually exist in the current database
     return await db.select({
-      id: REPLACED_examSessions.id,
-      examId: REPLACED_examSessions.examId,
-      studentId: REPLACED_examSessions.studentId,
-      startedAt: REPLACED_examSessions.startedAt,
-      submittedAt: REPLACED_examSessions.submittedAt,
-      timeRemaining: REPLACED_examSessions.timeRemaining,
-      isCompleted: REPLACED_examSessions.isCompleted,
-      score: REPLACED_examSessions.score,
-      maxScore: REPLACED_examSessions.maxScore,
-      status: REPLACED_examSessions.status,
-      createdAt: REPLACED_examSessions.createdAt,
-    }).from(REPLACED_examSessions)
-      .where(eq(REPLACED_examSessions.studentId, studentId))
-      .orderBy(desc(REPLACED_examSessions.startedAt));
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt,
+    }).from(schema.examSessions)
+      .where(eq(schema.examSessions.studentId, studentId))
+      .orderBy(desc(schema.examSessions.startedAt));
   }
   async updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined> {
     // Filter to only existing columns to avoid database errors
@@ -2213,35 +2212,35 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    const result = await db.update(REPLACED_examSessions)
+    const result = await db.update(schema.examSessions)
       .set(allowedFields)
-      .where(eq(REPLACED_examSessions.id, id))
+      .where(eq(schema.examSessions.id, id))
       .returning({
-        id: REPLACED_examSessions.id,
-        examId: REPLACED_examSessions.examId,
-        studentId: REPLACED_examSessions.studentId,
-        startedAt: REPLACED_examSessions.startedAt,
-        submittedAt: REPLACED_examSessions.submittedAt,
-        timeRemaining: REPLACED_examSessions.timeRemaining,
-        isCompleted: REPLACED_examSessions.isCompleted,
-        score: REPLACED_examSessions.score,
-        maxScore: REPLACED_examSessions.maxScore,
-        status: REPLACED_examSessions.status,
-        createdAt: REPLACED_examSessions.createdAt
+        id: schema.examSessions.id,
+        examId: schema.examSessions.examId,
+        studentId: schema.examSessions.studentId,
+        startedAt: schema.examSessions.startedAt,
+        submittedAt: schema.examSessions.submittedAt,
+        timeRemaining: schema.examSessions.timeRemaining,
+        isCompleted: schema.examSessions.isCompleted,
+        score: schema.examSessions.score,
+        maxScore: schema.examSessions.maxScore,
+        status: schema.examSessions.status,
+        createdAt: schema.examSessions.createdAt
       });
     return result[0];
   }
   async deleteExamSession(id: number): Promise<boolean> {
-    const result = await db.delete(REPLACED_examSessions)
-      .where(eq(REPLACED_examSessions.id, id));
+    const result = await db.delete(schema.examSessions)
+      .where(eq(schema.examSessions.id, id));
     return result.length > 0;
   }
   async getActiveExamSession(examId: number, studentId: string): Promise<ExamSession | undefined> {
-    const result = await db.select().from(REPLACED_examSessions)
+    const result = await db.select().from(schema.examSessions)
       .where(and(
-        eq(REPLACED_examSessions.examId, examId),
-        eq(REPLACED_examSessions.studentId, studentId),
-        eq(REPLACED_examSessions.isCompleted, false)
+        eq(schema.examSessions.examId, examId),
+        eq(schema.examSessions.studentId, studentId),
+        eq(schema.examSessions.isCompleted, false)
       ))
       .limit(1);
     return result[0];
@@ -2250,50 +2249,50 @@ export class DatabaseStorage implements IStorage {
   async getActiveExamSessions(): Promise<ExamSession[]> {
     // Temporarily select only core columns to avoid missing column errors
     return await db.select({
-      id: REPLACED_examSessions.id,
-      examId: REPLACED_examSessions.examId,
-      studentId: REPLACED_examSessions.studentId,
-      startedAt: REPLACED_examSessions.startedAt,
-      submittedAt: REPLACED_examSessions.submittedAt,
-      timeRemaining: REPLACED_examSessions.timeRemaining,
-      isCompleted: REPLACED_examSessions.isCompleted,
-      score: REPLACED_examSessions.score,
-      maxScore: REPLACED_examSessions.maxScore,
-      status: REPLACED_examSessions.status,
-      createdAt: REPLACED_examSessions.createdAt
-    }).from(REPLACED_examSessions)
-      .where(eq(REPLACED_examSessions.isCompleted, false))
-      .orderBy(desc(REPLACED_examSessions.startedAt));
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt
+    }).from(schema.examSessions)
+      .where(eq(schema.examSessions.isCompleted, false))
+      .orderBy(desc(schema.examSessions.startedAt));
   }
   // PERFORMANCE: Get only expired sessions directly from database
   async getExpiredExamSessions(now: Date, limit = 100): Promise<ExamSession[]> {
     // Temporarily simplified to work with existing schema - will be enhanced after schema sync
     return await db.select({
-      id: REPLACED_examSessions.id,
-      examId: REPLACED_examSessions.examId,
-      studentId: REPLACED_examSessions.studentId,
-      startedAt: REPLACED_examSessions.startedAt,
-      submittedAt: REPLACED_examSessions.submittedAt,
-      timeRemaining: REPLACED_examSessions.timeRemaining,
-      isCompleted: REPLACED_examSessions.isCompleted,
-      score: REPLACED_examSessions.score,
-      maxScore: REPLACED_examSessions.maxScore,
-      status: REPLACED_examSessions.status,
-      createdAt: REPLACED_examSessions.createdAt
-    }).from(REPLACED_examSessions)
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt
+    }).from(schema.examSessions)
       .where(and(
-        eq(REPLACED_examSessions.isCompleted, false),
+        eq(schema.examSessions.isCompleted, false),
         // Fallback: Use startedAt + reasonable timeout estimate for expired sessions
-        dsql`${REPLACED_examSessions.startedAt} + interval '2 hours' < ${now.toISOString()}`
+        dsql`${schema.examSessions.startedAt} + interval '2 hours' < ${now.toISOString()}`
       ))
-      .orderBy(asc(REPLACED_examSessions.startedAt))
+      .orderBy(asc(schema.examSessions.startedAt))
       .limit(limit);
   }
   // CIRCUIT BREAKER FIX: Idempotent session creation using UPSERT to prevent connection pool exhaustion
   async createOrGetActiveExamSession(examId: number, studentId: string, sessionData: InsertExamSession): Promise<ExamSession & { wasCreated?: boolean }> {
     try {
       // STEP 1: Try to insert new session - this will fail if an active session already exists due to unique index
-      const insertResult = await db.insert(REPLACED_examSessions)
+      const insertResult = await db.insert(schema.examSessions)
         .values({
           examId: sessionData.examId,
           studentId: studentId,
@@ -2304,17 +2303,17 @@ export class DatabaseStorage implements IStorage {
         })
         .onConflictDoNothing() // This requires the unique index we added
         .returning({
-          id: REPLACED_examSessions.id,
-          examId: REPLACED_examSessions.examId,
-          studentId: REPLACED_examSessions.studentId,
-          startedAt: REPLACED_examSessions.startedAt,
-          submittedAt: REPLACED_examSessions.submittedAt,
-          timeRemaining: REPLACED_examSessions.timeRemaining,
-          isCompleted: REPLACED_examSessions.isCompleted,
-          score: REPLACED_examSessions.score,
-          maxScore: REPLACED_examSessions.maxScore,
-          status: REPLACED_examSessions.status,
-          createdAt: REPLACED_examSessions.createdAt
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
         });
 
       // If insert succeeded, return the new session
@@ -2323,22 +2322,22 @@ export class DatabaseStorage implements IStorage {
       }
       // STEP 2: Insert failed due to conflict, fetch the existing active session
       const existingSession = await db.select({
-        id: REPLACED_examSessions.id,
-        examId: REPLACED_examSessions.examId,
-        studentId: REPLACED_examSessions.studentId,
-        startedAt: REPLACED_examSessions.startedAt,
-        submittedAt: REPLACED_examSessions.submittedAt,
-        timeRemaining: REPLACED_examSessions.timeRemaining,
-        isCompleted: REPLACED_examSessions.isCompleted,
-        score: REPLACED_examSessions.score,
-        maxScore: REPLACED_examSessions.maxScore,
-        status: REPLACED_examSessions.status,
-        createdAt: REPLACED_examSessions.createdAt
-      }).from(REPLACED_examSessions)
+        id: schema.examSessions.id,
+        examId: schema.examSessions.examId,
+        studentId: schema.examSessions.studentId,
+        startedAt: schema.examSessions.startedAt,
+        submittedAt: schema.examSessions.submittedAt,
+        timeRemaining: schema.examSessions.timeRemaining,
+        isCompleted: schema.examSessions.isCompleted,
+        score: schema.examSessions.score,
+        maxScore: schema.examSessions.maxScore,
+        status: schema.examSessions.status,
+        createdAt: schema.examSessions.createdAt
+      }).from(schema.examSessions)
         .where(and(
-          eq(REPLACED_examSessions.examId, examId),
-          eq(REPLACED_examSessions.studentId, studentId),
-          eq(REPLACED_examSessions.isCompleted, false)
+          eq(schema.examSessions.examId, examId),
+          eq(schema.examSessions.studentId, studentId),
+          eq(schema.examSessions.isCompleted, false)
         ))
         .limit(1);
 
@@ -2356,23 +2355,23 @@ export class DatabaseStorage implements IStorage {
   // Enhanced session management for students
   async getStudentActiveSession(studentId: string): Promise<ExamSession | undefined> {
     const result = await this.db.select({
-      id: REPLACED_examSessions.id,
-      examId: REPLACED_examSessions.examId,
-      studentId: REPLACED_examSessions.studentId,
-      startedAt: REPLACED_examSessions.startedAt,
-      submittedAt: REPLACED_examSessions.submittedAt,
-      timeRemaining: REPLACED_examSessions.timeRemaining,
-      isCompleted: REPLACED_examSessions.isCompleted,
-      score: REPLACED_examSessions.score,
-      maxScore: REPLACED_examSessions.maxScore,
-      status: REPLACED_examSessions.status,
-      createdAt: REPLACED_examSessions.createdAt
-    }).from(REPLACED_examSessions)
+      id: schema.examSessions.id,
+      examId: schema.examSessions.examId,
+      studentId: schema.examSessions.studentId,
+      startedAt: schema.examSessions.startedAt,
+      submittedAt: schema.examSessions.submittedAt,
+      timeRemaining: schema.examSessions.timeRemaining,
+      isCompleted: schema.examSessions.isCompleted,
+      score: schema.examSessions.score,
+      maxScore: schema.examSessions.maxScore,
+      status: schema.examSessions.status,
+      createdAt: schema.examSessions.createdAt
+    }).from(schema.examSessions)
       .where(and(
-        eq(REPLACED_examSessions.studentId, studentId),
-        eq(REPLACED_examSessions.isCompleted, false)
+        eq(schema.examSessions.studentId, studentId),
+        eq(schema.examSessions.isCompleted, false)
       ))
-      .orderBy(desc(REPLACED_examSessions.createdAt))
+      .orderBy(desc(schema.examSessions.createdAt))
       .limit(1);
     return result[0];
   }
@@ -2385,40 +2384,40 @@ export class DatabaseStorage implements IStorage {
       updates.metadata = JSON.stringify({ currentQuestionIndex: progress.currentQuestionIndex });
     }
     if (Object.keys(updates).length > 0) {
-      await this.db.update(REPLACED_examSessions)
+      await this.db.update(schema.examSessions)
         .set(updates)
-        .where(eq(REPLACED_examSessions.id, sessionId));
+        .where(eq(schema.examSessions.id, sessionId));
     }
   }
 
   // Student answers management
   async createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer> {
-    const result = await db.insert(REPLACED_studentAnswers).values(answer).returning();
+    const result = await db.insert(schema.studentAnswers).values(answer).returning();
     return result[0];
   }
   async getStudentAnswers(sessionId: number): Promise<StudentAnswer[]> {
-    return await db.select().from(REPLACED_studentAnswers)
-      .where(eq(REPLACED_studentAnswers.sessionId, sessionId))
-      .orderBy(asc(REPLACED_studentAnswers.answeredAt));
+    return await db.select().from(schema.studentAnswers)
+      .where(eq(schema.studentAnswers.sessionId, sessionId))
+      .orderBy(asc(schema.studentAnswers.answeredAt));
   }
   async getStudentAnswerById(id: number): Promise<StudentAnswer | undefined> {
-    const result = await db.select().from(REPLACED_studentAnswers)
-      .where(eq(REPLACED_studentAnswers.id, id))
+    const result = await db.select().from(schema.studentAnswers)
+      .where(eq(schema.studentAnswers.id, id))
       .limit(1);
     return result[0];
   }
   async updateStudentAnswer(id: number, answer: Partial<InsertStudentAnswer>): Promise<StudentAnswer | undefined> {
-    const result = await db.update(REPLACED_studentAnswers)
+    const result = await db.update(schema.studentAnswers)
       .set(answer)
-      .where(eq(REPLACED_studentAnswers.id, id))
+      .where(eq(schema.studentAnswers.id, id))
       .returning();
     return result[0];
   }
   async getStudentAnswerBySessionAndQuestion(sessionId: number, questionId: number): Promise<StudentAnswer | undefined> {
-    const result = await db.select().from(REPLACED_studentAnswers)
+    const result = await db.select().from(schema.studentAnswers)
       .where(and(
-        eq(REPLACED_studentAnswers.sessionId, sessionId),
-        eq(REPLACED_studentAnswers.questionId, questionId)
+        eq(schema.studentAnswers.sessionId, sessionId),
+        eq(schema.studentAnswers.questionId, questionId)
       ))
       .limit(1);
     return result[0];
@@ -2439,8 +2438,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getQuestionOptionById(optionId: number): Promise<QuestionOption | undefined> {
-    const result = await db.select().from(REPLACED_questionOptions)
-      .where(eq(REPLACED_questionOptions.id, optionId))
+    const result = await db.select().from(schema.questionOptions)
+      .where(eq(schema.questionOptions.id, optionId))
       .limit(1);
     return result[0];
   }
@@ -2467,20 +2466,20 @@ export class DatabaseStorage implements IStorage {
 
       // First, get the session - select only existing columns
       const sessionResult = await this.db.select({
-        id: REPLACED_examSessions.id,
-        examId: REPLACED_examSessions.examId,
-        studentId: REPLACED_examSessions.studentId,
-        startedAt: REPLACED_examSessions.startedAt,
-        submittedAt: REPLACED_examSessions.submittedAt,
-        timeRemaining: REPLACED_examSessions.timeRemaining,
-        isCompleted: REPLACED_examSessions.isCompleted,
-        score: REPLACED_examSessions.score,
-        maxScore: REPLACED_examSessions.maxScore,
-        status: REPLACED_examSessions.status,
-        createdAt: REPLACED_examSessions.createdAt
+        id: schema.examSessions.id,
+        examId: schema.examSessions.examId,
+        studentId: schema.examSessions.studentId,
+        startedAt: schema.examSessions.startedAt,
+        submittedAt: schema.examSessions.submittedAt,
+        timeRemaining: schema.examSessions.timeRemaining,
+        isCompleted: schema.examSessions.isCompleted,
+        score: schema.examSessions.score,
+        maxScore: schema.examSessions.maxScore,
+        status: schema.examSessions.status,
+        createdAt: schema.examSessions.createdAt
       })
-        .from(REPLACED_examSessions)
-        .where(eq(REPLACED_examSessions.id, sessionId))
+        .from(schema.examSessions)
+        .where(eq(schema.examSessions.id, sessionId))
         .limit(1);
 
       if (!sessionResult[0]) {
@@ -2490,49 +2489,49 @@ export class DatabaseStorage implements IStorage {
 
       // CORRECTED QUERY: Get question data and correct options separately to avoid row multiplication issues
       const questionsQuery = await this.db.select({
-        questionId: REPLACED_examQuestions.id,
-        questionType: REPLACED_examQuestions.questionType,
-        points: REPLACED_examQuestions.points,
-        autoGradable: REPLACED_examQuestions.autoGradable,
-        expectedAnswers: REPLACED_examQuestions.expectedAnswers,
-        caseSensitive: REPLACED_examQuestions.caseSensitive,
-        allowPartialCredit: REPLACED_examQuestions.allowPartialCredit,
-        partialCreditRules: REPLACED_examQuestions.partialCreditRules,
-        studentSelectedOptionId: REPLACED_studentAnswers.selectedOptionId,
-        textAnswer: REPLACED_studentAnswers.textAnswer,
+        questionId: schema.examQuestions.id,
+        questionType: schema.examQuestions.questionType,
+        points: schema.examQuestions.points,
+        autoGradable: schema.examQuestions.autoGradable,
+        expectedAnswers: schema.examQuestions.expectedAnswers,
+        caseSensitive: schema.examQuestions.caseSensitive,
+        allowPartialCredit: schema.examQuestions.allowPartialCredit,
+        partialCreditRules: schema.examQuestions.partialCreditRules,
+        studentSelectedOptionId: schema.studentAnswers.selectedOptionId,
+        textAnswer: schema.studentAnswers.textAnswer,
       })
-        .from(REPLACED_examQuestions)
-        .leftJoin(REPLACED_studentAnswers, and(
-          eq(REPLACED_studentAnswers.questionId, REPLACED_examQuestions.id),
-          eq(REPLACED_studentAnswers.sessionId, sessionId)
+        .from(schema.examQuestions)
+        .leftJoin(schema.studentAnswers, and(
+          eq(schema.studentAnswers.questionId, schema.examQuestions.id),
+          eq(schema.studentAnswers.sessionId, sessionId)
         ))
-        .where(eq(REPLACED_examQuestions.examId, session.examId))
-        .orderBy(asc(REPLACED_examQuestions.orderNumber));
+        .where(eq(schema.examQuestions.examId, session.examId))
+        .orderBy(asc(schema.examQuestions.orderNumber));
 
       // Get correct options separately to avoid confusion
       const correctOptionsQuery = await this.db.select({
-        questionId: REPLACED_questionOptions.questionId,
-        correctOptionId: REPLACED_questionOptions.id,
+        questionId: schema.questionOptions.questionId,
+        correctOptionId: schema.questionOptions.id,
       })
-        .from(REPLACED_questionOptions)
-        .innerJoin(REPLACED_examQuestions, eq(REPLACED_questionOptions.questionId, REPLACED_examQuestions.id))
+        .from(schema.questionOptions)
+        .innerJoin(schema.examQuestions, eq(schema.questionOptions.questionId, schema.examQuestions.id))
         .where(
           and(
-            eq(REPLACED_examQuestions.examId, session.examId),
-            eq(REPLACED_questionOptions.isCorrect, true)
+            eq(schema.examQuestions.examId, session.examId),
+            eq(schema.questionOptions.isCorrect, true)
           )
         );
 
       // Get selected option details for partial credit (only for questions with student answers)
       const selectedOptionsQuery = await this.db.select({
-        questionId: REPLACED_questionOptions.questionId,
-        optionId: REPLACED_questionOptions.id,
-        partialCreditValue: REPLACED_questionOptions.partialCreditValue,
-        isCorrect: REPLACED_questionOptions.isCorrect,
+        questionId: schema.questionOptions.questionId,
+        optionId: schema.questionOptions.id,
+        partialCreditValue: schema.questionOptions.partialCreditValue,
+        isCorrect: schema.questionOptions.isCorrect,
       })
-        .from(REPLACED_questionOptions)
-        .innerJoin(REPLACED_studentAnswers, eq(REPLACED_questionOptions.id, REPLACED_studentAnswers.selectedOptionId))
-        .where(eq(REPLACED_studentAnswers.sessionId, sessionId));
+        .from(schema.questionOptions)
+        .innerJoin(schema.studentAnswers, eq(schema.questionOptions.id, schema.studentAnswers.selectedOptionId))
+        .where(eq(schema.studentAnswers.sessionId, sessionId));
 
       // Create lookup maps for efficient processing
       const correctOptionsMap = new Map<number, number>();
@@ -2740,13 +2739,13 @@ export class DatabaseStorage implements IStorage {
   }
   // Announcements
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
-    const result = await db.insert(REPLACED_announcements).values(announcement).returning();
+    const result = await db.insert(schema.announcements).values(announcement).returning();
     return result[0];
   }
   async getAnnouncements(targetRole?: string): Promise<Announcement[]> {
-    const query = db.select().from(REPLACED_announcements)
-      .where(eq(REPLACED_announcements.isPublished, true))
-      .orderBy(desc(REPLACED_announcements.publishedAt));
+    const query = db.select().from(schema.announcements)
+      .where(eq(schema.announcements.isPublished, true))
+      .orderBy(desc(schema.announcements.publishedAt));
 
     if (targetRole) {
       // Note: This would need proper array contains logic for PostgreSQL
@@ -2755,65 +2754,65 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
   async getAnnouncementById(id: number): Promise<Announcement | undefined> {
-    const result = await db.select().from(REPLACED_announcements).where(eq(REPLACED_announcements.id, id)).limit(1);
+    const result = await db.select().from(schema.announcements).where(eq(schema.announcements.id, id)).limit(1);
     return result[0];
   }
   async updateAnnouncement(id: number, announcement: Partial<InsertAnnouncement>): Promise<Announcement | undefined> {
-    const result = await db.update(REPLACED_announcements).set(announcement).where(eq(REPLACED_announcements.id, id)).returning();
+    const result = await db.update(schema.announcements).set(announcement).where(eq(schema.announcements.id, id)).returning();
     return result[0];
   }
   async deleteAnnouncement(id: number): Promise<boolean> {
-    const result = await db.delete(REPLACED_announcements).where(eq(REPLACED_announcements.id, id));
+    const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
     return result.length > 0;
   }
   // Messages
   async sendMessage(message: InsertMessage): Promise<Message> {
-    const result = await db.insert(REPLACED_messages).values(message).returning();
+    const result = await db.insert(schema.messages).values(message).returning();
     return result[0];
   }
   async getMessagesByUser(userId: string): Promise<Message[]> {
-    return await db.select().from(REPLACED_messages)
-      .where(eq(REPLACED_messages.recipientId, userId))
-      .orderBy(desc(REPLACED_messages.createdAt));
+    return await db.select().from(schema.messages)
+      .where(eq(schema.messages.recipientId, userId))
+      .orderBy(desc(schema.messages.createdAt));
   }
   async markMessageAsRead(id: number): Promise<void> {
-    await db.update(REPLACED_messages).set({ isRead: true }).where(eq(REPLACED_messages.id, id));
+    await db.update(schema.messages).set({ isRead: true }).where(eq(schema.messages.id, id));
   }
   // Gallery
   async createGalleryCategory(category: InsertGalleryCategory): Promise<GalleryCategory> {
-    const result = await db.insert(REPLACED_galleryCategories).values(category).returning();
+    const result = await db.insert(schema.galleryCategories).values(category).returning();
     return result[0];
   }
   async getGalleryCategories(): Promise<GalleryCategory[]> {
-    return await db.select().from(REPLACED_galleryCategories).orderBy(asc(REPLACED_galleryCategories.name));
+    return await db.select().from(schema.galleryCategories).orderBy(asc(schema.galleryCategories.name));
   }
   async uploadGalleryImage(image: InsertGallery): Promise<Gallery> {
-    const result = await db.insert(REPLACED_gallery).values(image).returning();
+    const result = await db.insert(schema.gallery).values(image).returning();
     return result[0];
   }
   async getGalleryImages(categoryId?: number): Promise<Gallery[]> {
     if (categoryId) {
-      return await db.select().from(REPLACED_gallery)
-        .where(eq(REPLACED_gallery.categoryId, categoryId))
-        .orderBy(desc(REPLACED_gallery.createdAt));
+      return await db.select().from(schema.gallery)
+        .where(eq(schema.gallery.categoryId, categoryId))
+        .orderBy(desc(schema.gallery.createdAt));
     }
-    return await db.select().from(REPLACED_gallery).orderBy(desc(REPLACED_gallery.createdAt));
+    return await db.select().from(schema.gallery).orderBy(desc(schema.gallery.createdAt));
   }
   async getGalleryImageById(id: string): Promise<Gallery | undefined> {
-    const result = await db.select().from(REPLACED_gallery)
-      .where(eq(REPLACED_gallery.id, parseInt(id)))
+    const result = await db.select().from(schema.gallery)
+      .where(eq(schema.gallery.id, parseInt(id)))
       .limit(1);
     return result[0];
   }
   async deleteGalleryImage(id: string): Promise<boolean> {
-    const result = await db.delete(REPLACED_gallery)
-      .where(eq(REPLACED_gallery.id, parseInt(id)))
+    const result = await db.delete(schema.gallery)
+      .where(eq(schema.gallery.id, parseInt(id)))
       .returning();
     return result.length > 0;
   }
   // Study resources management
   async createStudyResource(resource: InsertStudyResource): Promise<StudyResource> {
-    const result = await db.insert(REPLACED_studyResources).values(resource).returning();
+    const result = await db.insert(schema.studyResources).values(resource).returning();
     return result[0];
   }
   async getStudyResources(filters?: {
@@ -2822,43 +2821,43 @@ export class DatabaseStorage implements IStorage {
     termId?: number;
     resourceType?: string;
   }): Promise<StudyResource[]> {
-    let query = db.select().from(REPLACED_studyResources)
-      .where(eq(REPLACED_studyResources.isPublished, true));
+    let query = db.select().from(schema.studyResources)
+      .where(eq(schema.studyResources.isPublished, true));
 
     if (filters?.classId) {
-      query = query.where(eq(REPLACED_studyResources.classId, filters.classId));
+      query = query.where(eq(schema.studyResources.classId, filters.classId));
     }
     if (filters?.subjectId) {
-      query = query.where(eq(REPLACED_studyResources.subjectId, filters.subjectId));
+      query = query.where(eq(schema.studyResources.subjectId, filters.subjectId));
     }
     if (filters?.termId) {
-      query = query.where(eq(REPLACED_studyResources.termId, filters.termId));
+      query = query.where(eq(schema.studyResources.termId, filters.termId));
     }
     if (filters?.resourceType) {
-      query = query.where(eq(REPLACED_studyResources.resourceType, filters.resourceType));
+      query = query.where(eq(schema.studyResources.resourceType, filters.resourceType));
     }
-    return await query.orderBy(desc(REPLACED_studyResources.createdAt));
+    return await query.orderBy(desc(schema.studyResources.createdAt));
   }
   async getStudyResourceById(id: number): Promise<StudyResource | undefined> {
-    const result = await db.select().from(REPLACED_studyResources)
-      .where(eq(REPLACED_studyResources.id, id))
+    const result = await db.select().from(schema.studyResources)
+      .where(eq(schema.studyResources.id, id))
       .limit(1);
     return result[0];
   }
   async incrementStudyResourceDownloads(id: number): Promise<void> {
-    await db.update(REPLACED_studyResources)
-      .set({ downloads: dsql`${REPLACED_studyResources.downloads} + 1` })
-      .where(eq(REPLACED_studyResources.id, id));
+    await db.update(schema.studyResources)
+      .set({ downloads: dsql`${schema.studyResources.downloads} + 1` })
+      .where(eq(schema.studyResources.id, id));
   }
   async deleteStudyResource(id: number): Promise<boolean> {
-    const result = await db.delete(REPLACED_studyResources)
-      .where(eq(REPLACED_studyResources.id, id))
+    const result = await db.delete(schema.studyResources)
+      .where(eq(schema.studyResources.id, id))
       .returning();
     return result.length > 0;
   }
   // Home page content management
   async createHomePageContent(content: InsertHomePageContent): Promise<HomePageContent> {
-    const result = await db.insert(REPLACED_homePageContent).values(content).returning();
+    const result = await db.insert(schema.homePageContent).values(content).returning();
     return result[0];
   }
 
@@ -3310,30 +3309,30 @@ export class DatabaseStorage implements IStorage {
   // Home page content management
   async getHomePageContent(contentType?: string): Promise<HomePageContent[]> {
     if (contentType) {
-      return await db.select().from(REPLACED_homePageContent)
-        .where(and(eq(REPLACED_homePageContent.contentType, contentType), eq(REPLACED_homePageContent.isActive, true)))
-        .orderBy(asc(REPLACED_homePageContent.displayOrder));
+      return await db.select().from(schema.homePageContent)
+        .where(and(eq(schema.homePageContent.contentType, contentType), eq(schema.homePageContent.isActive, true)))
+        .orderBy(asc(schema.homePageContent.displayOrder));
     }
-    return await db.select().from(REPLACED_homePageContent)
-      .where(eq(REPLACED_homePageContent.isActive, true))
-      .orderBy(asc(REPLACED_homePageContent.displayOrder), asc(REPLACED_homePageContent.contentType));
+    return await db.select().from(schema.homePageContent)
+      .where(eq(schema.homePageContent.isActive, true))
+      .orderBy(asc(schema.homePageContent.displayOrder), asc(schema.homePageContent.contentType));
   }
   async getHomePageContentById(id: number): Promise<HomePageContent | undefined> {
-    const result = await db.select().from(REPLACED_homePageContent)
-      .where(eq(REPLACED_homePageContent.id, id))
+    const result = await db.select().from(schema.homePageContent)
+      .where(eq(schema.homePageContent.id, id))
       .limit(1);
     return result[0];
   }
   async updateHomePageContent(id: number, content: Partial<InsertHomePageContent>): Promise<HomePageContent | undefined> {
-    const result = await db.update(REPLACED_homePageContent)
+    const result = await db.update(schema.homePageContent)
       .set({ ...content, updatedAt: new Date() })
-      .where(eq(REPLACED_homePageContent.id, id))
+      .where(eq(schema.homePageContent.id, id))
       .returning();
     return result[0];
   }
   async deleteHomePageContent(id: number): Promise<boolean> {
-    const result = await db.delete(REPLACED_homePageContent)
-      .where(eq(REPLACED_homePageContent.id, id))
+    const result = await db.delete(schema.homePageContent)
+      .where(eq(schema.homePageContent.id, id))
       .returning();
     return result.length > 0;
   }
@@ -3342,17 +3341,17 @@ export class DatabaseStorage implements IStorage {
     try {
       // First ensure we have a report card for this student/term
       let reportCard = await db.select()
-        .from(REPLACED_reportCards)
+        .from(schema.reportCards)
         .where(and(
-          eq(REPLACED_reportCards.studentId, gradeData.studentId),
-          eq(REPLACED_reportCards.termId, gradeData.termId)
+          eq(schema.reportCards.studentId, gradeData.studentId),
+          eq(schema.reportCards.termId, gradeData.termId)
         ))
         .limit(1);
 
       let reportCardId: number;
       if (reportCard.length === 0) {
         // Create new report card
-        const newReportCard = await db.insert(REPLACED_reportCards)
+        const newReportCard = await db.insert(schema.reportCards)
           .values({
             studentId: gradeData.studentId,
             classId: gradeData.classId || 1, // Should be provided
@@ -3366,10 +3365,10 @@ export class DatabaseStorage implements IStorage {
       }
       // Check if item already exists for this report card/subject
       const existingItem = await db.select()
-        .from(REPLACED_reportCardItems)
+        .from(schema.reportCardItems)
         .where(and(
-          eq(REPLACED_reportCardItems.reportCardId, reportCardId),
-          eq(REPLACED_reportCardItems.subjectId, gradeData.subjectId)
+          eq(schema.reportCardItems.reportCardId, reportCardId),
+          eq(schema.reportCardItems.subjectId, gradeData.subjectId)
         ))
         .limit(1);
 
@@ -3390,14 +3389,14 @@ export class DatabaseStorage implements IStorage {
 
       if (existingItem.length > 0) {
         // Update existing item
-        const result = await db.update(REPLACED_reportCardItems)
+        const result = await db.update(schema.reportCardItems)
           .set(comprehensiveGradeData)
-          .where(eq(REPLACED_reportCardItems.id, existingItem[0].id))
+          .where(eq(schema.reportCardItems.id, existingItem[0].id))
           .returning();
         return result[0];
       } else {
         // Create new item
-        const result = await db.insert(REPLACED_reportCardItems)
+        const result = await db.insert(schema.reportCardItems)
           .values(comprehensiveGradeData)
           .returning();
         return result[0];
@@ -3410,34 +3409,34 @@ export class DatabaseStorage implements IStorage {
   async getComprehensiveGradesByStudent(studentId: string, termId?: number): Promise<any[]> {
     try {
       let query = db.select({
-        id: REPLACED_reportCardItems.id,
-        subjectId: REPLACED_reportCardItems.subjectId,
-        subjectName: REPLACED_subjects.name,
-        testScore: REPLACED_reportCardItems.testScore,
-        testMaxScore: REPLACED_reportCardItems.testMaxScore,
-        testWeightedScore: REPLACED_reportCardItems.testWeightedScore,
-        examScore: REPLACED_reportCardItems.examScore,
-        examMaxScore: REPLACED_reportCardItems.examMaxScore,
-        examWeightedScore: REPLACED_reportCardItems.examWeightedScore,
-        obtainedMarks: REPLACED_reportCardItems.obtainedMarks,
-        percentage: REPLACED_reportCardItems.percentage,
-        grade: REPLACED_reportCardItems.grade,
-        teacherRemarks: REPLACED_reportCardItems.teacherRemarks,
-        termId: REPLACED_reportCards.termId,
-        createdAt: REPLACED_reportCardItems.createdAt
+        id: schema.reportCardItems.id,
+        subjectId: schema.reportCardItems.subjectId,
+        subjectName: schema.subjects.name,
+        testScore: schema.reportCardItems.testScore,
+        testMaxScore: schema.reportCardItems.testMaxScore,
+        testWeightedScore: schema.reportCardItems.testWeightedScore,
+        examScore: schema.reportCardItems.examScore,
+        examMaxScore: schema.reportCardItems.examMaxScore,
+        examWeightedScore: schema.reportCardItems.examWeightedScore,
+        obtainedMarks: schema.reportCardItems.obtainedMarks,
+        percentage: schema.reportCardItems.percentage,
+        grade: schema.reportCardItems.grade,
+        teacherRemarks: schema.reportCardItems.teacherRemarks,
+        termId: schema.reportCards.termId,
+        createdAt: schema.reportCardItems.createdAt
       })
-        .from(REPLACED_reportCardItems)
-        .innerJoin(REPLACED_reportCards, eq(REPLACED_reportCardItems.reportCardId, REPLACED_reportCards.id))
-        .innerJoin(REPLACED_subjects, eq(REPLACED_reportCardItems.subjectId, REPLACED_subjects.id))
-        .where(eq(REPLACED_reportCards.studentId, studentId));
+        .from(schema.reportCardItems)
+        .innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id))
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .where(eq(schema.reportCards.studentId, studentId));
 
       if (termId) {
         query = query.where(and(
-          eq(REPLACED_reportCards.studentId, studentId),
-          eq(REPLACED_reportCards.termId, termId)
+          eq(schema.reportCards.studentId, studentId),
+          eq(schema.reportCards.termId, termId)
         ));
       }
-      return await query.orderBy(REPLACED_subjects.name);
+      return await query.orderBy(schema.subjects.name);
     } catch (error) {
       return [];
     }
@@ -3446,30 +3445,30 @@ export class DatabaseStorage implements IStorage {
   async getComprehensiveGradesByClass(classId: number, termId?: number): Promise<any[]> {
     try {
       let query = db.select({
-        studentId: REPLACED_reportCards.studentId,
-        studentName: sql<string>`CONCAT(${REPLACED_users.firstName}, ' ', ${REPLACED_users.lastName})`.as('studentName'),
-        admissionNumber: REPLACED_students.admissionNumber,
-        subjectName: REPLACED_subjects.name,
-        testScore: REPLACED_reportCardItems.testScore,
-        examScore: REPLACED_reportCardItems.examScore,
-        obtainedMarks: REPLACED_reportCardItems.obtainedMarks,
-        grade: REPLACED_reportCardItems.grade,
-        teacherRemarks: REPLACED_reportCardItems.teacherRemarks
+        studentId: schema.reportCards.studentId,
+        studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        admissionNumber: schema.students.admissionNumber,
+        subjectName: schema.subjects.name,
+        testScore: schema.reportCardItems.testScore,
+        examScore: schema.reportCardItems.examScore,
+        obtainedMarks: schema.reportCardItems.obtainedMarks,
+        grade: schema.reportCardItems.grade,
+        teacherRemarks: schema.reportCardItems.teacherRemarks
       })
-        .from(REPLACED_reportCardItems)
-        .innerJoin(REPLACED_reportCards, eq(REPLACED_reportCardItems.reportCardId, REPLACED_reportCards.id))
-        .innerJoin(REPLACED_students, eq(REPLACED_reportCards.studentId, REPLACED_students.id))
-        .innerJoin(REPLACED_users, eq(REPLACED_students.id, REPLACED_users.id))
-        .innerJoin(REPLACED_subjects, eq(REPLACED_reportCardItems.subjectId, REPLACED_subjects.id))
-        .where(eq(REPLACED_students.classId, classId));
+        .from(schema.reportCardItems)
+        .innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id))
+        .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .where(eq(schema.students.classId, classId));
 
       if (termId) {
         query = query.where(and(
-          eq(REPLACED_students.classId, classId),
-          eq(REPLACED_reportCards.termId, termId)
+          eq(schema.students.classId, classId),
+          eq(schema.reportCards.termId, termId)
         ));
       }
-      return await query.orderBy(REPLACED_users.firstName, REPLACED_users.lastName, REPLACED_subjects.name);
+      return await query.orderBy(schema.users.firstName, schema.users.lastName, schema.subjects.name);
     } catch (error) {
       return [];
     }
@@ -3479,16 +3478,16 @@ export class DatabaseStorage implements IStorage {
     return await this.db.transaction(async (tx: any) => {
       try {
         // Create main report card record
-        const reportCard = await tx.insert(REPLACED_reportCards)
+        const reportCard = await tx.insert(schema.reportCards)
           .values(reportCardData)
           .returning();
 
         // Link all grade items to this report card
         if (grades.length > 0) {
           const gradeUpdates = grades.map((grade: any) =>
-            tx.update(REPLACED_reportCardItems)
+            tx.update(schema.reportCardItems)
               .set({ reportCardId: reportCard[0].id })
-              .where(eq(REPLACED_reportCardItems.id, grade.id))
+              .where(eq(schema.reportCardItems.id, grade.id))
           );
 
           await Promise.all(gradeUpdates);
@@ -3505,8 +3504,8 @@ export class DatabaseStorage implements IStorage {
   async getReportCard(id: number): Promise<ReportCard | undefined> {
     try {
       const result = await db.select()
-        .from(REPLACED_reportCards)
-        .where(eq(REPLACED_reportCards.id, id))
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.id, id))
         .limit(1);
       return result[0];
     } catch (error) {
@@ -3517,9 +3516,9 @@ export class DatabaseStorage implements IStorage {
   async getReportCardsByStudentId(studentId: string): Promise<ReportCard[]> {
     try {
       return await db.select()
-        .from(REPLACED_reportCards)
-        .where(eq(REPLACED_reportCards.studentId, studentId))
-        .orderBy(desc(REPLACED_reportCards.generatedAt));
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.studentId, studentId))
+        .orderBy(desc(schema.reportCards.generatedAt));
     } catch (error) {
       return [];
     }
@@ -3528,8 +3527,8 @@ export class DatabaseStorage implements IStorage {
   async getReportCardItems(reportCardId: number): Promise<ReportCardItem[]> {
     try {
       return await db.select()
-        .from(REPLACED_reportCardItems)
-        .where(eq(REPLACED_reportCardItems.reportCardId, reportCardId));
+        .from(schema.reportCardItems)
+        .where(eq(schema.reportCardItems.reportCardId, reportCardId));
     } catch (error) {
       return [];
     }
@@ -3538,8 +3537,8 @@ export class DatabaseStorage implements IStorage {
   async getStudentsByParentId(parentId: string): Promise<Student[]> {
     try {
       return await db.select()
-        .from(REPLACED_students)
-        .where(eq(REPLACED_students.parentId, parentId));
+        .from(schema.students)
+        .where(eq(schema.students.parentId, parentId));
     } catch (error) {
       return [];
     }
@@ -3550,17 +3549,17 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get basic counts
       const [students, teachers, admins, parents] = await Promise.all([
-        db.select().from(REPLACED_users).where(eq(REPLACED_users.roleId, 1)),
-        db.select().from(REPLACED_users).where(eq(REPLACED_users.roleId, 2)),
-        db.select().from(REPLACED_users).where(eq(REPLACED_users.roleId, 4)),
-        db.select().from(REPLACED_users).where(eq(REPLACED_users.roleId, 3))
+        db.select().from(schema.users).where(eq(schema.users.roleId, 1)),
+        db.select().from(schema.users).where(eq(schema.users.roleId, 2)),
+        db.select().from(schema.users).where(eq(schema.users.roleId, 4)),
+        db.select().from(schema.users).where(eq(schema.users.roleId, 3))
       ]);
 
       const [classes, subjects, exams, examResults] = await Promise.all([
-        db.select().from(REPLACED_classes),
-        db.select().from(REPLACED_subjects),
-        db.select().from(REPLACED_exams),
-        db.select().from(REPLACED_examResults)
+        db.select().from(schema.classes),
+        db.select().from(schema.subjects),
+        db.select().from(schema.exams),
+        db.select().from(schema.examResults)
       ]);
 
       // Calculate grade distribution
@@ -3598,18 +3597,18 @@ export class DatabaseStorage implements IStorage {
 
   async getPerformanceAnalytics(filters: any): Promise<any> {
     try {
-      let examResults = await db.select().from(REPLACED_examResults);
+      let examResults = await db.select().from(schema.examResults);
 
       // Apply filters
       if (filters.classId) {
-        const studentsInClass = await db.select().from(REPLACED_students)
-          .where(eq(REPLACED_students.classId, filters.classId));
+        const studentsInClass = await db.select().from(schema.students)
+          .where(eq(schema.students.classId, filters.classId));
         const studentIds = studentsInClass.map((s: any) => s.id);
         examResults = examResults.filter((r: any) => studentIds.includes(r.studentId));
       }
       if (filters.subjectId) {
-        const examsForSubject = await db.select().from(REPLACED_exams)
-          .where(eq(REPLACED_exams.subjectId, filters.subjectId));
+        const examsForSubject = await db.select().from(schema.exams)
+          .where(eq(schema.exams.subjectId, filters.subjectId));
         const examIds = examsForSubject.map((e: any) => e.id);
         examResults = examResults.filter((r: any) => examIds.includes(r.examId));
       }
@@ -3648,13 +3647,13 @@ export class DatabaseStorage implements IStorage {
 
       // Get data for the specified time period
       const [students, exams, examResults] = await Promise.all([
-        db.select().from(REPLACED_users)
+        db.select().from(schema.users)
           .where(and(
-            eq(REPLACED_users.roleId, 1),
+            eq(schema.users.roleId, 1),
             // Note: In a real implementation, you'd filter by createdAt >= cutoffDate
           )),
-        db.select().from(REPLACED_exams),
-        db.select().from(REPLACED_examResults)
+        db.select().from(schema.exams),
+        db.select().from(schema.examResults)
       ]);
 
       // Generate monthly trends (simplified for demo)
@@ -3692,12 +3691,12 @@ export class DatabaseStorage implements IStorage {
 
   async getAttendanceAnalytics(filters: any): Promise<any> {
     try {
-      let attendance: Attendance[] = await db.select().from(REPLACED_attendance);
+      let attendance: Attendance[] = await db.select().from(schema.attendance);
 
       // Apply filters
       if (filters.classId) {
-        const studentsInClass = await db.select().from(REPLACED_students)
-          .where(eq(REPLACED_students.classId, filters.classId));
+        const studentsInClass = await db.select().from(schema.students)
+          .where(eq(schema.students.classId, filters.classId));
         const studentIds = studentsInClass.map((s: any) => s.id);
         attendance = attendance.filter((a: any) => studentIds.includes(a.studentId));
       }
@@ -3826,7 +3825,7 @@ export class DatabaseStorage implements IStorage {
   }
   private async calculateClassAttendanceComparison(): Promise<any[]> {
     try {
-      const classes: Class[] = await db.select().from(REPLACED_classes);
+      const classes: Class[] = await db.select().from(schema.classes);
       return classes.map(cls => ({
         className: cls.name,
         attendanceRate: 85 + Math.floor(Math.random() * 15), // Simplified for demo
@@ -3849,17 +3848,17 @@ export class DatabaseStorage implements IStorage {
   }
   // Contact messages management - ensuring 100% database persistence
   async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
-    const result = await this.db.insert(REPLACED_contactMessages).values(message).returning();
+    const result = await this.db.insert(schema.contactMessages).values(message).returning();
     return result[0];
   }
   async getContactMessages(): Promise<ContactMessage[]> {
-    return await this.db.select().from(REPLACED_contactMessages).orderBy(desc(REPLACED_contactMessages.createdAt));
+    return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
   }
   // Report finalization methods
   async getExamResultById(id: number): Promise<ExamResult | undefined> {
     try {
-      const result = await this.db.select().from(REPLACED_examResults)
-        .where(eq(REPLACED_examResults.id, id))
+      const result = await this.db.select().from(schema.examResults)
+        .where(eq(schema.examResults.id, id))
         .limit(1);
       return result[0];
     } catch (error) {
@@ -3875,13 +3874,13 @@ export class DatabaseStorage implements IStorage {
     try {
       // This would be a complex query joining exam results with exams, students, and subjects
       // For now, return a simplified version
-      const results = await this.db.select().from(REPLACED_examResults)
+      const results = await this.db.select().from(schema.examResults)
         .where(and(
-          inArray(REPLACED_examResults.examId, examIds),
+          inArray(schema.examResults.examId, examIds),
           // Add teacherFinalized field check when column exists
-          // eq(REPLACED_examResults.teacherFinalized, true)
+          // eq(schema.examResults.teacherFinalized, true)
         ))
-        .orderBy(desc(REPLACED_examResults.createdAt));
+        .orderBy(desc(schema.examResults.createdAt));
 
       return results;
     } catch (error) {
@@ -3896,8 +3895,8 @@ export class DatabaseStorage implements IStorage {
   }): Promise<any[]> {
     try {
       // This would be a complex query for admins to see all finalized reports
-      const results = await this.db.select().from(REPLACED_examResults)
-        .orderBy(desc(REPLACED_examResults.createdAt));
+      const results = await this.db.select().from(schema.examResults)
+        .orderBy(desc(schema.examResults.createdAt));
 
       return results;
     } catch (error) {
@@ -3906,31 +3905,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContactMessageById(id: number): Promise<ContactMessage | undefined> {
-    const result = await this.db.select().from(REPLACED_contactMessages).where(eq(REPLACED_contactMessages.id, id)).limit(1);
+    const result = await this.db.select().from(schema.contactMessages).where(eq(schema.contactMessages.id, id)).limit(1);
     return result[0];
   }
   async markContactMessageAsRead(id: number): Promise<boolean> {
-    const result = await this.db.update(REPLACED_contactMessages)
+    const result = await this.db.update(schema.contactMessages)
       .set({ isRead: true })
-      .where(eq(REPLACED_contactMessages.id, id))
+      .where(eq(schema.contactMessages.id, id))
       .returning();
     return result.length > 0;
   }
   async respondToContactMessage(id: number, response: string, respondedBy: string): Promise<ContactMessage | undefined> {
-    const result = await this.db.update(REPLACED_contactMessages)
+    const result = await this.db.update(schema.contactMessages)
       .set({
         response,
         respondedBy,
         respondedAt: new Date(),
         isRead: true
       })
-      .where(eq(REPLACED_contactMessages.id, id))
+      .where(eq(schema.contactMessages.id, id))
       .returning();
     return result[0];
   }
   // Performance monitoring implementation
   async logPerformanceEvent(event: InsertPerformanceEvent): Promise<PerformanceEvent> {
-    const result = await this.db.insert(REPLACED_performanceEvents).values(event).returning();
+    const result = await this.db.insert(schema.performanceEvents).values(event).returning();
     return result[0];
   }
   async getPerformanceMetrics(hours: number = 24): Promise<{
@@ -3945,8 +3944,8 @@ export class DatabaseStorage implements IStorage {
       const sinceISO = since.toISOString();
 
       const events = await this.db.select()
-        .from(REPLACED_performanceEvents)
-        .where(sql`${REPLACED_performanceEvents.createdAt} >= ${sinceISO}`);
+        .from(schema.performanceEvents)
+        .where(sql`${schema.performanceEvents.createdAt} >= ${sinceISO}`);
 
       const totalEvents = events.length;
       const goalAchievedCount = events.filter((e: PerformanceEvent) => e.goalAchieved).length;
@@ -3988,12 +3987,12 @@ export class DatabaseStorage implements IStorage {
       const sinceISO = since.toISOString();
 
       const alerts = await this.db.select()
-        .from(REPLACED_performanceEvents)
+        .from(schema.performanceEvents)
         .where(and(
-          sql`${REPLACED_performanceEvents.createdAt} >= ${sinceISO}`,
-          eq(REPLACED_performanceEvents.goalAchieved, false)
+          sql`${schema.performanceEvents.createdAt} >= ${sinceISO}`,
+          eq(schema.performanceEvents.goalAchieved, false)
         ))
-        .orderBy(desc(REPLACED_performanceEvents.createdAt))
+        .orderBy(desc(schema.performanceEvents.createdAt))
         .limit(50);
       return alerts;
     } catch (error) {
@@ -4003,80 +4002,80 @@ export class DatabaseStorage implements IStorage {
 
   // Teacher class assignments implementation
   async createTeacherClassAssignment(assignment: InsertTeacherClassAssignment): Promise<TeacherClassAssignment> {
-    const result = await this.db.insert(REPLACED_teacherClassAssignments).values(assignment).returning();
+    const result = await this.db.insert(schema.teacherClassAssignments).values(assignment).returning();
     return result[0];
   }
   async getTeacherClassAssignments(teacherId: string): Promise<TeacherClassAssignment[]> {
     return await this.db.select()
-      .from(REPLACED_teacherClassAssignments)
+      .from(schema.teacherClassAssignments)
       .where(and(
-        eq(REPLACED_teacherClassAssignments.teacherId, teacherId),
-        eq(REPLACED_teacherClassAssignments.isActive, true)
+        eq(schema.teacherClassAssignments.teacherId, teacherId),
+        eq(schema.teacherClassAssignments.isActive, true)
       ))
-      .orderBy(REPLACED_teacherClassAssignments.createdAt);
+      .orderBy(schema.teacherClassAssignments.createdAt);
   }
   async getTeachersForClassSubject(classId: number, subjectId: number): Promise<User[]> {
     const assignments = await this.db.select({
-      user: REPLACED_users
+      user: schema.users
     })
-      .from(REPLACED_teacherClassAssignments)
-      .innerJoin(REPLACED_users, eq(REPLACED_teacherClassAssignments.teacherId, REPLACED_users.id))
+      .from(schema.teacherClassAssignments)
+      .innerJoin(schema.users, eq(schema.teacherClassAssignments.teacherId, schema.users.id))
       .where(and(
-        eq(REPLACED_teacherClassAssignments.classId, classId),
-        eq(REPLACED_teacherClassAssignments.subjectId, subjectId),
-        eq(REPLACED_teacherClassAssignments.isActive, true)
+        eq(schema.teacherClassAssignments.classId, classId),
+        eq(schema.teacherClassAssignments.subjectId, subjectId),
+        eq(schema.teacherClassAssignments.isActive, true)
       ));
 
     return assignments.map((a: any) => a.user);
   }
   async updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined> {
-    const result = await this.db.update(REPLACED_teacherClassAssignments)
+    const result = await this.db.update(schema.teacherClassAssignments)
       .set(assignment)
-      .where(eq(REPLACED_teacherClassAssignments.id, id))
+      .where(eq(schema.teacherClassAssignments.id, id))
       .returning();
     return result[0];
   }
   async deleteTeacherClassAssignment(id: number): Promise<boolean> {
-    const result = await this.db.delete(REPLACED_teacherClassAssignments)
-      .where(eq(REPLACED_teacherClassAssignments.id, id))
+    const result = await this.db.delete(schema.teacherClassAssignments)
+      .where(eq(schema.teacherClassAssignments.id, id))
       .returning();
     return result.length > 0;
   }
   // Teacher timetable implementation
-  async createTimetableEntry(entry: REPLACED_InsertTimetable): Promise<REPLACED_Timetable> {
-    const result = await this.db.insert(REPLACED_timetable).values(entry).returning();
+  async createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable> {
+    const result = await this.db.insert(schema.timetable).values(entry).returning();
     return result[0];
   }
-  async getTimetableByTeacher(teacherId: string, termId?: number): Promise<REPLACED_Timetable[]> {
+  async getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]> {
     const conditions = [
-      eq(REPLACED_timetable.teacherId, teacherId),
-      eq(REPLACED_timetable.isActive, true)
+      eq(schema.timetable.teacherId, teacherId),
+      eq(schema.timetable.isActive, true)
     ];
 
     if (termId) {
-      conditions.push(eq(REPLACED_timetable.termId, termId));
+      conditions.push(eq(schema.timetable.termId, termId));
     }
     return await this.db.select()
-      .from(REPLACED_timetable)
+      .from(schema.timetable)
       .where(and(...conditions))
-      .orderBy(REPLACED_timetable.dayOfWeek, REPLACED_timetable.startTime);
+      .orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
   }
-  async updateTimetableEntry(id: number, entry: Partial<REPLACED_InsertTimetable>): Promise<REPLACED_Timetable | undefined> {
-    const result = await this.db.update(REPLACED_timetable)
+  async updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined> {
+    const result = await this.db.update(schema.timetable)
       .set(entry)
-      .where(eq(REPLACED_timetable.id, id))
+      .where(eq(schema.timetable.id, id))
       .returning();
     return result[0];
   }
   async deleteTimetableEntry(id: number): Promise<boolean> {
-    const result = await this.db.delete(REPLACED_timetable)
-      .where(eq(REPLACED_timetable.id, id))
+    const result = await this.db.delete(schema.timetable)
+      .where(eq(schema.timetable.id, id))
       .returning();
     return result.length > 0;
   }
   // Teacher dashboard data - comprehensive method
   async getTeacherDashboardData(teacherId: string): Promise<{
-    profile: REPLACED_TeacherProfile | undefined;
+    profile: schema.TeacherProfile | undefined;
     user: User | undefined;
     assignments: Array<{
       id: number;
@@ -4100,40 +4099,40 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(teacherId);
 
     const assignmentsData = await this.db.select({
-      id: REPLACED_teacherClassAssignments.id,
-      className: REPLACED_classes.name,
-      classLevel: REPLACED_classes.level,
-      subjectName: REPLACED_subjects.name,
-      subjectCode: REPLACED_subjects.code,
-      termName: REPLACED_academicTerms.name,
+      id: schema.teacherClassAssignments.id,
+      className: schema.classes.name,
+      classLevel: schema.classes.level,
+      subjectName: schema.subjects.name,
+      subjectCode: schema.subjects.code,
+      termName: schema.academicTerms.name,
     })
-      .from(REPLACED_teacherClassAssignments)
-      .innerJoin(REPLACED_classes, eq(REPLACED_teacherClassAssignments.classId, REPLACED_classes.id))
-      .innerJoin(REPLACED_subjects, eq(REPLACED_teacherClassAssignments.subjectId, REPLACED_subjects.id))
-      .leftJoin(REPLACED_academicTerms, eq(REPLACED_teacherClassAssignments.termId, REPLACED_academicTerms.id))
+      .from(schema.teacherClassAssignments)
+      .innerJoin(schema.classes, eq(schema.teacherClassAssignments.classId, schema.classes.id))
+      .innerJoin(schema.subjects, eq(schema.teacherClassAssignments.subjectId, schema.subjects.id))
+      .leftJoin(schema.academicTerms, eq(schema.teacherClassAssignments.termId, schema.academicTerms.id))
       .where(and(
-        eq(REPLACED_teacherClassAssignments.teacherId, teacherId),
-        eq(REPLACED_teacherClassAssignments.isActive, true)
+        eq(schema.teacherClassAssignments.teacherId, teacherId),
+        eq(schema.teacherClassAssignments.isActive, true)
       ))
-      .orderBy(REPLACED_classes.name, REPLACED_subjects.name);
+      .orderBy(schema.classes.name, schema.subjects.name);
 
     const timetableData = await this.db.select({
-      id: REPLACED_timetable.id,
-      dayOfWeek: REPLACED_timetable.dayOfWeek,
-      startTime: REPLACED_timetable.startTime,
-      endTime: REPLACED_timetable.endTime,
-      location: REPLACED_timetable.location,
-      className: REPLACED_classes.name,
-      subjectName: REPLACED_subjects.name,
+      id: schema.timetable.id,
+      dayOfWeek: schema.timetable.dayOfWeek,
+      startTime: schema.timetable.startTime,
+      endTime: schema.timetable.endTime,
+      location: schema.timetable.location,
+      className: schema.classes.name,
+      subjectName: schema.subjects.name,
     })
-      .from(REPLACED_timetable)
-      .innerJoin(REPLACED_classes, eq(REPLACED_timetable.classId, REPLACED_classes.id))
-      .innerJoin(REPLACED_subjects, eq(REPLACED_timetable.subjectId, REPLACED_subjects.id))
+      .from(schema.timetable)
+      .innerJoin(schema.classes, eq(schema.timetable.classId, schema.classes.id))
+      .innerJoin(schema.subjects, eq(schema.timetable.subjectId, schema.subjects.id))
       .where(and(
-        eq(REPLACED_timetable.teacherId, teacherId),
-        eq(REPLACED_timetable.isActive, true)
+        eq(schema.timetable.teacherId, teacherId),
+        eq(schema.timetable.isActive, true)
       ))
-      .orderBy(REPLACED_timetable.dayOfWeek, REPLACED_timetable.startTime);
+      .orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
 
     return {
       profile,
@@ -4145,7 +4144,7 @@ export class DatabaseStorage implements IStorage {
   // Manual grading task queue
   async createGradingTask(task: InsertGradingTask): Promise<GradingTask> {
     try {
-      const result = await this.db.insert(REPLACED_gradingTasks).values(task).returning();
+      const result = await this.db.insert(schema.gradingTasks).values(task).returning();
       return result[0];
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
@@ -4157,13 +4156,13 @@ export class DatabaseStorage implements IStorage {
 
   async assignGradingTask(taskId: number, teacherId: string): Promise<GradingTask | undefined> {
     try {
-      const result = await this.db.update(REPLACED_gradingTasks)
+      const result = await this.db.update(schema.gradingTasks)
         .set({
           assignedTeacherId: teacherId,
           assignedAt: new Date(),
           status: 'in_progress'
         })
-        .where(eq(REPLACED_gradingTasks.id, taskId))
+        .where(eq(schema.gradingTasks.id, taskId))
         .returning();
       return result[0];
     } catch (error: any) {
@@ -4176,14 +4175,14 @@ export class DatabaseStorage implements IStorage {
 
   async getGradingTasksByTeacher(teacherId: string, status?: string): Promise<GradingTask[]> {
     try {
-      let query = this.db.select().from(REPLACED_gradingTasks)
-        .where(eq(REPLACED_gradingTasks.assignedTeacherId, teacherId))
-        .orderBy(desc(REPLACED_gradingTasks.priority), asc(REPLACED_gradingTasks.createdAt));
+      let query = this.db.select().from(schema.gradingTasks)
+        .where(eq(schema.gradingTasks.assignedTeacherId, teacherId))
+        .orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
 
       if (status) {
         query = query.where(and(
-          eq(REPLACED_gradingTasks.assignedTeacherId, teacherId),
-          eq(REPLACED_gradingTasks.status, status)
+          eq(schema.gradingTasks.assignedTeacherId, teacherId),
+          eq(schema.gradingTasks.status, status)
         ));
       }
       return await query;
@@ -4197,9 +4196,9 @@ export class DatabaseStorage implements IStorage {
 
   async getGradingTasksBySession(sessionId: number): Promise<GradingTask[]> {
     try {
-      return await this.db.select().from(REPLACED_gradingTasks)
-        .where(eq(REPLACED_gradingTasks.sessionId, sessionId))
-        .orderBy(desc(REPLACED_gradingTasks.priority), asc(REPLACED_gradingTasks.createdAt));
+      return await this.db.select().from(schema.gradingTasks)
+        .where(eq(schema.gradingTasks.sessionId, sessionId))
+        .orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
         return [];
@@ -4214,9 +4213,9 @@ export class DatabaseStorage implements IStorage {
       if (completedAt) {
         updateData.completedAt = completedAt;
       }
-      const result = await this.db.update(REPLACED_gradingTasks)
+      const result = await this.db.update(schema.gradingTasks)
         .set(updateData)
-        .where(eq(REPLACED_gradingTasks.id, taskId))
+        .where(eq(schema.gradingTasks.id, taskId))
         .returning();
       return result[0];
     } catch (error: any) {
@@ -4231,8 +4230,8 @@ export class DatabaseStorage implements IStorage {
     try {
       return await this.db.transaction(async (tx: any) => {
         // Get the task
-        const tasks = await tx.select().from(REPLACED_gradingTasks)
-          .where(eq(REPLACED_gradingTasks.id, taskId))
+        const tasks = await tx.select().from(schema.gradingTasks)
+          .where(eq(schema.gradingTasks.id, taskId))
           .limit(1);
 
         if (tasks.length === 0) {
@@ -4241,23 +4240,23 @@ export class DatabaseStorage implements IStorage {
         const task = tasks[0];
 
         // Update the student answer
-        const answers = await tx.update(REPLACED_studentAnswers)
+        const answers = await tx.update(schema.studentAnswers)
           .set({
             pointsEarned,
             feedbackText,
             autoScored: false,
             manualOverride: true
           })
-          .where(eq(REPLACED_studentAnswers.id, task.answerId))
+          .where(eq(schema.studentAnswers.id, task.answerId))
           .returning();
 
         // Mark task as completed
-        const updatedTasks = await tx.update(REPLACED_gradingTasks)
+        const updatedTasks = await tx.update(schema.gradingTasks)
           .set({
             status: 'completed',
             completedAt: new Date()
           })
-          .where(eq(REPLACED_gradingTasks.id, taskId))
+          .where(eq(schema.gradingTasks.id, taskId))
           .returning();
 
         return {
@@ -4275,7 +4274,7 @@ export class DatabaseStorage implements IStorage {
 
   // Audit logging implementation
   async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
-    const result = await this.db.insert(REPLACED_auditLogs).values(log).returning();
+    const result = await this.db.insert(schema.auditLogs).values(log).returning();
     return result[0];
   }
   async getAuditLogs(filters?: {
@@ -4290,26 +4289,26 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
 
     if (filters?.userId) {
-      conditions.push(eq(REPLACED_auditLogs.userId, filters.userId));
+      conditions.push(eq(schema.auditLogs.userId, filters.userId));
     }
     if (filters?.entityType) {
-      conditions.push(eq(REPLACED_auditLogs.entityType, filters.entityType));
+      conditions.push(eq(schema.auditLogs.entityType, filters.entityType));
     }
     if (filters?.entityId) {
-      conditions.push(eq(REPLACED_auditLogs.entityId, filters.entityId));
+      conditions.push(eq(schema.auditLogs.entityId, filters.entityId));
     }
     if (filters?.action) {
-      conditions.push(eq(REPLACED_auditLogs.action, filters.action));
+      conditions.push(eq(schema.auditLogs.action, filters.action));
     }
     if (filters?.startDate) {
-      conditions.push(dsql`${REPLACED_auditLogs.createdAt} >= ${filters.startDate}`);
+      conditions.push(dsql`${schema.auditLogs.createdAt} >= ${filters.startDate}`);
     }
     if (filters?.endDate) {
-      conditions.push(dsql`${REPLACED_auditLogs.createdAt} <= ${filters.endDate}`);
+      conditions.push(dsql`${schema.auditLogs.createdAt} <= ${filters.endDate}`);
     }
     let query = this.db.select()
-      .from(REPLACED_auditLogs)
-      .orderBy(desc(REPLACED_auditLogs.createdAt));
+      .from(schema.auditLogs)
+      .orderBy(desc(schema.auditLogs.createdAt));
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
@@ -4321,51 +4320,51 @@ export class DatabaseStorage implements IStorage {
   }
   async getAuditLogsByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
     return await this.db.select()
-      .from(REPLACED_auditLogs)
+      .from(schema.auditLogs)
       .where(and(
-        eq(REPLACED_auditLogs.entityType, entityType),
-        eq(REPLACED_auditLogs.entityId, entityId)
+        eq(schema.auditLogs.entityType, entityType),
+        eq(schema.auditLogs.entityId, entityId)
       ))
-      .orderBy(desc(REPLACED_auditLogs.createdAt));
+      .orderBy(desc(schema.auditLogs.createdAt));
   }
   // Notification management implementation
   async createNotification(notification: InsertNotification): Promise<Notification> {
-    const result = await this.db.insert(REPLACED_notifications).values(notification).returning();
+    const result = await this.db.insert(schema.notifications).values(notification).returning();
     return result[0];
   }
   async getNotificationsByUserId(userId: string): Promise<Notification[]> {
     return await this.db.select()
-      .from(REPLACED_notifications)
-      .where(eq(REPLACED_notifications.userId, userId))
-      .orderBy(desc(REPLACED_notifications.createdAt));
+      .from(schema.notifications)
+      .where(eq(schema.notifications.userId, userId))
+      .orderBy(desc(schema.notifications.createdAt));
   }
   async getUnreadNotificationCount(userId: string): Promise<number> {
     const result = await this.db.select({ count: dsql<number>`count(*)::int` })
-      .from(REPLACED_notifications)
+      .from(schema.notifications)
       .where(and(
-        eq(REPLACED_notifications.userId, userId),
-        eq(REPLACED_notifications.isRead, false)
+        eq(schema.notifications.userId, userId),
+        eq(schema.notifications.isRead, false)
       ));
     return result[0]?.count || 0;
   }
   async markNotificationAsRead(notificationId: number): Promise<Notification | undefined> {
-    const result = await this.db.update(REPLACED_notifications)
+    const result = await this.db.update(schema.notifications)
       .set({ isRead: true })
-      .where(eq(REPLACED_notifications.id, notificationId))
+      .where(eq(schema.notifications.id, notificationId))
       .returning();
     return result[0];
   }
   async markAllNotificationsAsRead(userId: string): Promise<void> {
-    await this.db.update(REPLACED_notifications)
+    await this.db.update(schema.notifications)
       .set({ isRead: true })
       .where(and(
-        eq(REPLACED_notifications.userId, userId),
-        eq(REPLACED_notifications.isRead, false)
+        eq(schema.notifications.userId, userId),
+        eq(schema.notifications.isRead, false)
       ));
   }
   // Password reset attempt tracking for rate limiting
   async createPasswordResetAttempt(identifier: string, ipAddress: string, success: boolean): Promise<any> {
-    const result = await this.db.insert(REPLACED_passwordResetAttempts).values({
+    const result = await this.db.insert(schema.passwordResetAttempts).values({
       identifier,
       ipAddress,
       success,
@@ -4375,38 +4374,38 @@ export class DatabaseStorage implements IStorage {
   async getRecentPasswordResetAttempts(identifier: string, minutesAgo: number): Promise<any[]> {
     const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1000);
     return await this.db.select()
-      .from(REPLACED_passwordResetAttempts)
+      .from(schema.passwordResetAttempts)
       .where(and(
-        eq(REPLACED_passwordResetAttempts.identifier, identifier),
-        dsql`${REPLACED_passwordResetAttempts.attemptedAt} > ${cutoffTime}`
+        eq(schema.passwordResetAttempts.identifier, identifier),
+        dsql`${schema.passwordResetAttempts.attemptedAt} > ${cutoffTime}`
       ))
-      .orderBy(desc(REPLACED_passwordResetAttempts.attemptedAt));
+      .orderBy(desc(schema.passwordResetAttempts.attemptedAt));
   }
   async deleteOldPasswordResetAttempts(hoursAgo: number): Promise<boolean> {
     const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
-    await this.db.delete(REPLACED_passwordResetAttempts)
-      .where(dsql`${REPLACED_passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
+    await this.db.delete(schema.passwordResetAttempts)
+      .where(dsql`${schema.passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
     return true;
   }
   // Account security methods
   async lockAccount(userId: string, lockUntil: Date): Promise<boolean> {
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({ accountLockedUntil: lockUntil })
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
     return result.length > 0;
   }
   async unlockAccount(userId: string): Promise<boolean> {
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({ accountLockedUntil: null })
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
     return result.length > 0;
   }
   async isAccountLocked(userId: string): Promise<boolean> {
-    const user = await this.db.select({ accountLockedUntil: REPLACED_users.accountLockedUntil })
-      .from(REPLACED_users)
-      .where(eq(REPLACED_users.id, userId))
+    const user = await this.db.select({ accountLockedUntil: schema.users.accountLockedUntil })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
       .limit(1);
 
     if (!user[0] || !user[0].accountLockedUntil) {
@@ -4416,12 +4415,12 @@ export class DatabaseStorage implements IStorage {
   }
   // Admin recovery powers
   async adminResetUserPassword(userId: string, newPasswordHash: string, resetBy: string, forceChange: boolean): Promise<boolean> {
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({
         passwordHash: newPasswordHash,
         mustChangePassword: forceChange
       })
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
 
     if (result.length > 0) {
@@ -4441,9 +4440,9 @@ export class DatabaseStorage implements IStorage {
   }
   async updateRecoveryEmail(userId: string, recoveryEmail: string, updatedBy: string): Promise<boolean> {
     const oldUser = await this.getUser(userId);
-    const result = await this.db.update(REPLACED_users)
+    const result = await this.db.update(schema.users)
       .set({ recoveryEmail })
-      .where(eq(REPLACED_users.id, userId))
+      .where(eq(schema.users.id, userId))
       .returning();
 
     if (result.length > 0) {
@@ -4467,12 +4466,12 @@ export class DatabaseStorage implements IStorage {
     const nowISO = now.toISOString();
     return await this.db
       .select()
-      .from(REPLACED_exams)
+      .from(schema.exams)
       .where(
         and(
-          eq(REPLACED_exams.isPublished, false),
-          dsql`${REPLACED_exams.startTime} <= ${nowISO}`,
-          eq(REPLACED_exams.timerMode, 'global') // Only publish global timer exams automatically
+          eq(schema.exams.isPublished, false),
+          dsql`${schema.exams.startTime} <= ${nowISO}`,
+          eq(schema.exams.timerMode, 'global') // Only publish global timer exams automatically
         )
       )
       .limit(50);
@@ -4481,36 +4480,36 @@ export class DatabaseStorage implements IStorage {
   async getSetting(key: string): Promise<any | undefined> {
     const result = await this.db
       .select()
-      .from(REPLACED_settings)
-      .where(eq(REPLACED_settings.key, key))
+      .from(schema.settings)
+      .where(eq(schema.settings.key, key))
       .limit(1);
     return result[0];
   }
   async getAllSettings(): Promise<any[]> {
     return await this.db
       .select()
-      .from(REPLACED_settings)
-      .orderBy(asc(REPLACED_settings.key));
+      .from(schema.settings)
+      .orderBy(asc(schema.settings.key));
   }
   async createSetting(setting: any): Promise<any> {
     const result = await this.db
-      .insert(REPLACED_settings)
+      .insert(schema.settings)
       .values(setting)
       .returning();
     return result[0];
   }
   async updateSetting(key: string, value: string, updatedBy: string): Promise<any | undefined> {
     const result = await this.db
-      .update(REPLACED_settings)
+      .update(schema.settings)
       .set({ value, updatedBy, updatedAt: new Date() })
-      .where(eq(REPLACED_settings.key, key))
+      .where(eq(schema.settings.key, key))
       .returning();
     return result[0];
   }
   async deleteSetting(key: string): Promise<boolean> {
     const result = await this.db
-      .delete(REPLACED_settings)
-      .where(eq(REPLACED_settings.key, key))
+      .delete(schema.settings)
+      .where(eq(schema.settings.key, key))
       .returning();
     return result.length > 0;
   }
@@ -4518,16 +4517,16 @@ export class DatabaseStorage implements IStorage {
   async getNextSequence(classCode: string, year: string): Promise<number> {
     // Use PostgreSQL's UPSERT with atomic increment to prevent race conditions
     const result = await this.db
-      .insert(REPLACED_counters)
+      .insert(schema.counters)
       .values({
         classCode,
         year,
         sequence: 1
       })
       .onConflictDoUpdate({
-        target: [REPLACED_counters.classCode, REPLACED_counters.year],
+        target: [schema.counters.classCode, schema.counters.year],
         set: {
-          sequence: dsql`${REPLACED_counters.sequence} + 1`,
+          sequence: dsql`${schema.counters.sequence} + 1`,
           updatedAt: new Date()
         }
       })
@@ -4538,11 +4537,11 @@ export class DatabaseStorage implements IStorage {
   async getCounter(classCode: string, year: string): Promise<any | undefined> {
     const result = await this.db
       .select()
-      .from(REPLACED_counters)
+      .from(schema.counters)
       .where(
         and(
-          eq(REPLACED_counters.classCode, classCode),
-          eq(REPLACED_counters.year, year)
+          eq(schema.counters.classCode, classCode),
+          eq(schema.counters.year, year)
         )
       )
       .limit(1);
@@ -4550,87 +4549,87 @@ export class DatabaseStorage implements IStorage {
   }
   async resetCounter(classCode: string, year: string): Promise<boolean> {
     const result = await this.db
-      .update(REPLACED_counters)
+      .update(schema.counters)
       .set({ sequence: 0, updatedAt: new Date() })
       .where(
         and(
-          eq(REPLACED_counters.classCode, classCode),
-          eq(REPLACED_counters.year, year)
+          eq(schema.counters.classCode, classCode),
+          eq(schema.counters.year, year)
         )
       )
       .returning();
     return result.length > 0;
   }
   // Job Vacancy System implementations
-  async createVacancy(vacancy: REPLACED_InsertVacancy): Promise<REPLACED_Vacancy> {
-    const result = await this.db.insert(REPLACED_vacancies).values(vacancy).returning();
+  async createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy> {
+    const result = await this.db.insert(schema.vacancies).values(vacancy).returning();
     return result[0];
   }
-  async getVacancy(id: string): Promise<REPLACED_Vacancy | undefined> {
-    const result = await this.db.select().from(REPLACED_vacancies).where(eq(REPLACED_vacancies.id, id)).limit(1);
+  async getVacancy(id: string): Promise<schema.Vacancy | undefined> {
+    const result = await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.id, id)).limit(1);
     return result[0];
   }
-  async getAllVacancies(status?: string): Promise<REPLACED_Vacancy[]> {
+  async getAllVacancies(status?: string): Promise<schema.Vacancy[]> {
     if (status) {
-      return await this.db.select().from(REPLACED_vacancies).where(eq(REPLACED_vacancies.status, status as "open" | "closed" | "filled")).orderBy(desc(REPLACED_vacancies.createdAt));
+      return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status as "open" | "closed" | "filled")).orderBy(desc(schema.vacancies.createdAt));
     }
-    return await this.db.select().from(REPLACED_vacancies).orderBy(desc(REPLACED_vacancies.createdAt));
+    return await this.db.select().from(schema.vacancies).orderBy(desc(schema.vacancies.createdAt));
   }
-  async updateVacancy(id: string, updates: Partial<REPLACED_InsertVacancy>): Promise<REPLACED_Vacancy | undefined> {
+  async updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined> {
     const result = await this.db
-      .update(REPLACED_vacancies)
+      .update(schema.vacancies)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(REPLACED_vacancies.id, id))
+      .where(eq(schema.vacancies.id, id))
       .returning();
     return result[0];
   }
   async deleteVacancy(id: string): Promise<boolean> {
-    const result = await this.db.delete(REPLACED_vacancies).where(eq(REPLACED_vacancies.id, id)).returning();
+    const result = await this.db.delete(schema.vacancies).where(eq(schema.vacancies.id, id)).returning();
     return result.length > 0;
   }
   // Teacher Applications implementations
-  async createTeacherApplication(application: REPLACED_InsertTeacherApplication): Promise<REPLACED_TeacherApplication> {
-    const result = await this.db.insert(REPLACED_teacherApplications).values(application).returning();
+  async createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication> {
+    const result = await this.db.insert(schema.teacherApplications).values(application).returning();
     return result[0];
   }
-  async getTeacherApplication(id: string): Promise<REPLACED_TeacherApplication | undefined> {
-    const result = await this.db.select().from(REPLACED_teacherApplications).where(eq(REPLACED_teacherApplications.id, id)).limit(1);
+  async getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined> {
+    const result = await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.id, id)).limit(1);
     return result[0];
   }
-  async getAllTeacherApplications(status?: string): Promise<REPLACED_TeacherApplication[]> {
+  async getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]> {
     if (status) {
-      return await this.db.select().from(REPLACED_teacherApplications).where(eq(REPLACED_teacherApplications.status, status as "pending" | "approved" | "rejected")).orderBy(desc(REPLACED_teacherApplications.dateApplied));
+      return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status as "pending" | "approved" | "rejected")).orderBy(desc(schema.teacherApplications.dateApplied));
     }
-    return await this.db.select().from(REPLACED_teacherApplications).orderBy(desc(REPLACED_teacherApplications.dateApplied));
+    return await this.db.select().from(schema.teacherApplications).orderBy(desc(schema.teacherApplications.dateApplied));
   }
-  async updateTeacherApplication(id: string, updates: Partial<REPLACED_TeacherApplication>): Promise<REPLACED_TeacherApplication | undefined> {
+  async updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined> {
     const result = await this.db
-      .update(REPLACED_teacherApplications)
+      .update(schema.teacherApplications)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(REPLACED_teacherApplications.id, id))
+      .where(eq(schema.teacherApplications.id, id))
       .returning();
     return result[0];
   }
-  async approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: REPLACED_TeacherApplication; approvedTeacher: REPLACED_ApprovedTeacher }> {
+  async approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }> {
     const application = await this.getTeacherApplication(applicationId);
     if (!application) {
       throw new Error('Application not found');
     }
     // Update application status
     const updatedApplication = await this.db
-      .update(REPLACED_teacherApplications)
+      .update(schema.teacherApplications)
       .set({
         status: 'approved',
         reviewedBy: approvedBy,
         reviewedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(REPLACED_teacherApplications.id, applicationId))
+      .where(eq(schema.teacherApplications.id, applicationId))
       .returning();
 
     // Add to approved teachers
     const approvedTeacher = await this.db
-      .insert(REPLACED_approvedTeachers)
+      .insert(schema.approvedTeachers)
       .values({
         applicationId: applicationId,
         googleEmail: application.googleEmail,
@@ -4645,9 +4644,9 @@ export class DatabaseStorage implements IStorage {
       approvedTeacher: approvedTeacher[0],
     };
   }
-  async rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<REPLACED_TeacherApplication | undefined> {
+  async rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined> {
     const result = await this.db
-      .update(REPLACED_teacherApplications)
+      .update(schema.teacherApplications)
       .set({
         status: 'rejected',
         reviewedBy: reviewedBy,
@@ -4655,20 +4654,20 @@ export class DatabaseStorage implements IStorage {
         rejectionReason: reason,
         updatedAt: new Date(),
       })
-      .where(eq(REPLACED_teacherApplications.id, applicationId))
+      .where(eq(schema.teacherApplications.id, applicationId))
       .returning();
     return result[0];
   }
   // Approved Teachers implementations
-  async getApprovedTeacherByEmail(email: string): Promise<REPLACED_ApprovedTeacher | undefined> {
-    const result = await this.db.select().from(REPLACED_approvedTeachers).where(eq(REPLACED_approvedTeachers.googleEmail, email)).limit(1);
+  async getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined> {
+    const result = await this.db.select().from(schema.approvedTeachers).where(eq(schema.approvedTeachers.googleEmail, email)).limit(1);
     return result[0];
   }
-  async getAllApprovedTeachers(): Promise<REPLACED_ApprovedTeacher[]> {
-    return await this.db.select().from(REPLACED_approvedTeachers).orderBy(desc(REPLACED_approvedTeachers.dateApproved));
+  async getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]> {
+    return await this.db.select().from(schema.approvedTeachers).orderBy(desc(schema.approvedTeachers.dateApproved));
   }
   async deleteApprovedTeacher(id: string): Promise<boolean> {
-    const result = await this.db.delete(REPLACED_approvedTeachers).where(eq(REPLACED_approvedTeachers.id, id)).returning();
+    const result = await this.db.delete(schema.approvedTeachers).where(eq(schema.approvedTeachers.id, id)).returning();
     return result.length > 0;
   }
   // Super Admin implementations
@@ -4681,7 +4680,7 @@ export class DatabaseStorage implements IStorage {
     const [admins, users, exams] = await Promise.all([
       this.getUsersByRole(1), // Admins have roleId 1
       this.getAllUsers(),
-      this.db.select().from(REPLACED_exams),
+      this.db.select().from(schema.exams),
     ]);
 
     // Count active sessions (users logged in recently, within last hour)
@@ -4695,26 +4694,26 @@ export class DatabaseStorage implements IStorage {
       totalExams: exams.length,
     };
   }
-  async getSystemSettings(): Promise<REPLACED_SystemSettings | undefined> {
-    const result = await this.db.select().from(REPLACED_systemSettings).limit(1);
+  async getSystemSettings(): Promise<schema.SystemSettings | undefined> {
+    const result = await this.db.select().from(schema.systemSettings).limit(1);
     return result[0];
   }
-  async updateSystemSettings(settings: Partial<REPLACED_InsertSystemSettings>): Promise<REPLACED_SystemSettings> {
+  async updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings> {
     // Get existing settings
     const existing = await this.getSystemSettings();
     
     if (existing) {
       // Update existing settings
       const result = await this.db
-        .update(REPLACED_systemSettings)
+        .update(schema.systemSettings)
         .set({ ...settings, updatedAt: new Date() })
-        .where(eq(REPLACED_systemSettings.id, existing.id))
+        .where(eq(schema.systemSettings.id, existing.id))
         .returning();
       return result[0];
     } else {
       // Create new settings if none exist
       const result = await this.db
-        .insert(REPLACED_systemSettings)
+        .insert(schema.systemSettings)
         .values(settings)
         .returning();
       return result[0];
