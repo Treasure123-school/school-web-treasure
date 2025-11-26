@@ -20,6 +20,7 @@ import * as pgSchema from "@shared/schema.pg";
 type SqliteDb = ReturnType<typeof drizzleSqlite>;
 type PgDb = ReturnType<typeof drizzlePg>;
 type DatabaseInstance = SqliteDb | PgDb;
+type NeonClient = ReturnType<typeof neon>;
 
 // Configuration
 const isProduction = process.env.NODE_ENV === 'production';
@@ -32,6 +33,7 @@ export const isSqlite = !isPostgres;
 // Database instance
 let db: DatabaseInstance | null = null;
 let sqlite: Database.Database | null = null;
+let pgClient: NeonClient | null = null;
 
 /**
  * Get the appropriate schema based on database type
@@ -51,8 +53,8 @@ export function initializeDatabase(): DatabaseInstance {
   if (isPostgres && databaseUrl) {
     // PostgreSQL (Neon) for production
     console.log('🐘 Initializing PostgreSQL database (Neon)...');
-    const sql = neon(databaseUrl);
-    db = drizzlePg(sql, { schema: pgSchema });
+    pgClient = neon(databaseUrl);
+    db = drizzlePg(pgClient, { schema: pgSchema });
     console.log('✅ PostgreSQL database initialized (Neon)');
   } else {
     // SQLite for development
@@ -91,6 +93,13 @@ export function getSqliteConnection(): Database.Database | null {
 }
 
 /**
+ * Get the raw PostgreSQL client (only available in production with DATABASE_URL)
+ */
+export function getPgClient(): NeonClient | null {
+  return pgClient;
+}
+
+/**
  * Close database connections
  */
 export function closeDatabase(): void {
@@ -98,6 +107,7 @@ export function closeDatabase(): void {
     sqlite.close();
     sqlite = null;
   }
+  pgClient = null;
   db = null;
 }
 

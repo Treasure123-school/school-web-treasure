@@ -2883,7 +2883,10 @@ export class DatabaseStorage implements IStorage {
   // Manual Grading System Methods
   async getGradingTasks(teacherId: string, status?: string): Promise<any[]> {
     try {
-      // Get exam sessions that need manual grading for this teacher's exams
+      // Use SQLite raw query for development
+      const { sqlite: sqliteConn } = initializeDatabase();
+      if (!sqliteConn) return [];
+      
       let query = `
         SELECT
           sa.id,
@@ -2909,13 +2912,10 @@ export class DatabaseStorage implements IStorage {
         JOIN exam_questions eq ON sa.question_id = eq.id
         JOIN users u ON es.student_id = u.id
         LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
-        WHERE e.created_by = $1
+        WHERE e.created_by = ?
         AND eq.question_type IN ('text', 'essay')
-        AND es.is_completed = true
+        AND es.is_completed = 1
       `;
-
-      const pgClient = await initializeDatabase().pg;
-      const params = [teacherId];
 
       if (status && status !== 'all') {
         if (status === 'pending') {
@@ -2927,39 +2927,47 @@ export class DatabaseStorage implements IStorage {
 
       query += ' ORDER BY es.submitted_at DESC';
 
-      const result = await pgClient.unsafe(query, params);
-      return result as any[];
+      const stmt = sqliteConn.prepare(query);
+      return stmt.all(teacherId) as any[];
     } catch (error) {
-      throw error;
+      console.error('Error fetching grading tasks:', error);
+      return [];
     }
   }
 
   async submitManualGrade(gradeData: { taskId: number; score: number; comment: string; graderId: string }): Promise<any> {
     try {
       const { taskId, score, comment, graderId } = gradeData;
+      const { sqlite: sqliteConn } = initializeDatabase();
+      if (!sqliteConn) throw new Error('Database not available');
 
-      // Insert or update manual score
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient`
-        INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
-        VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
-        ON CONFLICT (answer_id)
-        DO UPDATE SET
-          awarded_marks = EXCLUDED.awarded_marks,
-          comment = EXCLUDED.comment,
-          graded_at = EXCLUDED.graded_at,
-          grader_id = EXCLUDED.grader_id
-        RETURNING *
-      `;
+      const now = new Date().toISOString();
+      
+      // Check if manual score exists
+      const existing = sqliteConn.prepare('SELECT id FROM manual_scores WHERE answer_id = ?').get(taskId);
+      
+      let result;
+      if (existing) {
+        // Update existing
+        sqliteConn.prepare(`
+          UPDATE manual_scores 
+          SET awarded_marks = ?, comment = ?, graded_at = ?, grader_id = ?
+          WHERE answer_id = ?
+        `).run(score, comment, now, graderId, taskId);
+        result = sqliteConn.prepare('SELECT * FROM manual_scores WHERE answer_id = ?').get(taskId);
+      } else {
+        // Insert new
+        sqliteConn.prepare(`
+          INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(taskId, graderId, score, comment, now);
+        result = sqliteConn.prepare('SELECT * FROM manual_scores WHERE answer_id = ?').get(taskId);
+      }
 
       // Update the student answer with the manual score
-      await pgClient`
-        UPDATE student_answers
-        SET points_earned = ${score}
-        WHERE id = ${taskId}
-      `;
+      sqliteConn.prepare('UPDATE student_answers SET points_earned = ? WHERE id = ?').run(score, taskId);
 
-      return result[0] as any;
+      return result as any;
     } catch (error) {
       throw error;
     }
@@ -2967,8 +2975,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllExamSessions(): Promise<any[]> {
     try {
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient`
+      const { sqlite: sqliteConn } = initializeDatabase();
+      if (!sqliteConn) return [];
+      
+      const result = sqliteConn.prepare(`
         SELECT
           es.*,
           e.name as exam_title,
@@ -2988,16 +2998,20 @@ export class DatabaseStorage implements IStorage {
         JOIN exams e ON es.exam_id = e.id
         JOIN users u ON es.student_id = u.id
         ORDER BY es.started_at DESC
-      `;
+      `).all();
 
       return result as any[];
     } catch (error) {
-      throw error;
+      console.error('Error fetching exam sessions:', error);
+      return [];
     }
   }
 
   async getExamReports(filters: { subjectId?: number; classId?: number }): Promise<any[]> {
     try {
+      const { sqlite: sqliteConn } = initializeDatabase();
+      if (!sqliteConn) return [];
+      
       let query = `
         SELECT
           e.id as exam_id,
@@ -3030,39 +3044,39 @@ export class DatabaseStorage implements IStorage {
         JOIN subjects s ON e.subject_id = s.id
         LEFT JOIN exam_sessions es ON e.id = es.exam_id
         LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
-        WHERE e.is_published = true
+        WHERE e.is_published = 1
       `;
 
       const params: any[] = [];
-      let paramIndex = 1;
 
       if (filters.classId) {
-        query += ` AND e.class_id = $${paramIndex}`;
+        query += ` AND e.class_id = ?`;
         params.push(filters.classId);
-        paramIndex++;
       }
       if (filters.subjectId) {
-        query += ` AND e.subject_id = $${paramIndex}`;
+        query += ` AND e.subject_id = ?`;
         params.push(filters.subjectId);
-        paramIndex++;
       }
       query += `
         GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
         ORDER BY e.date DESC
       `;
 
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient.unsafe(query, params);
-      return result as any[];
+      const stmt = sqliteConn.prepare(query);
+      return stmt.all(...params) as any[];
     } catch (error) {
-      throw error;
+      console.error('Error fetching exam reports:', error);
+      return [];
     }
   }
 
   async getExamStudentReports(examId: number): Promise<any[]> {
     try {
-      const pgClient = await initializeDatabase().pg;
-      const result = await pgClient`
+      const { sqlite: sqliteConn } = initializeDatabase();
+      if (!sqliteConn) return [];
+      
+      // SQLite version - uses different syntax for time calculation
+      const result = sqliteConn.prepare(`
         SELECT
           u.id as student_id,
           u.first_name || ' ' || u.last_name as student_name,
@@ -3076,27 +3090,28 @@ export class DatabaseStorage implements IStorage {
             WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
             ELSE 'F'
           END as grade,
-          ROW_NUMBER() OVER (ORDER BY er.marks_obtained DESC) as rank,
-          EXTRACT(EPOCH FROM (es.submitted_at - es.started_at)) as time_spent,
+          (SELECT COUNT(*) + 1 FROM exam_results er2 WHERE er2.exam_id = e.id AND er2.marks_obtained > COALESCE(er.marks_obtained, 0)) as rank,
+          CAST((julianday(es.submitted_at) - julianday(es.started_at)) * 86400 AS INTEGER) as time_spent,
           es.submitted_at,
           er.auto_scored,
           CASE WHEN EXISTS (
             SELECT 1 FROM manual_scores ms
             JOIN student_answers sa ON ms.answer_id = sa.id
             WHERE sa.session_id = es.id
-          ) THEN true ELSE false END as manual_scored
+          ) THEN 1 ELSE 0 END as manual_scored
         FROM users u
         JOIN students st ON u.id = st.id
         JOIN exam_sessions es ON u.id = es.student_id
         JOIN exams e ON es.exam_id = e.id
         LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
-        WHERE e.id = ${examId} AND es.is_completed = true
+        WHERE e.id = ? AND es.is_completed = 1
         ORDER BY er.marks_obtained DESC
-      `;
+      `).all(examId);
 
       return result as any[];
     } catch (error) {
-      throw error;
+      console.error('Error fetching exam student reports:', error);
+      return [];
     }
   }
 
