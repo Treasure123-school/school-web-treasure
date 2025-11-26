@@ -31,16 +31,66 @@ const hasCloudinaryConfig = !!(
 // Use Cloudinary in production when configured
 export const useCloudinary = isProduction && hasCloudinaryConfig;
 
-// Configure Cloudinary if credentials are available
-if (hasCloudinaryConfig) {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true
-  });
-  console.log('☁️ Cloudinary configured successfully');
+// Storage initialization status flag
+let storageInitialized = false;
+
+/**
+ * Initialize and log storage status
+ */
+export function initializeStorage(): void {
+  if (storageInitialized) return;
+  
+  console.log('');
+  console.log('┌─────────────────────────────────────────────────────┐');
+  console.log('│            FILE STORAGE CONFIGURATION                │');
+  console.log('├─────────────────────────────────────────────────────┤');
+  
+  if (isProduction) {
+    if (hasCloudinaryConfig) {
+      // Configure Cloudinary for production
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+        secure: true
+      });
+      console.log('│  Environment: PRODUCTION                            │');
+      console.log('│  Storage: CLOUDINARY CDN                            │');
+      console.log(`│  Cloud Name: ${(process.env.CLOUDINARY_CLOUD_NAME || '').padEnd(36)}│`);
+      console.log('│  Status: ✅ CONNECTED                               │');
+    } else {
+      console.log('│  Environment: PRODUCTION                            │');
+      console.log('│  Storage: LOCAL (⚠️ Cloudinary not configured)      │');
+      console.log('│  Warning: Files will not persist on restart!        │');
+      console.log('│  Status: ⚠️ FALLBACK MODE                           │');
+    }
+  } else {
+    console.log('│  Environment: DEVELOPMENT                           │');
+    console.log('│  Storage: LOCAL FILESYSTEM                          │');
+    console.log('│  Location: ./server/uploads/                        │');
+    console.log('│  Status: ✅ READY                                    │');
+    
+    if (hasCloudinaryConfig) {
+      // Configure Cloudinary even in development (for testing)
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+        secure: true
+      });
+      console.log('│  Note: Cloudinary available (set NODE_ENV=production│');
+      console.log('│        to use Cloudinary in production)             │');
+    }
+  }
+  
+  console.log('└─────────────────────────────────────────────────────┘');
+  console.log('');
+  
+  storageInitialized = true;
 }
+
+// Auto-initialize on module load
+initializeStorage();
 
 // Upload types and their Cloudinary folder mappings
 export type UploadType = 
