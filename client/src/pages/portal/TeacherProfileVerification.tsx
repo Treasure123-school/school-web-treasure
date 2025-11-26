@@ -430,7 +430,7 @@ export default function TeacherProfileVerification() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1" data-testid={`subjects-${index}`}>
-                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects : String(item.profile.subjects).split(',')).slice(0, 2).map((subject: any, idx: number) => (
+                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects : String(item.profile.subjects).split(',') as any[]).slice(0, 2).map((subject: any, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
                                   {subject}
                                 </Badge>
@@ -525,7 +525,7 @@ export default function TeacherProfileVerification() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1" data-testid={`verified-subjects-${index}`}>
-                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects : String(item.profile.subjects).split(',')).slice(0, 2).map((subject: any, idx: number) => (
+                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects : String(item.profile.subjects).split(',') as any[]).slice(0, 2).map((subject: any, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
                                   {subject}
                                 </Badge>
