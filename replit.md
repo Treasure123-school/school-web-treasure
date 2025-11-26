@@ -11,7 +11,7 @@ A comprehensive school management system with JWT authentication, dual-database 
 - 📊 40+ Database Tables with Complete Schema
 - 👥 5 Role-Based Access Levels: Super Admin, Admin, Teacher, Student, Parent
 - 📁 Cloudinary Integration for Cloud File Storage
-- 🗄️ Dual-Database Support: SQLite (dev) + PostgreSQL/Neon (prod)
+- 🗄️ PostgreSQL/Neon Database (SQLite removed for cloud compatibility)
 - 📱 Real-time Updates via Socket.IO
 - 📋 Comprehensive Exam System with Auto-Grading
 - 📚 Study Resources Management
@@ -25,10 +25,9 @@ A comprehensive school management system with JWT authentication, dual-database 
 ## Architecture
 
 ### Database Layer
-- **Development (no DATABASE_URL)**: SQLite (./server/data/app.db)
-- **Production/Cloud (DATABASE_URL set)**: PostgreSQL via Neon
-- **Auto-switching**: Uses PostgreSQL whenever DATABASE_URL is present (server/db.ts)
-- **Important**: Set DATABASE_URL on Render/Vercel to use PostgreSQL and avoid SQLite errors
+- **All Environments**: PostgreSQL via Neon (DATABASE_URL required)
+- **SQLite Support**: REMOVED (was causing deployment failures on cloud platforms)
+- **Important**: DATABASE_URL must be set for the application to start
 
 ### File Storage Layer
 - **Development**: Local filesystem (./server/uploads/)
@@ -36,8 +35,8 @@ A comprehensive school management system with JWT authentication, dual-database 
 - **Unified Interface**: server/cloudinary-service.ts
 
 ### Schema Organization
-- **SQLite Schema**: shared/schema.ts (40+ tables)
-- **PostgreSQL Schema**: shared/schema.pg.ts (PostgreSQL types)
+- **PostgreSQL Schema**: shared/schema.pg.ts (40+ tables with PostgreSQL types)
+- **Legacy SQLite Schema**: shared/schema.ts (deprecated, not used)
 - **Types**: Auto-generated from schemas using Drizzle Zod
 
 ## Environment Configuration
@@ -45,7 +44,7 @@ A comprehensive school management system with JWT authentication, dual-database 
 ### Development (Default)
 ```bash
 NODE_ENV=development
-# Database: SQLite (automatic)
+DATABASE_URL=postgresql://... # Neon PostgreSQL (REQUIRED)
 # Storage: Local filesystem
 # Optional: JWT_SECRET (uses fallback if not set)
 ```
