@@ -17,7 +17,7 @@ import { generateUsername, generatePassword, getNextUserNumber, generateStudentP
 import { generateStudentUsername, generateParentUsername, generateTeacherUsername, generateAdminUsername } from "./username-generator";
 import passport from "passport";
 import session from "express-session";
-import connectSqlite3 from "connect-sqlite3";
+import memorystore from "memorystore";
 import { and, eq, sql } from "drizzle-orm";
 import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
@@ -2115,12 +2115,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.warn('⚠️  SESSION_SECRET not set in production - using JWT_SECRET as fallback');
   }
 
-  // Configure SQLite session store for persistence
-  const SQLiteStore = connectSqlite3(session);
-  const sessionStore = new SQLiteStore({
-    db: 'sessions.db', // Store sessions in a separate SQLite database
-    dir: './server/data', // Store in server/data directory
-    table: 'sessions', // Table name for sessions
+  // Configure memory session store for Replit environment
+  const MemoryStore = memorystore(session);
+  const sessionStore = new MemoryStore({
+    checkPeriod: 86400000 // Prune expired entries every 24h
   });
 
   app.use(session({
