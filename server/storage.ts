@@ -16,7 +16,10 @@ import type {
   QuestionBank, InsertQuestionBank, QuestionBankItem, InsertQuestionBankItem, QuestionBankOption, InsertQuestionBankOption
 } from "@shared/schema";
 
-// Configure SQLite connection
+// Configure SQLite connection for development
+// Note: In production with NODE_ENV=production and DATABASE_URL set,
+// the application uses server/db.ts for PostgreSQL/Neon connection.
+// This file continues to use SQLite for local development compatibility.
 let sqlite: Database.Database | null = null;
 let db: any;
 

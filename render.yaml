@@ -5,27 +5,39 @@ services:
     region: oregon
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start
-    # IMPORTANT: This app uses local SQLite database (server/data/app.db)
-    # You MUST enable persistent disk storage in Render dashboard:
-    # 1. Go to your service settings
-    # 2. Add a persistent disk mounted at /opt/render/project/src/server/data
-    # 3. Set size to at least 1GB to store database and backups
-    # 4. File uploads are stored in server/uploads/ (also requires persistent disk)
+    # Production Configuration:
+    # - Database: Neon PostgreSQL (via DATABASE_URL)
+    # - File Storage: Cloudinary (requires CLOUDINARY_* env vars)
+    # - No persistent disk needed in production!
     envVars:
       - key: NODE_ENV
         value: production
-      - key: FRONTEND_URL
-        sync: false
+      # Database - Neon PostgreSQL
+      - key: DATABASE_URL
+        sync: false  # Set this in Render dashboard with your Neon connection string
+      # Authentication
       - key: SESSION_SECRET
         generateValue: true
       - key: JWT_SECRET
         generateValue: true
+      # Frontend URL
+      - key: FRONTEND_URL
+        sync: false
+      # Cloudinary - File Storage (Required for production)
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Google OAuth (Optional)
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
         sync: false
+      # Backend URL
       - key: BACKEND_URL
         sync: false
     healthCheckPath: /api/health
