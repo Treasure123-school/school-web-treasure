@@ -1,5 +1,5 @@
 import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull } from "drizzle-orm";
-import { getDatabase, getSchema, getPgClient, getSqliteConnection, isPostgres, isSqlite } from "./db";
+import { getDatabase, getSchema, getPgClient, isPostgres, isSqlite } from "./db";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -2929,54 +2929,9 @@ export class DatabaseStorage implements IStorage {
         // Use Neon's unsafe method for dynamic queries with parameters
         const result = await (pgClient as any).unsafe(query, [teacherId]);
         return result as any[];
-      } else {
-        // SQLite for development
-        const sqliteConn = getSqliteConnection();
-        if (!sqliteConn) return [];
-        
-        let query = `
-          SELECT
-            sa.id,
-            es.student_id,
-            u.first_name || ' ' || u.last_name as student_name,
-            es.exam_id,
-            e.name as exam_title,
-            eq.id as question_id,
-            eq.question_text,
-            eq.question_type,
-            eq.points as max_marks,
-            sa.text_answer as student_answer,
-            es.submitted_at,
-            CASE
-              WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
-              ELSE 'pending'
-            END as status,
-            ms.awarded_marks as current_score,
-            ms.comment as grader_comment
-          FROM student_answers sa
-          JOIN exam_sessions es ON sa.session_id = es.id
-          JOIN exams e ON es.exam_id = e.id
-          JOIN exam_questions eq ON sa.question_id = eq.id
-          JOIN users u ON es.student_id = u.id
-          LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
-          WHERE e.created_by = ?
-          AND eq.question_type IN ('text', 'essay')
-          AND es.is_completed = 1
-        `;
-
-        if (status && status !== 'all') {
-          if (status === 'pending') {
-            query += ' AND sa.id NOT IN (SELECT answer_id FROM manual_scores)';
-          } else if (status === 'graded') {
-            query += ' AND sa.id IN (SELECT answer_id FROM manual_scores)';
-          }
-        }
-
-        query += ' ORDER BY es.submitted_at DESC';
-
-        const stmt = sqliteConn.prepare(query);
-        return stmt.all(teacherId) as any[];
       }
+
+      return [];
     } catch (error) {
       console.error('Error fetching grading tasks:', error);
       return [];
@@ -3014,38 +2969,9 @@ export class DatabaseStorage implements IStorage {
         // Extract first row from PostgreSQL result
         const rows = result as Record<string, any>[];
         return rows.length > 0 ? rows[0] : null;
-      } else {
-        const sqliteConn = getSqliteConnection();
-        if (!sqliteConn) throw new Error('SQLite database not available');
-
-        const now = new Date().toISOString();
-        
-        // Check if manual score exists
-        const existing = sqliteConn.prepare('SELECT id FROM manual_scores WHERE answer_id = ?').get(taskId);
-        
-        let result;
-        if (existing) {
-          // Update existing
-          sqliteConn.prepare(`
-            UPDATE manual_scores 
-            SET awarded_marks = ?, comment = ?, graded_at = ?, grader_id = ?
-            WHERE answer_id = ?
-          `).run(score, comment, now, graderId, taskId);
-          result = sqliteConn.prepare('SELECT * FROM manual_scores WHERE answer_id = ?').get(taskId);
-        } else {
-          // Insert new
-          sqliteConn.prepare(`
-            INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
-            VALUES (?, ?, ?, ?, ?)
-          `).run(taskId, graderId, score, comment, now);
-          result = sqliteConn.prepare('SELECT * FROM manual_scores WHERE answer_id = ?').get(taskId);
-        }
-
-        // Update the student answer with the manual score
-        sqliteConn.prepare('UPDATE student_answers SET points_earned = ? WHERE id = ?').run(score, taskId);
-
-        return result as any;
       }
+
+      throw new Error('PostgreSQL client not available');
     } catch (error) {
       throw error;
     }
@@ -3080,34 +3006,9 @@ export class DatabaseStorage implements IStorage {
         `;
 
         return result as any[];
-      } else {
-        const sqliteConn = getSqliteConnection();
-        if (!sqliteConn) return [];
-        
-        const result = sqliteConn.prepare(`
-          SELECT
-            es.*,
-            e.name as exam_title,
-            u.first_name || ' ' || u.last_name as student_name,
-            (
-              SELECT COUNT(*)
-              FROM student_answers sa
-              WHERE sa.session_id = es.id
-              AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
-            ) as answered_questions,
-            (
-              SELECT COUNT(*)
-              FROM exam_questions eq
-              WHERE eq.exam_id = es.exam_id
-            ) as total_questions
-          FROM exam_sessions es
-          JOIN exams e ON es.exam_id = e.id
-          JOIN users u ON es.student_id = u.id
-          ORDER BY es.started_at DESC
-        `).all();
-
-        return result as any[];
       }
+
+      return [];
     } catch (error) {
       console.error('Error fetching exam sessions:', error);
       return [];
@@ -3176,63 +3077,9 @@ export class DatabaseStorage implements IStorage {
         // Use Neon's unsafe method for dynamic queries with parameters
         const result = await (pgClient as any).unsafe(query, params);
         return result as any[];
-      } else {
-        const sqliteConn = getSqliteConnection();
-        if (!sqliteConn) return [];
-        
-        let query = `
-          SELECT
-            e.id as exam_id,
-            e.name as exam_title,
-            c.name as class_name,
-            s.name as subject_name,
-            e.date as exam_date,
-            e.total_marks as max_score,
-            COUNT(DISTINCT es.student_id) as total_students,
-            COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
-            COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
-            COALESCE(
-              COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 /
-              NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
-              0
-            ) as pass_rate,
-            COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
-            COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
-            CASE
-              WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
-              ELSE 'completed'
-            END as status,
-            COALESCE(
-              COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 /
-              NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
-              0
-            ) as grading_progress
-          FROM exams e
-          JOIN classes c ON e.class_id = c.id
-          JOIN subjects s ON e.subject_id = s.id
-          LEFT JOIN exam_sessions es ON e.id = es.exam_id
-          LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
-          WHERE e.is_published = 1
-        `;
-
-        const params: any[] = [];
-
-        if (filters.classId) {
-          query += ` AND e.class_id = ?`;
-          params.push(filters.classId);
-        }
-        if (filters.subjectId) {
-          query += ` AND e.subject_id = ?`;
-          params.push(filters.subjectId);
-        }
-        query += `
-          GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
-          ORDER BY e.date DESC
-        `;
-
-        const stmt = sqliteConn.prepare(query);
-        return stmt.all(...params) as any[];
       }
+
+      return [];
     } catch (error) {
       console.error('Error fetching exam reports:', error);
       return [];
@@ -3278,45 +3125,9 @@ export class DatabaseStorage implements IStorage {
         `;
 
         return result as any[];
-      } else {
-        const sqliteConn = getSqliteConnection();
-        if (!sqliteConn) return [];
-        
-        // SQLite version - uses different syntax for time calculation
-        const result = sqliteConn.prepare(`
-          SELECT
-            u.id as student_id,
-            u.first_name || ' ' || u.last_name as student_name,
-            st.admission_number,
-            COALESCE(er.marks_obtained, 0) as score,
-            COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
-            CASE
-              WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
-              WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
-              WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
-              WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
-              ELSE 'F'
-            END as grade,
-            (SELECT COUNT(*) + 1 FROM exam_results er2 WHERE er2.exam_id = e.id AND er2.marks_obtained > COALESCE(er.marks_obtained, 0)) as rank,
-            CAST((julianday(es.submitted_at) - julianday(es.started_at)) * 86400 AS INTEGER) as time_spent,
-            es.submitted_at,
-            er.auto_scored,
-            CASE WHEN EXISTS (
-              SELECT 1 FROM manual_scores ms
-              JOIN student_answers sa ON ms.answer_id = sa.id
-              WHERE sa.session_id = es.id
-            ) THEN 1 ELSE 0 END as manual_scored
-          FROM users u
-          JOIN students st ON u.id = st.id
-          JOIN exam_sessions es ON u.id = es.student_id
-          JOIN exams e ON es.exam_id = e.id
-          LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
-          WHERE e.id = ? AND es.is_completed = 1
-          ORDER BY er.marks_obtained DESC
-        `).all(examId);
-
-        return result as any[];
       }
+
+      return [];
     } catch (error) {
       console.error('Error fetching exam student reports:', error);
       return [];

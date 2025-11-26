@@ -1,32 +1,20 @@
 import { defineConfig } from "drizzle-kit";
 
-// Database configuration based on environment
+// Database configuration - PostgreSQL only
+// SQLite is not supported on cloud platforms like Render/Vercel
 const databaseUrl = process.env.DATABASE_URL;
 
-// Use PostgreSQL if DATABASE_URL is present, SQLite otherwise
-// This matches the logic in server/db.ts
-const usePostgres = !!databaseUrl;
+if (!databaseUrl) {
+  console.warn('⚠️  DATABASE_URL not set. Using placeholder for drizzle-kit commands.');
+}
 
-export default defineConfig(
-  usePostgres
-    ? {
-        // PostgreSQL (Neon) configuration for production
-        out: "./migrations-pg",
-        schema: "./shared/schema.pg.ts",
-        dialect: "postgresql",
-        dbCredentials: {
-          url: databaseUrl!,
-        },
-        verbose: true,
-      }
-    : {
-        // SQLite configuration for development
-        out: "./migrations",
-        schema: "./shared/schema.ts",
-        dialect: "sqlite",
-        dbCredentials: {
-          url: "file:./server/data/app.db",
-        },
-        verbose: true,
-      }
-);
+export default defineConfig({
+  // PostgreSQL (Neon) configuration
+  out: "./migrations-pg",
+  schema: "./shared/schema.pg.ts",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: databaseUrl || "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+  },
+  verbose: true,
+});

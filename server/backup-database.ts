@@ -1,128 +1,28 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
-
 /**
- * Automated SQLite Database Backup System
+ * Database Backup System (PostgreSQL)
  * 
- * Creates timestamped backups of the SQLite database in server/backups/
- * Automatically removes old backups to prevent disk space issues
+ * Note: For PostgreSQL backups, use Neon's built-in backup features
+ * or pg_dump for manual backups. This module is kept for API compatibility
+ * but does not perform file-based backups as SQLite is not supported.
  */
 
-const DB_PATH = './server/data/app.db';
-const BACKUP_DIR = './server/backups';
-const MAX_BACKUPS = 10; // Keep only the last 10 backups
-
-export async function createBackup(): Promise<{ success: boolean; backupPath?: string; error?: string }> {
-  try {
-    // Ensure backup directory exists
-    await fs.mkdir(BACKUP_DIR, { recursive: true });
-
-    // Create timestamped backup filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupFilename = `backup_${timestamp}.db`;
-    const backupPath = path.join(BACKUP_DIR, backupFilename);
-
-    // Copy database file (SQLite is file-based, simple copy works)
-    await fs.copyFile(DB_PATH, backupPath);
-
-    console.log(`✅ Database backup created: ${backupPath}`);
-
-    // Clean up old backups
-    await cleanupOldBackups();
-
-    return {
-      success: true,
-      backupPath,
-    };
-  } catch (error: any) {
-    console.error('❌ Backup failed:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+export async function createBackup(): Promise<{ success: boolean; backupPath?: string; error?: string; message?: string }> {
+  console.log('ℹ️  PostgreSQL backup should be done via Neon dashboard or pg_dump');
+  return {
+    success: true,
+    message: 'PostgreSQL backups are managed by Neon. Use the Neon dashboard for backup/restore.',
+  };
 }
 
-async function cleanupOldBackups() {
-  try {
-    // Get all backup files
-    const files = await fs.readdir(BACKUP_DIR);
-    const backupFiles = files
-      .filter(f => f.startsWith('backup_') && f.endsWith('.db'))
-      .map(f => ({
-        name: f,
-        path: path.join(BACKUP_DIR, f),
-      }));
-
-    // Sort by name (timestamp is in filename)
-    backupFiles.sort((a, b) => b.name.localeCompare(a.name));
-
-    // Remove old backups beyond MAX_BACKUPS
-    if (backupFiles.length > MAX_BACKUPS) {
-      const toDelete = backupFiles.slice(MAX_BACKUPS);
-      for (const file of toDelete) {
-        await fs.unlink(file.path);
-        console.log(`🗑️  Removed old backup: ${file.name}`);
-      }
-    }
-  } catch (error) {
-    console.error('⚠️  Cleanup old backups failed:', error);
-  }
-}
-
-/**
- * List all available backups
- */
 export async function listBackups(): Promise<string[]> {
-  try {
-    const files = await fs.readdir(BACKUP_DIR);
-    return files
-      .filter(f => f.startsWith('backup_') && f.endsWith('.db'))
-      .sort((a, b) => b.localeCompare(a)); // Newest first
-  } catch (error) {
-    console.error('Failed to list backups:', error);
-    return [];
-  }
+  console.log('ℹ️  PostgreSQL backups are managed by Neon');
+  return [];
 }
 
-/**
- * Restore database from a backup
- * WARNING: This will overwrite the current database!
- */
-export async function restoreBackup(backupFilename: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const backupPath = path.join(BACKUP_DIR, backupFilename);
-    
-    // Verify backup exists
-    await fs.access(backupPath);
-
-    // Create a backup of current database before restoring
-    await createBackup();
-
-    // Restore the backup
-    await fs.copyFile(backupPath, DB_PATH);
-
-    console.log(`✅ Database restored from: ${backupFilename}`);
-
-    return { success: true };
-  } catch (error: any) {
-    console.error('❌ Restore failed:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
-// Auto-backup on server startup (only in development for safety)
-if (process.env.NODE_ENV === 'development') {
-  createBackup().then(result => {
-    if (result.success) {
-      console.log('📦 Auto-backup completed on startup');
-    }
-  });
+export async function restoreBackup(backupFilename: string): Promise<{ success: boolean; error?: string; message?: string }> {
+  console.log('ℹ️  PostgreSQL restore should be done via Neon dashboard');
+  return {
+    success: false,
+    message: 'PostgreSQL restores should be done via the Neon dashboard.',
+  };
 }

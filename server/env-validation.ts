@@ -79,12 +79,10 @@ export function validateEnvironment(isProduction: boolean): ValidationResult {
     }
   }
 
-  // Database configuration check
-  if (isProduction && !process.env.DATABASE_URL) {
-    result.errors.push('DATABASE_URL is required for production (Neon PostgreSQL)');
+  // Database configuration check - PostgreSQL required for all environments
+  if (!process.env.DATABASE_URL) {
+    result.errors.push('DATABASE_URL is required (Neon PostgreSQL). SQLite is not supported.');
     result.isValid = false;
-  } else if (!isProduction && !process.env.DATABASE_URL) {
-    result.warnings.push('Using SQLite for development (DATABASE_URL not set)');
   }
 
   // Print validation results
@@ -120,8 +118,8 @@ export function getEnvironmentInfo() {
   return {
     environment: isProduction ? 'production' : 'development',
     database: {
-      type: hasDatabase && isProduction ? 'PostgreSQL (Neon)' : 'SQLite',
-      configured: isProduction ? hasDatabase : true
+      type: 'PostgreSQL (Neon)',
+      configured: hasDatabase
     },
     storage: {
       type: hasCloudinary && isProduction ? 'Cloudinary' : 'Local',
