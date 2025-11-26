@@ -25,9 +25,10 @@ A comprehensive school management system with JWT authentication, dual-database 
 ## Architecture
 
 ### Database Layer
-- **Development**: SQLite (./server/data/app.db)
-- **Production**: PostgreSQL via Neon (DATABASE_URL)
-- **Auto-switching**: Environment-based detection (server/db.ts)
+- **Development (no DATABASE_URL)**: SQLite (./server/data/app.db)
+- **Production/Cloud (DATABASE_URL set)**: PostgreSQL via Neon
+- **Auto-switching**: Uses PostgreSQL whenever DATABASE_URL is present (server/db.ts)
+- **Important**: Set DATABASE_URL on Render/Vercel to use PostgreSQL and avoid SQLite errors
 
 ### File Storage Layer
 - **Development**: Local filesystem (./server/uploads/)
