@@ -1,261 +1,335 @@
 # Treasure-Home School Management System
 
+A comprehensive school management system with JWT authentication, dual-database architecture, and cloud-based file storage.
+
 ## Project Overview
 
-**Status:** ✅ **Production Ready**
+**Current Status**: ✅ Production-Ready Architecture Implemented
 
-Full-stack REST API school management system with:
-- Complete user authentication & role-based permissions
-- Student management (classes, attendance, report cards)
-- Examination system (exams, questions, auto-scoring)
-- Real-time announcements & messaging
-- File upload management (profiles, gallery, resources)
-- Teacher dashboards
-- Parent portals
+### Key Features
+- 🔐 JWT Authentication (no Supabase Auth)
+- 📊 40+ Database Tables with Complete Schema
+- 👥 5 Role-Based Access Levels: Super Admin, Admin, Teacher, Student, Parent
+- 📁 Cloudinary Integration for Cloud File Storage
+- 🗄️ Dual-Database Support: SQLite (dev) + PostgreSQL/Neon (prod)
+- 📱 Real-time Updates via Socket.IO
+- 📋 Comprehensive Exam System with Auto-Grading
+- 📚 Study Resources Management
+- 👤 Multi-Profile Support (Teacher, Admin, Parent, Student)
+- 🎓 Report Cards & Performance Tracking
+- ✅ Attendance Management
+- 📢 Announcements & Messaging System
+- 🖼️ Gallery Management
+- 💼 Job Vacancy & Teacher Applications System
 
-## Current Stack
+## Architecture
 
-### Backend
-- **Runtime:** Node.js + Express
-- **Database:** SQLite (Local file: app.db)
-- **ORM:** Drizzle ORM
-- **Auth:** JWT + Passport.js
-- **File Storage:** Disk-based (FREE) + MinIO support for cloud upgrade
+### Database Layer
+- **Development**: SQLite (./server/data/app.db)
+- **Production**: PostgreSQL via Neon (DATABASE_URL)
+- **Auto-switching**: Environment-based detection (server/db.ts)
 
-### Frontend
-- **Framework:** React + Vite
-- **UI:** Shadcn + Tailwind CSS
-- **Routing:** Wouter
-- **State:** TanStack Query (React Query)
-- **Forms:** React Hook Form + Zod validation
+### File Storage Layer
+- **Development**: Local filesystem (./server/uploads/)
+- **Production**: Cloudinary CDN (with automatic fallback to local)
+- **Unified Interface**: server/cloudinary-service.ts
 
-### Deployment
-- **Frontend:** Ready for Vercel (FREE)
-- **Backend:** Ready for Render (FREE)
-- **Database:** SQLite file (app.db) - portable, no external dependencies
+### Schema Organization
+- **SQLite Schema**: shared/schema.ts (40+ tables)
+- **PostgreSQL Schema**: shared/schema.pg.ts (PostgreSQL types)
+- **Types**: Auto-generated from schemas using Drizzle Zod
 
-## Database Structure
+## Environment Configuration
 
-**40+ tables** organized into:
-- User Management (users, roles, sessions, permissions)
-- Academic (classes, students, teachers, terms)
-- Assessments (exams, questions, sessions, answers, results)
-- Communication (announcements, messages, notifications)
-- Content (homepage, gallery, study resources)
-- Records (attendance, report cards, grades)
-- Administrative (settings, audit logs, system config)
+### Development (Default)
+```bash
+NODE_ENV=development
+# Database: SQLite (automatic)
+# Storage: Local filesystem
+# Optional: JWT_SECRET (uses fallback if not set)
+```
+
+### Production (Render)
+```bash
+NODE_ENV=production
+DATABASE_URL=postgresql://... # Neon PostgreSQL
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+JWT_SECRET=... # 32+ characters
+SESSION_SECRET=... # 32+ characters
+FRONTEND_URL=https://your-vercel-app.vercel.app
+BACKEND_URL=https://your-render-app.onrender.com
+```
+
+## Deployment
+
+### Backend (Render)
+- Runtime: Node.js
+- Build: `npm install --include=dev && npm run build`
+- Start: `npm run start`
+- Database: Neon PostgreSQL (no persistent disk needed)
+- Storage: Cloudinary CDN
+- Health Check: `/api/health`
+
+### Frontend (Vercel)
+- Framework: Vite + React
+- Build: `npm run build`
+- Deploy: Vercel CLI or connected GitHub
+
+### No Persistent Disk Required
+Unlike traditional setups, this architecture uses:
+- **Database**: Cloud-hosted Neon PostgreSQL (fully managed)
+- **Files**: Cloudinary CDN (fully managed)
+- **Result**: Stateless backend that scales horizontally
+
+## Database Schemas (40+ Tables)
+
+### Core User Management
+- users
+- roles
+- passwordResetTokens
+- passwordResetAttempts
+- invites
+- notifications
+
+### User Profiles
+- teacherProfiles
+- adminProfiles
+- parentProfiles
+- superAdminProfiles
+- students
+
+### Academic Structure
+- classes
+- subjects
+- academicTerms
+- teacherClassAssignments
+- timetable
+
+### Exam & Assessment
+- exams
+- examQuestions
+- questionOptions
+- examSessions
+- studentAnswers
+- examResults
+- gradingTasks
+- questionBanks
+- questionBankItems
+- questionBankOptions
+
+### Academic Records
+- attendance
+- reportCards
+- reportCardItems
+- studyResources
+- performanceEvents
+
+### Communication & Content
+- announcements
+- messages
+- gallery
+- galleryCategories
+- homePageContent
+- contactMessages
+
+### System & Administration
+- systemSettings
+- settings
+- counters
+- auditLogs
+- vacancies
+- teacherApplications
+- approvedTeachers
+
+## Development Workflow
+
+### Local Development
+```bash
+# Install dependencies
+npm install
+
+# Start development server (auto-restarts on changes)
+npm run dev
+
+# Server runs on http://localhost:5000
+# Frontend accessible at same port
+```
+
+### Test Account Credentials
+All test accounts created automatically on startup:
+
+| Role | Username | Password | Email |
+|------|----------|----------|-------|
+| Super Admin | superadmin | SuperAdmin@123 | superadmin@treasurehome.com |
+| Admin | admin | Admin@123 | admin@treasurehome.com |
+| Teacher | teacher | Teacher@123 | teacher@treasurehome.com |
+| Student | student | Student@123 | student@treasurehome.com |
+| Parent | parent | Parent@123 | parent@treasurehome.com |
+
+### Database Migrations
+```bash
+# Push schema changes to database
+npm run db:push
+
+# Force push (if needed)
+npm run db:push -- --force
+
+# Generate SQL migrations
+npm run db:generate
+```
 
 ## File Organization
 
 ```
-workspace/
-├── app.db                 # SQLite database file (YOUR DATA!)
-├── shared/                # Shared types & database schema
-│   └── schema.ts          # 40+ table definitions (YOU OWN THIS!)
-├── server/                # Backend (Express + Node)
-│   ├── index.ts           # Entry point
-│   ├── routes.ts          # All API endpoints
-│   ├── storage.ts         # Database interface & implementation
-│   ├── upload-service.ts  # File upload logic
-│   └── minio-storage.ts   # Cloud storage integration
-├── client/src/            # Frontend (React + Vite)
-│   ├── pages/             # Page components
-│   ├── components/        # Reusable UI components
-│   └── lib/               # Utilities, API calls
-└── uploads/               # User uploads (profiles, files, images)
-    ├── profiles/          # User profile pictures & signatures
-    ├── homepage/          # Website content images
-    ├── gallery/           # School gallery
-    ├── study-resources/   # Educational materials
-    └── general/           # Misc uploads
+project/
+├── server/                    # Backend (Express + TypeScript)
+│   ├── index.ts              # Express app setup
+│   ├── routes.ts             # API routes (5973 lines)
+│   ├── storage.ts            # SQLite storage layer
+│   ├── db.ts                 # Database factory
+│   ├── cloudinary-service.ts # Cloudinary integration
+│   ├── upload-service.ts     # Unified upload interface
+│   ├── env-validation.ts     # Environment validation
+│   ├── auth-utils.ts         # Authentication utilities
+│   ├── realtime-service.ts   # Socket.IO setup
+│   ├── seed-*.ts             # Database seeders
+│   ├── data/                 # Local database (dev only)
+│   └── uploads/              # Local file storage (dev only)
+├── client/                    # Frontend (React + Vite)
+│   ├── src/
+│   │   ├── pages/           # Page components
+│   │   ├── components/      # Reusable components
+│   │   ├── App.tsx          # Main app component
+│   │   └── main.tsx         # Entry point
+│   └── vite.config.ts       # Vite configuration
+├── shared/                    # Shared types & schemas
+│   ├── schema.ts            # SQLite Drizzle schema
+│   └── schema.pg.ts         # PostgreSQL Drizzle schema
+├── drizzle.config.ts        # Drizzle Kit config
+├── package.json             # Dependencies
+└── render.yaml              # Render deployment config
 ```
 
-## Cost Breakdown
+## Technology Stack
 
-| Component | Cost | Notes |
-|-----------|------|-------|
-| Database | $0/month | Included with Replit |
-| Storage | $0/month | FREE disk storage |
-| Frontend Hosting | $0/month | Can use Vercel free tier |
-| Backend Hosting | $0/month | Can use Render free tier |
-| **TOTAL** | **$0/month** | Completely FREE! |
+### Backend
+- **Runtime**: Node.js + TypeScript
+- **Framework**: Express.js
+- **Database**: Drizzle ORM (SQLite + PostgreSQL)
+- **Authentication**: JWT + Passport.js
+- **Real-time**: Socket.IO
+- **File Storage**: Cloudinary SDK
+- **Validation**: Zod schemas
+- **Password Hashing**: bcrypt
 
-## Key Features Completed
+### Frontend
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Routing**: Wouter
+- **Data Fetching**: TanStack Query (React Query)
+- **UI Components**: shadcn/ui (Radix UI + Tailwind CSS)
+- **Forms**: React Hook Form + Zod validation
+- **Styling**: Tailwind CSS
 
-✅ **Authentication System**
-- JWT-based authentication
-- Role-based access control (5 roles: Super Admin, Admin, Teacher, Student, Parent)
-- Secure password hashing (bcrypt)
+### DevOps
+- **Dev Database**: SQLite (better-sqlite3)
+- **Prod Database**: PostgreSQL/Neon
+- **File Storage**: Cloudinary CDN
+- **Backend Deployment**: Render
+- **Frontend Deployment**: Vercel
+- **CI/CD**: Git push auto-deploy
 
-✅ **User Management**
-- User registration & login
-- Role assignment
-- Permission-based actions
+## Performance Considerations
 
-✅ **File Uploads** (all 4 endpoints working)
-- Profile images (users keep their own folder: `/uploads/profiles/{userId}/`)
-- Homepage content (organized by category)
-- Teacher signatures & documents
-- Gallery images
-- Study resources
+### Database Optimization
+- ✅ Indexes on frequently queried columns
+- ✅ Foreign key relationships enforced
+- ✅ SQLite WAL mode for concurrent access
+- ✅ PostgreSQL connection pooling (Neon)
 
-✅ **Database**
-- Complete schema with 40+ tables in SQLite
-- Local file storage (app.db)
-- Data seeding (admin, roles, academic terms, settings)
+### File Storage
+- ✅ Automatic image optimization (Cloudinary)
+- ✅ CDN distribution
+- ✅ WebP format support
+- ✅ Responsive image sizes
 
-✅ **API Endpoints**
-- 100+ endpoints (all returning 200 OK)
-- User authentication
-- Data CRUD operations
-- File management
-- Real-time notifications (Socket.IO)
+### Caching Strategy
+- ✅ TanStack Query caching on frontend
+- ✅ Browser cache headers
+- ✅ Gzip compression enabled
+- ✅ Static asset optimization
 
-## Data Safety & Portability
+## Security Features
 
-**Your data is YOURS - 100% local file control:**
-- ✅ Database is a single file: `app.db` (copy it anywhere!)
-- ✅ No external dependencies or API connections
-- ✅ Works on ANY system (Windows, Mac, Linux, Replit, VPS)
-- ✅ NOT locked to ANY provider
-- ✅ Completely portable and future-proof
+- ✅ JWT tokens with 24-hour expiration
+- ✅ Password hashing with bcrypt (12 rounds)
+- ✅ CORS configuration for specific origins
+- ✅ Rate limiting on authentication endpoints
+- ✅ Account lockout after failed attempts
+- ✅ Two-factor authentication support
+- ✅ Audit logging for sensitive operations
+- ✅ Role-based access control (RBAC)
+- ✅ Environment-based secrets management
 
-**Moving your database is as simple as:**
-```bash
-# 1. Copy the file
-cp app.db my-backup.db
+## API Documentation
 
-# 2. Move it anywhere
-# - USB drive
-# - Cloud storage (Dropbox, Google Drive, etc.)
-# - New server
-# - Your local machine
+### Authentication Endpoints
+- `POST /api/auth/register` - Create account
+- `POST /api/auth/login` - Login (JWT)
+- `POST /api/auth/logout` - Logout
+- `POST /api/auth/refresh` - Refresh token
+- `POST /api/auth/change-password` - Change password
 
-# 3. That's it! Your entire database moves with the file!
-```
+### User Management
+- `GET /api/users` - List users
+- `GET /api/users/:id` - Get user
+- `PATCH /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Delete user
 
-**Backup strategy:**
-```bash
-# Simple backup (recommended daily)
-cp app.db backups/app-$(date +%Y%m%d).db
+### Exams
+- `GET /api/exams` - List exams
+- `POST /api/exams` - Create exam
+- `GET /api/exams/:id` - Get exam details
+- `POST /api/exams/:id/submit` - Submit exam
+- `GET /api/exams/:id/results` - Get results
 
-# Or use SQLite's built-in backup
-sqlite3 app.db ".backup backups/app-backup.db"
-```
+### And 100+ more endpoints...
 
-## Storage Architecture
+## Known Limitations & Future Work
 
-### FREE Disk Storage (Current)
-- All uploads go to `uploads/` folder
-- Organized by type (profiles, homepage, gallery, study-resources, general)
-- User files in subfolder: `uploads/{type}/{userId or categoryId}/`
-- Completely free, unlimited
+- [ ] Video streaming support (currently images only)
+- [ ] Advanced analytics dashboard
+- [ ] Mobile app (currently web-only)
+- [ ] Offline mode support
+- [ ] Email notification system (partial)
+- [ ] SMS notifications (configured but not implemented)
 
-### Cloud Storage (Optional Upgrade)
-- Support for MinIO, Cloudflare R2, Backblaze B2
-- Same folder structure works
-- Just change configuration
-- No code changes needed
+## Troubleshooting
 
-See `IMAGE_STORAGE_LOCATIONS.md` for folder structure details.
+### Database Connection Issues
+- Check DATABASE_URL environment variable in production
+- Verify SQLite database file exists at ./server/data/app.db in development
+- Run `npm run db:push` to sync schema
 
-## User Record Storage
+### File Upload Issues
+- Verify Cloudinary credentials in production
+- Check file size limits (5MB for images, 10MB for documents)
+- Ensure server/uploads directory exists in development
 
-**When a user is created:**
-- ✅ Stored in `users` table in SQLite (app.db)
-- ✅ Assigned automatic UUID
-- ✅ Role assigned (student/teacher/parent)
-- ✅ All records linked to this UUID
-- ✅ Data stored locally in your file
+### Port Conflicts
+- Change PORT environment variable if 5000 is in use
+- Frontend and backend run on same port (5000) via Vite proxy
 
-**Related records automatically created:**
-- Exams taken → exam_sessions table
-- Answers submitted → student_answers table
-- Attendance → attendance table
-- Grades → report_cards table
-- All linked to user UUID
+## Contributing
 
-**Access user data:**
-1. Use any SQLite browser tool (DB Browser for SQLite, SQLiteStudio)
-2. Or via app code: `db.select().from(users)`
-3. Or SQLite CLI: `sqlite3 app.db "SELECT * FROM users"`
+1. Follow existing code style and conventions
+2. Add tests for new features
+3. Update replit.md for architectural changes
+4. Use semantic commit messages
+5. Test locally before pushing
 
-## Workflow Configuration
+## License
 
-**Running Application:**
-```bash
-npm run dev  # Starts backend (Express) + frontend (Vite)
-            # Available at http://localhost:5000
-```
-
-## Environment Variables
-
-**Currently using SQLite (local file):**
-- No database connection string needed!
-- Database is in `./app.db` file
-
-**For production on Render + Vercel:**
-- Database file deploys with your app
-- `JWT_SECRET` - For authentication
-- `STORAGE_MODE` - Set to 'disk' or configure MinIO
-
-## Next Steps
-
-### Immediate
-1. ✅ App is running and ready to use
-2. ✅ SQLite database fully operational (app.db)
-3. ✅ Super admin account created
-4. ✅ All 40+ tables ready
-
-### For Production Deployment
-1. Deploy frontend to Vercel (FREE)
-2. Deploy backend to Render (FREE)
-3. Database deploys with your app (app.db file)
-4. Set up automated backups for app.db
-
-### For Cloud File Storage (Optional)
-1. Switch from disk storage to Cloudflare R2 or Backblaze B2 (recommended, ~$5/month)
-2. No code changes needed - same folder structure
-3. See `STORAGE_SETUP.md`
-
-## Important Files
-
-### Must Know
-- `shared/schema.ts` - Database definitions (YOU OWN THIS!)
-- `server/routes.ts` - All API endpoints
-- `server/storage.ts` - Database connection
-- `client/src/App.tsx` - Frontend entry point
-
-### Documentation
-- `DATA_SAFETY_AND_PORTABILITY.md` - How to backup & move data
-- `IMAGE_STORAGE_LOCATIONS.md` - Where uploads are stored
-- `SELF_HOSTED_DATABASE_GUIDE.md` - How to migrate off Replit
-- `WORK_COMPLETED.md` - Summary of what's been done
-
-### Configuration
-- `drizzle.config.ts` - Drizzle ORM config (SQLite)
-- `package.json` - Dependencies (do not modify without asking)
-
-## User Preferences
-
-- **Prefers FREE solutions ($0/month)** ✅ ACHIEVED
-- **Wants full data control** ✅ ACHIEVED (local file)
-- **Wants data portability** ✅ ACHIEVED (just copy app.db)
-- **NOT locked to any provider** ✅ ACHIEVED (SQLite works everywhere)
-- Plans production deployment on Render + Vercel
-
-## Important Reminders
-
-1. **Database is a single file** - `app.db` (copy it anywhere!)
-2. **Always backup** - Just copy the file: `cp app.db backup.db`
-3. **Zero vendor lock-in** - Works on ANY system
-4. **Uploads are in your folder** - `uploads/` directory
-5. **Schema is in your code** - `shared/schema.ts`
-6. **100% FREE forever** - No database provider needed
-
----
-
-**Last Updated:** November 24, 2025
-**Status:** ✅ Production Ready with SQLite
-**Database:** Local file (app.db) - 100% portable
-**Cost:** $0/month (Completely FREE forever!)
+Proprietary - Treasure-Home School

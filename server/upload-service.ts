@@ -1,16 +1,15 @@
-import fs from 'fs/promises';
-import path from 'path';
+import { uploadFile, deleteFile, replaceFile as replaceFileCloudinary, isCloudinaryReady, getOptimizedUrl } from './cloudinary-service';
+import type { UploadType as CloudinaryUploadType } from './cloudinary-service';
+import type Express from 'express';
 
 /**
- * Local File Upload Service
+ * Unified Upload Service
  * 
- * This service provides file uploads to local server/uploads directory
- * with automatic path organization, validation, and error handling.
- * 
- * NO EXTERNAL STORAGE - All files stored in server/uploads/
+ * Automatically switches between Cloudinary (production) and local storage (development)
+ * based on environment configuration.
  */
 
-export type UploadType = 'homepage' | 'gallery' | 'profile' | 'study-resource' | 'general';
+export type UploadType = 'homepage' | 'gallery' | 'profile' | 'study-resource' | 'general' | 'student' | 'teacher' | 'admin' | 'assignment' | 'result';
 
 export interface UploadOptions {
   uploadType: UploadType;
@@ -26,97 +25,57 @@ export interface UploadResponse {
   url?: string;
   path?: string;
   error?: string;
+  isCloudinary?: boolean;
 }
 
-/**
- * Validate file size
- */
-function validateFileSize(fileSize: number, maxSizeMB: number): boolean {
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-  return fileSize <= maxSizeBytes;
-}
+// Map UploadType to Cloudinary upload types
+const uploadTypeMap: Record<UploadType, CloudinaryUploadType> = {
+  'profile': 'profile',
+  'homepage': 'homepage',
+  'gallery': 'gallery',
+  'study-resource': 'study-resource',
+  'general': 'general',
+  'student': 'student',
+  'teacher': 'teacher',
+  'admin': 'admin',
+  'assignment': 'assignment',
+  'result': 'result'
+};
 
 /**
- * Main upload function - saves files to local server/uploads directory
+ * Upload file using Cloudinary or local storage
  */
 export async function uploadFileToStorage(
   file: Express.Multer.File,
   options: UploadOptions
 ): Promise<UploadResponse> {
   try {
-    // Validate file size
-    const maxSize = options.maxSizeMB || 5;
-    if (!validateFileSize(file.size, maxSize)) {
+    const cloudinaryType = uploadTypeMap[options.uploadType] || 'general';
+    
+    const result = await uploadFile(file, {
+      uploadType: cloudinaryType as CloudinaryUploadType,
+      userId: options.userId,
+      category: options.category,
+      maxSizeMB: options.maxSizeMB || 5
+    });
+
+    if (!result.success) {
       return {
         success: false,
-        error: `File size exceeds maximum allowed size of ${maxSize}MB`,
+        error: result.error || 'Upload failed'
       };
-    }
-
-    // If file already has a path (disk storage mode), use it
-    if (file.path) {
-      // Update path to use server/uploads if needed
-      let filePath = file.path;
-      if (!filePath.startsWith('server/uploads')) {
-        // Move file from old uploads/ to server/uploads/
-        const newPath = filePath.replace(/^uploads\//, 'server/uploads/');
-        filePath = newPath;
-      }
-      const localUrl = `/${filePath.replace(/\\/g, '/')}`;
-      return {
-        success: true,
-        url: localUrl,
-        path: filePath,
-      };
-    }
-
-    // If file is in memory (buffer), save it to disk
-    if (file.buffer) {
-      try {
-        // Map upload types to directory structure
-        const dirMap: Record<string, string> = {
-          'profile': 'profiles',
-          'homepage': 'homepage',
-          'gallery': 'gallery',
-          'study-resource': 'study-resources',
-          'general': 'general',
-        };
-
-        const dirName = dirMap[options.uploadType || 'general'];
-        const uploadDir = path.join('server/uploads', dirName);
-        await fs.mkdir(uploadDir, { recursive: true });
-
-        const timestamp = Date.now();
-        const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filename = `${timestamp}_${sanitizedName}`;
-        const filePath = path.join(uploadDir, filename);
-
-        await fs.writeFile(filePath, file.buffer);
-
-        const localUrl = `/${filePath.replace(/\\/g, '/')}`;
-        return {
-          success: true,
-          url: localUrl,
-          path: filePath,
-        };
-      } catch (error: any) {
-        console.error('Failed to write file to disk:', error);
-        return {
-          success: false,
-          error: `Failed to save file to disk: ${error.message}`,
-        };
-      }
     }
 
     return {
-      success: false,
-      error: 'No file data provided.',
+      success: true,
+      url: result.url,
+      isCloudinary: result.isCloudinary
     };
   } catch (error: any) {
     console.error('Upload service error:', error);
     return {
       success: false,
-      error: error.message || 'An unexpected error occurred during upload',
+      error: error.message || 'Upload failed'
     };
   }
 }
@@ -125,55 +84,74 @@ export async function uploadFileToStorage(
  * Replace an existing file with a new one
  */
 export async function replaceFile(
-  oldUrl: string,
-  newFile: Express.Multer.File,
+  file: Express.Multer.File,
+  oldUrl: string | undefined,
   options: UploadOptions
 ): Promise<UploadResponse> {
-  // Delete old file first
-  await deleteFileFromStorage(oldUrl);
-
-  // Upload new file
-  return await uploadFileToStorage(newFile, options);
-}
-
-/**
- * Delete file from local storage
- */
-export async function deleteFileFromStorage(
-  url: string
-): Promise<{ success: boolean; error?: string }> {
   try {
-    // Check if this is a local filesystem path
-    if (url.startsWith('/uploads/') || url.startsWith('uploads/') || 
-        url.startsWith('/server/uploads/') || url.startsWith('server/uploads/')) {
-      try {
-        const filePath = url.startsWith('/') ? url.substring(1) : url;
-        await fs.unlink(filePath);
-        console.log(`✅ Deleted file: ${filePath}`);
-        return { success: true };
-      } catch (error: any) {
-        // File might not exist, that's okay
-        if (error.code === 'ENOENT') {
-          console.log(`ℹ️  File not found (already deleted): ${url}`);
-          return { success: true };
-        }
-        console.error('Failed to delete local file:', error);
-        return {
-          success: false,
-          error: `Failed to delete file: ${error.message}`,
-        };
-      }
+    const cloudinaryType = uploadTypeMap[options.uploadType] || 'general';
+    
+    const result = await replaceFileCloudinary(file, oldUrl, {
+      uploadType: cloudinaryType as CloudinaryUploadType,
+      userId: options.userId,
+      category: options.category,
+      maxSizeMB: options.maxSizeMB || 5
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'File replacement failed'
+      };
     }
 
     return {
-      success: false,
-      error: 'Invalid file URL format',
+      success: true,
+      url: result.url,
+      isCloudinary: result.isCloudinary
     };
   } catch (error: any) {
-    console.error('Delete service error:', error);
+    console.error('File replacement error:', error);
     return {
       success: false,
-      error: error.message || 'An unexpected error occurred during deletion',
+      error: error.message || 'File replacement failed'
     };
   }
+}
+
+/**
+ * Delete a file
+ */
+export async function deleteFileFromStorage(url: string | undefined): Promise<boolean> {
+  if (!url) {
+    return true; // No file to delete
+  }
+
+  try {
+    return await deleteFile(url);
+  } catch (error: any) {
+    console.error('File deletion error:', error);
+    return false;
+  }
+}
+
+/**
+ * Get optimized image URL (Cloudinary only)
+ */
+export function getOptimizedImageUrl(
+  url: string,
+  options?: { width?: number; height?: number; quality?: number; format?: 'auto' | 'webp' | 'jpg' | 'png' }
+): string {
+  return getOptimizedUrl(url, options);
+}
+
+/**
+ * Check if storage is ready
+ */
+export function isStorageReady(): boolean {
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction) {
+    return isCloudinaryReady();
+  }
+  return true; // Local storage always ready
 }

@@ -5,7 +5,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { db } from "./storage";
 import { seedAcademicTerms } from "./seed-terms";
-import { validateEnvironment } from "./validate-env";
+import { validateEnvironment } from "./env-validation";
 import fs from "fs/promises";
 
 // Validate environment variables at startup - fail fast in production if critical vars missing
