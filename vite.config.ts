@@ -63,7 +63,6 @@ export default defineConfig({
             '@radix-ui/react-separator',
             '@radix-ui/react-tooltip',
           ],
-          'supabase': ['@supabase/supabase-js'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'icons': ['lucide-react', 'react-icons'],
           'animation': ['framer-motion', 'canvas-confetti'],

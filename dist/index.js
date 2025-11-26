@@ -20,10 +20,8 @@ __export(schema_exports, {
   academicTerms: () => academicTerms,
   adminProfiles: () => adminProfiles,
   announcements: () => announcements,
-  applicationStatusEnum: () => applicationStatusEnum,
   approvedTeachers: () => approvedTeachers,
   attendance: () => attendance,
-  attendanceStatusEnum: () => attendanceStatusEnum,
   auditLogs: () => auditLogs,
   classes: () => classes,
   contactMessages: () => contactMessages,
@@ -31,16 +29,13 @@ __export(schema_exports, {
   createQuestionOptionSchema: () => createQuestionOptionSchema,
   createStudentSchema: () => createStudentSchema,
   createStudentWithAutoCredsSchema: () => createStudentWithAutoCredsSchema,
-  createdViaEnum: () => createdViaEnum,
   csvStudentSchema: () => csvStudentSchema,
   examQuestions: () => examQuestions,
   examResults: () => examResults,
   examSessions: () => examSessions,
-  examTypeEnum: () => examTypeEnum,
   exams: () => exams,
   gallery: () => gallery,
   galleryCategories: () => galleryCategories,
-  genderEnum: () => genderEnum,
   gradingTasks: () => gradingTasks,
   homePageContent: () => homePageContent,
   insertAcademicTermSchema: () => insertAcademicTermSchema,
@@ -99,7 +94,6 @@ __export(schema_exports, {
   questionBanks: () => questionBanks,
   questionOptions: () => questionOptions,
   reportCardItems: () => reportCardItems,
-  reportCardStatusEnum: () => reportCardStatusEnum,
   reportCards: () => reportCards,
   roles: () => roles,
   settings: () => settings,
@@ -114,76 +108,70 @@ __export(schema_exports, {
   teacherProfiles: () => teacherProfiles,
   timetable: () => timetable,
   updateExamSessionSchema: () => updateExamSessionSchema,
-  userStatusEnum: () => userStatusEnum,
   users: () => users,
-  vacancies: () => vacancies,
-  vacancyStatusEnum: () => vacancyStatusEnum
+  vacancies: () => vacancies
 });
-import { sql, eq } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, bigserial, bigint, integer, date, boolean, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var genderEnum, attendanceStatusEnum, reportCardStatusEnum, examTypeEnum, userStatusEnum, createdViaEnum, roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, superAdminProfiles, systemSettings, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, questionBanks, questionBankItems, questionBankOptions, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, performanceEvents, teacherClassAssignments, timetable, gradingTasks, auditLogs, settings, counters, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertTimetableSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, insertQuestionBankSchema, insertQuestionBankItemSchema, insertQuestionBankOptionSchema, vacancyStatusEnum, applicationStatusEnum, vacancies, teacherApplications, approvedTeachers, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema, insertSuperAdminProfileSchema, insertSystemSettingsSchema;
+var roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, superAdminProfiles, systemSettings, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, questionBanks, questionBankItems, questionBankOptions, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, performanceEvents, teacherClassAssignments, timetable, gradingTasks, auditLogs, settings, counters, vacancies, teacherApplications, approvedTeachers, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertTimetableSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema, insertSuperAdminProfileSchema, insertSystemSettingsSchema, insertQuestionBankSchema, insertQuestionBankItemSchema, insertQuestionBankOptionSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
-    genderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
-    attendanceStatusEnum = pgEnum("attendance_status", ["Present", "Absent", "Late", "Excused"]);
-    reportCardStatusEnum = pgEnum("report_card_status", ["draft", "finalized", "published"]);
-    examTypeEnum = pgEnum("exam_type", ["test", "exam"]);
-    userStatusEnum = pgEnum("user_status", ["pending", "active", "suspended", "disabled"]);
-    createdViaEnum = pgEnum("created_via", ["bulk", "invite", "self", "google", "admin"]);
-    roles = pgTable("roles", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 50 }).notNull().unique(),
-      permissions: text("permissions").array().default(sql`'{}'::text[]`),
-      createdAt: timestamp("created_at").defaultNow()
+    roles = sqliteTable("roles", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull().unique(),
+      permissions: text("permissions").notNull().default("[]"),
+      // JSON array as text
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    users = pgTable("users", {
-      id: uuid("id").defaultRandom().primaryKey(),
-      username: varchar("username", { length: 100 }).unique(),
-      email: varchar("email", { length: 255 }).notNull(),
-      recoveryEmail: varchar("recovery_email", { length: 255 }),
-      // For password recovery
+    users = sqliteTable("users", {
+      id: text("id").primaryKey(),
+      username: text("username").unique(),
+      email: text("email").notNull(),
+      recoveryEmail: text("recovery_email"),
       passwordHash: text("password_hash"),
-      mustChangePassword: boolean("must_change_password").default(true),
-      roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-      firstName: varchar("first_name", { length: 100 }).notNull(),
-      lastName: varchar("last_name", { length: 100 }).notNull(),
-      phone: varchar("phone", { length: 20 }),
+      mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(true),
+      roleId: integer("role_id").notNull().references(() => roles.id),
+      firstName: text("first_name").notNull(),
+      lastName: text("last_name").notNull(),
+      phone: text("phone"),
       address: text("address"),
-      dateOfBirth: date("date_of_birth"),
-      gender: genderEnum("gender"),
-      nationalId: varchar("national_id", { length: 50 }),
+      dateOfBirth: text("date_of_birth"),
+      // YYYY-MM-DD format
+      gender: text("gender"),
+      // 'Male', 'Female', 'Other'
+      nationalId: text("national_id"),
       profileImageUrl: text("profile_image_url"),
-      isActive: boolean("is_active").default(true),
-      authProvider: varchar("auth_provider", { length: 20 }).default("local"),
-      googleId: varchar("google_id", { length: 255 }).unique(),
+      isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+      authProvider: text("auth_provider").notNull().default("local"),
+      googleId: text("google_id").unique(),
       // Security & audit fields
-      status: userStatusEnum("status").default("active"),
-      // New accounts are automatically active
-      createdVia: createdViaEnum("created_via").default("admin"),
-      createdBy: uuid("created_by"),
-      approvedBy: uuid("approved_by"),
-      approvedAt: timestamp("approved_at"),
-      lastLoginAt: timestamp("last_login_at"),
-      lastLoginIp: varchar("last_login_ip", { length: 45 }),
-      mfaEnabled: boolean("mfa_enabled").default(false),
+      status: text("status").notNull().default("active"),
+      // 'pending', 'active', 'suspended', 'disabled'
+      createdVia: text("created_via").notNull().default("admin"),
+      // 'bulk', 'invite', 'self', 'google', 'admin'
+      createdBy: text("created_by"),
+      approvedBy: text("approved_by"),
+      approvedAt: integer("approved_at", { mode: "timestamp" }),
+      lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
+      lastLoginIp: text("last_login_ip"),
+      mfaEnabled: integer("mfa_enabled", { mode: "boolean" }).notNull().default(false),
       mfaSecret: text("mfa_secret"),
-      accountLockedUntil: timestamp("account_locked_until"),
-      // For suspicious activity lock
+      accountLockedUntil: integer("account_locked_until", { mode: "timestamp" }),
       // Profile completion fields
-      profileCompleted: boolean("profile_completed").default(false),
-      profileSkipped: boolean("profile_skipped").default(false),
-      profileCompletionPercentage: integer("profile_completion_percentage").default(0),
-      state: varchar("state", { length: 100 }),
-      country: varchar("country", { length: 100 }),
+      profileCompleted: integer("profile_completed", { mode: "boolean" }).notNull().default(false),
+      profileSkipped: integer("profile_skipped", { mode: "boolean" }).notNull().default(false),
+      profileCompletionPercentage: integer("profile_completion_percentage").notNull().default(0),
+      state: text("state"),
+      country: text("country"),
       securityQuestion: text("security_question"),
       securityAnswerHash: text("security_answer_hash"),
-      dataPolicyAgreed: boolean("data_policy_agreed").default(false),
-      dataPolicyAgreedAt: timestamp("data_policy_agreed_at"),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      dataPolicyAgreed: integer("data_policy_agreed", { mode: "boolean" }).notNull().default(false),
+      dataPolicyAgreedAt: integer("data_policy_agreed_at", { mode: "timestamp" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       usersEmailIdx: index("users_email_idx").on(table.email),
       usersStatusIdx: index("users_status_idx").on(table.status),
@@ -191,669 +179,632 @@ var init_schema = __esm({
       usersRoleIdIdx: index("users_role_id_idx").on(table.roleId),
       usersUsernameIdx: index("users_username_idx").on(table.username)
     }));
-    passwordResetTokens = pgTable("password_reset_tokens", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-      token: varchar("token", { length: 255 }).notNull().unique(),
-      expiresAt: timestamp("expires_at").notNull(),
-      usedAt: timestamp("used_at"),
-      ipAddress: varchar("ip_address", { length: 45 }),
-      // Track IP for security
-      resetBy: uuid("reset_by").references(() => users.id, { onDelete: "set null" }),
-      // Admin who initiated reset, null if self-service
-      createdAt: timestamp("created_at").defaultNow()
+    passwordResetTokens = sqliteTable("password_reset_tokens", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      token: text("token").notNull().unique(),
+      expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+      usedAt: integer("used_at", { mode: "timestamp" }),
+      ipAddress: text("ip_address"),
+      resetBy: text("reset_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       passwordResetTokensUserIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
       passwordResetTokensTokenIdx: index("password_reset_tokens_token_idx").on(table.token)
     }));
-    passwordResetAttempts = pgTable("password_reset_attempts", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      identifier: varchar("identifier", { length: 255 }).notNull(),
-      // Email or username
-      ipAddress: varchar("ip_address", { length: 45 }).notNull(),
-      attemptedAt: timestamp("attempted_at").defaultNow(),
-      success: boolean("success").default(false)
+    passwordResetAttempts = sqliteTable("password_reset_attempts", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      identifier: text("identifier").notNull(),
+      ipAddress: text("ip_address").notNull(),
+      attemptedAt: integer("attempted_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      success: integer("success", { mode: "boolean" }).notNull().default(false)
     }, (table) => ({
       passwordResetAttemptsIdentifierIdx: index("password_reset_attempts_identifier_idx").on(table.identifier),
       passwordResetAttemptsIpIdx: index("password_reset_attempts_ip_idx").on(table.ipAddress),
       passwordResetAttemptsTimeIdx: index("password_reset_attempts_time_idx").on(table.attemptedAt)
     }));
-    invites = pgTable("invites", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      token: varchar("token", { length: 255 }).notNull().unique(),
-      email: varchar("email", { length: 255 }).notNull(),
-      roleId: bigint("role_id", { mode: "number" }).references(() => roles.id).notNull(),
-      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-      expiresAt: timestamp("expires_at").notNull(),
-      acceptedAt: timestamp("accepted_at"),
-      acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp("created_at").defaultNow()
+    invites = sqliteTable("invites", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      token: text("token").notNull().unique(),
+      email: text("email").notNull(),
+      roleId: integer("role_id").notNull().references(() => roles.id),
+      createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+      expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+      acceptedAt: integer("accepted_at", { mode: "timestamp" }),
+      acceptedBy: text("accepted_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       invitesTokenIdx: index("invites_token_idx").on(table.token),
       invitesEmailIdx: index("invites_email_idx").on(table.email)
     }));
-    notifications = pgTable("notifications", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-      // Admin receiving the notification
-      type: varchar("type", { length: 50 }).notNull(),
-      // 'pending_user', 'approval_request', etc.
-      title: varchar("title", { length: 200 }).notNull(),
+    notifications = sqliteTable("notifications", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      type: text("type").notNull(),
+      title: text("title").notNull(),
       message: text("message").notNull(),
-      relatedEntityType: varchar("related_entity_type", { length: 50 }),
-      // 'user', 'student', etc.
-      relatedEntityId: varchar("related_entity_id", { length: 255 }),
-      // ID of the related entity
-      isRead: boolean("is_read").default(false),
-      createdAt: timestamp("created_at").defaultNow()
+      relatedEntityType: text("related_entity_type"),
+      relatedEntityId: text("related_entity_id"),
+      isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       notificationsUserIdIdx: index("notifications_user_id_idx").on(table.userId),
       notificationsIsReadIdx: index("notifications_is_read_idx").on(table.isRead)
     }));
-    academicTerms = pgTable("academic_terms", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 50 }).notNull(),
-      year: varchar("year", { length: 9 }).notNull(),
-      startDate: date("start_date").notNull(),
-      endDate: date("end_date").notNull(),
-      isCurrent: boolean("is_current").default(false),
-      createdAt: timestamp("created_at").defaultNow()
+    academicTerms = sqliteTable("academic_terms", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      year: text("year").notNull(),
+      startDate: text("start_date").notNull(),
+      // YYYY-MM-DD format
+      endDate: text("end_date").notNull(),
+      isCurrent: integer("is_current", { mode: "boolean" }).notNull().default(false),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    classes = pgTable("classes", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 50 }).notNull().unique(),
-      level: varchar("level", { length: 20 }).notNull(),
-      capacity: integer("capacity").default(30),
-      classTeacherId: uuid("class_teacher_id").references(() => users.id, { onDelete: "set null" }),
+    classes = sqliteTable("classes", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull().unique(),
+      level: text("level").notNull(),
+      capacity: integer("capacity").notNull().default(30),
+      classTeacherId: text("class_teacher_id").references(() => users.id, { onDelete: "set null" }),
       currentTermId: integer("current_term_id").references(() => academicTerms.id),
-      isActive: boolean("is_active").default(true),
-      createdAt: timestamp("created_at").defaultNow()
+      isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    subjects = pgTable("subjects", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 100 }).notNull(),
-      code: varchar("code", { length: 20 }).notNull().unique(),
+    subjects = sqliteTable("subjects", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      code: text("code").notNull().unique(),
       description: text("description"),
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    students = pgTable("students", {
-      id: uuid("id").references(() => users.id, { onDelete: "cascade" }).primaryKey(),
-      admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
+    students = sqliteTable("students", {
+      id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+      admissionNumber: text("admission_number").notNull().unique(),
       classId: integer("class_id").references(() => classes.id),
-      parentId: uuid("parent_id").references(() => users.id, { onDelete: "set null" }),
-      admissionDate: date("admission_date").defaultNow(),
-      emergencyContact: varchar("emergency_contact", { length: 200 }),
-      emergencyPhone: varchar("emergency_phone", { length: 20 }),
+      parentId: text("parent_id").references(() => users.id, { onDelete: "set null" }),
+      admissionDate: text("admission_date").notNull(),
+      // YYYY-MM-DD format
+      emergencyContact: text("emergency_contact"),
+      emergencyPhone: text("emergency_phone"),
       medicalInfo: text("medical_info"),
-      guardianName: varchar("guardian_name", { length: 200 }),
-      createdAt: timestamp("created_at").defaultNow()
+      guardianName: text("guardian_name"),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    teacherProfiles = pgTable("teacher_profiles", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
-      staffId: varchar("staff_id", { length: 50 }).unique(),
-      subjects: integer("subjects").array(),
-      assignedClasses: integer("assigned_classes").array(),
-      qualification: varchar("qualification", { length: 100 }),
-      yearsOfExperience: integer("years_of_experience").default(0),
-      specialization: varchar("specialization", { length: 200 }),
-      department: varchar("department", { length: 100 }),
+    teacherProfiles = sqliteTable("teacher_profiles", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+      staffId: text("staff_id").unique(),
+      subjects: text("subjects").notNull().default("[]"),
+      // JSON array of integers
+      assignedClasses: text("assigned_classes").notNull().default("[]"),
+      // JSON array of integers
+      qualification: text("qualification"),
+      yearsOfExperience: integer("years_of_experience").notNull().default(0),
+      specialization: text("specialization"),
+      department: text("department"),
       signatureUrl: text("signature_url"),
-      gradingMode: varchar("grading_mode", { length: 50 }).default("manual"),
-      autoGradeTheoryQuestions: boolean("auto_grade_theory_questions").default(false),
+      gradingMode: text("grading_mode").notNull().default("manual"),
+      autoGradeTheoryQuestions: integer("auto_grade_theory_questions", { mode: "boolean" }).notNull().default(false),
       theoryGradingInstructions: text("theory_grading_instructions"),
-      notificationPreference: varchar("notification_preference", { length: 50 }).default("all"),
-      availability: varchar("availability", { length: 50 }),
-      firstLogin: boolean("first_login").default(true),
-      verified: boolean("verified").default(false),
-      verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
-      verifiedAt: timestamp("verified_at"),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      notificationPreference: text("notification_preference").notNull().default("all"),
+      availability: text("availability"),
+      firstLogin: integer("first_login", { mode: "boolean" }).notNull().default(true),
+      verified: integer("verified", { mode: "boolean" }).notNull().default(false),
+      verifiedBy: text("verified_by").references(() => users.id, { onDelete: "set null" }),
+      verifiedAt: integer("verified_at", { mode: "timestamp" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    adminProfiles = pgTable("admin_profiles", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
-      department: varchar("department", { length: 100 }),
+    adminProfiles = sqliteTable("admin_profiles", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+      department: text("department"),
       roleDescription: text("role_description"),
-      accessLevel: varchar("access_level", { length: 50 }),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      accessLevel: text("access_level"),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    parentProfiles = pgTable("parent_profiles", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
-      occupation: varchar("occupation", { length: 100 }),
-      contactPreference: varchar("contact_preference", { length: 50 }),
-      linkedStudents: uuid("linked_students").array(),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+    parentProfiles = sqliteTable("parent_profiles", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+      occupation: text("occupation"),
+      contactPreference: text("contact_preference"),
+      linkedStudents: text("linked_students").notNull().default("[]"),
+      // JSON array of UUIDs
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    superAdminProfiles = pgTable("super_admin_profiles", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
-      department: varchar("department", { length: 100 }),
-      accessLevel: varchar("access_level", { length: 50 }).default("full"),
-      twoFactorEnabled: boolean("two_factor_enabled").default(false),
+    superAdminProfiles = sqliteTable("super_admin_profiles", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+      department: text("department"),
+      accessLevel: text("access_level").notNull().default("full"),
+      twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
       twoFactorSecret: text("two_factor_secret"),
-      lastPasswordChange: timestamp("last_password_change"),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      lastPasswordChange: integer("last_password_change", { mode: "timestamp" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    systemSettings = pgTable("system_settings", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      schoolName: varchar("school_name", { length: 200 }),
+    systemSettings = sqliteTable("system_settings", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      schoolName: text("school_name"),
       schoolMotto: text("school_motto"),
       schoolLogo: text("school_logo"),
-      schoolEmail: varchar("school_email", { length: 255 }),
-      schoolPhone: varchar("school_phone", { length: 50 }),
+      schoolEmail: text("school_email"),
+      schoolPhone: text("school_phone"),
       schoolAddress: text("school_address"),
-      maintenanceMode: boolean("maintenance_mode").default(false),
+      maintenanceMode: integer("maintenance_mode", { mode: "boolean" }).notNull().default(false),
       maintenanceModeMessage: text("maintenance_mode_message"),
-      enableSmsNotifications: boolean("enable_sms_notifications").default(false),
-      enableEmailNotifications: boolean("enable_email_notifications").default(true),
-      enableExamsModule: boolean("enable_exams_module").default(true),
-      enableAttendanceModule: boolean("enable_attendance_module").default(true),
-      enableResultsModule: boolean("enable_results_module").default(true),
-      themeColor: varchar("theme_color", { length: 50 }).default("blue"),
+      enableSmsNotifications: integer("enable_sms_notifications", { mode: "boolean" }).notNull().default(false),
+      enableEmailNotifications: integer("enable_email_notifications", { mode: "boolean" }).notNull().default(true),
+      enableExamsModule: integer("enable_exams_module", { mode: "boolean" }).notNull().default(true),
+      enableAttendanceModule: integer("enable_attendance_module", { mode: "boolean" }).notNull().default(true),
+      enableResultsModule: integer("enable_results_module", { mode: "boolean" }).notNull().default(true),
+      themeColor: text("theme_color").notNull().default("blue"),
       favicon: text("favicon"),
-      usernameStudentPrefix: varchar("username_student_prefix", { length: 20 }).default("THS-STU"),
-      usernameParentPrefix: varchar("username_parent_prefix", { length: 20 }).default("THS-PAR"),
-      usernameTeacherPrefix: varchar("username_teacher_prefix", { length: 20 }).default("THS-TCH"),
-      usernameAdminPrefix: varchar("username_admin_prefix", { length: 20 }).default("THS-ADM"),
-      tempPasswordFormat: varchar("temp_password_format", { length: 50 }).default("THS@{year}#{random4}"),
-      hideAdminAccountsFromAdmins: boolean("hide_admin_accounts_from_admins").default(true),
-      updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      usernameStudentPrefix: text("username_student_prefix").notNull().default("THS-STU"),
+      usernameParentPrefix: text("username_parent_prefix").notNull().default("THS-PAR"),
+      usernameTeacherPrefix: text("username_teacher_prefix").notNull().default("THS-TCH"),
+      usernameAdminPrefix: text("username_admin_prefix").notNull().default("THS-ADM"),
+      tempPasswordFormat: text("temp_password_format").notNull().default("THS@{year}#{random4}"),
+      hideAdminAccountsFromAdmins: integer("hide_admin_accounts_from_admins", { mode: "boolean" }).notNull().default(true),
+      updatedBy: text("updated_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    attendance = pgTable("attendance", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
-      classId: integer("class_id").references(() => classes.id).notNull(),
-      date: date("date").notNull(),
-      status: attendanceStatusEnum("status"),
-      recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: "set null" }),
+    attendance = sqliteTable("attendance", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+      classId: integer("class_id").notNull().references(() => classes.id),
+      date: text("date").notNull(),
+      // YYYY-MM-DD format
+      status: text("status").notNull(),
+      // 'Present', 'Absent', 'Late', 'Excused'
+      recordedBy: text("recorded_by").references(() => users.id, { onDelete: "set null" }),
       notes: text("notes"),
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    exams = pgTable("exams", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 100 }).notNull(),
-      classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
+    exams = sqliteTable("exams", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      classId: integer("class_id").notNull().references(() => classes.id),
+      subjectId: integer("subject_id").notNull().references(() => subjects.id),
       totalMarks: integer("total_marks").notNull(),
       date: text("date").notNull(),
-      // Store as YYYY-MM-DD string to avoid Date object conversion
-      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id).notNull(),
-      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-      teacherInChargeId: uuid("teacher_in_charge_id").references(() => users.id, { onDelete: "set null" }),
-      // Teacher responsible for grading
-      createdAt: timestamp("created_at").defaultNow(),
-      // Exam type: 'test' (40 marks) or 'exam' (60 marks)
-      examType: examTypeEnum("exam_type").notNull().default("exam"),
-      // Timer mode: 'global' (fixed start/end times) or 'individual' (duration per student)
-      timerMode: varchar("timer_mode", { length: 20 }).default("individual"),
-      // 'global' or 'individual'
-      // Enhanced exam delivery fields
+      // YYYY-MM-DD format
+      termId: integer("term_id").notNull().references(() => academicTerms.id),
+      createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+      teacherInChargeId: text("teacher_in_charge_id").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      examType: text("exam_type").notNull().default("exam"),
+      // 'test', 'exam'
+      timerMode: text("timer_mode").notNull().default("individual"),
+      // 'global', 'individual'
       timeLimit: integer("time_limit"),
-      // in minutes (used for individual timer mode)
-      startTime: timestamp("start_time"),
-      endTime: timestamp("end_time"),
+      // in minutes
+      startTime: integer("start_time", { mode: "timestamp" }),
+      endTime: integer("end_time", { mode: "timestamp" }),
       instructions: text("instructions"),
-      isPublished: boolean("is_published").default(false),
-      allowRetakes: boolean("allow_retakes").default(false),
-      shuffleQuestions: boolean("shuffle_questions").default(false),
-      // Enhanced auto-grading features (will be added via migration)
-      autoGradingEnabled: boolean("auto_grading_enabled").default(true),
-      instantFeedback: boolean("instant_feedback").default(false),
-      // Show correct/incorrect immediately
-      showCorrectAnswers: boolean("show_correct_answers").default(false),
-      // Show answers after submission
+      isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+      allowRetakes: integer("allow_retakes", { mode: "boolean" }).notNull().default(false),
+      shuffleQuestions: integer("shuffle_questions", { mode: "boolean" }).notNull().default(false),
+      autoGradingEnabled: integer("auto_grading_enabled", { mode: "boolean" }).notNull().default(true),
+      instantFeedback: integer("instant_feedback", { mode: "boolean" }).notNull().default(false),
+      showCorrectAnswers: integer("show_correct_answers", { mode: "boolean" }).notNull().default(false),
       passingScore: integer("passing_score"),
-      // Minimum score to pass (percentage)
-      gradingScale: text("grading_scale").default("standard"),
-      // 'standard', 'custom'
-      // Proctoring and security settings
-      enableProctoring: boolean("enable_proctoring").default(false),
-      lockdownMode: boolean("lockdown_mode").default(false),
-      // Prevents tab switching, copy-paste
-      requireWebcam: boolean("require_webcam").default(false),
-      requireFullscreen: boolean("require_fullscreen").default(false),
-      maxTabSwitches: integer("max_tab_switches").default(3),
-      // Auto-submit after this many violations
-      shuffleOptions: boolean("shuffle_options").default(false)
-      // Randomize option order
+      gradingScale: text("grading_scale").notNull().default("standard"),
+      enableProctoring: integer("enable_proctoring", { mode: "boolean" }).notNull().default(false),
+      lockdownMode: integer("lockdown_mode", { mode: "boolean" }).notNull().default(false),
+      requireWebcam: integer("require_webcam", { mode: "boolean" }).notNull().default(false),
+      requireFullscreen: integer("require_fullscreen", { mode: "boolean" }).notNull().default(false),
+      maxTabSwitches: integer("max_tab_switches").notNull().default(3),
+      shuffleOptions: integer("shuffle_options", { mode: "boolean" }).notNull().default(false)
     });
-    examQuestions = pgTable("exam_questions", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
+    examQuestions = sqliteTable("exam_questions", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      examId: integer("exam_id").notNull().references(() => exams.id),
       questionText: text("question_text").notNull(),
-      questionType: varchar("question_type", { length: 50 }).notNull(),
+      questionType: text("question_type").notNull(),
       // 'multiple_choice', 'text', 'essay', 'true_false', 'fill_blank'
-      points: integer("points").default(1),
+      points: integer("points").notNull().default(1),
       orderNumber: integer("order_number").notNull(),
       imageUrl: text("image_url"),
-      // for questions with images
-      // Enhanced auto-grading features
-      autoGradable: boolean("auto_gradable").default(true),
-      // Can this question be auto-graded?
-      expectedAnswers: text("expected_answers").array(),
-      // For text questions - expected answer variations
-      caseSensitive: boolean("case_sensitive").default(false),
-      // For text answers
-      allowPartialCredit: boolean("allow_partial_credit").default(false),
+      autoGradable: integer("auto_gradable", { mode: "boolean" }).notNull().default(true),
+      expectedAnswers: text("expected_answers").notNull().default("[]"),
+      // JSON array
+      caseSensitive: integer("case_sensitive", { mode: "boolean" }).notNull().default(false),
+      allowPartialCredit: integer("allow_partial_credit", { mode: "boolean" }).notNull().default(false),
       partialCreditRules: text("partial_credit_rules"),
-      // JSON config for partial credit
       explanationText: text("explanation_text"),
-      // Explanation shown after answering
       hintText: text("hint_text"),
-      // Optional hint for students
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // PERFORMANCE INDEX: Critical for scoring JOIN queries
       examQuestionsExamIdIdx: index("exam_questions_exam_id_idx").on(table.examId),
       examQuestionsOrderIdx: index("exam_questions_order_idx").on(table.examId, table.orderNumber)
     }));
-    questionOptions = pgTable("question_options", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
+    questionOptions = sqliteTable("question_options", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      questionId: integer("question_id").notNull().references(() => examQuestions.id),
       optionText: text("option_text").notNull(),
-      isCorrect: boolean("is_correct").default(false),
+      isCorrect: integer("is_correct", { mode: "boolean" }).notNull().default(false),
       orderNumber: integer("order_number").notNull(),
-      // Enhanced auto-grading features
-      partialCreditValue: integer("partial_credit_value").default(0),
-      // Points if selected (for partial credit)
+      partialCreditValue: integer("partial_credit_value").notNull().default(0),
       explanationText: text("explanation_text"),
-      // Why this option is correct/incorrect
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // PERFORMANCE INDEX: Critical for scoring JOIN queries - find correct options fast
       questionOptionsQuestionIdIdx: index("question_options_question_id_idx").on(table.questionId),
       questionOptionsCorrectIdx: index("question_options_correct_idx").on(table.questionId, table.isCorrect)
     }));
-    examSessions = pgTable("exam_sessions", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
-      startedAt: timestamp("started_at").defaultNow(),
-      submittedAt: timestamp("submitted_at"),
+    examSessions = sqliteTable("exam_sessions", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      examId: integer("exam_id").notNull().references(() => exams.id),
+      studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+      startedAt: integer("started_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      submittedAt: integer("submitted_at", { mode: "timestamp" }),
       timeRemaining: integer("time_remaining"),
-      // in seconds
-      isCompleted: boolean("is_completed").default(false),
+      isCompleted: integer("is_completed", { mode: "boolean" }).notNull().default(false),
       score: integer("score"),
       maxScore: integer("max_score"),
-      status: varchar("status", { length: 20 }).default("in_progress"),
+      status: text("status").notNull().default("in_progress"),
       // 'in_progress', 'submitted', 'graded'
       metadata: text("metadata"),
-      // JSON string for violation tracking, progress saving, etc.
-      createdAt: timestamp("created_at").defaultNow()
+      // JSON string
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // PERFORMANCE INDEX: Critical for session lookups
       examSessionsExamStudentIdx: index("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
       examSessionsStudentCompletedIdx: index("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
-      examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted),
-      // UNIQUE CONSTRAINT: Prevent duplicate active sessions (critical for circuit breaker fix)
-      examSessionsActiveUniqueIdx: uniqueIndex("exam_sessions_active_unique_idx").on(table.examId, table.studentId).where(eq(table.isCompleted, false))
+      examSessionsActiveSessionsIdx: index("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted)
     }));
-    studentAnswers = pgTable("student_answers", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id).notNull(),
-      questionId: bigint("question_id", { mode: "number" }).references(() => examQuestions.id).notNull(),
-      selectedOptionId: bigint("selected_option_id", { mode: "number" }).references(() => questionOptions.id),
-      // for multiple choice
+    studentAnswers = sqliteTable("student_answers", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      sessionId: integer("session_id").notNull().references(() => examSessions.id),
+      questionId: integer("question_id").notNull().references(() => examQuestions.id),
+      selectedOptionId: integer("selected_option_id").references(() => questionOptions.id),
       textAnswer: text("text_answer"),
-      // for text/essay questions
-      isCorrect: boolean("is_correct"),
-      pointsEarned: integer("points_earned").default(0),
-      answeredAt: timestamp("answered_at").defaultNow(),
-      // Enhanced auto-grading features
-      autoScored: boolean("auto_scored").default(false),
-      // Was this answer auto-scored?
-      manualOverride: boolean("manual_override").default(false),
-      // Teacher manually adjusted score
+      isCorrect: integer("is_correct", { mode: "boolean" }),
+      pointsEarned: integer("points_earned").notNull().default(0),
+      answeredAt: integer("answered_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      autoScored: integer("auto_scored", { mode: "boolean" }).notNull().default(false),
+      manualOverride: integer("manual_override", { mode: "boolean" }).notNull().default(false),
       feedbackText: text("feedback_text"),
-      // Instant feedback shown to student
       partialCreditReason: text("partial_credit_reason")
-      // Why partial credit was given
     }, (table) => ({
-      // PERFORMANCE INDEX: Critical for scoring JOIN queries - fetch all answers for a session fast
       studentAnswersSessionIdIdx: index("student_answers_session_id_idx").on(table.sessionId),
       studentAnswersSessionQuestionIdx: index("student_answers_session_question_idx").on(table.sessionId, table.questionId),
       studentAnswersQuestionIdx: index("student_answers_question_id_idx").on(table.questionId)
     }));
-    examResults = pgTable("exam_results", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      examId: bigint("exam_id", { mode: "number" }).references(() => exams.id).notNull(),
-      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
+    examResults = sqliteTable("exam_results", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      examId: integer("exam_id").notNull().references(() => exams.id),
+      studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
       score: integer("score"),
       maxScore: integer("max_score"),
       marksObtained: integer("marks_obtained"),
-      // Legacy field for backward compatibility
-      grade: varchar("grade", { length: 5 }),
+      grade: text("grade"),
       remarks: text("remarks"),
-      autoScored: boolean("auto_scored").default(false),
-      recordedBy: uuid("recorded_by").references(() => users.id).notNull(),
-      // UUID field to match database schema, must be a valid user ID
-      createdAt: timestamp("created_at").defaultNow()
+      autoScored: integer("auto_scored", { mode: "boolean" }).notNull().default(false),
+      recordedBy: text("recorded_by").notNull().references(() => users.id),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // PERFORMANCE INDEX: Critical for fast result lookups by exam/student
       examResultsExamIdIdx: index("exam_results_exam_id_idx").on(table.examId),
       examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
       examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
       examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
     }));
-    questionBanks = pgTable("question_banks", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 200 }).notNull(),
+    questionBanks = sqliteTable("question_banks", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
       description: text("description"),
-      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-      classLevel: varchar("class_level", { length: 50 }),
-      // e.g., "JSS2", "SSS1"
-      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-      isPublic: boolean("is_public").default(false),
-      // Shared across teachers or private
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      subjectId: integer("subject_id").notNull().references(() => subjects.id),
+      classLevel: text("class_level"),
+      createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+      isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       questionBanksSubjectIdx: index("question_banks_subject_idx").on(table.subjectId),
       questionBanksCreatedByIdx: index("question_banks_created_by_idx").on(table.createdBy)
     }));
-    questionBankItems = pgTable("question_bank_items", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      bankId: bigint("bank_id", { mode: "number" }).references(() => questionBanks.id, { onDelete: "cascade" }).notNull(),
+    questionBankItems = sqliteTable("question_bank_items", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      bankId: integer("bank_id").notNull().references(() => questionBanks.id, { onDelete: "cascade" }),
       questionText: text("question_text").notNull(),
-      questionType: varchar("question_type", { length: 50 }).notNull(),
-      // 'multiple_choice', 'text', 'essay', 'practical'
-      points: integer("points").default(1),
-      difficulty: varchar("difficulty", { length: 20 }).default("medium"),
-      // 'easy', 'medium', 'hard'
-      tags: text("tags").array(),
-      // For filtering and search
+      questionType: text("question_type").notNull(),
+      points: integer("points").notNull().default(1),
+      difficulty: text("difficulty").notNull().default("medium"),
+      tags: text("tags").notNull().default("[]"),
+      // JSON array
       imageUrl: text("image_url"),
-      // Auto-grading features
-      autoGradable: boolean("auto_gradable").default(true),
-      expectedAnswers: text("expected_answers").array(),
-      caseSensitive: boolean("case_sensitive").default(false),
+      autoGradable: integer("auto_gradable", { mode: "boolean" }).notNull().default(true),
+      expectedAnswers: text("expected_answers").notNull().default("[]"),
+      // JSON array
+      caseSensitive: integer("case_sensitive", { mode: "boolean" }).notNull().default(false),
       explanationText: text("explanation_text"),
       hintText: text("hint_text"),
-      // For practical questions
       practicalInstructions: text("practical_instructions"),
       practicalFileUrl: text("practical_file_url"),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       questionBankItemsBankIdIdx: index("question_bank_items_bank_id_idx").on(table.bankId),
       questionBankItemsTypeIdx: index("question_bank_items_type_idx").on(table.questionType),
       questionBankItemsDifficultyIdx: index("question_bank_items_difficulty_idx").on(table.difficulty)
     }));
-    questionBankOptions = pgTable("question_bank_options", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      questionItemId: bigint("question_item_id", { mode: "number" }).references(() => questionBankItems.id, { onDelete: "cascade" }).notNull(),
+    questionBankOptions = sqliteTable("question_bank_options", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      questionItemId: integer("question_item_id").notNull().references(() => questionBankItems.id, { onDelete: "cascade" }),
       optionText: text("option_text").notNull(),
-      isCorrect: boolean("is_correct").default(false),
+      isCorrect: integer("is_correct", { mode: "boolean" }).notNull().default(false),
       orderNumber: integer("order_number").notNull(),
       explanationText: text("explanation_text"),
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       questionBankOptionsItemIdIdx: index("question_bank_options_item_id_idx").on(table.questionItemId)
     }));
-    announcements = pgTable("announcements", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      title: varchar("title", { length: 200 }).notNull(),
+    announcements = sqliteTable("announcements", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      title: text("title").notNull(),
       content: text("content").notNull(),
-      authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
-      targetRoles: varchar("target_roles", { length: 20 }).array().default(sql`'{"All"}'::varchar[]`),
-      targetClasses: integer("target_classes").array().default(sql`'{}'::integer[]`),
-      isPublished: boolean("is_published").default(false),
-      publishedAt: timestamp("published_at"),
-      createdAt: timestamp("created_at").defaultNow()
+      authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+      targetRoles: text("target_roles").notNull().default('["All"]'),
+      // JSON array
+      targetClasses: text("target_classes").notNull().default("[]"),
+      // JSON array
+      isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+      publishedAt: integer("published_at", { mode: "timestamp" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    messages = pgTable("messages", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      senderId: uuid("sender_id").references(() => users.id, { onDelete: "set null" }),
-      recipientId: uuid("recipient_id").references(() => users.id, { onDelete: "set null" }),
-      subject: varchar("subject", { length: 200 }).notNull(),
+    messages = sqliteTable("messages", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      senderId: text("sender_id").references(() => users.id, { onDelete: "set null" }),
+      recipientId: text("recipient_id").references(() => users.id, { onDelete: "set null" }),
+      subject: text("subject").notNull(),
       content: text("content").notNull(),
-      isRead: boolean("is_read").default(false),
-      createdAt: timestamp("created_at").defaultNow()
+      isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    galleryCategories = pgTable("gallery_categories", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 100 }).notNull(),
+    galleryCategories = sqliteTable("gallery_categories", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
       description: text("description"),
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    gallery = pgTable("gallery", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
+    gallery = sqliteTable("gallery", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
       imageUrl: text("image_url").notNull(),
       caption: text("caption"),
       categoryId: integer("category_id").references(() => galleryCategories.id),
-      uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp("created_at").defaultNow()
+      uploadedBy: text("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    homePageContent = pgTable("home_page_content", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      contentType: varchar("content_type", { length: 50 }).notNull(),
-      // 'hero_image', 'gallery_preview_1', 'gallery_preview_2', etc.
+    homePageContent = sqliteTable("home_page_content", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      contentType: text("content_type").notNull(),
       imageUrl: text("image_url"),
       altText: text("alt_text"),
       caption: text("caption"),
-      isActive: boolean("is_active").default(true).notNull(),
-      displayOrder: integer("display_order").default(0).notNull(),
-      uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp("created_at").defaultNow().notNull(),
-      updatedAt: timestamp("updated_at").defaultNow().notNull()
+      isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+      displayOrder: integer("display_order").notNull().default(0),
+      uploadedBy: text("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    contactMessages = pgTable("contact_messages", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      name: varchar("name", { length: 100 }).notNull(),
-      email: varchar("email", { length: 255 }).notNull(),
-      subject: varchar("subject", { length: 200 }),
+    contactMessages = sqliteTable("contact_messages", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      email: text("email").notNull(),
+      subject: text("subject"),
       message: text("message").notNull(),
-      isRead: boolean("is_read").default(false),
-      respondedAt: timestamp("responded_at"),
-      respondedBy: uuid("responded_by").references(() => users.id, { onDelete: "set null" }),
+      isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+      respondedAt: integer("responded_at", { mode: "timestamp" }),
+      respondedBy: text("responded_by").references(() => users.id, { onDelete: "set null" }),
       response: text("response"),
-      createdAt: timestamp("created_at").defaultNow().notNull()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    reportCards = pgTable("report_cards", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      studentId: uuid("student_id").references(() => students.id, { onDelete: "cascade" }).notNull(),
-      classId: integer("class_id").references(() => classes.id).notNull(),
-      termId: integer("term_id").references(() => academicTerms.id).notNull(),
+    reportCards = sqliteTable("report_cards", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+      classId: integer("class_id").notNull().references(() => classes.id),
+      termId: integer("term_id").notNull().references(() => academicTerms.id),
       averagePercentage: integer("average_percentage"),
-      // Overall percentage
-      overallGrade: varchar("overall_grade", { length: 5 }),
-      // A+, A, B+, etc.
+      overallGrade: text("overall_grade"),
       teacherRemarks: text("teacher_remarks"),
-      status: reportCardStatusEnum("status").default("draft"),
-      locked: boolean("locked").default(false),
-      generatedAt: timestamp("generated_at").defaultNow(),
-      finalizedAt: timestamp("finalized_at"),
-      publishedAt: timestamp("published_at"),
-      createdAt: timestamp("created_at").defaultNow()
+      status: text("status").notNull().default("draft"),
+      // 'draft', 'finalized', 'published'
+      locked: integer("locked", { mode: "boolean" }).notNull().default(false),
+      generatedAt: integer("generated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      finalizedAt: integer("finalized_at", { mode: "timestamp" }),
+      publishedAt: integer("published_at", { mode: "timestamp" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    reportCardItems = pgTable("report_card_items", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      reportCardId: integer("report_card_id").references(() => reportCards.id).notNull(),
-      subjectId: integer("subject_id").references(() => subjects.id).notNull(),
-      // Test and Exam scores with their respective exam IDs for reference
-      testExamId: bigint("test_exam_id", { mode: "number" }).references(() => exams.id),
+    reportCardItems = sqliteTable("report_card_items", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      reportCardId: integer("report_card_id").notNull().references(() => reportCards.id),
+      subjectId: integer("subject_id").notNull().references(() => subjects.id),
+      testExamId: integer("test_exam_id").references(() => exams.id),
       testScore: integer("test_score"),
-      // Score obtained in test (out of testMaxScore)
       testMaxScore: integer("test_max_score"),
-      // Maximum marks for test
       testWeightedScore: integer("test_weighted_score"),
-      // Normalized to 40
-      examExamId: bigint("exam_exam_id", { mode: "number" }).references(() => exams.id),
+      examExamId: integer("exam_exam_id").references(() => exams.id),
       examScore: integer("exam_score"),
-      // Score obtained in exam (out of examMaxScore)
       examMaxScore: integer("exam_max_score"),
-      // Maximum marks for exam
       examWeightedScore: integer("exam_weighted_score"),
-      // Normalized to 60
-      // Combined scores
       totalMarks: integer("total_marks").notNull().default(100),
-      // Always 100 for the weighted system
       obtainedMarks: integer("obtained_marks").notNull(),
-      // testWeightedScore + examWeightedScore
       percentage: integer("percentage").notNull(),
-      grade: varchar("grade", { length: 5 }),
-      // A+, A, B+, etc.
+      grade: text("grade"),
       teacherRemarks: text("teacher_remarks"),
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    studyResources = pgTable("study_resources", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      title: varchar("title", { length: 200 }).notNull(),
+    studyResources = sqliteTable("study_resources", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      title: text("title").notNull(),
       description: text("description"),
       fileUrl: text("file_url").notNull(),
-      fileName: varchar("file_name", { length: 255 }).notNull(),
+      fileName: text("file_name").notNull(),
       fileSize: integer("file_size"),
-      // in bytes
-      resourceType: varchar("resource_type", { length: 50 }).notNull(),
-      // 'past_paper', 'study_guide', 'notes', 'assignment'
-      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id),
-      classId: bigint("class_id", { mode: "number" }).references(() => classes.id),
-      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-      uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
-      isPublished: boolean("is_published").default(true),
-      downloads: integer("downloads").default(0),
-      createdAt: timestamp("created_at").defaultNow()
+      resourceType: text("resource_type").notNull(),
+      subjectId: integer("subject_id").references(() => subjects.id),
+      classId: integer("class_id").references(() => classes.id),
+      termId: integer("term_id").references(() => academicTerms.id),
+      uploadedBy: text("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+      isPublished: integer("is_published", { mode: "boolean" }).notNull().default(true),
+      downloads: integer("downloads").notNull().default(0),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     });
-    performanceEvents = pgTable("performance_events", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id),
-      eventType: varchar("event_type", { length: 50 }).notNull(),
-      // 'submission', 'auto_submit', 'timeout_cleanup', 'answer_save'
+    performanceEvents = sqliteTable("performance_events", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      sessionId: integer("session_id").references(() => examSessions.id),
+      eventType: text("event_type").notNull(),
       duration: integer("duration").notNull(),
-      // in milliseconds
-      goalAchieved: boolean("goal_achieved").notNull(),
-      // whether it met the < 2000ms goal
+      goalAchieved: integer("goal_achieved", { mode: "boolean" }).notNull(),
       metadata: text("metadata"),
-      // JSON string for additional data
-      clientSide: boolean("client_side").default(false),
-      // whether logged from client or server
-      userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-      // for attribution
-      createdAt: timestamp("created_at").defaultNow()
+      clientSide: integer("client_side", { mode: "boolean" }).notNull().default(false),
+      userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // Performance indexes for analytics queries
       performanceEventsTypeIdx: index("performance_events_type_idx").on(table.eventType),
       performanceEventsDateIdx: index("performance_events_date_idx").on(table.createdAt),
       performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType)
     }));
-    teacherClassAssignments = pgTable("teacher_class_assignments", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      teacherId: uuid("teacher_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-      classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-      assignedBy: uuid("assigned_by").references(() => users.id, { onDelete: "set null" }),
-      isActive: boolean("is_active").default(true),
-      createdAt: timestamp("created_at").defaultNow()
+    teacherClassAssignments = sqliteTable("teacher_class_assignments", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      teacherId: text("teacher_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      classId: integer("class_id").notNull().references(() => classes.id),
+      subjectId: integer("subject_id").notNull().references(() => subjects.id),
+      termId: integer("term_id").references(() => academicTerms.id),
+      assignedBy: text("assigned_by").references(() => users.id, { onDelete: "set null" }),
+      isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // Performance indexes for quick teacher assignment lookups
       teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
       teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId)
     }));
-    timetable = pgTable("timetable", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      teacherId: uuid("teacher_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-      classId: bigint("class_id", { mode: "number" }).references(() => classes.id).notNull(),
-      subjectId: bigint("subject_id", { mode: "number" }).references(() => subjects.id).notNull(),
-      dayOfWeek: varchar("day_of_week", { length: 10 }).notNull(),
-      // 'Monday', 'Tuesday', etc.
-      startTime: varchar("start_time", { length: 5 }).notNull(),
-      // '09:00' format
-      endTime: varchar("end_time", { length: 5 }).notNull(),
-      // '10:00' format
-      location: varchar("location", { length: 100 }),
-      // Room/classroom location
-      termId: bigint("term_id", { mode: "number" }).references(() => academicTerms.id),
-      isActive: boolean("is_active").default(true),
-      createdAt: timestamp("created_at").defaultNow()
+    timetable = sqliteTable("timetable", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      teacherId: text("teacher_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      classId: integer("class_id").notNull().references(() => classes.id),
+      subjectId: integer("subject_id").notNull().references(() => subjects.id),
+      dayOfWeek: text("day_of_week").notNull(),
+      startTime: text("start_time").notNull(),
+      endTime: text("end_time").notNull(),
+      location: text("location"),
+      termId: integer("term_id").references(() => academicTerms.id),
+      isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // Performance indexes for timetable queries
       timetableTeacherIdx: index("timetable_teacher_idx").on(table.teacherId, table.isActive),
       timetableDayIdx: index("timetable_day_idx").on(table.dayOfWeek, table.teacherId)
     }));
-    gradingTasks = pgTable("grading_tasks", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      sessionId: bigint("session_id", { mode: "number" }).references(() => examSessions.id, { onDelete: "cascade" }).notNull(),
-      answerId: bigint("answer_id", { mode: "number" }).references(() => studentAnswers.id, { onDelete: "cascade" }).notNull(),
-      assignedTeacherId: uuid("assigned_teacher_id").references(() => users.id, { onDelete: "set null" }),
-      // Teacher assigned to grade this
-      status: varchar("status", { length: 20 }).default("pending"),
-      // 'pending', 'in_progress', 'completed', 'skipped'
-      priority: integer("priority").default(0),
-      // Higher number = higher priority
-      assignedAt: timestamp("assigned_at"),
-      startedAt: timestamp("started_at"),
-      completedAt: timestamp("completed_at"),
-      createdAt: timestamp("created_at").defaultNow()
+    gradingTasks = sqliteTable("grading_tasks", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      sessionId: integer("session_id").notNull().references(() => examSessions.id, { onDelete: "cascade" }),
+      answerId: integer("answer_id").notNull().references(() => studentAnswers.id, { onDelete: "cascade" }),
+      assignedTeacherId: text("assigned_teacher_id").references(() => users.id, { onDelete: "set null" }),
+      status: text("status").notNull().default("pending"),
+      priority: integer("priority").notNull().default(0),
+      assignedAt: integer("assigned_at", { mode: "timestamp" }),
+      startedAt: integer("started_at", { mode: "timestamp" }),
+      completedAt: integer("completed_at", { mode: "timestamp" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // Performance indexes for grading queue management
       gradingTasksAssignedIdx: index("grading_tasks_assigned_idx").on(table.assignedTeacherId, table.status),
       gradingTasksStatusIdx: index("grading_tasks_status_idx").on(table.status, table.priority),
       gradingTasksSessionIdx: index("grading_tasks_session_idx").on(table.sessionId),
-      // Unique constraint to prevent duplicate tasks for the same answer
       gradingTasksAnswerUniqueIdx: uniqueIndex("grading_tasks_answer_unique_idx").on(table.answerId)
     }));
-    auditLogs = pgTable("audit_logs", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-      // Who made the change - PRESERVE audit trail
-      action: varchar("action", { length: 100 }).notNull(),
-      // 'grade_change', 'manual_override', 'report_publish', etc.
-      entityType: varchar("entity_type", { length: 50 }).notNull(),
-      // 'exam_result', 'student_answer', 'report_card'
-      entityId: varchar("entity_id", { length: 255 }).notNull(),
-      // ID of the affected entity (supports both UUIDs and numeric IDs)
+    auditLogs = sqliteTable("audit_logs", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+      action: text("action").notNull(),
+      entityType: text("entity_type").notNull(),
+      entityId: text("entity_id").notNull(),
       oldValue: text("old_value"),
-      // JSON of old values
       newValue: text("new_value"),
-      // JSON of new values
       reason: text("reason"),
-      // Why the change was made
-      ipAddress: varchar("ip_address", { length: 45 }),
-      // IPv4 or IPv6
+      ipAddress: text("ip_address"),
       userAgent: text("user_agent"),
-      createdAt: timestamp("created_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
-      // Performance indexes for audit queries
       auditLogsUserIdx: index("audit_logs_user_idx").on(table.userId),
       auditLogsEntityIdx: index("audit_logs_entity_idx").on(table.entityType, table.entityId),
       auditLogsDateIdx: index("audit_logs_date_idx").on(table.createdAt),
       auditLogsActionIdx: index("audit_logs_action_idx").on(table.action)
     }));
-    settings = pgTable("settings", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      key: varchar("key", { length: 100 }).notNull().unique(),
+    settings = sqliteTable("settings", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      key: text("key").notNull().unique(),
       value: text("value").notNull(),
       description: text("description"),
-      dataType: varchar("data_type", { length: 20 }).notNull().default("string"),
-      // 'string', 'number', 'boolean', 'json'
-      updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      dataType: text("data_type").notNull().default("string"),
+      updatedBy: text("updated_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       settingsKeyIdx: index("settings_key_idx").on(table.key)
     }));
-    counters = pgTable("counters", {
-      id: bigserial("id", { mode: "number" }).primaryKey(),
-      // New role-based counter fields
-      roleCode: varchar("role_code", { length: 10 }),
-      // 'STU', 'PAR', 'TCH', 'ADM'
-      // Legacy fields kept for backwards compatibility
-      classCode: varchar("class_code", { length: 50 }),
-      year: varchar("year", { length: 9 }),
+    counters = sqliteTable("counters", {
+      id: integer("id").primaryKey({ autoIncrement: true }),
+      roleCode: text("role_code"),
+      classCode: text("class_code"),
+      year: text("year"),
       sequence: integer("sequence").notNull().default(0),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
     }, (table) => ({
       countersRoleCodeIdx: uniqueIndex("counters_role_code_idx").on(table.roleCode)
+    }));
+    vacancies = sqliteTable("vacancies", {
+      id: text("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      requirements: text("requirements"),
+      deadline: integer("deadline", { mode: "timestamp" }).notNull(),
+      status: text("status").notNull().default("open"),
+      // 'open', 'closed', 'filled'
+      createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
+    }, (table) => ({
+      vacanciesStatusIdx: index("vacancies_status_idx").on(table.status),
+      vacanciesDeadlineIdx: index("vacancies_deadline_idx").on(table.deadline)
+    }));
+    teacherApplications = sqliteTable("teacher_applications", {
+      id: text("id").primaryKey(),
+      vacancyId: text("vacancy_id").references(() => vacancies.id, { onDelete: "set null" }),
+      fullName: text("full_name").notNull(),
+      googleEmail: text("google_email").notNull(),
+      phone: text("phone").notNull(),
+      subjectSpecialty: text("subject_specialty").notNull(),
+      qualification: text("qualification").notNull(),
+      experienceYears: integer("experience_years").notNull(),
+      bio: text("bio").notNull(),
+      resumeUrl: text("resume_url"),
+      status: text("status").notNull().default("pending"),
+      // 'pending', 'approved', 'rejected'
+      reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+      reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+      rejectionReason: text("rejection_reason"),
+      dateApplied: integer("date_applied", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
+    }, (table) => ({
+      teacherApplicationsStatusIdx: index("teacher_applications_status_idx").on(table.status),
+      teacherApplicationsEmailIdx: index("teacher_applications_email_idx").on(table.googleEmail),
+      teacherApplicationsVacancyIdx: index("teacher_applications_vacancy_idx").on(table.vacancyId)
+    }));
+    approvedTeachers = sqliteTable("approved_teachers", {
+      id: text("id").primaryKey(),
+      applicationId: text("application_id").references(() => teacherApplications.id, { onDelete: "set null" }),
+      googleEmail: text("google_email").notNull().unique(),
+      fullName: text("full_name").notNull(),
+      subjectSpecialty: text("subject_specialty"),
+      approvedBy: text("approved_by").references(() => users.id, { onDelete: "set null" }),
+      dateApproved: integer("date_approved", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+      createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`)
+    }, (table) => ({
+      approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail)
     }));
     insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true });
     insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -866,7 +817,6 @@ var init_schema = __esm({
     insertAcademicTermSchema = createInsertSchema(academicTerms).omit({ id: true, createdAt: true });
     insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
     insertExamSchema = createInsertSchema(exams).omit({ id: true, createdAt: true }).extend({
-      // Required fields - coerce to numbers with clear error messages
       classId: z.preprocess(
         (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
         z.number().positive("Please select a valid class")
@@ -883,18 +833,13 @@ var init_schema = __esm({
         (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
         z.number().positive("Total marks must be a positive number")
       ),
-      // Exam name is required
       name: z.string().min(1, "Exam name is required"),
-      // Handle date string from frontend - keep as string for database
       date: z.string().min(1, "Exam date is required").regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").refine((dateStr) => {
-        const date2 = new Date(dateStr);
-        return !isNaN(date2.getTime()) && date2.toISOString().startsWith(dateStr);
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime()) && date.toISOString().startsWith(dateStr);
       }, "Please enter a valid date"),
-      // Exam type with default
       examType: z.enum(["test", "exam"]).default("exam"),
-      // Timer mode with default
       timerMode: z.string().default("individual"),
-      // Optional numeric fields - handle empty strings properly
       timeLimit: z.preprocess(
         (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
         z.number().int().min(1, "Time limit must be at least 1 minute").optional()
@@ -903,7 +848,6 @@ var init_schema = __esm({
         (val) => val === "" || val === null || val === void 0 ? void 0 : Number(val),
         z.number().int().min(0).max(100, "Passing score must be between 0 and 100").optional()
       ),
-      // Optional timestamp fields - handle empty strings and convert to Date
       startTime: z.preprocess(
         (val) => val === "" || val === null || val === void 0 ? void 0 : new Date(val),
         z.date().optional()
@@ -912,7 +856,6 @@ var init_schema = __esm({
         (val) => val === "" || val === null || val === void 0 ? void 0 : new Date(val),
         z.date().optional()
       ),
-      // Optional text fields - handle empty strings
       instructions: z.preprocess(
         (val) => val === "" || val === null || val === void 0 ? void 0 : val,
         z.string().optional()
@@ -921,12 +864,10 @@ var init_schema = __esm({
         (val) => val === "" || val === null || val === void 0 ? "standard" : val,
         z.string().default("standard")
       ),
-      // Optional teacher in charge
       teacherInChargeId: z.preprocess(
         (val) => val === "" || val === null || val === void 0 ? void 0 : val,
-        z.string().uuid().optional()
+        z.string().optional()
       ),
-      // Boolean fields with defaults
       isPublished: z.boolean().default(false),
       allowRetakes: z.boolean().default(false),
       shuffleQuestions: z.boolean().default(false),
@@ -952,7 +893,6 @@ var init_schema = __esm({
     insertSettingSchema = createInsertSchema(settings).omit({ id: true, createdAt: true, updatedAt: true });
     insertCounterSchema = createInsertSchema(counters).omit({ id: true, createdAt: true, updatedAt: true });
     createStudentWithAutoCredsSchema = z.object({
-      // User fields - email/password/username auto-generated
       firstName: z.string().min(1, "First name is required"),
       lastName: z.string().min(1, "Last name is required"),
       phone: z.string().optional(),
@@ -960,20 +900,16 @@ var init_schema = __esm({
       dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
       gender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required" }),
       profileImageUrl: z.string().optional(),
-      // Student-specific fields
       admissionNumber: z.string().min(1, "Admission number is required"),
       classId: z.coerce.number().positive("Please select a valid class"),
-      parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
+      parentId: z.string().optional().nullable(),
       admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
       emergencyContact: z.string().min(1, "Emergency contact is required"),
       medicalInfo: z.string().optional(),
       parentEmail: z.string().email("Invalid parent email").optional(),
-      // For linking/creating parent accounts
       parentPhone: z.string().optional()
-      // For linking/creating parent accounts
     });
     createStudentSchema = z.object({
-      // User fields - password, username, and email auto-generated
       firstName: z.string().min(1, "First name is required"),
       lastName: z.string().min(1, "Last name is required"),
       phone: z.string().optional(),
@@ -981,11 +917,9 @@ var init_schema = __esm({
       dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
       gender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required" }),
       profileImageUrl: z.string().optional(),
-      // Student-specific fields - admissionNumber auto-generated
       classId: z.coerce.number().positive("Please select a valid class"),
-      parentId: z.string().uuid("Invalid parent selection").optional().nullable(),
+      parentId: z.string().optional().nullable(),
       parentPhone: z.string().optional(),
-      // For parent linking/creation by phone only
       admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Admission date must be in YYYY-MM-DD format"),
       emergencyContact: z.string().optional(),
       medicalInfo: z.string().optional(),
@@ -1004,13 +938,11 @@ var init_schema = __esm({
       guardianName: z.string().optional()
     });
     insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true, createdAt: true }).extend({
-      // Coerce string IDs and numeric values to numbers (forms and CSV often send these as strings)
       examId: z.coerce.number().positive("Please select a valid exam"),
       questionText: z.string().min(1, "Question text is required"),
       questionType: z.enum(["multiple_choice", "text", "essay", "true_false", "fill_blank"], { required_error: "Question type is required" }),
       points: z.preprocess((val) => val === "" ? 1 : val, z.coerce.number().int().min(0, "Points must be a non-negative number").default(1)),
       orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-      // Handle optional text fields - convert empty strings to undefined
       imageUrl: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
       expectedAnswers: z.preprocess((val) => {
         if (val === "" || val === null || val === void 0) return void 0;
@@ -1020,22 +952,15 @@ var init_schema = __esm({
       }, z.array(z.string()).optional()),
       explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
       hintText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-      partialCreditRules: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-      // Added fields for theory questions
-      instructions: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional()),
-      sampleAnswer: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
+      partialCreditRules: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
     });
     insertQuestionOptionSchema = createInsertSchema(questionOptions).omit({ id: true, createdAt: true }).extend({
-      // Coerce string IDs and numeric values to numbers
       questionId: z.coerce.number().positive("Please select a valid question"),
       orderNumber: z.coerce.number().int().min(1, "Order number must be a positive number"),
-      // Handle optional numeric fields - convert empty strings to undefined or 0
       partialCreditValue: z.preprocess((val) => val === "" ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)),
-      // Handle optional text fields - convert empty strings to undefined
       explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
     });
     createQuestionOptionSchema = insertQuestionOptionSchema.omit({ questionId: true, orderNumber: true }).extend({
-      // Optional fields that can be provided during creation
       partialCreditValue: z.preprocess((val) => val === "" ? 0 : val, z.coerce.number().int().min(0, "Partial credit must be non-negative").default(0)).optional(),
       explanationText: z.preprocess((val) => val === "" ? void 0 : val, z.string().optional())
     });
@@ -1044,11 +969,9 @@ var init_schema = __esm({
       createdAt: true,
       startedAt: true,
       studentId: true
-      // Server sets this from authenticated user
     }).partial().required({
       examId: true
     }).extend({
-      // Handle date strings from frontend (JSON serialization converts Date objects to strings)
       submittedAt: z.union([z.date(), z.string()]).optional().transform((val) => {
         if (typeof val === "string") {
           return new Date(val);
@@ -1057,13 +980,10 @@ var init_schema = __esm({
       })
     });
     updateExamSessionSchema = z.object({
-      // Students can only update these specific fields when submitting exams
       isCompleted: z.boolean().optional(),
       submittedAt: z.coerce.date().refine((d) => !isNaN(d.getTime()), "Invalid date").optional(),
       timeRemaining: z.number().int().min(0).optional(),
-      // Only allow valid status transitions for student updates
       status: z.enum(["in_progress", "submitted"]).optional(),
-      // Server-side fields for auto-submission and tracking
       submissionMethod: z.string().optional(),
       autoSubmitted: z.boolean().optional()
     }).strict();
@@ -1072,60 +992,6 @@ var init_schema = __esm({
     insertTeacherProfileSchema = createInsertSchema(teacherProfiles).omit({ id: true, createdAt: true, updatedAt: true });
     insertAdminProfileSchema = createInsertSchema(adminProfiles).omit({ id: true, createdAt: true, updatedAt: true });
     insertParentProfileSchema = createInsertSchema(parentProfiles).omit({ id: true, createdAt: true, updatedAt: true });
-    insertQuestionBankSchema = createInsertSchema(questionBanks).omit({ id: true, createdAt: true, updatedAt: true });
-    insertQuestionBankItemSchema = createInsertSchema(questionBankItems).omit({ id: true, createdAt: true, updatedAt: true });
-    insertQuestionBankOptionSchema = createInsertSchema(questionBankOptions).omit({ id: true, createdAt: true });
-    vacancyStatusEnum = pgEnum("vacancy_status", ["open", "closed", "filled"]);
-    applicationStatusEnum = pgEnum("application_status", ["pending", "approved", "rejected"]);
-    vacancies = pgTable("vacancies", {
-      id: uuid("id").defaultRandom().primaryKey(),
-      title: varchar("title", { length: 200 }).notNull(),
-      description: text("description").notNull(),
-      requirements: text("requirements"),
-      deadline: timestamp("deadline").notNull(),
-      status: vacancyStatusEnum("status").default("open"),
-      createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
-    }, (table) => ({
-      vacanciesStatusIdx: index("vacancies_status_idx").on(table.status),
-      vacanciesDeadlineIdx: index("vacancies_deadline_idx").on(table.deadline)
-    }));
-    teacherApplications = pgTable("teacher_applications", {
-      id: uuid("id").defaultRandom().primaryKey(),
-      vacancyId: uuid("vacancy_id").references(() => vacancies.id, { onDelete: "set null" }),
-      fullName: varchar("full_name", { length: 200 }).notNull(),
-      googleEmail: varchar("google_email", { length: 255 }).notNull(),
-      phone: varchar("phone", { length: 20 }).notNull(),
-      subjectSpecialty: varchar("subject_specialty", { length: 100 }).notNull(),
-      qualification: varchar("qualification", { length: 200 }).notNull(),
-      experienceYears: integer("experience_years").notNull(),
-      bio: text("bio").notNull(),
-      resumeUrl: text("resume_url"),
-      status: applicationStatusEnum("status").default("pending"),
-      reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
-      reviewedAt: timestamp("reviewed_at"),
-      rejectionReason: text("rejection_reason"),
-      dateApplied: timestamp("date_applied").defaultNow(),
-      createdAt: timestamp("created_at").defaultNow(),
-      updatedAt: timestamp("updated_at").defaultNow()
-    }, (table) => ({
-      teacherApplicationsStatusIdx: index("teacher_applications_status_idx").on(table.status),
-      teacherApplicationsEmailIdx: index("teacher_applications_email_idx").on(table.googleEmail),
-      teacherApplicationsVacancyIdx: index("teacher_applications_vacancy_idx").on(table.vacancyId)
-    }));
-    approvedTeachers = pgTable("approved_teachers", {
-      id: uuid("id").defaultRandom().primaryKey(),
-      applicationId: uuid("application_id").references(() => teacherApplications.id, { onDelete: "set null" }),
-      googleEmail: varchar("google_email", { length: 255 }).notNull().unique(),
-      fullName: varchar("full_name", { length: 200 }).notNull(),
-      subjectSpecialty: varchar("subject_specialty", { length: 100 }),
-      approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
-      dateApproved: timestamp("date_approved").defaultNow(),
-      createdAt: timestamp("created_at").defaultNow()
-    }, (table) => ({
-      approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail)
-    }));
     insertVacancySchema = createInsertSchema(vacancies).omit({
       id: true,
       createdAt: true,
@@ -1155,61 +1021,781 @@ var init_schema = __esm({
       createdAt: true,
       updatedAt: true
     });
+    insertQuestionBankSchema = createInsertSchema(questionBanks).omit({ id: true, createdAt: true, updatedAt: true });
+    insertQuestionBankItemSchema = createInsertSchema(questionBankItems).omit({ id: true, createdAt: true, updatedAt: true });
+    insertQuestionBankOptionSchema = createInsertSchema(questionBankOptions).omit({ id: true, createdAt: true });
+  }
+});
+
+// shared/schema.pg.ts
+var schema_pg_exports = {};
+__export(schema_pg_exports, {
+  academicTerms: () => academicTerms2,
+  adminProfiles: () => adminProfiles2,
+  announcements: () => announcements2,
+  approvedTeachers: () => approvedTeachers2,
+  attendance: () => attendance2,
+  auditLogs: () => auditLogs2,
+  classes: () => classes2,
+  contactMessages: () => contactMessages2,
+  counters: () => counters2,
+  examQuestions: () => examQuestions2,
+  examResults: () => examResults2,
+  examSessions: () => examSessions2,
+  exams: () => exams2,
+  gallery: () => gallery2,
+  galleryCategories: () => galleryCategories2,
+  gradingTasks: () => gradingTasks2,
+  homePageContent: () => homePageContent2,
+  invites: () => invites2,
+  messages: () => messages2,
+  notifications: () => notifications2,
+  parentProfiles: () => parentProfiles2,
+  passwordResetAttempts: () => passwordResetAttempts2,
+  passwordResetTokens: () => passwordResetTokens2,
+  performanceEvents: () => performanceEvents2,
+  questionBankItems: () => questionBankItems2,
+  questionBankOptions: () => questionBankOptions2,
+  questionBanks: () => questionBanks2,
+  questionOptions: () => questionOptions2,
+  reportCardItems: () => reportCardItems2,
+  reportCards: () => reportCards2,
+  roles: () => roles2,
+  settings: () => settings2,
+  studentAnswers: () => studentAnswers2,
+  students: () => students2,
+  studyResources: () => studyResources2,
+  subjects: () => subjects2,
+  superAdminProfiles: () => superAdminProfiles2,
+  systemSettings: () => systemSettings2,
+  teacherApplications: () => teacherApplications2,
+  teacherClassAssignments: () => teacherClassAssignments2,
+  teacherProfiles: () => teacherProfiles2,
+  timetable: () => timetable2,
+  users: () => users2,
+  vacancies: () => vacancies2
+});
+import { pgTable, text as text2, integer as integer2, boolean, timestamp, index as index2, uniqueIndex as uniqueIndex2, serial, varchar } from "drizzle-orm/pg-core";
+var roles2, users2, passwordResetTokens2, passwordResetAttempts2, invites2, notifications2, academicTerms2, classes2, subjects2, students2, teacherProfiles2, adminProfiles2, parentProfiles2, superAdminProfiles2, systemSettings2, attendance2, exams2, examQuestions2, questionOptions2, examSessions2, studentAnswers2, examResults2, questionBanks2, questionBankItems2, questionBankOptions2, announcements2, messages2, galleryCategories2, gallery2, homePageContent2, contactMessages2, reportCards2, reportCardItems2, studyResources2, teacherClassAssignments2, timetable2, gradingTasks2, auditLogs2, performanceEvents2, settings2, counters2, vacancies2, teacherApplications2, approvedTeachers2;
+var init_schema_pg = __esm({
+  "shared/schema.pg.ts"() {
+    "use strict";
+    roles2 = pgTable("roles", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull().unique(),
+      permissions: text2("permissions").notNull().default("[]"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    users2 = pgTable("users", {
+      id: varchar("id", { length: 36 }).primaryKey(),
+      username: varchar("username", { length: 255 }).unique(),
+      email: varchar("email", { length: 255 }).notNull(),
+      recoveryEmail: varchar("recovery_email", { length: 255 }),
+      passwordHash: text2("password_hash"),
+      mustChangePassword: boolean("must_change_password").notNull().default(true),
+      roleId: integer2("role_id").notNull().references(() => roles2.id),
+      firstName: varchar("first_name", { length: 255 }).notNull(),
+      lastName: varchar("last_name", { length: 255 }).notNull(),
+      phone: varchar("phone", { length: 50 }),
+      address: text2("address"),
+      dateOfBirth: varchar("date_of_birth", { length: 10 }),
+      gender: varchar("gender", { length: 10 }),
+      nationalId: varchar("national_id", { length: 50 }),
+      profileImageUrl: text2("profile_image_url"),
+      isActive: boolean("is_active").notNull().default(true),
+      authProvider: varchar("auth_provider", { length: 20 }).notNull().default("local"),
+      googleId: varchar("google_id", { length: 255 }).unique(),
+      status: varchar("status", { length: 20 }).notNull().default("active"),
+      createdVia: varchar("created_via", { length: 20 }).notNull().default("admin"),
+      createdBy: varchar("created_by", { length: 36 }),
+      approvedBy: varchar("approved_by", { length: 36 }),
+      approvedAt: timestamp("approved_at"),
+      lastLoginAt: timestamp("last_login_at"),
+      lastLoginIp: varchar("last_login_ip", { length: 45 }),
+      mfaEnabled: boolean("mfa_enabled").notNull().default(false),
+      mfaSecret: text2("mfa_secret"),
+      accountLockedUntil: timestamp("account_locked_until"),
+      profileCompleted: boolean("profile_completed").notNull().default(false),
+      profileSkipped: boolean("profile_skipped").notNull().default(false),
+      profileCompletionPercentage: integer2("profile_completion_percentage").notNull().default(0),
+      state: varchar("state", { length: 100 }),
+      country: varchar("country", { length: 100 }),
+      securityQuestion: text2("security_question"),
+      securityAnswerHash: text2("security_answer_hash"),
+      dataPolicyAgreed: boolean("data_policy_agreed").notNull().default(false),
+      dataPolicyAgreedAt: timestamp("data_policy_agreed_at"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      usersEmailIdx: index2("users_email_idx").on(table.email),
+      usersStatusIdx: index2("users_status_idx").on(table.status),
+      usersGoogleIdIdx: index2("users_google_id_idx").on(table.googleId),
+      usersRoleIdIdx: index2("users_role_id_idx").on(table.roleId),
+      usersUsernameIdx: index2("users_username_idx").on(table.username)
+    }));
+    passwordResetTokens2 = pgTable("password_reset_tokens", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).notNull().references(() => users2.id, { onDelete: "cascade" }),
+      token: varchar("token", { length: 255 }).notNull().unique(),
+      expiresAt: timestamp("expires_at").notNull(),
+      usedAt: timestamp("used_at"),
+      ipAddress: varchar("ip_address", { length: 45 }),
+      resetBy: varchar("reset_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      passwordResetTokensUserIdIdx: index2("password_reset_tokens_user_id_idx").on(table.userId),
+      passwordResetTokensTokenIdx: index2("password_reset_tokens_token_idx").on(table.token)
+    }));
+    passwordResetAttempts2 = pgTable("password_reset_attempts", {
+      id: serial("id").primaryKey(),
+      identifier: varchar("identifier", { length: 255 }).notNull(),
+      ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+      attemptedAt: timestamp("attempted_at").notNull().defaultNow(),
+      success: boolean("success").notNull().default(false)
+    }, (table) => ({
+      passwordResetAttemptsIdentifierIdx: index2("password_reset_attempts_identifier_idx").on(table.identifier),
+      passwordResetAttemptsIpIdx: index2("password_reset_attempts_ip_idx").on(table.ipAddress),
+      passwordResetAttemptsTimeIdx: index2("password_reset_attempts_time_idx").on(table.attemptedAt)
+    }));
+    invites2 = pgTable("invites", {
+      id: serial("id").primaryKey(),
+      token: varchar("token", { length: 255 }).notNull().unique(),
+      email: varchar("email", { length: 255 }).notNull(),
+      roleId: integer2("role_id").notNull().references(() => roles2.id),
+      createdBy: varchar("created_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      expiresAt: timestamp("expires_at").notNull(),
+      acceptedAt: timestamp("accepted_at"),
+      acceptedBy: varchar("accepted_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      invitesTokenIdx: index2("invites_token_idx").on(table.token),
+      invitesEmailIdx: index2("invites_email_idx").on(table.email)
+    }));
+    notifications2 = pgTable("notifications", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).notNull().references(() => users2.id, { onDelete: "cascade" }),
+      type: varchar("type", { length: 50 }).notNull(),
+      title: varchar("title", { length: 255 }).notNull(),
+      message: text2("message").notNull(),
+      relatedEntityType: varchar("related_entity_type", { length: 50 }),
+      relatedEntityId: varchar("related_entity_id", { length: 36 }),
+      isRead: boolean("is_read").notNull().default(false),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      notificationsUserIdIdx: index2("notifications_user_id_idx").on(table.userId),
+      notificationsIsReadIdx: index2("notifications_is_read_idx").on(table.isRead)
+    }));
+    academicTerms2 = pgTable("academic_terms", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      year: varchar("year", { length: 20 }).notNull(),
+      startDate: varchar("start_date", { length: 10 }).notNull(),
+      endDate: varchar("end_date", { length: 10 }).notNull(),
+      isCurrent: boolean("is_current").notNull().default(false),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    classes2 = pgTable("classes", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull().unique(),
+      level: varchar("level", { length: 50 }).notNull(),
+      capacity: integer2("capacity").notNull().default(30),
+      classTeacherId: varchar("class_teacher_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      currentTermId: integer2("current_term_id").references(() => academicTerms2.id),
+      isActive: boolean("is_active").notNull().default(true),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    subjects2 = pgTable("subjects", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      code: varchar("code", { length: 50 }).notNull().unique(),
+      description: text2("description"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    students2 = pgTable("students", {
+      id: varchar("id", { length: 36 }).primaryKey().references(() => users2.id, { onDelete: "cascade" }),
+      admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
+      classId: integer2("class_id").references(() => classes2.id),
+      parentId: varchar("parent_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      admissionDate: varchar("admission_date", { length: 10 }).notNull(),
+      emergencyContact: varchar("emergency_contact", { length: 255 }),
+      emergencyPhone: varchar("emergency_phone", { length: 50 }),
+      medicalInfo: text2("medical_info"),
+      guardianName: varchar("guardian_name", { length: 255 }),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    teacherProfiles2 = pgTable("teacher_profiles", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).notNull().unique().references(() => users2.id, { onDelete: "cascade" }),
+      staffId: varchar("staff_id", { length: 50 }).unique(),
+      subjects: text2("subjects").notNull().default("[]"),
+      assignedClasses: text2("assigned_classes").notNull().default("[]"),
+      qualification: text2("qualification"),
+      yearsOfExperience: integer2("years_of_experience").notNull().default(0),
+      specialization: varchar("specialization", { length: 255 }),
+      department: varchar("department", { length: 255 }),
+      signatureUrl: text2("signature_url"),
+      gradingMode: varchar("grading_mode", { length: 20 }).notNull().default("manual"),
+      autoGradeTheoryQuestions: boolean("auto_grade_theory_questions").notNull().default(false),
+      theoryGradingInstructions: text2("theory_grading_instructions"),
+      notificationPreference: varchar("notification_preference", { length: 20 }).notNull().default("all"),
+      availability: text2("availability"),
+      firstLogin: boolean("first_login").notNull().default(true),
+      verified: boolean("verified").notNull().default(false),
+      verifiedBy: varchar("verified_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      verifiedAt: timestamp("verified_at"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    adminProfiles2 = pgTable("admin_profiles", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).notNull().unique().references(() => users2.id, { onDelete: "cascade" }),
+      department: varchar("department", { length: 255 }),
+      roleDescription: text2("role_description"),
+      accessLevel: varchar("access_level", { length: 50 }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    parentProfiles2 = pgTable("parent_profiles", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).notNull().unique().references(() => users2.id, { onDelete: "cascade" }),
+      occupation: varchar("occupation", { length: 255 }),
+      contactPreference: varchar("contact_preference", { length: 50 }),
+      linkedStudents: text2("linked_students").notNull().default("[]"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    superAdminProfiles2 = pgTable("super_admin_profiles", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).notNull().unique().references(() => users2.id, { onDelete: "cascade" }),
+      department: varchar("department", { length: 255 }),
+      accessLevel: varchar("access_level", { length: 50 }).notNull().default("full"),
+      twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+      twoFactorSecret: text2("two_factor_secret"),
+      lastPasswordChange: timestamp("last_password_change"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    systemSettings2 = pgTable("system_settings", {
+      id: serial("id").primaryKey(),
+      schoolName: varchar("school_name", { length: 255 }),
+      schoolMotto: text2("school_motto"),
+      schoolLogo: text2("school_logo"),
+      schoolEmail: varchar("school_email", { length: 255 }),
+      schoolPhone: varchar("school_phone", { length: 50 }),
+      schoolAddress: text2("school_address"),
+      maintenanceMode: boolean("maintenance_mode").notNull().default(false),
+      maintenanceModeMessage: text2("maintenance_mode_message"),
+      enableSmsNotifications: boolean("enable_sms_notifications").notNull().default(false),
+      enableEmailNotifications: boolean("enable_email_notifications").notNull().default(true),
+      enableExamsModule: boolean("enable_exams_module").notNull().default(true),
+      enableAttendanceModule: boolean("enable_attendance_module").notNull().default(true),
+      enableResultsModule: boolean("enable_results_module").notNull().default(true),
+      themeColor: varchar("theme_color", { length: 50 }).notNull().default("blue"),
+      favicon: text2("favicon"),
+      usernameStudentPrefix: varchar("username_student_prefix", { length: 50 }).notNull().default("THS-STU"),
+      usernameParentPrefix: varchar("username_parent_prefix", { length: 50 }).notNull().default("THS-PAR"),
+      usernameTeacherPrefix: varchar("username_teacher_prefix", { length: 50 }).notNull().default("THS-TCH"),
+      usernameAdminPrefix: varchar("username_admin_prefix", { length: 50 }).notNull().default("THS-ADM"),
+      tempPasswordFormat: varchar("temp_password_format", { length: 100 }).notNull().default("THS@{year}#{random4}"),
+      hideAdminAccountsFromAdmins: boolean("hide_admin_accounts_from_admins").notNull().default(true),
+      updatedBy: varchar("updated_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    attendance2 = pgTable("attendance", {
+      id: serial("id").primaryKey(),
+      studentId: varchar("student_id", { length: 36 }).notNull().references(() => students2.id, { onDelete: "cascade" }),
+      classId: integer2("class_id").notNull().references(() => classes2.id),
+      date: varchar("date", { length: 10 }).notNull(),
+      status: varchar("status", { length: 20 }).notNull(),
+      recordedBy: varchar("recorded_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      notes: text2("notes"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    exams2 = pgTable("exams", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      classId: integer2("class_id").notNull().references(() => classes2.id),
+      subjectId: integer2("subject_id").notNull().references(() => subjects2.id),
+      totalMarks: integer2("total_marks").notNull(),
+      date: varchar("date", { length: 10 }).notNull(),
+      termId: integer2("term_id").notNull().references(() => academicTerms2.id),
+      createdBy: varchar("created_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      teacherInChargeId: varchar("teacher_in_charge_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      examType: varchar("exam_type", { length: 20 }).notNull().default("exam"),
+      timerMode: varchar("timer_mode", { length: 20 }).notNull().default("individual"),
+      timeLimit: integer2("time_limit"),
+      startTime: timestamp("start_time"),
+      endTime: timestamp("end_time"),
+      instructions: text2("instructions"),
+      isPublished: boolean("is_published").notNull().default(false),
+      allowRetakes: boolean("allow_retakes").notNull().default(false),
+      shuffleQuestions: boolean("shuffle_questions").notNull().default(false),
+      autoGradingEnabled: boolean("auto_grading_enabled").notNull().default(true),
+      instantFeedback: boolean("instant_feedback").notNull().default(false),
+      showCorrectAnswers: boolean("show_correct_answers").notNull().default(false),
+      passingScore: integer2("passing_score"),
+      gradingScale: varchar("grading_scale", { length: 50 }).notNull().default("standard"),
+      enableProctoring: boolean("enable_proctoring").notNull().default(false),
+      lockdownMode: boolean("lockdown_mode").notNull().default(false),
+      requireWebcam: boolean("require_webcam").notNull().default(false),
+      requireFullscreen: boolean("require_fullscreen").notNull().default(false),
+      maxTabSwitches: integer2("max_tab_switches").notNull().default(3),
+      shuffleOptions: boolean("shuffle_options").notNull().default(false)
+    });
+    examQuestions2 = pgTable("exam_questions", {
+      id: serial("id").primaryKey(),
+      examId: integer2("exam_id").notNull().references(() => exams2.id),
+      questionText: text2("question_text").notNull(),
+      questionType: varchar("question_type", { length: 50 }).notNull(),
+      points: integer2("points").notNull().default(1),
+      orderNumber: integer2("order_number").notNull(),
+      imageUrl: text2("image_url"),
+      autoGradable: boolean("auto_gradable").notNull().default(true),
+      expectedAnswers: text2("expected_answers").notNull().default("[]"),
+      caseSensitive: boolean("case_sensitive").notNull().default(false),
+      allowPartialCredit: boolean("allow_partial_credit").notNull().default(false),
+      partialCreditRules: text2("partial_credit_rules"),
+      explanationText: text2("explanation_text"),
+      hintText: text2("hint_text"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      examQuestionsExamIdIdx: index2("exam_questions_exam_id_idx").on(table.examId),
+      examQuestionsOrderIdx: index2("exam_questions_order_idx").on(table.examId, table.orderNumber)
+    }));
+    questionOptions2 = pgTable("question_options", {
+      id: serial("id").primaryKey(),
+      questionId: integer2("question_id").notNull().references(() => examQuestions2.id),
+      optionText: text2("option_text").notNull(),
+      isCorrect: boolean("is_correct").notNull().default(false),
+      orderNumber: integer2("order_number").notNull(),
+      partialCreditValue: integer2("partial_credit_value").notNull().default(0),
+      explanationText: text2("explanation_text"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      questionOptionsQuestionIdIdx: index2("question_options_question_id_idx").on(table.questionId),
+      questionOptionsCorrectIdx: index2("question_options_correct_idx").on(table.questionId, table.isCorrect)
+    }));
+    examSessions2 = pgTable("exam_sessions", {
+      id: serial("id").primaryKey(),
+      examId: integer2("exam_id").notNull().references(() => exams2.id),
+      studentId: varchar("student_id", { length: 36 }).notNull().references(() => students2.id, { onDelete: "cascade" }),
+      startedAt: timestamp("started_at").notNull().defaultNow(),
+      submittedAt: timestamp("submitted_at"),
+      timeRemaining: integer2("time_remaining"),
+      isCompleted: boolean("is_completed").notNull().default(false),
+      score: integer2("score"),
+      maxScore: integer2("max_score"),
+      status: varchar("status", { length: 20 }).notNull().default("in_progress"),
+      metadata: text2("metadata"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      examSessionsExamStudentIdx: index2("exam_sessions_exam_student_idx").on(table.examId, table.studentId),
+      examSessionsStudentCompletedIdx: index2("exam_sessions_student_completed_idx").on(table.studentId, table.isCompleted),
+      examSessionsActiveSessionsIdx: index2("exam_sessions_active_idx").on(table.examId, table.studentId, table.isCompleted)
+    }));
+    studentAnswers2 = pgTable("student_answers", {
+      id: serial("id").primaryKey(),
+      sessionId: integer2("session_id").notNull().references(() => examSessions2.id),
+      questionId: integer2("question_id").notNull().references(() => examQuestions2.id),
+      selectedOptionId: integer2("selected_option_id").references(() => questionOptions2.id),
+      textAnswer: text2("text_answer"),
+      isCorrect: boolean("is_correct"),
+      pointsEarned: integer2("points_earned").notNull().default(0),
+      answeredAt: timestamp("answered_at").notNull().defaultNow(),
+      autoScored: boolean("auto_scored").notNull().default(false),
+      manualOverride: boolean("manual_override").notNull().default(false),
+      feedbackText: text2("feedback_text"),
+      partialCreditReason: text2("partial_credit_reason")
+    }, (table) => ({
+      studentAnswersSessionIdIdx: index2("student_answers_session_id_idx").on(table.sessionId),
+      studentAnswersSessionQuestionIdx: index2("student_answers_session_question_idx").on(table.sessionId, table.questionId),
+      studentAnswersQuestionIdx: index2("student_answers_question_id_idx").on(table.questionId)
+    }));
+    examResults2 = pgTable("exam_results", {
+      id: serial("id").primaryKey(),
+      examId: integer2("exam_id").notNull().references(() => exams2.id),
+      studentId: varchar("student_id", { length: 36 }).notNull().references(() => students2.id, { onDelete: "cascade" }),
+      score: integer2("score"),
+      maxScore: integer2("max_score"),
+      marksObtained: integer2("marks_obtained"),
+      grade: varchar("grade", { length: 10 }),
+      remarks: text2("remarks"),
+      autoScored: boolean("auto_scored").notNull().default(false),
+      recordedBy: varchar("recorded_by", { length: 36 }).notNull().references(() => users2.id),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      examResultsExamIdIdx: index2("exam_results_exam_id_idx").on(table.examId),
+      examResultsStudentIdIdx: index2("exam_results_student_id_idx").on(table.studentId),
+      examResultsExamStudentIdx: index2("exam_results_exam_student_idx").on(table.examId, table.studentId),
+      examResultsAutoScoredIdx: index2("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
+    }));
+    questionBanks2 = pgTable("question_banks", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text2("description"),
+      subjectId: integer2("subject_id").notNull().references(() => subjects2.id),
+      classLevel: varchar("class_level", { length: 50 }),
+      createdBy: varchar("created_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      isPublic: boolean("is_public").notNull().default(false),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      questionBanksSubjectIdx: index2("question_banks_subject_idx").on(table.subjectId),
+      questionBanksCreatedByIdx: index2("question_banks_created_by_idx").on(table.createdBy)
+    }));
+    questionBankItems2 = pgTable("question_bank_items", {
+      id: serial("id").primaryKey(),
+      bankId: integer2("bank_id").notNull().references(() => questionBanks2.id, { onDelete: "cascade" }),
+      questionText: text2("question_text").notNull(),
+      questionType: varchar("question_type", { length: 50 }).notNull(),
+      points: integer2("points").notNull().default(1),
+      difficulty: varchar("difficulty", { length: 20 }).notNull().default("medium"),
+      tags: text2("tags").notNull().default("[]"),
+      imageUrl: text2("image_url"),
+      autoGradable: boolean("auto_gradable").notNull().default(true),
+      expectedAnswers: text2("expected_answers").notNull().default("[]"),
+      caseSensitive: boolean("case_sensitive").notNull().default(false),
+      explanationText: text2("explanation_text"),
+      hintText: text2("hint_text"),
+      practicalInstructions: text2("practical_instructions"),
+      practicalFileUrl: text2("practical_file_url"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      questionBankItemsBankIdIdx: index2("question_bank_items_bank_id_idx").on(table.bankId),
+      questionBankItemsTypeIdx: index2("question_bank_items_type_idx").on(table.questionType),
+      questionBankItemsDifficultyIdx: index2("question_bank_items_difficulty_idx").on(table.difficulty)
+    }));
+    questionBankOptions2 = pgTable("question_bank_options", {
+      id: serial("id").primaryKey(),
+      questionItemId: integer2("question_item_id").notNull().references(() => questionBankItems2.id, { onDelete: "cascade" }),
+      optionText: text2("option_text").notNull(),
+      isCorrect: boolean("is_correct").notNull().default(false),
+      orderNumber: integer2("order_number").notNull(),
+      explanationText: text2("explanation_text"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      questionBankOptionsItemIdIdx: index2("question_bank_options_item_id_idx").on(table.questionItemId)
+    }));
+    announcements2 = pgTable("announcements", {
+      id: serial("id").primaryKey(),
+      title: varchar("title", { length: 255 }).notNull(),
+      content: text2("content").notNull(),
+      authorId: varchar("author_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      targetRoles: text2("target_roles").notNull().default('["All"]'),
+      targetClasses: text2("target_classes").notNull().default("[]"),
+      isPublished: boolean("is_published").notNull().default(false),
+      publishedAt: timestamp("published_at"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    messages2 = pgTable("messages", {
+      id: serial("id").primaryKey(),
+      senderId: varchar("sender_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      recipientId: varchar("recipient_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      subject: varchar("subject", { length: 255 }).notNull(),
+      content: text2("content").notNull(),
+      isRead: boolean("is_read").notNull().default(false),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    galleryCategories2 = pgTable("gallery_categories", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text2("description"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    gallery2 = pgTable("gallery", {
+      id: serial("id").primaryKey(),
+      imageUrl: text2("image_url").notNull(),
+      caption: text2("caption"),
+      categoryId: integer2("category_id").references(() => galleryCategories2.id),
+      uploadedBy: varchar("uploaded_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    homePageContent2 = pgTable("home_page_content", {
+      id: serial("id").primaryKey(),
+      contentType: varchar("content_type", { length: 50 }).notNull(),
+      imageUrl: text2("image_url"),
+      altText: varchar("alt_text", { length: 255 }),
+      caption: text2("caption"),
+      isActive: boolean("is_active").notNull().default(true),
+      displayOrder: integer2("display_order").notNull().default(0),
+      uploadedBy: varchar("uploaded_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    contactMessages2 = pgTable("contact_messages", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      email: varchar("email", { length: 255 }).notNull(),
+      subject: varchar("subject", { length: 255 }),
+      message: text2("message").notNull(),
+      isRead: boolean("is_read").notNull().default(false),
+      respondedAt: timestamp("responded_at"),
+      respondedBy: varchar("responded_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      response: text2("response"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    });
+    reportCards2 = pgTable("report_cards", {
+      id: serial("id").primaryKey(),
+      studentId: varchar("student_id", { length: 36 }).notNull().references(() => students2.id, { onDelete: "cascade" }),
+      classId: integer2("class_id").notNull().references(() => classes2.id),
+      termId: integer2("term_id").notNull().references(() => academicTerms2.id),
+      totalScore: integer2("total_score"),
+      averageScore: integer2("average_score"),
+      position: integer2("position"),
+      totalStudentsInClass: integer2("total_students_in_class"),
+      teacherRemarks: text2("teacher_remarks"),
+      principalRemarks: text2("principal_remarks"),
+      status: varchar("status", { length: 20 }).notNull().default("draft"),
+      generatedBy: varchar("generated_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      generatedAt: timestamp("generated_at"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      reportCardsStudentTermIdx: index2("report_cards_student_term_idx").on(table.studentId, table.termId),
+      reportCardsClassTermIdx: index2("report_cards_class_term_idx").on(table.classId, table.termId)
+    }));
+    reportCardItems2 = pgTable("report_card_items", {
+      id: serial("id").primaryKey(),
+      reportCardId: integer2("report_card_id").notNull().references(() => reportCards2.id, { onDelete: "cascade" }),
+      subjectId: integer2("subject_id").notNull().references(() => subjects2.id),
+      examId: integer2("exam_id").references(() => exams2.id),
+      score: integer2("score"),
+      maxScore: integer2("max_score"),
+      grade: varchar("grade", { length: 10 }),
+      remarks: text2("remarks"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      reportCardItemsReportCardIdx: index2("report_card_items_report_card_idx").on(table.reportCardId),
+      reportCardItemsSubjectIdx: index2("report_card_items_subject_idx").on(table.subjectId)
+    }));
+    studyResources2 = pgTable("study_resources", {
+      id: serial("id").primaryKey(),
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text2("description"),
+      fileUrl: text2("file_url").notNull(),
+      fileType: varchar("file_type", { length: 50 }),
+      fileSize: integer2("file_size"),
+      resourceType: varchar("resource_type", { length: 50 }).notNull(),
+      classId: integer2("class_id").references(() => classes2.id),
+      subjectId: integer2("subject_id").references(() => subjects2.id),
+      termId: integer2("term_id").references(() => academicTerms2.id),
+      uploadedBy: varchar("uploaded_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      downloadCount: integer2("download_count").notNull().default(0),
+      isPublic: boolean("is_public").notNull().default(true),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      studyResourcesClassIdx: index2("study_resources_class_idx").on(table.classId),
+      studyResourcesSubjectIdx: index2("study_resources_subject_idx").on(table.subjectId),
+      studyResourcesTypeIdx: index2("study_resources_type_idx").on(table.resourceType)
+    }));
+    teacherClassAssignments2 = pgTable("teacher_class_assignments", {
+      id: serial("id").primaryKey(),
+      teacherId: varchar("teacher_id", { length: 36 }).notNull().references(() => users2.id, { onDelete: "cascade" }),
+      classId: integer2("class_id").notNull().references(() => classes2.id),
+      subjectId: integer2("subject_id").notNull().references(() => subjects2.id),
+      termId: integer2("term_id").references(() => academicTerms2.id),
+      isActive: boolean("is_active").notNull().default(true),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      teacherClassAssignmentsTeacherIdx: index2("teacher_class_assignments_teacher_idx").on(table.teacherId),
+      teacherClassAssignmentsClassSubjectIdx: index2("teacher_class_assignments_class_subject_idx").on(table.classId, table.subjectId)
+    }));
+    timetable2 = pgTable("timetable", {
+      id: serial("id").primaryKey(),
+      teacherId: varchar("teacher_id", { length: 36 }).notNull().references(() => users2.id, { onDelete: "cascade" }),
+      classId: integer2("class_id").notNull().references(() => classes2.id),
+      subjectId: integer2("subject_id").notNull().references(() => subjects2.id),
+      termId: integer2("term_id").references(() => academicTerms2.id),
+      dayOfWeek: varchar("day_of_week", { length: 20 }).notNull(),
+      startTime: varchar("start_time", { length: 10 }).notNull(),
+      endTime: varchar("end_time", { length: 10 }).notNull(),
+      location: varchar("location", { length: 100 }),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      timetableTeacherIdx: index2("timetable_teacher_idx").on(table.teacherId),
+      timetableClassIdx: index2("timetable_class_idx").on(table.classId),
+      timetableDayIdx: index2("timetable_day_idx").on(table.dayOfWeek)
+    }));
+    gradingTasks2 = pgTable("grading_tasks", {
+      id: serial("id").primaryKey(),
+      sessionId: integer2("session_id").notNull().references(() => examSessions2.id),
+      questionId: integer2("question_id").notNull().references(() => examQuestions2.id),
+      answerId: integer2("answer_id").notNull().references(() => studentAnswers2.id),
+      teacherId: varchar("teacher_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      status: varchar("status", { length: 20 }).notNull().default("pending"),
+      priority: integer2("priority").notNull().default(0),
+      aiSuggestedScore: integer2("ai_suggested_score"),
+      aiConfidence: integer2("ai_confidence"),
+      aiReasoning: text2("ai_reasoning"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      assignedAt: timestamp("assigned_at"),
+      completedAt: timestamp("completed_at")
+    }, (table) => ({
+      gradingTasksTeacherIdx: index2("grading_tasks_teacher_idx").on(table.teacherId),
+      gradingTasksStatusIdx: index2("grading_tasks_status_idx").on(table.status),
+      gradingTasksSessionIdx: index2("grading_tasks_session_idx").on(table.sessionId)
+    }));
+    auditLogs2 = pgTable("audit_logs", {
+      id: serial("id").primaryKey(),
+      userId: varchar("user_id", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      action: varchar("action", { length: 100 }).notNull(),
+      entityType: varchar("entity_type", { length: 50 }).notNull(),
+      entityId: varchar("entity_id", { length: 36 }).notNull(),
+      oldValue: text2("old_value"),
+      newValue: text2("new_value"),
+      reason: text2("reason"),
+      ipAddress: varchar("ip_address", { length: 45 }),
+      userAgent: text2("user_agent"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      auditLogsUserIdx: index2("audit_logs_user_idx").on(table.userId),
+      auditLogsEntityIdx: index2("audit_logs_entity_idx").on(table.entityType, table.entityId),
+      auditLogsDateIdx: index2("audit_logs_date_idx").on(table.createdAt),
+      auditLogsActionIdx: index2("audit_logs_action_idx").on(table.action)
+    }));
+    performanceEvents2 = pgTable("performance_events", {
+      id: serial("id").primaryKey(),
+      eventType: varchar("event_type", { length: 50 }).notNull(),
+      entityType: varchar("entity_type", { length: 50 }),
+      entityId: varchar("entity_id", { length: 36 }),
+      duration: integer2("duration"),
+      metGoal: boolean("met_goal"),
+      metadata: text2("metadata"),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      performanceEventsTypeIdx: index2("performance_events_type_idx").on(table.eventType),
+      performanceEventsDateIdx: index2("performance_events_date_idx").on(table.createdAt)
+    }));
+    settings2 = pgTable("settings", {
+      id: serial("id").primaryKey(),
+      key: varchar("key", { length: 100 }).notNull().unique(),
+      value: text2("value").notNull(),
+      description: text2("description"),
+      updatedBy: varchar("updated_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    counters2 = pgTable("counters", {
+      id: serial("id").primaryKey(),
+      classCode: varchar("class_code", { length: 50 }).notNull(),
+      year: varchar("year", { length: 10 }).notNull(),
+      sequence: integer2("sequence").notNull().default(0),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      countersClassYearIdx: uniqueIndex2("counters_class_year_idx").on(table.classCode, table.year)
+    }));
+    vacancies2 = pgTable("vacancies", {
+      id: varchar("id", { length: 36 }).primaryKey(),
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text2("description").notNull(),
+      requirements: text2("requirements"),
+      deadline: timestamp("deadline").notNull(),
+      status: varchar("status", { length: 20 }).notNull().default("open"),
+      createdBy: varchar("created_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      vacanciesStatusIdx: index2("vacancies_status_idx").on(table.status),
+      vacanciesDeadlineIdx: index2("vacancies_deadline_idx").on(table.deadline)
+    }));
+    teacherApplications2 = pgTable("teacher_applications", {
+      id: varchar("id", { length: 36 }).primaryKey(),
+      vacancyId: varchar("vacancy_id", { length: 36 }).references(() => vacancies2.id, { onDelete: "set null" }),
+      fullName: varchar("full_name", { length: 255 }).notNull(),
+      email: varchar("email", { length: 255 }).notNull(),
+      phone: varchar("phone", { length: 50 }),
+      qualifications: text2("qualifications"),
+      experience: text2("experience"),
+      subjectSpecialty: varchar("subject_specialty", { length: 255 }),
+      coverLetter: text2("cover_letter"),
+      resumeUrl: text2("resume_url"),
+      status: varchar("status", { length: 20 }).notNull().default("pending"),
+      reviewedBy: varchar("reviewed_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      reviewedAt: timestamp("reviewed_at"),
+      reviewNotes: text2("review_notes"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    }, (table) => ({
+      teacherApplicationsStatusIdx: index2("teacher_applications_status_idx").on(table.status),
+      teacherApplicationsEmailIdx: index2("teacher_applications_email_idx").on(table.email)
+    }));
+    approvedTeachers2 = pgTable("approved_teachers", {
+      id: varchar("id", { length: 36 }).primaryKey(),
+      applicationId: varchar("application_id", { length: 36 }).references(() => teacherApplications2.id, { onDelete: "set null" }),
+      googleEmail: varchar("google_email", { length: 255 }).notNull().unique(),
+      fullName: varchar("full_name", { length: 255 }).notNull(),
+      subjectSpecialty: varchar("subject_specialty", { length: 255 }),
+      approvedBy: varchar("approved_by", { length: 36 }).references(() => users2.id, { onDelete: "set null" }),
+      dateApproved: timestamp("date_approved").notNull().defaultNow(),
+      createdAt: timestamp("created_at").notNull().defaultNow()
+    }, (table) => ({
+      approvedTeachersEmailIdx: index2("approved_teachers_email_idx").on(table.googleEmail)
+    }));
+  }
+});
+
+// server/db.ts
+import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzlePg } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import Database from "better-sqlite3";
+function getSchema() {
+  return isPostgres ? schema_pg_exports : schema_exports;
+}
+function initializeDatabase() {
+  if (db) {
+    return db;
+  }
+  if (isPostgres && databaseUrl) {
+    console.log("\u{1F418} Initializing PostgreSQL database (Neon)...");
+    pgClient = neon(databaseUrl);
+    db = drizzlePg(pgClient, { schema: schema_pg_exports });
+    console.log("\u2705 PostgreSQL database initialized (Neon)");
+  } else {
+    console.log("\u{1F4E6} Initializing SQLite database...");
+    sqlite = new Database("./server/data/app.db");
+    sqlite.pragma("foreign_keys = ON");
+    sqlite.pragma("journal_mode = WAL");
+    sqlite.pragma("synchronous = NORMAL");
+    db = drizzleSqlite(sqlite, { schema: schema_exports });
+    console.log("\u2705 SQLite database initialized at ./server/data/app.db");
+  }
+  return db;
+}
+function getDatabase() {
+  if (!db) {
+    return initializeDatabase();
+  }
+  return db;
+}
+function getSqliteConnection() {
+  return sqlite;
+}
+function getPgClient() {
+  return pgClient;
+}
+var isProduction, databaseUrl, isPostgres, db, sqlite, pgClient, database;
+var init_db = __esm({
+  "server/db.ts"() {
+    "use strict";
+    init_schema();
+    init_schema_pg();
+    isProduction = process.env.NODE_ENV === "production";
+    databaseUrl = process.env.DATABASE_URL;
+    isPostgres = !!(databaseUrl && isProduction);
+    db = null;
+    sqlite = null;
+    pgClient = null;
+    database = initializeDatabase();
   }
 });
 
 // server/storage.ts
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import { eq as eq2, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
-function initializeDatabase() {
-  if (!pg && process.env.DATABASE_URL) {
-    const connectionConfig = {
-      ssl: process.env.DATABASE_URL?.includes("supabase.com") ? "require" : false,
-      prepare: false,
-      // Required for Supabase transaction pooler
-      // Optimized connection pool settings
-      max: 20,
-      // Maximum connections in pool (increased from default 10)
-      idle_timeout: 300,
-      // Close idle connections after 5 minutes
-      connect_timeout: 30,
-      // Connection timeout: 30 seconds
-      max_lifetime: 3600,
-      // Maximum connection lifetime: 1 hour
-      // Enhanced logging for debugging (development only)
-      debug: process.env.NODE_ENV === "development" ? (connection, query, params) => {
-        const queryString = typeof query === "string" ? query : query?.text || String(query);
-        if (queryString?.includes("ERROR") || queryString?.includes("TIMEOUT")) {
-        }
-      } : false,
-      // Connection health checks
-      onnotice: (notice) => {
-        if (notice.severity === "WARNING" || notice.severity === "ERROR") {
-        }
-      },
-      // Connection parameter logging
-      onparameter: (key, value) => {
-        if (key === "server_version") {
-        } else if (key === "application_name") {
-        }
-      },
-      // Connection lifecycle events
-      onconnect: async (connection) => {
-        try {
-          await connection.query("SET application_name = $1", ["treasure_home_school"]);
-          await connection.query("SET statement_timeout = $1", ["60s"]);
-          await connection.query("SET lock_timeout = $1", ["30s"]);
-        } catch (error) {
-        }
-      }
-    };
-    pg = postgres(process.env.DATABASE_URL, connectionConfig);
-    db = drizzle(pg, { schema: schema_exports });
-  } else if (!process.env.DATABASE_URL) {
-  }
-  return { pg, db };
-}
+import { eq, and, desc, asc, sql as sql2, sql as dsql, inArray, isNull } from "drizzle-orm";
 function normalizeUuid(raw) {
   if (!raw) return void 0;
   if (typeof raw === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
@@ -1244,16 +1830,16 @@ function initializeStorageSync() {
     process.exit(1);
   }
 }
-var pg, db, exportDb, DatabaseStorage, storage;
+var db2, schema, DatabaseStorage, storage;
 var init_storage = __esm({
   "server/storage.ts"() {
     "use strict";
-    init_schema();
-    ({ db: exportDb } = initializeDatabase());
+    init_db();
+    db2 = getDatabase();
+    schema = getSchema();
     DatabaseStorage = class {
       db;
       constructor() {
-        const { db: db2 } = initializeDatabase();
         this.db = db2;
         if (!this.db) {
           throw new Error("Database not available - DATABASE_URL not set or invalid");
@@ -1262,27 +1848,27 @@ var init_storage = __esm({
       // User management
       async getUser(id) {
         const result = await this.db.select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          recoveryEmail: users.recoveryEmail,
-          passwordHash: users.passwordHash,
-          roleId: users.roleId,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          phone: users.phone,
-          address: users.address,
-          dateOfBirth: users.dateOfBirth,
-          gender: users.gender,
-          nationalId: users.nationalId,
-          profileImageUrl: users.profileImageUrl,
-          isActive: users.isActive,
-          authProvider: users.authProvider,
-          googleId: users.googleId,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt
-        }).from(users).where(eq2(users.id, id)).limit(1);
+          id: schema.users.id,
+          username: schema.users.username,
+          email: schema.users.email,
+          recoveryEmail: schema.users.recoveryEmail,
+          passwordHash: schema.users.passwordHash,
+          roleId: schema.users.roleId,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          phone: schema.users.phone,
+          address: schema.users.address,
+          dateOfBirth: schema.users.dateOfBirth,
+          gender: schema.users.gender,
+          nationalId: schema.users.nationalId,
+          profileImageUrl: schema.users.profileImageUrl,
+          isActive: schema.users.isActive,
+          authProvider: schema.users.authProvider,
+          googleId: schema.users.googleId,
+          status: schema.users.status,
+          createdAt: schema.users.createdAt,
+          updatedAt: schema.users.updatedAt
+        }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
         const user = result[0];
         if (user && user.id) {
           const normalizedId = normalizeUuid(user.id);
@@ -1294,27 +1880,27 @@ var init_storage = __esm({
       }
       async getUserByEmail(email) {
         const result = await this.db.select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          recoveryEmail: users.recoveryEmail,
-          passwordHash: users.passwordHash,
-          roleId: users.roleId,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          phone: users.phone,
-          address: users.address,
-          dateOfBirth: users.dateOfBirth,
-          gender: users.gender,
-          nationalId: users.nationalId,
-          profileImageUrl: users.profileImageUrl,
-          isActive: users.isActive,
-          authProvider: users.authProvider,
-          googleId: users.googleId,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt
-        }).from(users).where(eq2(users.email, email)).limit(1);
+          id: schema.users.id,
+          username: schema.users.username,
+          email: schema.users.email,
+          recoveryEmail: schema.users.recoveryEmail,
+          passwordHash: schema.users.passwordHash,
+          roleId: schema.users.roleId,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          phone: schema.users.phone,
+          address: schema.users.address,
+          dateOfBirth: schema.users.dateOfBirth,
+          gender: schema.users.gender,
+          nationalId: schema.users.nationalId,
+          profileImageUrl: schema.users.profileImageUrl,
+          isActive: schema.users.isActive,
+          authProvider: schema.users.authProvider,
+          googleId: schema.users.googleId,
+          status: schema.users.status,
+          createdAt: schema.users.createdAt,
+          updatedAt: schema.users.updatedAt
+        }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
         const user = result[0];
         if (user && user.id) {
           const normalizedId = normalizeUuid(user.id);
@@ -1325,7 +1911,7 @@ var init_storage = __esm({
         return user;
       }
       async getUserByUsername(username) {
-        const result = await this.db.select().from(users).where(eq2(users.username, username)).limit(1);
+        const result = await this.db.select().from(schema.users).where(eq(schema.users.username, username)).limit(1);
         const user = result[0];
         if (user && user.id) {
           const normalizedId = normalizeUuid(user.id);
@@ -1336,7 +1922,7 @@ var init_storage = __esm({
         return user;
       }
       async createPasswordResetToken(userId, token, expiresAt, ipAddress, resetBy) {
-        const result = await this.db.insert(passwordResetTokens).values({
+        const result = await this.db.insert(schema.passwordResetTokens).values({
           userId,
           token,
           expiresAt,
@@ -1346,23 +1932,23 @@ var init_storage = __esm({
         return result[0];
       }
       async getPasswordResetToken(token) {
-        const result = await this.db.select().from(passwordResetTokens).where(and(
-          eq2(passwordResetTokens.token, token),
-          dsql`${passwordResetTokens.expiresAt} > NOW()`,
-          dsql`${passwordResetTokens.usedAt} IS NULL`
+        const result = await this.db.select().from(schema.passwordResetTokens).where(and(
+          eq(schema.passwordResetTokens.token, token),
+          dsql`${schema.passwordResetTokens.expiresAt} > NOW()`,
+          dsql`${schema.passwordResetTokens.usedAt} IS NULL`
         )).limit(1);
         return result[0];
       }
       async markPasswordResetTokenAsUsed(token) {
-        const result = await this.db.update(passwordResetTokens).set({ usedAt: dsql`NOW()` }).where(eq2(passwordResetTokens.token, token)).returning();
+        const result = await this.db.update(schema.passwordResetTokens).set({ usedAt: dsql`NOW()` }).where(eq(schema.passwordResetTokens.token, token)).returning();
         return result.length > 0;
       }
       async deleteExpiredPasswordResetTokens() {
-        await this.db.delete(passwordResetTokens).where(dsql`${passwordResetTokens.expiresAt} < NOW()`);
+        await this.db.delete(schema.passwordResetTokens).where(dsql`${schema.passwordResetTokens.expiresAt} < NOW()`);
         return true;
       }
       async createUser(user) {
-        const result = await this.db.insert(users).values(user).returning();
+        const result = await this.db.insert(schema.users).values(user).returning();
         const createdUser = result[0];
         if (createdUser && createdUser.id) {
           const normalizedId = normalizeUuid(createdUser.id);
@@ -1374,7 +1960,7 @@ var init_storage = __esm({
       }
       async updateUser(id, user) {
         try {
-          const result = await this.db.update(users).set(user).where(eq2(users.id, id)).returning();
+          const result = await this.db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
           const updatedUser = result[0];
           if (updatedUser && updatedUser.id) {
             const normalizedId = normalizeUuid(updatedUser.id);
@@ -1388,7 +1974,7 @@ var init_storage = __esm({
             const missingColumn = error?.cause?.message?.match(/column "(\w+)" does not exist/)?.[1];
             const { [missingColumn]: removed, ...safeUser } = user;
             if (Object.keys(safeUser).length > 0) {
-              const result = await this.db.update(users).set(safeUser).where(eq2(users.id, id)).returning();
+              const result = await this.db.update(schema.users).set(safeUser).where(eq(schema.users.id, id)).returning();
               const updatedUser = result[0];
               if (updatedUser && updatedUser.id) {
                 const normalizedId = normalizeUuid(updatedUser.id);
@@ -1404,15 +1990,15 @@ var init_storage = __esm({
       }
       async deleteUser(id) {
         try {
-          await this.db.delete(teacherProfiles).where(eq2(teacherProfiles.userId, id));
-          await this.db.delete(adminProfiles).where(eq2(adminProfiles.userId, id));
-          await this.db.delete(parentProfiles).where(eq2(parentProfiles.userId, id));
-          await this.db.delete(passwordResetTokens).where(eq2(passwordResetTokens.userId, id));
-          await this.db.delete(invites).where(eq2(invites.acceptedBy, id));
-          await this.db.delete(notifications).where(eq2(notifications.userId, id));
+          await this.db.delete(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, id));
+          await this.db.delete(schema.adminProfiles).where(eq(schema.adminProfiles.userId, id));
+          await this.db.delete(schema.parentProfiles).where(eq(schema.parentProfiles.userId, id));
+          await this.db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.userId, id));
+          await this.db.delete(schema.invites).where(eq(schema.invites.acceptedBy, id));
+          await this.db.delete(schema.notifications).where(eq(schema.notifications.userId, id));
           try {
-            if (teacherClassAssignments) {
-              await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.teacherId, id));
+            if (schema.teacherClassAssignments) {
+              await this.db.delete(schema.teacherClassAssignments).where(eq(schema.teacherClassAssignments.teacherId, id));
             }
           } catch (assignmentError) {
             if (assignmentError?.cause?.code === "42P01") {
@@ -1420,17 +2006,17 @@ var init_storage = __esm({
               throw assignmentError;
             }
           }
-          const examSessions2 = await this.db.select({ id: examSessions.id }).from(examSessions).where(eq2(examSessions.studentId, id));
-          const sessionIds = examSessions2.map((s) => s.id);
+          const examSessions3 = await this.db.select({ id: schema.examSessions.id }).from(schema.examSessions).where(eq(schema.examSessions.studentId, id));
+          const sessionIds = examSessions3.map((s) => s.id);
           if (sessionIds.length > 0) {
-            await this.db.delete(studentAnswers).where(inArray(studentAnswers.sessionId, sessionIds));
-            await this.db.delete(examSessions).where(inArray(examSessions.id, sessionIds));
+            await this.db.delete(schema.studentAnswers).where(inArray(schema.studentAnswers.sessionId, sessionIds));
+            await this.db.delete(schema.examSessions).where(inArray(schema.examSessions.id, sessionIds));
           }
-          await this.db.delete(examResults).where(eq2(examResults.studentId, id));
-          await this.db.delete(attendance).where(eq2(attendance.studentId, id));
-          await this.db.update(students).set({ parentId: null }).where(eq2(students.parentId, id));
-          await this.db.delete(students).where(eq2(students.id, id));
-          const result = await this.db.delete(users).where(eq2(users.id, id)).returning();
+          await this.db.delete(schema.examResults).where(eq(schema.examResults.studentId, id));
+          await this.db.delete(schema.attendance).where(eq(schema.attendance.studentId, id));
+          await this.db.update(schema.students).set({ parentId: null }).where(eq(schema.students.parentId, id));
+          await this.db.delete(schema.students).where(eq(schema.students.id, id));
+          const result = await this.db.delete(schema.users).where(eq(schema.users.id, id)).returning();
           return result.length > 0;
         } catch (error) {
           throw error;
@@ -1438,25 +2024,25 @@ var init_storage = __esm({
       }
       async getUsersByRole(roleId) {
         const result = await this.db.select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          passwordHash: users.passwordHash,
-          roleId: users.roleId,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          phone: users.phone,
-          address: users.address,
-          dateOfBirth: users.dateOfBirth,
-          gender: users.gender,
-          profileImageUrl: users.profileImageUrl,
-          isActive: users.isActive,
-          authProvider: users.authProvider,
-          googleId: users.googleId,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt
-        }).from(users).where(eq2(users.roleId, roleId));
+          id: schema.users.id,
+          username: schema.users.username,
+          email: schema.users.email,
+          passwordHash: schema.users.passwordHash,
+          roleId: schema.users.roleId,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          phone: schema.users.phone,
+          address: schema.users.address,
+          dateOfBirth: schema.users.dateOfBirth,
+          gender: schema.users.gender,
+          profileImageUrl: schema.users.profileImageUrl,
+          isActive: schema.users.isActive,
+          authProvider: schema.users.authProvider,
+          googleId: schema.users.googleId,
+          status: schema.users.status,
+          createdAt: schema.users.createdAt,
+          updatedAt: schema.users.updatedAt
+        }).from(schema.users).where(eq(schema.users.roleId, roleId));
         return result.map((user) => {
           if (user && user.id) {
             const normalizedId = normalizeUuid(user.id);
@@ -1468,7 +2054,7 @@ var init_storage = __esm({
         });
       }
       async getUsersByStatus(status) {
-        const result = await this.db.select().from(users).where(sql2`${users.status} = ${status}`);
+        const result = await this.db.select().from(schema.users).where(sql2`${schema.users.status} = ${status}`);
         return result.map((user) => {
           if (user && user.id) {
             const normalizedId = normalizeUuid(user.id);
@@ -1481,25 +2067,25 @@ var init_storage = __esm({
       }
       async getAllUsers() {
         const result = await this.db.select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          passwordHash: users.passwordHash,
-          roleId: users.roleId,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          phone: users.phone,
-          address: users.address,
-          dateOfBirth: users.dateOfBirth,
-          gender: users.gender,
-          profileImageUrl: users.profileImageUrl,
-          isActive: users.isActive,
-          authProvider: users.authProvider,
-          googleId: users.googleId,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt
-        }).from(users);
+          id: schema.users.id,
+          username: schema.users.username,
+          email: schema.users.email,
+          passwordHash: schema.users.passwordHash,
+          roleId: schema.users.roleId,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          phone: schema.users.phone,
+          address: schema.users.address,
+          dateOfBirth: schema.users.dateOfBirth,
+          gender: schema.users.gender,
+          profileImageUrl: schema.users.profileImageUrl,
+          isActive: schema.users.isActive,
+          authProvider: schema.users.authProvider,
+          googleId: schema.users.googleId,
+          status: schema.users.status,
+          createdAt: schema.users.createdAt,
+          updatedAt: schema.users.updatedAt
+        }).from(schema.users);
         return result.map((user) => {
           if (user && user.id) {
             const normalizedId = normalizeUuid(user.id);
@@ -1511,11 +2097,11 @@ var init_storage = __esm({
         });
       }
       async approveUser(userId, approvedBy) {
-        const result = await this.db.update(users).set({
+        const result = await this.db.update(schema.users).set({
           status: "active",
           approvedBy,
           approvedAt: /* @__PURE__ */ new Date()
-        }).where(eq2(users.id, userId)).returning();
+        }).where(eq(schema.users.id, userId)).returning();
         const user = result[0];
         if (user && user.id) {
           const normalizedId = normalizeUuid(user.id);
@@ -1531,7 +2117,7 @@ var init_storage = __esm({
           updates.approvedBy = updatedBy;
           updates.approvedAt = /* @__PURE__ */ new Date();
         }
-        const result = await this.db.update(users).set(updates).where(eq2(users.id, userId)).returning();
+        const result = await this.db.update(schema.users).set(updates).where(eq(schema.users.id, userId)).returning();
         const user = result[0];
         if (user && user.id) {
           const normalizedId = normalizeUuid(user.id);
@@ -1543,103 +2129,103 @@ var init_storage = __esm({
       }
       // Role management
       async getRoles() {
-        return await this.db.select().from(roles);
+        return await this.db.select().from(schema.roles);
       }
       async getRoleByName(name) {
-        const result = await this.db.select().from(roles).where(eq2(roles.name, name)).limit(1);
+        const result = await this.db.select().from(schema.roles).where(eq(schema.roles.name, name)).limit(1);
         return result[0];
       }
       async getRole(roleId) {
-        const result = await this.db.select().from(roles).where(eq2(roles.id, roleId)).limit(1);
+        const result = await this.db.select().from(schema.roles).where(eq(schema.roles.id, roleId)).limit(1);
         return result[0];
       }
       // Invite management
       async createInvite(invite) {
-        const result = await this.db.insert(invites).values(invite).returning();
+        const result = await this.db.insert(schema.invites).values(invite).returning();
         return result[0];
       }
       async getInviteByToken(token) {
-        const result = await this.db.select().from(invites).where(and(
-          eq2(invites.token, token),
-          isNull(invites.acceptedAt),
-          dsql`${invites.expiresAt} > NOW()`
+        const result = await this.db.select().from(schema.invites).where(and(
+          eq(schema.invites.token, token),
+          isNull(schema.invites.acceptedAt),
+          dsql`${schema.invites.expiresAt} > NOW()`
         )).limit(1);
         return result[0];
       }
       async getPendingInviteByEmail(email) {
-        const result = await this.db.select().from(invites).where(and(
-          eq2(invites.email, email),
-          isNull(invites.acceptedAt)
+        const result = await this.db.select().from(schema.invites).where(and(
+          eq(schema.invites.email, email),
+          isNull(schema.invites.acceptedAt)
         )).limit(1);
         return result[0];
       }
       async getAllInvites() {
-        return await this.db.select().from(invites).orderBy(desc(invites.createdAt));
+        return await this.db.select().from(schema.invites).orderBy(desc(schema.invites.createdAt));
       }
       async getPendingInvites() {
-        return await this.db.select().from(invites).where(isNull(invites.acceptedAt)).orderBy(desc(invites.createdAt));
+        return await this.db.select().from(schema.invites).where(isNull(schema.invites.acceptedAt)).orderBy(desc(schema.invites.createdAt));
       }
       async markInviteAsAccepted(inviteId, acceptedBy) {
-        await this.db.update(invites).set({ acceptedAt: /* @__PURE__ */ new Date(), acceptedBy }).where(eq2(invites.id, inviteId));
+        await this.db.update(schema.invites).set({ acceptedAt: /* @__PURE__ */ new Date(), acceptedBy }).where(eq(schema.invites.id, inviteId));
       }
       async deleteInvite(inviteId) {
-        const result = await this.db.delete(invites).where(eq2(invites.id, inviteId)).returning();
+        const result = await this.db.delete(schema.invites).where(eq(schema.invites.id, inviteId)).returning();
         return result.length > 0;
       }
       async deleteExpiredInvites() {
-        const result = await this.db.delete(invites).where(and(
-          dsql`${invites.expiresAt} < NOW()`,
-          isNull(invites.acceptedAt)
+        const result = await this.db.delete(schema.invites).where(and(
+          dsql`${schema.invites.expiresAt} < NOW()`,
+          isNull(schema.invites.acceptedAt)
         )).returning();
         return result.length > 0;
       }
       // Profile management
       async updateUserProfile(userId, profileData) {
-        const result = await this.db.update(users).set({ ...profileData, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, userId)).returning();
+        const result = await this.db.update(schema.users).set({ ...profileData, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.users.id, userId)).returning();
         return result[0];
       }
       async getTeacherProfile(userId) {
-        const [profile] = await db.select().from(teacherProfiles).where(eq2(teacherProfiles.userId, userId));
-        return profile || null;
+        const [profile] = await db2.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, userId));
+        return profile || void 0;
       }
       async updateTeacherProfile(userId, profile) {
-        const result = await this.db.update(teacherProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(teacherProfiles.userId, userId)).returning();
+        const result = await this.db.update(schema.teacherProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.teacherProfiles.userId, userId)).returning();
         return result[0];
       }
       async getTeacherProfileByStaffId(staffId) {
-        const [profile] = await db.select().from(teacherProfiles).where(eq2(teacherProfiles.staffId, staffId));
-        return profile || null;
+        const [profile] = await db2.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
+        return profile || void 0;
       }
       async getAllTeacherProfiles() {
-        const profiles = await db.select().from(teacherProfiles);
+        const profiles = await db2.select().from(schema.teacherProfiles);
         return profiles;
       }
       async createTeacherProfile(profile) {
-        const result = await this.db.insert(teacherProfiles).values(profile).returning();
+        const result = await this.db.insert(schema.teacherProfiles).values(profile).returning();
         return result[0];
       }
       async getAdminProfile(userId) {
-        const result = await this.db.select().from(adminProfiles).where(eq2(adminProfiles.userId, userId)).limit(1);
+        const result = await this.db.select().from(schema.adminProfiles).where(eq(schema.adminProfiles.userId, userId)).limit(1);
         return result[0];
       }
       async createAdminProfile(profile) {
-        const result = await this.db.insert(adminProfiles).values(profile).returning();
+        const result = await this.db.insert(schema.adminProfiles).values(profile).returning();
         return result[0];
       }
       async updateAdminProfile(userId, profile) {
-        const result = await this.db.update(adminProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(adminProfiles.userId, userId)).returning();
+        const result = await this.db.update(schema.adminProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.adminProfiles.userId, userId)).returning();
         return result[0];
       }
       async getParentProfile(userId) {
-        const result = await this.db.select().from(parentProfiles).where(eq2(parentProfiles.userId, userId)).limit(1);
+        const result = await this.db.select().from(schema.parentProfiles).where(eq(schema.parentProfiles.userId, userId)).limit(1);
         return result[0];
       }
       async createParentProfile(profile) {
-        const result = await this.db.insert(parentProfiles).values(profile).returning();
+        const result = await this.db.insert(schema.parentProfiles).values(profile).returning();
         return result[0];
       }
       async updateParentProfile(userId, profile) {
-        const result = await this.db.update(parentProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(parentProfiles.userId, userId)).returning();
+        const result = await this.db.update(schema.parentProfiles).set({ ...profile, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.parentProfiles.userId, userId)).returning();
         return result[0];
       }
       async calculateProfileCompletion(userId, roleId) {
@@ -1695,29 +2281,29 @@ var init_storage = __esm({
       async getStudent(id) {
         const result = await this.db.select({
           // Student fields
-          id: students.id,
-          admissionNumber: students.admissionNumber,
-          classId: students.classId,
-          parentId: students.parentId,
-          admissionDate: students.admissionDate,
-          emergencyContact: students.emergencyContact,
-          emergencyPhone: students.emergencyPhone,
-          medicalInfo: students.medicalInfo,
-          guardianName: students.guardianName,
-          createdAt: students.createdAt,
+          id: schema.students.id,
+          admissionNumber: schema.students.admissionNumber,
+          classId: schema.students.classId,
+          parentId: schema.students.parentId,
+          admissionDate: schema.students.admissionDate,
+          emergencyContact: schema.students.emergencyContact,
+          emergencyPhone: schema.students.emergencyPhone,
+          medicalInfo: schema.students.medicalInfo,
+          guardianName: schema.students.guardianName,
+          createdAt: schema.students.createdAt,
           // User fields (merged into student object)
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          phone: users.phone,
-          address: users.address,
-          dateOfBirth: users.dateOfBirth,
-          gender: users.gender,
-          profileImageUrl: users.profileImageUrl,
-          recoveryEmail: users.recoveryEmail,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
+          address: schema.users.address,
+          dateOfBirth: schema.users.dateOfBirth,
+          gender: schema.users.gender,
+          profileImageUrl: schema.users.profileImageUrl,
+          recoveryEmail: schema.users.recoveryEmail,
           // Class name (from classes table)
-          className: classes.name
-        }).from(students).leftJoin(users, eq2(students.id, users.id)).leftJoin(classes, eq2(students.classId, classes.id)).where(eq2(students.id, id)).limit(1);
+          className: schema.classes.name
+        }).from(schema.students).leftJoin(schema.users, eq(schema.students.id, schema.users.id)).leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id)).where(eq(schema.students.id, id)).limit(1);
         const student = result[0];
         if (student && student.id) {
           const normalizedId = normalizeUuid(student.id);
@@ -1728,11 +2314,11 @@ var init_storage = __esm({
         return student;
       }
       async getAllUsernames() {
-        const result = await this.db.select({ username: users.username }).from(users).where(sql2`${users.username} IS NOT NULL`);
+        const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql2`${schema.users.username} IS NOT NULL`);
         return result.map((r) => r.username).filter((u) => u !== null);
       }
       async createStudent(student) {
-        const result = await db.insert(students).values(student).returning();
+        const result = await db2.insert(schema.students).values(student).returning();
         return result[0];
       }
       async updateStudent(id, updates) {
@@ -1740,17 +2326,17 @@ var init_storage = __esm({
           let updatedUser;
           let updatedStudent;
           if (updates.userPatch && Object.keys(updates.userPatch).length > 0) {
-            const userResult = await tx.update(users).set(updates.userPatch).where(eq2(users.id, id)).returning();
+            const userResult = await tx.update(schema.users).set(updates.userPatch).where(eq(schema.users.id, id)).returning();
             updatedUser = userResult[0];
           } else {
-            const userResult = await tx.select().from(users).where(eq2(users.id, id)).limit(1);
+            const userResult = await tx.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
             updatedUser = userResult[0];
           }
           if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
-            const studentResult = await tx.update(students).set(updates.studentPatch).where(eq2(students.id, id)).returning();
+            const studentResult = await tx.update(schema.students).set(updates.studentPatch).where(eq(schema.students.id, id)).returning();
             updatedStudent = studentResult[0];
           } else {
-            const studentResult = await tx.select().from(students).where(eq2(students.id, id)).limit(1);
+            const studentResult = await tx.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
             updatedStudent = studentResult[0];
           }
           if (updatedUser && updatedStudent) {
@@ -1760,26 +2346,26 @@ var init_storage = __esm({
         });
       }
       async setUserActive(id, isActive) {
-        const result = await this.db.update(users).set({ isActive }).where(eq2(users.id, id)).returning();
+        const result = await this.db.update(schema.users).set({ isActive }).where(eq(schema.users.id, id)).returning();
         return result[0];
       }
       async deleteStudent(id) {
-        const result = await this.db.update(users).set({ isActive: false }).where(eq2(users.id, id)).returning();
+        const result = await this.db.update(schema.users).set({ isActive: false }).where(eq(schema.users.id, id)).returning();
         return result.length > 0;
       }
       async hardDeleteStudent(id) {
         return await this.db.transaction(async (tx) => {
           try {
-            const examSessions2 = await tx.select({ id: examSessions.id }).from(examSessions).where(eq2(examSessions.studentId, id));
-            const sessionIds = examSessions2.map((session2) => session2.id);
+            const examSessions3 = await tx.select({ id: schema.examSessions.id }).from(schema.examSessions).where(eq(schema.examSessions.studentId, id));
+            const sessionIds = examSessions3.map((session2) => session2.id);
             if (sessionIds.length > 0) {
-              await tx.delete(studentAnswers).where(inArray(studentAnswers.sessionId, sessionIds));
+              await tx.delete(schema.studentAnswers).where(inArray(schema.studentAnswers.sessionId, sessionIds));
             }
-            await tx.delete(examSessions).where(eq2(examSessions.studentId, id));
-            await tx.delete(examResults).where(eq2(examResults.studentId, id));
-            await tx.delete(attendance).where(eq2(attendance.studentId, id));
-            await tx.delete(students).where(eq2(students.id, id));
-            const userResult = await tx.delete(users).where(eq2(users.id, id)).returning();
+            await tx.delete(schema.examSessions).where(eq(schema.examSessions.studentId, id));
+            await tx.delete(schema.examResults).where(eq(schema.examResults.studentId, id));
+            await tx.delete(schema.attendance).where(eq(schema.attendance.studentId, id));
+            await tx.delete(schema.students).where(eq(schema.students.id, id));
+            const userResult = await tx.delete(schema.users).where(eq(schema.users.id, id)).returning();
             return userResult.length > 0;
           } catch (error) {
             throw error;
@@ -1787,86 +2373,86 @@ var init_storage = __esm({
         });
       }
       async getStudentsByClass(classId) {
-        return await db.select().from(students).where(eq2(students.classId, classId));
+        return await db2.select().from(schema.students).where(eq(schema.students.classId, classId));
       }
       async getAllStudents(includeInactive = false) {
         if (includeInactive) {
-          return await this.db.select().from(students).orderBy(asc(students.createdAt));
+          return await this.db.select().from(schema.students).orderBy(asc(schema.students.createdAt));
         } else {
           return await this.db.select({
-            id: students.id,
-            admissionNumber: students.admissionNumber,
-            classId: students.classId,
-            parentId: students.parentId,
-            admissionDate: students.admissionDate,
-            emergencyContact: students.emergencyContact,
-            medicalInfo: students.medicalInfo,
-            createdAt: students.createdAt
-          }).from(students).innerJoin(users, eq2(students.id, users.id)).where(eq2(users.isActive, true)).orderBy(asc(students.createdAt));
+            id: schema.students.id,
+            admissionNumber: schema.students.admissionNumber,
+            classId: schema.students.classId,
+            parentId: schema.students.parentId,
+            admissionDate: schema.students.admissionDate,
+            emergencyContact: schema.students.emergencyContact,
+            medicalInfo: schema.students.medicalInfo,
+            createdAt: schema.students.createdAt
+          }).from(schema.students).innerJoin(schema.users, eq(schema.students.id, schema.users.id)).where(eq(schema.users.isActive, true)).orderBy(asc(schema.students.createdAt));
         }
       }
       async getStudentByAdmissionNumber(admissionNumber) {
-        const result = await db.select().from(students).where(eq2(students.admissionNumber, admissionNumber)).limit(1);
+        const result = await db2.select().from(schema.students).where(eq(schema.students.admissionNumber, admissionNumber)).limit(1);
         return result[0];
       }
       // Class management
       async getClasses() {
-        return await db.select().from(classes).where(eq2(classes.isActive, true)).orderBy(asc(classes.name));
+        return await db2.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
       }
       async getAllClasses(includeInactive = false) {
         if (includeInactive) {
-          return await db.select().from(classes).orderBy(asc(classes.name));
+          return await db2.select().from(schema.classes).orderBy(asc(schema.classes.name));
         } else {
-          return await db.select().from(classes).where(eq2(classes.isActive, true)).orderBy(asc(classes.name));
+          return await db2.select().from(schema.classes).where(eq(schema.classes.isActive, true)).orderBy(asc(schema.classes.name));
         }
       }
       async getClass(id) {
-        const result = await db.select().from(classes).where(eq2(classes.id, id)).limit(1);
+        const result = await db2.select().from(schema.classes).where(eq(schema.classes.id, id)).limit(1);
         return result[0];
       }
       async createClass(classData) {
-        const result = await db.insert(classes).values(classData).returning();
+        const result = await db2.insert(schema.classes).values(classData).returning();
         return result[0];
       }
       async updateClass(id, classData) {
-        const result = await db.update(classes).set(classData).where(eq2(classes.id, id)).returning();
+        const result = await db2.update(schema.classes).set(classData).where(eq(schema.classes.id, id)).returning();
         return result[0];
       }
       async deleteClass(id) {
-        const result = await db.delete(classes).where(eq2(classes.id, id));
+        const result = await db2.delete(schema.classes).where(eq(schema.classes.id, id));
         return result.length > 0;
       }
       // Subject management
       async getSubjects() {
-        return await db.select().from(subjects).orderBy(asc(subjects.name));
+        return await db2.select().from(schema.subjects).orderBy(asc(schema.subjects.name));
       }
       async getSubject(id) {
-        const result = await db.select().from(subjects).where(eq2(subjects.id, id)).limit(1);
+        const result = await db2.select().from(schema.subjects).where(eq(schema.subjects.id, id)).limit(1);
         return result[0];
       }
       async createSubject(subject) {
-        const result = await db.insert(subjects).values(subject).returning();
+        const result = await db2.insert(schema.subjects).values(subject).returning();
         return result[0];
       }
       async updateSubject(id, subject) {
-        const result = await db.update(subjects).set(subject).where(eq2(subjects.id, id)).returning();
+        const result = await db2.update(schema.subjects).set(subject).where(eq(schema.subjects.id, id)).returning();
         return result[0];
       }
       async deleteSubject(id) {
-        const result = await db.delete(subjects).where(eq2(subjects.id, id));
+        const result = await db2.delete(schema.subjects).where(eq(schema.subjects.id, id));
         return result.length > 0;
       }
       // Academic terms
       async getCurrentTerm() {
-        const result = await db.select().from(academicTerms).where(eq2(academicTerms.isCurrent, true)).limit(1);
+        const result = await db2.select().from(schema.academicTerms).where(eq(schema.academicTerms.isCurrent, true)).limit(1);
         return result[0];
       }
       async getTerms() {
-        return await db.select().from(academicTerms).orderBy(desc(academicTerms.startDate));
+        return await db2.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
       }
       async getAcademicTerms() {
         try {
-          const terms = await db.select().from(academicTerms).orderBy(desc(academicTerms.startDate));
+          const terms = await db2.select().from(schema.academicTerms).orderBy(desc(schema.academicTerms.startDate));
           return terms;
         } catch (error) {
           throw error;
@@ -1874,7 +2460,7 @@ var init_storage = __esm({
       }
       async getAcademicTerm(id) {
         try {
-          const result = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
+          const result = await db2.select().from(schema.academicTerms).where(eq(schema.academicTerms.id, id)).limit(1);
           return result[0];
         } catch (error) {
           throw error;
@@ -1882,7 +2468,7 @@ var init_storage = __esm({
       }
       async createAcademicTerm(term) {
         try {
-          const result = await db.insert(academicTerms).values(term).returning();
+          const result = await db2.insert(schema.academicTerms).values(term).returning();
           return result[0];
         } catch (error) {
           throw error;
@@ -1890,7 +2476,7 @@ var init_storage = __esm({
       }
       async updateAcademicTerm(id, term) {
         try {
-          const result = await db.update(academicTerms).set(term).where(eq2(academicTerms.id, id)).returning();
+          const result = await db2.update(schema.academicTerms).set(term).where(eq(schema.academicTerms.id, id)).returning();
           if (result[0]) {
           }
           return result[0];
@@ -1900,15 +2486,15 @@ var init_storage = __esm({
       }
       async deleteAcademicTerm(id) {
         try {
-          const existingTerm = await db.select().from(academicTerms).where(eq2(academicTerms.id, id)).limit(1);
+          const existingTerm = await db2.select().from(schema.academicTerms).where(eq(schema.academicTerms.id, id)).limit(1);
           if (!existingTerm || existingTerm.length === 0) {
             return false;
           }
-          const examsUsingTerm = await db.select({ id: exams.id }).from(exams).where(eq2(exams.termId, id));
+          const examsUsingTerm = await db2.select({ id: schema.exams.id }).from(schema.exams).where(eq(schema.exams.termId, id));
           if (examsUsingTerm && examsUsingTerm.length > 0) {
             throw new Error(`Cannot delete this term. ${examsUsingTerm.length} exam(s) are linked to it. Please reassign or delete those exams first.`);
           }
-          const result = await db.delete(academicTerms).where(eq2(academicTerms.id, id)).returning();
+          const result = await db2.delete(schema.academicTerms).where(eq(schema.academicTerms.id, id)).returning();
           const success = result && result.length > 0;
           if (success) {
           } else {
@@ -1923,8 +2509,8 @@ var init_storage = __esm({
       }
       async markTermAsCurrent(id) {
         try {
-          await db.update(academicTerms).set({ isCurrent: false });
-          const result = await db.update(academicTerms).set({ isCurrent: true }).where(eq2(academicTerms.id, id)).returning();
+          await db2.update(schema.academicTerms).set({ isCurrent: false });
+          const result = await db2.update(schema.academicTerms).set({ isCurrent: true }).where(eq(schema.academicTerms.id, id)).returning();
           if (result[0]) {
           }
           return result[0];
@@ -1935,63 +2521,63 @@ var init_storage = __esm({
       // Helper method to check if a term is being used
       async getExamsByTerm(termId) {
         try {
-          const result = await db.select().from(exams).where(eq2(exams.termId, termId));
+          const result = await db2.select().from(schema.exams).where(eq(schema.exams.termId, termId));
           return result;
         } catch (error) {
           return [];
         }
       }
       // Attendance management
-      async recordAttendance(attendance2) {
-        const result = await db.insert(attendance).values(attendance2).returning();
+      async recordAttendance(attendance3) {
+        const result = await db2.insert(schema.attendance).values(attendance3).returning();
         return result[0];
       }
-      async getAttendanceByStudent(studentId, date2) {
-        if (date2) {
-          return await db.select().from(attendance).where(and(eq2(attendance.studentId, studentId), eq2(attendance.date, date2)));
+      async getAttendanceByStudent(studentId, date) {
+        if (date) {
+          return await db2.select().from(schema.attendance).where(and(eq(schema.attendance.studentId, studentId), eq(schema.attendance.date, date)));
         }
-        return await db.select().from(attendance).where(eq2(attendance.studentId, studentId)).orderBy(desc(attendance.date));
+        return await db2.select().from(schema.attendance).where(eq(schema.attendance.studentId, studentId)).orderBy(desc(schema.attendance.date));
       }
-      async getAttendanceByClass(classId, date2) {
-        return await db.select().from(attendance).where(and(eq2(attendance.classId, classId), eq2(attendance.date, date2)));
+      async getAttendanceByClass(classId, date) {
+        return await db2.select().from(schema.attendance).where(and(eq(schema.attendance.classId, classId), eq(schema.attendance.date, date)));
       }
       // Exam management
       async createExam(exam) {
-        const result = await db.insert(exams).values(exam).returning();
+        const result = await db2.insert(schema.exams).values(exam).returning();
         return result[0];
       }
       async getAllExams() {
         try {
-          const result = await db.select().from(exams).orderBy(desc(exams.date));
+          const result = await db2.select().from(schema.exams).orderBy(desc(schema.exams.date));
           return result || [];
         } catch (error) {
           return [];
         }
       }
       async getExamById(id) {
-        const result = await db.select().from(exams).where(eq2(exams.id, id)).limit(1);
+        const result = await db2.select().from(schema.exams).where(eq(schema.exams.id, id)).limit(1);
         return result[0];
       }
       async getExamsByClass(classId) {
         try {
-          const result = await db.select().from(exams).where(eq2(exams.classId, classId)).orderBy(desc(exams.date));
+          const result = await db2.select().from(schema.exams).where(eq(schema.exams.classId, classId)).orderBy(desc(schema.exams.date));
           return result || [];
         } catch (error) {
           return [];
         }
       }
       async updateExam(id, exam) {
-        const result = await db.update(exams).set(exam).where(eq2(exams.id, id)).returning();
+        const result = await db2.update(schema.exams).set(exam).where(eq(schema.exams.id, id)).returning();
         return result[0];
       }
       async deleteExam(id) {
         try {
-          await db.delete(studentAnswers).where(sql2`${studentAnswers.questionId} IN (SELECT id FROM ${examQuestions} WHERE exam_id = ${id})`);
-          await db.delete(questionOptions).where(sql2`${questionOptions.questionId} IN (SELECT id FROM ${examQuestions} WHERE exam_id = ${id})`);
-          await db.delete(examQuestions).where(eq2(examQuestions.examId, id));
-          await db.delete(examResults).where(eq2(examResults.examId, id));
-          await db.delete(examSessions).where(eq2(examSessions.examId, id));
-          const result = await db.delete(exams).where(eq2(exams.id, id)).returning();
+          await db2.delete(schema.studentAnswers).where(sql2`${schema.studentAnswers.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
+          await db2.delete(schema.questionOptions).where(sql2`${schema.questionOptions.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
+          await db2.delete(schema.examQuestions).where(eq(schema.examQuestions.examId, id));
+          await db2.delete(schema.examResults).where(eq(schema.examResults.examId, id));
+          await db2.delete(schema.examSessions).where(eq(schema.examSessions.examId, id));
+          const result = await db2.delete(schema.exams).where(eq(schema.exams.id, id)).returning();
           return result.length > 0;
         } catch (error) {
           throw error;
@@ -1999,7 +2585,7 @@ var init_storage = __esm({
       }
       async recordExamResult(result) {
         try {
-          const examResult = await db.insert(examResults).values(result).returning();
+          const examResult = await db2.insert(schema.examResults).values(result).returning();
           return examResult[0];
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
@@ -2008,7 +2594,7 @@ var init_storage = __esm({
               ...resultWithoutAutoScored,
               marksObtained: result.score || 0
             };
-            const examResult = await db.insert(examResults).values(compatibleResult).returning();
+            const examResult = await db2.insert(schema.examResults).values(compatibleResult).returning();
             return {
               ...examResult[0],
               autoScored: result.recordedBy === "00000000-0000-0000-0000-000000000001",
@@ -2020,7 +2606,7 @@ var init_storage = __esm({
       }
       async updateExamResult(id, result) {
         try {
-          const updated = await db.update(examResults).set(result).where(eq2(examResults.id, id)).returning();
+          const updated = await db2.update(schema.examResults).set(result).where(eq(schema.examResults.id, id)).returning();
           return updated[0];
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("auto_scored")) {
@@ -2029,7 +2615,7 @@ var init_storage = __esm({
               ...resultWithoutAutoScored,
               marksObtained: result.score || 0
             };
-            const updated = await db.update(examResults).set(compatibleResult).where(eq2(examResults.id, id)).returning();
+            const updated = await db2.update(schema.examResults).set(compatibleResult).where(eq(schema.examResults.id, id)).returning();
             return {
               ...updated[0],
               autoScored: result.recordedBy === "00000000-0000-0000-0000-000000000001",
@@ -2044,37 +2630,37 @@ var init_storage = __esm({
           const SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
           try {
             const results = await this.db.select({
-              id: examResults.id,
-              examId: examResults.examId,
-              studentId: examResults.studentId,
-              score: examResults.marksObtained,
-              maxScore: exams.totalMarks,
-              marksObtained: examResults.marksObtained,
-              grade: examResults.grade,
-              remarks: examResults.remarks,
-              recordedBy: examResults.recordedBy,
-              createdAt: examResults.createdAt,
-              autoScored: sql2`COALESCE(${examResults.autoScored}, ${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
-            }).from(examResults).leftJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
+              id: schema.examResults.id,
+              examId: schema.examResults.examId,
+              studentId: schema.examResults.studentId,
+              score: schema.examResults.marksObtained,
+              maxScore: schema.exams.totalMarks,
+              marksObtained: schema.examResults.marksObtained,
+              grade: schema.examResults.grade,
+              remarks: schema.examResults.remarks,
+              recordedBy: schema.examResults.recordedBy,
+              createdAt: schema.examResults.createdAt,
+              autoScored: sql2`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
+            }).from(schema.examResults).leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id)).where(eq(schema.examResults.studentId, studentId)).orderBy(desc(schema.examResults.createdAt));
             return results;
           } catch (mainError) {
             const fallbackResults = await this.db.select({
-              id: examResults.id,
-              examId: examResults.examId,
-              studentId: examResults.studentId,
-              marksObtained: examResults.marksObtained,
-              grade: examResults.grade,
-              remarks: examResults.remarks,
-              recordedBy: examResults.recordedBy,
-              createdAt: examResults.createdAt,
-              score: examResults.marksObtained,
+              id: schema.examResults.id,
+              examId: schema.examResults.examId,
+              studentId: schema.examResults.studentId,
+              marksObtained: schema.examResults.marksObtained,
+              grade: schema.examResults.grade,
+              remarks: schema.examResults.remarks,
+              recordedBy: schema.examResults.recordedBy,
+              createdAt: schema.examResults.createdAt,
+              score: schema.examResults.marksObtained,
               maxScore: sql2`100`.as("maxScore"),
               // Default to 100 if join fails
-              autoScored: sql2`(${examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
-            }).from(examResults).where(eq2(examResults.studentId, studentId)).orderBy(desc(examResults.createdAt));
+              autoScored: sql2`(${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
+            }).from(schema.examResults).where(eq(schema.examResults.studentId, studentId)).orderBy(desc(schema.examResults.createdAt));
             for (const result of fallbackResults) {
               try {
-                const exam = await this.db.select({ totalMarks: exams.totalMarks }).from(exams).where(eq2(exams.id, result.examId)).limit(1);
+                const exam = await this.db.select({ totalMarks: schema.exams.totalMarks }).from(schema.exams).where(eq(schema.exams.id, result.examId)).limit(1);
                 if (exam[0]?.totalMarks) {
                   result.maxScore = exam[0].totalMarks;
                 }
@@ -2089,26 +2675,26 @@ var init_storage = __esm({
       }
       async getExamResultsByExam(examId) {
         try {
-          return await db.select().from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
+          return await db2.select().from(schema.examResults).where(eq(schema.examResults.examId, examId)).orderBy(desc(schema.examResults.createdAt));
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
             try {
-              return await db.select({
-                id: examResults.id,
-                examId: examResults.examId,
-                studentId: examResults.studentId,
-                marksObtained: examResults.marksObtained,
+              return await db2.select({
+                id: schema.examResults.id,
+                examId: schema.examResults.examId,
+                studentId: schema.examResults.studentId,
+                marksObtained: schema.examResults.marksObtained,
                 // Use legacy field
-                grade: examResults.grade,
-                remarks: examResults.remarks,
-                recordedBy: examResults.recordedBy,
-                createdAt: examResults.createdAt,
+                grade: schema.examResults.grade,
+                remarks: schema.examResults.remarks,
+                recordedBy: schema.examResults.recordedBy,
+                createdAt: schema.examResults.createdAt,
                 // Map marksObtained to score for compatibility
-                score: examResults.marksObtained,
+                score: schema.examResults.marksObtained,
                 maxScore: dsql`null`.as("maxScore"),
                 // Since auto_scored column doesn't exist, determine from recordedBy
                 autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
-              }).from(examResults).where(eq2(examResults.examId, examId)).orderBy(desc(examResults.createdAt));
+              }).from(schema.examResults).where(eq(schema.examResults.examId, examId)).orderBy(desc(schema.examResults.createdAt));
             } catch (fallbackError) {
               return [];
             }
@@ -2117,53 +2703,53 @@ var init_storage = __esm({
         }
       }
       async getExamResultByExamAndStudent(examId, studentId) {
-        const result = await db.select().from(examResults).where(
-          sql2`${examResults.examId} = ${examId} AND ${examResults.studentId} = ${studentId}`
+        const result = await db2.select().from(schema.examResults).where(
+          sql2`${schema.examResults.examId} = ${examId} AND ${schema.examResults.studentId} = ${studentId}`
         ).limit(1);
         return result[0];
       }
       async getExamResultsByClass(classId) {
         try {
-          const results = await db.select({
-            id: examResults.id,
-            examId: examResults.examId,
-            studentId: examResults.studentId,
-            score: examResults.score,
-            maxScore: examResults.maxScore,
-            marksObtained: examResults.marksObtained,
-            grade: examResults.grade,
-            remarks: examResults.remarks,
-            recordedBy: examResults.recordedBy,
-            autoScored: examResults.autoScored,
-            createdAt: examResults.createdAt,
-            examName: exams.name,
-            examType: exams.examType,
-            examDate: exams.date,
-            totalMarks: exams.totalMarks,
-            admissionNumber: students.admissionNumber,
-            studentName: sql2`${users.firstName} || ' ' || ${users.lastName}`.as("studentName"),
-            className: classes.name,
-            subjectName: subjects.name
-          }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).innerJoin(students, eq2(examResults.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).leftJoin(classes, eq2(exams.classId, classes.id)).leftJoin(subjects, eq2(exams.subjectId, subjects.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
+          const results = await db2.select({
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            score: schema.examResults.score,
+            maxScore: schema.examResults.maxScore,
+            marksObtained: schema.examResults.marksObtained,
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            recordedBy: schema.examResults.recordedBy,
+            autoScored: schema.examResults.autoScored,
+            createdAt: schema.examResults.createdAt,
+            examName: schema.exams.name,
+            examType: schema.exams.examType,
+            examDate: schema.exams.date,
+            totalMarks: schema.exams.totalMarks,
+            admissionNumber: schema.students.admissionNumber,
+            studentName: sql2`${schema.users.firstName} || ' ' || ${schema.users.lastName}`.as("studentName"),
+            className: schema.classes.name,
+            subjectName: schema.subjects.name
+          }).from(schema.examResults).innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id)).innerJoin(schema.students, eq(schema.examResults.studentId, schema.students.id)).innerJoin(schema.users, eq(schema.students.id, schema.users.id)).leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id)).leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id)).where(eq(schema.exams.classId, classId)).orderBy(desc(schema.examResults.createdAt));
           return results;
         } catch (error) {
           if (error?.cause?.code === "42703" && error?.cause?.message?.includes("column") && error?.cause?.message?.includes("does not exist")) {
             try {
-              const results = await db.select({
-                id: examResults.id,
-                examId: examResults.examId,
-                studentId: examResults.studentId,
-                marksObtained: examResults.marksObtained,
-                grade: examResults.grade,
-                remarks: examResults.remarks,
-                recordedBy: examResults.recordedBy,
-                createdAt: examResults.createdAt,
+              const results = await db2.select({
+                id: schema.examResults.id,
+                examId: schema.examResults.examId,
+                studentId: schema.examResults.studentId,
+                marksObtained: schema.examResults.marksObtained,
+                grade: schema.examResults.grade,
+                remarks: schema.examResults.remarks,
+                recordedBy: schema.examResults.recordedBy,
+                createdAt: schema.examResults.createdAt,
                 // Map marksObtained to score for compatibility
-                score: examResults.marksObtained,
+                score: schema.examResults.marksObtained,
                 maxScore: dsql`null`.as("maxScore"),
                 // Infer autoScored based on recordedBy
                 autoScored: dsql`CASE WHEN "recorded_by" = '00000000-0000-0000-0000-000000000001' THEN true ELSE false END`.as("autoScored")
-              }).from(examResults).innerJoin(exams, eq2(examResults.examId, exams.id)).where(eq2(exams.classId, classId)).orderBy(desc(examResults.createdAt));
+              }).from(schema.examResults).innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id)).where(eq(schema.exams.classId, classId)).orderBy(desc(schema.examResults.createdAt));
               return results;
             } catch (fallbackError) {
               return [];
@@ -2189,11 +2775,11 @@ var init_storage = __esm({
           explanationText: question.explanationText,
           hintText: question.hintText
         };
-        const result = await db.insert(examQuestions).values(questionData).returning();
+        const result = await db2.insert(schema.examQuestions).values(questionData).returning();
         return result[0];
       }
       async createExamQuestionWithOptions(question, options) {
-        return await db.transaction(async (tx) => {
+        return await db2.transaction(async (tx) => {
           try {
             const questionData = {
               examId: question.examId,
@@ -2210,20 +2796,20 @@ var init_storage = __esm({
               explanationText: question.explanationText,
               hintText: question.hintText
             };
-            const questionResult = await tx.insert(examQuestions).values(questionData).returning();
+            const questionResult = await tx.insert(schema.examQuestions).values(questionData).returning();
             const createdQuestion = questionResult[0];
             if (Array.isArray(options) && options.length > 0) {
-              const optionsToInsert = options.map((option, index2) => ({
+              const optionsToInsert = options.map((option, index3) => ({
                 questionId: createdQuestion.id,
                 optionText: option.optionText,
-                orderNumber: index2 + 1,
+                orderNumber: index3 + 1,
                 isCorrect: option.isCorrect
               }));
               const BATCH_SIZE = 5;
               for (let i = 0; i < optionsToInsert.length; i += BATCH_SIZE) {
                 const batch = optionsToInsert.slice(i, i + BATCH_SIZE);
                 for (const optionData of batch) {
-                  await tx.insert(questionOptions).values(optionData);
+                  await tx.insert(schema.questionOptions).values(optionData);
                 }
               }
             }
@@ -2261,32 +2847,32 @@ var init_storage = __esm({
         };
       }
       async getExamQuestions(examId) {
-        return await db.select({
-          id: examQuestions.id,
-          examId: examQuestions.examId,
-          questionText: examQuestions.questionText,
-          questionType: examQuestions.questionType,
-          points: examQuestions.points,
-          orderNumber: examQuestions.orderNumber,
-          imageUrl: examQuestions.imageUrl,
-          createdAt: examQuestions.createdAt
-        }).from(examQuestions).where(eq2(examQuestions.examId, examId)).orderBy(asc(examQuestions.orderNumber));
+        return await db2.select({
+          id: schema.examQuestions.id,
+          examId: schema.examQuestions.examId,
+          questionText: schema.examQuestions.questionText,
+          questionType: schema.examQuestions.questionType,
+          points: schema.examQuestions.points,
+          orderNumber: schema.examQuestions.orderNumber,
+          imageUrl: schema.examQuestions.imageUrl,
+          createdAt: schema.examQuestions.createdAt
+        }).from(schema.examQuestions).where(eq(schema.examQuestions.examId, examId)).orderBy(asc(schema.examQuestions.orderNumber));
       }
       async getExamQuestionById(id) {
-        const result = await db.select({
-          id: examQuestions.id,
-          examId: examQuestions.examId,
-          questionText: examQuestions.questionText,
-          questionType: examQuestions.questionType,
-          points: examQuestions.points,
-          orderNumber: examQuestions.orderNumber,
-          imageUrl: examQuestions.imageUrl,
-          createdAt: examQuestions.createdAt
-        }).from(examQuestions).where(eq2(examQuestions.id, id)).limit(1);
+        const result = await db2.select({
+          id: schema.examQuestions.id,
+          examId: schema.examQuestions.examId,
+          questionText: schema.examQuestions.questionText,
+          questionType: schema.examQuestions.questionType,
+          points: schema.examQuestions.points,
+          orderNumber: schema.examQuestions.orderNumber,
+          imageUrl: schema.examQuestions.imageUrl,
+          createdAt: schema.examQuestions.createdAt
+        }).from(schema.examQuestions).where(eq(schema.examQuestions.id, id)).limit(1);
         return result[0];
       }
       async getExamQuestionCount(examId) {
-        const result = await db.select({ count: dsql`count(*)` }).from(examQuestions).where(eq2(examQuestions.examId, examId));
+        const result = await db2.select({ count: dsql`count(*)` }).from(schema.examQuestions).where(eq(schema.examQuestions.examId, examId));
         return Number(result[0]?.count || 0);
       }
       // Get question counts for multiple exams
@@ -2303,14 +2889,14 @@ var init_storage = __esm({
         return counts;
       }
       async updateExamQuestion(id, question) {
-        const result = await db.update(examQuestions).set(question).where(eq2(examQuestions.id, id)).returning();
+        const result = await db2.update(schema.examQuestions).set(question).where(eq(schema.examQuestions.id, id)).returning();
         return result[0];
       }
       async deleteExamQuestion(id) {
         try {
-          await db.delete(questionOptions).where(eq2(questionOptions.questionId, id));
-          await db.delete(studentAnswers).where(eq2(studentAnswers.questionId, id));
-          const result = await db.delete(examQuestions).where(eq2(examQuestions.id, id)).returning();
+          await db2.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, id));
+          await db2.delete(schema.studentAnswers).where(eq(schema.studentAnswers.questionId, id));
+          const result = await db2.delete(schema.examQuestions).where(eq(schema.examQuestions.id, id)).returning();
           return result.length > 0;
         } catch (error) {
           throw error;
@@ -2318,93 +2904,93 @@ var init_storage = __esm({
       }
       // Question options management
       async createQuestionOption(option) {
-        const result = await db.insert(questionOptions).values(option).returning();
+        const result = await db2.insert(schema.questionOptions).values(option).returning();
         return result[0];
       }
       async getQuestionOptions(questionId) {
-        return await db.select({
-          id: questionOptions.id,
-          questionId: questionOptions.questionId,
-          optionText: questionOptions.optionText,
-          isCorrect: questionOptions.isCorrect,
-          orderNumber: questionOptions.orderNumber,
-          createdAt: questionOptions.createdAt
-        }).from(questionOptions).where(eq2(questionOptions.questionId, questionId)).orderBy(asc(questionOptions.orderNumber));
+        return await db2.select({
+          id: schema.questionOptions.id,
+          questionId: schema.questionOptions.questionId,
+          optionText: schema.questionOptions.optionText,
+          isCorrect: schema.questionOptions.isCorrect,
+          orderNumber: schema.questionOptions.orderNumber,
+          createdAt: schema.questionOptions.createdAt
+        }).from(schema.questionOptions).where(eq(schema.questionOptions.questionId, questionId)).orderBy(asc(schema.questionOptions.orderNumber));
       }
       // PERFORMANCE: Bulk fetch question options to eliminate N+1 queries
       async getQuestionOptionsBulk(questionIds) {
         if (questionIds.length === 0) {
           return [];
         }
-        return await db.select({
-          id: questionOptions.id,
-          questionId: questionOptions.questionId,
-          optionText: questionOptions.optionText,
-          isCorrect: questionOptions.isCorrect,
-          orderNumber: questionOptions.orderNumber,
-          createdAt: questionOptions.createdAt
-        }).from(questionOptions).where(inArray(questionOptions.questionId, questionIds)).orderBy(asc(questionOptions.questionId), asc(questionOptions.orderNumber));
+        return await db2.select({
+          id: schema.questionOptions.id,
+          questionId: schema.questionOptions.questionId,
+          optionText: schema.questionOptions.optionText,
+          isCorrect: schema.questionOptions.isCorrect,
+          orderNumber: schema.questionOptions.orderNumber,
+          createdAt: schema.questionOptions.createdAt
+        }).from(schema.questionOptions).where(inArray(schema.questionOptions.questionId, questionIds)).orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
       }
       // Question Bank management
       async createQuestionBank(bank) {
-        const result = await db.insert(questionBanks).values(bank).returning();
+        const result = await db2.insert(schema.questionBanks).values(bank).returning();
         return result[0];
       }
       async getAllQuestionBanks() {
-        return await db.select().from(questionBanks).orderBy(desc(questionBanks.createdAt));
+        return await db2.select().from(schema.questionBanks).orderBy(desc(schema.questionBanks.createdAt));
       }
       async getQuestionBankById(id) {
-        const result = await db.select().from(questionBanks).where(eq2(questionBanks.id, id));
+        const result = await db2.select().from(schema.questionBanks).where(eq(schema.questionBanks.id, id));
         return result[0];
       }
       async getQuestionBanksBySubject(subjectId) {
-        return await db.select().from(questionBanks).where(eq2(questionBanks.subjectId, subjectId)).orderBy(desc(questionBanks.createdAt));
+        return await db2.select().from(schema.questionBanks).where(eq(schema.questionBanks.subjectId, subjectId)).orderBy(desc(schema.questionBanks.createdAt));
       }
       async updateQuestionBank(id, bank) {
-        const result = await db.update(questionBanks).set({ ...bank, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(questionBanks.id, id)).returning();
+        const result = await db2.update(schema.questionBanks).set({ ...bank, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.questionBanks.id, id)).returning();
         return result[0];
       }
       async deleteQuestionBank(id) {
-        await db.delete(questionBanks).where(eq2(questionBanks.id, id));
+        await db2.delete(schema.questionBanks).where(eq(schema.questionBanks.id, id));
         return true;
       }
       // Question Bank Items management
       async createQuestionBankItem(item, options) {
-        const result = await db.insert(questionBankItems).values(item).returning();
+        const result = await db2.insert(schema.questionBankItems).values(item).returning();
         const questionItem = result[0];
         if (options && options.length > 0) {
           const optionValues = options.map((option) => ({
             questionItemId: questionItem.id,
             ...option
           }));
-          await db.insert(questionBankOptions).values(optionValues);
+          await db2.insert(schema.questionBankOptions).values(optionValues);
         }
         return questionItem;
       }
       async getQuestionBankItems(bankId, filters) {
-        let query = db.select().from(questionBankItems).where(eq2(questionBankItems.bankId, bankId));
+        let query = db2.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.bankId, bankId));
         if (filters?.questionType) {
-          query = query.where(eq2(questionBankItems.questionType, filters.questionType));
+          query = query.where(eq(schema.questionBankItems.questionType, filters.questionType));
         }
         if (filters?.difficulty) {
-          query = query.where(eq2(questionBankItems.difficulty, filters.difficulty));
+          query = query.where(eq(schema.questionBankItems.difficulty, filters.difficulty));
         }
-        return await query.orderBy(desc(questionBankItems.createdAt));
+        return await query.orderBy(desc(schema.questionBankItems.createdAt));
       }
       async getQuestionBankItemById(id) {
-        const result = await db.select().from(questionBankItems).where(eq2(questionBankItems.id, id));
+        const result = await db2.select().from(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
         return result[0];
       }
       async updateQuestionBankItem(id, item) {
-        const result = await db.update(questionBankItems).set({ ...item, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(questionBankItems.id, id)).returning();
+        const result = await db2.update(schema.questionBankItems).set({ ...item, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.questionBankItems.id, id)).returning();
         return result[0];
       }
       async deleteQuestionBankItem(id) {
-        await db.delete(questionBankItems).where(eq2(questionBankItems.id, id));
+        await db2.delete(schema.questionBankItems).where(eq(schema.questionBankItems.id, id));
         return true;
       }
       async getQuestionBankItemOptions(questionItemId) {
-        return await db.select().from(questionBankOptions).where(eq2(questionBankOptions.questionItemId, questionItemId)).orderBy(asc(questionBankOptions.orderNumber));
+        return await db2.select().from(schema.questionBankOptions).where(eq(schema.questionBankOptions.questionItemId, questionItemId)).orderBy(asc(schema.questionBankOptions.orderNumber));
       }
       async importQuestionsFromBank(examId, questionItemIds, randomize = false, maxQuestions) {
         let selectedItemIds = [...questionItemIds];
@@ -2419,6 +3005,19 @@ var init_storage = __esm({
           if (!bankItem) continue;
           const validTypes = ["multiple_choice", "text", "essay", "true_false", "fill_blank"];
           const questionType = validTypes.includes(bankItem.questionType) ? bankItem.questionType : "text";
+          let expectedAnswersArray = void 0;
+          if (bankItem.expectedAnswers) {
+            if (Array.isArray(bankItem.expectedAnswers)) {
+              expectedAnswersArray = bankItem.expectedAnswers;
+            } else if (typeof bankItem.expectedAnswers === "string") {
+              try {
+                const parsed = JSON.parse(bankItem.expectedAnswers);
+                expectedAnswersArray = Array.isArray(parsed) ? parsed : [bankItem.expectedAnswers];
+              } catch {
+                expectedAnswersArray = bankItem.expectedAnswers.split(",").map((s) => s.trim()).filter(Boolean);
+              }
+            }
+          }
           const questionData = {
             examId,
             questionText: bankItem.questionText,
@@ -2427,7 +3026,7 @@ var init_storage = __esm({
             orderNumber: orderNumber++,
             imageUrl: bankItem.imageUrl ?? void 0,
             autoGradable: bankItem.autoGradable,
-            expectedAnswers: bankItem.expectedAnswers ?? void 0,
+            expectedAnswers: expectedAnswersArray,
             caseSensitive: bankItem.caseSensitive ?? void 0,
             explanationText: bankItem.explanationText ?? void 0,
             hintText: bankItem.hintText ?? void 0
@@ -2453,68 +3052,68 @@ var init_storage = __esm({
       // Get AI-suggested grading tasks for teacher review
       async getAISuggestedGradingTasks(teacherId, status) {
         try {
-          const assignments = await this.db.select().from(teacherClassAssignments).where(and(
-            eq2(teacherClassAssignments.teacherId, teacherId),
-            eq2(teacherClassAssignments.isActive, true)
+          const assignments = await this.db.select().from(schema.teacherClassAssignments).where(and(
+            eq(schema.teacherClassAssignments.teacherId, teacherId),
+            eq(schema.teacherClassAssignments.isActive, true)
           ));
           if (assignments.length === 0) {
             return [];
           }
           const classIds = assignments.map((a) => a.classId);
           const subjectIds = assignments.map((a) => a.subjectId);
-          const exams2 = await this.db.select().from(exams).where(and(
-            inArray(exams.classId, classIds),
-            inArray(exams.subjectId, subjectIds)
+          const exams3 = await this.db.select().from(schema.exams).where(and(
+            inArray(schema.exams.classId, classIds),
+            inArray(schema.exams.subjectId, subjectIds)
           ));
-          const examIds = exams2.map((e) => e.id);
+          const examIds = exams3.map((e) => e.id);
           if (examIds.length === 0) {
             return [];
           }
-          const sessions = await this.db.select().from(examSessions).where(and(
-            inArray(examSessions.examId, examIds),
-            eq2(examSessions.isCompleted, true)
+          const sessions = await this.db.select().from(schema.examSessions).where(and(
+            inArray(schema.examSessions.examId, examIds),
+            eq(schema.examSessions.isCompleted, true)
           ));
           const sessionIds = sessions.map((s) => s.id);
           if (sessionIds.length === 0) {
             return [];
           }
           let query = this.db.select({
-            id: studentAnswers.id,
-            sessionId: studentAnswers.sessionId,
-            questionId: studentAnswers.questionId,
-            textAnswer: studentAnswers.textAnswer,
-            pointsEarned: studentAnswers.pointsEarned,
-            feedbackText: studentAnswers.feedbackText,
-            autoScored: studentAnswers.autoScored,
-            manualOverride: studentAnswers.manualOverride,
-            answeredAt: studentAnswers.answeredAt,
-            questionText: examQuestions.questionText,
-            questionType: examQuestions.questionType,
-            points: examQuestions.points,
-            expectedAnswers: examQuestions.expectedAnswers,
-            studentId: examSessions.studentId,
-            examId: examSessions.examId,
-            examName: exams.name
-          }).from(studentAnswers).innerJoin(examQuestions, eq2(studentAnswers.questionId, examQuestions.id)).innerJoin(examSessions, eq2(studentAnswers.sessionId, examSessions.id)).innerJoin(exams, eq2(examSessions.examId, exams.id)).where(and(
-            inArray(studentAnswers.sessionId, sessionIds),
-            sql2`(${examQuestions.questionType} = 'text' OR ${examQuestions.questionType} = 'essay')`,
-            sql2`${studentAnswers.textAnswer} IS NOT NULL`
+            id: schema.studentAnswers.id,
+            sessionId: schema.studentAnswers.sessionId,
+            questionId: schema.studentAnswers.questionId,
+            textAnswer: schema.studentAnswers.textAnswer,
+            pointsEarned: schema.studentAnswers.pointsEarned,
+            feedbackText: schema.studentAnswers.feedbackText,
+            autoScored: schema.studentAnswers.autoScored,
+            manualOverride: schema.studentAnswers.manualOverride,
+            answeredAt: schema.studentAnswers.answeredAt,
+            questionText: schema.examQuestions.questionText,
+            questionType: schema.examQuestions.questionType,
+            points: schema.examQuestions.points,
+            expectedAnswers: schema.examQuestions.expectedAnswers,
+            studentId: schema.examSessions.studentId,
+            examId: schema.examSessions.examId,
+            examName: schema.exams.name
+          }).from(schema.studentAnswers).innerJoin(schema.examQuestions, eq(schema.studentAnswers.questionId, schema.examQuestions.id)).innerJoin(schema.examSessions, eq(schema.studentAnswers.sessionId, schema.examSessions.id)).innerJoin(schema.exams, eq(schema.examSessions.examId, schema.exams.id)).where(and(
+            inArray(schema.studentAnswers.sessionId, sessionIds),
+            sql2`(${schema.examQuestions.questionType} = 'text' OR ${schema.examQuestions.questionType} = 'essay')`,
+            sql2`${schema.studentAnswers.textAnswer} IS NOT NULL`
           ));
           if (status === "pending") {
-            query = query.where(sql2`${studentAnswers.autoScored} = false AND ${studentAnswers.manualOverride} = false`);
+            query = query.where(sql2`${schema.studentAnswers.autoScored} = false AND ${schema.studentAnswers.manualOverride} = false`);
           } else if (status === "reviewed") {
-            query = query.where(sql2`(${studentAnswers.autoScored} = true OR ${studentAnswers.manualOverride} = true)`);
+            query = query.where(sql2`(${schema.studentAnswers.autoScored} = true OR ${schema.studentAnswers.manualOverride} = true)`);
           }
           const results = await query;
           const studentIds = Array.from(new Set(results.map((r) => r.studentId)));
-          const students2 = await this.db.select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName
-          }).from(users).where(inArray(users.id, studentIds));
+          const students3 = await this.db.select({
+            id: schema.users.id,
+            firstName: schema.users.firstName,
+            lastName: schema.users.lastName
+          }).from(schema.users).where(inArray(schema.users.id, studentIds));
           return results.map((r) => ({
             ...r,
-            studentName: `${students2.find((s) => s.id === r.studentId)?.firstName} ${students2.find((s) => s.id === r.studentId)?.lastName}`,
+            studentName: `${students3.find((s) => s.id === r.studentId)?.firstName} ${students3.find((s) => s.id === r.studentId)?.lastName}`,
             status: r.autoScored || r.manualOverride ? "reviewed" : "pending",
             aiSuggested: r.pointsEarned > 0 && !r.autoScored && !r.manualOverride
           }));
@@ -2524,54 +3123,54 @@ var init_storage = __esm({
       }
       // Exam sessions management
       async createExamSession(session2) {
-        const result = await db.insert(examSessions).values(session2).returning();
+        const result = await db2.insert(schema.examSessions).values(session2).returning();
         return result[0];
       }
       async getExamSessionById(id) {
-        const result = await db.select({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
-        }).from(examSessions).where(eq2(examSessions.id, id)).limit(1);
+        const result = await db2.select({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions).where(eq(schema.examSessions.id, id)).limit(1);
         return result[0];
       }
       async getExamSessionsByExam(examId) {
-        return await db.select({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
-        }).from(examSessions).where(eq2(examSessions.examId, examId)).orderBy(desc(examSessions.startedAt));
+        return await db2.select({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions).where(eq(schema.examSessions.examId, examId)).orderBy(desc(schema.examSessions.startedAt));
       }
       async getExamSessionsByStudent(studentId) {
-        return await db.select({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
-        }).from(examSessions).where(eq2(examSessions.studentId, studentId)).orderBy(desc(examSessions.startedAt));
+        return await db2.select({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions).where(eq(schema.examSessions.studentId, studentId)).orderBy(desc(schema.examSessions.startedAt));
       }
       async updateExamSession(id, session2) {
         const allowedFields = {};
@@ -2581,73 +3180,73 @@ var init_storage = __esm({
             allowedFields[key] = value;
           }
         }
-        const result = await db.update(examSessions).set(allowedFields).where(eq2(examSessions.id, id)).returning({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
+        const result = await db2.update(schema.examSessions).set(allowedFields).where(eq(schema.examSessions.id, id)).returning({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
         });
         return result[0];
       }
       async deleteExamSession(id) {
-        const result = await db.delete(examSessions).where(eq2(examSessions.id, id));
+        const result = await db2.delete(schema.examSessions).where(eq(schema.examSessions.id, id));
         return result.length > 0;
       }
       async getActiveExamSession(examId, studentId) {
-        const result = await db.select().from(examSessions).where(and(
-          eq2(examSessions.examId, examId),
-          eq2(examSessions.studentId, studentId),
-          eq2(examSessions.isCompleted, false)
+        const result = await db2.select().from(schema.examSessions).where(and(
+          eq(schema.examSessions.examId, examId),
+          eq(schema.examSessions.studentId, studentId),
+          eq(schema.examSessions.isCompleted, false)
         )).limit(1);
         return result[0];
       }
       // Get all active exam sessions for background cleanup service
       async getActiveExamSessions() {
-        return await db.select({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
-        }).from(examSessions).where(eq2(examSessions.isCompleted, false)).orderBy(desc(examSessions.startedAt));
+        return await db2.select({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions).where(eq(schema.examSessions.isCompleted, false)).orderBy(desc(schema.examSessions.startedAt));
       }
       // PERFORMANCE: Get only expired sessions directly from database
       async getExpiredExamSessions(now, limit = 100) {
-        return await db.select({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
-        }).from(examSessions).where(and(
-          eq2(examSessions.isCompleted, false),
+        return await db2.select({
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions).where(and(
+          eq(schema.examSessions.isCompleted, false),
           // Fallback: Use startedAt + reasonable timeout estimate for expired sessions
-          dsql`${examSessions.startedAt} + interval '2 hours' < ${now.toISOString()}`
-        )).orderBy(asc(examSessions.startedAt)).limit(limit);
+          dsql`${schema.examSessions.startedAt} + interval '2 hours' < ${now.toISOString()}`
+        )).orderBy(asc(schema.examSessions.startedAt)).limit(limit);
       }
       // CIRCUIT BREAKER FIX: Idempotent session creation using UPSERT to prevent connection pool exhaustion
       async createOrGetActiveExamSession(examId, studentId, sessionData) {
         try {
-          const insertResult = await db.insert(examSessions).values({
+          const insertResult = await db2.insert(schema.examSessions).values({
             examId: sessionData.examId,
             studentId,
             startedAt: /* @__PURE__ */ new Date(),
@@ -2655,37 +3254,37 @@ var init_storage = __esm({
             isCompleted: false,
             status: "in_progress"
           }).onConflictDoNothing().returning({
-            id: examSessions.id,
-            examId: examSessions.examId,
-            studentId: examSessions.studentId,
-            startedAt: examSessions.startedAt,
-            submittedAt: examSessions.submittedAt,
-            timeRemaining: examSessions.timeRemaining,
-            isCompleted: examSessions.isCompleted,
-            score: examSessions.score,
-            maxScore: examSessions.maxScore,
-            status: examSessions.status,
-            createdAt: examSessions.createdAt
+            id: schema.examSessions.id,
+            examId: schema.examSessions.examId,
+            studentId: schema.examSessions.studentId,
+            startedAt: schema.examSessions.startedAt,
+            submittedAt: schema.examSessions.submittedAt,
+            timeRemaining: schema.examSessions.timeRemaining,
+            isCompleted: schema.examSessions.isCompleted,
+            score: schema.examSessions.score,
+            maxScore: schema.examSessions.maxScore,
+            status: schema.examSessions.status,
+            createdAt: schema.examSessions.createdAt
           });
           if (insertResult.length > 0) {
             return { ...insertResult[0], wasCreated: true };
           }
-          const existingSession = await db.select({
-            id: examSessions.id,
-            examId: examSessions.examId,
-            studentId: examSessions.studentId,
-            startedAt: examSessions.startedAt,
-            submittedAt: examSessions.submittedAt,
-            timeRemaining: examSessions.timeRemaining,
-            isCompleted: examSessions.isCompleted,
-            score: examSessions.score,
-            maxScore: examSessions.maxScore,
-            status: examSessions.status,
-            createdAt: examSessions.createdAt
-          }).from(examSessions).where(and(
-            eq2(examSessions.examId, examId),
-            eq2(examSessions.studentId, studentId),
-            eq2(examSessions.isCompleted, false)
+          const existingSession = await db2.select({
+            id: schema.examSessions.id,
+            examId: schema.examSessions.examId,
+            studentId: schema.examSessions.studentId,
+            startedAt: schema.examSessions.startedAt,
+            submittedAt: schema.examSessions.submittedAt,
+            timeRemaining: schema.examSessions.timeRemaining,
+            isCompleted: schema.examSessions.isCompleted,
+            score: schema.examSessions.score,
+            maxScore: schema.examSessions.maxScore,
+            status: schema.examSessions.status,
+            createdAt: schema.examSessions.createdAt
+          }).from(schema.examSessions).where(and(
+            eq(schema.examSessions.examId, examId),
+            eq(schema.examSessions.studentId, studentId),
+            eq(schema.examSessions.isCompleted, false)
           )).limit(1);
           if (existingSession.length > 0) {
             return { ...existingSession[0], wasCreated: false };
@@ -2698,21 +3297,21 @@ var init_storage = __esm({
       // Enhanced session management for students
       async getStudentActiveSession(studentId) {
         const result = await this.db.select({
-          id: examSessions.id,
-          examId: examSessions.examId,
-          studentId: examSessions.studentId,
-          startedAt: examSessions.startedAt,
-          submittedAt: examSessions.submittedAt,
-          timeRemaining: examSessions.timeRemaining,
-          isCompleted: examSessions.isCompleted,
-          score: examSessions.score,
-          maxScore: examSessions.maxScore,
-          status: examSessions.status,
-          createdAt: examSessions.createdAt
-        }).from(examSessions).where(and(
-          eq2(examSessions.studentId, studentId),
-          eq2(examSessions.isCompleted, false)
-        )).orderBy(desc(examSessions.createdAt)).limit(1);
+          id: schema.examSessions.id,
+          examId: schema.examSessions.examId,
+          studentId: schema.examSessions.studentId,
+          startedAt: schema.examSessions.startedAt,
+          submittedAt: schema.examSessions.submittedAt,
+          timeRemaining: schema.examSessions.timeRemaining,
+          isCompleted: schema.examSessions.isCompleted,
+          score: schema.examSessions.score,
+          maxScore: schema.examSessions.maxScore,
+          status: schema.examSessions.status,
+          createdAt: schema.examSessions.createdAt
+        }).from(schema.examSessions).where(and(
+          eq(schema.examSessions.studentId, studentId),
+          eq(schema.examSessions.isCompleted, false)
+        )).orderBy(desc(schema.examSessions.createdAt)).limit(1);
         return result[0];
       }
       async updateSessionProgress(sessionId, progress) {
@@ -2724,29 +3323,29 @@ var init_storage = __esm({
           updates.metadata = JSON.stringify({ currentQuestionIndex: progress.currentQuestionIndex });
         }
         if (Object.keys(updates).length > 0) {
-          await this.db.update(examSessions).set(updates).where(eq2(examSessions.id, sessionId));
+          await this.db.update(schema.examSessions).set(updates).where(eq(schema.examSessions.id, sessionId));
         }
       }
       // Student answers management
       async createStudentAnswer(answer) {
-        const result = await db.insert(studentAnswers).values(answer).returning();
+        const result = await db2.insert(schema.studentAnswers).values(answer).returning();
         return result[0];
       }
       async getStudentAnswers(sessionId) {
-        return await db.select().from(studentAnswers).where(eq2(studentAnswers.sessionId, sessionId)).orderBy(asc(studentAnswers.answeredAt));
+        return await db2.select().from(schema.studentAnswers).where(eq(schema.studentAnswers.sessionId, sessionId)).orderBy(asc(schema.studentAnswers.answeredAt));
       }
       async getStudentAnswerById(id) {
-        const result = await db.select().from(studentAnswers).where(eq2(studentAnswers.id, id)).limit(1);
+        const result = await db2.select().from(schema.studentAnswers).where(eq(schema.studentAnswers.id, id)).limit(1);
         return result[0];
       }
       async updateStudentAnswer(id, answer) {
-        const result = await db.update(studentAnswers).set(answer).where(eq2(studentAnswers.id, id)).returning();
+        const result = await db2.update(schema.studentAnswers).set(answer).where(eq(schema.studentAnswers.id, id)).returning();
         return result[0];
       }
       async getStudentAnswerBySessionAndQuestion(sessionId, questionId) {
-        const result = await db.select().from(studentAnswers).where(and(
-          eq2(studentAnswers.sessionId, sessionId),
-          eq2(studentAnswers.questionId, questionId)
+        const result = await db2.select().from(schema.studentAnswers).where(and(
+          eq(schema.studentAnswers.sessionId, sessionId),
+          eq(schema.studentAnswers.questionId, questionId)
         )).limit(1);
         return result[0];
       }
@@ -2764,59 +3363,59 @@ var init_storage = __esm({
         }
       }
       async getQuestionOptionById(optionId) {
-        const result = await db.select().from(questionOptions).where(eq2(questionOptions.id, optionId)).limit(1);
+        const result = await db2.select().from(schema.questionOptions).where(eq(schema.questionOptions.id, optionId)).limit(1);
         return result[0];
       }
       // OPTIMIZED SCORING: Get all scoring data in a single query for <2s performance
       async getExamScoringData(sessionId) {
         try {
           const sessionResult = await this.db.select({
-            id: examSessions.id,
-            examId: examSessions.examId,
-            studentId: examSessions.studentId,
-            startedAt: examSessions.startedAt,
-            submittedAt: examSessions.submittedAt,
-            timeRemaining: examSessions.timeRemaining,
-            isCompleted: examSessions.isCompleted,
-            score: examSessions.score,
-            maxScore: examSessions.maxScore,
-            status: examSessions.status,
-            createdAt: examSessions.createdAt
-          }).from(examSessions).where(eq2(examSessions.id, sessionId)).limit(1);
+            id: schema.examSessions.id,
+            examId: schema.examSessions.examId,
+            studentId: schema.examSessions.studentId,
+            startedAt: schema.examSessions.startedAt,
+            submittedAt: schema.examSessions.submittedAt,
+            timeRemaining: schema.examSessions.timeRemaining,
+            isCompleted: schema.examSessions.isCompleted,
+            score: schema.examSessions.score,
+            maxScore: schema.examSessions.maxScore,
+            status: schema.examSessions.status,
+            createdAt: schema.examSessions.createdAt
+          }).from(schema.examSessions).where(eq(schema.examSessions.id, sessionId)).limit(1);
           if (!sessionResult[0]) {
             throw new Error(`Exam session ${sessionId} not found`);
           }
           const session2 = sessionResult[0];
           const questionsQuery = await this.db.select({
-            questionId: examQuestions.id,
-            questionType: examQuestions.questionType,
-            points: examQuestions.points,
-            autoGradable: examQuestions.autoGradable,
-            expectedAnswers: examQuestions.expectedAnswers,
-            caseSensitive: examQuestions.caseSensitive,
-            allowPartialCredit: examQuestions.allowPartialCredit,
-            partialCreditRules: examQuestions.partialCreditRules,
-            studentSelectedOptionId: studentAnswers.selectedOptionId,
-            textAnswer: studentAnswers.textAnswer
-          }).from(examQuestions).leftJoin(studentAnswers, and(
-            eq2(studentAnswers.questionId, examQuestions.id),
-            eq2(studentAnswers.sessionId, sessionId)
-          )).where(eq2(examQuestions.examId, session2.examId)).orderBy(asc(examQuestions.orderNumber));
+            questionId: schema.examQuestions.id,
+            questionType: schema.examQuestions.questionType,
+            points: schema.examQuestions.points,
+            autoGradable: schema.examQuestions.autoGradable,
+            expectedAnswers: schema.examQuestions.expectedAnswers,
+            caseSensitive: schema.examQuestions.caseSensitive,
+            allowPartialCredit: schema.examQuestions.allowPartialCredit,
+            partialCreditRules: schema.examQuestions.partialCreditRules,
+            studentSelectedOptionId: schema.studentAnswers.selectedOptionId,
+            textAnswer: schema.studentAnswers.textAnswer
+          }).from(schema.examQuestions).leftJoin(schema.studentAnswers, and(
+            eq(schema.studentAnswers.questionId, schema.examQuestions.id),
+            eq(schema.studentAnswers.sessionId, sessionId)
+          )).where(eq(schema.examQuestions.examId, session2.examId)).orderBy(asc(schema.examQuestions.orderNumber));
           const correctOptionsQuery = await this.db.select({
-            questionId: questionOptions.questionId,
-            correctOptionId: questionOptions.id
-          }).from(questionOptions).innerJoin(examQuestions, eq2(questionOptions.questionId, examQuestions.id)).where(
+            questionId: schema.questionOptions.questionId,
+            correctOptionId: schema.questionOptions.id
+          }).from(schema.questionOptions).innerJoin(schema.examQuestions, eq(schema.questionOptions.questionId, schema.examQuestions.id)).where(
             and(
-              eq2(examQuestions.examId, session2.examId),
-              eq2(questionOptions.isCorrect, true)
+              eq(schema.examQuestions.examId, session2.examId),
+              eq(schema.questionOptions.isCorrect, true)
             )
           );
           const selectedOptionsQuery = await this.db.select({
-            questionId: questionOptions.questionId,
-            optionId: questionOptions.id,
-            partialCreditValue: questionOptions.partialCreditValue,
-            isCorrect: questionOptions.isCorrect
-          }).from(questionOptions).innerJoin(studentAnswers, eq2(questionOptions.id, studentAnswers.selectedOptionId)).where(eq2(studentAnswers.sessionId, sessionId));
+            questionId: schema.questionOptions.questionId,
+            optionId: schema.questionOptions.id,
+            partialCreditValue: schema.questionOptions.partialCreditValue,
+            isCorrect: schema.questionOptions.isCorrect
+          }).from(schema.questionOptions).innerJoin(schema.studentAnswers, eq(schema.questionOptions.id, schema.studentAnswers.selectedOptionId)).where(eq(schema.studentAnswers.sessionId, sessionId));
           const correctOptionsMap = /* @__PURE__ */ new Map();
           for (const option of correctOptionsQuery) {
             correctOptionsMap.set(option.questionId, option.correctOptionId);
@@ -2952,330 +3551,525 @@ var init_storage = __esm({
       }
       // Announcements
       async createAnnouncement(announcement) {
-        const result = await db.insert(announcements).values(announcement).returning();
+        const result = await db2.insert(schema.announcements).values(announcement).returning();
         return result[0];
       }
       async getAnnouncements(targetRole) {
-        const query = db.select().from(announcements).where(eq2(announcements.isPublished, true)).orderBy(desc(announcements.publishedAt));
+        const query = db2.select().from(schema.announcements).where(eq(schema.announcements.isPublished, true)).orderBy(desc(schema.announcements.publishedAt));
         if (targetRole) {
         }
         return await query;
       }
       async getAnnouncementById(id) {
-        const result = await db.select().from(announcements).where(eq2(announcements.id, id)).limit(1);
+        const result = await db2.select().from(schema.announcements).where(eq(schema.announcements.id, id)).limit(1);
         return result[0];
       }
       async updateAnnouncement(id, announcement) {
-        const result = await db.update(announcements).set(announcement).where(eq2(announcements.id, id)).returning();
+        const result = await db2.update(schema.announcements).set(announcement).where(eq(schema.announcements.id, id)).returning();
         return result[0];
       }
       async deleteAnnouncement(id) {
-        const result = await db.delete(announcements).where(eq2(announcements.id, id));
+        const result = await db2.delete(schema.announcements).where(eq(schema.announcements.id, id));
         return result.length > 0;
       }
       // Messages
       async sendMessage(message) {
-        const result = await db.insert(messages).values(message).returning();
+        const result = await db2.insert(schema.messages).values(message).returning();
         return result[0];
       }
       async getMessagesByUser(userId) {
-        return await db.select().from(messages).where(eq2(messages.recipientId, userId)).orderBy(desc(messages.createdAt));
+        return await db2.select().from(schema.messages).where(eq(schema.messages.recipientId, userId)).orderBy(desc(schema.messages.createdAt));
       }
       async markMessageAsRead(id) {
-        await db.update(messages).set({ isRead: true }).where(eq2(messages.id, id));
+        await db2.update(schema.messages).set({ isRead: true }).where(eq(schema.messages.id, id));
       }
       // Gallery
       async createGalleryCategory(category) {
-        const result = await db.insert(galleryCategories).values(category).returning();
+        const result = await db2.insert(schema.galleryCategories).values(category).returning();
         return result[0];
       }
       async getGalleryCategories() {
-        return await db.select().from(galleryCategories).orderBy(asc(galleryCategories.name));
+        return await db2.select().from(schema.galleryCategories).orderBy(asc(schema.galleryCategories.name));
       }
       async uploadGalleryImage(image) {
-        const result = await db.insert(gallery).values(image).returning();
+        const result = await db2.insert(schema.gallery).values(image).returning();
         return result[0];
       }
       async getGalleryImages(categoryId) {
         if (categoryId) {
-          return await db.select().from(gallery).where(eq2(gallery.categoryId, categoryId)).orderBy(desc(gallery.createdAt));
+          return await db2.select().from(schema.gallery).where(eq(schema.gallery.categoryId, categoryId)).orderBy(desc(schema.gallery.createdAt));
         }
-        return await db.select().from(gallery).orderBy(desc(gallery.createdAt));
+        return await db2.select().from(schema.gallery).orderBy(desc(schema.gallery.createdAt));
       }
       async getGalleryImageById(id) {
-        const result = await db.select().from(gallery).where(eq2(gallery.id, parseInt(id))).limit(1);
+        const result = await db2.select().from(schema.gallery).where(eq(schema.gallery.id, parseInt(id))).limit(1);
         return result[0];
       }
       async deleteGalleryImage(id) {
-        const result = await db.delete(gallery).where(eq2(gallery.id, parseInt(id))).returning();
+        const result = await db2.delete(schema.gallery).where(eq(schema.gallery.id, parseInt(id))).returning();
         return result.length > 0;
       }
       // Study resources management
       async createStudyResource(resource) {
-        const result = await db.insert(studyResources).values(resource).returning();
+        const result = await db2.insert(schema.studyResources).values(resource).returning();
         return result[0];
       }
       async getStudyResources(filters) {
-        let query = db.select().from(studyResources).where(eq2(studyResources.isPublished, true));
+        let query = db2.select().from(schema.studyResources).where(eq(schema.studyResources.isPublished, true));
         if (filters?.classId) {
-          query = query.where(eq2(studyResources.classId, filters.classId));
+          query = query.where(eq(schema.studyResources.classId, filters.classId));
         }
         if (filters?.subjectId) {
-          query = query.where(eq2(studyResources.subjectId, filters.subjectId));
+          query = query.where(eq(schema.studyResources.subjectId, filters.subjectId));
         }
         if (filters?.termId) {
-          query = query.where(eq2(studyResources.termId, filters.termId));
+          query = query.where(eq(schema.studyResources.termId, filters.termId));
         }
         if (filters?.resourceType) {
-          query = query.where(eq2(studyResources.resourceType, filters.resourceType));
+          query = query.where(eq(schema.studyResources.resourceType, filters.resourceType));
         }
-        return await query.orderBy(desc(studyResources.createdAt));
+        return await query.orderBy(desc(schema.studyResources.createdAt));
       }
       async getStudyResourceById(id) {
-        const result = await db.select().from(studyResources).where(eq2(studyResources.id, id)).limit(1);
+        const result = await db2.select().from(schema.studyResources).where(eq(schema.studyResources.id, id)).limit(1);
         return result[0];
       }
       async incrementStudyResourceDownloads(id) {
-        await db.update(studyResources).set({ downloads: dsql`${studyResources.downloads} + 1` }).where(eq2(studyResources.id, id));
+        await db2.update(schema.studyResources).set({ downloads: dsql`${schema.studyResources.downloads} + 1` }).where(eq(schema.studyResources.id, id));
       }
       async deleteStudyResource(id) {
-        const result = await db.delete(studyResources).where(eq2(studyResources.id, id)).returning();
+        const result = await db2.delete(schema.studyResources).where(eq(schema.studyResources.id, id)).returning();
         return result.length > 0;
       }
       // Home page content management
       async createHomePageContent(content) {
-        const result = await db.insert(homePageContent).values(content).returning();
+        const result = await db2.insert(schema.homePageContent).values(content).returning();
         return result[0];
       }
       // Manual Grading System Methods
       async getGradingTasks(teacherId, status) {
         try {
-          let query = `
-        SELECT
-          sa.id,
-          es.student_id,
-          u.first_name || ' ' || u.last_name as student_name,
-          es.exam_id,
-          e.name as exam_title,
-          eq.id as question_id,
-          eq.question_text,
-          eq.question_type,
-          eq.points as max_marks,
-          sa.text_answer as student_answer,
-          es.submitted_at,
-          CASE
-            WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
-            ELSE 'pending'
-          END as status,
-          ms.awarded_marks as current_score,
-          ms.comment as grader_comment
-        FROM student_answers sa
-        JOIN exam_sessions es ON sa.session_id = es.id
-        JOIN exams e ON es.exam_id = e.id
-        JOIN exam_questions eq ON sa.question_id = eq.id
-        JOIN users u ON es.student_id = u.id
-        LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
-        WHERE e.created_by = $1
-        AND eq.question_type IN ('text', 'essay')
-        AND es.is_completed = true
-      `;
-          const pgClient = await initializeDatabase().pg;
-          const params = [teacherId];
-          if (status && status !== "all") {
-            if (status === "pending") {
-              query += " AND sa.id NOT IN (SELECT answer_id FROM manual_scores)";
-            } else if (status === "graded") {
-              query += " AND sa.id IN (SELECT answer_id FROM manual_scores)";
+          if (isPostgres) {
+            const pgClient2 = getPgClient();
+            if (!pgClient2) return [];
+            let query = `
+          SELECT
+            sa.id,
+            es.student_id,
+            u.first_name || ' ' || u.last_name as student_name,
+            es.exam_id,
+            e.name as exam_title,
+            eq.id as question_id,
+            eq.question_text,
+            eq.question_type,
+            eq.points as max_marks,
+            sa.text_answer as student_answer,
+            es.submitted_at,
+            CASE
+              WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
+              ELSE 'pending'
+            END as status,
+            ms.awarded_marks as current_score,
+            ms.comment as grader_comment
+          FROM student_answers sa
+          JOIN exam_sessions es ON sa.session_id = es.id
+          JOIN exams e ON es.exam_id = e.id
+          JOIN exam_questions eq ON sa.question_id = eq.id
+          JOIN users u ON es.student_id = u.id
+          LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
+          WHERE e.created_by = $1
+          AND eq.question_type IN ('text', 'essay')
+          AND es.is_completed = true
+        `;
+            if (status && status !== "all") {
+              if (status === "pending") {
+                query += " AND sa.id NOT IN (SELECT answer_id FROM manual_scores)";
+              } else if (status === "graded") {
+                query += " AND sa.id IN (SELECT answer_id FROM manual_scores)";
+              }
             }
+            query += " ORDER BY es.submitted_at DESC";
+            const result = await pgClient2.unsafe(query, [teacherId]);
+            return result;
+          } else {
+            const sqliteConn = getSqliteConnection();
+            if (!sqliteConn) return [];
+            let query = `
+          SELECT
+            sa.id,
+            es.student_id,
+            u.first_name || ' ' || u.last_name as student_name,
+            es.exam_id,
+            e.name as exam_title,
+            eq.id as question_id,
+            eq.question_text,
+            eq.question_type,
+            eq.points as max_marks,
+            sa.text_answer as student_answer,
+            es.submitted_at,
+            CASE
+              WHEN sa.id IN (SELECT answer_id FROM manual_scores) THEN 'graded'
+              ELSE 'pending'
+            END as status,
+            ms.awarded_marks as current_score,
+            ms.comment as grader_comment
+          FROM student_answers sa
+          JOIN exam_sessions es ON sa.session_id = es.id
+          JOIN exams e ON es.exam_id = e.id
+          JOIN exam_questions eq ON sa.question_id = eq.id
+          JOIN users u ON es.student_id = u.id
+          LEFT JOIN manual_scores ms ON sa.id = ms.answer_id
+          WHERE e.created_by = ?
+          AND eq.question_type IN ('text', 'essay')
+          AND es.is_completed = 1
+        `;
+            if (status && status !== "all") {
+              if (status === "pending") {
+                query += " AND sa.id NOT IN (SELECT answer_id FROM manual_scores)";
+              } else if (status === "graded") {
+                query += " AND sa.id IN (SELECT answer_id FROM manual_scores)";
+              }
+            }
+            query += " ORDER BY es.submitted_at DESC";
+            const stmt = sqliteConn.prepare(query);
+            return stmt.all(teacherId);
           }
-          query += " ORDER BY es.submitted_at DESC";
-          const result = await pgClient.unsafe(query, params);
-          return result;
         } catch (error) {
-          throw error;
+          console.error("Error fetching grading tasks:", error);
+          return [];
         }
       }
       async submitManualGrade(gradeData) {
         try {
           const { taskId, score, comment, graderId } = gradeData;
-          const pgClient = await initializeDatabase().pg;
-          const result = await pgClient`
-        INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
-        VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
-        ON CONFLICT (answer_id)
-        DO UPDATE SET
-          awarded_marks = EXCLUDED.awarded_marks,
-          comment = EXCLUDED.comment,
-          graded_at = EXCLUDED.graded_at,
-          grader_id = EXCLUDED.grader_id
-        RETURNING *
-      `;
-          await pgClient`
-        UPDATE student_answers
-        SET points_earned = ${score}
-        WHERE id = ${taskId}
-      `;
-          return result[0];
+          if (isPostgres) {
+            const pgClient2 = getPgClient();
+            if (!pgClient2) throw new Error("PostgreSQL client not available");
+            const result = await pgClient2`
+          INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
+          VALUES (${taskId}, ${graderId}, ${score}, ${comment}, NOW())
+          ON CONFLICT (answer_id)
+          DO UPDATE SET
+            awarded_marks = EXCLUDED.awarded_marks,
+            comment = EXCLUDED.comment,
+            graded_at = EXCLUDED.graded_at,
+            grader_id = EXCLUDED.grader_id
+          RETURNING *
+        `;
+            await pgClient2`
+          UPDATE student_answers
+          SET points_earned = ${score}
+          WHERE id = ${taskId}
+        `;
+            const rows = result;
+            return rows.length > 0 ? rows[0] : null;
+          } else {
+            const sqliteConn = getSqliteConnection();
+            if (!sqliteConn) throw new Error("SQLite database not available");
+            const now = (/* @__PURE__ */ new Date()).toISOString();
+            const existing = sqliteConn.prepare("SELECT id FROM manual_scores WHERE answer_id = ?").get(taskId);
+            let result;
+            if (existing) {
+              sqliteConn.prepare(`
+            UPDATE manual_scores 
+            SET awarded_marks = ?, comment = ?, graded_at = ?, grader_id = ?
+            WHERE answer_id = ?
+          `).run(score, comment, now, graderId, taskId);
+              result = sqliteConn.prepare("SELECT * FROM manual_scores WHERE answer_id = ?").get(taskId);
+            } else {
+              sqliteConn.prepare(`
+            INSERT INTO manual_scores (answer_id, grader_id, awarded_marks, comment, graded_at)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(taskId, graderId, score, comment, now);
+              result = sqliteConn.prepare("SELECT * FROM manual_scores WHERE answer_id = ?").get(taskId);
+            }
+            sqliteConn.prepare("UPDATE student_answers SET points_earned = ? WHERE id = ?").run(score, taskId);
+            return result;
+          }
         } catch (error) {
           throw error;
         }
       }
       async getAllExamSessions() {
         try {
-          const pgClient = await initializeDatabase().pg;
-          const result = await pgClient`
-        SELECT
-          es.*,
-          e.name as exam_title,
-          u.first_name || ' ' || u.last_name as student_name,
-          (
-            SELECT COUNT(*)
-            FROM student_answers sa
-            WHERE sa.session_id = es.id
-            AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
-          ) as answered_questions,
-          (
-            SELECT COUNT(*)
-            FROM exam_questions eq
-            WHERE eq.exam_id = es.exam_id
-          ) as total_questions
-        FROM exam_sessions es
-        JOIN exams e ON es.exam_id = e.id
-        JOIN users u ON es.student_id = u.id
-        ORDER BY es.started_at DESC
-      `;
-          return result;
+          if (isPostgres) {
+            const pgClient2 = getPgClient();
+            if (!pgClient2) return [];
+            const result = await pgClient2`
+          SELECT
+            es.*,
+            e.name as exam_title,
+            u.first_name || ' ' || u.last_name as student_name,
+            (
+              SELECT COUNT(*)
+              FROM student_answers sa
+              WHERE sa.session_id = es.id
+              AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
+            ) as answered_questions,
+            (
+              SELECT COUNT(*)
+              FROM exam_questions eq
+              WHERE eq.exam_id = es.exam_id
+            ) as total_questions
+          FROM exam_sessions es
+          JOIN exams e ON es.exam_id = e.id
+          JOIN users u ON es.student_id = u.id
+          ORDER BY es.started_at DESC
+        `;
+            return result;
+          } else {
+            const sqliteConn = getSqliteConnection();
+            if (!sqliteConn) return [];
+            const result = sqliteConn.prepare(`
+          SELECT
+            es.*,
+            e.name as exam_title,
+            u.first_name || ' ' || u.last_name as student_name,
+            (
+              SELECT COUNT(*)
+              FROM student_answers sa
+              WHERE sa.session_id = es.id
+              AND (sa.selected_option_id IS NOT NULL OR sa.text_answer IS NOT NULL)
+            ) as answered_questions,
+            (
+              SELECT COUNT(*)
+              FROM exam_questions eq
+              WHERE eq.exam_id = es.exam_id
+            ) as total_questions
+          FROM exam_sessions es
+          JOIN exams e ON es.exam_id = e.id
+          JOIN users u ON es.student_id = u.id
+          ORDER BY es.started_at DESC
+        `).all();
+            return result;
+          }
         } catch (error) {
-          throw error;
+          console.error("Error fetching exam sessions:", error);
+          return [];
         }
       }
       async getExamReports(filters) {
         try {
-          let query = `
-        SELECT
-          e.id as exam_id,
-          e.name as exam_title,
-          c.name as class_name,
-          s.name as subject_name,
-          e.date as exam_date,
-          e.total_marks as max_score,
-          COUNT(DISTINCT es.student_id) as total_students,
-          COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
-          COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
-          COALESCE(
-            COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 /
-            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
-            0
-          ) as pass_rate,
-          COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
-          COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
-          CASE
-            WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
-            ELSE 'completed'
-          END as status,
-          COALESCE(
-            COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 /
-            NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
-            0
-          ) as grading_progress
-        FROM exams e
-        JOIN classes c ON e.class_id = c.id
-        JOIN subjects s ON e.subject_id = s.id
-        LEFT JOIN exam_sessions es ON e.id = es.exam_id
-        LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
-        WHERE e.is_published = true
-      `;
-          const params = [];
-          let paramIndex = 1;
-          if (filters.classId) {
-            query += ` AND e.class_id = $${paramIndex}`;
-            params.push(filters.classId);
-            paramIndex++;
+          if (isPostgres) {
+            const pgClient2 = getPgClient();
+            if (!pgClient2) return [];
+            let query = `
+          SELECT
+            e.id as exam_id,
+            e.name as exam_title,
+            c.name as class_name,
+            s.name as subject_name,
+            e.date as exam_date,
+            e.total_marks as max_score,
+            COUNT(DISTINCT es.student_id) as total_students,
+            COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
+            COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
+            COALESCE(
+              COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 /
+              NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
+              0
+            ) as pass_rate,
+            COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
+            COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
+            CASE
+              WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
+              ELSE 'completed'
+            END as status,
+            COALESCE(
+              COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 /
+              NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
+              0
+            ) as grading_progress
+          FROM exams e
+          JOIN classes c ON e.class_id = c.id
+          JOIN subjects s ON e.subject_id = s.id
+          LEFT JOIN exam_sessions es ON e.id = es.exam_id
+          LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
+          WHERE e.is_published = true
+        `;
+            const params = [];
+            let paramIndex = 1;
+            if (filters.classId) {
+              query += ` AND e.class_id = $${paramIndex}`;
+              params.push(filters.classId);
+              paramIndex++;
+            }
+            if (filters.subjectId) {
+              query += ` AND e.subject_id = $${paramIndex}`;
+              params.push(filters.subjectId);
+              paramIndex++;
+            }
+            query += `
+          GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
+          ORDER BY e.date DESC
+        `;
+            const result = await pgClient2.unsafe(query, params);
+            return result;
+          } else {
+            const sqliteConn = getSqliteConnection();
+            if (!sqliteConn) return [];
+            let query = `
+          SELECT
+            e.id as exam_id,
+            e.name as exam_title,
+            c.name as class_name,
+            s.name as subject_name,
+            e.date as exam_date,
+            e.total_marks as max_score,
+            COUNT(DISTINCT es.student_id) as total_students,
+            COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) as completed_students,
+            COALESCE(AVG(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as average_score,
+            COALESCE(
+              COUNT(CASE WHEN es.is_completed AND er.marks_obtained >= (e.total_marks * 0.5) THEN 1 END) * 100.0 /
+              NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
+              0
+            ) as pass_rate,
+            COALESCE(MAX(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as highest_score,
+            COALESCE(MIN(CASE WHEN es.is_completed THEN er.marks_obtained END), 0) as lowest_score,
+            CASE
+              WHEN COUNT(DISTINCT CASE WHEN es.is_completed THEN es.student_id END) = 0 THEN 'ongoing'
+              ELSE 'completed'
+            END as status,
+            COALESCE(
+              COUNT(CASE WHEN es.is_completed AND er.id IS NOT NULL THEN 1 END) * 100.0 /
+              NULLIF(COUNT(CASE WHEN es.is_completed THEN 1 END), 0),
+              0
+            ) as grading_progress
+          FROM exams e
+          JOIN classes c ON e.class_id = c.id
+          JOIN subjects s ON e.subject_id = s.id
+          LEFT JOIN exam_sessions es ON e.id = es.exam_id
+          LEFT JOIN exam_results er ON e.id = er.exam_id AND es.student_id = er.student_id
+          WHERE e.is_published = 1
+        `;
+            const params = [];
+            if (filters.classId) {
+              query += ` AND e.class_id = ?`;
+              params.push(filters.classId);
+            }
+            if (filters.subjectId) {
+              query += ` AND e.subject_id = ?`;
+              params.push(filters.subjectId);
+            }
+            query += `
+          GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
+          ORDER BY e.date DESC
+        `;
+            const stmt = sqliteConn.prepare(query);
+            return stmt.all(...params);
           }
-          if (filters.subjectId) {
-            query += ` AND e.subject_id = $${paramIndex}`;
-            params.push(filters.subjectId);
-            paramIndex++;
-          }
-          query += `
-        GROUP BY e.id, e.name, c.name, s.name, e.date, e.total_marks
-        ORDER BY e.date DESC
-      `;
-          const pgClient = await initializeDatabase().pg;
-          const result = await pgClient.unsafe(query, params);
-          return result;
         } catch (error) {
-          throw error;
+          console.error("Error fetching exam reports:", error);
+          return [];
         }
       }
       async getExamStudentReports(examId) {
         try {
-          const pgClient = await initializeDatabase().pg;
-          const result = await pgClient`
-        SELECT
-          u.id as student_id,
-          u.first_name || ' ' || u.last_name as student_name,
-          st.admission_number,
-          COALESCE(er.marks_obtained, 0) as score,
-          COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
-          CASE
-            WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
-            WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
-            WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
-            WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
-            ELSE 'F'
-          END as grade,
-          ROW_NUMBER() OVER (ORDER BY er.marks_obtained DESC) as rank,
-          EXTRACT(EPOCH FROM (es.submitted_at - es.started_at)) as time_spent,
-          es.submitted_at,
-          er.auto_scored,
-          CASE WHEN EXISTS (
-            SELECT 1 FROM manual_scores ms
-            JOIN student_answers sa ON ms.answer_id = sa.id
-            WHERE sa.session_id = es.id
-          ) THEN true ELSE false END as manual_scored
-        FROM users u
-        JOIN students st ON u.id = st.id
-        JOIN exam_sessions es ON u.id = es.student_id
-        JOIN exams e ON es.exam_id = e.id
-        LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
-        WHERE e.id = ${examId} AND es.is_completed = true
-        ORDER BY er.marks_obtained DESC
-      `;
-          return result;
+          if (isPostgres) {
+            const pgClient2 = getPgClient();
+            if (!pgClient2) return [];
+            const result = await pgClient2`
+          SELECT
+            u.id as student_id,
+            u.first_name || ' ' || u.last_name as student_name,
+            st.admission_number,
+            COALESCE(er.marks_obtained, 0) as score,
+            COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
+            CASE
+              WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
+              WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
+              WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
+              WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
+              ELSE 'F'
+            END as grade,
+            ROW_NUMBER() OVER (ORDER BY er.marks_obtained DESC) as rank,
+            EXTRACT(EPOCH FROM (es.submitted_at - es.started_at)) as time_spent,
+            es.submitted_at,
+            er.auto_scored,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM manual_scores ms
+              JOIN student_answers sa ON ms.answer_id = sa.id
+              WHERE sa.session_id = es.id
+            ) THEN true ELSE false END as manual_scored
+          FROM users u
+          JOIN students st ON u.id = st.id
+          JOIN exam_sessions es ON u.id = es.student_id
+          JOIN exams e ON es.exam_id = e.id
+          LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
+          WHERE e.id = ${examId} AND es.is_completed = true
+          ORDER BY er.marks_obtained DESC
+        `;
+            return result;
+          } else {
+            const sqliteConn = getSqliteConnection();
+            if (!sqliteConn) return [];
+            const result = sqliteConn.prepare(`
+          SELECT
+            u.id as student_id,
+            u.first_name || ' ' || u.last_name as student_name,
+            st.admission_number,
+            COALESCE(er.marks_obtained, 0) as score,
+            COALESCE(er.marks_obtained * 100.0 / e.total_marks, 0) as percentage,
+            CASE
+              WHEN er.marks_obtained >= e.total_marks * 0.9 THEN 'A'
+              WHEN er.marks_obtained >= e.total_marks * 0.8 THEN 'B'
+              WHEN er.marks_obtained >= e.total_marks * 0.7 THEN 'C'
+              WHEN er.marks_obtained >= e.total_marks * 0.6 THEN 'D'
+              ELSE 'F'
+            END as grade,
+            (SELECT COUNT(*) + 1 FROM exam_results er2 WHERE er2.exam_id = e.id AND er2.marks_obtained > COALESCE(er.marks_obtained, 0)) as rank,
+            CAST((julianday(es.submitted_at) - julianday(es.started_at)) * 86400 AS INTEGER) as time_spent,
+            es.submitted_at,
+            er.auto_scored,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM manual_scores ms
+              JOIN student_answers sa ON ms.answer_id = sa.id
+              WHERE sa.session_id = es.id
+            ) THEN 1 ELSE 0 END as manual_scored
+          FROM users u
+          JOIN students st ON u.id = st.id
+          JOIN exam_sessions es ON u.id = es.student_id
+          JOIN exams e ON es.exam_id = e.id
+          LEFT JOIN exam_results er ON e.id = er.exam_id AND u.id = er.student_id
+          WHERE e.id = ? AND es.is_completed = 1
+          ORDER BY er.marks_obtained DESC
+        `).all(examId);
+            return result;
+          }
         } catch (error) {
-          throw error;
+          console.error("Error fetching exam student reports:", error);
+          return [];
         }
       }
       // Home page content management
       async getHomePageContent(contentType) {
         if (contentType) {
-          return await db.select().from(homePageContent).where(and(eq2(homePageContent.contentType, contentType), eq2(homePageContent.isActive, true))).orderBy(asc(homePageContent.displayOrder));
+          return await db2.select().from(schema.homePageContent).where(and(eq(schema.homePageContent.contentType, contentType), eq(schema.homePageContent.isActive, true))).orderBy(asc(schema.homePageContent.displayOrder));
         }
-        return await db.select().from(homePageContent).where(eq2(homePageContent.isActive, true)).orderBy(asc(homePageContent.displayOrder), asc(homePageContent.contentType));
+        return await db2.select().from(schema.homePageContent).where(eq(schema.homePageContent.isActive, true)).orderBy(asc(schema.homePageContent.displayOrder), asc(schema.homePageContent.contentType));
       }
       async getHomePageContentById(id) {
-        const result = await db.select().from(homePageContent).where(eq2(homePageContent.id, id)).limit(1);
+        const result = await db2.select().from(schema.homePageContent).where(eq(schema.homePageContent.id, id)).limit(1);
         return result[0];
       }
       async updateHomePageContent(id, content) {
-        const result = await db.update(homePageContent).set({ ...content, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(homePageContent.id, id)).returning();
+        const result = await db2.update(schema.homePageContent).set({ ...content, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.homePageContent.id, id)).returning();
         return result[0];
       }
       async deleteHomePageContent(id) {
-        const result = await db.delete(homePageContent).where(eq2(homePageContent.id, id)).returning();
+        const result = await db2.delete(schema.homePageContent).where(eq(schema.homePageContent.id, id)).returning();
         return result.length > 0;
       }
       // Comprehensive grade management
       async recordComprehensiveGrade(gradeData) {
         try {
-          let reportCard = await db.select().from(reportCards).where(and(
-            eq2(reportCards.studentId, gradeData.studentId),
-            eq2(reportCards.termId, gradeData.termId)
+          let reportCard = await db2.select().from(schema.reportCards).where(and(
+            eq(schema.reportCards.studentId, gradeData.studentId),
+            eq(schema.reportCards.termId, gradeData.termId)
           )).limit(1);
           let reportCardId;
           if (reportCard.length === 0) {
-            const newReportCard = await db.insert(reportCards).values({
+            const newReportCard = await db2.insert(schema.reportCards).values({
               studentId: gradeData.studentId,
               classId: gradeData.classId || 1,
               // Should be provided
@@ -3286,9 +4080,9 @@ var init_storage = __esm({
           } else {
             reportCardId = reportCard[0].id;
           }
-          const existingItem = await db.select().from(reportCardItems).where(and(
-            eq2(reportCardItems.reportCardId, reportCardId),
-            eq2(reportCardItems.subjectId, gradeData.subjectId)
+          const existingItem = await db2.select().from(schema.reportCardItems).where(and(
+            eq(schema.reportCardItems.reportCardId, reportCardId),
+            eq(schema.reportCardItems.subjectId, gradeData.subjectId)
           )).limit(1);
           const comprehensiveGradeData = {
             reportCardId,
@@ -3305,10 +4099,10 @@ var init_storage = __esm({
             teacherRemarks: gradeData.teacherRemarks
           };
           if (existingItem.length > 0) {
-            const result = await db.update(reportCardItems).set(comprehensiveGradeData).where(eq2(reportCardItems.id, existingItem[0].id)).returning();
+            const result = await db2.update(schema.reportCardItems).set(comprehensiveGradeData).where(eq(schema.reportCardItems.id, existingItem[0].id)).returning();
             return result[0];
           } else {
-            const result = await db.insert(reportCardItems).values(comprehensiveGradeData).returning();
+            const result = await db2.insert(schema.reportCardItems).values(comprehensiveGradeData).returning();
             return result[0];
           }
         } catch (error) {
@@ -3317,54 +4111,54 @@ var init_storage = __esm({
       }
       async getComprehensiveGradesByStudent(studentId, termId) {
         try {
-          let query = db.select({
-            id: reportCardItems.id,
-            subjectId: reportCardItems.subjectId,
-            subjectName: subjects.name,
-            testScore: reportCardItems.testScore,
-            testMaxScore: reportCardItems.testMaxScore,
-            testWeightedScore: reportCardItems.testWeightedScore,
-            examScore: reportCardItems.examScore,
-            examMaxScore: reportCardItems.examMaxScore,
-            examWeightedScore: reportCardItems.examWeightedScore,
-            obtainedMarks: reportCardItems.obtainedMarks,
-            percentage: reportCardItems.percentage,
-            grade: reportCardItems.grade,
-            teacherRemarks: reportCardItems.teacherRemarks,
-            termId: reportCards.termId,
-            createdAt: reportCardItems.createdAt
-          }).from(reportCardItems).innerJoin(reportCards, eq2(reportCardItems.reportCardId, reportCards.id)).innerJoin(subjects, eq2(reportCardItems.subjectId, subjects.id)).where(eq2(reportCards.studentId, studentId));
+          let query = db2.select({
+            id: schema.reportCardItems.id,
+            subjectId: schema.reportCardItems.subjectId,
+            subjectName: schema.subjects.name,
+            testScore: schema.reportCardItems.testScore,
+            testMaxScore: schema.reportCardItems.testMaxScore,
+            testWeightedScore: schema.reportCardItems.testWeightedScore,
+            examScore: schema.reportCardItems.examScore,
+            examMaxScore: schema.reportCardItems.examMaxScore,
+            examWeightedScore: schema.reportCardItems.examWeightedScore,
+            obtainedMarks: schema.reportCardItems.obtainedMarks,
+            percentage: schema.reportCardItems.percentage,
+            grade: schema.reportCardItems.grade,
+            teacherRemarks: schema.reportCardItems.teacherRemarks,
+            termId: schema.reportCards.termId,
+            createdAt: schema.reportCardItems.createdAt
+          }).from(schema.reportCardItems).innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id)).innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id)).where(eq(schema.reportCards.studentId, studentId));
           if (termId) {
             query = query.where(and(
-              eq2(reportCards.studentId, studentId),
-              eq2(reportCards.termId, termId)
+              eq(schema.reportCards.studentId, studentId),
+              eq(schema.reportCards.termId, termId)
             ));
           }
-          return await query.orderBy(subjects.name);
+          return await query.orderBy(schema.subjects.name);
         } catch (error) {
           return [];
         }
       }
       async getComprehensiveGradesByClass(classId, termId) {
         try {
-          let query = db.select({
-            studentId: reportCards.studentId,
-            studentName: sql2`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as("studentName"),
-            admissionNumber: students.admissionNumber,
-            subjectName: subjects.name,
-            testScore: reportCardItems.testScore,
-            examScore: reportCardItems.examScore,
-            obtainedMarks: reportCardItems.obtainedMarks,
-            grade: reportCardItems.grade,
-            teacherRemarks: reportCardItems.teacherRemarks
-          }).from(reportCardItems).innerJoin(reportCards, eq2(reportCardItems.reportCardId, reportCards.id)).innerJoin(students, eq2(reportCards.studentId, students.id)).innerJoin(users, eq2(students.id, users.id)).innerJoin(subjects, eq2(reportCardItems.subjectId, subjects.id)).where(eq2(students.classId, classId));
+          let query = db2.select({
+            studentId: schema.reportCards.studentId,
+            studentName: sql2`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as("studentName"),
+            admissionNumber: schema.students.admissionNumber,
+            subjectName: schema.subjects.name,
+            testScore: schema.reportCardItems.testScore,
+            examScore: schema.reportCardItems.examScore,
+            obtainedMarks: schema.reportCardItems.obtainedMarks,
+            grade: schema.reportCardItems.grade,
+            teacherRemarks: schema.reportCardItems.teacherRemarks
+          }).from(schema.reportCardItems).innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id)).innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id)).innerJoin(schema.users, eq(schema.students.id, schema.users.id)).innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id)).where(eq(schema.students.classId, classId));
           if (termId) {
             query = query.where(and(
-              eq2(students.classId, classId),
-              eq2(reportCards.termId, termId)
+              eq(schema.students.classId, classId),
+              eq(schema.reportCards.termId, termId)
             ));
           }
-          return await query.orderBy(users.firstName, users.lastName, subjects.name);
+          return await query.orderBy(schema.users.firstName, schema.users.lastName, schema.subjects.name);
         } catch (error) {
           return [];
         }
@@ -3372,10 +4166,10 @@ var init_storage = __esm({
       async createReportCard(reportCardData, grades) {
         return await this.db.transaction(async (tx) => {
           try {
-            const reportCard = await tx.insert(reportCards).values(reportCardData).returning();
+            const reportCard = await tx.insert(schema.reportCards).values(reportCardData).returning();
             if (grades.length > 0) {
               const gradeUpdates = grades.map(
-                (grade) => tx.update(reportCardItems).set({ reportCardId: reportCard[0].id }).where(eq2(reportCardItems.id, grade.id))
+                (grade) => tx.update(schema.reportCardItems).set({ reportCardId: reportCard[0].id }).where(eq(schema.reportCardItems.id, grade.id))
               );
               await Promise.all(gradeUpdates);
             }
@@ -3390,7 +4184,7 @@ var init_storage = __esm({
       }
       async getReportCard(id) {
         try {
-          const result = await db.select().from(reportCards).where(eq2(reportCards.id, id)).limit(1);
+          const result = await db2.select().from(schema.reportCards).where(eq(schema.reportCards.id, id)).limit(1);
           return result[0];
         } catch (error) {
           return void 0;
@@ -3398,21 +4192,21 @@ var init_storage = __esm({
       }
       async getReportCardsByStudentId(studentId) {
         try {
-          return await db.select().from(reportCards).where(eq2(reportCards.studentId, studentId)).orderBy(desc(reportCards.generatedAt));
+          return await db2.select().from(schema.reportCards).where(eq(schema.reportCards.studentId, studentId)).orderBy(desc(schema.reportCards.generatedAt));
         } catch (error) {
           return [];
         }
       }
       async getReportCardItems(reportCardId) {
         try {
-          return await db.select().from(reportCardItems).where(eq2(reportCardItems.reportCardId, reportCardId));
+          return await db2.select().from(schema.reportCardItems).where(eq(schema.reportCardItems.reportCardId, reportCardId));
         } catch (error) {
           return [];
         }
       }
       async getStudentsByParentId(parentId) {
         try {
-          return await db.select().from(students).where(eq2(students.parentId, parentId));
+          return await db2.select().from(schema.students).where(eq(schema.students.parentId, parentId));
         } catch (error) {
           return [];
         }
@@ -3420,38 +4214,38 @@ var init_storage = __esm({
       // Analytics and Reports
       async getAnalyticsOverview() {
         try {
-          const [students2, teachers, admins, parents] = await Promise.all([
-            db.select().from(users).where(eq2(users.roleId, 1)),
-            db.select().from(users).where(eq2(users.roleId, 2)),
-            db.select().from(users).where(eq2(users.roleId, 4)),
-            db.select().from(users).where(eq2(users.roleId, 3))
+          const [students3, teachers, admins, parents] = await Promise.all([
+            db2.select().from(schema.users).where(eq(schema.users.roleId, 1)),
+            db2.select().from(schema.users).where(eq(schema.users.roleId, 2)),
+            db2.select().from(schema.users).where(eq(schema.users.roleId, 4)),
+            db2.select().from(schema.users).where(eq(schema.users.roleId, 3))
           ]);
-          const [classes2, subjects2, exams2, examResults2] = await Promise.all([
-            db.select().from(classes),
-            db.select().from(subjects),
-            db.select().from(exams),
-            db.select().from(examResults)
+          const [classes3, subjects3, exams3, examResults3] = await Promise.all([
+            db2.select().from(schema.classes),
+            db2.select().from(schema.subjects),
+            db2.select().from(schema.exams),
+            db2.select().from(schema.examResults)
           ]);
-          const gradeDistribution = this.calculateGradeDistribution(examResults2);
-          const subjectPerformance = await this.calculateSubjectPerformance(examResults2, subjects2);
+          const gradeDistribution = this.calculateGradeDistribution(examResults3);
+          const subjectPerformance = await this.calculateSubjectPerformance(examResults3, subjects3);
           return {
-            totalUsers: students2.length + teachers.length + admins.length + parents.length,
-            totalStudents: students2.length,
+            totalUsers: students3.length + teachers.length + admins.length + parents.length,
+            totalStudents: students3.length,
             totalTeachers: teachers.length,
             totalAdmins: admins.length,
             totalParents: parents.length,
-            totalClasses: classes2.length,
-            totalSubjects: subjects2.length,
-            totalExams: exams2.length,
-            totalExamResults: examResults2.length,
-            averageClassSize: classes2.length > 0 ? Math.round(students2.length / classes2.length) : 0,
+            totalClasses: classes3.length,
+            totalSubjects: subjects3.length,
+            totalExams: exams3.length,
+            totalExamResults: examResults3.length,
+            averageClassSize: classes3.length > 0 ? Math.round(students3.length / classes3.length) : 0,
             gradeDistribution,
             subjectPerformance,
             recentActivity: {
-              newStudentsThisMonth: students2.filter(
+              newStudentsThisMonth: students3.filter(
                 (s) => s.createdAt && new Date(s.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
               ).length,
-              examsThisMonth: exams2.filter(
+              examsThisMonth: exams3.filter(
                 (e) => e.createdAt && new Date(e.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3)
               ).length
             }
@@ -3462,22 +4256,22 @@ var init_storage = __esm({
       }
       async getPerformanceAnalytics(filters) {
         try {
-          let examResults2 = await db.select().from(examResults);
+          let examResults3 = await db2.select().from(schema.examResults);
           if (filters.classId) {
-            const studentsInClass = await db.select().from(students).where(eq2(students.classId, filters.classId));
+            const studentsInClass = await db2.select().from(schema.students).where(eq(schema.students.classId, filters.classId));
             const studentIds = studentsInClass.map((s) => s.id);
-            examResults2 = examResults2.filter((r) => studentIds.includes(r.studentId));
+            examResults3 = examResults3.filter((r) => studentIds.includes(r.studentId));
           }
           if (filters.subjectId) {
-            const examsForSubject = await db.select().from(exams).where(eq2(exams.subjectId, filters.subjectId));
+            const examsForSubject = await db2.select().from(schema.exams).where(eq(schema.exams.subjectId, filters.subjectId));
             const examIds = examsForSubject.map((e) => e.id);
-            examResults2 = examResults2.filter((r) => examIds.includes(r.examId));
+            examResults3 = examResults3.filter((r) => examIds.includes(r.examId));
           }
-          const totalExams = examResults2.length;
-          const averageScore = totalExams > 0 ? examResults2.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
-          const gradeDistribution = this.calculateGradeDistribution(examResults2);
-          const performanceTrends = this.calculatePerformanceTrends(examResults2);
-          const studentPerformance = this.calculateStudentPerformance(examResults2);
+          const totalExams = examResults3.length;
+          const averageScore = totalExams > 0 ? examResults3.reduce((sum, r) => sum + (r.marksObtained || 0), 0) / totalExams : 0;
+          const gradeDistribution = this.calculateGradeDistribution(examResults3);
+          const performanceTrends = this.calculatePerformanceTrends(examResults3);
+          const studentPerformance = this.calculateStudentPerformance(examResults3);
           return {
             totalExams,
             averageScore: Math.round(averageScore * 100) / 100,
@@ -3487,7 +4281,7 @@ var init_storage = __esm({
             performanceTrends,
             topPerformers: studentPerformance.slice(0, 5),
             strugglingStudents: studentPerformance.slice(-5),
-            passRate: Math.round(examResults2.filter((r) => (r.marksObtained || 0) >= 50).length / totalExams * 100)
+            passRate: Math.round(examResults3.filter((r) => (r.marksObtained || 0) >= 50).length / totalExams * 100)
           };
         } catch (error) {
           return { error: "Failed to calculate performance analytics" };
@@ -3497,13 +4291,13 @@ var init_storage = __esm({
         try {
           const cutoffDate = /* @__PURE__ */ new Date();
           cutoffDate.setMonth(cutoffDate.getMonth() - months);
-          const [students2, exams2, examResults2] = await Promise.all([
-            db.select().from(users).where(and(
-              eq2(users.roleId, 1)
+          const [students3, exams3, examResults3] = await Promise.all([
+            db2.select().from(schema.users).where(and(
+              eq(schema.users.roleId, 1)
               // Note: In a real implementation, you'd filter by createdAt >= cutoffDate
             )),
-            db.select().from(exams),
-            db.select().from(examResults)
+            db2.select().from(schema.exams),
+            db2.select().from(schema.examResults)
           ]);
           const monthlyData = [];
           for (let i = months - 1; i >= 0; i--) {
@@ -3514,9 +4308,9 @@ var init_storage = __esm({
             monthlyData.push({
               month: monthName,
               year,
-              students: students2.length + Math.floor(Math.random() * 10) - 5,
+              students: students3.length + Math.floor(Math.random() * 10) - 5,
               // Simulated variance
-              exams: Math.floor(exams2.length / months) + Math.floor(Math.random() * 3),
+              exams: Math.floor(exams3.length / months) + Math.floor(Math.random() * 3),
               averageScore: 75 + Math.floor(Math.random() * 20) - 10,
               attendance: 85 + Math.floor(Math.random() * 15)
             });
@@ -3536,23 +4330,23 @@ var init_storage = __esm({
       }
       async getAttendanceAnalytics(filters) {
         try {
-          let attendance2 = await db.select().from(attendance);
+          let attendance3 = await db2.select().from(schema.attendance);
           if (filters.classId) {
-            const studentsInClass = await db.select().from(students).where(eq2(students.classId, filters.classId));
+            const studentsInClass = await db2.select().from(schema.students).where(eq(schema.students.classId, filters.classId));
             const studentIds = studentsInClass.map((s) => s.id);
-            attendance2 = attendance2.filter((a) => studentIds.includes(a.studentId));
+            attendance3 = attendance3.filter((a) => studentIds.includes(a.studentId));
           }
           if (filters.startDate && filters.endDate) {
-            attendance2 = attendance2.filter((a) => {
+            attendance3 = attendance3.filter((a) => {
               const attendanceDate = new Date(a.date);
               return attendanceDate >= new Date(filters.startDate) && attendanceDate <= new Date(filters.endDate);
             });
           }
-          const totalRecords = attendance2.length;
-          const presentCount = attendance2.filter((a) => a.status === "Present").length;
-          const absentCount = attendance2.filter((a) => a.status === "Absent").length;
-          const lateCount = attendance2.filter((a) => a.status === "Late").length;
-          const excusedCount = attendance2.filter((a) => a.status === "Excused").length;
+          const totalRecords = attendance3.length;
+          const presentCount = attendance3.filter((a) => a.status === "Present").length;
+          const absentCount = attendance3.filter((a) => a.status === "Absent").length;
+          const lateCount = attendance3.filter((a) => a.status === "Late").length;
+          const excusedCount = attendance3.filter((a) => a.status === "Excused").length;
           const attendanceRate = totalRecords > 0 ? Math.round(presentCount / totalRecords * 100) : 0;
           return {
             totalRecords,
@@ -3563,16 +4357,16 @@ var init_storage = __esm({
               late: lateCount,
               excused: excusedCount
             },
-            dailyTrends: this.calculateDailyAttendanceTrends(attendance2),
+            dailyTrends: this.calculateDailyAttendanceTrends(attendance3),
             classComparison: await this.calculateClassAttendanceComparison()
           };
         } catch (error) {
           return { error: "Failed to calculate attendance analytics" };
         }
       }
-      calculateGradeDistribution(examResults2) {
+      calculateGradeDistribution(examResults3) {
         const grades = { A: 0, B: 0, C: 0, D: 0, F: 0 };
-        examResults2.forEach((result) => {
+        examResults3.forEach((result) => {
           const percentage = result.obtainedMarks / result.totalMarks * 100;
           if (percentage >= 90) grades.A++;
           else if (percentage >= 80) grades.B++;
@@ -3582,11 +4376,11 @@ var init_storage = __esm({
         });
         return Object.entries(grades).map(([grade, count]) => ({ grade, count }));
       }
-      async calculateSubjectPerformance(examResults2, subjects2) {
+      async calculateSubjectPerformance(examResults3, subjects3) {
         const subjectMap = /* @__PURE__ */ new Map();
-        subjects2.forEach((s) => subjectMap.set(s.id, s.name));
+        subjects3.forEach((s) => subjectMap.set(s.id, s.name));
         const performance = /* @__PURE__ */ new Map();
-        examResults2.forEach((result) => {
+        examResults3.forEach((result) => {
           const examSubject = result.examId;
           if (!performance.has(examSubject)) {
             performance.set(examSubject, { total: 0, count: 0 });
@@ -3601,9 +4395,9 @@ var init_storage = __esm({
           examCount: data.count
         }));
       }
-      calculatePerformanceTrends(examResults2) {
+      calculatePerformanceTrends(examResults3) {
         const trends = /* @__PURE__ */ new Map();
-        examResults2.forEach((result) => {
+        examResults3.forEach((result) => {
           const month = new Date(result.createdAt).toLocaleString("default", { month: "short" });
           if (!trends.has(month)) {
             trends.set(month, { total: 0, count: 0 });
@@ -3617,9 +4411,9 @@ var init_storage = __esm({
           average: Math.round(data.total / data.count * 100) / 100
         }));
       }
-      calculateStudentPerformance(examResults2) {
+      calculateStudentPerformance(examResults3) {
         const performance = /* @__PURE__ */ new Map();
-        examResults2.forEach((result) => {
+        examResults3.forEach((result) => {
           if (!performance.has(result.studentId)) {
             performance.set(result.studentId, { total: 0, count: 0 });
           }
@@ -3633,26 +4427,26 @@ var init_storage = __esm({
           examCount: data.count
         })).sort((a, b) => b.average - a.average);
       }
-      calculateDailyAttendanceTrends(attendance2) {
+      calculateDailyAttendanceTrends(attendance3) {
         const trends = /* @__PURE__ */ new Map();
-        attendance2.forEach((record) => {
-          const date2 = record.date;
-          if (!trends.has(date2)) {
-            trends.set(date2, { present: 0, total: 0 });
+        attendance3.forEach((record) => {
+          const date = record.date;
+          if (!trends.has(date)) {
+            trends.set(date, { present: 0, total: 0 });
           }
-          const current = trends.get(date2);
+          const current = trends.get(date);
           current.total += 1;
           if (record.status === "Present") current.present += 1;
         });
-        return Array.from(trends.entries()).map(([date2, data]) => ({
-          date: date2,
+        return Array.from(trends.entries()).map(([date, data]) => ({
+          date,
           rate: Math.round(data.present / data.total * 100)
         }));
       }
       async calculateClassAttendanceComparison() {
         try {
-          const classes2 = await db.select().from(classes);
-          return classes2.map((cls) => ({
+          const classes3 = await db2.select().from(schema.classes);
+          return classes3.map((cls) => ({
             className: cls.name,
             attendanceRate: 85 + Math.floor(Math.random() * 15),
             // Simplified for demo
@@ -3672,18 +4466,18 @@ var init_storage = __esm({
           error: "Unable to calculate analytics - database unavailable"
         };
       }
-      // Contact messages management - ensuring 100% Supabase persistence
+      // Contact messages management - ensuring 100% database persistence
       async createContactMessage(message) {
-        const result = await this.db.insert(contactMessages).values(message).returning();
+        const result = await this.db.insert(schema.contactMessages).values(message).returning();
         return result[0];
       }
       async getContactMessages() {
-        return await this.db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
+        return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
       }
       // Report finalization methods
       async getExamResultById(id) {
         try {
-          const result = await this.db.select().from(examResults).where(eq2(examResults.id, id)).limit(1);
+          const result = await this.db.select().from(schema.examResults).where(eq(schema.examResults.id, id)).limit(1);
           return result[0];
         } catch (error) {
           return void 0;
@@ -3691,11 +4485,11 @@ var init_storage = __esm({
       }
       async getFinalizedReportsByExams(examIds, filters) {
         try {
-          const results = await this.db.select().from(examResults).where(and(
-            inArray(examResults.examId, examIds)
+          const results = await this.db.select().from(schema.examResults).where(and(
+            inArray(schema.examResults.examId, examIds)
             // Add teacherFinalized field check when column exists
             // eq(schema.examResults.teacherFinalized, true)
-          )).orderBy(desc(examResults.createdAt));
+          )).orderBy(desc(schema.examResults.createdAt));
           return results;
         } catch (error) {
           return [];
@@ -3703,39 +4497,39 @@ var init_storage = __esm({
       }
       async getAllFinalizedReports(filters) {
         try {
-          const results = await this.db.select().from(examResults).orderBy(desc(examResults.createdAt));
+          const results = await this.db.select().from(schema.examResults).orderBy(desc(schema.examResults.createdAt));
           return results;
         } catch (error) {
           return [];
         }
       }
       async getContactMessageById(id) {
-        const result = await this.db.select().from(contactMessages).where(eq2(contactMessages.id, id)).limit(1);
+        const result = await this.db.select().from(schema.contactMessages).where(eq(schema.contactMessages.id, id)).limit(1);
         return result[0];
       }
       async markContactMessageAsRead(id) {
-        const result = await this.db.update(contactMessages).set({ isRead: true }).where(eq2(contactMessages.id, id)).returning();
+        const result = await this.db.update(schema.contactMessages).set({ isRead: true }).where(eq(schema.contactMessages.id, id)).returning();
         return result.length > 0;
       }
       async respondToContactMessage(id, response, respondedBy) {
-        const result = await this.db.update(contactMessages).set({
+        const result = await this.db.update(schema.contactMessages).set({
           response,
           respondedBy,
           respondedAt: /* @__PURE__ */ new Date(),
           isRead: true
-        }).where(eq2(contactMessages.id, id)).returning();
+        }).where(eq(schema.contactMessages.id, id)).returning();
         return result[0];
       }
       // Performance monitoring implementation
       async logPerformanceEvent(event) {
-        const result = await this.db.insert(performanceEvents).values(event).returning();
+        const result = await this.db.insert(schema.performanceEvents).values(event).returning();
         return result[0];
       }
       async getPerformanceMetrics(hours = 24) {
         try {
           const since = new Date(Date.now() - hours * 60 * 60 * 1e3);
           const sinceISO = since.toISOString();
-          const events = await this.db.select().from(performanceEvents).where(sql2`${performanceEvents.createdAt} >= ${sinceISO}`);
+          const events = await this.db.select().from(schema.performanceEvents).where(sql2`${schema.performanceEvents.createdAt} >= ${sinceISO}`);
           const totalEvents = events.length;
           const goalAchievedCount = events.filter((e) => e.goalAchieved).length;
           const goalAchievementRate = totalEvents > 0 ? goalAchievedCount / totalEvents * 100 : 0;
@@ -3766,10 +4560,10 @@ var init_storage = __esm({
         try {
           const since = new Date(Date.now() - hours * 60 * 60 * 1e3);
           const sinceISO = since.toISOString();
-          const alerts = await this.db.select().from(performanceEvents).where(and(
-            sql2`${performanceEvents.createdAt} >= ${sinceISO}`,
-            eq2(performanceEvents.goalAchieved, false)
-          )).orderBy(desc(performanceEvents.createdAt)).limit(50);
+          const alerts = await this.db.select().from(schema.performanceEvents).where(and(
+            sql2`${schema.performanceEvents.createdAt} >= ${sinceISO}`,
+            eq(schema.performanceEvents.goalAchieved, false)
+          )).orderBy(desc(schema.performanceEvents.createdAt)).limit(50);
           return alerts;
         } catch (error) {
           return [];
@@ -3777,54 +4571,54 @@ var init_storage = __esm({
       }
       // Teacher class assignments implementation
       async createTeacherClassAssignment(assignment) {
-        const result = await this.db.insert(teacherClassAssignments).values(assignment).returning();
+        const result = await this.db.insert(schema.teacherClassAssignments).values(assignment).returning();
         return result[0];
       }
       async getTeacherClassAssignments(teacherId) {
-        return await this.db.select().from(teacherClassAssignments).where(and(
-          eq2(teacherClassAssignments.teacherId, teacherId),
-          eq2(teacherClassAssignments.isActive, true)
-        )).orderBy(teacherClassAssignments.createdAt);
+        return await this.db.select().from(schema.teacherClassAssignments).where(and(
+          eq(schema.teacherClassAssignments.teacherId, teacherId),
+          eq(schema.teacherClassAssignments.isActive, true)
+        )).orderBy(schema.teacherClassAssignments.createdAt);
       }
       async getTeachersForClassSubject(classId, subjectId) {
         const assignments = await this.db.select({
-          user: users
-        }).from(teacherClassAssignments).innerJoin(users, eq2(teacherClassAssignments.teacherId, users.id)).where(and(
-          eq2(teacherClassAssignments.classId, classId),
-          eq2(teacherClassAssignments.subjectId, subjectId),
-          eq2(teacherClassAssignments.isActive, true)
+          user: schema.users
+        }).from(schema.teacherClassAssignments).innerJoin(schema.users, eq(schema.teacherClassAssignments.teacherId, schema.users.id)).where(and(
+          eq(schema.teacherClassAssignments.classId, classId),
+          eq(schema.teacherClassAssignments.subjectId, subjectId),
+          eq(schema.teacherClassAssignments.isActive, true)
         ));
         return assignments.map((a) => a.user);
       }
       async updateTeacherClassAssignment(id, assignment) {
-        const result = await this.db.update(teacherClassAssignments).set(assignment).where(eq2(teacherClassAssignments.id, id)).returning();
+        const result = await this.db.update(schema.teacherClassAssignments).set(assignment).where(eq(schema.teacherClassAssignments.id, id)).returning();
         return result[0];
       }
       async deleteTeacherClassAssignment(id) {
-        const result = await this.db.delete(teacherClassAssignments).where(eq2(teacherClassAssignments.id, id)).returning();
+        const result = await this.db.delete(schema.teacherClassAssignments).where(eq(schema.teacherClassAssignments.id, id)).returning();
         return result.length > 0;
       }
       // Teacher timetable implementation
       async createTimetableEntry(entry) {
-        const result = await this.db.insert(timetable).values(entry).returning();
+        const result = await this.db.insert(schema.timetable).values(entry).returning();
         return result[0];
       }
       async getTimetableByTeacher(teacherId, termId) {
         const conditions = [
-          eq2(timetable.teacherId, teacherId),
-          eq2(timetable.isActive, true)
+          eq(schema.timetable.teacherId, teacherId),
+          eq(schema.timetable.isActive, true)
         ];
         if (termId) {
-          conditions.push(eq2(timetable.termId, termId));
+          conditions.push(eq(schema.timetable.termId, termId));
         }
-        return await this.db.select().from(timetable).where(and(...conditions)).orderBy(timetable.dayOfWeek, timetable.startTime);
+        return await this.db.select().from(schema.timetable).where(and(...conditions)).orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
       }
       async updateTimetableEntry(id, entry) {
-        const result = await this.db.update(timetable).set(entry).where(eq2(timetable.id, id)).returning();
+        const result = await this.db.update(schema.timetable).set(entry).where(eq(schema.timetable.id, id)).returning();
         return result[0];
       }
       async deleteTimetableEntry(id) {
-        const result = await this.db.delete(timetable).where(eq2(timetable.id, id)).returning();
+        const result = await this.db.delete(schema.timetable).where(eq(schema.timetable.id, id)).returning();
         return result.length > 0;
       }
       // Teacher dashboard data - comprehensive method
@@ -3832,28 +4626,28 @@ var init_storage = __esm({
         const profile = await this.getTeacherProfile(teacherId);
         const user = await this.getUser(teacherId);
         const assignmentsData = await this.db.select({
-          id: teacherClassAssignments.id,
-          className: classes.name,
-          classLevel: classes.level,
-          subjectName: subjects.name,
-          subjectCode: subjects.code,
-          termName: academicTerms.name
-        }).from(teacherClassAssignments).innerJoin(classes, eq2(teacherClassAssignments.classId, classes.id)).innerJoin(subjects, eq2(teacherClassAssignments.subjectId, subjects.id)).leftJoin(academicTerms, eq2(teacherClassAssignments.termId, academicTerms.id)).where(and(
-          eq2(teacherClassAssignments.teacherId, teacherId),
-          eq2(teacherClassAssignments.isActive, true)
-        )).orderBy(classes.name, subjects.name);
+          id: schema.teacherClassAssignments.id,
+          className: schema.classes.name,
+          classLevel: schema.classes.level,
+          subjectName: schema.subjects.name,
+          subjectCode: schema.subjects.code,
+          termName: schema.academicTerms.name
+        }).from(schema.teacherClassAssignments).innerJoin(schema.classes, eq(schema.teacherClassAssignments.classId, schema.classes.id)).innerJoin(schema.subjects, eq(schema.teacherClassAssignments.subjectId, schema.subjects.id)).leftJoin(schema.academicTerms, eq(schema.teacherClassAssignments.termId, schema.academicTerms.id)).where(and(
+          eq(schema.teacherClassAssignments.teacherId, teacherId),
+          eq(schema.teacherClassAssignments.isActive, true)
+        )).orderBy(schema.classes.name, schema.subjects.name);
         const timetableData = await this.db.select({
-          id: timetable.id,
-          dayOfWeek: timetable.dayOfWeek,
-          startTime: timetable.startTime,
-          endTime: timetable.endTime,
-          location: timetable.location,
-          className: classes.name,
-          subjectName: subjects.name
-        }).from(timetable).innerJoin(classes, eq2(timetable.classId, classes.id)).innerJoin(subjects, eq2(timetable.subjectId, subjects.id)).where(and(
-          eq2(timetable.teacherId, teacherId),
-          eq2(timetable.isActive, true)
-        )).orderBy(timetable.dayOfWeek, timetable.startTime);
+          id: schema.timetable.id,
+          dayOfWeek: schema.timetable.dayOfWeek,
+          startTime: schema.timetable.startTime,
+          endTime: schema.timetable.endTime,
+          location: schema.timetable.location,
+          className: schema.classes.name,
+          subjectName: schema.subjects.name
+        }).from(schema.timetable).innerJoin(schema.classes, eq(schema.timetable.classId, schema.classes.id)).innerJoin(schema.subjects, eq(schema.timetable.subjectId, schema.subjects.id)).where(and(
+          eq(schema.timetable.teacherId, teacherId),
+          eq(schema.timetable.isActive, true)
+        )).orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
         return {
           profile,
           user,
@@ -3864,7 +4658,7 @@ var init_storage = __esm({
       // Manual grading task queue
       async createGradingTask(task) {
         try {
-          const result = await this.db.insert(gradingTasks).values(task).returning();
+          const result = await this.db.insert(schema.gradingTasks).values(task).returning();
           return result[0];
         } catch (error) {
           if (error?.cause?.code === "42P01") {
@@ -3875,11 +4669,11 @@ var init_storage = __esm({
       }
       async assignGradingTask(taskId, teacherId) {
         try {
-          const result = await this.db.update(gradingTasks).set({
+          const result = await this.db.update(schema.gradingTasks).set({
             assignedTeacherId: teacherId,
             assignedAt: /* @__PURE__ */ new Date(),
             status: "in_progress"
-          }).where(eq2(gradingTasks.id, taskId)).returning();
+          }).where(eq(schema.gradingTasks.id, taskId)).returning();
           return result[0];
         } catch (error) {
           if (error?.cause?.code === "42P01") {
@@ -3890,11 +4684,11 @@ var init_storage = __esm({
       }
       async getGradingTasksByTeacher(teacherId, status) {
         try {
-          let query = this.db.select().from(gradingTasks).where(eq2(gradingTasks.assignedTeacherId, teacherId)).orderBy(desc(gradingTasks.priority), asc(gradingTasks.createdAt));
+          let query = this.db.select().from(schema.gradingTasks).where(eq(schema.gradingTasks.assignedTeacherId, teacherId)).orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
           if (status) {
             query = query.where(and(
-              eq2(gradingTasks.assignedTeacherId, teacherId),
-              eq2(gradingTasks.status, status)
+              eq(schema.gradingTasks.assignedTeacherId, teacherId),
+              eq(schema.gradingTasks.status, status)
             ));
           }
           return await query;
@@ -3907,7 +4701,7 @@ var init_storage = __esm({
       }
       async getGradingTasksBySession(sessionId) {
         try {
-          return await this.db.select().from(gradingTasks).where(eq2(gradingTasks.sessionId, sessionId)).orderBy(desc(gradingTasks.priority), asc(gradingTasks.createdAt));
+          return await this.db.select().from(schema.gradingTasks).where(eq(schema.gradingTasks.sessionId, sessionId)).orderBy(desc(schema.gradingTasks.priority), asc(schema.gradingTasks.createdAt));
         } catch (error) {
           if (error?.cause?.code === "42P01") {
             return [];
@@ -3921,7 +4715,7 @@ var init_storage = __esm({
           if (completedAt) {
             updateData.completedAt = completedAt;
           }
-          const result = await this.db.update(gradingTasks).set(updateData).where(eq2(gradingTasks.id, taskId)).returning();
+          const result = await this.db.update(schema.gradingTasks).set(updateData).where(eq(schema.gradingTasks.id, taskId)).returning();
           return result[0];
         } catch (error) {
           if (error?.cause?.code === "42P01") {
@@ -3933,21 +4727,21 @@ var init_storage = __esm({
       async completeGradingTask(taskId, pointsEarned, feedbackText) {
         try {
           return await this.db.transaction(async (tx) => {
-            const tasks = await tx.select().from(gradingTasks).where(eq2(gradingTasks.id, taskId)).limit(1);
+            const tasks = await tx.select().from(schema.gradingTasks).where(eq(schema.gradingTasks.id, taskId)).limit(1);
             if (tasks.length === 0) {
               return void 0;
             }
             const task = tasks[0];
-            const answers = await tx.update(studentAnswers).set({
+            const answers = await tx.update(schema.studentAnswers).set({
               pointsEarned,
               feedbackText,
               autoScored: false,
               manualOverride: true
-            }).where(eq2(studentAnswers.id, task.answerId)).returning();
-            const updatedTasks = await tx.update(gradingTasks).set({
+            }).where(eq(schema.studentAnswers.id, task.answerId)).returning();
+            const updatedTasks = await tx.update(schema.gradingTasks).set({
               status: "completed",
               completedAt: /* @__PURE__ */ new Date()
-            }).where(eq2(gradingTasks.id, taskId)).returning();
+            }).where(eq(schema.gradingTasks.id, taskId)).returning();
             return {
               task: updatedTasks[0],
               answer: answers[0]
@@ -3961,31 +4755,31 @@ var init_storage = __esm({
         }
       }
       // Audit logging implementation
-      async createAuditLog(log2) {
-        const result = await this.db.insert(auditLogs).values(log2).returning();
+      async createAuditLog(log) {
+        const result = await this.db.insert(schema.auditLogs).values(log).returning();
         return result[0];
       }
       async getAuditLogs(filters) {
         const conditions = [];
         if (filters?.userId) {
-          conditions.push(eq2(auditLogs.userId, filters.userId));
+          conditions.push(eq(schema.auditLogs.userId, filters.userId));
         }
         if (filters?.entityType) {
-          conditions.push(eq2(auditLogs.entityType, filters.entityType));
+          conditions.push(eq(schema.auditLogs.entityType, filters.entityType));
         }
         if (filters?.entityId) {
-          conditions.push(eq2(auditLogs.entityId, filters.entityId));
+          conditions.push(eq(schema.auditLogs.entityId, filters.entityId));
         }
         if (filters?.action) {
-          conditions.push(eq2(auditLogs.action, filters.action));
+          conditions.push(eq(schema.auditLogs.action, filters.action));
         }
         if (filters?.startDate) {
-          conditions.push(dsql`${auditLogs.createdAt} >= ${filters.startDate}`);
+          conditions.push(dsql`${schema.auditLogs.createdAt} >= ${filters.startDate}`);
         }
         if (filters?.endDate) {
-          conditions.push(dsql`${auditLogs.createdAt} <= ${filters.endDate}`);
+          conditions.push(dsql`${schema.auditLogs.createdAt} <= ${filters.endDate}`);
         }
-        let query = this.db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+        let query = this.db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.createdAt));
         if (conditions.length > 0) {
           query = query.where(and(...conditions));
         }
@@ -3995,39 +4789,39 @@ var init_storage = __esm({
         return await query;
       }
       async getAuditLogsByEntity(entityType, entityId) {
-        return await this.db.select().from(auditLogs).where(and(
-          eq2(auditLogs.entityType, entityType),
-          eq2(auditLogs.entityId, entityId)
-        )).orderBy(desc(auditLogs.createdAt));
+        return await this.db.select().from(schema.auditLogs).where(and(
+          eq(schema.auditLogs.entityType, entityType),
+          eq(schema.auditLogs.entityId, entityId)
+        )).orderBy(desc(schema.auditLogs.createdAt));
       }
       // Notification management implementation
       async createNotification(notification) {
-        const result = await this.db.insert(notifications).values(notification).returning();
+        const result = await this.db.insert(schema.notifications).values(notification).returning();
         return result[0];
       }
       async getNotificationsByUserId(userId) {
-        return await this.db.select().from(notifications).where(eq2(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+        return await this.db.select().from(schema.notifications).where(eq(schema.notifications.userId, userId)).orderBy(desc(schema.notifications.createdAt));
       }
       async getUnreadNotificationCount(userId) {
-        const result = await this.db.select({ count: dsql`count(*)::int` }).from(notifications).where(and(
-          eq2(notifications.userId, userId),
-          eq2(notifications.isRead, false)
+        const result = await this.db.select({ count: dsql`count(*)::int` }).from(schema.notifications).where(and(
+          eq(schema.notifications.userId, userId),
+          eq(schema.notifications.isRead, false)
         ));
         return result[0]?.count || 0;
       }
       async markNotificationAsRead(notificationId) {
-        const result = await this.db.update(notifications).set({ isRead: true }).where(eq2(notifications.id, notificationId)).returning();
+        const result = await this.db.update(schema.notifications).set({ isRead: true }).where(eq(schema.notifications.id, notificationId)).returning();
         return result[0];
       }
       async markAllNotificationsAsRead(userId) {
-        await this.db.update(notifications).set({ isRead: true }).where(and(
-          eq2(notifications.userId, userId),
-          eq2(notifications.isRead, false)
+        await this.db.update(schema.notifications).set({ isRead: true }).where(and(
+          eq(schema.notifications.userId, userId),
+          eq(schema.notifications.isRead, false)
         ));
       }
       // Password reset attempt tracking for rate limiting
       async createPasswordResetAttempt(identifier, ipAddress, success) {
-        const result = await this.db.insert(passwordResetAttempts).values({
+        const result = await this.db.insert(schema.passwordResetAttempts).values({
           identifier,
           ipAddress,
           success
@@ -4036,27 +4830,27 @@ var init_storage = __esm({
       }
       async getRecentPasswordResetAttempts(identifier, minutesAgo) {
         const cutoffTime = new Date(Date.now() - minutesAgo * 60 * 1e3);
-        return await this.db.select().from(passwordResetAttempts).where(and(
-          eq2(passwordResetAttempts.identifier, identifier),
-          dsql`${passwordResetAttempts.attemptedAt} > ${cutoffTime}`
-        )).orderBy(desc(passwordResetAttempts.attemptedAt));
+        return await this.db.select().from(schema.passwordResetAttempts).where(and(
+          eq(schema.passwordResetAttempts.identifier, identifier),
+          dsql`${schema.passwordResetAttempts.attemptedAt} > ${cutoffTime}`
+        )).orderBy(desc(schema.passwordResetAttempts.attemptedAt));
       }
       async deleteOldPasswordResetAttempts(hoursAgo) {
         const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1e3);
-        await this.db.delete(passwordResetAttempts).where(dsql`${passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
+        await this.db.delete(schema.passwordResetAttempts).where(dsql`${schema.passwordResetAttempts.attemptedAt} < ${cutoffTime}`);
         return true;
       }
       // Account security methods
       async lockAccount(userId, lockUntil) {
-        const result = await this.db.update(users).set({ accountLockedUntil: lockUntil }).where(eq2(users.id, userId)).returning();
+        const result = await this.db.update(schema.users).set({ accountLockedUntil: lockUntil }).where(eq(schema.users.id, userId)).returning();
         return result.length > 0;
       }
       async unlockAccount(userId) {
-        const result = await this.db.update(users).set({ accountLockedUntil: null }).where(eq2(users.id, userId)).returning();
+        const result = await this.db.update(schema.users).set({ accountLockedUntil: null }).where(eq(schema.users.id, userId)).returning();
         return result.length > 0;
       }
       async isAccountLocked(userId) {
-        const user = await this.db.select({ accountLockedUntil: users.accountLockedUntil }).from(users).where(eq2(users.id, userId)).limit(1);
+        const user = await this.db.select({ accountLockedUntil: schema.users.accountLockedUntil }).from(schema.users).where(eq(schema.users.id, userId)).limit(1);
         if (!user[0] || !user[0].accountLockedUntil) {
           return false;
         }
@@ -4064,10 +4858,10 @@ var init_storage = __esm({
       }
       // Admin recovery powers
       async adminResetUserPassword(userId, newPasswordHash, resetBy, forceChange) {
-        const result = await this.db.update(users).set({
+        const result = await this.db.update(schema.users).set({
           passwordHash: newPasswordHash,
           mustChangePassword: forceChange
-        }).where(eq2(users.id, userId)).returning();
+        }).where(eq(schema.users.id, userId)).returning();
         if (result.length > 0) {
           await this.createAuditLog({
             userId: resetBy,
@@ -4085,7 +4879,7 @@ var init_storage = __esm({
       }
       async updateRecoveryEmail(userId, recoveryEmail, updatedBy) {
         const oldUser = await this.getUser(userId);
-        const result = await this.db.update(users).set({ recoveryEmail }).where(eq2(users.id, userId)).returning();
+        const result = await this.db.update(schema.users).set({ recoveryEmail }).where(eq(schema.users.id, userId)).returning();
         if (result.length > 0) {
           await this.createAuditLog({
             userId: updatedBy,
@@ -4104,108 +4898,108 @@ var init_storage = __esm({
       // NEW METHODS FOR EXAM PUBLISHING
       async getScheduledExamsToPublish(now) {
         const nowISO = now.toISOString();
-        return await this.db.select().from(exams).where(
+        return await this.db.select().from(schema.exams).where(
           and(
-            eq2(exams.isPublished, false),
-            dsql`${exams.startTime} <= ${nowISO}`,
-            eq2(exams.timerMode, "global")
+            eq(schema.exams.isPublished, false),
+            dsql`${schema.exams.startTime} <= ${nowISO}`,
+            eq(schema.exams.timerMode, "global")
             // Only publish global timer exams automatically
           )
         ).limit(50);
       }
       // Settings management methods (Module 1)
       async getSetting(key) {
-        const result = await this.db.select().from(settings).where(eq2(settings.key, key)).limit(1);
+        const result = await this.db.select().from(schema.settings).where(eq(schema.settings.key, key)).limit(1);
         return result[0];
       }
       async getAllSettings() {
-        return await this.db.select().from(settings).orderBy(asc(settings.key));
+        return await this.db.select().from(schema.settings).orderBy(asc(schema.settings.key));
       }
       async createSetting(setting) {
-        const result = await this.db.insert(settings).values(setting).returning();
+        const result = await this.db.insert(schema.settings).values(setting).returning();
         return result[0];
       }
       async updateSetting(key, value, updatedBy) {
-        const result = await this.db.update(settings).set({ value, updatedBy, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(settings.key, key)).returning();
+        const result = await this.db.update(schema.settings).set({ value, updatedBy, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.settings.key, key)).returning();
         return result[0];
       }
       async deleteSetting(key) {
-        const result = await this.db.delete(settings).where(eq2(settings.key, key)).returning();
+        const result = await this.db.delete(schema.settings).where(eq(schema.settings.key, key)).returning();
         return result.length > 0;
       }
       // Counters for atomic sequence generation (Module 1)
       async getNextSequence(classCode, year) {
-        const result = await this.db.insert(counters).values({
+        const result = await this.db.insert(schema.counters).values({
           classCode,
           year,
           sequence: 1
         }).onConflictDoUpdate({
-          target: [counters.classCode, counters.year],
+          target: [schema.counters.classCode, schema.counters.year],
           set: {
-            sequence: dsql`${counters.sequence} + 1`,
+            sequence: dsql`${schema.counters.sequence} + 1`,
             updatedAt: /* @__PURE__ */ new Date()
           }
         }).returning();
         return result[0].sequence;
       }
       async getCounter(classCode, year) {
-        const result = await this.db.select().from(counters).where(
+        const result = await this.db.select().from(schema.counters).where(
           and(
-            eq2(counters.classCode, classCode),
-            eq2(counters.year, year)
+            eq(schema.counters.classCode, classCode),
+            eq(schema.counters.year, year)
           )
         ).limit(1);
         return result[0];
       }
       async resetCounter(classCode, year) {
-        const result = await this.db.update(counters).set({ sequence: 0, updatedAt: /* @__PURE__ */ new Date() }).where(
+        const result = await this.db.update(schema.counters).set({ sequence: 0, updatedAt: /* @__PURE__ */ new Date() }).where(
           and(
-            eq2(counters.classCode, classCode),
-            eq2(counters.year, year)
+            eq(schema.counters.classCode, classCode),
+            eq(schema.counters.year, year)
           )
         ).returning();
         return result.length > 0;
       }
       // Job Vacancy System implementations
       async createVacancy(vacancy) {
-        const result = await this.db.insert(vacancies).values(vacancy).returning();
+        const result = await this.db.insert(schema.vacancies).values(vacancy).returning();
         return result[0];
       }
       async getVacancy(id) {
-        const result = await this.db.select().from(vacancies).where(eq2(vacancies.id, id)).limit(1);
+        const result = await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.id, id)).limit(1);
         return result[0];
       }
       async getAllVacancies(status) {
         if (status) {
-          return await this.db.select().from(vacancies).where(eq2(vacancies.status, status)).orderBy(desc(vacancies.createdAt));
+          return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status)).orderBy(desc(schema.vacancies.createdAt));
         }
-        return await this.db.select().from(vacancies).orderBy(desc(vacancies.createdAt));
+        return await this.db.select().from(schema.vacancies).orderBy(desc(schema.vacancies.createdAt));
       }
       async updateVacancy(id, updates) {
-        const result = await this.db.update(vacancies).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(vacancies.id, id)).returning();
+        const result = await this.db.update(schema.vacancies).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.vacancies.id, id)).returning();
         return result[0];
       }
       async deleteVacancy(id) {
-        const result = await this.db.delete(vacancies).where(eq2(vacancies.id, id)).returning();
+        const result = await this.db.delete(schema.vacancies).where(eq(schema.vacancies.id, id)).returning();
         return result.length > 0;
       }
       // Teacher Applications implementations
       async createTeacherApplication(application) {
-        const result = await this.db.insert(teacherApplications).values(application).returning();
+        const result = await this.db.insert(schema.teacherApplications).values(application).returning();
         return result[0];
       }
       async getTeacherApplication(id) {
-        const result = await this.db.select().from(teacherApplications).where(eq2(teacherApplications.id, id)).limit(1);
+        const result = await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.id, id)).limit(1);
         return result[0];
       }
       async getAllTeacherApplications(status) {
         if (status) {
-          return await this.db.select().from(teacherApplications).where(eq2(teacherApplications.status, status)).orderBy(desc(teacherApplications.dateApplied));
+          return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status)).orderBy(desc(schema.teacherApplications.dateApplied));
         }
-        return await this.db.select().from(teacherApplications).orderBy(desc(teacherApplications.dateApplied));
+        return await this.db.select().from(schema.teacherApplications).orderBy(desc(schema.teacherApplications.dateApplied));
       }
       async updateTeacherApplication(id, updates) {
-        const result = await this.db.update(teacherApplications).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(teacherApplications.id, id)).returning();
+        const result = await this.db.update(schema.teacherApplications).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.teacherApplications.id, id)).returning();
         return result[0];
       }
       async approveTeacherApplication(applicationId, approvedBy) {
@@ -4213,13 +5007,13 @@ var init_storage = __esm({
         if (!application) {
           throw new Error("Application not found");
         }
-        const updatedApplication = await this.db.update(teacherApplications).set({
+        const updatedApplication = await this.db.update(schema.teacherApplications).set({
           status: "approved",
           reviewedBy: approvedBy,
           reviewedAt: /* @__PURE__ */ new Date(),
           updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq2(teacherApplications.id, applicationId)).returning();
-        const approvedTeacher = await this.db.insert(approvedTeachers).values({
+        }).where(eq(schema.teacherApplications.id, applicationId)).returning();
+        const approvedTeacher = await this.db.insert(schema.approvedTeachers).values({
           applicationId,
           googleEmail: application.googleEmail,
           fullName: application.fullName,
@@ -4232,55 +5026,55 @@ var init_storage = __esm({
         };
       }
       async rejectTeacherApplication(applicationId, reviewedBy, reason) {
-        const result = await this.db.update(teacherApplications).set({
+        const result = await this.db.update(schema.teacherApplications).set({
           status: "rejected",
           reviewedBy,
           reviewedAt: /* @__PURE__ */ new Date(),
           rejectionReason: reason,
           updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq2(teacherApplications.id, applicationId)).returning();
+        }).where(eq(schema.teacherApplications.id, applicationId)).returning();
         return result[0];
       }
       // Approved Teachers implementations
       async getApprovedTeacherByEmail(email) {
-        const result = await this.db.select().from(approvedTeachers).where(eq2(approvedTeachers.googleEmail, email)).limit(1);
+        const result = await this.db.select().from(schema.approvedTeachers).where(eq(schema.approvedTeachers.googleEmail, email)).limit(1);
         return result[0];
       }
       async getAllApprovedTeachers() {
-        return await this.db.select().from(approvedTeachers).orderBy(desc(approvedTeachers.dateApproved));
+        return await this.db.select().from(schema.approvedTeachers).orderBy(desc(schema.approvedTeachers.dateApproved));
       }
       async deleteApprovedTeacher(id) {
-        const result = await this.db.delete(approvedTeachers).where(eq2(approvedTeachers.id, id)).returning();
+        const result = await this.db.delete(schema.approvedTeachers).where(eq(schema.approvedTeachers.id, id)).returning();
         return result.length > 0;
       }
       // Super Admin implementations
       async getSuperAdminStats() {
-        const [admins, users2, exams2] = await Promise.all([
+        const [admins, users3, exams3] = await Promise.all([
           this.getUsersByRole(1),
           // Admins have roleId 1
           this.getAllUsers(),
-          this.db.select().from(exams)
+          this.db.select().from(schema.exams)
         ]);
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
-        const activeSessions = users2.filter((u) => u.updatedAt && u.updatedAt > oneHourAgo).length;
+        const activeSessions = users3.filter((u) => u.updatedAt && u.updatedAt > oneHourAgo).length;
         return {
           totalAdmins: admins.length,
-          totalUsers: users2.length,
+          totalUsers: users3.length,
           activeSessions,
-          totalExams: exams2.length
+          totalExams: exams3.length
         };
       }
       async getSystemSettings() {
-        const result = await this.db.select().from(systemSettings).limit(1);
+        const result = await this.db.select().from(schema.systemSettings).limit(1);
         return result[0];
       }
-      async updateSystemSettings(settings2) {
+      async updateSystemSettings(settings3) {
         const existing = await this.getSystemSettings();
         if (existing) {
-          const result = await this.db.update(systemSettings).set({ ...settings2, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(systemSettings.id, existing.id)).returning();
+          const result = await this.db.update(schema.systemSettings).set({ ...settings3, updatedAt: /* @__PURE__ */ new Date() }).where(eq(schema.systemSettings.id, existing.id)).returning();
           return result[0];
         } else {
-          const result = await this.db.insert(systemSettings).values(settings2).returning();
+          const result = await this.db.insert(schema.systemSettings).values(settings3).returning();
           return result[0];
         }
       }
@@ -4429,7 +5223,7 @@ __export(username_generator_exports, {
 });
 import { sql as sql3 } from "drizzle-orm";
 async function getNextSequenceForRole(roleCode) {
-  const result = await exportDb.insert(counters).values({
+  const result = await db2.insert(counters).values({
     roleCode,
     classCode: "N/A",
     year: "2025",
@@ -4527,177 +5321,6 @@ var init_username_generator = __esm({
       TEACHER: "TCH",
       ADMIN: "ADM"
     };
-  }
-});
-
-// server/supabase-storage.ts
-var supabase_storage_exports = {};
-__export(supabase_storage_exports, {
-  STORAGE_BUCKETS: () => STORAGE_BUCKETS,
-  deleteFileFromSupabase: () => deleteFileFromSupabase,
-  extractFilePathFromUrl: () => extractFilePathFromUrl,
-  getSupabaseFileUrl: () => getSupabaseFileUrl,
-  initializeStorageBuckets: () => initializeStorageBuckets,
-  isSupabaseStorageEnabled: () => isSupabaseStorageEnabled,
-  supabase: () => supabase,
-  uploadFileToSupabase: () => uploadFileToSupabase
-});
-import { createClient } from "@supabase/supabase-js";
-function isValidUrl(url) {
-  try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-function getSupabaseClient() {
-  if (initializationAttempted) {
-    return supabaseClient;
-  }
-  initializationAttempted = true;
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-  const isProduction2 = process.env.NODE_ENV === "production";
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return null;
-  }
-  if (!isValidUrl(supabaseUrl)) {
-    return null;
-  }
-  try {
-    supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    return supabaseClient;
-  } catch {
-    return null;
-  }
-}
-async function initializeStorageBuckets() {
-  const client = supabase.get();
-  if (!client) {
-    return false;
-  }
-  try {
-    const bucketsToCreate = Object.values(STORAGE_BUCKETS);
-    for (const bucketName of bucketsToCreate) {
-      const { data: existingBucket } = await client.storage.getBucket(bucketName);
-      if (!existingBucket) {
-        const { error } = await client.storage.createBucket(bucketName, {
-          public: true,
-          fileSizeLimit: 10485760,
-          allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
-        });
-        if (error && !error.message.includes("already exists")) {
-        }
-      }
-    }
-    await applyStoragePolicies();
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-async function applyStoragePolicies() {
-  const client = supabase.get();
-  if (!client) return;
-  try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-    if (!supabaseUrl || !serviceKey) {
-      return;
-    }
-  } catch {
-  }
-}
-async function uploadFileToSupabase(bucket, filePath, fileBuffer, contentType) {
-  const client = supabase.get();
-  if (!client) {
-    const errorMsg = "Supabase Storage not configured - missing client";
-    throw new Error(errorMsg);
-  }
-  try {
-    const { data: bucketData, error: bucketError } = await client.storage.getBucket(bucket);
-    if (bucketError || !bucketData) {
-      throw new Error(`Storage bucket "${bucket}" not found. Please check Supabase configuration.`);
-    }
-    const { data, error } = await client.storage.from(bucket).upload(filePath, fileBuffer, {
-      contentType,
-      upsert: true,
-      cacheControl: "3600"
-    });
-    if (error) {
-      if (error.message.includes("new row violates row-level security policy")) {
-        throw new Error("Storage permission denied. RLS policies are blocking the upload. This should not happen with service_role key. Please verify SUPABASE_SERVICE_KEY is correct.");
-      } else if (error.message.includes("Bucket not found")) {
-        throw new Error("Storage bucket not found: " + bucket);
-      } else if (error.message.includes("The object exceeded the maximum allowed size")) {
-        throw new Error("File size exceeds maximum allowed size (10MB)");
-      } else if (error.message.includes("Invalid JWT")) {
-        throw new Error("Storage authentication failed. SUPABASE_SERVICE_KEY is invalid or expired.");
-      } else if (error.message.includes("storage/unauthenticated")) {
-        throw new Error("Storage authentication failed. Please verify SUPABASE_SERVICE_KEY is the service_role key (not anon key).");
-      }
-      throw new Error(`Upload failed: ${error.message}`);
-    }
-    const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(filePath);
-    return {
-      publicUrl,
-      path: data.path
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-async function deleteFileFromSupabase(bucket, filePath) {
-  const client = supabase.get();
-  if (!client) {
-    throw new Error("Supabase Storage not configured");
-  }
-  try {
-    const { error } = await client.storage.from(bucket).remove([filePath]);
-    if (error) {
-      return false;
-    }
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-function getSupabaseFileUrl(bucket, filePath) {
-  const client = supabase.get();
-  if (!client || !process.env.SUPABASE_URL) {
-    return `/uploads/${filePath}`;
-  }
-  const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(filePath);
-  return publicUrl;
-}
-function extractFilePathFromUrl(url) {
-  if (!url) return null;
-  const supabaseMatch = url.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
-  if (supabaseMatch) {
-    return supabaseMatch[1];
-  }
-  const localMatch = url.match(/\/uploads\/(.+)$/);
-  if (localMatch) {
-    return localMatch[1];
-  }
-  return null;
-}
-var supabaseClient, initializationAttempted, supabase, STORAGE_BUCKETS, isSupabaseStorageEnabled;
-var init_supabase_storage = __esm({
-  "server/supabase-storage.ts"() {
-    "use strict";
-    supabaseClient = null;
-    initializationAttempted = false;
-    supabase = { get: () => getSupabaseClient() };
-    STORAGE_BUCKETS = {
-      HOMEPAGE: "homepage-images",
-      GALLERY: "gallery-images",
-      PROFILES: "profile-images",
-      STUDY_RESOURCES: "study-resources",
-      GENERAL: "general-uploads"
-    };
-    isSupabaseStorageEnabled = () => !!supabase.get();
   }
 });
 
@@ -4978,7 +5601,7 @@ __export(csv_import_service_exports, {
   previewCSVImport: () => previewCSVImport
 });
 import { parse } from "csv-parse/sync";
-import { eq as eq4, and as and2 } from "drizzle-orm";
+import { eq as eq3, and as and2 } from "drizzle-orm";
 import bcrypt from "bcrypt";
 async function previewCSVImport(csvContent) {
   const rows = parse(csvContent, {
@@ -4990,8 +5613,8 @@ async function previewCSVImport(csvContent) {
   const invalidResults = [];
   let newParentCount = 0;
   let existingParentCount = 0;
-  const classes2 = await exportDb.select().from(classes);
-  const validClassCodes = classes2.map((c) => c.name);
+  const classes3 = await db2.select().from(classes);
+  const validClassCodes = classes3.map((c) => c.name);
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const errors = [];
@@ -5014,9 +5637,9 @@ async function previewCSVImport(csvContent) {
     }
     let parentExists = false;
     if (row.parentPhone) {
-      const existingParent = await exportDb.select().from(users).where(and2(
-        eq4(users.phone, row.parentPhone),
-        eq4(users.roleId, 4)
+      const existingParent = await db2.select().from(users).where(and2(
+        eq3(users.phone, row.parentPhone),
+        eq3(users.roleId, 4)
         // Parent role
       )).limit(1);
       parentExists = existingParent.length > 0;
@@ -5045,7 +5668,7 @@ async function previewCSVImport(csvContent) {
     };
     if (errors.length === 0) {
       const year = (/* @__PURE__ */ new Date()).getFullYear();
-      const classInfo = classes2.find((c) => c.name === row.classCode);
+      const classInfo = classes3.find((c) => c.name === row.classCode);
       result.username = `THS-STU-${year}-${classInfo?.id || "X"}-XXX`;
       validResults.push(result);
     } else {
@@ -5068,12 +5691,12 @@ async function commitCSVImport(validRows, adminUserId) {
   const credentials = [];
   const failedRows = [];
   let successCount = 0;
-  const classes2 = await exportDb.select().from(classes);
+  const classes3 = await db2.select().from(classes);
   for (const item of validRows) {
     try {
-      await exportDb.transaction(async (tx) => {
+      await db2.transaction(async (tx) => {
         const year = (/* @__PURE__ */ new Date()).getFullYear();
-        const classInfo = classes2.find((c) => c.name === item.data.classCode);
+        const classInfo = classes3.find((c) => c.name === item.data.classCode);
         if (!classInfo) {
           throw new Error(`Class not found: ${item.data.classCode}`);
         }
@@ -5113,12 +5736,12 @@ async function commitCSVImport(validRows, adminUserId) {
         if (item.data.parentPhone) {
           if (item.parentExists) {
             const [existingParent] = await tx.select().from(users).where(and2(
-              eq4(users.phone, item.data.parentPhone),
-              eq4(users.roleId, 4)
+              eq3(users.phone, item.data.parentPhone),
+              eq3(users.roleId, 4)
             )).limit(1);
             if (existingParent) {
               parentUserId = existingParent.id;
-              await tx.update(students).set({ parentId: parentUserId }).where(eq4(students.id, studentUser.id));
+              await tx.update(students).set({ parentId: parentUserId }).where(eq3(students.id, studentUser.id));
             }
           } else {
             const parentUsername = await generateParentUsername();
@@ -5140,7 +5763,7 @@ async function commitCSVImport(validRows, adminUserId) {
               mustChangePassword: true
             }).returning();
             parentUserId = parentUser.id;
-            await tx.update(students).set({ parentId: parentUserId }).where(eq4(students.id, studentUser.id));
+            await tx.update(students).set({ parentId: parentUserId }).where(eq3(students.id, studentUser.id));
             parentCredentials = {
               username: parentUsername,
               password: parentPassword
@@ -5181,41 +5804,11 @@ var seed_system_settings_exports = {};
 __export(seed_system_settings_exports, {
   seedSystemSettings: () => seedSystemSettings
 });
-import { sql as sql5 } from "drizzle-orm";
 async function seedSystemSettings() {
   try {
-    await exportDb.execute(sql5`
-      CREATE TABLE IF NOT EXISTS system_settings (
-        id BIGSERIAL PRIMARY KEY,
-        school_name VARCHAR(200),
-        school_motto TEXT,
-        school_logo TEXT,
-        school_email VARCHAR(255),
-        school_phone VARCHAR(20),
-        school_address TEXT,
-        maintenance_mode BOOLEAN DEFAULT FALSE,
-        maintenance_mode_message TEXT,
-        enable_sms_notifications BOOLEAN DEFAULT FALSE,
-        enable_email_notifications BOOLEAN DEFAULT TRUE,
-        enable_exams_module BOOLEAN DEFAULT TRUE,
-        enable_attendance_module BOOLEAN DEFAULT TRUE,
-        enable_results_module BOOLEAN DEFAULT TRUE,
-        theme_color VARCHAR(7) DEFAULT '#3B82F6',
-        favicon TEXT,
-        username_student_prefix VARCHAR(20) DEFAULT 'THS-STU-',
-        username_parent_prefix VARCHAR(20) DEFAULT 'THS-PAR-',
-        username_teacher_prefix VARCHAR(20) DEFAULT 'THS-TCH-',
-        username_admin_prefix VARCHAR(20) DEFAULT 'THS-ADM-',
-        temp_password_format VARCHAR(50) DEFAULT 'Welcome{YEAR}!',
-        hide_admin_accounts_from_admins BOOLEAN DEFAULT TRUE,
-        updated_by UUID,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      );
-    `);
-    const existingSettings = await exportDb.select().from(systemSettings).limit(1);
+    const existingSettings = await db2.select().from(systemSettings).limit(1);
     if (existingSettings.length === 0) {
-      await exportDb.insert(systemSettings).values({
+      await db2.insert(systemSettings).values({
         schoolName: "Treasure-Home School",
         schoolMotto: "Honesty and Success",
         schoolEmail: "info@treasurehomeschool.edu.ng",
@@ -5227,22 +5820,22 @@ async function seedSystemSettings() {
         enableExamsModule: true,
         enableAttendanceModule: true,
         enableResultsModule: true,
-        themeColor: "#3B82F6",
-        usernameStudentPrefix: "THS-STU-",
-        usernameParentPrefix: "THS-PAR-",
-        usernameTeacherPrefix: "THS-TCH-",
-        usernameAdminPrefix: "THS-ADM-",
-        tempPasswordFormat: "Welcome{YEAR}!",
+        themeColor: "blue",
+        usernameStudentPrefix: "THS-STU",
+        usernameParentPrefix: "THS-PAR",
+        usernameTeacherPrefix: "THS-TCH",
+        usernameAdminPrefix: "THS-ADM",
+        tempPasswordFormat: "THS@{year}#{random4}",
         hideAdminAccountsFromAdmins: true
       });
+      console.log("\u2705 Default system settings created");
     } else {
+      console.log("\u2139\uFE0F  System settings already exist");
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    if (errorMessage.includes("already exists") || errorMessage.includes("42P07")) {
-    } else {
-      throw error;
-    }
+    console.error(`\u274C System settings seeding error: ${errorMessage}`);
+    throw error;
   }
 }
 var init_seed_system_settings = __esm({
@@ -5253,103 +5846,319 @@ var init_seed_system_settings = __esm({
   }
 });
 
-// server/seed-superadmin.ts
-var seed_superadmin_exports = {};
-__export(seed_superadmin_exports, {
-  seedSuperAdmin: () => seedSuperAdmin
+// server/seed-roles.ts
+var seed_roles_exports = {};
+__export(seed_roles_exports, {
+  seedRoles: () => seedRoles
 });
-import bcrypt3 from "bcrypt";
-import { drizzle as drizzle2 } from "drizzle-orm/postgres-js";
-import postgres2 from "postgres";
-import { eq as eq6 } from "drizzle-orm";
-async function seedSuperAdmin() {
+async function seedRoles() {
   try {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set");
-    }
-    const pg2 = postgres2(process.env.DATABASE_URL, {
-      ssl: process.env.DATABASE_URL?.includes("supabase.com") ? "require" : false,
-      prepare: false
-    });
-    const db2 = drizzle2(pg2, { schema: schema_exports });
     const existingRoles = await db2.select().from(roles);
+    if (existingRoles.length > 0) {
+      console.log(`\u2139\uFE0F  Roles already exist (${existingRoles.length} found)`);
+      return;
+    }
     const requiredRoles = [
-      { id: 0, name: "Super Admin", permissions: ["*"] },
-      { id: 1, name: "Admin", permissions: ["manage_users", "manage_classes", "manage_students", "manage_teachers", "manage_exams", "view_reports", "manage_announcements", "manage_gallery", "manage_content"] },
-      { id: 2, name: "Teacher", permissions: ["view_students", "manage_attendance", "manage_exams", "grade_exams", "view_classes", "manage_resources"] },
-      { id: 3, name: "Student", permissions: ["view_exams", "take_exams", "view_results", "view_resources", "view_announcements"] },
-      { id: 4, name: "Parent", permissions: ["view_students", "view_results", "view_attendance", "view_announcements"] }
+      {
+        id: 1,
+        name: "Super Admin",
+        permissions: JSON.stringify(["*"])
+      },
+      {
+        id: 2,
+        name: "Admin",
+        permissions: JSON.stringify(["manage_users", "manage_classes", "manage_students", "manage_teachers", "manage_exams", "view_reports", "manage_announcements", "manage_gallery", "manage_content"])
+      },
+      {
+        id: 3,
+        name: "Teacher",
+        permissions: JSON.stringify(["view_students", "manage_attendance", "manage_exams", "grade_exams", "view_classes", "manage_resources"])
+      },
+      {
+        id: 4,
+        name: "Student",
+        permissions: JSON.stringify(["view_exams", "take_exams", "view_results", "view_resources", "view_announcements"])
+      },
+      {
+        id: 5,
+        name: "Parent",
+        permissions: JSON.stringify(["view_students", "view_results", "view_attendance", "view_announcements"])
+      }
     ];
-    let superAdminRole;
+    console.log("\u{1F4DA} Creating 5 core roles...");
     for (const roleData of requiredRoles) {
-      const existingRole = existingRoles.find((r) => r.name === roleData.name);
-      if (!existingRole) {
-        const [newRole] = await db2.insert(roles).values(roleData).returning();
-        if (roleData.name === "Super Admin") {
-          superAdminRole = newRole;
-        }
-      } else {
-        if (roleData.name === "Super Admin") {
-          superAdminRole = existingRole;
-        }
-      }
+      await db2.insert(roles).values(roleData);
+      console.log(`  \u2705 Created role: ${roleData.name}`);
     }
-    if (!superAdminRole) {
-      superAdminRole = existingRoles.find((r) => r.name === "Super Admin");
-    }
-    const existingSuperAdmin = await db2.select().from(users).where(eq6(users.username, "superadmin")).limit(1);
-    if (existingSuperAdmin.length === 0) {
-      const passwordHash = await bcrypt3.hash("Temp@123", 12);
-      const [newSuperAdmin] = await db2.insert(users).values({
-        username: "superadmin",
-        email: "superadmin@treasurehome.com",
-        passwordHash,
-        roleId: superAdminRole.id,
-        firstName: "Super",
-        lastName: "Admin",
-        status: "active",
-        isActive: true,
-        mustChangePassword: true,
-        // Force password change on first login
-        profileCompleted: true,
-        createdVia: "admin"
-      }).returning();
-      await db2.insert(superAdminProfiles).values({
-        userId: newSuperAdmin.id,
-        accessLevel: "full",
-        department: "System Administration"
-      });
-    } else {
-    }
-    try {
-      const existingSettings = await db2.select().from(systemSettings).limit(1);
-      if (existingSettings.length === 0) {
-        await db2.insert(systemSettings).values({
-          schoolName: "Treasure-Home School",
-          schoolMotto: "HONESTY AND SUCCESS",
-          enableExamsModule: true,
-          enableAttendanceModule: true,
-          enableResultsModule: true,
-          maintenanceMode: false,
-          themeColor: "blue"
-        });
-      }
-    } catch (settingsError) {
-    }
-    await pg2.end();
+    console.log("\u2705 All 5 roles created successfully!");
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u274C Error seeding roles: ${errorMessage}`);
     throw error;
   }
 }
-var init_seed_superadmin = __esm({
-  "server/seed-superadmin.ts"() {
+var init_seed_roles = __esm({
+  "server/seed-roles.ts"() {
     "use strict";
+    init_storage();
     init_schema();
-    if (import.meta.url === `file://${process.argv[1]}`) {
-      seedSuperAdmin().then(() => process.exit(0)).catch((error) => {
-        process.exit(1);
-      });
+  }
+});
+
+// server/seed-test-users.ts
+var seed_test_users_exports = {};
+__export(seed_test_users_exports, {
+  seedTestUsers: () => seedTestUsers
+});
+import bcrypt3 from "bcrypt";
+import { eq as eq5 } from "drizzle-orm";
+import { randomUUID } from "crypto";
+async function seedTestUsers() {
+  try {
+    const testUsers = [
+      {
+        id: randomUUID(),
+        username: "superadmin",
+        email: "superadmin@treasurehome.com",
+        password: "SuperAdmin@123",
+        roleId: 1,
+        firstName: "Super",
+        lastName: "Admin",
+        roleName: "Super Admin"
+      },
+      {
+        id: randomUUID(),
+        username: "admin",
+        email: "admin@treasurehome.com",
+        password: "Admin@123",
+        roleId: 2,
+        firstName: "Admin",
+        lastName: "User",
+        roleName: "Admin"
+      },
+      {
+        id: randomUUID(),
+        username: "teacher",
+        email: "teacher@treasurehome.com",
+        password: "Teacher@123",
+        roleId: 3,
+        firstName: "John",
+        lastName: "Teacher",
+        roleName: "Teacher"
+      },
+      {
+        id: randomUUID(),
+        username: "student",
+        email: "student@treasurehome.com",
+        password: "Student@123",
+        roleId: 4,
+        firstName: "Jane",
+        lastName: "Student",
+        roleName: "Student"
+      },
+      {
+        id: randomUUID(),
+        username: "parent",
+        email: "parent@treasurehome.com",
+        password: "Parent@123",
+        roleId: 5,
+        firstName: "Peter",
+        lastName: "Parent",
+        roleName: "Parent"
+      }
+    ];
+    const roles3 = await db2.select().from(roles);
+    const roleMap = {};
+    for (const role of roles3) {
+      roleMap[role.name] = role.id;
     }
+    console.log("\u{1F4CB} Creating test user accounts for all 5 roles...");
+    for (const userData of testUsers) {
+      const existingUser = await db2.select().from(users).where(eq5(users.username, userData.username)).limit(1);
+      if (existingUser.length === 0) {
+        const roleId = roleMap[userData.roleName];
+        if (!roleId) {
+          console.warn(`\u26A0\uFE0F Role "${userData.roleName}" not found`);
+          continue;
+        }
+        const passwordHash = await bcrypt3.hash(userData.password, 12);
+        const [newUser] = await db2.insert(users).values({
+          id: userData.id,
+          username: userData.username,
+          email: userData.email,
+          passwordHash,
+          roleId,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          status: "active",
+          isActive: true,
+          mustChangePassword: false,
+          profileCompleted: true,
+          createdVia: "seed"
+        }).returning();
+        console.log(`\u2705 Created ${userData.roleName} account: ${userData.username}`);
+      } else {
+        console.log(`\u2139\uFE0F  ${userData.roleName} account already exists: ${userData.username}`);
+      }
+    }
+    console.log("\n\u{1F4DD} TEST ACCOUNT CREDENTIALS:\n");
+    console.log("\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510");
+    console.log("\u2502         LOGIN CREDENTIALS FOR ALL 5 ROLES           \u2502");
+    console.log("\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
+    for (const user of testUsers) {
+      console.log(`\u2502 Role: ${user.roleName.padEnd(45)}\u2502`);
+      console.log(`\u2502   Username: ${user.username.padEnd(38)}\u2502`);
+      console.log(`\u2502   Password: ${user.password.padEnd(38)}\u2502`);
+      console.log(`\u2502   Email:    ${user.email.padEnd(38)}\u2502`);
+      console.log("\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
+    }
+    console.log("\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u274C Error seeding test users: ${errorMessage}`);
+    throw error;
+  }
+}
+var init_seed_test_users = __esm({
+  "server/seed-test-users.ts"() {
+    "use strict";
+    init_storage();
+    init_schema();
+  }
+});
+
+// server/realtime-service.ts
+var realtime_service_exports = {};
+__export(realtime_service_exports, {
+  realtimeService: () => realtimeService
+});
+import { Server as SocketIOServer } from "socket.io";
+var RealtimeService, realtimeService;
+var init_realtime_service = __esm({
+  "server/realtime-service.ts"() {
+    "use strict";
+    RealtimeService = class {
+      io = null;
+      connectedClients = /* @__PURE__ */ new Map();
+      initialize(httpServer) {
+        const allowedOrigins2 = process.env.NODE_ENV === "development" ? ["http://localhost:5173", "http://localhost:5000", "http://127.0.0.1:5173"] : process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [];
+        this.io = new SocketIOServer(httpServer, {
+          cors: {
+            origin: allowedOrigins2,
+            credentials: true,
+            methods: ["GET", "POST"]
+          },
+          path: "/socket.io/",
+          transports: ["websocket", "polling"]
+        });
+        this.setupEventHandlers();
+        console.log("\u2705 Socket.IO Realtime Service initialized");
+        console.log(`   \u2192 CORS origins: ${allowedOrigins2.join(", ")}`);
+      }
+      setupEventHandlers() {
+        if (!this.io) return;
+        this.io.on("connection", (socket) => {
+          console.log(`\u{1F4E1} Client connected: ${socket.id}`);
+          socket.on("subscribe", (data) => {
+            const { table } = data;
+            const channel = `table:${table}`;
+            socket.join(channel);
+            if (!this.connectedClients.has(table)) {
+              this.connectedClients.set(table, /* @__PURE__ */ new Set());
+            }
+            this.connectedClients.get(table).add(socket.id);
+            console.log(`   \u2192 Client ${socket.id} subscribed to table: ${table}`);
+            socket.emit("subscribed", { table, channel });
+          });
+          socket.on("unsubscribe", (data) => {
+            const { table } = data;
+            const channel = `table:${table}`;
+            socket.leave(channel);
+            if (this.connectedClients.has(table)) {
+              this.connectedClients.get(table).delete(socket.id);
+              if (this.connectedClients.get(table).size === 0) {
+                this.connectedClients.delete(table);
+              }
+            }
+            console.log(`   \u2192 Client ${socket.id} unsubscribed from table: ${table}`);
+            socket.emit("unsubscribed", { table });
+          });
+          socket.on("disconnect", () => {
+            console.log(`\u{1F4E1} Client disconnected: ${socket.id}`);
+            this.connectedClients.forEach((clients, table) => {
+              clients.delete(socket.id);
+              if (clients.size === 0) {
+                this.connectedClients.delete(table);
+              }
+            });
+          });
+          socket.on("ping", () => {
+            socket.emit("pong", { timestamp: Date.now() });
+          });
+        });
+      }
+      /**
+       * Emit a database change event to all subscribed clients
+       */
+      emitTableChange(table, event, data, oldData) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        const channel = `table:${table}`;
+        const payload = {
+          table,
+          event,
+          data,
+          oldData
+        };
+        this.io.to(channel).emit("table_change", payload);
+        const subscriberCount = this.connectedClients.get(table)?.size || 0;
+        if (subscriberCount > 0) {
+          console.log(`\u{1F4E4} Emitted ${event} event for table ${table} to ${subscriberCount} clients`);
+        }
+      }
+      /**
+       * Emit a custom event to all connected clients
+       */
+      emitToAll(event, data) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        this.io.emit(event, data);
+        console.log(`\u{1F4E4} Broadcast event: ${event}`);
+      }
+      /**
+       * Emit to specific room/channel
+       */
+      emitToRoom(room, event, data) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        this.io.to(room).emit(event, data);
+      }
+      /**
+       * Get the Socket.IO instance
+       */
+      getIO() {
+        return this.io;
+      }
+      /**
+       * Get number of clients subscribed to a table
+       */
+      getSubscriberCount(table) {
+        return this.connectedClients.get(table)?.size || 0;
+      }
+      /**
+       * Get all active table subscriptions
+       */
+      getActiveSubscriptions() {
+        return Array.from(this.connectedClients.keys());
+      }
+    };
+    realtimeService = new RealtimeService();
   }
 });
 
@@ -5361,203 +6170,299 @@ import cors from "cors";
 // server/routes.ts
 init_storage();
 init_schema();
-import { createServer } from "http";
-import { z as z2, ZodError } from "zod";
-
-// server/vite.ts
-import express from "express";
-import fs from "fs";
-import path2 from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-var vite_config_default = defineConfig({
-  plugins: [
-    react()
-    // Replit plugins temporarily commented out due to installation issues
-    // ...(process.env.NODE_ENV !== "production"
-    //   ? [
-    //       (await import("@replit/vite-plugin-runtime-error-modal")).default(),
-    //     ]
-    //   : []),
-    // ...(process.env.NODE_ENV !== "production" &&
-    // process.env.REPL_ID !== undefined
-    //   ? [
-    //       await import("@replit/vite-plugin-cartographer").then((m) =>
-    //         m.cartographer(),
-    //       ),
-    //     ]
-    //   : []),
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
-  root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-    chunkSizeWarningLimit: 1e3,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          "query-vendor": ["@tanstack/react-query"],
-          "radix-ui": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-toast",
-            "@radix-ui/react-popover",
-            "@radix-ui/react-scroll-area"
-          ],
-          "radix-ui-forms": [
-            "@radix-ui/react-label",
-            "@radix-ui/react-checkbox",
-            "@radix-ui/react-radio-group",
-            "@radix-ui/react-slider",
-            "@radix-ui/react-switch"
-          ],
-          "radix-ui-misc": [
-            "@radix-ui/react-accordion",
-            "@radix-ui/react-alert-dialog",
-            "@radix-ui/react-avatar",
-            "@radix-ui/react-hover-card",
-            "@radix-ui/react-navigation-menu",
-            "@radix-ui/react-progress",
-            "@radix-ui/react-separator",
-            "@radix-ui/react-tooltip"
-          ],
-          "supabase": ["@supabase/supabase-js"],
-          "form-vendor": ["react-hook-form", "@hookform/resolvers", "zod"],
-          "icons": ["lucide-react", "react-icons"],
-          "animation": ["framer-motion", "canvas-confetti"],
-          "charts": ["recharts"]
-        }
-      }
-    }
-  },
-  server: {
-    host: "0.0.0.0",
-    port: 5e3,
-    allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"]
-    }
-  },
-  define: {
-    // Auto-configure API URL based on environment
-    // Development (Replit/Localhost): Use empty string for same-origin requests
-    // Production (Vercel): Use VITE_API_URL env var (set to Render backend URL)
-    "import.meta.env.VITE_API_URL": JSON.stringify(
-      process.env.VITE_API_URL || ""
-    )
-  }
-});
-
-// server/vite.ts
-import { nanoid } from "nanoid";
-var viteLogger = createLogger();
-function log(message, source = "express") {
-  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  });
-}
-async function setupVite(app2, server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true
-  };
-  const vite = await createViteServer({
-    ...vite_config_default,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      }
-    },
-    server: serverOptions,
-    appType: "custom"
-  });
-  app2.use(vite.middlewares);
-  app2.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-    try {
-      const clientTemplate = path2.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html"
-      );
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
-}
-function serveStatic(app2) {
-  const distPath = path2.resolve(import.meta.dirname, "public");
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
-    );
-  }
-  app2.use(express.static(distPath, {
-    maxAge: "1y",
-    // 1 year for versioned assets (Vite adds hashes to filenames)
-    etag: true,
-    lastModified: true,
-    immutable: true,
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".html")) {
-        res.setHeader("Cache-Control", "no-cache, must-revalidate");
-      } else if (filePath.match(/\.(js|css|woff2?|ttf|eot)$/)) {
-        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      } else if (filePath.match(/\.(jpg|jpeg|png|gif|svg|webp|ico)$/)) {
-        res.setHeader("Cache-Control", "public, max-age=86400");
-      }
-    }
-  }));
-  app2.use("*", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache, must-revalidate");
-    res.sendFile(path2.resolve(distPath, "index.html"));
-  });
-}
-
-// server/routes.ts
+init_schema();
 init_auth_utils();
 init_username_generator();
-init_supabase_storage();
+import { createServer } from "http";
+import { z as z2, ZodError } from "zod";
 import multer from "multer";
-import path3 from "path";
+import path2 from "path";
 import fs2 from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt2 from "bcrypt";
 import passport from "passport";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import { and as and3, eq as eq5, sql as sql4 } from "drizzle-orm";
+import connectSqlite3 from "connect-sqlite3";
+import { and as and3, eq as eq4 } from "drizzle-orm";
+
+// server/cloudinary-service.ts
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs/promises";
+import path from "path";
+var isProduction2 = process.env.NODE_ENV === "production";
+var hasCloudinaryConfig = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+var useCloudinary = isProduction2 && hasCloudinaryConfig;
+if (hasCloudinaryConfig) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
+  });
+  console.log("\u2601\uFE0F Cloudinary configured successfully");
+}
+var folderMap = {
+  "student": "students",
+  "teacher": "teachers",
+  "admin": "admins",
+  "assignment": "assignments",
+  "result": "results",
+  "gallery": "gallery",
+  "homepage": "homepage",
+  "study-resource": "study-resources",
+  "profile": "profiles",
+  "general": "general"
+};
+var imageTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+var documentTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+var allowedTypes = [...imageTypes, ...documentTypes];
+var MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+var MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
+function validateFile(file, options) {
+  if (!file) {
+    return { valid: false, error: "No file provided" };
+  }
+  if (!allowedTypes.includes(file.mimetype)) {
+    return { valid: false, error: `File type ${file.mimetype} is not allowed. Allowed types: images (jpeg, png, gif, webp) and documents (pdf, doc, docx)` };
+  }
+  const isImage = imageTypes.includes(file.mimetype);
+  const maxSize = options.maxSizeMB ? options.maxSizeMB * 1024 * 1024 : isImage ? MAX_IMAGE_SIZE : MAX_DOCUMENT_SIZE;
+  if (file.size > maxSize) {
+    const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+    return { valid: false, error: `File size exceeds maximum allowed size of ${maxSizeMB}MB` };
+  }
+  return { valid: true };
+}
+function generatePublicId(uploadType, userId, originalName) {
+  const folder = folderMap[uploadType];
+  const timestamp2 = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const baseName = originalName ? path.basename(originalName, path.extname(originalName)).replace(/[^a-zA-Z0-9-_]/g, "_") : "file";
+  if (userId) {
+    return `${folder}/${userId}/${baseName}_${timestamp2}_${randomSuffix}`;
+  }
+  return `${folder}/${baseName}_${timestamp2}_${randomSuffix}`;
+}
+async function uploadToCloudinary(file, options) {
+  const publicId = generatePublicId(options.uploadType, options.userId, file.originalname);
+  const isImage = imageTypes.includes(file.mimetype);
+  const resourceType = options.resourceType || (isImage ? "image" : "raw");
+  try {
+    const uploadOptions = {
+      public_id: publicId,
+      resource_type: resourceType,
+      folder: "",
+      // Folder is included in public_id
+      overwrite: true,
+      invalidate: true
+    };
+    if (isImage) {
+      uploadOptions.transformation = [
+        { quality: "auto:best" },
+        { fetch_format: "auto" }
+      ];
+    }
+    let result;
+    if (file.buffer) {
+      result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          uploadOptions,
+          (error, result2) => {
+            if (error) reject(error);
+            else if (result2) resolve(result2);
+            else reject(new Error("No result from Cloudinary"));
+          }
+        );
+        uploadStream.end(file.buffer);
+      });
+    } else if (file.path) {
+      result = await cloudinary.uploader.upload(file.path, uploadOptions);
+    } else {
+      return { success: false, error: "No file data available for upload" };
+    }
+    return {
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+      isCloudinary: true
+    };
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to upload to Cloudinary"
+    };
+  }
+}
+async function uploadToLocal(file, options) {
+  try {
+    const folder = folderMap[options.uploadType] || "general";
+    const uploadDir2 = path.join("server/uploads", folder);
+    await fs.mkdir(uploadDir2, { recursive: true });
+    const timestamp2 = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, "_");
+    const filename = `${baseName}_${timestamp2}_${randomSuffix}${ext}`;
+    let filePath;
+    if (options.userId) {
+      const userDir = path.join(uploadDir2, options.userId);
+      await fs.mkdir(userDir, { recursive: true });
+      filePath = path.join(userDir, filename);
+    } else {
+      filePath = path.join(uploadDir2, filename);
+    }
+    if (file.buffer) {
+      await fs.writeFile(filePath, file.buffer);
+    } else if (file.path) {
+      await fs.copyFile(file.path, filePath);
+    } else {
+      return { success: false, error: "No file data available for upload" };
+    }
+    const localUrl = `/${filePath.replace(/\\/g, "/")}`;
+    return {
+      success: true,
+      url: localUrl,
+      isCloudinary: false
+    };
+  } catch (error) {
+    console.error("Local upload error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to upload file locally"
+    };
+  }
+}
+async function uploadFile(file, options) {
+  const validation = validateFile(file, options);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (useCloudinary) {
+    return uploadToCloudinary(file, options);
+  } else {
+    return uploadToLocal(file, options);
+  }
+}
+async function deleteFile(publicIdOrUrl) {
+  if (!useCloudinary) {
+    try {
+      const localPath = publicIdOrUrl.startsWith("/") ? publicIdOrUrl.substring(1) : publicIdOrUrl;
+      await fs.unlink(localPath);
+      return true;
+    } catch (error) {
+      console.error("Local file deletion error:", error);
+      return false;
+    }
+  }
+  try {
+    let publicId = publicIdOrUrl;
+    if (publicIdOrUrl.includes("cloudinary.com")) {
+      const match = publicIdOrUrl.match(/\/v\d+\/(.+?)(?:\.[^.]+)?$/);
+      if (match) {
+        publicId = match[1];
+      }
+    }
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result.result === "ok";
+  } catch (error) {
+    console.error("Cloudinary deletion error:", error);
+    return false;
+  }
+}
+async function replaceFile(file, oldPublicIdOrUrl, options) {
+  const uploadResult = await uploadFile(file, options);
+  if (!uploadResult.success) {
+    return uploadResult;
+  }
+  if (oldPublicIdOrUrl) {
+    await deleteFile(oldPublicIdOrUrl);
+  }
+  return uploadResult;
+}
+
+// server/upload-service.ts
+var uploadTypeMap = {
+  "profile": "profile",
+  "homepage": "homepage",
+  "gallery": "gallery",
+  "study-resource": "study-resource",
+  "general": "general",
+  "student": "student",
+  "teacher": "teacher",
+  "admin": "admin",
+  "assignment": "assignment",
+  "result": "result"
+};
+async function uploadFileToStorage(file, options) {
+  try {
+    const cloudinaryType = uploadTypeMap[options.uploadType] || "general";
+    const result = await uploadFile(file, {
+      uploadType: cloudinaryType,
+      userId: options.userId,
+      category: options.category,
+      maxSizeMB: options.maxSizeMB || 5
+    });
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || "Upload failed"
+      };
+    }
+    return {
+      success: true,
+      url: result.url,
+      isCloudinary: result.isCloudinary
+    };
+  } catch (error) {
+    console.error("Upload service error:", error);
+    return {
+      success: false,
+      error: error.message || "Upload failed"
+    };
+  }
+}
+async function replaceFile2(file, oldUrl, options) {
+  try {
+    const cloudinaryType = uploadTypeMap[options.uploadType] || "general";
+    const result = await replaceFile(file, oldUrl, {
+      uploadType: cloudinaryType,
+      userId: options.userId,
+      category: options.category,
+      maxSizeMB: options.maxSizeMB || 5
+    });
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || "File replacement failed"
+      };
+    }
+    return {
+      success: true,
+      url: result.url,
+      isCloudinary: result.isCloudinary
+    };
+  } catch (error) {
+    console.error("File replacement error:", error);
+    return {
+      success: false,
+      error: error.message || "File replacement failed"
+    };
+  }
+}
+async function deleteFileFromStorage(url) {
+  if (!url) {
+    return true;
+  }
+  try {
+    return await deleteFile(url);
+  } catch (error) {
+    console.error("File deletion error:", error);
+    return false;
+  }
+}
+
+// server/routes.ts
 var loginSchema = z2.object({
   identifier: z2.string().min(1),
   // Can be username or email
@@ -5681,11 +6586,11 @@ var authorizeRoles = (...allowedRoles) => {
     }
   };
 };
-var uploadDir = "uploads";
-var galleryDir = "uploads/gallery";
-var profileDir = "uploads/profiles";
-var studyResourcesDir = "uploads/study-resources";
-var homepageDir = "uploads/homepage";
+var uploadDir = "server/uploads";
+var galleryDir = "server/uploads/gallery";
+var profileDir = "server/uploads/profiles";
+var studyResourcesDir = "server/uploads/study-resources";
+var homepageDir = "server/uploads/homepage";
 fs2.mkdir(uploadDir, { recursive: true }).catch(() => {
 });
 fs2.mkdir(galleryDir, { recursive: true }).catch(() => {
@@ -5696,7 +6601,7 @@ fs2.mkdir(studyResourcesDir, { recursive: true }).catch(() => {
 });
 fs2.mkdir(homepageDir, { recursive: true }).catch(() => {
 });
-var storage_multer = isSupabaseStorageEnabled() ? multer.memoryStorage() : multer.diskStorage({
+var storage_multer = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadType = req.body.uploadType || "general";
     let dir = uploadDir;
@@ -5713,8 +6618,8 @@ var storage_multer = isSupabaseStorageEnabled() ? multer.memoryStorage() : multe
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path3.extname(file.originalname);
-    const name = path3.basename(file.originalname, ext);
+    const ext = path2.extname(file.originalname);
+    const name = path2.basename(file.originalname, ext);
     cb(null, `${name}-${uniqueSuffix}${ext}`);
   }
 });
@@ -5725,9 +6630,9 @@ var upload = multer({
     // 5MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path3.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const allowedTypes2 = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes2.test(path2.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes2.test(file.mimetype);
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -5742,8 +6647,8 @@ var uploadDocument = multer({
     // 10MB limit for documents
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|txt|rtf|odt|ppt|pptx|xls|xlsx/;
-    const extname = allowedTypes.test(path3.extname(file.originalname).toLowerCase());
+    const allowedTypes2 = /pdf|doc|docx|txt|rtf|odt|ppt|pptx|xls|xlsx/;
+    const extname = allowedTypes2.test(path2.extname(file.originalname).toLowerCase());
     const mimetype = /application\/(pdf|msword|vnd\.openxmlformats-officedocument|vnd\.oasis\.opendocument|text\/plain|vnd\.ms-powerpoint|vnd\.ms-excel)/.test(file.mimetype);
     if (mimetype && extname) {
       return cb(null, true);
@@ -5752,7 +6657,7 @@ var uploadDocument = multer({
     }
   }
 });
-var csvDir = "uploads/csv";
+var csvDir = "server/uploads/csv";
 fs2.mkdir(csvDir, { recursive: true }).catch(() => {
 });
 var uploadCSV = multer({
@@ -5770,7 +6675,7 @@ var uploadCSV = multer({
     // 2MB limit for CSV
   },
   fileFilter: (req, file, cb) => {
-    const isCSV = /csv|txt/.test(path3.extname(file.originalname).toLowerCase());
+    const isCSV = /csv|txt/.test(path2.extname(file.originalname).toLowerCase());
     const mimeOk = /text\/(csv|plain)|application\/(vnd\.ms-excel|csv)/.test(file.mimetype);
     if (isCSV || mimeOk) {
       return cb(null, true);
@@ -5895,15 +6800,15 @@ async function autoScoreExamSession(sessionId, storage2) {
     const { session: session2, summary, scoringData } = scoringResult;
     const databaseQueryTime = Date.now() - startTime;
     const { totalQuestions, maxScore: maxPossibleScore, studentScore, autoScoredQuestions } = summary;
-    const studentAnswers2 = await storage2.getStudentAnswers(sessionId);
-    const examQuestions2 = await storage2.getExamQuestions(session2.examId);
+    const studentAnswers3 = await storage2.getStudentAnswers(sessionId);
+    const examQuestions3 = await storage2.getExamQuestions(session2.examId);
     let totalAutoScore = studentScore;
     const hasMultipleChoiceQuestions = autoScoredQuestions > 0;
     const hasEssayQuestions = totalQuestions > autoScoredQuestions;
     const questionDetails = [];
     for (const q of scoringData) {
-      const question = examQuestions2.find((examQ) => examQ.id === q.questionId);
-      const studentAnswer = studentAnswers2.find((ans) => ans.questionId === q.questionId);
+      const question = examQuestions3.find((examQ) => examQ.id === q.questionId);
+      const studentAnswer = studentAnswers3.find((ans) => ans.questionId === q.questionId);
       let questionDetail = {
         questionId: q.questionId,
         questionType: q.questionType,
@@ -5947,7 +6852,7 @@ async function autoScoreExamSession(sessionId, storage2) {
     }
     for (const detail of questionDetails) {
       if (detail.questionId) {
-        const studentAnswer = studentAnswers2.find((ans) => ans.questionId === detail.questionId);
+        const studentAnswer = studentAnswers3.find((ans) => ans.questionId === detail.questionId);
         if (studentAnswer) {
           try {
             await storage2.updateStudentAnswer(studentAnswer.id, {
@@ -5973,7 +6878,7 @@ async function autoScoreExamSession(sessionId, storage2) {
       earnedScore: totalAutoScore
     };
     if (process.env.NODE_ENV === "development") {
-      questionDetails.forEach((q, index2) => {
+      questionDetails.forEach((q, index3) => {
       });
     }
     if (!session2.studentId) {
@@ -6106,12 +7011,12 @@ async function mergeExamScores(answerId, storage2) {
     const sessionId = answer.sessionId;
     const allAnswers = await storage2.getStudentAnswers(sessionId);
     const session2 = await storage2.getExamSessionById(sessionId);
-    const examQuestions2 = await storage2.getExamQuestions(session2.examId);
-    const essayQuestions = examQuestions2.filter(
+    const examQuestions3 = await storage2.getExamQuestions(session2.examId);
+    const essayQuestions = examQuestions3.filter(
       (q) => q.questionType === "text" || q.questionType === "essay"
     );
     const gradedEssayAnswers = allAnswers.filter((a) => {
-      const question = examQuestions2.find((q) => q.id === a.questionId);
+      const question = examQuestions3.find((q) => q.id === a.questionId);
       const isEssay = question?.questionType === "text" || question?.questionType === "essay";
       return isEssay && a.pointsEarned !== null && a.pointsEarned !== void 0;
     });
@@ -6121,7 +7026,7 @@ async function mergeExamScores(answerId, storage2) {
     }
     let totalScore = 0;
     let maxScore = 0;
-    for (const question of examQuestions2) {
+    for (const question of examQuestions3) {
       maxScore += question.points || 0;
       const studentAnswer = allAnswers.find((a) => a.questionId === question.id);
       if (studentAnswer) {
@@ -6165,8 +7070,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/exams", authenticateUser, async (req, res) => {
     try {
-      const exams2 = await storage.getAllExams();
-      res.json(exams2);
+      const exams3 = await storage.getAllExams();
+      res.json(exams3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch exams" });
     }
@@ -6270,10 +7175,10 @@ async function registerRoutes(app2) {
       await autoScoreExamSession(activeSession.id, storage);
       const scoringTime = Date.now() - scoringStartTime;
       const updatedSession = await storage.getExamSessionById(activeSession.id);
-      const studentAnswers2 = await storage.getStudentAnswers(activeSession.id);
-      const examQuestions2 = await storage.getExamQuestions(examId);
-      const questionDetails = examQuestions2.map((q) => {
-        const answer = studentAnswers2.find((a) => a.questionId === q.id);
+      const studentAnswers3 = await storage.getStudentAnswers(activeSession.id);
+      const examQuestions3 = await storage.getExamQuestions(examId);
+      const questionDetails = examQuestions3.map((q) => {
+        const answer = studentAnswers3.find((a) => a.questionId === q.id);
         return {
           questionId: q.id,
           questionText: q.questionText,
@@ -6297,10 +7202,10 @@ async function registerRoutes(app2) {
           submittedAt: now.toISOString(),
           questionDetails,
           breakdown: {
-            totalQuestions: examQuestions2.length,
-            answered: studentAnswers2.filter((a) => a.textAnswer || a.selectedOptionId).length,
-            correct: studentAnswers2.filter((a) => a.isCorrect).length,
-            autoScored: studentAnswers2.filter((a) => a.isCorrect !== null).length
+            totalQuestions: examQuestions3.length,
+            answered: studentAnswers3.filter((a) => a.textAnswer || a.selectedOptionId).length,
+            correct: studentAnswers3.filter((a) => a.isCorrect).length,
+            autoScored: studentAnswers3.filter((a) => a.isCorrect !== null).length
           }
         },
         performance: {
@@ -6399,13 +7304,13 @@ async function registerRoutes(app2) {
       if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return res.status(400).json({ message: "Questions array is required and must not be empty" });
       }
-      const questionsData = questions.map((q, index2) => ({
+      const questionsData = questions.map((q, index3) => ({
         question: {
           examId,
           questionText: q.questionText,
           questionType: q.questionType,
           points: q.points || 1,
-          orderNumber: index2 + 1,
+          orderNumber: index3 + 1,
           instructions: q.instructions,
           sampleAnswer: q.sampleAnswer,
           expectedAnswers: q.expectedAnswers
@@ -6615,7 +7520,7 @@ async function registerRoutes(app2) {
         qualification,
         specialization,
         yearsOfExperience,
-        subjects: subjects2,
+        subjects: subjects3,
         assignedClasses,
         department,
         gradingMode,
@@ -6623,10 +7528,31 @@ async function registerRoutes(app2) {
         availability,
         agreement
       } = req.body;
-      const parsedSubjects = typeof subjects2 === "string" ? JSON.parse(subjects2) : subjects2;
+      const parsedSubjects = typeof subjects3 === "string" ? JSON.parse(subjects3) : subjects3;
       const parsedClasses = typeof assignedClasses === "string" ? JSON.parse(assignedClasses) : assignedClasses;
-      const profilePhotoPath = files["profileImage"]?.[0]?.path;
-      const signaturePath = files["signature"]?.[0]?.path;
+      let profileImageUrl = null;
+      let signatureUrl = null;
+      if (files["profileImage"]?.[0]) {
+        const profileResult = await uploadFileToStorage(files["profileImage"][0], {
+          uploadType: "profile",
+          userId: teacherId,
+          maxSizeMB: 5
+        });
+        if (profileResult.success) {
+          profileImageUrl = profileResult.url;
+        }
+      }
+      if (files["signature"]?.[0]) {
+        const signatureResult = await uploadFileToStorage(files["signature"][0], {
+          uploadType: "profile",
+          userId: teacherId,
+          category: "signature",
+          maxSizeMB: 2
+        });
+        if (signatureResult.success) {
+          signatureUrl = signatureResult.url;
+        }
+      }
       const normalizedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : null;
       const existingTeacherProfile = await storage.getTeacherProfile(teacherId);
       if (existingTeacherProfile) {
@@ -6684,7 +7610,7 @@ async function registerRoutes(app2) {
         yearsOfExperience: parseInt(yearsOfExperience) || 0,
         specialization,
         department,
-        signatureUrl: signaturePath ? `/${signaturePath}` : null,
+        signatureUrl,
         gradingMode,
         notificationPreference,
         availability: availability || null,
@@ -6697,7 +7623,7 @@ async function registerRoutes(app2) {
         phone: phoneNumber,
         gender: normalizedGender,
         dateOfBirth,
-        profileImageUrl: profilePhotoPath ? `/${profilePhotoPath}` : null
+        profileImageUrl
       };
       if (nationalId && nationalId.trim() !== "" && nationalId !== "undefined") {
         userUpdateData.nationalId = nationalId.trim();
@@ -6753,18 +7679,18 @@ async function registerRoutes(app2) {
           let subjectNames = [];
           let classNames = [];
           try {
-            const subjects3 = await storage.getSubjects();
+            const subjects4 = await storage.getSubjects();
             subjectNames = parsedSubjects.map((subjectId) => {
-              const subject = subjects3.find((s) => s.id === subjectId);
+              const subject = subjects4.find((s) => s.id === subjectId);
               return subject?.name || `Subject #${subjectId}`;
             });
           } catch (error) {
             subjectNames = parsedSubjects.map((id) => `Subject #${id}`);
           }
           try {
-            const classes2 = await storage.getClasses();
+            const classes3 = await storage.getAllClasses(true);
             classNames = parsedClasses.map((classId) => {
-              const cls = classes2.find((c) => c.id === classId);
+              const cls = classes3.find((c) => c.id === classId);
               return cls?.name || `Class #${classId}`;
             });
           } catch (error) {
@@ -6967,12 +7893,35 @@ async function registerRoutes(app2) {
       let profileImageUrl = updateData.profileImageUrl;
       let signatureUrl = updateData.signatureUrl;
       if (files["profileImage"]?.[0]) {
-        profileImageUrl = `/${files["profileImage"][0].path.replace(/\\/g, "/")}`;
+        const profileResult = await replaceFile2(
+          files["profileImage"][0],
+          profileImageUrl || void 0,
+          {
+            uploadType: "profile",
+            userId: teacherId,
+            maxSizeMB: 5
+          }
+        );
+        if (profileResult.success) {
+          profileImageUrl = profileResult.url;
+        }
       }
       if (files["signature"]?.[0]) {
-        signatureUrl = `/${files["signature"][0].path.replace(/\\/g, "/")}`;
+        const signatureResult = await replaceFile2(
+          files["signature"][0],
+          signatureUrl || void 0,
+          {
+            uploadType: "profile",
+            userId: teacherId,
+            category: "signature",
+            maxSizeMB: 2
+          }
+        );
+        if (signatureResult.success) {
+          signatureUrl = signatureResult.url;
+        }
       }
-      const subjects2 = typeof updateData.subjects === "string" ? JSON.parse(updateData.subjects) : updateData.subjects;
+      const subjects3 = typeof updateData.subjects === "string" ? JSON.parse(updateData.subjects) : updateData.subjects;
       const assignedClasses = typeof updateData.assignedClasses === "string" ? JSON.parse(updateData.assignedClasses) : updateData.assignedClasses;
       const userUpdateData = {
         firstName: updateData.firstName,
@@ -6996,7 +7945,7 @@ async function registerRoutes(app2) {
         gradingMode: updateData.gradingMode || "manual",
         notificationPreference: updateData.notificationPreference || "all",
         availability: updateData.availability || "full-time",
-        subjects: subjects2 || [],
+        subjects: subjects3 || [],
         assignedClasses: assignedClasses || [],
         updatedAt: /* @__PURE__ */ new Date()
       };
@@ -7086,30 +8035,34 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to review AI-suggested score" });
     }
   });
-  const isProduction2 = process.env.NODE_ENV === "production";
+  const isProduction4 = process.env.NODE_ENV === "production";
   const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "development" ? "dev-session-secret-change-in-production" : process.env.JWT_SECRET || SECRET_KEY);
   if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+    console.warn("\u26A0\uFE0F  SESSION_SECRET not set in production - using JWT_SECRET as fallback");
   }
-  const PgStore = connectPgSimple(session);
-  const sessionStore = new PgStore({
-    conString: process.env.DATABASE_URL,
-    tableName: "session",
-    createTableIfMissing: true
+  const SQLiteStore = connectSqlite3(session);
+  const sessionStore = new SQLiteStore({
+    db: "sessions.db",
+    // Store sessions in a separate SQLite database
+    dir: "./server/data",
+    // Store in server/data directory
+    table: "sessions"
+    // Table name for sessions
   });
   app2.use(session({
     store: sessionStore,
-    // Use PostgreSQL instead of MemoryStore
+    // Use SQLite session store
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     name: "sessionId",
     // Custom cookie name
     cookie: {
-      secure: isProduction2,
+      secure: isProduction4,
       // HTTPS only in production
       httpOnly: true,
       // Prevent JavaScript access (XSS protection)
-      sameSite: isProduction2 ? "none" : "lax",
+      sameSite: isProduction4 ? "none" : "lax",
       // 'none' required for cross-domain in production
       maxAge: 24 * 60 * 60 * 1e3,
       // 24 hours
@@ -7120,7 +8073,6 @@ async function registerRoutes(app2) {
   }));
   app2.use(passport.initialize());
   app2.use(passport.session());
-  await initializeStorageBuckets();
   app2.get("/api/auth/me", authenticateUser, async (req, res) => {
     try {
       const user = req.user;
@@ -7156,8 +8108,8 @@ async function registerRoutes(app2) {
       if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const notifications2 = await storage.getNotificationsByUserId(user.id);
-      res.json(notifications2);
+      const notifications3 = await storage.getNotificationsByUserId(user.id);
+      res.json(notifications3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch notifications" });
     }
@@ -7181,8 +8133,8 @@ async function registerRoutes(app2) {
       if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const notifications2 = await storage.getNotificationsByUserId(user.id);
-      const notification = notifications2.find((n) => n.id === notificationId);
+      const notifications3 = await storage.getNotificationsByUserId(user.id);
+      const notification = notifications3.find((n) => n.id === notificationId);
       if (!notification) {
         return res.status(404).json({ message: "Notification not found" });
       }
@@ -7206,16 +8158,16 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/classes", authenticateUser, async (req, res) => {
     try {
-      const classes2 = await storage.getClasses();
-      res.json(classes2);
+      const classes3 = await storage.getAllClasses(true);
+      res.json(classes3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch classes" });
     }
   });
   app2.get("/api/subjects", async (req, res) => {
     try {
-      const subjects2 = await storage.getSubjects();
-      res.json(subjects2);
+      const subjects3 = await storage.getSubjects();
+      res.json(subjects3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch subjects" });
     }
@@ -7391,25 +8343,17 @@ async function registerRoutes(app2) {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      let fileUrl;
-      if (isSupabaseStorageEnabled()) {
-        const fileName = `${Date.now()}-${req.file.originalname}`;
-        const uploadResult = await uploadFileToSupabase(
-          STORAGE_BUCKETS.PROFILES,
-          fileName,
-          req.file.buffer,
-          req.file.mimetype
-        );
-        if (!uploadResult) {
-          return res.status(500).json({ message: "Failed to upload file to cloud storage" });
-        }
-        fileUrl = uploadResult.publicUrl;
-      } else {
-        fileUrl = `/${req.file.path.replace(/\\/g, "/")}`;
+      const result = await uploadFileToStorage(req.file, {
+        uploadType: "profile",
+        userId: req.user.id,
+        maxSizeMB: 5
+      });
+      if (!result.success) {
+        return res.status(500).json({ message: result.error || "Failed to upload file to cloud storage" });
       }
-      res.json({ url: fileUrl });
+      res.json({ url: result.url });
     } catch (error) {
-      res.status(500).json({ message: "Failed to upload file" });
+      res.status(500).json({ message: error.message || "Failed to upload file" });
     }
   });
   app2.post("/api/upload/homepage", authenticateUser, authorizeRoles(ROLES.ADMIN), upload.single("homePageImage"), async (req, res) => {
@@ -7420,42 +8364,20 @@ async function registerRoutes(app2) {
       if (!req.body.contentType) {
         return res.status(400).json({ message: "Content type is required" });
       }
-      let imageUrl;
-      let storedFilePath;
-      if (isSupabaseStorageEnabled()) {
-        const timestamp2 = Date.now();
-        const filename = `${req.body.contentType}-${timestamp2}${path3.extname(req.file.originalname)}`;
-        const filePath = `homepage/${filename}`;
-        try {
-          const uploadResult = await uploadFileToSupabase(
-            STORAGE_BUCKETS.HOMEPAGE,
-            filePath,
-            req.file.buffer,
-            req.file.mimetype
-          );
-          if (!uploadResult) {
-            throw new Error("Upload returned null - check Supabase configuration");
-          }
-          imageUrl = uploadResult.publicUrl;
-          storedFilePath = uploadResult.path;
-        } catch (uploadError) {
-          if (uploadError.message?.includes("new row violates row-level security policy")) {
-            throw new Error("Storage permission denied. RLS policies are not configured correctly in Supabase. Please contact your administrator.");
-          } else if (uploadError.message?.includes("Bucket not found")) {
-            throw new Error(`Storage bucket "${STORAGE_BUCKETS.HOMEPAGE}" not found in Supabase. Please verify bucket exists.`);
-          } else if (uploadError.message?.includes("Invalid JWT")) {
-            throw new Error("Storage authentication failed. SUPABASE_SERVICE_KEY may be invalid or expired.");
-          } else {
-            throw new Error(`Storage upload failed: ${uploadError.message}`);
-          }
-        }
-      } else {
-        imageUrl = `/uploads/homepage/${req.file.filename}`;
-        storedFilePath = req.file.filename;
+      const category = req.body.contentType || "general";
+      const result = await uploadFileToStorage(req.file, {
+        uploadType: "homepage",
+        category,
+        maxSizeMB: 5
+      });
+      if (!result.success) {
+        return res.status(500).json({
+          message: result.error || "Failed to upload homepage image"
+        });
       }
       const content = await storage.createHomePageContent({
         contentType: req.body.contentType,
-        imageUrl,
+        imageUrl: result.url,
         altText: req.body.altText || "",
         caption: req.body.caption || null,
         displayOrder: parseInt(req.body.displayOrder) || 0,
@@ -7507,11 +8429,8 @@ async function registerRoutes(app2) {
       if (!content) {
         return res.status(404).json({ message: "Homepage content not found" });
       }
-      if (isSupabaseStorageEnabled() && content.imageUrl) {
-        const filePath = extractFilePathFromUrl(content.imageUrl);
-        if (filePath) {
-          await deleteFileFromSupabase(STORAGE_BUCKETS.HOMEPAGE, filePath);
-        }
+      if (content.imageUrl) {
+        await deleteFileFromStorage(content.imageUrl);
       }
       const deleted = await storage.deleteHomePageContent(id);
       if (!deleted) {
@@ -7542,16 +8461,16 @@ async function registerRoutes(app2) {
   app2.get("/api/announcements", async (req, res) => {
     try {
       const { targetRole } = req.query;
-      const announcements2 = await storage.getAnnouncements(targetRole);
-      res.json(announcements2);
+      const announcements3 = await storage.getAnnouncements(targetRole);
+      res.json(announcements3);
     } catch (error) {
       res.status(500).json({ message: "Failed to get announcements" });
     }
   });
   app2.get("/uploads/homepage/:filename", (req, res) => {
     const { filename } = req.params;
-    const filePath = path3.resolve("uploads", "homepage", filename);
-    if (!filePath.startsWith(path3.resolve("uploads", "homepage"))) {
+    const filePath = path2.resolve("uploads", "homepage", filename);
+    if (!filePath.startsWith(path2.resolve("uploads", "homepage"))) {
       return res.status(403).json({ message: "Access denied" });
     }
     res.sendFile(filePath, (err) => {
@@ -7562,8 +8481,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/uploads/:filename", authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), (req, res) => {
     const { filename } = req.params;
-    const filePath = path3.resolve("uploads", filename);
-    if (!filePath.startsWith(path3.resolve("uploads"))) {
+    const filePath = path2.resolve("uploads", filename);
+    if (!filePath.startsWith(path2.resolve("uploads"))) {
       return res.status(403).json({ message: "Access denied" });
     }
     res.sendFile(filePath, (err) => {
@@ -7880,7 +8799,7 @@ async function registerRoutes(app2) {
       const { identifier } = z2.object({ identifier: z2.string().min(1) }).parse(req.body);
       const recentAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
       if (recentAttempts.length >= 3) {
-        log(`\u{1F6A8} Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
+        console.log(`\u{1F6A8} Rate limit exceeded for password reset: ${identifier} from IP ${ipAddress}`);
         await storage.createPasswordResetAttempt(identifier, ipAddress, false);
         const suspiciousAttempts = await storage.getRecentPasswordResetAttempts(identifier, 60);
         if (suspiciousAttempts.length >= 5) {
@@ -7888,7 +8807,7 @@ async function registerRoutes(app2) {
           if (user2) {
             const lockUntil = new Date(Date.now() + 30 * 60 * 1e3);
             await storage.lockAccount(user2.id, lockUntil);
-            log(`\u{1F512} Account temporarily locked due to suspicious password reset activity: ${user2.id}`);
+            console.log(`\u{1F512} Account temporarily locked due to suspicious password reset activity: ${user2.id}`);
             await storage.createAuditLog({
               userId: user2.id,
               action: "account_locked_suspicious_activity",
@@ -7945,14 +8864,14 @@ async function registerRoutes(app2) {
         html: getPasswordResetEmailHTML2(`${user.firstName} ${user.lastName}`, resetLink)
       });
       if (!emailSent && process.env.NODE_ENV === "production") {
-        log(`\u274C Failed to send password reset email to ${recoveryEmail}`);
+        console.log(`\u274C Failed to send password reset email to ${recoveryEmail}`);
         return res.status(500).json({
           message: "Failed to send password reset email. Please try again later or contact administrator."
         });
       }
       if (process.env.NODE_ENV === "development" && !process.env.RESEND_API_KEY) {
-        log(`\u{1F4E7} DEV MODE - Password Reset Token: ${resetToken}`);
-        log(`\u{1F4E7} DEV MODE - Reset Link: ${resetLink}`);
+        console.log(`\u{1F4E7} DEV MODE - Password Reset Token: ${resetToken}`);
+        console.log(`\u{1F4E7} DEV MODE - Reset Link: ${resetLink}`);
         return res.json({
           message: "Password reset code generated (Development Mode).",
           developmentMode: true,
@@ -7964,7 +8883,7 @@ async function registerRoutes(app2) {
           instructions: "Use the resetToken as your reset code, or click the resetLink"
         });
       }
-      log(`\u2705 Password reset email sent to ${recoveryEmail} for user ${user.id}`);
+      console.log(`\u2705 Password reset email sent to ${recoveryEmail} for user ${user.id}`);
       res.json({
         message: "If an account exists with that email/username, a password reset link will be sent."
       });
@@ -8017,7 +8936,7 @@ async function registerRoutes(app2) {
         subject: "THS Portal - Password Changed",
         html: getPasswordChangedEmailHTML2(`${user.firstName} ${user.lastName}`, ipAddress)
       });
-      log(`\u2705 Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
+      console.log(`\u2705 Password reset successfully for user ${resetToken.userId} from IP ${ipAddress}`);
       res.json({ message: "Password reset successfully" });
     } catch (error) {
       if (error instanceof z2.ZodError) {
@@ -8067,7 +8986,7 @@ Treasure-Home School Administration
 `;
       if (process.env.NODE_ENV === "development") {
       }
-      log(`\u2705 Admin ${req.user?.email} reset password for user ${userId}`);
+      console.log(`\u2705 Admin ${req.user?.email} reset password for user ${userId}`);
       res.json({
         message: "Password reset successfully",
         tempPassword: password,
@@ -8175,7 +9094,7 @@ Treasure-Home School Administration
         ipAddress: req.ip || req.connection.remoteAddress || "unknown",
         userAgent: req.headers["user-agent"] || null
       });
-      log(`\u2705 Admin ${req.user?.email} unlocked account for user ${userId}`);
+      console.log(`\u2705 Admin ${req.user?.email} unlocked account for user ${userId}`);
       res.json({
         message: "Account unlocked successfully",
         username: user.username || user.email
@@ -8288,16 +9207,16 @@ Treasure-Home School Administration
   });
   app2.get("/api/invites", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const invites2 = await storage.getAllInvites();
-      res.json(invites2);
+      const invites3 = await storage.getAllInvites();
+      res.json(invites3);
     } catch (error) {
       res.status(500).json({ message: "Failed to list invites" });
     }
   });
   app2.get("/api/invites/pending", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const invites2 = await storage.getPendingInvites();
-      res.json(invites2);
+      const invites3 = await storage.getPendingInvites();
+      res.json(invites3);
     } catch (error) {
       res.status(500).json({ message: "Failed to list pending invites" });
     }
@@ -8397,7 +9316,7 @@ Treasure-Home School Administration
   });
   app2.get("/api/health", async (_req, res) => {
     try {
-      await exportDb.execute(sql4`SELECT 1`);
+      await db2.select().from(roles).limit(1);
       res.json({
         status: "healthy",
         database: "connected",
@@ -8483,33 +9402,33 @@ Treasure-Home School Administration
       if (!currentUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      let users2 = [];
+      let users3 = [];
       if (role && typeof role === "string") {
         const userRole = await storage.getRoleByName(role);
         if (userRole) {
-          users2 = await storage.getUsersByRole(userRole.id);
+          users3 = await storage.getUsersByRole(userRole.id);
         } else {
-          users2 = [];
+          users3 = [];
         }
       } else {
         const allRoles2 = await storage.getRoles();
         const userPromises = allRoles2.map((userRole) => storage.getUsersByRole(userRole.id));
         const userArrays = await Promise.all(userPromises);
-        users2 = userArrays.flat();
+        users3 = userArrays.flat();
       }
       const isCurrentUserSuperAdmin = currentUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts) {
-          users2 = users2.filter(
+          users3 = users3.filter(
             (user) => user.roleId !== ROLES.SUPER_ADMIN && user.roleId !== ROLES.ADMIN
           );
         }
       }
       const allRoles = await storage.getRoles();
       const roleMap = new Map(allRoles.map((r) => [r.id, r.name]));
-      const sanitizedUsers = users2.map((user) => {
+      const sanitizedUsers = users3.map((user) => {
         const { passwordHash, ...safeUser } = user;
         return {
           ...safeUser,
@@ -8534,8 +9453,8 @@ Treasure-Home School Administration
       }
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
@@ -8579,8 +9498,8 @@ Treasure-Home School Administration
       }
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
@@ -8625,8 +9544,8 @@ Treasure-Home School Administration
       }
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
@@ -8670,8 +9589,8 @@ Treasure-Home School Administration
       }
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
@@ -8761,8 +9680,8 @@ Treasure-Home School Administration
       }
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
@@ -8826,8 +9745,8 @@ Treasure-Home School Administration
       }
       const isCurrentUserSuperAdmin = adminUser.roleId === ROLES.SUPER_ADMIN;
       if (!isCurrentUserSuperAdmin) {
-        const settings2 = await storage.getSystemSettings();
-        const hideAdminAccounts = settings2?.hideAdminAccountsFromAdmins ?? true;
+        const settings3 = await storage.getSystemSettings();
+        const hideAdminAccounts = settings3?.hideAdminAccountsFromAdmins ?? true;
         if (hideAdminAccounts && (user.roleId === ROLES.SUPER_ADMIN || user.roleId === ROLES.ADMIN)) {
           return res.status(403).json({
             message: "You do not have permission to manage admin accounts.",
@@ -8861,7 +9780,7 @@ Treasure-Home School Administration
           lastError = deleteError;
           if (deleteError?.code === "42501" || deleteError?.message?.includes("permission denied")) {
             return res.status(403).json({
-              message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check Supabase RLS settings or use 'Disable Account' instead.",
+              message: "Database permission error: Cannot delete user due to Row Level Security policies. Please check database RLS settings or use 'Disable Account' instead.",
               technicalDetails: "RLS_PERMISSION_DENIED"
             });
           }
@@ -9045,10 +9964,10 @@ Treasure-Home School Administration
         action,
         entityType
       });
-      const enrichedLogs = await Promise.all(logs.map(async (log2) => {
-        const user = log2.userId ? await storage.getUser(log2.userId) : null;
+      const enrichedLogs = await Promise.all(logs.map(async (log) => {
+        const user = log.userId ? await storage.getUser(log.userId) : null;
         return {
-          ...log2,
+          ...log,
           userEmail: user?.email,
           userName: `${user?.firstName} ${user?.lastName}`
         };
@@ -9102,6 +10021,8 @@ Treasure-Home School Administration
           id: user.id,
           admissionNumber: username,
           // Use username as admission number
+          admissionDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+          // Today's date as admission date
           classId: otherUserData.classId,
           parentId: otherUserData.parentId || null
         });
@@ -9189,8 +10110,8 @@ Treasure-Home School Administration
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(",").map((v) => v.trim());
         const row = {};
-        headers.forEach((header, index2) => {
-          row[header] = values[index2] || "";
+        headers.forEach((header, index3) => {
+          row[header] = values[index3] || "";
         });
         try {
           const studentName = row["studentname"];
@@ -9233,7 +10154,7 @@ Treasure-Home School Administration
           } else {
             parentId = parent.id;
           }
-          const classObj = await storage.getClasses();
+          const classObj = await storage.getAllClasses(true);
           const studentClass = classObj.find((c) => c.name.toLowerCase() === className.toLowerCase());
           if (!studentClass) {
             errors.push(`Row ${i + 1}: Class "${className}" not found`);
@@ -9263,6 +10184,8 @@ Treasure-Home School Administration
           await storage.createStudent({
             id: studentUser.id,
             admissionNumber,
+            admissionDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+            // Today's date as admission date
             classId: studentClass.id,
             parentId
           });
@@ -9400,7 +10323,7 @@ Treasure-Home School Administration
       const validatedData = createStudentSchema.parse(req.body);
       const adminUserId = req.user.id;
       const year = (/* @__PURE__ */ new Date()).getFullYear();
-      const result = await exportDb.transaction(async (tx) => {
+      const result = await db2.transaction(async (tx) => {
         const studentUsername = await generateStudentUsername2();
         const studentPassword = generateStudentPassword();
         const passwordHash = await bcrypt2.hash(studentPassword, BCRYPT_ROUNDS);
@@ -9436,11 +10359,11 @@ Treasure-Home School Administration
         let parentCredentials = null;
         if (validatedData.parentPhone && !validatedData.parentId) {
           const existingParent = await tx.select().from(users).where(and3(
-            eq5(users.phone, validatedData.parentPhone),
-            eq5(users.roleId, ROLES.PARENT)
+            eq4(users.phone, validatedData.parentPhone),
+            eq4(users.roleId, ROLES.PARENT)
           )).limit(1);
           if (existingParent.length > 0) {
-            await tx.update(students).set({ parentId: existingParent[0].id }).where(eq5(students.id, studentUser.id));
+            await tx.update(students).set({ parentId: existingParent[0].id }).where(eq4(students.id, studentUser.id));
             student.parentId = existingParent[0].id;
           } else {
             const parentUsername = await generateParentUsername();
@@ -9461,7 +10384,7 @@ Treasure-Home School Administration
               createdBy: adminUserId,
               mustChangePassword: true
             }).returning();
-            await tx.update(students).set({ parentId: parentUser.id }).where(eq5(students.id, studentUser.id));
+            await tx.update(students).set({ parentId: parentUser.id }).where(eq4(students.id, studentUser.id));
             student.parentId = parentUser.id;
             parentCredentials = {
               username: parentUsername,
@@ -9545,8 +10468,8 @@ Treasure-Home School Administration
         return res.status(403).json({ message: "Unauthorized" });
       }
       const student = await storage.getStudent(studentId);
-      const classes2 = student?.classId ? await storage.getClass(student.classId) : null;
-      res.json(classes2);
+      const classes3 = student?.classId ? await storage.getClass(student.classId) : null;
+      res.json(classes3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch classes" });
     }
@@ -9708,8 +10631,8 @@ Treasure-Home School Administration
   app2.get("/api/vacancies", async (req, res) => {
     try {
       const status = req.query.status;
-      const vacancies2 = await storage.getAllVacancies(status);
-      res.json(vacancies2);
+      const vacancies3 = await storage.getAllVacancies(status);
+      res.json(vacancies3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch vacancies" });
     }
@@ -9841,8 +10764,8 @@ Treasure-Home School Administration
   });
   app2.get("/api/admin/approved-teachers", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const approvedTeachers2 = await storage.getAllApprovedTeachers();
-      res.json(approvedTeachers2);
+      const approvedTeachers3 = await storage.getAllApprovedTeachers();
+      res.json(approvedTeachers3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch approved teachers" });
     }
@@ -9943,23 +10866,23 @@ Treasure-Home School Administration
   });
   app2.get("/api/superadmin/settings", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
     try {
-      const settings2 = await storage.getSystemSettings();
-      res.json(settings2);
+      const settings3 = await storage.getSystemSettings();
+      res.json(settings3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch system settings" });
     }
   });
   app2.put("/api/superadmin/settings", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req, res) => {
     try {
-      const settings2 = await storage.updateSystemSettings(req.body);
+      const settings3 = await storage.updateSystemSettings(req.body);
       await storage.createAuditLog({
         userId: req.user.id,
         action: "settings_updated",
         entityType: "system_settings",
-        entityId: String(settings2.id),
+        entityId: String(settings3.id),
         reason: "System settings updated by Super Admin"
       });
-      res.json(settings2);
+      res.json(settings3);
     } catch (error) {
       res.status(500).json({ message: "Failed to update system settings" });
     }
@@ -10178,17 +11101,184 @@ Treasure-Home School Administration
   return httpServer;
 }
 
-// server/index.ts
-init_storage();
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { sql as sql6 } from "drizzle-orm";
+// server/vite.ts
+import express from "express";
+import fs3 from "fs";
+import path4 from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path3 from "path";
+var vite_config_default = defineConfig({
+  plugins: [
+    react()
+    // Replit plugins temporarily commented out due to installation issues
+    // ...(process.env.NODE_ENV !== "production"
+    //   ? [
+    //       (await import("@replit/vite-plugin-runtime-error-modal")).default(),
+    //     ]
+    //   : []),
+    // ...(process.env.NODE_ENV !== "production" &&
+    // process.env.REPL_ID !== undefined
+    //   ? [
+    //       await import("@replit/vite-plugin-cartographer").then((m) =>
+    //         m.cartographer(),
+    //       ),
+    //     ]
+    //   : []),
+  ],
+  resolve: {
+    alias: {
+      "@": path3.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path3.resolve(import.meta.dirname, "shared"),
+      "@assets": path3.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  root: path3.resolve(import.meta.dirname, "client"),
+  build: {
+    outDir: path3.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1e3,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          "query-vendor": ["@tanstack/react-query"],
+          "radix-ui": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-scroll-area"
+          ],
+          "radix-ui-forms": [
+            "@radix-ui/react-label",
+            "@radix-ui/react-checkbox",
+            "@radix-ui/react-radio-group",
+            "@radix-ui/react-slider",
+            "@radix-ui/react-switch"
+          ],
+          "radix-ui-misc": [
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-hover-card",
+            "@radix-ui/react-navigation-menu",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-tooltip"
+          ],
+          "form-vendor": ["react-hook-form", "@hookform/resolvers", "zod"],
+          "icons": ["lucide-react", "react-icons"],
+          "animation": ["framer-motion", "canvas-confetti"],
+          "charts": ["recharts"]
+        }
+      }
+    }
+  },
+  server: {
+    host: "0.0.0.0",
+    port: 5e3,
+    allowedHosts: true,
+    fs: {
+      strict: true,
+      deny: ["**/.*"]
+    }
+  },
+  define: {
+    // Auto-configure API URL based on environment
+    // Development (Replit/Localhost): Use empty string for same-origin requests
+    // Production (Vercel): Use VITE_API_URL env var (set to Render backend URL)
+    "import.meta.env.VITE_API_URL": JSON.stringify(
+      process.env.VITE_API_URL || ""
+    )
+  }
+});
+
+// server/vite.ts
+import { nanoid } from "nanoid";
+var viteLogger = createLogger();
+async function setupVite(app2, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      }
+    },
+    server: serverOptions,
+    appType: "custom"
+  });
+  app2.use(vite.middlewares);
+  app2.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path4.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html"
+      );
+      let template = await fs3.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app2) {
+  const distPath = path4.resolve(import.meta.dirname, "public");
+  if (!fs3.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app2.use(express.static(distPath, {
+    maxAge: "1y",
+    // 1 year for versioned assets (Vite adds hashes to filenames)
+    etag: true,
+    lastModified: true,
+    immutable: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+      } else if (filePath.match(/\.(js|css|woff2?|ttf|eot)$/)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.match(/\.(jpg|jpeg|png|gif|svg|webp|ico)$/)) {
+        res.setHeader("Cache-Control", "public, max-age=86400");
+      }
+    }
+  }));
+  app2.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
+    res.sendFile(path4.resolve(distPath, "index.html"));
+  });
+}
 
 // server/seed-terms.ts
 init_storage();
 init_schema();
 async function seedAcademicTerms() {
   try {
-    const existingTerms = await exportDb.select().from(academicTerms);
+    const existingTerms = await db2.select().from(academicTerms);
     if (existingTerms.length === 0) {
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
       const nextYear = currentYear + 1;
@@ -10217,7 +11307,7 @@ async function seedAcademicTerms() {
         }
       ];
       for (const term of defaultTerms) {
-        await exportDb.insert(academicTerms).values(term);
+        await db2.insert(academicTerms).values(term);
       }
     } else {
     }
@@ -10226,111 +11316,83 @@ async function seedAcademicTerms() {
   }
 }
 
-// server/validate-env.ts
-var ENV_VARS = [
-  // Critical - Always Required
-  {
-    name: "DATABASE_URL",
-    required: "always",
-    description: "PostgreSQL connection string",
-    validateFn: (val) => val.startsWith("postgresql://") || val.startsWith("postgres://"),
-    suggestion: "postgresql://user:password@host:port/database"
-  },
-  // Critical - Production Required
-  {
-    name: "NODE_ENV",
-    required: "production",
-    description: "Environment mode (production/development)",
-    validateFn: (val) => ["production", "development"].includes(val),
-    suggestion: "production"
-  },
-  {
-    name: "JWT_SECRET",
-    required: "production",
-    description: "Secret for JWT token signing",
-    validateFn: (val) => val.length >= 32,
-    suggestion: "Generate with: openssl rand -base64 48"
-  },
-  {
-    name: "SESSION_SECRET",
-    required: "production",
-    description: "Secret for session encryption",
-    validateFn: (val) => val.length >= 32,
-    suggestion: "Generate with: openssl rand -base64 48"
-  },
-  {
-    name: "FRONTEND_URL",
-    required: "production",
-    description: "Frontend URL for CORS",
-    validateFn: (val) => val.startsWith("http://") || val.startsWith("https://"),
-    suggestion: "https://your-app.vercel.app"
-  },
-  {
-    name: "BACKEND_URL",
-    required: "production",
-    description: "Backend URL for redirects",
-    validateFn: (val) => val.startsWith("http://") || val.startsWith("https://"),
-    suggestion: "https://your-backend.onrender.com"
-  },
-  // Critical - Supabase Storage (ALWAYS REQUIRED for uploads)
-  {
-    name: "SUPABASE_URL",
-    required: "always",
-    description: "Supabase project URL for file storage (CRITICAL for uploads)",
-    validateFn: (val) => val.includes("supabase.co"),
-    suggestion: "https://your-project.supabase.co"
-  },
-  {
-    name: "SUPABASE_SERVICE_KEY",
-    required: "always",
-    description: "Supabase service role key for file storage (CRITICAL for uploads)",
-    validateFn: (val) => val.length > 50,
-    suggestion: "Get from Supabase Dashboard \u2192 Settings \u2192 API (use service_role key, NOT anon key)"
-  }
-];
-function validateEnvironment(exitOnError = false) {
-  const isProduction2 = process.env.NODE_ENV === "production";
+// server/env-validation.ts
+var envConfig = {
+  required: [
+    "JWT_SECRET"
+    // Required in both environments
+  ],
+  optional: [
+    "SESSION_SECRET",
+    "FRONTEND_URL",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET"
+  ],
+  productionRequired: [
+    "DATABASE_URL",
+    // Neon PostgreSQL connection string
+    "JWT_SECRET",
+    "SESSION_SECRET",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET"
+  ]
+};
+function validateEnvironment(isProduction4) {
   const result = {
-    missing: [],
-    invalid: [],
+    isValid: true,
+    errors: [],
     warnings: [],
-    passed: []
+    environment: isProduction4 ? "production" : "development"
   };
-  ENV_VARS.forEach((config) => {
-    const value = process.env[config.name];
-    const isRequired = config.required === "always" || config.required === "production" && isProduction2;
-    if (!value) {
-      if (isRequired) {
-        result.missing.push(config.name);
-        if (config.suggestion) {
-        }
-      } else if (config.required === "optional") {
-        result.warnings.push(config.name);
+  const requiredVars = isProduction4 ? envConfig.productionRequired : envConfig.required;
+  for (const varName of requiredVars) {
+    if (!process.env[varName]) {
+      if (varName === "JWT_SECRET" && !isProduction4) {
+        result.warnings.push(`${varName} not set, using development fallback`);
+      } else if (varName === "SESSION_SECRET" && !isProduction4) {
+        result.warnings.push(`${varName} not set, using development fallback`);
+      } else if (isProduction4) {
+        result.errors.push(`Missing required environment variable: ${varName}`);
+        result.isValid = false;
+      } else {
+        result.warnings.push(`${varName} not set (optional in development)`);
       }
-      return;
     }
-    if (config.validateFn && !config.validateFn(value)) {
-      result.invalid.push(config.name);
-      if (config.suggestion) {
+  }
+  for (const varName of envConfig.optional) {
+    if (!process.env[varName] && !result.warnings.find((w) => w.includes(varName))) {
+      if (varName.startsWith("CLOUDINARY_") && isProduction4) {
+        result.warnings.push(`${varName} not set - file uploads will fail`);
       }
-      return;
     }
-    result.passed.push(config.name);
-    const displayValue = config.name.includes("SECRET") || config.name.includes("KEY") || config.name.includes("PASSWORD") ? "***" + value.slice(-4) : value.slice(0, 50) + (value.length > 50 ? "..." : "");
-  });
-  const hasErrors = result.missing.length > 0 || result.invalid.length > 0;
-  if (hasErrors) {
-    if (isProduction2 && exitOnError) {
-      process.exit(1);
-    }
-  } else {
+  }
+  if (isProduction4 && !process.env.DATABASE_URL) {
+    result.errors.push("DATABASE_URL is required for production (Neon PostgreSQL)");
+    result.isValid = false;
+  } else if (!isProduction4 && !process.env.DATABASE_URL) {
+    result.warnings.push("Using SQLite for development (DATABASE_URL not set)");
+  }
+  if (result.errors.length > 0) {
+    console.error("\n\u274C Environment Validation Errors:");
+    result.errors.forEach((err) => console.error(`   - ${err}`));
+  }
+  if (result.warnings.length > 0) {
+    console.warn("\n\u26A0\uFE0F Environment Warnings:");
+    result.warnings.forEach((warn) => console.warn(`   - ${warn}`));
+  }
+  if (result.isValid) {
+    console.log(`
+\u2705 Environment validation passed for ${result.environment}`);
   }
   return result;
 }
 
 // server/index.ts
-var isProduction = process.env.NODE_ENV === "production";
-validateEnvironment(isProduction);
+import fs4 from "fs/promises";
+var isProduction3 = process.env.NODE_ENV === "production";
+validateEnvironment(isProduction3);
 var app = express2();
 app.set("trust proxy", 1);
 var allowedOrigins = process.env.NODE_ENV === "development" ? [
@@ -10399,20 +11461,20 @@ app.use((req, res, next) => {
 });
 app.use(express2.json({ limit: "10mb" }));
 app.use(express2.urlencoded({ extended: false, limit: "10mb" }));
-app.use("/uploads", express2.static("uploads"));
+app.use("/uploads", express2.static("server/uploads"));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path4 = req.path;
-  const isProduction2 = process.env.NODE_ENV === "production";
+  const path5 = req.path;
+  const isProduction4 = process.env.NODE_ENV === "production";
   let capturedJsonResponse = void 0;
-  if (req.method === "GET" && path4.startsWith("/api/")) {
-    if (path4.includes("/homepage-content") || path4.includes("/announcements")) {
+  if (req.method === "GET" && path5.startsWith("/api/")) {
+    if (path5.includes("/homepage-content") || path5.includes("/announcements")) {
       res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
-    } else if (!path4.includes("/auth")) {
+    } else if (!path5.includes("/auth")) {
       res.setHeader("Cache-Control", "private, max-age=30");
     }
   }
-  if (!isProduction2) {
+  if (!isProduction4) {
     const originalResJson = res.json;
     res.json = function(bodyJson, ...args) {
       capturedJsonResponse = bodyJson;
@@ -10422,18 +11484,18 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (res.statusCode >= 400 && res.statusCode < 500) {
-      log(`\u274C 4xx ERROR: ${req.method} ${req.originalUrl || path4} - Status ${res.statusCode} - Referer: ${req.get("referer") || "none"}`);
+      console.log(`\u274C 4xx ERROR: ${req.method} ${req.originalUrl || path5} - Status ${res.statusCode} - Referer: ${req.get("referer") || "none"}`);
     }
-    if (path4.startsWith("/api")) {
-      let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
-      if (!isProduction2 && capturedJsonResponse) {
+    if (path5.startsWith("/api")) {
+      let logLine = `${req.method} ${path5} ${res.statusCode} in ${duration}ms`;
+      if (!isProduction4 && capturedJsonResponse) {
         const sanitizedResponse = sanitizeLogData(capturedJsonResponse);
         logLine += ` :: ${JSON.stringify(sanitizedResponse)}`;
       }
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "\u2026";
       }
-      log(logLine);
+      console.log(logLine);
     }
   });
   next();
@@ -10460,78 +11522,74 @@ function sanitizeLogData(data) {
   return data;
 }
 (async () => {
+  console.log("\u2705 Using SQLite database at ./server/data/app.db (schema managed via drizzle-kit push)");
   try {
-    log("Applying database migrations...");
-    await migrate(exportDb, { migrationsFolder: "./migrations" });
-    log("\u2705 Database migrations completed successfully");
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const errorCode = error?.cause?.code;
-    const isIdempotencyError = errorMessage.includes("already exists") || errorMessage.includes("relation") && errorMessage.includes("already exists") || errorMessage.includes("duplicate key") || errorMessage.includes("nothing to migrate") || errorMessage.includes("PostgresError: relation") || errorCode === "42P07" || // relation already exists
-    errorCode === "42710";
-    if (isIdempotencyError) {
-      log(`\u2139\uFE0F Migrations already applied: ${errorMessage}`);
-    } else {
-      log(`\u26A0\uFE0F Migration failed: ${errorMessage}`);
-      if (process.env.NODE_ENV === "production") {
-      }
-    }
-  }
-  try {
-    await exportDb.execute(sql6`
-      ALTER TABLE counters 
-      ADD COLUMN IF NOT EXISTS role_code VARCHAR(10) UNIQUE;
-    `);
-    await exportDb.execute(sql6`
-      CREATE UNIQUE INDEX IF NOT EXISTS counters_role_code_idx 
-      ON counters(role_code) WHERE role_code IS NOT NULL;
-    `);
-    log("\u2705 Username migration: roleCode column ready");
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`\u2139\uFE0F  Username migration note: ${errorMessage}`);
-  }
-  try {
-    log("Seeding academic terms if needed...");
+    console.log("Seeding academic terms if needed...");
     await seedAcademicTerms();
-    log("\u2705 Academic terms seeding completed successfully");
+    console.log("\u2705 Academic terms seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`\u26A0\uFE0F Academic terms seeding failed: ${errorMessage}`);
+    console.log(`\u26A0\uFE0F Academic terms seeding failed: ${errorMessage}`);
   }
   try {
-    log("Seeding system settings if needed...");
+    console.log("Seeding system settings if needed...");
     const { seedSystemSettings: seedSystemSettings2 } = await Promise.resolve().then(() => (init_seed_system_settings(), seed_system_settings_exports));
     await seedSystemSettings2();
-    log("\u2705 System settings seeding completed successfully");
+    console.log("\u2705 System settings seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`\u26A0\uFE0F System settings seeding failed: ${errorMessage}`);
+    console.log(`\u26A0\uFE0F System settings seeding failed: ${errorMessage}`);
   }
   try {
-    log("Checking for super admin account...");
-    const { seedSuperAdmin: seedSuperAdmin2 } = await Promise.resolve().then(() => (init_seed_superadmin(), seed_superadmin_exports));
-    await seedSuperAdmin2();
-    log("\u2705 Super admin seeding completed successfully");
+    console.log("Creating core roles...");
+    const { seedRoles: seedRoles2 } = await Promise.resolve().then(() => (init_seed_roles(), seed_roles_exports));
+    await seedRoles2();
+    console.log("\u2705 Roles seeding completed successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    log(`\u26A0\uFE0F Super admin seeding failed: ${errorMessage}`);
+    console.log(`\u26A0\uFE0F Roles seeding failed: ${errorMessage}`);
   }
-  if (isProduction) {
-    const { isSupabaseStorageEnabled: isSupabaseStorageEnabled2 } = await Promise.resolve().then(() => (init_supabase_storage(), supabase_storage_exports));
-    if (!isSupabaseStorageEnabled2()) {
+  try {
+    console.log("Creating test user accounts for all roles...");
+    const { seedTestUsers: seedTestUsers2 } = await Promise.resolve().then(() => (init_seed_test_users(), seed_test_users_exports));
+    await seedTestUsers2();
+    console.log("\u2705 Test users seeding completed successfully");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log(`\u26A0\uFE0F Test users seeding failed: ${errorMessage}`);
+  }
+  try {
+    console.log("Initializing local file storage...");
+    await fs4.mkdir("server/uploads/profiles", { recursive: true });
+    await fs4.mkdir("server/uploads/homepage", { recursive: true });
+    await fs4.mkdir("server/uploads/gallery", { recursive: true });
+    await fs4.mkdir("server/uploads/study-resources", { recursive: true });
+    await fs4.mkdir("server/uploads/general", { recursive: true });
+    await fs4.mkdir("server/uploads/csv", { recursive: true });
+    console.log("\u2705 Local file storage initialized in server/uploads/");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u274C File storage initialization error: ${errorMessage}`);
+    if (isProduction3) {
       process.exit(1);
     }
-    log("\u2705 Supabase Storage verified for production deployment");
   }
   app.all(["/api/update-demo-users", "/api/test-update"], (req, res) => {
-    log(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
+    console.log(`\u{1F6A8} BLOCKED dangerous route: ${req.method} ${req.path}`);
     res.status(410).json({ message: "Gone - Route disabled for security" });
   });
   const server = await registerRoutes(app);
+  try {
+    console.log("Initializing Socket.IO Realtime Service...");
+    const { realtimeService: realtimeService2 } = await Promise.resolve().then(() => (init_realtime_service(), realtime_service_exports));
+    realtimeService2.initialize(server);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`\u274C Socket.IO initialization error: ${errorMessage}`);
+  }
   app.use((err, req, res, next) => {
     if (err.name === "MulterError" || err.message?.includes("Only image files") || err.message?.includes("Only document files") || err.message?.includes("Only CSV files")) {
-      log(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
+      console.log(`MULTER ERROR: ${req.method} ${req.path} - ${err.message}`);
       let status = 400;
       let message = err.message;
       if (err.code === "LIMIT_FILE_SIZE") {
@@ -10546,7 +11604,7 @@ function sanitizeLogData(data) {
   app.use((err, req, res, _next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
+    console.log(`ERROR: ${req.method} ${req.path} - ${err.message}`);
     if (!res.headersSent) {
       res.status(status).json({ message });
     }
@@ -10563,6 +11621,6 @@ function sanitizeLogData(data) {
     host: "0.0.0.0",
     reusePort: true
   }, () => {
-    log(`serving on port ${port}`);
+    console.log(`serving on port ${port}`);
   });
 })();
