@@ -849,11 +849,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   // Invite management
-  async createInvite(invite: schema.InsertInvite): Promise<schema.Invite> {
+  async createInvite(invite: InsertInvite): Promise<Invite> {
     const result = await this.db.insert(schema.invites).values(invite).returning();
     return result[0];
   }
-  async getInviteByToken(token: string): Promise<schema.Invite | undefined> {
+  async getInviteByToken(token: string): Promise<Invite | undefined> {
     const result = await this.db.select().from(schema.invites)
       .where(and(
         eq(schema.invites.token, token),
@@ -863,7 +863,7 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-  async getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined> {
+  async getPendingInviteByEmail(email: string): Promise<Invite | undefined> {
     const result = await this.db.select().from(schema.invites)
       .where(and(
         eq(schema.invites.email, email),
@@ -872,11 +872,11 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     return result[0];
   }
-  async getAllInvites(): Promise<schema.Invite[]> {
+  async getAllInvites(): Promise<Invite[]> {
     return await this.db.select().from(schema.invites)
       .orderBy(desc(schema.invites.createdAt));
   }
-  async getPendingInvites(): Promise<schema.Invite[]> {
+  async getPendingInvites(): Promise<Invite[]> {
     return await this.db.select().from(schema.invites)
       .where(isNull(schema.invites.acceptedAt))
       .orderBy(desc(schema.invites.createdAt));
@@ -909,63 +909,63 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-  async getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined> {
+  async getTeacherProfile(userId: string): Promise<TeacherProfile | undefined> {
     const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.userId, userId));
-    return profile || null;
+    return profile || undefined;
   }
-  async updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined> {
+  async updateTeacherProfile(userId: string, profile: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined> {
     const result = await this.db.update(schema.teacherProfiles)
       .set({ ...profile, updatedAt: new Date() })
       .where(eq(schema.teacherProfiles.userId, userId))
       .returning();
     return result[0];
   }
-  async getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined> {
+  async getTeacherProfileByStaffId(staffId: string): Promise<TeacherProfile | undefined> {
     const [profile] = await db.select().from(schema.teacherProfiles).where(eq(schema.teacherProfiles.staffId, staffId));
-    return profile || null;
+    return profile || undefined;
   }
-  async getAllTeacherProfiles(): Promise<schema.TeacherProfile[]> {
+  async getAllTeacherProfiles(): Promise<TeacherProfile[]> {
     const profiles = await db.select().from(schema.teacherProfiles);
     return profiles;
   }
-  async createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile> {
+  async createTeacherProfile(profile: InsertTeacherProfile): Promise<TeacherProfile> {
     const result = await this.db.insert(schema.teacherProfiles)
       .values(profile)
       .returning();
     return result[0];
   }
-  async getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined> {
+  async getAdminProfile(userId: string): Promise<AdminProfile | undefined> {
     const result = await this.db.select().from(schema.adminProfiles)
       .where(eq(schema.adminProfiles.userId, userId))
       .limit(1);
     return result[0];
   }
-  async createAdminProfile(profile: schema.InsertAdminProfile): Promise<schema.AdminProfile> {
+  async createAdminProfile(profile: InsertAdminProfile): Promise<AdminProfile> {
     const result = await this.db.insert(schema.adminProfiles)
       .values(profile)
       .returning();
     return result[0];
   }
-  async updateAdminProfile(userId: string, profile: Partial<schema.InsertAdminProfile>): Promise<schema.AdminProfile | undefined> {
+  async updateAdminProfile(userId: string, profile: Partial<InsertAdminProfile>): Promise<AdminProfile | undefined> {
     const result = await this.db.update(schema.adminProfiles)
       .set({ ...profile, updatedAt: new Date() })
       .where(eq(schema.adminProfiles.userId, userId))
       .returning();
     return result[0];
   }
-  async getParentProfile(userId: string): Promise<schema.ParentProfile | undefined> {
+  async getParentProfile(userId: string): Promise<ParentProfile | undefined> {
     const result = await this.db.select().from(schema.parentProfiles)
       .where(eq(schema.parentProfiles.userId, userId))
       .limit(1);
     return result[0];
   }
-  async createParentProfile(profile: schema.InsertParentProfile): Promise<schema.ParentProfile> {
+  async createParentProfile(profile: InsertParentProfile): Promise<ParentProfile> {
     const result = await this.db.insert(schema.parentProfiles)
       .values(profile)
       .returning();
     return result[0];
   }
-  async updateParentProfile(userId: string, profile: Partial<schema.InsertParentProfile>): Promise<schema.ParentProfile | undefined> {
+  async updateParentProfile(userId: string, profile: Partial<InsertParentProfile>): Promise<ParentProfile | undefined> {
     const result = await this.db.update(schema.parentProfiles)
       .set({ ...profile, updatedAt: new Date() })
       .where(eq(schema.parentProfiles.userId, userId))
@@ -4060,11 +4060,11 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
   // Teacher timetable implementation
-  async createTimetableEntry(entry: schema.InsertTimetable): Promise<schema.Timetable> {
+  async createTimetableEntry(entry: InsertTimetable): Promise<Timetable> {
     const result = await this.db.insert(schema.timetable).values(entry).returning();
     return result[0];
   }
-  async getTimetableByTeacher(teacherId: string, termId?: number): Promise<schema.Timetable[]> {
+  async getTimetableByTeacher(teacherId: string, termId?: number): Promise<Timetable[]> {
     const conditions = [
       eq(schema.timetable.teacherId, teacherId),
       eq(schema.timetable.isActive, true)
@@ -4078,7 +4078,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(schema.timetable.dayOfWeek, schema.timetable.startTime);
   }
-  async updateTimetableEntry(id: number, entry: Partial<schema.InsertTimetable>): Promise<schema.Timetable | undefined> {
+  async updateTimetableEntry(id: number, entry: Partial<InsertTimetable>): Promise<Timetable | undefined> {
     const result = await this.db.update(schema.timetable)
       .set(entry)
       .where(eq(schema.timetable.id, id))
@@ -4093,7 +4093,7 @@ export class DatabaseStorage implements IStorage {
   }
   // Teacher dashboard data - comprehensive method
   async getTeacherDashboardData(teacherId: string): Promise<{
-    profile: schema.TeacherProfile | undefined;
+    profile: TeacherProfile | undefined;
     user: User | undefined;
     assignments: Array<{
       id: number;
@@ -4579,21 +4579,21 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
   // Job Vacancy System implementations
-  async createVacancy(vacancy: schema.InsertVacancy): Promise<schema.Vacancy> {
+  async createVacancy(vacancy: InsertVacancy): Promise<Vacancy> {
     const result = await this.db.insert(schema.vacancies).values(vacancy).returning();
     return result[0];
   }
-  async getVacancy(id: string): Promise<schema.Vacancy | undefined> {
+  async getVacancy(id: string): Promise<Vacancy | undefined> {
     const result = await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.id, id)).limit(1);
     return result[0];
   }
-  async getAllVacancies(status?: string): Promise<schema.Vacancy[]> {
+  async getAllVacancies(status?: string): Promise<Vacancy[]> {
     if (status) {
       return await this.db.select().from(schema.vacancies).where(eq(schema.vacancies.status, status as "open" | "closed" | "filled")).orderBy(desc(schema.vacancies.createdAt));
     }
     return await this.db.select().from(schema.vacancies).orderBy(desc(schema.vacancies.createdAt));
   }
-  async updateVacancy(id: string, updates: Partial<schema.InsertVacancy>): Promise<schema.Vacancy | undefined> {
+  async updateVacancy(id: string, updates: Partial<InsertVacancy>): Promise<Vacancy | undefined> {
     const result = await this.db
       .update(schema.vacancies)
       .set({ ...updates, updatedAt: new Date() })
@@ -4606,21 +4606,21 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
   // Teacher Applications implementations
-  async createTeacherApplication(application: schema.InsertTeacherApplication): Promise<schema.TeacherApplication> {
+  async createTeacherApplication(application: InsertTeacherApplication): Promise<TeacherApplication> {
     const result = await this.db.insert(schema.teacherApplications).values(application).returning();
     return result[0];
   }
-  async getTeacherApplication(id: string): Promise<schema.TeacherApplication | undefined> {
+  async getTeacherApplication(id: string): Promise<TeacherApplication | undefined> {
     const result = await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.id, id)).limit(1);
     return result[0];
   }
-  async getAllTeacherApplications(status?: string): Promise<schema.TeacherApplication[]> {
+  async getAllTeacherApplications(status?: string): Promise<TeacherApplication[]> {
     if (status) {
       return await this.db.select().from(schema.teacherApplications).where(eq(schema.teacherApplications.status, status as "pending" | "approved" | "rejected")).orderBy(desc(schema.teacherApplications.dateApplied));
     }
     return await this.db.select().from(schema.teacherApplications).orderBy(desc(schema.teacherApplications.dateApplied));
   }
-  async updateTeacherApplication(id: string, updates: Partial<schema.TeacherApplication>): Promise<schema.TeacherApplication | undefined> {
+  async updateTeacherApplication(id: string, updates: Partial<TeacherApplication>): Promise<TeacherApplication | undefined> {
     const result = await this.db
       .update(schema.teacherApplications)
       .set({ ...updates, updatedAt: new Date() })
@@ -4628,7 +4628,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-  async approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: schema.TeacherApplication; approvedTeacher: schema.ApprovedTeacher }> {
+  async approveTeacherApplication(applicationId: string, approvedBy: string): Promise<{ application: TeacherApplication; approvedTeacher: ApprovedTeacher }> {
     const application = await this.getTeacherApplication(applicationId);
     if (!application) {
       throw new Error('Application not found');
@@ -4662,7 +4662,7 @@ export class DatabaseStorage implements IStorage {
       approvedTeacher: approvedTeacher[0],
     };
   }
-  async rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<schema.TeacherApplication | undefined> {
+  async rejectTeacherApplication(applicationId: string, reviewedBy: string, reason: string): Promise<TeacherApplication | undefined> {
     const result = await this.db
       .update(schema.teacherApplications)
       .set({
@@ -4677,11 +4677,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   // Approved Teachers implementations
-  async getApprovedTeacherByEmail(email: string): Promise<schema.ApprovedTeacher | undefined> {
+  async getApprovedTeacherByEmail(email: string): Promise<ApprovedTeacher | undefined> {
     const result = await this.db.select().from(schema.approvedTeachers).where(eq(schema.approvedTeachers.googleEmail, email)).limit(1);
     return result[0];
   }
-  async getAllApprovedTeachers(): Promise<schema.ApprovedTeacher[]> {
+  async getAllApprovedTeachers(): Promise<ApprovedTeacher[]> {
     return await this.db.select().from(schema.approvedTeachers).orderBy(desc(schema.approvedTeachers.dateApproved));
   }
   async deleteApprovedTeacher(id: string): Promise<boolean> {
@@ -4712,11 +4712,11 @@ export class DatabaseStorage implements IStorage {
       totalExams: exams.length,
     };
   }
-  async getSystemSettings(): Promise<schema.SystemSettings | undefined> {
+  async getSystemSettings(): Promise<SystemSettings | undefined> {
     const result = await this.db.select().from(schema.systemSettings).limit(1);
     return result[0];
   }
-  async updateSystemSettings(settings: Partial<schema.InsertSystemSettings>): Promise<schema.SystemSettings> {
+  async updateSystemSettings(settings: Partial<InsertSystemSettings>): Promise<SystemSettings> {
     // Get existing settings
     const existing = await this.getSystemSettings();
     
