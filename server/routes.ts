@@ -1937,8 +1937,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (files['profileImage']?.[0]) {
         const profileResult = await replaceFile(
-          profileImageUrl || null,
           files['profileImage'][0],
+          profileImageUrl || undefined,
           {
             uploadType: 'profile',
             userId: teacherId,
@@ -1952,8 +1952,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (files['signature']?.[0]) {
         const signatureResult = await replaceFile(
-          signatureUrl || null,
           files['signature'][0],
+          signatureUrl || undefined,
           {
             uploadType: 'profile',
             userId: teacherId,
@@ -4605,6 +4605,7 @@ Treasure-Home School Administration
         await storage.createStudent({
           id: user.id,
           admissionNumber: username, // Use username as admission number
+          admissionDate: new Date().toISOString().split('T')[0], // Today's date as admission date
           classId: otherUserData.classId,
           parentId: otherUserData.parentId || null
         });
@@ -4810,6 +4811,7 @@ Treasure-Home School Administration
             await storage.createStudent({
               id: studentUser.id,
               admissionNumber,
+              admissionDate: new Date().toISOString().split('T')[0], // Today's date as admission date
               classId: studentClass.id,
               parentId: parentId
             });

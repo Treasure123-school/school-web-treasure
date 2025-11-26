@@ -1,6 +1,8 @@
 import { uploadFile, deleteFile, replaceFile as replaceFileCloudinary, isCloudinaryReady, getOptimizedUrl } from './cloudinary-service';
 import type { UploadType as CloudinaryUploadType } from './cloudinary-service';
-import type Express from 'express';
+
+// Use the Multer.File type from the express namespace
+type MulterFile = Express.Multer.File;
 
 /**
  * Unified Upload Service
