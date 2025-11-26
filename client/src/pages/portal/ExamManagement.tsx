@@ -726,15 +726,15 @@ export default function ExamManagement() {
         partialCreditRules: null,
         instructions: q.instructions,
         sampleAnswer: q.sampleAnswer,
-        createdAt: null,
+        createdAt: new Date(),
         autoGradable: q.questionType === 'multiple_choice',
         caseSensitive: false,
         allowPartialCredit: false,
         options: q.options || []
-      }));
+      })) as any;
       
       // Immediately update UI with optimistic data
-      queryClient.setQueryData<ExamQuestion[]>(queryKey, (old: ExamQuestion[] = []) => [...old, ...optimisticQuestions]);
+      queryClient.setQueryData<ExamQuestion[]>(queryKey, (old: ExamQuestion[] | undefined = []) => [...(old || []), ...optimisticQuestions]);
       
       
       return { previousQuestions, queryKey };

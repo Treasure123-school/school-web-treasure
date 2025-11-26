@@ -430,14 +430,14 @@ export default function TeacherProfileVerification() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1" data-testid={`subjects-${index}`}>
-                              {item.profile.subjects?.slice(0, 2).map((subject, idx: number) => (
+                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects : String(item.profile.subjects).split(',')).slice(0, 2).map((subject: any, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
                                   {subject}
                                 </Badge>
                               ))}
-                              {item.profile.subjects && item.profile.subjects.length > 2 && (
+                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects.length : String(item.profile.subjects).split(',').length) > 2 && (
                                 <Badge variant="secondary" className="text-xs">
-                                  +{item.profile.subjects.length - 2}
+                                  +{(Array.isArray(item.profile.subjects) ? item.profile.subjects.length : String(item.profile.subjects).split(',').length) - 2}
                                 </Badge>
                               )}
                             </div>
@@ -525,14 +525,14 @@ export default function TeacherProfileVerification() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1" data-testid={`verified-subjects-${index}`}>
-                              {item.profile.subjects?.slice(0, 2).map((subject, idx: number) => (
+                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects : String(item.profile.subjects).split(',')).slice(0, 2).map((subject: any, idx: number) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
                                   {subject}
                                 </Badge>
                               ))}
-                              {item.profile.subjects && item.profile.subjects.length > 2 && (
+                              {item.profile.subjects && (Array.isArray(item.profile.subjects) ? item.profile.subjects.length : String(item.profile.subjects).split(',').length) > 2 && (
                                 <Badge variant="secondary" className="text-xs">
-                                  +{item.profile.subjects.length - 2}
+                                  +{(Array.isArray(item.profile.subjects) ? item.profile.subjects.length : String(item.profile.subjects).split(',').length) - 2}
                                 </Badge>
                               )}
                             </div>

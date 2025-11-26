@@ -163,15 +163,15 @@ export default function TeacherProfile() {
   React.useEffect(() => {
     if (teacherProfile) {
 
-      // Handle subjects - ensure it's always an array
-      const subjectsArray = Array.isArray(teacherProfile.subjects) 
-        ? teacherProfile.subjects 
-        : teacherProfile.subjects ? [teacherProfile.subjects] : [];
+      // Handle subjects - ensure it's always an array of numbers
+      const subjectsArray: number[] = Array.isArray(teacherProfile.subjects) 
+        ? (teacherProfile.subjects as any[]).map(s => typeof s === 'string' ? parseInt(s) : s).filter(Boolean)
+        : teacherProfile.subjects ? [typeof teacherProfile.subjects === 'string' ? parseInt(teacherProfile.subjects) : teacherProfile.subjects] : [];
 
-      // Handle assignedClasses - ensure it's always an array
-      const classesArray = Array.isArray(teacherProfile.assignedClasses) 
-        ? teacherProfile.assignedClasses 
-        : teacherProfile.assignedClasses ? [teacherProfile.assignedClasses] : [];
+      // Handle assignedClasses - ensure it's always an array of numbers
+      const classesArray: number[] = Array.isArray(teacherProfile.assignedClasses) 
+        ? (teacherProfile.assignedClasses as any[]).map(c => typeof c === 'string' ? parseInt(c) : c).filter(Boolean)
+        : teacherProfile.assignedClasses ? [typeof teacherProfile.assignedClasses === 'string' ? parseInt(teacherProfile.assignedClasses) : teacherProfile.assignedClasses] : [];
 
       const newProfessionalData = {
         qualification: teacherProfile.qualification || '',
@@ -751,13 +751,14 @@ export default function TeacherProfile() {
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2" data-testid="container-subjects">
-                        {teacherProfile.subjects && teacherProfile.subjects.length > 0 ? (
-                          teacherProfile.subjects.map((subjectId: number, idx: number) => {
-                            const subjectData = subjects.find((s: any) => s.id === subjectId);
+                        {teacherProfile.subjects && (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length > 0 : String(teacherProfile.subjects).length > 0) ? (
+                          (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects : String(teacherProfile.subjects).split(',').map(s => parseInt(s.trim()))).map((subjectId: any, idx: number) => {
+                            const parsedId = typeof subjectId === 'string' ? parseInt(subjectId) : subjectId;
+                            const subjectData = subjects.find((s: any) => s.id === parsedId);
                             return (
                               <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
                                 <BookOpen className="w-3 h-3 mr-1" />
-                                {subjectData?.name || `Subject ${subjectId}`}
+                                {subjectData?.name || `Subject ${parsedId}`}
                               </Badge>
                             );
                           })
@@ -804,13 +805,14 @@ export default function TeacherProfile() {
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2" data-testid="container-classes">
-                        {teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0 ? (
-                          teacherProfile.assignedClasses.map((classId: number, idx: number) => {
-                            const classData = classes.find((c) => c.id === classId);
+                        {teacherProfile.assignedClasses && (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length > 0 : String(teacherProfile.assignedClasses).length > 0) ? (
+                          (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses : String(teacherProfile.assignedClasses).split(',').map(c => parseInt(c.trim()))).map((classId: any, idx: number) => {
+                            const parsedId = typeof classId === 'string' ? parseInt(classId) : classId;
+                            const classData = classes.find((c) => c.id === parsedId);
                             return (
                               <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
                                 <Users className="w-3 h-3 mr-1" />
-                                {classData?.name || `Class ${classId}`}
+                                {classData?.name || `Class ${parsedId}`}
                               </Badge>
                             );
                           })

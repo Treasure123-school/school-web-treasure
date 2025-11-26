@@ -67,36 +67,36 @@ export interface IStorage {
   getRole(roleId: number): Promise<Role | undefined>;
 
   // Invite management
-  createInvite(invite: schema.InsertInvite): Promise<schema.Invite>;
-  getInviteByToken(token: string): Promise<schema.Invite | undefined>;
-  getPendingInviteByEmail(email: string): Promise<schema.Invite | undefined>;
-  getAllInvites(): Promise<schema.Invite[]>;
-  getPendingInvites(): Promise<schema.Invite[]>;
+  createInvite(invite: InsertInvite): Promise<Invite>;
+  getInviteByToken(token: string): Promise<Invite | undefined>;
+  getPendingInviteByEmail(email: string): Promise<Invite | undefined>;
+  getAllInvites(): Promise<Invite[]>;
+  getPendingInvites(): Promise<Invite[]>;
   markInviteAsAccepted(inviteId: number, acceptedBy: string): Promise<void>;
   deleteInvite(inviteId: number): Promise<boolean>;
   deleteExpiredInvites(): Promise<boolean>;
-  createAuditLog(log: schema.InsertAuditLog): Promise<schema.AuditLog>;
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
 
   // Notification management
-  createNotification(notification: schema.InsertNotification): Promise<schema.Notification>;
-  getNotificationsByUserId(userId: string): Promise<schema.Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotificationsByUserId(userId: string): Promise<Notification[]>;
   getUnreadNotificationCount(userId: string): Promise<number>;
-  markNotificationAsRead(notificationId: number): Promise<schema.Notification | undefined>;
+  markNotificationAsRead(notificationId: number): Promise<Notification | undefined>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
 
   // Profile management
   updateUserProfile(userId: string, profileData: Partial<InsertUser>): Promise<User | undefined>;
-  getTeacherProfile(userId: string): Promise<schema.TeacherProfile | undefined>;
-  getTeacherProfileByStaffId(staffId: string): Promise<schema.TeacherProfile | undefined>;
-  getAllTeacherProfiles(): Promise<schema.TeacherProfile[]>;
-  createTeacherProfile(profile: schema.InsertTeacherProfile): Promise<schema.TeacherProfile>;
-  updateTeacherProfile(userId: string, profile: Partial<schema.InsertTeacherProfile>): Promise<schema.TeacherProfile | undefined>;
-  getAdminProfile(userId: string): Promise<schema.AdminProfile | undefined>;
-  createAdminProfile(profile: schema.InsertAdminProfile): Promise<schema.AdminProfile>;
-  updateAdminProfile(userId: string, profile: Partial<schema.InsertAdminProfile>): Promise<schema.AdminProfile | undefined>;
-  getParentProfile(userId: string): Promise<schema.ParentProfile | undefined>;
-  createParentProfile(profile: schema.InsertParentProfile): Promise<schema.ParentProfile>;
-  updateParentProfile(userId: string, profile: Partial<schema.InsertParentProfile>): Promise<schema.ParentProfile | undefined>;
+  getTeacherProfile(userId: string): Promise<TeacherProfile | undefined>;
+  getTeacherProfileByStaffId(staffId: string): Promise<TeacherProfile | undefined>;
+  getAllTeacherProfiles(): Promise<TeacherProfile[]>;
+  createTeacherProfile(profile: InsertTeacherProfile): Promise<TeacherProfile>;
+  updateTeacherProfile(userId: string, profile: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined>;
+  getAdminProfile(userId: string): Promise<AdminProfile | undefined>;
+  createAdminProfile(profile: InsertAdminProfile): Promise<AdminProfile>;
+  updateAdminProfile(userId: string, profile: Partial<InsertAdminProfile>): Promise<AdminProfile | undefined>;
+  getParentProfile(userId: string): Promise<ParentProfile | undefined>;
+  createParentProfile(profile: InsertParentProfile): Promise<ParentProfile>;
+  updateParentProfile(userId: string, profile: Partial<InsertParentProfile>): Promise<ParentProfile | undefined>;
   calculateProfileCompletion(userId: string, roleId: number): Promise<number>;
 
   // Student management
