@@ -136,7 +136,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`px-6 py-4 text-lg font-medium transition-colors duration-200 rounded-lg ${
+                    className={`px-4 py-4 text-lg font-medium transition-colors duration-200 rounded-lg text-left ${
                       isActive(item.href) 
                         ? 'bg-blue-600 text-white' 
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -152,17 +152,10 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                   <Link
                     href="/job-vacancy"
-                    className="block px-6 py-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
+                    className="block px-4 py-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200 text-left"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Job Vacancy
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="block px-6 py-4 text-lg font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Portal Login
                   </Link>
                 </div>
               </nav>
