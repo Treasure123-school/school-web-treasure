@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ROLE_IDS } from '@/lib/roles';
 
 export default function StudentProfile() {
   const { user } = useAuth();
@@ -171,7 +172,7 @@ export default function StudentProfile() {
                         {user.firstName[0]}{user.lastName[0]}
                       </AvatarFallback>
                     </Avatar>
-                    {user.roleId === 4 && (
+                    {user.roleId === ROLE_IDS.STUDENT && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -188,7 +189,7 @@ export default function StudentProfile() {
                   </h3>
                   <p className="text-muted-foreground">Student</p>
                   
-                  {user.roleId === 4 && showImageUpload && (
+                  {user.roleId === ROLE_IDS.STUDENT && showImageUpload && (
                     <div className="mt-4">
                       <FileUpload
                         type="profile"

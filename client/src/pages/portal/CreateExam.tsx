@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import type { Class, Subject, AcademicTerm } from '@shared/schema';
 import PortalLayout from '@/components/layout/PortalLayout';
+import { ROLE_IDS } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -161,7 +162,7 @@ export default function CreateExam() {
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
 
-  if (user.roleId !== 2) {
+  if (user.roleId !== ROLE_IDS.TEACHER) {
     navigate('/portal/teacher/dashboard');
     return null;
   }

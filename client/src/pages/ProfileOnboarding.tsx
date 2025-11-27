@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, UserCircle, MapPin, Briefcase, Shield } from "lucide-react";
+import { ROLE_IDS, getPortalByRoleId } from "@/lib/roles";
 
 // Onboarding form schema
 const onboardingSchema = z.object({
@@ -53,7 +54,7 @@ type OnboardingFormData = z.infer<typeof onboardingSchema>;
 export default function ProfileOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [currentRole, setCurrentRole] = useState<string>("");
+  const [currentRole, setCurrentRole] = useState<number>(0);
 
   // Fetch current profile
   const { data: profileData, isLoading } = useQuery({
@@ -159,11 +160,8 @@ export default function ProfileOnboarding() {
       });
       
       if (data.profileCompleted) {
-        // Redirect to dashboard based on role
-        if (currentRole === "1") navigate("/portal/student");
-        else if (currentRole === "2") navigate("/portal/teacher");
-        else if (currentRole === "3") navigate("/portal/parent");
-        else if (currentRole === "4") navigate("/portal/admin");
+        // Redirect to dashboard based on role using centralized role utilities
+        navigate(getPortalByRoleId(currentRole));
       }
     },
     onError: (error: Error) => {
@@ -177,27 +175,29 @@ export default function ProfileOnboarding() {
 
   const getRoleSpecificData = (data: OnboardingFormData) => {
     switch(currentRole) {
-      case "2": // Teacher
+      case ROLE_IDS.TEACHER: // roleId 3
         return {
           qualifications: data.qualifications,
           yearsOfExperience: data.yearsOfExperience,
           department: data.department,
         };
-      case "4": // Admin
+      case ROLE_IDS.ADMIN: // roleId 2
         return {
           position: data.position,
           accessLevel: data.accessLevel,
           responsibilities: data.responsibilities,
         };
-      case "3": // Parent
+      case ROLE_IDS.PARENT: // roleId 5
         return {
           occupation: data.occupation,
           emergencyContact: data.emergencyContact,
         };
-      case "1": // Student
+      case ROLE_IDS.STUDENT: // roleId 4
         return {
           guardianName: data.guardianName,
         };
+      case ROLE_IDS.SUPER_ADMIN: // roleId 1
+        return {};
       default:
         return {};
     }
@@ -372,7 +372,7 @@ export default function ProfileOnboarding() {
           </Card>
 
           {/* Role-Specific Fields */}
-          {currentRole === "2" && (
+          {currentRole === ROLE_IDS.TEACHER && (
             <Card className="mb-6">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -412,7 +412,7 @@ export default function ProfileOnboarding() {
             </Card>
           )}
 
-          {currentRole === "4" && (
+          {currentRole === ROLE_IDS.ADMIN && (
             <Card className="mb-6">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -455,7 +455,7 @@ export default function ProfileOnboarding() {
             </Card>
           )}
 
-          {currentRole === "3" && (
+          {currentRole === ROLE_IDS.PARENT && (
             <Card className="mb-6">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -485,7 +485,7 @@ export default function ProfileOnboarding() {
             </Card>
           )}
 
-          {currentRole === "1" && (
+          {currentRole === ROLE_IDS.STUDENT && (
             <Card className="mb-6">
               <CardHeader>
                 <div className="flex items-center gap-2">

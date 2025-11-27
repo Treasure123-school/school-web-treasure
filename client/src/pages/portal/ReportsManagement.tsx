@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { ROLE_IDS } from '@/lib/roles';
 import { 
   BarChart, 
   Bar, 
@@ -930,7 +931,7 @@ export default function ReportsManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.filter((u: any) => u.roleId === 1).map((student: any) => (
+                {users.filter((u: any) => u.roleId === ROLE_IDS.STUDENT).map((student: any) => (
                   <TableRow key={student.id} data-testid={`row-student-${student.id}`}>
                     <TableCell>
                       <div className="font-medium" data-testid={`text-student-name-${student.id}`}>
@@ -977,7 +978,7 @@ export default function ReportsManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.filter((u: any) => u.roleId === 2).map((teacher: any) => (
+                {users.filter((u: any) => u.roleId === ROLE_IDS.TEACHER).map((teacher: any) => (
                   <TableRow key={teacher.id} data-testid={`row-teacher-${teacher.id}`}>
                     <TableCell>
                       <div className="font-medium" data-testid={`text-teacher-name-${teacher.id}`}>

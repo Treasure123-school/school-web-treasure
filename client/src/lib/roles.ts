@@ -4,11 +4,11 @@
  */
 
 export const ROLE_IDS = {
-  SUPER_ADMIN: 0,
-  ADMIN: 1,
-  TEACHER: 2, 
-  STUDENT: 3,
-  PARENT: 4
+  SUPER_ADMIN: 1,
+  ADMIN: 2,
+  TEACHER: 3, 
+  STUDENT: 4,
+  PARENT: 5
 } as const;
 
 export const ROLE_NAMES = {

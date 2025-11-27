@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ROLE_IDS } from '@/lib/roles';
 
 interface GalleryImage {
   id: number;
@@ -85,10 +86,10 @@ export default function Gallery() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Gallery</h1>
             <p className="text-muted-foreground">
-              {user.roleId === 4 ? "Upload and manage your images" : "Browse school gallery"}
+              {user.roleId === ROLE_IDS.STUDENT ? "Upload and manage your images" : "Browse school gallery"}
             </p>
           </div>
-          {user.roleId === 4 && (
+          {user.roleId === ROLE_IDS.STUDENT && (
             <Button 
               onClick={() => setShowUpload(!showUpload)}
               data-testid="gallery-upload-toggle"
@@ -108,8 +109,8 @@ export default function Gallery() {
           )}
         </div>
 
-        {/* Upload Section - Admin Only */}
-        {user.roleId === 4 && showUpload && (
+        {/* Upload Section - Student Only */}
+        {user.roleId === ROLE_IDS.STUDENT && showUpload && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -152,7 +153,7 @@ export default function Gallery() {
                           alt={image.caption || 'Gallery image'}
                           className="w-full h-full object-cover"
                         />
-                        {user.roleId === 4 && (
+                        {user.roleId === ROLE_IDS.STUDENT && (
                           <div className="absolute top-2 right-2">
                             <Button
                               size="sm"
@@ -187,9 +188,9 @@ export default function Gallery() {
                           No images yet
                         </h3>
                         <p className="text-gray-500 mb-4">
-                          {user.roleId === 4 ? "Upload your first image to get started." : "No images have been uploaded yet."}
+                          {user.roleId === ROLE_IDS.STUDENT ? "Upload your first image to get started." : "No images have been uploaded yet."}
                         </p>
-                        {user.roleId === 4 && (
+                        {user.roleId === ROLE_IDS.STUDENT && (
                           <Button onClick={() => setShowUpload(true)} data-testid="upload-first-image">
                             <Plus className="h-4 w-4 mr-2" />
                             Upload Image

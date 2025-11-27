@@ -76,13 +76,14 @@ export async function previewCSVImport(csvContent: string): Promise<ImportPrevie
       errors.push('Gender must be Male, Female, or Other');
     }
     // Check if parent exists by phone
+    // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
     let parentExists = false;
     if (row.parentPhone) {
       const existingParent = await db.select()
         .from(users)
         .where(and(
           eq(users.phone, row.parentPhone),
-          eq(users.roleId, 4) // Parent role
+          eq(users.roleId, 5) // Parent role
         ))
         .limit(1);
       
@@ -168,11 +169,12 @@ export async function commitCSVImport(
         const passwordHash = await bcrypt.hash(studentPassword, 10);
 
         // Create student user
+        // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
         const [studentUser] = await tx.insert(users).values({
           username: studentUsername,
           email: `${studentUsername}@ths.edu`, // Auto-generate email
           passwordHash,
-          roleId: 3, // Student
+          roleId: 4, // Student
           firstName,
           lastName,
           gender: item.data.gender as any,
@@ -203,11 +205,12 @@ export async function commitCSVImport(
         if (item.data.parentPhone) {
           if (item.parentExists) {
             // Link to existing parent by phone
+            // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
             const [existingParent] = await tx.select()
               .from(users)
               .where(and(
                 eq(users.phone, item.data.parentPhone),
-                eq(users.roleId, 4)
+                eq(users.roleId, 5) // Parent
               ))
               .limit(1);
             
@@ -225,11 +228,12 @@ export async function commitCSVImport(
             const parentPassword = generateTempPassword();
             const parentHash = await bcrypt.hash(parentPassword, 10);
 
+            // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
             const [parentUser] = await tx.insert(users).values({
               username: parentUsername,
               email: item.data.parentEmail || `${parentUsername}@ths.edu`,
               passwordHash: parentHash,
-              roleId: 4, // Parent
+              roleId: 5, // Parent
               firstName: `Parent of ${firstName}`,
               lastName: lastName,
               phone: item.data.parentPhone,

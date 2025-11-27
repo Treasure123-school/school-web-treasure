@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 import { formatDistance } from "date-fns";
+import { ROLE_IDS, getRoleNameById } from "@/lib/roles";
 
 export default function SuperAdminAllUsers() {
   const { toast } = useToast();
@@ -89,14 +90,7 @@ export default function SuperAdminAllUsers() {
   });
 
   const getRoleName = (roleId: number) => {
-    const roles: Record<number, string> = {
-      0: "Super Admin",
-      1: "Admin",
-      2: "Teacher",
-      3: "Student",
-      4: "Parent"
-    };
-    return roles[roleId] || "Unknown";
+    return getRoleNameById(roleId);
   };
 
   return (
@@ -140,11 +134,11 @@ export default function SuperAdminAllUsers() {
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:border-slate-700">
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="0">Super Admin</SelectItem>
-                  <SelectItem value="1">Admin</SelectItem>
-                  <SelectItem value="2">Teacher</SelectItem>
-                  <SelectItem value="3">Student</SelectItem>
-                  <SelectItem value="4">Parent</SelectItem>
+                  <SelectItem value={ROLE_IDS.SUPER_ADMIN.toString()}>Super Admin</SelectItem>
+                  <SelectItem value={ROLE_IDS.ADMIN.toString()}>Admin</SelectItem>
+                  <SelectItem value={ROLE_IDS.TEACHER.toString()}>Teacher</SelectItem>
+                  <SelectItem value={ROLE_IDS.STUDENT.toString()}>Student</SelectItem>
+                  <SelectItem value={ROLE_IDS.PARENT.toString()}>Parent</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -194,7 +188,7 @@ export default function SuperAdminAllUsers() {
                             {user.lastLoginAt ? formatDistance(user.lastLoginAt, new Date()) + ' ago' : 'Never'}
                           </TableCell>
                           <TableCell className="text-right">
-                            {user.roleId !== 0 && ( // Don't allow actions on Super Admin accounts
+                            {user.roleId !== ROLE_IDS.SUPER_ADMIN && ( // Don't allow actions on Super Admin accounts
                               <div className="flex justify-end gap-2">
                                 {user.status === "active" ? (
                                   <Button

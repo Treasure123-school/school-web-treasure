@@ -22,13 +22,14 @@ const db = drizzle(sql, { schema });
 
 const BCRYPT_ROUNDS = 12;
 
-// Role definitions
+// Role definitions - IDs must match database serial sequence (1-5)
+// Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
 const ROLES = [
-  { id: 0, name: "Super Admin", permissions: JSON.stringify(["*"]) },
-  { id: 1, name: "Admin", permissions: JSON.stringify(["manage_users", "manage_classes", "manage_exams", "view_reports"]) },
-  { id: 2, name: "Teacher", permissions: JSON.stringify(["create_exams", "grade_students", "manage_attendance", "view_class_reports"]) },
-  { id: 3, name: "Student", permissions: JSON.stringify(["take_exams", "view_grades", "view_resources"]) },
-  { id: 4, name: "Parent", permissions: JSON.stringify(["view_child_grades", "view_child_attendance", "contact_teachers"]) },
+  { id: 1, name: "Super Admin", permissions: JSON.stringify(["*"]) },
+  { id: 2, name: "Admin", permissions: JSON.stringify(["manage_users", "manage_classes", "manage_exams", "view_reports"]) },
+  { id: 3, name: "Teacher", permissions: JSON.stringify(["create_exams", "grade_students", "manage_attendance", "view_class_reports"]) },
+  { id: 4, name: "Student", permissions: JSON.stringify(["take_exams", "view_grades", "view_resources"]) },
+  { id: 5, name: "Parent", permissions: JSON.stringify(["view_child_grades", "view_child_attendance", "contact_teachers"]) },
 ];
 
 // Test user accounts

@@ -990,23 +990,29 @@ export class DatabaseStorage implements IStorage {
     });
 
     // Check role-specific profile completion
-    if (roleId === 1) { // Admin
+    // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
+    if (roleId === 1) { // Super Admin
+      const superAdminProfile = await this.getSuperAdminProfile(userId);
+      if (superAdminProfile?.department) completedFields++;
+      if (superAdminProfile?.roleDescription) completedFields++;
+      if (superAdminProfile?.accessLevel) completedFields++;
+    } else if (roleId === 2) { // Admin
       const adminProfile = await this.getAdminProfile(userId);
       if (adminProfile?.department) completedFields++;
       if (adminProfile?.roleDescription) completedFields++;
       if (adminProfile?.accessLevel) completedFields++;
-    } else if (roleId === 2) { // Teacher
+    } else if (roleId === 3) { // Teacher
       const teacherProfile = await this.getTeacherProfile(userId);
       if (teacherProfile?.subjects && teacherProfile.subjects.length > 0) completedFields++;
       if (teacherProfile?.assignedClasses && teacherProfile.assignedClasses.length > 0) completedFields++;
       if (teacherProfile?.qualification) completedFields++;
       if (teacherProfile?.yearsOfExperience) completedFields++;
-    } else if (roleId === 3) { // Student
+    } else if (roleId === 4) { // Student
       const student = await this.getStudent(userId);
       if (student?.classId) completedFields++;
       if (student?.guardianName) completedFields++;
       if (student?.emergencyContact) completedFields++;
-    } else if (roleId === 4) { // Parent
+    } else if (roleId === 5) { // Parent
       const parentProfile = await this.getParentProfile(userId);
       if (parentProfile?.occupation) completedFields++;
       if (parentProfile?.contactPreference) completedFields++;
@@ -3377,11 +3383,12 @@ export class DatabaseStorage implements IStorage {
   async getAnalyticsOverview(): Promise<any> {
     try {
       // Get basic counts
+      // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
       const [students, teachers, admins, parents] = await Promise.all([
-        db.select().from(schema.users).where(eq(schema.users.roleId, 1)),
-        db.select().from(schema.users).where(eq(schema.users.roleId, 2)),
-        db.select().from(schema.users).where(eq(schema.users.roleId, 4)),
-        db.select().from(schema.users).where(eq(schema.users.roleId, 3))
+        db.select().from(schema.users).where(eq(schema.users.roleId, 4)), // Student
+        db.select().from(schema.users).where(eq(schema.users.roleId, 3)), // Teacher
+        db.select().from(schema.users).where(eq(schema.users.roleId, 2)), // Admin
+        db.select().from(schema.users).where(eq(schema.users.roleId, 5))  // Parent
       ]);
 
       const [classes, subjects, exams, examResults] = await Promise.all([
@@ -3475,10 +3482,11 @@ export class DatabaseStorage implements IStorage {
       cutoffDate.setMonth(cutoffDate.getMonth() - months);
 
       // Get data for the specified time period
+      // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
       const [students, exams, examResults] = await Promise.all([
         db.select().from(schema.users)
           .where(and(
-            eq(schema.users.roleId, 1),
+            eq(schema.users.roleId, 4), // Student
             // Note: In a real implementation, you'd filter by createdAt >= cutoffDate
           )),
         db.select().from(schema.exams),

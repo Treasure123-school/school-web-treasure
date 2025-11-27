@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Lock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { ROLE_IDS } from '@/lib/roles';
 
 interface RequireCompleteProfileProps {
   children: ReactNode;
@@ -41,7 +42,7 @@ export default function RequireCompleteProfile({
   const user = data?.user;
 
   // Determine which profile status endpoint to use based on role
-  const isTeacher = user?.roleId === 2;
+  const isTeacher = user?.roleId === ROLE_IDS.TEACHER;
   const profileStatusEndpoint = isTeacher ? '/api/teacher/profile/status' : '/api/student/profile/status';
 
   // Check profile status

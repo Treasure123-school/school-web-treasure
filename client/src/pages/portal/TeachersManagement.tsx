@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Copy, CheckCircle } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
+import { ROLE_IDS } from '@/lib/roles';
 
 const teacherFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -26,7 +27,7 @@ const teacherFormSchema = z.object({
   address: z.string().optional(),
   dateOfBirth: z.string().optional(),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
-  roleId: z.number().default(2), // Teacher role ID
+  roleId: z.number().default(ROLE_IDS.TEACHER), // Teacher role ID = 3
   employeeId: z.string().optional(),
   department: z.string().optional(),
   qualifications: z.string().optional(),
@@ -53,7 +54,7 @@ export default function TeachersManagement() {
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<TeacherForm>({
     resolver: zodResolver(teacherFormSchema),
     defaultValues: {
-      roleId: 2, // Teacher role
+      roleId: ROLE_IDS.TEACHER, // Teacher role = 3
     }
   });
 
@@ -94,7 +95,7 @@ export default function TeachersManagement() {
       const previousData = queryClient.getQueryData(['/api/users', 'Teacher']);
       
       queryClient.setQueryData(['/api/users', 'Teacher'], (old: any) => {
-        const tempTeacher = { ...newTeacher, id: 'temp-' + Date.now(), createdAt: new Date(), role: { id: 2, name: 'Teacher' } };
+        const tempTeacher = { ...newTeacher, id: 'temp-' + Date.now(), createdAt: new Date(), role: { id: ROLE_IDS.TEACHER, name: 'Teacher' } };
         if (!old) return [tempTeacher];
         return [tempTeacher, ...old];
       });

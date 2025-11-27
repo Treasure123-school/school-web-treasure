@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
+import { ROLE_IDS } from '@/lib/roles';
 import { Users, GraduationCap, School, TrendingUp, UserPlus, MessageSquare, BarChart3, FileText, Image as ImageIcon, UserCheck, Bell, AlertCircle, Shield, ShieldAlert, Lock, Key, BookOpen, Calendar, Search, Filter, Mail, Phone, Edit, Ban, CheckCircle, XCircle, Clock, Activity } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
@@ -480,7 +481,7 @@ export default function AdminDashboard() {
   // Fetch all users for recent registrations (Admin only)
   const { data: allUsers = [], isError: usersError } = useQuery<any[]>({
     queryKey: ['/api/users'],
-    enabled: !!user && user.roleId === 1, // Only fetch for admins
+    enabled: !!user && (user.roleId === ROLE_IDS.ADMIN || user.roleId === ROLE_IDS.SUPER_ADMIN), // Only fetch for admins
     retry: false, // Don't retry on permission errors
   });
 
@@ -492,7 +493,7 @@ export default function AdminDashboard() {
 
   // Get recent registrations (last 3 students)
   const mockRecentRegistrations = allUsers
-    .filter(u => u.roleId === 3) // Students only
+    .filter(u => u.roleId === ROLE_IDS.STUDENT) // Students only
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3)
     .map((student, index) => ({
@@ -526,8 +527,8 @@ export default function AdminDashboard() {
 
       return {
         date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        students: dayUsers.filter(u => u.roleId === 3).length,
-        teachers: dayUsers.filter(u => u.roleId === 2).length,
+        students: dayUsers.filter(u => u.roleId === ROLE_IDS.STUDENT).length,
+        teachers: dayUsers.filter(u => u.roleId === ROLE_IDS.TEACHER).length,
         total: dayUsers.length,
       };
     });
@@ -535,10 +536,10 @@ export default function AdminDashboard() {
 
   // Process role distribution for pie chart
   const roleDistribution = [
-    { name: 'Students', value: allUsers.filter(u => u.roleId === 3).length, color: '#3b82f6' },
-    { name: 'Teachers', value: allUsers.filter(u => u.roleId === 2).length, color: '#10b981' },
-    { name: 'Parents', value: allUsers.filter(u => u.roleId === 4).length, color: '#f59e0b' },
-    { name: 'Admins', value: allUsers.filter(u => u.roleId === 1).length, color: '#ef4444' },
+    { name: 'Students', value: allUsers.filter(u => u.roleId === ROLE_IDS.STUDENT).length, color: '#3b82f6' },
+    { name: 'Teachers', value: allUsers.filter(u => u.roleId === ROLE_IDS.TEACHER).length, color: '#10b981' },
+    { name: 'Parents', value: allUsers.filter(u => u.roleId === ROLE_IDS.PARENT).length, color: '#f59e0b' },
+    { name: 'Admins', value: allUsers.filter(u => u.roleId === ROLE_IDS.ADMIN).length, color: '#ef4444' },
   ].filter(item => item.value > 0);
 
   // Process exam participation data

@@ -13,11 +13,13 @@ import crypto from 'crypto';
 // - Parent: THS-PAR-012
 // - Admin: THS-ADM-001
 
+// Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
 const ROLE_CODES = {
-  1: 'ADM', // Admin
-  2: 'TCH', // Teacher
-  3: 'STU', // Student
-  4: 'PAR', // Parent
+  1: 'SAD', // Super Admin
+  2: 'ADM', // Admin
+  3: 'TCH', // Teacher
+  4: 'STU', // Student
+  5: 'PAR', // Parent
 } as const;
 
 /**
@@ -35,7 +37,7 @@ function generateRandomString(length: number): string {
 }
 /**
  * Generate THS-branded username with NEW simplified format
- * @param roleId - User role ID (1=Admin, 2=Teacher, 3=Student, 4=Parent)
+ * @param roleId - User role ID (1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent)
  * @param number - Sequential number (e.g., 1, 2, 3...)
  * @returns THS-branded username in new simplified format (THS-ROLE-###)
  */

@@ -19,6 +19,7 @@ import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, Fi
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { ROLE_IDS } from '@/lib/roles';
 
 // Use shared schema to prevent frontend/backend drift
 type StudentForm = CreateStudentRequest;
@@ -329,7 +330,7 @@ export default function StudentManagement() {
         .map((s: any) => ({
           firstName: s.user?.firstName || '',
           lastName: s.user?.lastName || '',
-          roleId: 3,
+          roleId: ROLE_IDS.STUDENT,
           username: s.user?.username || '',
           password: passwords?.[s.id] || 'Contact Admin',
         }));
