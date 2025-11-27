@@ -684,16 +684,17 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Counters table
+// Counters table for username generation
 export const counters = pgTable("counters", {
   id: serial("id").primaryKey(),
-  classCode: varchar("class_code", { length: 50 }).notNull(),
-  year: varchar("year", { length: 10 }).notNull(),
+  roleCode: varchar("role_code", { length: 10 }).notNull(),
+  classCode: varchar("class_code", { length: 50 }),
+  year: varchar("year", { length: 10 }),
   sequence: integer("sequence").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
-  countersClassYearIdx: uniqueIndex("counters_class_year_idx").on(table.classCode, table.year),
+  countersRoleCodeIdx: uniqueIndex("counters_role_code_idx").on(table.roleCode),
 }));
 
 // Vacancies table

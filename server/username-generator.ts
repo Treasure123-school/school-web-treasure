@@ -1,6 +1,6 @@
 import { db } from './storage';
-import { counters } from '../shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { counters } from '../shared/schema.pg';
+import { sql } from 'drizzle-orm';
 
 /**
  * Role code constants for username generation
@@ -17,12 +17,14 @@ const ROLE_CODES = {
  * Uses PostgreSQL ON CONFLICT for atomic increment
  */
 async function getNextSequenceForRole(roleCode: string): Promise<number> {
+  const currentYear = new Date().getFullYear().toString();
+  
   const result = await db
     .insert(counters)
     .values({
       roleCode,
       classCode: 'N/A',
-      year: '2025',
+      year: currentYear,
       sequence: 1
     })
     .onConflictDoUpdate({
