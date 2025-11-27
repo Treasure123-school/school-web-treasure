@@ -38,6 +38,7 @@ A comprehensive school management system with JWT authentication, dual-database 
 - **PostgreSQL Schema**: shared/schema.pg.ts (40+ tables with PostgreSQL types)
 - **Legacy SQLite Schema**: shared/schema.ts (deprecated, not used)
 - **Types**: Auto-generated from schemas using Drizzle Zod
+- **Role Constants**: shared/role-constants.ts (single source of truth for role IDs)
 
 ## Environment Configuration
 
