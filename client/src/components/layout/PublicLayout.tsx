@@ -127,30 +127,45 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           
         </nav>
         
-        {/* Beautiful Modern Mobile Navigation Dropdown */}
+        {/* Simple Full-Page Mobile Navigation Dropdown */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-white/95 backdrop-blur-lg border-t border-blue-100 shadow-2xl animate-slide-down">
-            <div className="container-custom py-6">
-              <div className="flex flex-col space-y-2">
-                {navigation.map((item, index) => (
+          <div className="lg:hidden fixed inset-0 top-20 bg-white dark:bg-gray-900 z-40 overflow-y-auto">
+            <div className="container mx-auto px-6 py-8">
+              <nav className="flex flex-col space-y-1">
+                {navigation.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`px-6 py-4 rounded-2xl text-base font-medium transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 ${
-                      index === 0 ? 'mt-2' : ''
-                    } ${
+                    className={`px-6 py-4 text-lg font-medium transition-colors duration-200 rounded-lg ${
                       isActive(item.href) 
-                        ? 'bg-gradient-to-r from-[#1F51FF] to-[#3B6FFF] text-white font-bold shadow-lg shadow-[#1F51FF]/25' 
-                        : 'bg-gradient-to-r from-[#1F51FF]/10 to-[#3B6FFF]/10 text-[#1F51FF] hover:from-[#1F51FF]/20 hover:to-[#3B6FFF]/20 hover:text-[#1A47E6] hover:shadow-lg'
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
-                    style={{ animationDelay: `${index * 0.1}s` }}
                     onClick={() => setIsMobileMenuOpen(false)}
                     data-testid={`nav-mobile-${item.name.toLowerCase()}`}
                   >
                     {item.name}
                   </Link>
                 ))}
-              </div>
+                
+                {/* Additional Links */}
+                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Link
+                    href="/job-vacancy"
+                    className="block px-6 py-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Job Vacancy
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="block px-6 py-4 text-lg font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Portal Login
+                  </Link>
+                </div>
+              </nav>
             </div>
           </div>
         )}
