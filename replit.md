@@ -284,17 +284,32 @@ project/
 - `POST /api/auth/change-password` - Change password
 
 ### User Management
-- `GET /api/users` - List users
+- `GET /api/users` - List users (Super Admin: all, Admin: filtered, Teacher: Teacher/Student only)
+- `POST /api/users` - Create user (Super Admin/Admin/Teacher - with role hierarchy enforcement)
 - `GET /api/users/:id` - Get user
 - `PATCH /api/users/:id` - Update user
 - `DELETE /api/users/:id` - Delete user
 
+### Role Hierarchy (User Creation)
+- **Super Admin (1)** can create: Admin, Teacher, Student, Parent
+- **Admin (2)** can create: Teacher, Student, Parent (NOT Super Admin or Admin)
+- **Teacher (3)** can create: Student only
+
 ### Exams
-- `GET /api/exams` - List exams
-- `POST /api/exams` - Create exam
+- `GET /api/exams` - List exams (role-filtered: Students see class-assigned exams only)
+- `POST /api/exams` - Create exam (Teacher only)
 - `GET /api/exams/:id` - Get exam details
-- `POST /api/exams/:id/submit` - Submit exam
+- `POST /api/exams/:examId/questions/csv` - Upload questions via CSV (Teacher/Admin)
+- `POST /api/exams/:id/submit` - Submit exam (Student)
 - `GET /api/exams/:id/results` - Get results
+
+### Exam CSV Upload Format
+```csv
+questionText,questionType,points,optionA,optionB,optionC,optionD,correctAnswer
+"What is 2+2?",multiple_choice,2,2,3,4,5,c
+"The sun is a star",true_false,1,,,,,true
+"Define photosynthesis",essay,5,,,,,
+```
 
 ### And 100+ more endpoints...
 

@@ -898,9 +898,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all exams
   app.get('/api/exams', authenticateUser, async (req, res) => {
     try {
+      const userId = req.user!.id;
+      const userRoleId = req.user!.roleId;
+      
+      // Students should only see exams assigned to their class
+      if (userRoleId === ROLES.STUDENT) {
+        // Get the student's class
+        const student = await storage.getStudent(userId);
+        
+        if (!student || !student.classId) {
+          // Student not enrolled in any class - return empty array
+          return res.json([]);
+        }
+        
+        // Get exams for student's class that are published
+        const allExams = await storage.getAllExams();
+        const studentExams = allExams.filter((exam: any) => {
+          // Only show published exams for the student's class
+          return exam.isPublished && exam.classId === student.classId;
+        });
+        
+        return res.json(studentExams);
+      }
+      
+      // Teachers see exams they created
+      if (userRoleId === ROLES.TEACHER) {
+        const allExams = await storage.getAllExams();
+        const teacherExams = allExams.filter((exam: any) => exam.createdBy === userId);
+        return res.json(teacherExams);
+      }
+      
+      // Parents see exams for their children's classes
+      if (userRoleId === ROLES.PARENT) {
+        const children = await storage.getStudentsByParentId(userId);
+        
+        if (!children || children.length === 0) {
+          return res.json([]);
+        }
+        
+        // Get unique class IDs from all children
+        const classIds = [...new Set(children.map((c: any) => c.classId).filter(Boolean))];
+        
+        if (classIds.length === 0) {
+          return res.json([]);
+        }
+        
+        const allExams = await storage.getAllExams();
+        const parentExams = allExams.filter((exam: any) => {
+          return exam.isPublished && classIds.includes(exam.classId);
+        });
+        
+        return res.json(parentExams);
+      }
+      
+      // Admins and Super Admins see all exams
       const exams = await storage.getAllExams();
       res.json(exams);
     } catch (error) {
+      console.error('Error fetching exams:', error);
       res.status(500).json({ message: 'Failed to fetch exams' });
     }
   });
@@ -1216,6 +1271,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         message: error.message || 'Failed to upload questions',
         created: 0,
+        errors: [error.message || 'Unknown error occurred']
+      });
+    }
+  });
+
+  // CSV Upload for exam questions - TEACHERS ONLY
+  // Expected CSV format: questionText, questionType, points, optionA, optionB, optionC, optionD, correctAnswer
+  app.post('/api/exams/:examId/questions/csv', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), uploadCSV.single('file'), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      
+      if (!req.file) {
+        return res.status(400).json({ message: 'CSV file is required' });
+      }
+      
+      // Verify exam exists and belongs to this teacher
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      // Only allow teachers who created the exam or admins
+      if (req.user!.roleId === ROLES.TEACHER && exam.createdBy !== req.user!.id) {
+        return res.status(403).json({ message: 'You can only upload questions to exams you created' });
+      }
+      
+      // Read and parse CSV file
+      const csvContent = await fs.readFile(req.file.path, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+      
+      if (lines.length < 2) {
+        await fs.unlink(req.file.path); // Clean up
+        return res.status(400).json({ message: 'CSV file must contain header and at least one question row' });
+      }
+      
+      // Parse header
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, ''));
+      
+      // Expected columns for exam questions CSV
+      const requiredColumns = ['questiontext', 'questiontype'];
+      const hasRequiredColumns = requiredColumns.every(col => headers.includes(col));
+      
+      if (!hasRequiredColumns) {
+        await fs.unlink(req.file.path); // Clean up
+        return res.status(400).json({
+          message: 'CSV must contain columns: questionText, questionType. Optional: points, optionA, optionB, optionC, optionD, correctAnswer, expectedAnswers'
+        });
+      }
+      
+      const questionsData: any[] = [];
+      const errors: string[] = [];
+      
+      // Parse each row
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Skip empty lines
+        
+        // Handle CSV with quoted fields containing commas
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+        
+        const row: Record<string, string> = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        
+        try {
+          const questionText = row['questiontext'];
+          const questionType = row['questiontype']?.toLowerCase() || 'multiple_choice';
+          const points = parseInt(row['points']) || 1;
+          
+          if (!questionText) {
+            errors.push(`Row ${i + 1}: Missing question text`);
+            continue;
+          }
+          
+          // Validate question type
+          const validTypes = ['multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_blank'];
+          if (!validTypes.includes(questionType)) {
+            errors.push(`Row ${i + 1}: Invalid question type '${questionType}'. Valid types: ${validTypes.join(', ')}`);
+            continue;
+          }
+          
+          // Build question data
+          const questionData: any = {
+            question: {
+              examId,
+              questionText,
+              questionType,
+              points,
+              orderNumber: questionsData.length + 1,
+              autoGradable: ['multiple_choice', 'true_false', 'fill_blank'].includes(questionType),
+              expectedAnswers: '[]',
+            },
+            options: []
+          };
+          
+          // Handle multiple choice options
+          if (questionType === 'multiple_choice' || questionType === 'true_false') {
+            const optionLabels = ['a', 'b', 'c', 'd', 'e', 'f'];
+            const correctAnswer = row['correctanswer']?.toLowerCase();
+            
+            for (const label of optionLabels) {
+              const optionText = row[`option${label}`];
+              if (optionText) {
+                questionData.options.push({
+                  optionText,
+                  isCorrect: correctAnswer === label || correctAnswer === optionText.toLowerCase(),
+                  orderNumber: optionLabels.indexOf(label) + 1
+                });
+              }
+            }
+            
+            // For true/false, auto-create options if not provided
+            if (questionType === 'true_false' && questionData.options.length === 0) {
+              questionData.options = [
+                { optionText: 'True', isCorrect: correctAnswer === 'true' || correctAnswer === 'a', orderNumber: 1 },
+                { optionText: 'False', isCorrect: correctAnswer === 'false' || correctAnswer === 'b', orderNumber: 2 }
+              ];
+            }
+          }
+          
+          // Handle expected answers for short answer/fill blank
+          if (questionType === 'short_answer' || questionType === 'fill_blank') {
+            const expectedAnswers = row['expectedanswers'] || row['correctanswer'];
+            if (expectedAnswers) {
+              // Split by semicolon for multiple acceptable answers
+              const answers = expectedAnswers.split(';').map(a => a.trim()).filter(a => a);
+              questionData.question.expectedAnswers = JSON.stringify(answers);
+            }
+          }
+          
+          questionsData.push(questionData);
+        } catch (err: any) {
+          errors.push(`Row ${i + 1}: ${err.message}`);
+        }
+      }
+      
+      // Clean up uploaded file
+      await fs.unlink(req.file.path);
+      
+      if (questionsData.length === 0) {
+        return res.status(400).json({
+          message: 'No valid questions found in CSV',
+          errors
+        });
+      }
+      
+      // Use database transaction for atomic insert
+      const result = await storage.createExamQuestionsBulk(questionsData);
+      
+      // Update exam total marks if needed
+      const totalPoints = questionsData.reduce((sum, q) => sum + (q.question.points || 1), 0);
+      await storage.updateExam(examId, { totalMarks: (exam.totalMarks || 0) + totalPoints });
+      
+      // Log audit event
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'exam_questions_csv_upload',
+        entityType: 'exam',
+        entityId: examId.toString(),
+        newValue: JSON.stringify({ questionsCreated: result.created, errors: result.errors?.length || 0 }),
+        reason: `CSV upload: ${result.created} questions added to exam ${exam.name}`,
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.headers['user-agent'] || null
+      });
+      
+      res.status(201).json({
+        message: `Successfully imported ${result.created} questions from CSV`,
+        created: result.created,
+        errors: errors.length > 0 ? errors : result.errors,
+        totalPointsAdded: totalPoints
+      });
+    } catch (error: any) {
+      // Clean up file if it exists
+      if (req.file?.path) {
+        await fs.unlink(req.file.path).catch(() => {});
+      }
+      console.error('CSV question upload error:', error);
+      res.status(500).json({
+        message: error.message || 'Failed to import questions from CSV',
         errors: [error.message || 'Unknown error occurred']
       });
     }
@@ -3813,7 +4063,7 @@ Treasure-Home School Administration
   });
 
   // User management - Admin only - OPTIMIZED for speed
-  app.get("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  app.get("/api/users", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { role } = req.query;
       const currentUser = req.user;
@@ -3821,6 +4071,14 @@ Treasure-Home School Administration
       if (!currentUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+      
+      // Teachers can only fetch Teacher or Student data (for exam collaboration purposes)
+      if (currentUser.roleId === ROLES.TEACHER) {
+        if (!role || (role !== 'Teacher' && role !== 'Student')) {
+          return res.status(403).json({ message: "Teachers can only view Teacher and Student user lists" });
+        }
+      }
+      
       let users: any[] = [];
 
       if (role && typeof role === 'string') {
@@ -4556,7 +4814,7 @@ Treasure-Home School Administration
     }
   });
 
-  app.post("/api/users", authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
+  app.post("/api/users", authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       // Extract password from request and hash it before storage
       const { password, ...otherUserData } = req.body;
@@ -4564,10 +4822,33 @@ Treasure-Home School Administration
       if (!password || typeof password !== 'string' || password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
       }
+      
+      // ========== ROLE HIERARCHY ENFORCEMENT ==========
+      // Super Admin (1) can create: Admin (2), Teacher (3), Student (4), Parent (5)
+      // Admin (2) can create: Teacher (3), Student (4), Parent (5) - NOT Super Admin or Admin
+      // Teacher (3) can create: Student (4) only
+      
+      const creatorRoleId = req.user!.roleId;
+      const targetRoleId = otherUserData.roleId;
+      
       // Teachers can only create students
-      if (req.user!.roleId === ROLES.TEACHER && otherUserData.roleId !== ROLES.STUDENT) {
+      if (creatorRoleId === ROLES.TEACHER && targetRoleId !== ROLES.STUDENT) {
         return res.status(403).json({ message: "Teachers can only create student accounts" });
       }
+      
+      // Admins cannot create Super Admins or other Admins
+      if (creatorRoleId === ROLES.ADMIN) {
+        if (targetRoleId === ROLES.SUPER_ADMIN) {
+          return res.status(403).json({ message: "Admins cannot create Super Admin accounts" });
+        }
+        if (targetRoleId === ROLES.ADMIN) {
+          return res.status(403).json({ message: "Admins cannot create other Admin accounts. Only Super Admins can create Admin accounts." });
+        }
+      }
+      
+      // Super Admin can create any role (no restrictions)
+      // ========== END ROLE HIERARCHY ENFORCEMENT ==========
+      
       // Generate username if not provided (based on roleId)
       let username = otherUserData.username;
       if (!username && otherUserData.roleId) {
@@ -4589,7 +4870,8 @@ Treasure-Home School Administration
         mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
         profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
         profileSkipped: otherUserData.profileSkipped ?? false, // 🔧 FIX: Default to false if not provided
-        createdVia: req.user!.roleId === ROLES.TEACHER ? 'teacher' : 'admin' // Track who created the user
+        createdVia: creatorRoleId === ROLES.TEACHER ? 'teacher' : (creatorRoleId === ROLES.SUPER_ADMIN ? 'superadmin' : 'admin'), // Track who created the user
+        createdBy: req.user!.id // Track creator user ID
       });
 
       const user = await storage.createUser(userData);
