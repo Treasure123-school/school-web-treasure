@@ -937,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Get unique class IDs from all children
-        const classIds = [...new Set(children.map((c: any) => c.classId).filter(Boolean))];
+        const classIds = Array.from(new Set(children.map((c: any) => c.classId).filter(Boolean)));
         
         if (classIds.length === 0) {
           return res.json([]);
@@ -4963,7 +4963,7 @@ Treasure-Home School Administration
       const lines = csvContent.trim().split('\n');
 
       if (lines.length < 2) {
-        return res.status(4000).json({ message: "CSV file must contain header and at least one row" });
+        return res.status(400).json({ message: "CSV file must contain header and at least one row" });
       }
       // Parse header
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());

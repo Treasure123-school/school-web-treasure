@@ -115,5 +115,3 @@ run = ["npm", "run", "start"]
 MINIO_USE_SSL = "false"
 STORAGE_MODE = "disk"
 UPLOAD_DIR = "uploads"
-CLOUDINARY_CLOUD_NAME = ""
-CLOUDINARY_API_KEY = ""
