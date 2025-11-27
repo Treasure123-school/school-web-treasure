@@ -1095,40 +1095,43 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   async updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined> {
-    // Use transaction to ensure both user and student are updated atomically
-    return await this.db.transaction(async (tx: any) => {
+    // NOTE: Neon HTTP driver does NOT support transactions
+    // Using direct operations instead
+    try {
       let updatedUser: User | undefined;
       let updatedStudent: Student | undefined;
 
       // Update user if userPatch is provided
       if (updates.userPatch && Object.keys(updates.userPatch).length > 0) {
-        const userResult = await tx.update(schema.users)
+        const userResult = await this.db.update(schema.users)
           .set(updates.userPatch)
           .where(eq(schema.users.id, id))
           .returning();
         updatedUser = userResult[0];
       } else {
         // Get current user data if no updates
-        const userResult = await tx.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+        const userResult = await this.db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
         updatedUser = userResult[0];
       }
       // Update student if studentPatch is provided
       if (updates.studentPatch && Object.keys(updates.studentPatch).length > 0) {
-        const studentResult = await tx.update(schema.students)
+        const studentResult = await this.db.update(schema.students)
           .set(updates.studentPatch)
           .where(eq(schema.students.id, id))
           .returning();
         updatedStudent = studentResult[0];
       } else {
         // Get current student data if no updates
-        const studentResult = await tx.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
+        const studentResult = await this.db.select().from(schema.students).where(eq(schema.students.id, id)).limit(1);
         updatedStudent = studentResult[0];
       }
       if (updatedUser && updatedStudent) {
         return { user: updatedUser, student: updatedStudent };
       }
       return undefined;
-    });
+    } catch (error) {
+      throw error;
+    }
   }
   async setUserActive(id: string, isActive: boolean): Promise<User | undefined> {
     const result = await this.db.update(schema.users)
@@ -1149,46 +1152,45 @@ export class DatabaseStorage implements IStorage {
   async hardDeleteStudent(id: string): Promise<boolean> {
     // Hard deletion with proper cascade handling
     // Delete in correct order to respect foreign key constraints
-    return await this.db.transaction(async (tx: any) => {
-      try {
-        // 1. Get all exam sessions for this student
-        const examSessions = await tx.select({ id: schema.examSessions.id })
-          .from(schema.examSessions)
-          .where(eq(schema.examSessions.studentId, id));
+    // NOTE: Neon HTTP driver does NOT support transactions
+    try {
+      // 1. Get all exam sessions for this student
+      const examSessions = await this.db.select({ id: schema.examSessions.id })
+        .from(schema.examSessions)
+        .where(eq(schema.examSessions.studentId, id));
 
-        const sessionIds = examSessions.map((session: any) => session.id);
+      const sessionIds = examSessions.map((session: any) => session.id);
 
-        // 2. Delete student answers for all their exam sessions
-        if (sessionIds.length > 0) {
-          await tx.delete(schema.studentAnswers)
-            .where(inArray(schema.studentAnswers.sessionId, sessionIds));
-        }
-        // 3. Delete exam sessions for this student
-        await tx.delete(schema.examSessions)
-          .where(eq(schema.examSessions.studentId, id));
-
-        // 4. Delete exam results for this student
-        await tx.delete(schema.examResults)
-          .where(eq(schema.examResults.studentId, id));
-
-        // 5. Delete attendance records for this student
-        await tx.delete(schema.attendance)
-          .where(eq(schema.attendance.studentId, id));
-
-        // 6. Delete the student record
-        await tx.delete(schema.students)
-          .where(eq(schema.students.id, id));
-
-        // 7. Delete the user record
-        const userResult = await tx.delete(schema.users)
-          .where(eq(schema.users.id, id))
-          .returning();
-
-        return userResult.length > 0;
-      } catch (error) {
-        throw error;
+      // 2. Delete student answers for all their exam sessions
+      if (sessionIds.length > 0) {
+        await this.db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.sessionId, sessionIds));
       }
-    });
+      // 3. Delete exam sessions for this student
+      await this.db.delete(schema.examSessions)
+        .where(eq(schema.examSessions.studentId, id));
+
+      // 4. Delete exam results for this student
+      await this.db.delete(schema.examResults)
+        .where(eq(schema.examResults.studentId, id));
+
+      // 5. Delete attendance records for this student
+      await this.db.delete(schema.attendance)
+        .where(eq(schema.attendance.studentId, id));
+
+      // 6. Delete the student record
+      await this.db.delete(schema.students)
+        .where(eq(schema.students.id, id));
+
+      // 7. Delete the user record
+      const userResult = await this.db.delete(schema.users)
+        .where(eq(schema.users.id, id))
+        .returning();
+
+      return userResult.length > 0;
+    } catch (error) {
+      throw error;
+    }
   }
   async getStudentsByClass(classId: number): Promise<Student[]> {
     // Return all students in class regardless of active status for admin management
@@ -1728,55 +1730,49 @@ export class DatabaseStorage implements IStorage {
     question: InsertExamQuestion,
     options?: Array<{optionText: string; isCorrect: boolean}>
   ): Promise<ExamQuestion> {
-    // Use a transaction to ensure atomicity and reduce connection pressure
-    return await db.transaction(async (tx: any) => {
-      try {
-        // Use all available columns from the schema
-        const questionData = {
-          examId: question.examId,
-          questionText: question.questionText,
-          questionType: question.questionType,
-          points: question.points,
-          orderNumber: question.orderNumber,
-          imageUrl: question.imageUrl,
-          autoGradable: question.autoGradable ?? true,
-          expectedAnswers: question.expectedAnswers,
-          caseSensitive: question.caseSensitive ?? false,
-          allowPartialCredit: question.allowPartialCredit ?? false,
-          partialCreditRules: question.partialCreditRules,
-          explanationText: question.explanationText,
-          hintText: question.hintText,
-        };
-        // Insert question first
-        const questionResult = await tx.insert(schema.examQuestions).values(questionData).returning();
-        const createdQuestion = questionResult[0];
+    // NOTE: Neon HTTP driver does NOT support transactions
+    // Using direct inserts instead of db.transaction()
+    try {
+      // Use all available columns from the schema
+      const questionData = {
+        examId: question.examId,
+        questionText: question.questionText,
+        questionType: question.questionType,
+        points: question.points,
+        orderNumber: question.orderNumber,
+        imageUrl: question.imageUrl,
+        autoGradable: question.autoGradable ?? true,
+        expectedAnswers: question.expectedAnswers,
+        caseSensitive: question.caseSensitive ?? false,
+        allowPartialCredit: question.allowPartialCredit ?? false,
+        partialCreditRules: question.partialCreditRules,
+        explanationText: question.explanationText,
+        hintText: question.hintText,
+      };
+      // Insert question first
+      const questionResult = await db.insert(schema.examQuestions).values(questionData).returning();
+      const createdQuestion = questionResult[0];
 
-        // Insert options if provided
-        if (Array.isArray(options) && options.length > 0) {
-          const optionsToInsert = options.map((option, index) => ({
+      // Insert options if provided
+      if (Array.isArray(options) && options.length > 0) {
+        for (let i = 0; i < options.length; i++) {
+          const option = options[i];
+          await db.insert(schema.questionOptions).values({
             questionId: createdQuestion.id,
             optionText: option.optionText,
-            orderNumber: index + 1,
+            orderNumber: i + 1,
             isCorrect: option.isCorrect
-          }));
-
-          // Batch insert options in smaller chunks to avoid circuit breaker issues
-          const BATCH_SIZE = 5;
-          for (let i = 0; i < optionsToInsert.length; i += BATCH_SIZE) {
-            const batch = optionsToInsert.slice(i, i + BATCH_SIZE);
-
-            // Insert batch individually to work around Neon limitations while reducing round trips
-            for (const optionData of batch) {
-              await tx.insert(schema.questionOptions).values(optionData);
-            }
+          });
+          // Small delay to prevent connection overload
+          if (i < options.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 50));
           }
         }
-        return createdQuestion;
-      } catch (error) {
-        // Transaction will automatically rollback, no manual cleanup needed
-        throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    });
+      return createdQuestion;
+    } catch (error) {
+      throw new Error(`Failed to create question with options: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
   async createExamQuestionsBulk(
     questionsData: Array<{
@@ -3332,31 +3328,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReportCard(reportCardData: any, grades: any[]): Promise<any> {
-    return await this.db.transaction(async (tx: any) => {
-      try {
-        // Create main report card record
-        const reportCard = await tx.insert(schema.reportCards)
-          .values(reportCardData)
-          .returning();
+    // NOTE: Neon HTTP driver does NOT support transactions
+    try {
+      // Create main report card record
+      const reportCard = await this.db.insert(schema.reportCards)
+        .values(reportCardData)
+        .returning();
 
-        // Link all grade items to this report card
-        if (grades.length > 0) {
-          const gradeUpdates = grades.map((grade: any) =>
-            tx.update(schema.reportCardItems)
-              .set({ reportCardId: reportCard[0].id })
-              .where(eq(schema.reportCardItems.id, grade.id))
-          );
-
-          await Promise.all(gradeUpdates);
+      // Link all grade items to this report card sequentially to avoid connection issues
+      if (grades.length > 0) {
+        for (const grade of grades) {
+          await this.db.update(schema.reportCardItems)
+            .set({ reportCardId: reportCard[0].id })
+            .where(eq(schema.reportCardItems.id, grade.id));
         }
-        return {
-          reportCard: reportCard[0],
-          grades: grades
-        };
-      } catch (error) {
-        throw error;
       }
-    });
+      return {
+        reportCard: reportCard[0],
+        grades: grades
+      };
+    } catch (error) {
+      throw error;
+    }
   }
   async getReportCard(id: number): Promise<ReportCard | undefined> {
     try {
@@ -4086,43 +4079,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async completeGradingTask(taskId: number, pointsEarned: number, feedbackText?: string): Promise<{ task: GradingTask; answer: StudentAnswer } | undefined> {
+    // NOTE: Neon HTTP driver does NOT support transactions
     try {
-      return await this.db.transaction(async (tx: any) => {
-        // Get the task
-        const tasks = await tx.select().from(schema.gradingTasks)
-          .where(eq(schema.gradingTasks.id, taskId))
-          .limit(1);
+      // Get the task
+      const tasks = await this.db.select().from(schema.gradingTasks)
+        .where(eq(schema.gradingTasks.id, taskId))
+        .limit(1);
 
-        if (tasks.length === 0) {
-          return undefined;
-        }
-        const task = tasks[0];
+      if (tasks.length === 0) {
+        return undefined;
+      }
+      const task = tasks[0];
 
-        // Update the student answer
-        const answers = await tx.update(schema.studentAnswers)
-          .set({
-            pointsEarned,
-            feedbackText,
-            autoScored: false,
-            manualOverride: true
-          })
-          .where(eq(schema.studentAnswers.id, task.answerId))
-          .returning();
+      // Update the student answer
+      const answers = await this.db.update(schema.studentAnswers)
+        .set({
+          pointsEarned,
+          feedbackText,
+          autoScored: false,
+          manualOverride: true
+        })
+        .where(eq(schema.studentAnswers.id, task.answerId))
+        .returning();
 
-        // Mark task as completed
-        const updatedTasks = await tx.update(schema.gradingTasks)
-          .set({
-            status: 'completed',
-            completedAt: new Date()
-          })
-          .where(eq(schema.gradingTasks.id, taskId))
-          .returning();
+      // Mark task as completed
+      const updatedTasks = await this.db.update(schema.gradingTasks)
+        .set({
+          status: 'completed',
+          completedAt: new Date()
+        })
+        .where(eq(schema.gradingTasks.id, taskId))
+        .returning();
 
-        return {
-          task: updatedTasks[0],
-          answer: answers[0]
-        };
-      });
+      return {
+        task: updatedTasks[0],
+        answer: answers[0]
+      };
     } catch (error: any) {
       if (error?.cause?.code === '42P01') {
         return undefined;

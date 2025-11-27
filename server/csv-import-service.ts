@@ -149,129 +149,129 @@ export async function commitCSVImport(
   // Get all classes for ID lookup
   const classes = await db.select().from(schema.classes);
 
+  // NOTE: Neon HTTP driver does NOT support transactions
+  // Using direct operations instead
   for (const item of validRows) {
     try {
-      await db.transaction(async (tx: any) => {
-        const year = new Date().getFullYear();
-        const classInfo = classes.find((c: any) => c.name === item.data.classCode);
-        
-        if (!classInfo) {
-          throw new Error(`Class not found: ${item.data.classCode}`);
-        }
-        // Split full name into first and last
-        const nameParts = item.data.fullName.trim().split(' ');
-        const firstName = nameParts[0];
-        const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+      const year = new Date().getFullYear();
+      const classInfo = classes.find((c: any) => c.name === item.data.classCode);
+      
+      if (!classInfo) {
+        throw new Error(`Class not found: ${item.data.classCode}`);
+      }
+      // Split full name into first and last
+      const nameParts = item.data.fullName.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0];
 
-        // Generate student credentials
-        const studentUsername = await generateStudentUsername();
-        const studentPassword = generateTempPassword();
-        const passwordHash = await bcrypt.hash(studentPassword, 10);
+      // Generate student credentials
+      const studentUsername = await generateStudentUsername();
+      const studentPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(studentPassword, 10);
 
-        // Create student user
-        // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
-        const [studentUser] = await tx.insert(users).values({
-          username: studentUsername,
-          email: `${studentUsername}@ths.edu`, // Auto-generate email
-          passwordHash,
-          roleId: 4, // Student
-          firstName,
-          lastName,
-          gender: item.data.gender as any,
-          dateOfBirth: item.data.dob,
-          isActive: true,
-          status: 'active',
-          createdVia: 'bulk',
-          createdBy: adminUserId,
-          mustChangePassword: true
-        }).returning();
+      // Create student user
+      // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
+      const [studentUser] = await db.insert(users).values({
+        username: studentUsername,
+        email: `${studentUsername}@ths.edu`, // Auto-generate email
+        passwordHash,
+        roleId: 4, // Student
+        firstName,
+        lastName,
+        gender: item.data.gender as any,
+        dateOfBirth: item.data.dob,
+        isActive: true,
+        status: 'active',
+        createdVia: 'bulk',
+        createdBy: adminUserId,
+        mustChangePassword: true
+      }).returning();
 
-        // Generate admission number if not provided
-        const admissionNumber = item.data.admissionNo || `THS/${year}/${String(successCount + 1).padStart(4, '0')}`;
+      // Generate admission number if not provided
+      const admissionNumber = item.data.admissionNo || `THS/${year}/${String(successCount + 1).padStart(4, '0')}`;
 
-        // Create student record
-        await tx.insert(students).values({
-          id: studentUser.id,
-          admissionNumber,
-          classId: classInfo.id,
-          admissionDate: new Date().toISOString().split('T')[0],
-          emergencyContact: item.data.parentPhone || null
-        });
+      // Create student record
+      await db.insert(students).values({
+        id: studentUser.id,
+        admissionNumber,
+        classId: classInfo.id,
+        admissionDate: new Date().toISOString().split('T')[0],
+        emergencyContact: item.data.parentPhone || null
+      });
 
-        // Handle parent
-        let parentUserId: string | null = null;
-        let parentCredentials: any = null;
+      // Handle parent
+      let parentUserId: string | null = null;
+      let parentCredentials: any = null;
 
-        if (item.data.parentPhone) {
-          if (item.parentExists) {
-            // Link to existing parent by phone
-            // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
-            const [existingParent] = await tx.select()
-              .from(users)
-              .where(and(
-                eq(users.phone, item.data.parentPhone),
-                eq(users.roleId, 5) // Parent
-              ))
-              .limit(1);
-            
-            if (existingParent) {
-              parentUserId = existingParent.id;
-              
-              // Update student with parent link
-              await tx.update(students)
-                .set({ parentId: parentUserId })
-                .where(eq(students.id, studentUser.id));
-            }
-          } else {
-            // Create new parent
-            const parentUsername = await generateParentUsername();
-            const parentPassword = generateTempPassword();
-            const parentHash = await bcrypt.hash(parentPassword, 10);
-
-            // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
-            const [parentUser] = await tx.insert(users).values({
-              username: parentUsername,
-              email: item.data.parentEmail || `${parentUsername}@ths.edu`,
-              passwordHash: parentHash,
-              roleId: 5, // Parent
-              firstName: `Parent of ${firstName}`,
-              lastName: lastName,
-              phone: item.data.parentPhone,
-              isActive: true,
-              status: 'active',
-              createdVia: 'bulk',
-              createdBy: adminUserId,
-              mustChangePassword: true
-            }).returning();
-
-            parentUserId = parentUser.id;
+      if (item.data.parentPhone) {
+        if (item.parentExists) {
+          // Link to existing parent by phone
+          // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
+          const [existingParent] = await db.select()
+            .from(users)
+            .where(and(
+              eq(users.phone, item.data.parentPhone),
+              eq(users.roleId, 5) // Parent
+            ))
+            .limit(1);
+          
+          if (existingParent) {
+            parentUserId = existingParent.id;
             
             // Update student with parent link
-            await tx.update(students)
+            await db.update(students)
               .set({ parentId: parentUserId })
               .where(eq(students.id, studentUser.id));
-
-            parentCredentials = {
-              username: parentUsername,
-              password: parentPassword
-            };
           }
+        } else {
+          // Create new parent
+          const parentUsername = await generateParentUsername();
+          const parentPassword = generateTempPassword();
+          const parentHash = await bcrypt.hash(parentPassword, 10);
+
+          // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
+          const [parentUser] = await db.insert(users).values({
+            username: parentUsername,
+            email: item.data.parentEmail || `${parentUsername}@ths.edu`,
+            passwordHash: parentHash,
+            roleId: 5, // Parent
+            firstName: `Parent of ${firstName}`,
+            lastName: lastName,
+            phone: item.data.parentPhone,
+            isActive: true,
+            status: 'active',
+            createdVia: 'bulk',
+            createdBy: adminUserId,
+            mustChangePassword: true
+          }).returning();
+
+          parentUserId = parentUser.id;
+          
+          // Update student with parent link
+          await db.update(students)
+            .set({ parentId: parentUserId })
+            .where(eq(students.id, studentUser.id));
+
+          parentCredentials = {
+            username: parentUsername,
+            password: parentPassword
+          };
         }
+      }
 
-        credentials.push({
-          row: item.row,
-          student: {
-            id: studentUser.id,
-            name: item.data.fullName,
-            username: studentUsername,
-            password: studentPassword,
-            classCode: item.data.classCode
-          },
-          parent: parentCredentials
-        });
-
-        successCount++;
+      credentials.push({
+        row: item.row,
+        student: {
+          id: studentUser.id,
+          name: item.data.fullName,
+          username: studentUsername,
+          password: studentPassword,
+          classCode: item.data.classCode
+        },
+        parent: parentCredentials
       });
+
+      successCount++;
     } catch (error) {
       failedRows.push(item.row);
     }
