@@ -1127,13 +1127,14 @@ export default function ExamManagement() {
   if (!user) {
     return <div>Please log in to access the exam management portal.</div>;
   }
-  // Map roleId to role name (lowercase as expected by PortalLayout)
+  // Map roleId to role name - matches ROLE_IDS in lib/roles.ts
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
-      1: 'student',
-      2: 'teacher', 
-      3: 'parent',
-      4: 'admin'
+      1: 'admin',     // Super Admin
+      2: 'admin',     // Admin
+      3: 'teacher',   // Teacher
+      4: 'student',   // Student
+      5: 'parent'     // Parent
     };
     return roleMap[roleId] || 'teacher';
   };

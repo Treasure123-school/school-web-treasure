@@ -35,12 +35,14 @@ export default function SubjectsManagement() {
 
   const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
   const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
+  // Map roleId to role name - matches ROLE_IDS in lib/roles.ts
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
-      1: 'admin',
-      2: 'teacher',
-      3: 'student',
-      4: 'parent'
+      1: 'admin',     // Super Admin
+      2: 'admin',     // Admin
+      3: 'teacher',   // Teacher
+      4: 'student',   // Student
+      5: 'parent'     // Parent
     };
     return roleMap[roleId] || 'admin';
   };

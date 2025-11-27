@@ -137,9 +137,10 @@ export default function StudentReportCard() {
   if (!user) {
     return <div>Please log in to access your report card.</div>;
   }
+  // Map roleId to role name - matches ROLE_IDS in lib/roles.ts
   const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
     const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
-      1: 'admin', 2: 'teacher', 3: 'student', 4: 'parent'
+      1: 'admin', 2: 'admin', 3: 'teacher', 4: 'student', 5: 'parent'
     };
     return roleMap[roleId] || 'student';
   };
