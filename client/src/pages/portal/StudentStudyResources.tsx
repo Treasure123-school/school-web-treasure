@@ -9,19 +9,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Download, Search, FileText, BookOpen, ArrowLeft, Filter } from 'lucide-react';
 import { Link } from 'wouter';
 import { useState } from 'react';
-import RequireCompleteProfile from '@/components/RequireCompleteProfile';
-
 export default function StudentStudyResources() {
   const { user } = useAuth();
 
   if (!user) {
     return <div>Please log in to access study resources.</div>;
   }
-  return (
-    <RequireCompleteProfile feature="study resources">
-      <StudentStudyResourcesContent user={user} />
-    </RequireCompleteProfile>
-  );
+  return <StudentStudyResourcesContent user={user} />;
 }
 function StudentStudyResourcesContent({ user }: { user: any }) {
   const [searchTerm, setSearchTerm] = useState('');

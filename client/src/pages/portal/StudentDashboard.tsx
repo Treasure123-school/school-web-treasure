@@ -55,14 +55,6 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  useEffect(() => {
-    if (!statusLoading && profileStatus) {
-      const needsForcedSetup = !profileStatus.hasProfile && !profileStatus.skipped;
-      if (needsForcedSetup) {
-        navigate('/portal/student/profile-setup');
-      }
-    }
-  }, [profileStatus, statusLoading, navigate]);
 
   const { data: examResults, isLoading: isLoadingGrades } = useQuery({
     queryKey: ['examResults', user.id],

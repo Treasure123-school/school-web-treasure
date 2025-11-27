@@ -15,7 +15,6 @@ import { Progress } from '@/components/ui/progress';
 import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award, Calendar } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
-import RequireCompleteProfile from '@/components/RequireCompleteProfile';
 
 // Constants for violation tracking and penalties
 const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
@@ -1218,7 +1217,6 @@ export default function StudentExams() {
   // Render active exam without PortalLayout wrapper
   if (activeSession && examQuestions.length > 0) {
     return (
-      <RequireCompleteProfile feature="exams">
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
           {/* Warning Banners */}
           {(showTabSwitchWarning || !isOnline) && (
@@ -1530,13 +1528,10 @@ export default function StudentExams() {
             </DialogContent>
           </Dialog>
         </div>
-      </RequireCompleteProfile>
     );
   }
   // Render exam list and results with PortalLayout wrapper
-  return (
-    <RequireCompleteProfile feature="exams">
-      {isScoring ? (
+  return isScoring ? (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
           {/* Modern Sticky Header - Responsive */}
           <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
@@ -2150,7 +2145,5 @@ export default function StudentExams() {
           </div>
         </div>
         </PortalLayout>
-      )}
-    </RequireCompleteProfile>
-  );
+      );
 }

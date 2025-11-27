@@ -993,6 +993,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get exam results by exam ID - TEACHERS AND ADMINS
+  app.get('/api/exam-results/exam/:examId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      
+      // Verify exam exists
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      // For teachers, only allow viewing results of their own exams
+      if (req.user!.roleId === ROLES.TEACHER && exam.createdBy !== req.user!.id) {
+        return res.status(403).json({ message: 'You can only view results for exams you created' });
+      }
+      
+      const results = await storage.getExamResultsByExam(examId);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch exam results' });
+    }
+  });
+
   // Update exam - TEACHERS ONLY
   app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
