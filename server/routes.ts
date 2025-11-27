@@ -5,6 +5,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
 import * as schema from "@shared/schema";
+import { ROLE_IDS as ROLES } from "@shared/role-constants";
 import { insertUserSchema, insertStudentSchema, insertAttendanceSchema, insertAnnouncementSchema, insertMessageSchema, insertExamSchema, insertExamResultSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertHomePageContentSchema, insertContactMessageSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, createStudentSchema, InsertUser, InsertStudentAnswer, users, students } from "@shared/schema";
 import { z, ZodError } from "zod";
 import multer from "multer";
@@ -106,14 +107,9 @@ function normalizeUuid(raw: any): string | undefined {
   }
   return undefined;
 }
-// Define role constants to prevent authorization bugs
-const ROLES = {
-  SUPER_ADMIN: 0,
-  ADMIN: 1,
-  TEACHER: 2,
-  STUDENT: 3,
-  PARENT: 4
-} as const;
+// ROLES constant is now imported from @shared/role-constants
+// This ensures a single source of truth for role IDs across the entire application
+// Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
 
 // Rate limiting for login attempts (simple in-memory store)
 const loginAttempts = new Map();
