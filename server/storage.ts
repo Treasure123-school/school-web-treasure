@@ -1,4 +1,5 @@
 import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull } from "drizzle-orm";
+import { randomUUID } from "crypto";
 import { getDatabase, getSchema, getPgClient, isPostgres, isSqlite } from "./db";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
@@ -589,7 +590,14 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
   async createUser(user: InsertUser): Promise<User> {
-    const result = await this.db.insert(schema.users).values(user).returning();
+    // PostgreSQL requires explicit UUID for varchar primary key
+    // Auto-generate if not provided to ensure consistency across all user creation paths
+    const userWithId = {
+      ...user,
+      id: (user as any).id || randomUUID(),
+    };
+    
+    const result = await this.db.insert(schema.users).values(userWithId).returning();
     const createdUser = result[0];
     if (createdUser && createdUser.id) {
       const normalizedId = normalizeUuid(createdUser.id);

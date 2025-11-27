@@ -13,6 +13,7 @@ import path from "path";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { randomUUID } from "crypto";
 import PDFDocument from "pdfkit";
 import { generateUsername, generatePassword, getNextUserNumber, generateStudentPassword } from "./auth-utils";
 import { generateStudentUsername, generateParentUsername, generateTeacherUsername, generateAdminUsername } from "./username-generator";
@@ -2991,7 +2992,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Check if user already exists
             const existingUser = await storage.getUserByEmail(userData.email);
             if (!existingUser) {
-              await storage.createUser(userData);
+              // Generate UUID for demo user (required for PostgreSQL)
+              const userId = randomUUID();
+              await storage.createUser({ id: userId, ...userData } as any);
               createdCount++;
             } else {
             }
@@ -3921,8 +3924,12 @@ Treasure-Home School Administration
       // Hash password
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+      // Generate UUID for invited user (required for PostgreSQL)
+      const userId = randomUUID();
+
       // Create user account
       const user = await storage.createUser({
+        id: userId, // PostgreSQL requires explicit UUID
         email: invite.email,
         username,
         firstName,
@@ -3935,7 +3942,7 @@ Treasure-Home School Administration
         mustChangePassword: true, // ✅ SECURITY: Force password change on first login even for invited users
         profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
         profileSkipped: false // 🔧 FIX: New staff start with incomplete profile
-      });
+      } as any);
 
       // Mark invite as accepted
       await storage.markInviteAsAccepted(invite.id, user.id);
@@ -4881,23 +4888,29 @@ Treasure-Home School Administration
       // Hash password with bcrypt
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+      // Generate UUID for new user (required for PostgreSQL)
+      const userId = randomUUID();
+
       // Prepare user data with hashed password and generated username
       // ✅ AUTO-APPROVE: Set status to 'active' since user is created by authorized admin or teacher
       // No approval needed when created by Super Admin, Admin, or Teacher
-      const userData = insertUserSchema.parse({
-        ...otherUserData,
-        username,
-        passwordHash,
-        status: 'active', // ✅ AUTO-APPROVE: Direct creation by admin/teacher means instant approval
-        isActive: true, // ✅ Enable account immediately
-        mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
-        profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
-        profileSkipped: otherUserData.profileSkipped ?? false, // 🔧 FIX: Default to false if not provided
-        createdVia: creatorRoleId === ROLES.TEACHER ? 'teacher' : (creatorRoleId === ROLES.SUPER_ADMIN ? 'superadmin' : 'admin'), // Track who created the user
-        createdBy: req.user!.id // Track creator user ID
-      });
+      const userData = {
+        id: userId, // PostgreSQL requires explicit UUID
+        ...insertUserSchema.parse({
+          ...otherUserData,
+          username,
+          passwordHash,
+          status: 'active', // ✅ AUTO-APPROVE: Direct creation by admin/teacher means instant approval
+          isActive: true, // ✅ Enable account immediately
+          mustChangePassword: true, // ✅ SECURITY: ALWAYS force password change on first login - cannot be overridden
+          profileCompleted: otherUserData.profileCompleted ?? false, // 🔧 FIX: Default to false if not provided
+          profileSkipped: otherUserData.profileSkipped ?? false, // 🔧 FIX: Default to false if not provided
+          createdVia: creatorRoleId === ROLES.TEACHER ? 'teacher' : (creatorRoleId === ROLES.SUPER_ADMIN ? 'superadmin' : 'admin'), // Track who created the user
+          createdBy: req.user!.id // Track creator user ID
+        })
+      };
 
-      const user = await storage.createUser(userData);
+      const user = await storage.createUser(userData as any);
 
       // If creating a student, also create the student record if classId and admissionNumber are provided
       if (otherUserData.roleId === ROLES.STUDENT && otherUserData.classId) {
@@ -5057,7 +5070,11 @@ Treasure-Home School Administration
             const parentPassword = generatePassword(currentYear);
             const parentPasswordHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
 
+            // Generate UUID for parent (required for PostgreSQL)
+            const csvParentId = randomUUID();
+
             parent = await storage.createUser({
+              id: csvParentId, // PostgreSQL requires explicit UUID
               username: parentUsername,
               email: parentEmail,
               passwordHash: parentPasswordHash,
@@ -5067,7 +5084,7 @@ Treasure-Home School Administration
               mustChangePassword: true,
               profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
               profileSkipped: false // 🔧 FIX: CSV import parents start with incomplete profile
-            });
+            } as any);
 
             // CRITICAL: Track newly created username to prevent duplicates in same batch
             existingUsernames.push(parentUsername);
@@ -5090,7 +5107,11 @@ Treasure-Home School Administration
           const studentPassword = generatePassword(currentYear);
           const studentPasswordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
 
+          // Generate UUID for student (required for PostgreSQL)
+          const csvStudentId = randomUUID();
+
           const studentUser = await storage.createUser({
+            id: csvStudentId, // PostgreSQL requires explicit UUID
             username: studentUsername, // Auto-generated email
               email: `${studentUsername.toLowerCase()}@ths.edu`, // Auto-generated email
               passwordHash: studentPasswordHash,
@@ -5100,7 +5121,7 @@ Treasure-Home School Administration
               mustChangePassword: true,
               profileCompleted: false, // 🔧 FIX: Explicitly set profile fields
               profileSkipped: false // 🔧 FIX: CSV import students start with incomplete profile
-            });
+            } as any);
 
             // CRITICAL: Track newly created username to prevent duplicates in same batch
             existingUsernames.push(studentUsername);
@@ -5291,8 +5312,12 @@ Treasure-Home School Administration
           const passwordHash = await bcrypt.hash(studentPassword, BCRYPT_ROUNDS);
           const studentEmail = `${studentUsername}@ths.edu`;
           
+          // Generate UUID for student (required for PostgreSQL)
+          const studentId = randomUUID();
+          
           // Create student user account
           const [studentUser] = await tx.insert(users).values({
+            id: studentId, // PostgreSQL requires explicit UUID
             username: studentUsername,
             email: studentEmail,
             passwordHash,
@@ -5352,7 +5377,11 @@ Treasure-Home School Administration
               const parentHash = await bcrypt.hash(parentPassword, BCRYPT_ROUNDS);
               const parentEmail = `${parentUsername}@ths.edu`;
               
+              // Generate UUID for parent (required for PostgreSQL)
+              const parentId = randomUUID();
+              
               const [parentUser] = await tx.insert(users).values({
+                id: parentId, // PostgreSQL requires explicit UUID
                 username: parentUsername,
                 email: parentEmail,
                 passwordHash: parentHash,
@@ -5890,12 +5919,15 @@ Treasure-Home School Administration
         const username = await generateAdminUsername();
         const tempPassword = generateTempPassword();
 
+        // Generate UUID for new admin (required for PostgreSQL)
+        const adminId = randomUUID();
 
         // Hash password
         const passwordHash = await bcrypt.hash(tempPassword, 12);
 
         // Create admin user
         const newAdmin = await storage.createUser({
+          id: adminId, // PostgreSQL requires explicit UUID
           username,
           email,
           passwordHash,
@@ -5909,7 +5941,7 @@ Treasure-Home School Administration
           createdBy: req.user!.id,
           approvedBy: req.user!.id,
           approvedAt: new Date(),
-        });
+        } as any);
 
 
         // Create admin profile
