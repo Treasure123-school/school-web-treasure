@@ -95,6 +95,9 @@ export interface IStorage {
   getAdminProfile(userId: string): Promise<AdminProfile | undefined>;
   createAdminProfile(profile: InsertAdminProfile): Promise<AdminProfile>;
   updateAdminProfile(userId: string, profile: Partial<InsertAdminProfile>): Promise<AdminProfile | undefined>;
+  getSuperAdminProfile(userId: string): Promise<SuperAdminProfile | undefined>;
+  createSuperAdminProfile(profile: InsertSuperAdminProfile): Promise<SuperAdminProfile>;
+  updateSuperAdminProfile(userId: string, profile: Partial<InsertSuperAdminProfile>): Promise<SuperAdminProfile | undefined>;
   getParentProfile(userId: string): Promise<ParentProfile | undefined>;
   createParentProfile(profile: InsertParentProfile): Promise<ParentProfile>;
   updateParentProfile(userId: string, profile: Partial<InsertParentProfile>): Promise<ParentProfile | undefined>;
@@ -953,6 +956,25 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
+  async getSuperAdminProfile(userId: string): Promise<SuperAdminProfile | undefined> {
+    const result = await this.db.select().from(schema.superAdminProfiles)
+      .where(eq(schema.superAdminProfiles.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+  async createSuperAdminProfile(profile: InsertSuperAdminProfile): Promise<SuperAdminProfile> {
+    const result = await this.db.insert(schema.superAdminProfiles)
+      .values(profile)
+      .returning();
+    return result[0];
+  }
+  async updateSuperAdminProfile(userId: string, profile: Partial<InsertSuperAdminProfile>): Promise<SuperAdminProfile | undefined> {
+    const result = await this.db.update(schema.superAdminProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(schema.superAdminProfiles.userId, userId))
+      .returning();
+    return result[0];
+  }
   async getParentProfile(userId: string): Promise<ParentProfile | undefined> {
     const result = await this.db.select().from(schema.parentProfiles)
       .where(eq(schema.parentProfiles.userId, userId))
@@ -994,8 +1016,8 @@ export class DatabaseStorage implements IStorage {
     if (roleId === 1) { // Super Admin
       const superAdminProfile = await this.getSuperAdminProfile(userId);
       if (superAdminProfile?.department) completedFields++;
-      if (superAdminProfile?.roleDescription) completedFields++;
       if (superAdminProfile?.accessLevel) completedFields++;
+      if (superAdminProfile?.twoFactorEnabled !== undefined) completedFields++;
     } else if (roleId === 2) { // Admin
       const adminProfile = await this.getAdminProfile(userId);
       if (adminProfile?.department) completedFields++;
