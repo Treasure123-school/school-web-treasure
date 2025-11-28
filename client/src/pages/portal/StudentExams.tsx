@@ -2589,7 +2589,7 @@ export default function StudentExams() {
                       {examStatus.isCompleted ? (
                         <Button
                           onClick={() => setLocation('/portal/student/exam-results')}
-                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                          className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
                           data-testid={`button-view-score-${exam.id}`}
                         >
                           <Eye className="w-4 h-4 mr-2" />
@@ -2599,7 +2599,7 @@ export default function StudentExams() {
                         <Button
                           onClick={() => handleStartExam(exam)}
                           disabled={startExamMutation.isPending}
-                          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                          className="w-full bg-amber-500 hover:bg-amber-600 text-white shadow-sm hover:shadow-md transition-all duration-200"
                           data-testid={`button-resume-exam-${exam.id}`}
                         >
                           {startExamMutation.isPending ? (
@@ -2618,7 +2618,7 @@ export default function StudentExams() {
                         <Button
                           onClick={() => handleStartExam(exam)}
                           disabled={startExamMutation.isPending || !exam.isPublished}
-                          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
                           data-testid={`button-start-exam-${exam.id}`}
                         >
                           {startExamMutation.isPending ? (
