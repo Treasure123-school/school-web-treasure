@@ -1980,6 +1980,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all exam sessions for student (includes completed exams)
+  app.get('/api/exam-sessions/student/:studentId', authenticateUser, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+
+      // Ensure student can only access their own sessions
+      if (req.user!.id !== studentId && req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.TEACHER) {
+        return res.status(403).json({ message: 'Unauthorized access to session records' });
+      }
+      
+      // Get all sessions for this student
+      const allSessions = await storage.getExamSessionsByStudent(studentId);
+      res.json(allSessions);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch exam sessions' });
+    }
+  });
+
   // Get exam session by ID
   app.get('/api/exam-sessions/:id', authenticateUser, async (req, res) => {
     try {

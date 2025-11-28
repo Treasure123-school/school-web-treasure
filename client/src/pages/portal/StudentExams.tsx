@@ -117,6 +117,50 @@ export default function StudentExams() {
     enabled: !!user,
   });
 
+  // Fetch all exam sessions for the student to track completed exams
+  const { data: studentExamSessions = [] } = useQuery<Array<{
+    id: number;
+    examId: number;
+    studentId: string;
+    isCompleted: boolean;
+    status: string;
+    score?: number;
+    maxScore?: number;
+  }>>({
+    queryKey: ['/api/exam-sessions/student', user?.id],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/exam-sessions/student/${user?.id}`);
+      if (!response.ok) {
+        return [];
+      }
+      return response.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Helper function to check if an exam has been completed by the student
+  const getExamStatus = (examId: number) => {
+    const session = studentExamSessions.find(s => s.examId === examId && s.isCompleted);
+    if (session) {
+      return {
+        isCompleted: true,
+        score: session.score,
+        maxScore: session.maxScore,
+        sessionId: session.id,
+      };
+    }
+    // Check for in-progress session
+    const inProgressSession = studentExamSessions.find(s => s.examId === examId && !s.isCompleted);
+    if (inProgressSession) {
+      return {
+        isCompleted: false,
+        isInProgress: true,
+        sessionId: inProgressSession.id,
+      };
+    }
+    return { isCompleted: false, isInProgress: false };
+  };
+
   // Fetch exam questions for active session
   const { data: examQuestionsRaw = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', activeSession?.examId],
@@ -2466,20 +2510,38 @@ export default function StudentExams() {
             ) : (
               exams
                 .filter(exam => exam.isPublished)
-                .map((exam) => (
+                .map((exam) => {
+                  const examStatus = getExamStatus(exam.id);
+                  return (
                   <Card 
                     key={exam.id}
-                    className="group hover:shadow-md transition-all duration-200 border-blue-100 dark:border-blue-900 hover:border-blue-300 dark:hover:border-blue-700"
+                    className={`group hover:shadow-md transition-all duration-200 ${
+                      examStatus.isCompleted 
+                        ? 'border-green-200 dark:border-green-800 hover:border-green-300 dark:hover:border-green-700' 
+                        : 'border-blue-100 dark:border-blue-900 hover:border-blue-300 dark:hover:border-blue-700'
+                    }`}
                     data-testid={`exam-card-${exam.id}`}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge className="bg-green-500 hover:bg-green-600 text-white">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Available
-                            </Badge>
+                            {examStatus.isCompleted ? (
+                              <Badge className="bg-green-600 hover:bg-green-700 text-white">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Done
+                              </Badge>
+                            ) : examStatus.isInProgress ? (
+                              <Badge className="bg-amber-500 hover:bg-amber-600 text-white">
+                                <Clock className="h-3 w-3 mr-1" />
+                                In Progress
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Available
+                              </Badge>
+                            )}
                           </div>
                           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                             {exam.name}
@@ -2494,7 +2556,11 @@ export default function StudentExams() {
                             })}
                           </p>
                         </div>
-                        <GraduationCap className="h-10 w-10 text-blue-100 dark:text-blue-900 group-hover:text-blue-200 dark:group-hover:text-blue-800 transition-colors" />
+                        <GraduationCap className={`h-10 w-10 transition-colors ${
+                          examStatus.isCompleted 
+                            ? 'text-green-100 dark:text-green-900 group-hover:text-green-200 dark:group-hover:text-green-800' 
+                            : 'text-blue-100 dark:text-blue-900 group-hover:text-blue-200 dark:group-hover:text-blue-800'
+                        }`} />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mb-5 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
@@ -2520,32 +2586,63 @@ export default function StudentExams() {
                         )}
                       </div>
 
-                      <Button
-                        onClick={() => handleStartExam(exam)}
-                        disabled={startExamMutation.isPending || !exam.isPublished}
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm hover:shadow-md transition-all duration-200"
-                        data-testid={`button-start-exam-${exam.id}`}
-                      >
-                        {startExamMutation.isPending ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Starting Exam...
-                          </>
-                        ) : !exam.isPublished ? (
-                          <>
-                            <Clock className="w-4 h-4 mr-2" />
-                            Not Available
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            Start Exam
-                          </>
-                        )}
-                      </Button>
+                      {examStatus.isCompleted ? (
+                        <Button
+                          onClick={() => setLocation('/portal/student/exam-results')}
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                          data-testid={`button-view-score-${exam.id}`}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Score
+                        </Button>
+                      ) : examStatus.isInProgress ? (
+                        <Button
+                          onClick={() => handleStartExam(exam)}
+                          disabled={startExamMutation.isPending}
+                          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                          data-testid={`button-resume-exam-${exam.id}`}
+                        >
+                          {startExamMutation.isPending ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Resuming...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 mr-2" />
+                              Resume Exam
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => handleStartExam(exam)}
+                          disabled={startExamMutation.isPending || !exam.isPublished}
+                          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                          data-testid={`button-start-exam-${exam.id}`}
+                        >
+                          {startExamMutation.isPending ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Starting Exam...
+                            </>
+                          ) : !exam.isPublished ? (
+                            <>
+                              <Clock className="w-4 h-4 mr-2" />
+                              Not Available
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 mr-2" />
+                              Start Exam
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
-                ))
+                  );
+                })
             )}
           </div>
         </div>
