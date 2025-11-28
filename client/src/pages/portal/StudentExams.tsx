@@ -623,17 +623,10 @@ export default function StudentExams() {
       return sessionData;
     },
     onSuccess: (data: any) => {
-      // Handle already completed exam - redirect to results
+      // Handle already completed exam - redirect to results page (server-side enforcement)
       if (data.alreadyCompleted && data.redirectToResults && data.result) {
-        toast({
-          title: "Exam Already Completed",
-          description: "You have already completed this exam. Showing your results.",
-          variant: "default",
-        });
-        
-        // Show results directly instead of starting exam
-        setExamResults(data.result);
-        setShowResults(true);
+        // Use the centralized redirect function to go to results page
+        redirectToExamResults(data.result, data.message || "You have already completed this exam. Showing your results.");
         return;
       }
 
