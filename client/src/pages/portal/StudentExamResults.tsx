@@ -108,6 +108,7 @@ export default function StudentExamResults() {
         (r.examId === latestResult.examId && r.submittedAt)
       );
       if (apiHasLatest) {
+        // Clear the result data - API has confirmed persistence
         sessionStorage.removeItem('lastExamResult');
       }
     }

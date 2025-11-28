@@ -70,15 +70,27 @@ export default function StudentExams() {
   const [networkIssues, setNetworkIssues] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
-  // PROTECTION: Check if current session was already submitted and redirect to results
+  // PROTECTION: Prevent re-entry to an already submitted exam session
+  // Uses isRedirecting flag to prevent multiple redirects and race conditions
   useEffect(() => {
-    if (activeSession?.id) {
-      const submittedFlag = sessionStorage.getItem(`exam_submitted_${activeSession.id}`);
-      if (submittedFlag === 'true' || activeSession.isCompleted) {
-        setLocation('/portal/student/exam-results');
+    // Only check if we have an active session that's completed
+    if (!activeSession?.id || !activeSession.isCompleted || isRedirecting) return;
+    
+    // Check if there's a fresh result in sessionStorage (indicates just-submitted)
+    const storedResult = sessionStorage.getItem('lastExamResult');
+    if (storedResult) {
+      try {
+        const result = JSON.parse(storedResult);
+        // If the stored result matches this session, redirect to results
+        if (result.sessionId === activeSession.id) {
+          setIsRedirecting(true);
+          setLocation('/portal/student/exam-results');
+        }
+      } catch (e) {
+        // Parse error, ignore
       }
     }
-  }, [activeSession?.id, activeSession?.isCompleted, setLocation]);
+  }, [activeSession?.id, activeSession?.isCompleted, isRedirecting, setLocation]);
 
   // Fetch available exams
   const { data: exams = [], isLoading: loadingExams, error: examsError } = useQuery<Exam[]>({
@@ -1295,21 +1307,12 @@ export default function StudentExams() {
       sessionStorage.setItem('lastExamResult', JSON.stringify(storedResult));
     }
     
-    // STEP 3: Mark exam session as submitted to prevent re-entry
-    if (activeSession?.id) {
-      sessionStorage.setItem(`exam_submitted_${activeSession.id}`, 'true');
-    }
-    // Also mark the exam itself as completed for this user
-    if (activeSession?.examId && user?.id) {
-      sessionStorage.setItem(`exam_completed_${user.id}_${activeSession.examId}`, 'true');
-    }
-    
-    // STEP 4: Invalidate cache
+    // STEP 3: Invalidate cache
     queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
     queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
     queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
     
-    // STEP 5: Reset exam state completely (prevent inline UI from showing)
+    // STEP 4: Reset exam state completely (prevent inline UI from showing)
     setShowResults(false);
     setExamResults(null);
     setActiveSession(null);
@@ -1325,7 +1328,7 @@ export default function StudentExams() {
     setIsSubmitting(false);
     setIsScoring(false);
     
-    // STEP 6: Show message
+    // STEP 5: Show message
     if (message) {
       toast({
         title: variant === 'destructive' ? "Exam Auto-Submitted" : "Exam Submitted",
@@ -1334,7 +1337,7 @@ export default function StudentExams() {
       });
     }
     
-    // STEP 7: Navigate to results page (use immediate navigation)
+    // STEP 6: Navigate to results page
     setLocation('/portal/student/exam-results');
   };
 
