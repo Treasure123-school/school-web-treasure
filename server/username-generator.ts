@@ -4,12 +4,30 @@ import { sql } from 'drizzle-orm';
 
 /**
  * Role code constants for username generation
+ * IMPORTANT: These match the format THS-{ROLE}-### for credential generation
  */
 const ROLE_CODES = {
+  SUPER_ADMIN: 'SUP',
+  ADMIN: 'ADM',
+  TEACHER: 'TCH',
   STUDENT: 'STU',
   PARENT: 'PAR',
-  TEACHER: 'TCH',
-  ADMIN: 'ADM',
+} as const;
+
+/**
+ * Role IDs from database - MUST match shared/role-constants.ts
+ * - 1: Super Admin
+ * - 2: Admin
+ * - 3: Teacher
+ * - 4: Student
+ * - 5: Parent
+ */
+const ROLE_IDS = {
+  SUPER_ADMIN: 1,
+  ADMIN: 2,
+  TEACHER: 3,
+  STUDENT: 4,
+  PARENT: 5,
 } as const;
 
 /**
@@ -75,21 +93,34 @@ export async function generateAdminUsername(): Promise<string> {
   return `THS-${ROLE_CODES.ADMIN}-${String(sequence).padStart(3, '0')}`;
 }
 /**
+ * Generates Super Admin username
+ * Format: THS-SUP-###
+ * Example: THS-SUP-001
+ */
+export async function generateSuperAdminUsername(): Promise<string> {
+  const sequence = await getNextSequenceForRole(ROLE_CODES.SUPER_ADMIN);
+  return `THS-${ROLE_CODES.SUPER_ADMIN}-${String(sequence).padStart(3, '0')}`;
+}
+
+/**
  * Generates username for any role by role ID
- * @param roleId - User role ID (1=Admin, 2=Teacher, 3=Student, 4=Parent)
+ * IMPORTANT: Role IDs must match database roles in shared/role-constants.ts
+ * @param roleId - User role ID (1=SuperAdmin, 2=Admin, 3=Teacher, 4=Student, 5=Parent)
  */
 export async function generateUsernameByRole(roleId: number): Promise<string> {
   switch (roleId) {
-    case 1: // Admin
+    case ROLE_IDS.SUPER_ADMIN: // 1 - Super Admin
+      return generateSuperAdminUsername();
+    case ROLE_IDS.ADMIN: // 2 - Admin
       return generateAdminUsername();
-    case 2: // Teacher
+    case ROLE_IDS.TEACHER: // 3 - Teacher
       return generateTeacherUsername();
-    case 3: // Student
+    case ROLE_IDS.STUDENT: // 4 - Student
       return generateStudentUsername();
-    case 4: // Parent
+    case ROLE_IDS.PARENT: // 5 - Parent
       return generateParentUsername();
     default:
-      throw new Error(`Invalid role ID: ${roleId}`);
+      throw new Error(`Invalid role ID: ${roleId}. Valid IDs are 1-5.`);
   }
 }
 
@@ -109,7 +140,7 @@ export function generateTempPassword(year: number = new Date().getFullYear()): s
  */
 export function validateUsername(username: string): { 
   valid: boolean; 
-  type?: 'student' | 'parent' | 'teacher' | 'admin'; 
+  type?: 'superadmin' | 'student' | 'parent' | 'teacher' | 'admin'; 
   format?: 'new' | 'old';
   error?: string 
 } {
@@ -117,10 +148,11 @@ export function validateUsername(username: string): {
     return { valid: false, error: 'Username is required' };
   }
   // New simplified format: THS-ROLE-###
+  const newSuperAdminPattern = /^THS-SUP-\d{3}$/;
+  const newAdminPattern = /^THS-ADM-\d{3}$/;
+  const newTeacherPattern = /^THS-TCH-\d{3}$/;
   const newStudentPattern = /^THS-STU-\d{3}$/;
   const newParentPattern = /^THS-PAR-\d{3}$/;
-  const newTeacherPattern = /^THS-TCH-\d{3}$/;
-  const newAdminPattern = /^THS-ADM-\d{3}$/;
 
   // Old format: THS-ROLE-YEAR-CLASS-### or THS-ROLE-YEAR-###
   const oldStudentPattern = /^THS-STU-\d{4}-[A-Z0-9]+-\d{3}$/;
@@ -129,17 +161,20 @@ export function validateUsername(username: string): {
   const oldAdminPattern = /^THS-ADM-\d{4}-\d{3}$/;
 
   // Check new format first (preferred)
+  if (newSuperAdminPattern.test(username)) {
+    return { valid: true, type: 'superadmin', format: 'new' };
+  }
+  if (newAdminPattern.test(username)) {
+    return { valid: true, type: 'admin', format: 'new' };
+  }
+  if (newTeacherPattern.test(username)) {
+    return { valid: true, type: 'teacher', format: 'new' };
+  }
   if (newStudentPattern.test(username)) {
     return { valid: true, type: 'student', format: 'new' };
   }
   if (newParentPattern.test(username)) {
     return { valid: true, type: 'parent', format: 'new' };
-  }
-  if (newTeacherPattern.test(username)) {
-    return { valid: true, type: 'teacher', format: 'new' };
-  }
-  if (newAdminPattern.test(username)) {
-    return { valid: true, type: 'admin', format: 'new' };
   }
   // Check old format for backwards compatibility
   if (oldStudentPattern.test(username)) {

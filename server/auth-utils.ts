@@ -14,8 +14,9 @@ import crypto from 'crypto';
 // - Admin: THS-ADM-001
 
 // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
+// IMPORTANT: Must match server/username-generator.ts ROLE_CODES
 const ROLE_CODES = {
-  1: 'SAD', // Super Admin
+  1: 'SUP', // Super Admin
   2: 'ADM', // Admin
   3: 'TCH', // Teacher
   4: 'STU', // Student
@@ -166,8 +167,8 @@ export function isValidThsUsername(username: string): boolean {
   const parsed = parseUsername(username);
   if (!parsed) return false;
 
-  // Validate role code
-  const validRoleCodes = ['ADM', 'TCH', 'STU', 'PAR'];
+  // Validate role code (includes SUP for Super Admin)
+  const validRoleCodes = ['SUP', 'ADM', 'TCH', 'STU', 'PAR'];
   if (!validRoleCodes.includes(parsed.roleCode)) return false;
 
   // Validate number suffix (3 digits)

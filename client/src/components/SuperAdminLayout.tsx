@@ -2,16 +2,16 @@ import { ReactNode, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
-  Shield,
   LayoutDashboard,
   Users,
-  Activity,
   Settings,
   User,
   LogOut,
   Menu,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -43,31 +43,51 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
     localStorage.setItem('superadmin-sidebar-collapsed', String(newState));
   };
 
-  const navItems = [
+  const [expandedSections, setExpandedSections] = useState<string[]>([]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => 
+      prev.includes(section) 
+        ? prev.filter(s => s !== section) 
+        : [...prev, section]
+    );
+  };
+
+  interface NavItem {
+    label: string;
+    path?: string;
+    icon: any;
+    children?: { label: string; path: string }[];
+  }
+
+  const navItems: NavItem[] = [
     {
       label: "Dashboard",
       path: "/portal/superadmin",
       icon: LayoutDashboard,
     },
     {
-      label: "Admin Management",
-      path: "/portal/superadmin/admins",
+      label: "User Management",
       icon: Users,
+      children: [
+        { label: "All Users", path: "/portal/superadmin/all-users" },
+        { label: "Admin Management", path: "/portal/superadmin/admins" },
+      ],
     },
     {
-      label: "All Users",
-      path: "/portal/superadmin/all-users",
-      icon: Users,
-    },
-    {
-      label: "System Logs",
-      path: "/portal/superadmin/logs",
-      icon: Activity,
-    },
-    {
-      label: "Settings",
-      path: "/portal/superadmin/settings",
+      label: "System Settings",
       icon: Settings,
+      children: [
+        { label: "General Settings", path: "/portal/superadmin/settings" },
+        { label: "Authentication Settings", path: "/portal/superadmin/settings/authentication" },
+      ],
+    },
+    {
+      label: "Audit & Security",
+      icon: ShieldCheck,
+      children: [
+        { label: "System Logs", path: "/portal/superadmin/logs" },
+      ],
     },
     {
       label: "Profile",
@@ -91,6 +111,10 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
   const [, navigate] = useLocation();
   
+  const isChildActive = (children?: { label: string; path: string }[]) => {
+    return children?.some(child => isActive(child.path)) ?? false;
+  };
+  
   return (
     <>
       <div className={`p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
@@ -111,27 +135,88 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
         </div>
       </div>
 
-      <nav className={`p-3 space-y-1.5 ${collapsed ? 'px-2' : ''} overflow-y-auto`}>
+      <nav className={`p-3 space-y-1 ${collapsed ? 'px-2' : ''} overflow-y-auto flex-1`}>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const navItemActive = isActive(item.path);
+          const hasChildren = item.children && item.children.length > 0;
+          const isExpanded = expandedSections.includes(item.label);
+          const childActive = isChildActive(item.children);
+          const navItemActive = item.path ? isActive(item.path) : childActive;
+          
+          if (hasChildren) {
+            return (
+              <div key={item.label} className="space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (collapsed) {
+                      if (item.children?.[0]) {
+                        onNavigate?.();
+                        navigate(item.children[0].path);
+                      }
+                    } else {
+                      toggleSection(item.label);
+                    }
+                  }}
+                  className={`flex items-center ${collapsed ? 'justify-center px-2' : 'justify-between px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full ${
+                    childActive 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <div className={`flex items-center ${collapsed ? '' : 'gap-3'}`}>
+                    <Icon className="h-4 w-4" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </div>
+                  {!collapsed && (
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+                {!collapsed && isExpanded && (
+                  <div className="ml-4 pl-3 border-l-2 border-gray-200 dark:border-gray-700 space-y-0.5">
+                    {item.children?.map((child) => (
+                      <button
+                        key={child.path}
+                        type="button"
+                        onClick={() => {
+                          onNavigate?.();
+                          navigate(child.path);
+                        }}
+                        className={`flex items-center px-3 py-1.5 rounded-lg text-sm transition-all duration-200 w-full ${
+                          isActive(child.path)
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md' 
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                        data-testid={`nav-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        {child.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          
           return (
             <button
               key={item.path}
               type="button"
               onClick={() => {
                 onNavigate?.();
-                navigate(item.path);
+                if (item.path) navigate(item.path);
               }}
-              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 w-full ${
+              className={`flex items-center ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full ${
                 navItemActive 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
               data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               title={collapsed ? item.label : undefined}
             >
-              <Icon className={`h-4 w-4 ${navItemActive ? '' : ''}`} />
+              <Icon className="h-4 w-4" />
               {!collapsed && <span>{item.label}</span>}
             </button>
           );
