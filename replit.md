@@ -123,7 +123,27 @@ Unlike traditional setups, this architecture uses:
 ### Exam System Features (Enhanced November 2025)
 - **Reliable Submission**: Retry logic with exponential backoff for network resilience
 - **Instant Auto-Scoring**: MCQ questions scored immediately on submission
-- **Anti-Cheat Measures**:
+
+### Enhanced Report Card System (November 2025)
+- **Auto-Population**: Automatic population of exam scores to report cards from exam results
+- **Test/Exam Separation**: Separate tracking of test scores (40% weight) and exam scores (60% weight)
+- **Configurable Grading Scales**: Support for Standard (A-F), WAEC (A1-F9), and Percentage scales
+- **Teacher Override**: Teachers can manually override scores with full tracking (overriddenBy, overriddenAt)
+- **Status Management**: Draft → Finalized → Published workflow for report card lifecycle
+- **Score Aggregation Modes**: Support for last, best, or average score aggregation from multiple attempts
+- **Class-wide Generation**: Generate report cards for entire class with automatic position calculation
+- **Real-time Recalculation**: Automatic recalculation of totals and grades when scores change
+
+#### Report Card API Endpoints
+- `GET /api/reports/class-term/:classId/:termId` - Get all report cards for a class and term
+- `GET /api/reports/:reportCardId/full` - Get report card with all item details
+- `POST /api/reports/generate-enhanced/:classId` - Generate report cards with grading scale
+- `POST /api/reports/:reportCardId/auto-populate` - Populate scores from exam results
+- `PATCH /api/reports/items/:itemId/override` - Override individual subject scores
+- `PATCH /api/reports/:reportCardId/status` - Update report card status (finalize/publish)
+- `PATCH /api/reports/:reportCardId/remarks` - Update teacher/principal remarks
+
+### Anti-Cheat Measures:
   - Tab switching detection with warnings (5 max before auto-submit)
   - Copy/paste prevention during active exams
   - Right-click disabled during exams

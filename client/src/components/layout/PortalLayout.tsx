@@ -98,6 +98,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             ]
           },
           { name: 'Grades & Results', href: `/portal/${userRole}/grades`, icon: BookOpen },
+          { name: 'Report Cards', href: `/portal/${userRole}/report-cards`, icon: FileText },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
           { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },

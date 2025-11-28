@@ -7210,6 +7210,197 @@ Treasure-Home School Administration
       }
     });
 
+    // ==================== ENHANCED REPORT CARD ROUTES (Teacher Portal) ====================
+
+    // Get all report cards for a class and term
+    app.get('/api/reports/class-term/:classId/:termId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId, termId } = req.params;
+        const reportCards = await storage.getReportCardsByClassAndTerm(Number(classId), Number(termId));
+        res.json(reportCards);
+      } catch (error: any) {
+        console.error('Error getting report cards:', error);
+        res.status(500).json({ message: error.message || 'Failed to get report cards' });
+      }
+    });
+
+    // Get report card with all items (full details)
+    app.get('/api/reports/:reportCardId/full', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const reportCard = await storage.getReportCardWithItems(Number(reportCardId));
+        
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        res.json(reportCard);
+      } catch (error: any) {
+        console.error('Error getting report card:', error);
+        res.status(500).json({ message: error.message || 'Failed to get report card' });
+      }
+    });
+
+    // Generate report cards for a class with auto-population (Enhanced version)
+    app.post('/api/reports/generate-enhanced/:classId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { termId, gradingScale = 'standard' } = req.body;
+        
+        if (!termId) {
+          return res.status(400).json({ message: 'Term ID is required' });
+        }
+        
+        const result = await storage.generateReportCardsForClass(
+          Number(classId),
+          Number(termId),
+          gradingScale,
+          req.user!.id
+        );
+        
+        res.json({
+          message: `Report cards generated: ${result.created} created, ${result.updated} updated`,
+          ...result
+        });
+      } catch (error: any) {
+        console.error('Error generating report cards:', error);
+        res.status(500).json({ message: error.message || 'Failed to generate report cards' });
+      }
+    });
+
+    // Auto-populate scores for a specific report card
+    app.post('/api/reports/:reportCardId/auto-populate', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        
+        const result = await storage.autoPopulateReportCardScores(Number(reportCardId));
+        
+        res.json({
+          message: `Scores populated for ${result.populated} subjects`,
+          ...result
+        });
+      } catch (error: any) {
+        console.error('Error auto-populating scores:', error);
+        res.status(500).json({ message: error.message || 'Failed to auto-populate scores' });
+      }
+    });
+
+    // Override a report card item score (Teacher override)
+    app.patch('/api/reports/items/:itemId/override', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { itemId } = req.params;
+        const { testScore, testMaxScore, examScore, examMaxScore, teacherRemarks } = req.body;
+        
+        const updatedItem = await storage.overrideReportCardItemScore(Number(itemId), {
+          testScore: testScore !== undefined ? Number(testScore) : undefined,
+          testMaxScore: testMaxScore !== undefined ? Number(testMaxScore) : undefined,
+          examScore: examScore !== undefined ? Number(examScore) : undefined,
+          examMaxScore: examMaxScore !== undefined ? Number(examMaxScore) : undefined,
+          teacherRemarks,
+          overriddenBy: req.user!.id
+        });
+        
+        if (!updatedItem) {
+          return res.status(404).json({ message: 'Report card item not found' });
+        }
+        
+        res.json(updatedItem);
+      } catch (error: any) {
+        console.error('Error overriding score:', error);
+        res.status(500).json({ message: error.message || 'Failed to override score' });
+      }
+    });
+
+    // Update report card status (finalize, publish)
+    app.patch('/api/reports/:reportCardId/status', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const { status } = req.body;
+        
+        if (!['draft', 'finalized', 'published'].includes(status)) {
+          return res.status(400).json({ message: 'Invalid status. Must be draft, finalized, or published' });
+        }
+        
+        const updatedReportCard = await storage.updateReportCardStatus(
+          Number(reportCardId),
+          status,
+          req.user!.id
+        );
+        
+        if (!updatedReportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        res.json(updatedReportCard);
+      } catch (error: any) {
+        console.error('Error updating status:', error);
+        res.status(500).json({ message: error.message || 'Failed to update status' });
+      }
+    });
+
+    // Update report card remarks
+    app.patch('/api/reports/:reportCardId/remarks', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const { teacherRemarks, principalRemarks } = req.body;
+        
+        const updatedReportCard = await storage.updateReportCardRemarks(
+          Number(reportCardId),
+          teacherRemarks,
+          principalRemarks
+        );
+        
+        if (!updatedReportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        res.json(updatedReportCard);
+      } catch (error: any) {
+        console.error('Error updating remarks:', error);
+        res.status(500).json({ message: error.message || 'Failed to update remarks' });
+      }
+    });
+
+    // Get exams by class and term with subject info
+    app.get('/api/reports/exams/:classId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { termId } = req.query;
+        
+        const exams = await storage.getExamsWithSubjectsByClassAndTerm(
+          Number(classId),
+          termId ? Number(termId) : undefined
+        );
+        
+        res.json(exams);
+      } catch (error: any) {
+        console.error('Error getting exams:', error);
+        res.status(500).json({ message: error.message || 'Failed to get exams' });
+      }
+    });
+
+    // Recalculate a report card
+    app.post('/api/reports/:reportCardId/recalculate', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const { gradingScale = 'standard' } = req.body;
+        
+        const updatedReportCard = await storage.recalculateReportCard(
+          Number(reportCardId),
+          gradingScale
+        );
+        
+        if (!updatedReportCard) {
+          return res.status(404).json({ message: 'Report card not found or has no items' });
+        }
+        
+        res.json(updatedReportCard);
+      } catch (error: any) {
+        console.error('Error recalculating report card:', error);
+        res.status(500).json({ message: error.message || 'Failed to recalculate report card' });
+      }
+    });
+
     // ==================== END REPORT CARD ROUTES ====================
 
     // ==================== TEACHER ASSIGNMENT ROUTES ====================

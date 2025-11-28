@@ -1,6 +1,7 @@
-import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull, gte, lte, or, like } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getDatabase, getSchema, getPgClient, isPostgres, isSqlite } from "./db";
+import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGrade } from "./grading-config";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -310,6 +311,25 @@ export interface IStorage {
   getReportCardItems(reportCardId: number): Promise<ReportCardItem[]>;
   getStudentsByParentId(parentId: string): Promise<Student[]>;
   getAcademicTerm(id: number): Promise<AcademicTerm | undefined>;
+
+  // Enhanced report card management
+  getReportCardsByClassAndTerm(classId: number, termId: number): Promise<any[]>;
+  getReportCardWithItems(reportCardId: number): Promise<any>;
+  generateReportCardsForClass(classId: number, termId: number, gradingScale: string, generatedBy: string): Promise<{ created: number; updated: number; errors: string[] }>;
+  autoPopulateReportCardScores(reportCardId: number): Promise<{ populated: number; errors: string[] }>;
+  overrideReportCardItemScore(itemId: number, data: {
+    testScore?: number | null;
+    testMaxScore?: number | null;
+    examScore?: number | null;
+    examMaxScore?: number | null;
+    teacherRemarks?: string | null;
+    overriddenBy: string;
+  }): Promise<ReportCardItem | undefined>;
+  updateReportCardStatus(reportCardId: number, status: string, userId: string): Promise<ReportCard | undefined>;
+  updateReportCardRemarks(reportCardId: number, teacherRemarks?: string, principalRemarks?: string): Promise<ReportCard | undefined>;
+  getExamsWithSubjectsByClassAndTerm(classId: number, termId?: number): Promise<any[]>;
+  getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }>;
+  recalculateReportCard(reportCardId: number, gradingScale: string): Promise<ReportCard | undefined>;
 
   // Report finalization methods
   getExamResultById(id: number): Promise<ExamResult | undefined>;
@@ -3414,6 +3434,523 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.students.parentId, parentId));
     } catch (error) {
       return [];
+    }
+  }
+
+  // Enhanced report card management methods
+  async getReportCardsByClassAndTerm(classId: number, termId: number): Promise<any[]> {
+    try {
+      const results = await db.select({
+        id: schema.reportCards.id,
+        studentId: schema.reportCards.studentId,
+        classId: schema.reportCards.classId,
+        termId: schema.reportCards.termId,
+        totalScore: schema.reportCards.totalScore,
+        averageScore: schema.reportCards.averageScore,
+        averagePercentage: schema.reportCards.averagePercentage,
+        overallGrade: schema.reportCards.overallGrade,
+        position: schema.reportCards.position,
+        totalStudentsInClass: schema.reportCards.totalStudentsInClass,
+        teacherRemarks: schema.reportCards.teacherRemarks,
+        principalRemarks: schema.reportCards.principalRemarks,
+        status: schema.reportCards.status,
+        gradingScale: schema.reportCards.gradingScale,
+        generatedAt: schema.reportCards.generatedAt,
+        finalizedAt: schema.reportCards.finalizedAt,
+        publishedAt: schema.reportCards.publishedAt,
+        studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        admissionNumber: schema.students.admissionNumber
+      })
+        .from(schema.reportCards)
+        .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .where(and(
+          eq(schema.reportCards.classId, classId),
+          eq(schema.reportCards.termId, termId)
+        ))
+        .orderBy(schema.reportCards.position);
+      return results;
+    } catch (error) {
+      console.error('Error getting report cards by class and term:', error);
+      return [];
+    }
+  }
+
+  async getReportCardWithItems(reportCardId: number): Promise<any> {
+    try {
+      const reportCard = await db.select({
+        id: schema.reportCards.id,
+        studentId: schema.reportCards.studentId,
+        classId: schema.reportCards.classId,
+        termId: schema.reportCards.termId,
+        totalScore: schema.reportCards.totalScore,
+        averageScore: schema.reportCards.averageScore,
+        averagePercentage: schema.reportCards.averagePercentage,
+        overallGrade: schema.reportCards.overallGrade,
+        position: schema.reportCards.position,
+        totalStudentsInClass: schema.reportCards.totalStudentsInClass,
+        teacherRemarks: schema.reportCards.teacherRemarks,
+        principalRemarks: schema.reportCards.principalRemarks,
+        status: schema.reportCards.status,
+        gradingScale: schema.reportCards.gradingScale,
+        generatedAt: schema.reportCards.generatedAt,
+        studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        admissionNumber: schema.students.admissionNumber,
+        className: schema.classes.name,
+        termName: schema.academicTerms.name
+      })
+        .from(schema.reportCards)
+        .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .innerJoin(schema.classes, eq(schema.reportCards.classId, schema.classes.id))
+        .innerJoin(schema.academicTerms, eq(schema.reportCards.termId, schema.academicTerms.id))
+        .where(eq(schema.reportCards.id, reportCardId))
+        .limit(1);
+
+      if (reportCard.length === 0) return null;
+
+      const items = await db.select({
+        id: schema.reportCardItems.id,
+        subjectId: schema.reportCardItems.subjectId,
+        subjectName: schema.subjects.name,
+        subjectCode: schema.subjects.code,
+        testScore: schema.reportCardItems.testScore,
+        testMaxScore: schema.reportCardItems.testMaxScore,
+        testWeightedScore: schema.reportCardItems.testWeightedScore,
+        examScore: schema.reportCardItems.examScore,
+        examMaxScore: schema.reportCardItems.examMaxScore,
+        examWeightedScore: schema.reportCardItems.examWeightedScore,
+        totalMarks: schema.reportCardItems.totalMarks,
+        obtainedMarks: schema.reportCardItems.obtainedMarks,
+        percentage: schema.reportCardItems.percentage,
+        grade: schema.reportCardItems.grade,
+        remarks: schema.reportCardItems.remarks,
+        teacherRemarks: schema.reportCardItems.teacherRemarks,
+        isOverridden: schema.reportCardItems.isOverridden,
+        overriddenAt: schema.reportCardItems.overriddenAt
+      })
+        .from(schema.reportCardItems)
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .where(eq(schema.reportCardItems.reportCardId, reportCardId))
+        .orderBy(schema.subjects.name);
+
+      return { ...reportCard[0], items };
+    } catch (error) {
+      console.error('Error getting report card with items:', error);
+      return null;
+    }
+  }
+
+  async generateReportCardsForClass(classId: number, termId: number, gradingScale: string, generatedBy: string): Promise<{ created: number; updated: number; errors: string[] }> {
+    try {
+      const errors: string[] = [];
+      let created = 0;
+      let updated = 0;
+
+      // Get all students in the class
+      const students = await db.select()
+        .from(schema.students)
+        .where(eq(schema.students.classId, classId));
+
+      // Get all subjects for the class
+      const subjects = await db.select()
+        .from(schema.subjects)
+        .where(eq(schema.subjects.classId, classId));
+
+      for (const student of students) {
+        try {
+          // Check if report card already exists
+          const existingReportCard = await db.select()
+            .from(schema.reportCards)
+            .where(and(
+              eq(schema.reportCards.studentId, student.id),
+              eq(schema.reportCards.termId, termId)
+            ))
+            .limit(1);
+
+          let reportCardId: number;
+
+          if (existingReportCard.length === 0) {
+            // Create new report card
+            const newReportCard = await db.insert(schema.reportCards)
+              .values({
+                studentId: student.id,
+                classId: classId,
+                termId: termId,
+                status: 'draft',
+                gradingScale: gradingScale,
+                scoreAggregationMode: 'last',
+                generatedBy: generatedBy,
+                generatedAt: new Date()
+              })
+              .returning();
+            reportCardId = newReportCard[0].id;
+            created++;
+          } else {
+            reportCardId = existingReportCard[0].id;
+            updated++;
+          }
+
+          // Create or update report card items for each subject
+          for (const subject of subjects) {
+            const existingItem = await db.select()
+              .from(schema.reportCardItems)
+              .where(and(
+                eq(schema.reportCardItems.reportCardId, reportCardId),
+                eq(schema.reportCardItems.subjectId, subject.id)
+              ))
+              .limit(1);
+
+            if (existingItem.length === 0) {
+              await db.insert(schema.reportCardItems)
+                .values({
+                  reportCardId: reportCardId,
+                  subjectId: subject.id,
+                  totalMarks: 100,
+                  obtainedMarks: 0,
+                  percentage: 0
+                });
+            }
+          }
+
+          // Auto-populate scores for this report card
+          await this.autoPopulateReportCardScores(reportCardId);
+
+        } catch (studentError: any) {
+          errors.push(`Failed to generate report card for student ${student.id}: ${studentError.message}`);
+        }
+      }
+
+      // Recalculate positions for all report cards in this class/term
+      await this.recalculateClassPositions(classId, termId);
+
+      return { created, updated, errors };
+    } catch (error: any) {
+      console.error('Error generating report cards for class:', error);
+      return { created: 0, updated: 0, errors: [error.message] };
+    }
+  }
+
+  async autoPopulateReportCardScores(reportCardId: number): Promise<{ populated: number; errors: string[] }> {
+    try {
+      const errors: string[] = [];
+      let populated = 0;
+
+      // Get the report card details
+      const reportCard = await this.getReportCard(reportCardId);
+      if (!reportCard) {
+        return { populated: 0, errors: ['Report card not found'] };
+      }
+
+      const gradingScale = (reportCard as any).gradingScale || 'standard';
+      const config = getGradingConfig(gradingScale);
+
+      // Get all report card items
+      const items = await db.select()
+        .from(schema.reportCardItems)
+        .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+
+      for (const item of items) {
+        try {
+          // Skip if item has been manually overridden
+          if (item.isOverridden) continue;
+
+          // Get exam scores for this student and subject
+          const examScores = await this.getExamScoresForReportCard(
+            reportCard.studentId,
+            item.subjectId,
+            reportCard.termId
+          );
+
+          let testScore: number | null = null;
+          let testMaxScore: number | null = null;
+          let examScore: number | null = null;
+          let examMaxScore: number | null = null;
+
+          // Aggregate test scores (type: 'test')
+          if (examScores.testExams.length > 0) {
+            const lastTest = examScores.testExams[examScores.testExams.length - 1];
+            testScore = lastTest.score;
+            testMaxScore = lastTest.maxScore;
+          }
+
+          // Aggregate main exam scores (type: 'exam')
+          if (examScores.mainExams.length > 0) {
+            const lastExam = examScores.mainExams[examScores.mainExams.length - 1];
+            examScore = lastExam.score;
+            examMaxScore = lastExam.maxScore;
+          }
+
+          // Calculate weighted score
+          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+          const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
+
+          // Update the report card item
+          await db.update(schema.reportCardItems)
+            .set({
+              testScore: testScore,
+              testMaxScore: testMaxScore,
+              testWeightedScore: Math.round(weighted.testWeighted),
+              examScore: examScore,
+              examMaxScore: examMaxScore,
+              examWeightedScore: Math.round(weighted.examWeighted),
+              obtainedMarks: Math.round(weighted.weightedScore),
+              percentage: Math.round(weighted.percentage),
+              grade: gradeInfo.grade,
+              remarks: gradeInfo.remarks,
+              updatedAt: new Date()
+            })
+            .where(eq(schema.reportCardItems.id, item.id));
+
+          populated++;
+        } catch (itemError: any) {
+          errors.push(`Failed to populate scores for item ${item.id}: ${itemError.message}`);
+        }
+      }
+
+      // Recalculate report card totals
+      await this.recalculateReportCard(reportCardId, gradingScale);
+
+      return { populated, errors };
+    } catch (error: any) {
+      console.error('Error auto-populating report card scores:', error);
+      return { populated: 0, errors: [error.message] };
+    }
+  }
+
+  async getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }> {
+    try {
+      // Get all exams for this subject and term
+      const examResults = await db.select({
+        id: schema.examResults.id,
+        examId: schema.examResults.examId,
+        score: schema.examResults.marksObtained,
+        maxScore: schema.exams.totalMarks,
+        examType: schema.exams.examType,
+        examDate: schema.exams.examDate,
+        createdAt: schema.examResults.createdAt
+      })
+        .from(schema.examResults)
+        .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .where(and(
+          eq(schema.examResults.studentId, studentId),
+          eq(schema.exams.subjectId, subjectId),
+          eq(schema.exams.termId, termId)
+        ))
+        .orderBy(schema.examResults.createdAt);
+
+      const testExams = examResults.filter((r: any) => r.examType === 'test' || r.examType === 'quiz' || r.examType === 'assignment');
+      const mainExams = examResults.filter((r: any) => r.examType === 'exam' || r.examType === 'final' || r.examType === 'midterm');
+
+      return { testExams, mainExams };
+    } catch (error) {
+      console.error('Error getting exam scores for report card:', error);
+      return { testExams: [], mainExams: [] };
+    }
+  }
+
+  async overrideReportCardItemScore(itemId: number, data: {
+    testScore?: number | null;
+    testMaxScore?: number | null;
+    examScore?: number | null;
+    examMaxScore?: number | null;
+    teacherRemarks?: string | null;
+    overriddenBy: string;
+  }): Promise<ReportCardItem | undefined> {
+    try {
+      // Get the item first to get report card info
+      const item = await db.select()
+        .from(schema.reportCardItems)
+        .where(eq(schema.reportCardItems.id, itemId))
+        .limit(1);
+
+      if (item.length === 0) return undefined;
+
+      // Get report card for grading scale
+      const reportCard = await this.getReportCard(item[0].reportCardId);
+      if (!reportCard) return undefined;
+
+      const gradingScale = (reportCard as any).gradingScale || 'standard';
+
+      // Calculate new weighted score
+      const testScore = data.testScore !== undefined ? data.testScore : item[0].testScore;
+      const testMaxScore = data.testMaxScore !== undefined ? data.testMaxScore : item[0].testMaxScore;
+      const examScore = data.examScore !== undefined ? data.examScore : item[0].examScore;
+      const examMaxScore = data.examMaxScore !== undefined ? data.examMaxScore : item[0].examMaxScore;
+
+      const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+      const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
+
+      const result = await db.update(schema.reportCardItems)
+        .set({
+          testScore: testScore,
+          testMaxScore: testMaxScore,
+          testWeightedScore: Math.round(weighted.testWeighted),
+          examScore: examScore,
+          examMaxScore: examMaxScore,
+          examWeightedScore: Math.round(weighted.examWeighted),
+          obtainedMarks: Math.round(weighted.weightedScore),
+          percentage: Math.round(weighted.percentage),
+          grade: gradeInfo.grade,
+          remarks: gradeInfo.remarks,
+          teacherRemarks: data.teacherRemarks !== undefined ? data.teacherRemarks : item[0].teacherRemarks,
+          isOverridden: true,
+          overriddenBy: data.overriddenBy,
+          overriddenAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.reportCardItems.id, itemId))
+        .returning();
+
+      // Recalculate report card totals
+      await this.recalculateReportCard(reportCard.id, gradingScale);
+
+      return result[0];
+    } catch (error) {
+      console.error('Error overriding report card item score:', error);
+      return undefined;
+    }
+  }
+
+  async updateReportCardStatus(reportCardId: number, status: string, userId: string): Promise<ReportCard | undefined> {
+    try {
+      const updateData: any = {
+        status: status,
+        updatedAt: new Date()
+      };
+
+      if (status === 'finalized') {
+        updateData.finalizedAt = new Date();
+      } else if (status === 'published') {
+        updateData.publishedAt = new Date();
+      }
+
+      const result = await db.update(schema.reportCards)
+        .set(updateData)
+        .where(eq(schema.reportCards.id, reportCardId))
+        .returning();
+
+      return result[0];
+    } catch (error) {
+      console.error('Error updating report card status:', error);
+      return undefined;
+    }
+  }
+
+  async updateReportCardRemarks(reportCardId: number, teacherRemarks?: string, principalRemarks?: string): Promise<ReportCard | undefined> {
+    try {
+      const updateData: any = { updatedAt: new Date() };
+      if (teacherRemarks !== undefined) updateData.teacherRemarks = teacherRemarks;
+      if (principalRemarks !== undefined) updateData.principalRemarks = principalRemarks;
+
+      const result = await db.update(schema.reportCards)
+        .set(updateData)
+        .where(eq(schema.reportCards.id, reportCardId))
+        .returning();
+
+      return result[0];
+    } catch (error) {
+      console.error('Error updating report card remarks:', error);
+      return undefined;
+    }
+  }
+
+  async getExamsWithSubjectsByClassAndTerm(classId: number, termId?: number): Promise<any[]> {
+    try {
+      let query = db.select({
+        id: schema.exams.id,
+        title: schema.exams.title,
+        subjectId: schema.exams.subjectId,
+        subjectName: schema.subjects.name,
+        examType: schema.exams.examType,
+        totalMarks: schema.exams.totalMarks,
+        examDate: schema.exams.examDate,
+        status: schema.exams.status,
+        termId: schema.exams.termId
+      })
+        .from(schema.exams)
+        .innerJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .where(eq(schema.exams.classId, classId));
+
+      if (termId) {
+        query = query.where(and(
+          eq(schema.exams.classId, classId),
+          eq(schema.exams.termId, termId)
+        ));
+      }
+
+      return await query.orderBy(desc(schema.exams.examDate));
+    } catch (error) {
+      console.error('Error getting exams by class and term:', error);
+      return [];
+    }
+  }
+
+  async recalculateReportCard(reportCardId: number, gradingScale: string): Promise<ReportCard | undefined> {
+    try {
+      // Get all items for this report card
+      const items = await db.select()
+        .from(schema.reportCardItems)
+        .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+
+      if (items.length === 0) return undefined;
+
+      // Calculate totals
+      let totalObtained = 0;
+      let totalPossible = 0;
+      const grades: string[] = [];
+
+      for (const item of items) {
+        totalObtained += item.obtainedMarks || 0;
+        totalPossible += item.totalMarks || 100;
+        if (item.grade) grades.push(item.grade);
+      }
+
+      const averagePercentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0;
+      const overallGrade = getOverallGrade(averagePercentage, gradingScale);
+
+      const result = await db.update(schema.reportCards)
+        .set({
+          totalScore: totalObtained,
+          averageScore: Math.round(averagePercentage),
+          averagePercentage: Math.round(averagePercentage),
+          overallGrade: overallGrade,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.reportCards.id, reportCardId))
+        .returning();
+
+      return result[0];
+    } catch (error) {
+      console.error('Error recalculating report card:', error);
+      return undefined;
+    }
+  }
+
+  private async recalculateClassPositions(classId: number, termId: number): Promise<void> {
+    try {
+      // Get all report cards for this class and term
+      const reportCards = await db.select()
+        .from(schema.reportCards)
+        .where(and(
+          eq(schema.reportCards.classId, classId),
+          eq(schema.reportCards.termId, termId)
+        ))
+        .orderBy(desc(schema.reportCards.averagePercentage));
+
+      const totalStudents = reportCards.length;
+
+      // Update positions
+      for (let i = 0; i < reportCards.length; i++) {
+        await db.update(schema.reportCards)
+          .set({
+            position: i + 1,
+            totalStudentsInClass: totalStudents
+          })
+          .where(eq(schema.reportCards.id, reportCards[i].id));
+      }
+    } catch (error) {
+      console.error('Error recalculating class positions:', error);
     }
   }
 
