@@ -236,31 +236,20 @@ export default function StudentExams() {
     }
   }, [user?.id, exams]);
 
-  // SESSION RECOVERY: Resume active session with timer recovery
+  // SESSION RECOVERY: Resume active session with timer recovery (silent - no toast)
   useEffect(() => {
     if (activeSession && !activeSession.isCompleted) {
       const exam = exams.find(e => e.id === activeSession.examId);
 
-      // Recover timer from session if available
+      // Recover timer from session if available (silently)
       if (activeSession.timeRemaining !== null && activeSession.timeRemaining !== undefined) {
         setTimeRemaining(activeSession.timeRemaining);
-        toast({
-          title: "Session Resumed",
-          description: `Exam resumed with ${Math.floor(activeSession.timeRemaining / 60)} minutes remaining`,
-        });
       } else if (exam?.timeLimit && activeSession.startedAt) {
         // Calculate remaining time based on start time
         const elapsedSeconds = Math.floor((Date.now() - new Date(activeSession.startedAt).getTime()) / 1000);
         const totalSeconds = exam.timeLimit * 60;
         const remaining = Math.max(0, totalSeconds - elapsedSeconds);
         setTimeRemaining(remaining);
-
-        if (remaining > 0) {
-          toast({
-            title: "Session Resumed",
-            description: `Exam resumed with ${Math.floor(remaining / 60)} minutes remaining`,
-          });
-        }
       }
     }
   }, [activeSession, exams]);
@@ -655,8 +644,8 @@ export default function StudentExams() {
         setTimeRemaining(null);
       }
       toast({
-        title: "Exam Started Successfully",
-        description: "Your exam has begun. Good luck! Please remain on this page until you submit your answers.",
+        title: "Welcome to Your Exam",
+        description: `Best of luck! You have ${exam?.timeLimit ? `${exam.timeLimit} minutes` : 'unlimited time'} to complete this exam. Stay focused and do your best.`,
         variant: "default",
       });
     },
