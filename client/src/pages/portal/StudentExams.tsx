@@ -70,6 +70,16 @@ export default function StudentExams() {
   const [networkIssues, setNetworkIssues] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
+  // PROTECTION: Check if current session was already submitted and redirect to results
+  useEffect(() => {
+    if (activeSession?.id) {
+      const submittedFlag = sessionStorage.getItem(`exam_submitted_${activeSession.id}`);
+      if (submittedFlag === 'true' || activeSession.isCompleted) {
+        setLocation('/portal/student/exam-results');
+      }
+    }
+  }, [activeSession?.id, activeSession?.isCompleted, setLocation]);
+
   // Fetch available exams
   const { data: exams = [], isLoading: loadingExams, error: examsError } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
