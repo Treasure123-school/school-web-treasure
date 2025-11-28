@@ -671,6 +671,18 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
         savedResultId = newResult.id;
       }
 
+      // CRITICAL: Update the exam session with the calculated scores
+      try {
+        await storage.updateExamSession(sessionId, {
+          score: totalAutoScore,
+          maxScore: maxPossibleScore,
+          status: breakdown.pendingManualReview === 0 ? 'graded' : 'submitted'
+        });
+      } catch (sessionUpdateError) {
+        console.warn('[AUTO-SCORE] Failed to update session with scores:', sessionUpdateError);
+        // Don't throw - the exam result was saved successfully
+      }
+
       // Verification is optional - if it fails, log but don't throw
       // The result was already confirmed saved by the insert/update returning
       try {
@@ -1020,10 +1032,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get exam results by exam ID - TEACHERS AND ADMINS
-  app.get('/api/exam-results/exam/:examId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+  app.get('/api/exam-results/exam/:examId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
       const examId = parseInt(req.params.examId);
       const teacherId = req.user!.id;
+      
+      // Validate exam ID
+      if (isNaN(examId) || examId <= 0) {
+        return res.status(400).json({ message: 'Invalid exam ID' });
+      }
       
       // Verify exam exists
       const exam = await storage.getExamById(examId);
@@ -1031,18 +1048,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Exam not found' });
       }
       
-      // For teachers, allow viewing results if they created the exam OR are the teacher in charge
+      // For teachers, allow viewing results if they created the exam, are the teacher in charge,
+      // or teach the class-subject combination
       if (req.user!.roleId === ROLES.TEACHER) {
         const isCreator = exam.createdBy === teacherId;
         const isTeacherInCharge = exam.teacherInChargeId === teacherId;
-        if (!isCreator && !isTeacherInCharge) {
-          return res.status(403).json({ message: 'You can only view results for exams you created or are assigned to' });
+        
+        // Also check if teacher is assigned to this class-subject
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t: any) => t.id === teacherId) || false;
+          } catch (e) {
+            // Silent fail - continue with other checks
+          }
+        }
+        
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: 'You can only view results for exams you created, are assigned to, or teach' });
         }
       }
       
+      // Get results with student info for better display
       const results = await storage.getExamResultsByExam(examId);
-      res.json(results);
-    } catch (error) {
+      
+      // Enrich with student information
+      const enrichedResults = await Promise.all(results.map(async (result: any) => {
+        try {
+          const student = await storage.getStudent(result.studentId);
+          const user = student ? await storage.getUser(result.studentId) : null;
+          return {
+            ...result,
+            studentName: user?.firstName && user?.lastName 
+              ? `${user.firstName} ${user.lastName}` 
+              : user?.username || 'Unknown Student',
+            admissionNumber: student?.admissionNumber || null
+          };
+        } catch (e) {
+          return {
+            ...result,
+            studentName: 'Unknown Student',
+            admissionNumber: null
+          };
+        }
+      }));
+      
+      res.json(enrichedResults);
+    } catch (error: any) {
+      console.error('[EXAM-RESULTS] Error fetching exam results:', error?.message);
       res.status(500).json({ message: 'Failed to fetch exam results' });
     }
   });
@@ -1139,40 +1193,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit exam - synchronous with instant scoring
+  // Submit exam - synchronous with instant scoring and enhanced reliability
   app.post('/api/exams/:examId/submit', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    const startTime = Date.now();
+    let sessionId: number | null = null;
+    
     try {
       const examId = parseInt(req.params.examId);
       const studentId = req.user!.id;
-      const startTime = Date.now();
 
+      // Validate exam ID
+      if (isNaN(examId) || examId <= 0) {
+        return res.status(400).json({ message: 'Invalid exam ID provided' });
+      }
+
+      // Verify the exam exists
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
 
       // Find the active exam session
       const sessions = await storage.getExamSessionsByStudent(studentId);
       const activeSession = sessions.find(s => s.examId === examId && !s.isCompleted);
 
       if (!activeSession) {
-        return res.status(404).json({ message: 'No active exam session found' });
+        // Check if already submitted - return existing results
+        const completedSession = sessions.find(s => s.examId === examId && s.isCompleted);
+        if (completedSession) {
+          const existingResult = await storage.getExamResultByExamAndStudent(examId, studentId);
+          const studentAnswers = await storage.getStudentAnswers(completedSession.id);
+          const examQuestions = await storage.getExamQuestions(examId);
+          
+          const questionDetails = examQuestions.map(q => {
+            const answer = studentAnswers.find(a => a.questionId === q.id);
+            return {
+              questionId: q.id,
+              questionText: q.questionText,
+              questionType: q.questionType,
+              points: q.points,
+              studentAnswer: answer?.textAnswer || null,
+              selectedOptionId: answer?.selectedOptionId || null,
+              isCorrect: answer?.isCorrect || false,
+              pointsAwarded: answer?.pointsEarned || 0,
+              feedback: answer?.feedbackText || null
+            };
+          });
+
+          return res.json({
+            submitted: true,
+            alreadySubmitted: true,
+            message: 'Exam was previously submitted. Returning existing results.',
+            result: {
+              sessionId: completedSession.id,
+              score: existingResult?.score || completedSession.score || 0,
+              maxScore: existingResult?.maxScore || completedSession.maxScore || exam.totalMarks || 0,
+              percentage: existingResult?.maxScore 
+                ? ((existingResult.score || 0) / existingResult.maxScore) * 100 
+                : completedSession.maxScore 
+                  ? ((completedSession.score || 0) / completedSession.maxScore) * 100 
+                  : 0,
+              submittedAt: completedSession.submittedAt?.toISOString() || new Date().toISOString(),
+              questionDetails,
+              breakdown: {
+                totalQuestions: examQuestions.length,
+                answered: studentAnswers.filter(a => a.textAnswer || a.selectedOptionId).length,
+                correct: studentAnswers.filter(a => a.isCorrect).length,
+                autoScored: studentAnswers.filter(a => a.isCorrect !== null).length
+              }
+            }
+          });
+        }
+        return res.status(404).json({ message: 'No active exam session found. Please start a new exam session.' });
       }
-      // Check if already submitted
-      if (activeSession.isCompleted) {
-        return res.status(409).json({ message: 'Exam already submitted' });
-      }
+
+      sessionId = activeSession.id;
       const now = new Date();
 
-      // Mark session as submitted
+      // Mark session as submitted FIRST (before scoring to prevent race conditions)
       await storage.updateExamSession(activeSession.id, {
         isCompleted: true,
         submittedAt: now,
         status: 'submitted'
       });
 
-
-      // Auto-score the exam
+      // Auto-score the exam with error recovery
       const scoringStartTime = Date.now();
-      await autoScoreExamSession(activeSession.id, storage);
+      let scoringSuccessful = false;
+      let scoringError: Error | null = null;
+      
+      try {
+        await autoScoreExamSession(activeSession.id, storage);
+        scoringSuccessful = true;
+      } catch (scoreError: any) {
+        console.error(`[SUBMIT] Auto-scoring failed for session ${activeSession.id}:`, scoreError?.message);
+        scoringError = scoreError;
+        // Continue - we'll still return results even if scoring fails
+      }
+      
       const scoringTime = Date.now() - scoringStartTime;
-
 
       // Get the updated session with scores
       const updatedSession = await storage.getExamSessionById(activeSession.id);
@@ -1180,6 +1299,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get detailed results for student
       const studentAnswers = await storage.getStudentAnswers(activeSession.id);
       const examQuestions = await storage.getExamQuestions(examId);
+
+      // Calculate score from answers if session score is missing
+      let totalScore = updatedSession?.score || 0;
+      let maxScore = updatedSession?.maxScore || exam.totalMarks || 0;
+      
+      if (totalScore === 0 && studentAnswers.length > 0) {
+        // Fallback: Calculate score from individual answer scores
+        totalScore = studentAnswers.reduce((sum, ans) => sum + (ans.pointsEarned || 0), 0);
+      }
+      
+      if (maxScore === 0 && examQuestions.length > 0) {
+        // Fallback: Calculate max score from questions
+        maxScore = examQuestions.reduce((sum, q) => sum + (q.points || 0), 0);
+      }
+
+      // Update session with calculated scores if they were missing
+      if ((updatedSession?.score !== totalScore || updatedSession?.maxScore !== maxScore) && totalScore > 0) {
+        try {
+          await storage.updateExamSession(activeSession.id, {
+            score: totalScore,
+            maxScore: maxScore,
+            status: 'graded'
+          });
+        } catch (updateError) {
+          console.warn('[SUBMIT] Failed to update session with calculated scores:', updateError);
+        }
+      }
 
       // Build question details for frontend
       const questionDetails = examQuestions.map(q => {
@@ -1198,22 +1344,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const totalTime = Date.now() - startTime;
+      const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 
       // Return instant results
       res.json({
         submitted: true,
+        scoringSuccessful,
+        message: scoringSuccessful 
+          ? `Exam submitted successfully! Your score: ${totalScore}/${maxScore}`
+          : 'Exam submitted. Score calculation in progress.',
         result: {
           sessionId: activeSession.id,
-          score: updatedSession?.score || 0,
-          maxScore: updatedSession?.maxScore || 0,
-          percentage: updatedSession?.maxScore ? ((updatedSession?.score || 0) / updatedSession.maxScore) * 100 : 0,
+          score: totalScore,
+          maxScore: maxScore,
+          percentage: Math.round(percentage * 100) / 100,
           submittedAt: now.toISOString(),
           questionDetails,
           breakdown: {
             totalQuestions: examQuestions.length,
             answered: studentAnswers.filter(a => a.textAnswer || a.selectedOptionId).length,
-            correct: studentAnswers.filter(a => a.isCorrect).length,
-            autoScored: studentAnswers.filter(a => a.isCorrect !== null).length
+            correct: studentAnswers.filter(a => a.isCorrect === true).length,
+            incorrect: studentAnswers.filter(a => a.isCorrect === false).length,
+            autoScored: studentAnswers.filter(a => a.autoScored === true).length,
+            pendingReview: studentAnswers.filter(a => a.isCorrect === null).length
           }
         },
         performance: {
@@ -1222,7 +1375,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error: any) {
-      res.status(500).json({ message: error.message || 'Failed to submit exam' });
+      console.error('[SUBMIT] Exam submission error:', error?.message, { sessionId });
+      
+      // Provide helpful error messages based on error type
+      let userMessage = 'Failed to submit exam';
+      let statusCode = 500;
+      
+      if (error?.message?.includes('not found')) {
+        userMessage = 'Session not found. Please refresh and try again.';
+        statusCode = 404;
+      } else if (error?.message?.includes('already')) {
+        userMessage = 'This exam has already been submitted.';
+        statusCode = 409;
+      } else if (error?.message?.includes('database') || error?.message?.includes('connection')) {
+        userMessage = 'Database connection issue. Please try again in a moment.';
+        statusCode = 503;
+      } else if (error?.message) {
+        userMessage = error.message;
+      }
+      
+      res.status(statusCode).json({ 
+        message: userMessage,
+        submitted: false,
+        sessionId
+      });
     }
   });
 

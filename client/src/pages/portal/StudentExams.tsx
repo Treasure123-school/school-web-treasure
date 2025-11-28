@@ -801,40 +801,111 @@ export default function StudentExams() {
   });
 
   // MILESTONE 1: Synchronous Submit Exam Mutation - No Polling, Instant Feedback! 🚀
+  // Enhanced with retry logic and better error recovery
   const submitExamMutation = useMutation({
     mutationFn: async () => {
       if (!activeSession) throw new Error('No active session');
 
       const startTime = Date.now();
+      const maxRetries = 3;
+      let lastError: Error | null = null;
 
-      // Use the new synchronous submit endpoint - no polling needed!
-      const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
+      // Retry loop for network resilience
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Use the new synchronous submit endpoint - no polling needed!
+          const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit exam');
-      }
-      const submissionData = await response.json();
-      const totalTime = Date.now() - startTime;
-
-      // Log client-side performance metrics
-
-      // Send performance metrics to server (fire and forget)
-      try {
-        await apiRequest('POST', '/api/performance-events', {
-          sessionId: activeSession.id,
-          eventType: 'submission',
-          duration: totalTime,
-          metadata: {
-            examId: activeSession.examId,
-            clientSide: true,
-            timestamp: new Date().toISOString()
+          // Handle response
+          const contentType = response.headers.get('content-type');
+          
+          if (!response.ok) {
+            let errorMessage = 'Failed to submit exam';
+            
+            if (contentType?.includes('application/json')) {
+              try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+                
+                // If already submitted, treat as success
+                if (response.status === 409 || errorMessage.includes('already submitted')) {
+                  return { 
+                    submitted: true, 
+                    alreadySubmitted: true,
+                    message: 'Exam was previously submitted.',
+                    result: errorData.result || null
+                  };
+                }
+              } catch (parseError) {
+                errorMessage = `Server error (${response.status})`;
+              }
+            } else {
+              errorMessage = `Server error (${response.status}). Please try again.`;
+            }
+            
+            // Don't retry on 4xx errors (client errors)
+            if (response.status >= 400 && response.status < 500 && response.status !== 408) {
+              throw new Error(errorMessage);
+            }
+            
+            lastError = new Error(errorMessage);
+            
+            // Wait before retry with exponential backoff
+            if (attempt < maxRetries) {
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
           }
-        });
-      } catch (perfError) {
-      }
 
-      return { ...submissionData, clientPerformance: { totalTime } };
+          // Success - parse response
+          let submissionData;
+          try {
+            submissionData = await response.json();
+          } catch (parseError) {
+            throw new Error('Invalid response from server. Your exam may have been submitted - please refresh to check.');
+          }
+          
+          const totalTime = Date.now() - startTime;
+
+          // Send performance metrics to server (fire and forget)
+          apiRequest('POST', '/api/performance-events', {
+            sessionId: activeSession.id,
+            eventType: 'submission',
+            duration: totalTime,
+            metadata: {
+              examId: activeSession.examId,
+              clientSide: true,
+              timestamp: new Date().toISOString(),
+              attempts: attempt
+            }
+          }).catch(() => {});
+
+          return { ...submissionData, clientPerformance: { totalTime, attempts: attempt } };
+          
+        } catch (error: any) {
+          lastError = error;
+          
+          // Check if it's a network error that warrants retry
+          const isNetworkError = error.name === 'TypeError' || 
+                                  error.name === 'AbortError' ||
+                                  error.message?.includes('fetch') ||
+                                  error.message?.includes('network') ||
+                                  error.message?.includes('timeout');
+          
+          if (isNetworkError && attempt < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          // Non-retryable error or max retries reached
+          throw error;
+        }
+      }
+      
+      // All retries exhausted
+      throw lastError || new Error('Failed to submit exam after multiple attempts');
     },
     onMutate: () => {
       setIsScoring(true);
