@@ -1285,7 +1285,7 @@ export default function StudentExams() {
     });
   };
 
-  // Force submit without checking pending saves (used for auto-submit on violations)
+  // Force submit without checking pending saves (used for auto-submit on timeout or violations)
   // Uses shared executeSubmission helper with retry logic and consistent behavior
   const forceSubmitExam = async () => {
     if (isSubmitting || isScoring) {
@@ -1301,7 +1301,7 @@ export default function StudentExams() {
       setIsScoring(false);
       setIsSubmitting(false);
       
-      // Handle response - same logic as regular submission
+      // Handle response - check reason for auto-submit (timeout vs violations)
       if (data.submitted && data.result) {
         setExamResults(data.result);
         setShowResults(true);
@@ -1311,23 +1311,52 @@ export default function StudentExams() {
         queryClient.invalidateQueries({ queryKey: ['/api/exam-results', user?.id] });
         queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
         
-        toast({
-          title: "Exam Auto-Submitted",
-          description: `Auto-submitted due to ${tabSwitchCountRef.current} tab switches. Score: ${data.result.score}/${data.result.maxScore} (${data.result.percentage}%)`,
-        });
+        // Determine the appropriate message based on the submission context
+        const violations = tabSwitchCountRef.current;
+        const timeExpired = timeRemainingRef.current !== null && timeRemainingRef.current <= 0;
+        const score = data.result.score ?? 0;
+        const maxScore = data.result.maxScore ?? 0;
+        const percentage = data.result.percentage ?? 0;
+        
+        if (violations > 0) {
+          // Submission due to tab switch violations - destructive variant
+          toast({
+            title: "Exam Auto-Submitted",
+            description: `Your exam was automatically submitted due to ${violations} tab switch violation(s). Your score: ${score}/${maxScore} (${percentage}%).`,
+            variant: "destructive",
+          });
+        } else if (timeExpired) {
+          // Submission due to time expiration - destructive variant to indicate critical event
+          toast({
+            title: "Time Expired - Exam Auto-Submitted",
+            description: `Your exam time has ended and was automatically submitted. Your score: ${score}/${maxScore} (${percentage}%).`,
+            variant: "destructive",
+          });
+        } else {
+          // Other automatic submission (session expiry, system-triggered, etc.) - still indicate it was automatic
+          toast({
+            title: "Exam Automatically Submitted",
+            description: `Your exam was automatically submitted. Your score: ${score}/${maxScore} (${percentage}%).`,
+            variant: "default",
+          });
+        }
       } else if (data.submitted && !data.result) {
+        // Auto-submit without immediate scoring (requires manual grading)
         toast({
-          title: "Exam Auto-Submitted",
-          description: "Your exam has been auto-submitted. Results will be available after manual grading.",
+          title: "Exam Automatically Submitted",
+          description: "Your exam was automatically submitted. Results will be available after manual grading by your instructor.",
+          variant: "default",
         });
         setActiveSession(null);
         setAnswers({});
         setTimeRemaining(null);
         setCurrentQuestionIndex(0);
       } else {
+        // Fallback for other auto-submit scenarios
         toast({
-          title: "Exam Submitted",
-          description: data.message || "Your exam has been auto-submitted successfully.",
+          title: "Exam Automatically Submitted",
+          description: data.message || "Your exam was automatically submitted.",
+          variant: "default",
         });
         setActiveSession(null);
         setAnswers({});
@@ -1856,15 +1885,36 @@ export default function StudentExams() {
               };
 
               // Enhanced result parsing for better feedback - handle multiple response formats
+              // Priority: breakdown > questionDetails > immediateResults > fallback calculation
+              
               if (examResults.breakdown) {
-                // Primary source: Use breakdown data from server (handles 'correct'/'incorrect' and 'correctAnswers'/'incorrectAnswers' keys)
-                normalizedResults.correctAnswers = examResults.breakdown.correct ?? examResults.breakdown.correctAnswers ?? 0;
-                normalizedResults.wrongAnswers = examResults.breakdown.incorrect ?? examResults.breakdown.incorrectAnswers ?? 0;
-                normalizedResults.totalAnswered = examResults.breakdown.totalQuestions ?? examResults.breakdown.answered ?? 0;
-                normalizedResults.autoScoredQuestions = examResults.breakdown.autoScored ?? examResults.breakdown.autoScoredQuestions ?? 0;
+                // Primary source: Use breakdown data from server
+                // Trust backend values even if they are 0 (use 'in' operator to check key existence)
+                const breakdown = examResults.breakdown;
+                normalizedResults.correctAnswers = 'correct' in breakdown ? breakdown.correct : 
+                                                   ('correctAnswers' in breakdown ? breakdown.correctAnswers : 0);
+                normalizedResults.wrongAnswers = 'incorrect' in breakdown ? breakdown.incorrect : 
+                                                  ('incorrectAnswers' in breakdown ? breakdown.incorrectAnswers : 0);
+                normalizedResults.totalAnswered = 'totalQuestions' in breakdown ? breakdown.totalQuestions : 
+                                                   ('answered' in breakdown ? breakdown.answered : 0);
+                normalizedResults.autoScoredQuestions = 'autoScored' in breakdown ? breakdown.autoScored : 
+                                                         ('autoScoredQuestions' in breakdown ? breakdown.autoScoredQuestions : 0);
+                normalizedResults.hasDetailedResults = true;
+                
+                // Also populate questionDetails from the response if available
+                if (examResults.questionDetails && examResults.questionDetails.length > 0) {
+                  normalizedResults.questionDetails = examResults.questionDetails;
+                }
+              } else if (examResults.questionDetails && examResults.questionDetails.length > 0) {
+                // Secondary source: Parse from questionDetails array in response
+                const questions = examResults.questionDetails;
+                normalizedResults.correctAnswers = questions.filter((q: any) => q.isCorrect === true).length;
+                normalizedResults.wrongAnswers = questions.filter((q: any) => q.isCorrect === false).length;
+                normalizedResults.totalAnswered = questions.length;
+                normalizedResults.autoScoredQuestions = questions.filter((q: any) => q.pointsAwarded > 0 || q.isCorrect === true).length;
                 normalizedResults.hasDetailedResults = true;
               } else if (examResults.immediateResults?.questions) {
-                // Secondary source: Parse from question details array
+                // Tertiary source: Parse from immediateResults.questions array
                 const questions = examResults.immediateResults.questions;
                 normalizedResults.correctAnswers = questions.filter((q: any) => q.isCorrect === true).length;
                 normalizedResults.wrongAnswers = questions.filter((q: any) => q.isCorrect === false).length;
@@ -1872,24 +1922,16 @@ export default function StudentExams() {
                 normalizedResults.autoScoredQuestions = questions.filter((q: any) => q.autoScored !== false).length;
                 normalizedResults.hasDetailedResults = true;
                 normalizedResults.questionDetails = questions;
-              } else if (examResults.questionDetails && examResults.questionDetails.length > 0) {
-                // Tertiary source: Parse from questionDetails array in response
-                const questions = examResults.questionDetails;
-                normalizedResults.correctAnswers = questions.filter((q: any) => q.isCorrect === true).length;
-                normalizedResults.wrongAnswers = questions.filter((q: any) => q.isCorrect === false).length;
-                normalizedResults.totalAnswered = questions.length;
-                normalizedResults.autoScoredQuestions = questions.filter((q: any) => q.pointsAwarded > 0 || q.isCorrect === true).length;
-                normalizedResults.hasDetailedResults = true;
               } else if (examQuestions.length > 0) {
-                // Fallback: calculate estimated breakdown from score and question count
+                // Fallback: estimate breakdown from score and question count
                 const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice' || q.questionType === 'true_false');
                 normalizedResults.autoScoredQuestions = mcQuestions.length;
                 normalizedResults.totalAnswered = examQuestions.length;
                 // Calculate estimated correct based on score percentage
-                if (normalizedResults.maxScore > 0) {
+                if (normalizedResults.maxScore > 0 && mcQuestions.length > 0) {
                   const estimatedCorrect = Math.round((normalizedResults.score / normalizedResults.maxScore) * mcQuestions.length);
-                  normalizedResults.correctAnswers = Math.max(0, estimatedCorrect);
-                  normalizedResults.wrongAnswers = Math.max(0, mcQuestions.length - estimatedCorrect);
+                  normalizedResults.correctAnswers = Math.min(mcQuestions.length, Math.max(0, estimatedCorrect));
+                  normalizedResults.wrongAnswers = Math.max(0, mcQuestions.length - normalizedResults.correctAnswers);
                 }
               }
 
