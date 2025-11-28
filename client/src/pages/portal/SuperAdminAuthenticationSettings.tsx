@@ -37,6 +37,16 @@ interface CredentialTemplate {
 
 const credentialTemplates: CredentialTemplate[] = [
   {
+    roleId: 1,
+    roleName: "Super Admin",
+    prefix: "THS",
+    code: "SUP",
+    format: "THS-SUP-###",
+    example: "THS-SUP-001",
+    icon: Shield,
+    description: "Super Administrators with full system access and configuration rights"
+  },
+  {
     roleId: 2,
     roleName: "Admin",
     prefix: "THS",
@@ -120,7 +130,7 @@ export default function SuperAdminAuthenticationSettings() {
         </div>
 
         <Tabs defaultValue="credentials" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
             <TabsTrigger value="credentials" className="gap-2" data-testid="tab-credentials">
               <Key className="h-4 w-4" />
               Credential Rules
@@ -132,6 +142,10 @@ export default function SuperAdminAuthenticationSettings() {
             <TabsTrigger value="password" className="gap-2" data-testid="tab-password">
               <Lock className="h-4 w-4" />
               Password Policy
+            </TabsTrigger>
+            <TabsTrigger value="lockout" className="gap-2" data-testid="tab-lockout">
+              <AlertTriangle className="h-4 w-4" />
+              Account Lockout
             </TabsTrigger>
           </TabsList>
 
@@ -500,6 +514,121 @@ export default function SuperAdminAuthenticationSettings() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="lockout" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  Account Lockout Management
+                </CardTitle>
+                <CardDescription>
+                  Configure automatic account lockout policies and manage locked accounts
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold text-orange-800 dark:text-orange-200 mb-3">
+                        Auto-Lock Rules
+                      </h4>
+                      <ul className="text-sm text-orange-700 dark:text-orange-300 space-y-2">
+                        <li className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300">
+                            {securitySettings.maxLoginAttempts} attempts
+                          </Badge>
+                          <span>triggers account lock</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300">
+                            {securitySettings.lockoutDuration} min
+                          </Badge>
+                          <span>lockout duration</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300">
+                            3 violations
+                          </Badge>
+                          <span>triggers account suspension</span>
+                        </li>
+                      </ul>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold text-green-800 dark:text-green-200 mb-3">
+                        Auto-Unlock Rules
+                      </h4>
+                      <ul className="text-sm text-green-700 dark:text-green-300 space-y-2">
+                        <li className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          <span>Automatic unlock after lockout duration expires</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <UserCog className="h-4 w-4" />
+                          <span>Super Admin can manually unlock any account</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <RefreshCw className="h-4 w-4" />
+                          <span>Password reset clears lockout status</span>
+                        </li>
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Lockout Workflow</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+                        <Badge variant="secondary">1</Badge>
+                        <span>Failed login attempt</span>
+                      </div>
+                      <span className="hidden md:block text-gray-400">→</span>
+                      <div className="flex items-center gap-2 bg-yellow-100 dark:bg-yellow-900/30 px-3 py-2 rounded-lg">
+                        <Badge variant="secondary">2</Badge>
+                        <span>Counter increments</span>
+                      </div>
+                      <span className="hidden md:block text-gray-400">→</span>
+                      <div className="flex items-center gap-2 bg-orange-100 dark:bg-orange-900/30 px-3 py-2 rounded-lg">
+                        <Badge variant="secondary">3</Badge>
+                        <span>Max attempts reached</span>
+                      </div>
+                      <span className="hidden md:block text-gray-400">→</span>
+                      <div className="flex items-center gap-2 bg-red-100 dark:bg-red-900/30 px-3 py-2 rounded-lg">
+                        <Badge variant="destructive">4</Badge>
+                        <span>Account locked</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-blue-800 dark:text-blue-200">
+                          Security Notifications
+                        </h4>
+                        <ul className="text-sm text-blue-700 dark:text-blue-300 mt-2 space-y-1 list-disc list-inside">
+                          <li>Users receive notification when their account is locked</li>
+                          <li>Admins are alerted when suspicious login patterns are detected</li>
+                          <li>Super Admins receive reports of repeated lockout violations</li>
+                          <li>All lockout events are logged in the audit trail</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </TabsContent>

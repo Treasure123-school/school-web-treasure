@@ -49,7 +49,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 34455
+localPort = 33493
 externalPort = 6000
 
 [[ports]]
