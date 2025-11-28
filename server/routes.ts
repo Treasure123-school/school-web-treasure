@@ -923,10 +923,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(studentExams);
       }
       
-      // Teachers see exams they created
+      // Teachers see exams they created OR are assigned to (teacherInChargeId)
       if (userRoleId === ROLES.TEACHER) {
         const allExams = await storage.getAllExams();
-        const teacherExams = allExams.filter((exam: any) => exam.createdBy === userId);
+        const teacherExams = allExams.filter((exam: any) => 
+          exam.createdBy === userId || exam.teacherInChargeId === userId
+        );
         return res.json(teacherExams);
       }
       
@@ -965,9 +967,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create exam - TEACHERS ONLY
   app.post('/api/exams', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
+      const teacherId = req.user!.id;
+      const assignedTeacherId = req.body.teacherInChargeId || teacherId;
+
+      // SECURITY: Validate teacherInChargeId if different from creator
+      if (assignedTeacherId !== teacherId) {
+        const assignedUser = await storage.getUser(assignedTeacherId);
+        if (!assignedUser) {
+          return res.status(400).json({ message: 'Assigned teacher not found' });
+        }
+        if (assignedUser.roleId !== ROLES.TEACHER) {
+          return res.status(400).json({ message: 'teacherInChargeId must be a teacher' });
+        }
+        if (!assignedUser.isActive) {
+          return res.status(400).json({ message: 'Assigned teacher is not active' });
+        }
+      }
+
       const examData = insertExamSchema.parse({
         ...req.body,
-        createdBy: req.user!.id
+        createdBy: teacherId,
+        teacherInChargeId: assignedTeacherId
       });
 
       const exam = await storage.createExam(examData);
@@ -999,6 +1019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exam-results/exam/:examId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
     try {
       const examId = parseInt(req.params.examId);
+      const teacherId = req.user!.id;
       
       // Verify exam exists
       const exam = await storage.getExamById(examId);
@@ -1006,9 +1027,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Exam not found' });
       }
       
-      // For teachers, only allow viewing results of their own exams
-      if (req.user!.roleId === ROLES.TEACHER && exam.createdBy !== req.user!.id) {
-        return res.status(403).json({ message: 'You can only view results for exams you created' });
+      // For teachers, allow viewing results if they created the exam OR are the teacher in charge
+      if (req.user!.roleId === ROLES.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        if (!isCreator && !isTeacherInCharge) {
+          return res.status(403).json({ message: 'You can only view results for exams you created or are assigned to' });
+        }
       }
       
       const results = await storage.getExamResultsByExam(examId);
@@ -1018,18 +1043,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update exam - TEACHERS ONLY
+  // Update exam - TEACHERS ONLY (creator or teacher in charge)
   app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
+      const teacherId = req.user!.id;
       
       const existingExam = await storage.getExamById(examId);
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      if (existingExam.createdBy !== req.user!.id) {
-        return res.status(403).json({ message: 'You can only edit exams you created' });
+      const isCreator = existingExam.createdBy === teacherId;
+      const isTeacherInCharge = existingExam.teacherInChargeId === teacherId;
+      if (!isCreator && !isTeacherInCharge) {
+        return res.status(403).json({ message: 'You can only edit exams you created or are assigned to' });
       }
+
+      // SECURITY: Validate teacherInChargeId if being updated
+      if (req.body.teacherInChargeId && req.body.teacherInChargeId !== existingExam.teacherInChargeId) {
+        const assignedUser = await storage.getUser(req.body.teacherInChargeId);
+        if (!assignedUser) {
+          return res.status(400).json({ message: 'Assigned teacher not found' });
+        }
+        if (assignedUser.roleId !== ROLES.TEACHER) {
+          return res.status(400).json({ message: 'teacherInChargeId must be a teacher' });
+        }
+        if (!assignedUser.isActive) {
+          return res.status(400).json({ message: 'Assigned teacher is not active' });
+        }
+      }
+
       const exam = await storage.updateExam(examId, req.body);
       res.json(exam);
     } catch (error) {
@@ -1037,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete exam - TEACHERS ONLY
+  // Delete exam - TEACHERS ONLY (only creator can delete)
   app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
@@ -1056,18 +1099,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Toggle exam publish status - TEACHERS ONLY
+  // Toggle exam publish status - TEACHERS ONLY (creator or teacher in charge)
   app.patch('/api/exams/:id/publish', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
+      const teacherId = req.user!.id;
       const { isPublished } = req.body;
 
       const existingExam = await storage.getExamById(examId);
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      if (existingExam.createdBy !== req.user!.id) {
-        return res.status(403).json({ message: 'You can only publish/unpublish exams you created' });
+      const isCreator = existingExam.createdBy === teacherId;
+      const isTeacherInCharge = existingExam.teacherInChargeId === teacherId;
+      if (!isCreator && !isTeacherInCharge) {
+        return res.status(403).json({ message: 'You can only publish/unpublish exams you created or are assigned to' });
       }
       const exam = await storage.updateExam(examId, { isPublished });
       res.json(exam);
@@ -1317,9 +1363,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Exam not found' });
       }
       
-      // Only allow teachers who created the exam or admins
-      if (req.user!.roleId === ROLES.TEACHER && exam.createdBy !== req.user!.id) {
-        return res.status(403).json({ message: 'You can only upload questions to exams you created' });
+      // Only allow teachers who created the exam, are assigned to it, or admins
+      if (req.user!.roleId === ROLES.TEACHER) {
+        const teacherId = req.user!.id;
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        if (!isCreator && !isTeacherInCharge) {
+          return res.status(403).json({ message: 'You can only upload questions to exams you created or are assigned to' });
+        }
       }
       
       // Read and parse CSV file
@@ -1517,6 +1568,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!exam.isPublished) {
         return res.status(403).json({ message: 'Exam is not published yet' });
       }
+
+      // SECURITY: Verify student belongs to the exam's class
+      const student = await storage.getStudent(studentId);
+      if (!student || !student.classId) {
+        return res.status(403).json({ message: 'You are not enrolled in any class' });
+      }
+      if (student.classId !== exam.classId) {
+        return res.status(403).json({ message: 'This exam is not available for your class' });
+      }
+
       const now = new Date();
       const endTime = new Date(now.getTime() + (exam.timeLimit || 60) * 60 * 1000);
 
