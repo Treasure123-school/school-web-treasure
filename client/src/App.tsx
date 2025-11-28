@@ -37,6 +37,7 @@ import StudentMessages from "@/pages/portal/StudentMessages";
 import StudentProfile from "@/pages/portal/StudentProfile";
 import StudentProfileSetup from "@/pages/portal/StudentProfileSetup";
 import StudentExams from "@/pages/portal/StudentExams";
+import StudentExamResults from "@/pages/portal/StudentExamResults";
 import StudentStudyResources from "@/pages/portal/StudentStudyResources";
 import StudentReportCard from "@/pages/portal/StudentReportCard";
 import PortalGallery from "@/pages/portal/Gallery";
@@ -431,6 +432,11 @@ function Router() {
       <Route path="/portal/student/exams">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentExams />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/exam-results">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
+          <StudentExamResults />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/grades">

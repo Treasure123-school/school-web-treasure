@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useLocation } from 'wouter';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ type QuestionSaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 export default function StudentExams() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [activeSession, setActiveSession] = useState<ExamSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -38,6 +40,7 @@ export default function StudentExams() {
   const [showResults, setShowResults] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Per-question save status tracking
   const [questionSaveStatus, setQuestionSaveStatus] = useState<Record<number, QuestionSaveStatus>>({});
@@ -1036,69 +1039,43 @@ export default function StudentExams() {
     onSuccess: (data) => {
       setIsScoring(false);
 
-      // Handle the new synchronous response format
-      if (data.submitted && data.result) {
-        setExamResults(data.result);
-
-        // Enhanced cache invalidation for all related data
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/student-answers/session', activeSession?.id] 
-        });
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/exam-results', user?.id] 
-        });
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/exam-sessions', activeSession?.id] 
-        });
-
-        setShowResults(true);
-
-        const score = data.result.score ?? 0;
-        const maxScore = data.result.maxScore ?? 0;
-        const percentage = data.result.percentage ?? 0;
-
-
-        // Handle different submission scenarios with professional messages
-        let toastTitle = "Exam Submitted Successfully";
-        let toastDescription = `Congratulations! Your exam has been submitted. You scored ${score} out of ${maxScore} points (${percentage}%).`;
-        let toastVariant: "default" | "destructive" = "default";
-        
-        if (data.alreadySubmitted) {
-          toastTitle = "Previous Submission Found";
-          toastDescription = `Your exam was already submitted. Your score: ${score}/${maxScore} (${percentage}%).`;
-        } else if (data.timedOut) {
-          toastTitle = "Exam Submitted - Time Expired";
-          toastDescription = `Your time ran out and your exam has been automatically submitted. Your score: ${score}/${maxScore} (${percentage}%).`;
-          toastVariant = "destructive";
-        }
-        
-        toast({
-          title: toastTitle,
-          description: toastDescription,
-          variant: toastVariant,
-        });
-      } else if (data.submitted && !data.result) {
-        toast({
-          title: "Exam Submitted Successfully",
-          description: data.message || "Your exam has been submitted. Results will be available after manual grading by your instructor.",
-        });
-        // Reset to exam list for manual grading cases
-        setActiveSession(null);
-        setAnswers({});
-        setTimeRemaining(null);
-        setCurrentQuestionIndex(0);
-      } else {
-        toast({
-          title: "Submission Complete",
-          description: data.message || "Your exam has been submitted successfully.",
-        });
-        // Reset to exam list as fallback
-        setActiveSession(null);
-        setAnswers({});
-        setTimeRemaining(null);
-        setCurrentQuestionIndex(0);
-      }
+      // Enhanced cache invalidation for all related data
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/student-answers/session', activeSession?.id] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/exam-results', user?.id] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/exam-sessions', activeSession?.id] 
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+
+      // Build redirect message based on result
+      const score = data.result?.score ?? 0;
+      const maxScore = data.result?.maxScore ?? 0;
+      const percentage = data.result?.percentage ?? 0;
+      
+      let message: string;
+      let variant: 'default' | 'destructive' = 'default';
+      
+      if (data.submitted && data.result) {
+        if (data.alreadySubmitted) {
+          message = `Your exam was already submitted. Score: ${score}/${maxScore} (${percentage}%). Viewing results...`;
+        } else if (data.timedOut) {
+          message = `Time expired. Your exam was auto-submitted. Score: ${score}/${maxScore} (${percentage}%). Redirecting...`;
+          variant = 'destructive';
+        } else {
+          message = `Congratulations! You scored ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
+        }
+      } else if (data.submitted && !data.result) {
+        message = "Your exam has been submitted. Results will be available after manual grading.";
+      } else {
+        message = data.message || "Your exam has been submitted successfully. Viewing results...";
+      }
+      
+      // Redirect to exam results page with result data
+      redirectToExamResults(data.result || { submitted: true, submissionReason: 'manual' }, message, variant);
     },
     onError: (error: Error) => {
       setIsScoring(false);
@@ -1197,6 +1174,19 @@ export default function StudentExams() {
       });
       return;
     }
+    // Check if student already submitted this exam (via sessionStorage flag)
+    const existingSubmissions = Object.keys(sessionStorage).filter(key => 
+      key.startsWith('exam_submitted_') && sessionStorage.getItem(key) === 'true'
+    );
+    if (existingSubmissions.length > 0) {
+      toast({
+        title: "Exam Already Completed",
+        description: "You have already submitted an exam. View your results instead.",
+      });
+      // Redirect to results page
+      setLocation('/portal/student/exam-results');
+      return;
+    }
     // Pre-flight check: confirm exam has questions
     toast({
       title: "Preparing Your Exam",
@@ -1273,6 +1263,76 @@ export default function StudentExams() {
     }
   };
 
+  // Centralized redirect to exam results page with result data handoff
+  const redirectToExamResults = (resultData: any, message?: string, variant: 'default' | 'destructive' = 'default') => {
+    // Prevent multiple redirects
+    if (isRedirecting) return;
+    setIsRedirecting(true);
+    
+    // STEP 1: Clear all timers and pending operations first
+    Object.values(saveTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
+    Object.values(debounceTimersRef.current).forEach(timeout => clearTimeout(timeout));
+    if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
+    saveTimeoutsRef.current = {};
+    debounceTimersRef.current = {};
+    tabSwitchTimeoutRef.current = null;
+    
+    // STEP 2: Store exam result in sessionStorage for the results page to consume
+    if (resultData) {
+      const storedResult = {
+        ...resultData,
+        examTitle: selectedExam?.name || activeSession?.exam?.title || 'Exam',
+        examId: activeSession?.examId || selectedExam?.id,
+        sessionId: activeSession?.id,
+        submittedAt: resultData.submittedAt || new Date().toISOString(),
+        storedTimestamp: Date.now(), // Track when we stored this
+      };
+      sessionStorage.setItem('lastExamResult', JSON.stringify(storedResult));
+    }
+    
+    // STEP 3: Mark exam session as submitted to prevent re-entry
+    if (activeSession?.id) {
+      sessionStorage.setItem(`exam_submitted_${activeSession.id}`, 'true');
+    }
+    // Also mark the exam itself as completed for this user
+    if (activeSession?.examId && user?.id) {
+      sessionStorage.setItem(`exam_completed_${user.id}_${activeSession.examId}`, 'true');
+    }
+    
+    // STEP 4: Invalidate cache
+    queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+    
+    // STEP 5: Reset exam state completely (prevent inline UI from showing)
+    setShowResults(false);
+    setExamResults(null);
+    setActiveSession(null);
+    setAnswers({});
+    setTimeRemaining(null);
+    setCurrentQuestionIndex(0);
+    setSelectedExam(null);
+    setTabSwitchCount(0);
+    setViolationPenalty(0);
+    setQuestionSaveStatus({});
+    setPendingSaves(new Set());
+    setShowTabSwitchWarning(false);
+    setIsSubmitting(false);
+    setIsScoring(false);
+    
+    // STEP 6: Show message
+    if (message) {
+      toast({
+        title: variant === 'destructive' ? "Exam Auto-Submitted" : "Exam Submitted",
+        description: message,
+        variant,
+      });
+    }
+    
+    // STEP 7: Navigate to results page (use immediate navigation)
+    setLocation('/portal/student/exam-results');
+  };
+
   // Handle returning to exam list after viewing results
   const handleBackToExams = () => {
     // Reset all exam-related state
@@ -1304,7 +1364,7 @@ export default function StudentExams() {
   // Force submit without checking pending saves (used for auto-submit on timeout or violations)
   // Uses shared executeSubmission helper with retry logic and consistent behavior
   const forceSubmitExam = async () => {
-    if (isSubmitting || isScoring) {
+    if (isSubmitting || isScoring || isRedirecting) {
       return;
     }
     setIsSubmitting(true);
@@ -1317,70 +1377,44 @@ export default function StudentExams() {
       setIsScoring(false);
       setIsSubmitting(false);
       
-      // Handle response - check reason for auto-submit (timeout vs violations)
-      if (data.submitted && data.result) {
-        setExamResults(data.result);
-        setShowResults(true);
-        
-        // Enhanced cache invalidation
-        queryClient.invalidateQueries({ queryKey: ['/api/student-answers/session', activeSessionRef.current?.id] });
-        queryClient.invalidateQueries({ queryKey: ['/api/exam-results', user?.id] });
-        queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
-        
-        // Determine the appropriate message based on the submission context
-        const violations = tabSwitchCountRef.current;
-        const timeExpired = timeRemainingRef.current !== null && timeRemainingRef.current <= 0;
-        const score = data.result.score ?? 0;
-        const maxScore = data.result.maxScore ?? 0;
-        const percentage = data.result.percentage ?? 0;
-        
-        if (violations > 0) {
-          // Submission due to tab switch violations - destructive variant
-          toast({
-            title: "Exam Auto-Submitted",
-            description: `Your exam was automatically submitted due to ${violations} tab switch violation(s). Your score: ${score}/${maxScore} (${percentage}%).`,
-            variant: "destructive",
-          });
-        } else if (timeExpired) {
-          // Submission due to time expiration - destructive variant to indicate critical event
-          toast({
-            title: "Time Expired - Exam Auto-Submitted",
-            description: `Your exam time has ended and was automatically submitted. Your score: ${score}/${maxScore} (${percentage}%).`,
-            variant: "destructive",
-          });
-        } else {
-          // Other automatic submission (session expiry, system-triggered, etc.) - still indicate it was automatic
-          toast({
-            title: "Exam Automatically Submitted",
-            description: `Your exam was automatically submitted. Your score: ${score}/${maxScore} (${percentage}%).`,
-            variant: "default",
-          });
-        }
+      // Enhanced cache invalidation
+      queryClient.invalidateQueries({ queryKey: ['/api/student-answers/session', activeSessionRef.current?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-results', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+      
+      // Determine the appropriate message based on the submission context
+      const violations = tabSwitchCountRef.current;
+      const timeExpired = timeRemainingRef.current !== null && timeRemainingRef.current <= 0;
+      const score = data.result?.score ?? 0;
+      const maxScore = data.result?.maxScore ?? 0;
+      const percentage = data.result?.percentage ?? 0;
+      
+      // Build redirect message based on submission reason
+      let message: string;
+      let variant: 'default' | 'destructive' = 'default';
+      
+      // Prepare result data with submission reason
+      const resultData = {
+        ...data.result,
+        submissionReason: violations >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT ? 'violation' : (timeExpired ? 'timeout' : 'manual'),
+        violationCount: violations,
+      };
+      
+      if (violations >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT) {
+        message = `Your exam was automatically submitted due to ${violations} tab switch violation(s). Score: ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
+        variant = 'destructive';
+      } else if (timeExpired) {
+        message = `Your exam time has ended. Score: ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
+        variant = 'destructive';
       } else if (data.submitted && !data.result) {
-        // Auto-submit without immediate scoring (requires manual grading)
-        toast({
-          title: "Exam Automatically Submitted",
-          description: "Your exam was automatically submitted. Results will be available after manual grading by your instructor.",
-          variant: "default",
-        });
-        setActiveSession(null);
-        setAnswers({});
-        setTimeRemaining(null);
-        setCurrentQuestionIndex(0);
+        message = "Your exam was automatically submitted. Results will be available after manual grading.";
       } else {
-        // Fallback for other auto-submit scenarios
-        toast({
-          title: "Exam Automatically Submitted",
-          description: data.message || "Your exam was automatically submitted.",
-          variant: "default",
-        });
-        setActiveSession(null);
-        setAnswers({});
-        setTimeRemaining(null);
-        setCurrentQuestionIndex(0);
+        message = `Exam submitted successfully. Score: ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
       }
       
-      queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+      // Redirect to exam results page with result data
+      redirectToExamResults(resultData, message, variant);
+      
     } catch (error: any) {
       setIsScoring(false);
       setIsSubmitting(false);
