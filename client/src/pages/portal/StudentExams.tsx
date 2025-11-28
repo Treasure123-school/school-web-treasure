@@ -619,8 +619,23 @@ export default function StudentExams() {
       const sessionData = await response.json();
       return sessionData;
     },
-    onSuccess: (session: ExamSession) => {
+    onSuccess: (data: any) => {
+      // Handle already completed exam - redirect to results
+      if (data.alreadyCompleted && data.redirectToResults && data.result) {
+        toast({
+          title: "Exam Already Completed",
+          description: "You have already completed this exam. Showing your results.",
+          variant: "default",
+        });
+        
+        // Show results directly instead of starting exam
+        setExamResults(data.result);
+        setShowResults(true);
+        return;
+      }
 
+      // Normal session start flow
+      const session = data as ExamSession;
       if (!session || !session.id) {
         toast({
           title: "Error",
@@ -896,13 +911,25 @@ export default function StudentExams() {
     // Retry loop for network resilience
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Use the synchronous submit endpoint with violation info
+        // Determine submission reason based on context
+        const timeExpired = remaining !== null && remaining <= 0;
+        let submissionReason: 'manual' | 'timeout' | 'violation' = 'manual';
+        if (isForceSubmit) {
+          if (violations && violations >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT) {
+            submissionReason = 'violation';
+          } else if (timeExpired) {
+            submissionReason = 'timeout';
+          }
+        }
+
+        // Use the synchronous submit endpoint with violation info and submission reason
         // Ensure clientTimeRemaining is always numeric (fallback to 0)
         const response = await apiRequest('POST', `/api/exams/${session.examId}/submit`, {
           forceSubmit: isForceSubmit,
           violationCount: violations ?? 0,
           violationPenalty: penalty ?? 0,
-          clientTimeRemaining: remaining ?? 0
+          clientTimeRemaining: remaining ?? 0,
+          submissionReason
         });
 
         // Handle response
@@ -1868,6 +1895,10 @@ export default function StudentExams() {
                 totalAnswered: 0,
                 autoScoredQuestions: 0,
                 submittedAt: examResults.submittedAt,
+                timeTakenFormatted: examResults.timeTakenFormatted || null,
+                timeTakenSeconds: examResults.timeTakenSeconds || 0,
+                submissionReason: examResults.submissionReason || 'manual',
+                violationCount: examResults.violationCount || 0,
                 breakdown: examResults.breakdown || null,
                 questionDetails: examResults.questionDetails || [],
                 hasDetailedResults: false
@@ -2079,13 +2110,28 @@ export default function StudentExams() {
                               </div>
                             </div>
 
-                            {/* Time (if available) */}
+                            {/* Time Taken */}
+                            {normalizedResults.timeTakenFormatted && (
+                              <div className="flex items-center space-x-3" data-testid="stat-time-taken">
+                                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                                  <Clock className="w-5 h-5 text-indigo-600" aria-hidden="true" />
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-indigo-600">Time Taken: </span>
+                                  <span className="text-gray-900" data-testid="value-time-taken">
+                                    {normalizedResults.timeTakenFormatted}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Completion Time */}
                             <div className="flex items-center space-x-3" data-testid="stat-completion-time">
                               <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                <Clock className="w-5 h-5 text-purple-600" aria-hidden="true" />
+                                <Calendar className="w-5 h-5 text-purple-600" aria-hidden="true" />
                               </div>
                               <div>
-                                <span className="font-semibold text-purple-600">Completed: </span>
+                                <span className="font-semibold text-purple-600">Submitted: </span>
                                 <span className="text-gray-900" data-testid="value-completion-time">
                                   {normalizedResults.submittedAt ? 
                                     new Date(normalizedResults.submittedAt).toLocaleString() : 
@@ -2094,6 +2140,29 @@ export default function StudentExams() {
                                 </span>
                               </div>
                             </div>
+
+                            {/* Submission Type */}
+                            {normalizedResults.submissionReason !== 'manual' && (
+                              <div className="flex items-center space-x-3" data-testid="stat-submission-type">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                  normalizedResults.submissionReason === 'timeout' ? 'bg-orange-100' : 'bg-red-100'
+                                }`}>
+                                  <AlertCircle className={`w-5 h-5 ${
+                                    normalizedResults.submissionReason === 'timeout' ? 'text-orange-600' : 'text-red-600'
+                                  }`} aria-hidden="true" />
+                                </div>
+                                <div>
+                                  <span className={`font-semibold ${
+                                    normalizedResults.submissionReason === 'timeout' ? 'text-orange-600' : 'text-red-600'
+                                  }`}>Submission Type: </span>
+                                  <span className="text-gray-900" data-testid="value-submission-type">
+                                    {normalizedResults.submissionReason === 'timeout' 
+                                      ? 'Auto-submitted (Time Expired)' 
+                                      : `Auto-submitted (${normalizedResults.violationCount} Tab Violations)`}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -1202,7 +1202,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const examId = parseInt(req.params.examId);
       const studentId = req.user!.id;
-      const { forceSubmit, violationCount, clientTimeRemaining } = req.body;
+      const { forceSubmit, violationCount, clientTimeRemaining, submissionReason } = req.body;
+      
+      // Validate submission reason
+      const validReasons = ['manual', 'timeout', 'violation'];
+      const reason = validReasons.includes(submissionReason) ? submissionReason : 'manual';
 
       // Validate exam ID
       if (isNaN(examId) || examId <= 0) {
@@ -1284,12 +1288,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       sessionId = activeSession.id;
       const now = new Date();
+      
+      // Calculate time taken
+      const sessionStartTime = new Date(activeSession.startedAt).getTime();
+      const timeTakenSeconds = Math.floor((now.getTime() - sessionStartTime) / 1000);
+
+      // Build metadata with submission details
+      const existingMetadata = activeSession.metadata ? JSON.parse(activeSession.metadata) : {};
+      const sessionMetadata = {
+        ...existingMetadata,
+        submissionReason: reason,
+        submittedVia: forceSubmit ? 'auto' : 'manual',
+        violationCount: violationCount || 0,
+        timeTakenSeconds,
+        clientTimeRemaining: clientTimeRemaining || 0,
+        serverTimestamp: now.toISOString()
+      };
 
       // Mark session as submitted FIRST (before scoring to prevent race conditions)
       await storage.updateExamSession(activeSession.id, {
         isCompleted: true,
         submittedAt: now,
-        status: 'submitted'
+        status: reason === 'manual' ? 'submitted' : `auto_${reason}`,
+        metadata: JSON.stringify(sessionMetadata)
       });
 
       // Auto-score the exam with error recovery
@@ -1361,10 +1382,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalTime = Date.now() - startTime;
       const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 
-      // Return instant results
+      // Format time taken for display
+      const formatTimeTaken = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        if (mins === 0) return `${secs} seconds`;
+        return `${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`;
+      };
+
+      // Return instant results with enhanced metadata
       res.json({
         submitted: true,
         scoringSuccessful,
+        submissionReason: reason,
+        timedOut: reason === 'timeout',
+        violationSubmit: reason === 'violation',
         message: scoringSuccessful 
           ? `Exam submitted successfully! Your score: ${totalScore}/${maxScore}`
           : 'Exam submitted. Score calculation in progress.',
@@ -1374,6 +1406,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxScore: maxScore,
           percentage: Math.round(percentage * 100) / 100,
           submittedAt: now.toISOString(),
+          timeTakenSeconds,
+          timeTakenFormatted: formatTimeTaken(timeTakenSeconds),
+          submissionReason: reason,
+          violationCount: violationCount || 0,
           questionDetails,
           breakdown: {
             totalQuestions: examQuestions.length,
@@ -1794,7 +1830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Exam Sessions - Student exam taking functionality
 
-  // Start exam - Create new exam session
+  // Start exam - Create new exam session (with re-entry prevention)
   app.post('/api/exam-sessions', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const { examId } = req.body;
@@ -1821,6 +1857,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (student.classId !== exam.classId) {
         return res.status(403).json({ message: 'This exam is not available for your class' });
+      }
+
+      // RE-ENTRY PREVENTION: Check if student already has a completed session for this exam
+      const existingSessions = await storage.getExamSessionsByStudent(studentId);
+      const completedSession = existingSessions.find(s => s.examId === examId && s.isCompleted);
+      
+      if (completedSession) {
+        // Exam already completed - return existing results with redirect flag
+        const existingResult = await storage.getExamResultByExamAndStudent(examId, studentId);
+        const studentAnswers = await storage.getStudentAnswers(completedSession.id);
+        const examQuestions = await storage.getExamQuestions(examId);
+        
+        // Parse metadata for submission details
+        let submissionReason = 'manual';
+        let timeTakenSeconds = 0;
+        let violationCount = 0;
+        
+        if (completedSession.metadata) {
+          try {
+            const metadata = JSON.parse(completedSession.metadata);
+            submissionReason = metadata.submissionReason || 'manual';
+            timeTakenSeconds = metadata.timeTakenSeconds || 0;
+            violationCount = metadata.violationCount || 0;
+          } catch (e) {}
+        }
+        
+        // Format time taken for display
+        const formatTimeTaken = (seconds: number) => {
+          const mins = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          if (mins === 0) return `${secs} seconds`;
+          return `${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`;
+        };
+        
+        const questionDetails = examQuestions.map(q => {
+          const answer = studentAnswers.find(a => a.questionId === q.id);
+          return {
+            questionId: q.id,
+            questionText: q.questionText,
+            questionType: q.questionType,
+            points: q.points,
+            studentAnswer: answer?.textAnswer || null,
+            selectedOptionId: answer?.selectedOptionId || null,
+            isCorrect: answer?.isCorrect || false,
+            pointsAwarded: answer?.pointsEarned || 0,
+            feedback: answer?.feedbackText || null
+          };
+        });
+        
+        return res.status(200).json({
+          alreadyCompleted: true,
+          redirectToResults: true,
+          message: 'You have already completed this exam. Redirecting to your results.',
+          result: {
+            sessionId: completedSession.id,
+            score: existingResult?.score || completedSession.score || 0,
+            maxScore: existingResult?.maxScore || completedSession.maxScore || exam.totalMarks || 0,
+            percentage: completedSession.maxScore && completedSession.score 
+              ? Math.round((completedSession.score / completedSession.maxScore) * 100 * 100) / 100
+              : 0,
+            submittedAt: completedSession.submittedAt?.toISOString() || new Date().toISOString(),
+            timeTakenSeconds,
+            timeTakenFormatted: formatTimeTaken(timeTakenSeconds),
+            submissionReason,
+            violationCount,
+            questionDetails,
+            breakdown: {
+              totalQuestions: examQuestions.length,
+              answered: studentAnswers.filter(a => a.textAnswer || a.selectedOptionId).length,
+              correct: studentAnswers.filter(a => a.isCorrect === true).length,
+              incorrect: studentAnswers.filter(a => a.isCorrect === false).length,
+              autoScored: studentAnswers.filter(a => a.autoScored === true).length
+            }
+          }
+        });
       }
 
       const now = new Date();
