@@ -80,87 +80,6 @@ function TeacherOverviewSection() {
     );
   }
 
-
-function NotificationSummary() {
-  const { data: teachersOverview = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/teachers/overview'],
-  });
-
-  const todayAutoVerified = teachersOverview.filter(t => {
-    const createdDate = new Date(t.createdAt);
-    const today = new Date();
-    return createdDate.toDateString() === today.toDateString() && t.verified;
-  });
-
-  const pendingReview = teachersOverview.filter(t => !t.verified && t.hasProfile);
-
-  return (
-    <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
-      <CardHeader className="p-4 sm:p-6">
-        <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
-          <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-          <span>Today's Teacher Activity</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 sm:p-6 pt-0">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
-            <div className="flex items-center gap-3">
-              <div className="bg-green-100 dark:bg-green-900 p-2 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Auto-Verified Today</p>
-                <p className="text-xs text-muted-foreground">
-                  {todayAutoVerified.length} teacher{todayAutoVerified.length !== 1 ? 's' : ''} completed profile setup
-                </p>
-              </div>
-            </div>
-            <Badge variant="default" className="bg-green-600">{todayAutoVerified.length}</Badge>
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900">
-            <div className="flex items-center gap-3">
-              <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-lg">
-                <Clock className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Pending Review</p>
-                <p className="text-xs text-muted-foreground">
-                  {pendingReview.length} profile{pendingReview.length !== 1 ? 's' : ''} awaiting verification
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/portal/admin/teacher-verification">
-                Review
-              </Link>
-            </Button>
-          </div>
-
-          {todayAutoVerified.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs text-muted-foreground mb-2">Recent Auto-Verifications:</p>
-              <div className="space-y-2">
-                {todayAutoVerified.slice(0, 3).map((teacher: any) => (
-                  <div key={teacher.id} className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded">
-                    <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xs font-semibold">
-                      {teacher.firstName[0]}{teacher.lastName[0]}
-                    </div>
-                    <span className="flex-1">{teacher.firstName} {teacher.lastName}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(teacher.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
   return (
     <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
       <CardHeader className="p-4 sm:p-6">
@@ -245,46 +164,58 @@ function NotificationSummary() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {teacher.subjects && teacher.subjects.length > 0 ? (
-                          teacher.subjects.slice(0, 2).map((subjectId: number, idx: number) => {
-                            // Find subject name from subjects query - ensure proper ID matching
-                            const subject = subjects?.find(s => Number(s.id) === Number(subjectId));
-                            return subject ? (
-                              <Badge key={idx} variant="secondary" className="text-xs" data-testid={`badge-subject-${idx}`}>
-                                {subject.name}
-                              </Badge>
-                            ) : null;
-                          })
-                        ) : (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        )}
-                        {teacher.subjects && teacher.subjects.length > 2 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{teacher.subjects.length - 2}
-                          </Badge>
-                        )}
+                        {(() => {
+                          // Ensure subjects is an array
+                          const subjectsList = Array.isArray(teacher.subjects) ? teacher.subjects : [];
+                          if (subjectsList.length === 0) {
+                            return <span className="text-xs text-muted-foreground">None</span>;
+                          }
+                          return (
+                            <>
+                              {subjectsList.slice(0, 2).map((subjectId: number, idx: number) => {
+                                const subject = subjects?.find(s => Number(s.id) === Number(subjectId));
+                                return subject ? (
+                                  <Badge key={idx} variant="secondary" className="text-xs" data-testid={`badge-subject-${idx}`}>
+                                    {subject.name}
+                                  </Badge>
+                                ) : null;
+                              })}
+                              {subjectsList.length > 2 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{subjectsList.length - 2}
+                                </Badge>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {teacher.classes && teacher.classes.length > 0 ? (
-                          teacher.classes.slice(0, 2).map((classId: number, idx: number) => {
-                            // Find class name from classes query - ensure proper ID matching
-                            const classObj = classes?.find(c => Number(c.id) === Number(classId));
-                            return classObj ? (
-                              <Badge key={idx} variant="secondary" className="text-xs" data-testid={`badge-class-${idx}`}>
-                                {classObj.name}
-                              </Badge>
-                            ) : null;
-                          })
-                        ) : (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        )}
-                        {teacher.classes && teacher.classes.length > 2 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{teacher.classes.length - 2}
-                          </Badge>
-                        )}
+                        {(() => {
+                          // Ensure classes is an array
+                          const classesList = Array.isArray(teacher.classes) ? teacher.classes : [];
+                          if (classesList.length === 0) {
+                            return <span className="text-xs text-muted-foreground">None</span>;
+                          }
+                          return (
+                            <>
+                              {classesList.slice(0, 2).map((classId: number, idx: number) => {
+                                const classObj = classes?.find(c => Number(c.id) === Number(classId));
+                                return classObj ? (
+                                  <Badge key={idx} variant="secondary" className="text-xs" data-testid={`badge-class-${idx}`}>
+                                    {classObj.name}
+                                  </Badge>
+                                ) : null;
+                              })}
+                              {classesList.length > 2 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{classesList.length - 2}
+                                </Badge>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1321,15 +1252,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Teacher Overview Section */}
-      <TeacherOverviewSection />
-
-      {/* Notification Summary */}
-      <NotificationSummary />
-
-      {/* Notification Summary */}
-      <NotificationSummary />
 
       {/* Security Alerts - Responsive */}
       <Card className="mt-4 sm:mt-6 shadow-sm border border-border">
