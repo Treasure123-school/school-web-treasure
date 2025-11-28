@@ -7,11 +7,23 @@
  * Environment Detection:
  * - DATABASE_URL present → PostgreSQL (Neon) - REQUIRED for all deployments
  * - No DATABASE_URL → Error in production, PostgreSQL still required
+ * 
+ * IMPORTANT: Uses neon-serverless driver with Pool for TRANSACTION SUPPORT.
+ * The neon-http driver does NOT support transactions.
+ * 
+ * Exports:
+ * - db: Drizzle ORM instance (for ORM queries with transaction support)
+ * - getPgClient(): Returns neon() client for raw SQL tagged template queries
+ * - getPgPool(): Returns Pool for lower-level operations
  */
 
-import { drizzle as drizzlePg } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle as drizzlePg } from "drizzle-orm/neon-serverless";
+import { Pool, neonConfig, neon } from "@neondatabase/serverless";
 import * as pgSchema from "@shared/schema.pg";
+import ws from "ws";
+
+// Enable WebSocket support for Neon serverless driver (required for transactions)
+neonConfig.webSocketConstructor = ws;
 
 // Database instance types
 type PgDb = ReturnType<typeof drizzlePg>;
@@ -26,9 +38,10 @@ const databaseUrl = process.env.DATABASE_URL;
 export const isPostgres = true;
 export const isSqlite = false;
 
-// Database instance
+// Database instances
 let db: DatabaseInstance | null = null;
-let pgClient: NeonClient | null = null;
+let pool: Pool | null = null;
+let neonClient: NeonClient | null = null;
 
 /**
  * Get the appropriate schema (always PostgreSQL)
@@ -51,13 +64,22 @@ export function initializeDatabase(): DatabaseInstance {
     throw new Error('DATABASE_URL environment variable is required. SQLite is not supported on cloud platforms.');
   }
 
-  // PostgreSQL (Neon) for all environments
-  console.log('🐘 Initializing PostgreSQL database (Neon)...');
+  // PostgreSQL (Neon) for all environments with Pool for transaction support
+  console.log('🐘 Initializing PostgreSQL database (Neon with WebSocket)...');
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   try {
-    pgClient = neon(databaseUrl);
-    db = drizzlePg(pgClient, { schema: pgSchema });
-    console.log('✅ PostgreSQL database initialized (Neon)');
+    // Use Pool for Drizzle ORM (supports transactions)
+    pool = new Pool({ connectionString: databaseUrl });
+    db = drizzlePg(pool, { schema: pgSchema });
+    
+    // Also create neon client for raw SQL queries (tagged template literals)
+    // Note: neon() client uses HTTP by default, but with neonConfig.webSocketConstructor set,
+    // it will use WebSocket for connection. For raw queries, HTTP is acceptable since
+    // they are single-statement operations (no transactions needed).
+    // The Pool is what provides transaction support for Drizzle ORM.
+    neonClient = neon(databaseUrl);
+    
+    console.log('✅ PostgreSQL database initialized (Neon with transaction support)');
   } catch (error) {
     console.error('❌ Failed to initialize PostgreSQL database:', error);
     throw new Error(`PostgreSQL initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -84,17 +106,29 @@ export function getSqliteConnection(): null {
 }
 
 /**
- * Get the raw PostgreSQL client
+ * Get the neon client for raw SQL queries (tagged template literals)
+ * Use this for: pgClient`SELECT * FROM users WHERE id = ${id}`
  */
 export function getPgClient(): NeonClient | null {
-  return pgClient;
+  return neonClient;
+}
+
+/**
+ * Get the raw PostgreSQL pool for lower-level operations
+ */
+export function getPgPool(): Pool | null {
+  return pool;
 }
 
 /**
  * Close database connections
  */
-export function closeDatabase(): void {
-  pgClient = null;
+export async function closeDatabase(): Promise<void> {
+  if (pool) {
+    await pool.end();
+  }
+  pool = null;
+  neonClient = null;
   db = null;
 }
 
@@ -102,7 +136,7 @@ export function closeDatabase(): void {
 export const dbInfo = {
   type: 'postgresql',
   isProduction,
-  connectionString: 'Neon PostgreSQL'
+  connectionString: 'Neon PostgreSQL (WebSocket)'
 };
 
 // Initialize on import
