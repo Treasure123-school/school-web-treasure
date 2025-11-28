@@ -556,8 +556,8 @@ export default function StudentExams() {
 
     if (hasPendingSaves()) {
       toast({
-        title: "Time's Up!",
-        description: "Saving your final answers before submitting...",
+        title: "Time's Up",
+        description: "Please wait while we save your final answers and submit your exam...",
       });
 
       const maxWaitTime = 3000;
@@ -568,15 +568,15 @@ export default function StudentExams() {
         if (!hasPendingSaves()) {
           const totalWaitTime = Date.now() - startTime;
           toast({
-            title: "Submitting Exam",
-            description: "All answers saved successfully. Submitting exam...",
+            title: "Submitting Your Exam",
+            description: "All answers have been saved. Submitting your exam now...",
           });
           forceSubmitExam();
         } else if (waitTime >= maxWaitTime) {
           const totalWaitTime = Date.now() - startTime;
           toast({
-            title: "Submitting Exam",
-            description: "Time limit exceeded. Submitting exam now...",
+            title: "Submitting Your Exam",
+            description: "Your time has expired. Submitting your exam with all saved answers...",
             variant: "destructive",
           });
           forceSubmitExam();
@@ -591,8 +591,8 @@ export default function StudentExams() {
       checkSaves();
     } else {
       toast({
-        title: "Time's Up!",
-        description: "Time limit reached. Submitting exam...",
+        title: "Time's Up",
+        description: "Your exam time has ended. Submitting your exam now...",
         variant: "destructive",
       });
       forceSubmitExam();
@@ -655,8 +655,9 @@ export default function StudentExams() {
         setTimeRemaining(null);
       }
       toast({
-        title: "Exam Started Successfully!",
-        description: "Good luck with your exam! Stay on this page during the exam.",
+        title: "Exam Started Successfully",
+        description: "Your exam has begun. Good luck! Please remain on this page until you submit your answers.",
+        variant: "default",
       });
     },
     onError: (error: Error) => {
@@ -1041,17 +1042,24 @@ export default function StudentExams() {
         const percentage = data.result.percentage ?? 0;
 
 
-        // Handle different submission scenarios
-        let toastTitle = "Exam Submitted Successfully!";
+        // Handle different submission scenarios with professional messages
+        let toastTitle = "Exam Submitted Successfully";
+        let toastDescription = `Congratulations! Your exam has been submitted. You scored ${score} out of ${maxScore} points (${percentage}%).`;
+        let toastVariant: "default" | "destructive" = "default";
+        
         if (data.alreadySubmitted) {
-          toastTitle = "Previous Results Retrieved";
+          toastTitle = "Previous Submission Found";
+          toastDescription = `Your exam was already submitted. Your score: ${score}/${maxScore} (${percentage}%).`;
         } else if (data.timedOut) {
-          toastTitle = "Exam Submitted (Time Limit Exceeded)";
+          toastTitle = "Exam Submitted - Time Expired";
+          toastDescription = `Your time ran out and your exam has been automatically submitted. Your score: ${score}/${maxScore} (${percentage}%).`;
+          toastVariant = "destructive";
         }
+        
         toast({
           title: toastTitle,
-          description: data.message || `Your Score: ${score}/${maxScore} (${percentage}%)`,
-          variant: data.timedOut ? "destructive" : "default",
+          description: toastDescription,
+          variant: toastVariant,
         });
       } else if (data.submitted && !data.result) {
         toast({
@@ -1175,8 +1183,8 @@ export default function StudentExams() {
     }
     // Pre-flight check: confirm exam has questions
     toast({
-      title: "Starting Exam",
-      description: "Preparing exam session, please wait...",
+      title: "Preparing Your Exam",
+      description: "Setting up your exam session. Please wait a moment...",
     });
 
     setSelectedExam(exam);
@@ -1251,6 +1259,7 @@ export default function StudentExams() {
 
   // Handle returning to exam list after viewing results
   const handleBackToExams = () => {
+    // Reset all exam-related state
     setShowResults(false);
     setExamResults(null);
     setActiveSession(null);
@@ -1263,6 +1272,17 @@ export default function StudentExams() {
     setQuestionSaveStatus({});
     setPendingSaves(new Set());
     setShowTabSwitchWarning(false);
+    
+    // Refresh exam list to show updated submission status
+    queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+    
+    // Show confirmation message
+    toast({
+      title: "Results Saved",
+      description: "Your exam results have been recorded. You can view them anytime from your dashboard.",
+    });
   };
 
   // Force submit without checking pending saves (used for auto-submit on violations)
@@ -1803,13 +1823,18 @@ export default function StudentExams() {
 
           {/* Results Content - Responsive */}
           <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
-            {/* Simple Success Message - Responsive with Larger Text */}
+            {/* Professional Success Message - Responsive with Larger Text */}
             <div className="text-center mb-6 sm:mb-8 px-2" data-testid="banner-success">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3">
                 Exam Submitted Successfully
               </h1>
               <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
-                Your answers have been saved. Here are your exam results.
+                Congratulations on completing your exam! Your answers have been recorded and scored. Review your results below.
               </p>
             </div>
 
@@ -1830,8 +1855,16 @@ export default function StudentExams() {
                 hasDetailedResults: false
               };
 
-              // Enhanced result parsing for better feedback
-              if (examResults.immediateResults?.questions) {
+              // Enhanced result parsing for better feedback - handle multiple response formats
+              if (examResults.breakdown) {
+                // Primary source: Use breakdown data from server (handles 'correct'/'incorrect' and 'correctAnswers'/'incorrectAnswers' keys)
+                normalizedResults.correctAnswers = examResults.breakdown.correct ?? examResults.breakdown.correctAnswers ?? 0;
+                normalizedResults.wrongAnswers = examResults.breakdown.incorrect ?? examResults.breakdown.incorrectAnswers ?? 0;
+                normalizedResults.totalAnswered = examResults.breakdown.totalQuestions ?? examResults.breakdown.answered ?? 0;
+                normalizedResults.autoScoredQuestions = examResults.breakdown.autoScored ?? examResults.breakdown.autoScoredQuestions ?? 0;
+                normalizedResults.hasDetailedResults = true;
+              } else if (examResults.immediateResults?.questions) {
+                // Secondary source: Parse from question details array
                 const questions = examResults.immediateResults.questions;
                 normalizedResults.correctAnswers = questions.filter((q: any) => q.isCorrect === true).length;
                 normalizedResults.wrongAnswers = questions.filter((q: any) => q.isCorrect === false).length;
@@ -1839,23 +1872,24 @@ export default function StudentExams() {
                 normalizedResults.autoScoredQuestions = questions.filter((q: any) => q.autoScored !== false).length;
                 normalizedResults.hasDetailedResults = true;
                 normalizedResults.questionDetails = questions;
-              } else if (examResults.breakdown) {
-                // Use breakdown data if available
-                normalizedResults.correctAnswers = examResults.breakdown.correctAnswers || 0;
-                normalizedResults.wrongAnswers = examResults.breakdown.incorrectAnswers || 0;
-                normalizedResults.totalAnswered = examResults.breakdown.totalQuestions || 0;
-                normalizedResults.autoScoredQuestions = examResults.breakdown.autoScoredQuestions || 0;
+              } else if (examResults.questionDetails && examResults.questionDetails.length > 0) {
+                // Tertiary source: Parse from questionDetails array in response
+                const questions = examResults.questionDetails;
+                normalizedResults.correctAnswers = questions.filter((q: any) => q.isCorrect === true).length;
+                normalizedResults.wrongAnswers = questions.filter((q: any) => q.isCorrect === false).length;
+                normalizedResults.totalAnswered = questions.length;
+                normalizedResults.autoScoredQuestions = questions.filter((q: any) => q.pointsAwarded > 0 || q.isCorrect === true).length;
                 normalizedResults.hasDetailedResults = true;
-              } else {
-                // Fallback: calculate from exam questions if available
-                if (examQuestions.length > 0) {
-                  const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice');
-                  normalizedResults.autoScoredQuestions = mcQuestions.length;
-                  normalizedResults.totalAnswered = examQuestions.length;
-                  // For display purposes, show estimated breakdown
+              } else if (examQuestions.length > 0) {
+                // Fallback: calculate estimated breakdown from score and question count
+                const mcQuestions = examQuestions.filter(q => q.questionType === 'multiple_choice' || q.questionType === 'true_false');
+                normalizedResults.autoScoredQuestions = mcQuestions.length;
+                normalizedResults.totalAnswered = examQuestions.length;
+                // Calculate estimated correct based on score percentage
+                if (normalizedResults.maxScore > 0) {
                   const estimatedCorrect = Math.round((normalizedResults.score / normalizedResults.maxScore) * mcQuestions.length);
-                  normalizedResults.correctAnswers = estimatedCorrect;
-                  normalizedResults.wrongAnswers = mcQuestions.length - estimatedCorrect;
+                  normalizedResults.correctAnswers = Math.max(0, estimatedCorrect);
+                  normalizedResults.wrongAnswers = Math.max(0, mcQuestions.length - estimatedCorrect);
                 }
               }
 
@@ -2182,9 +2216,9 @@ export default function StudentExams() {
                         onClick={handleBackToExams}
                         variant="default"
                         className="bg-blue-600 hover:bg-blue-700 text-white"
-                        data-testid="button-back-to-dashboard"
+                        data-testid="button-back-to-exams"
                       >
-                        Back to Dashboard
+                        View All Exams
                       </Button>
 
                       {examResults.pendingReview && examResults.pendingReview.count > 0 && (
