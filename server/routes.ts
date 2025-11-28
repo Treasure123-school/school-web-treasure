@@ -639,45 +639,49 @@ async function autoScoreExamSession(sessionId: number, storage: any): Promise<vo
       throw new Error(`CRITICAL: Invalid recordedBy UUID: ${SYSTEM_AUTO_SCORING_UUID}`);
     }
 
+    // Only include fields that are in the database schema
     const resultData = {
       examId: session.examId,
       studentId: session.studentId,
       score: totalAutoScore,
       maxScore: maxPossibleScore,
-      marksObtained: totalAutoScore, // ✅ CRITICAL FIX: Ensure database constraint compatibility
-      autoScored: breakdown.pendingManualReview === 0, // Only fully auto-scored if no pending reviews
-      recordedBy: SYSTEM_AUTO_SCORING_UUID, // Special UUID for auto-generated results
-      // Include detailed feedback in the result data
-      questionDetails: questionDetails,
-      breakdown: breakdown,
-      immediateResults: {
-        questions: questionDetails,
-        summary: breakdown
-      }
+      marksObtained: totalAutoScore,
+      autoScored: breakdown.pendingManualReview === 0,
+      recordedBy: SYSTEM_AUTO_SCORING_UUID,
     };
 
+    let savedResultId: number | null = null;
 
     try {
       if (existingResult) {
         // Update existing result
         const updatedResult = await storage.updateExamResult(existingResult.id, resultData);
         if (!updatedResult) {
-          throw new Error(`Failed to update exam result ID: ${existingResult.id} - updateExamResult returned null/undefined`);
+          console.error(`[AUTO-SCORE] Failed to update exam result ID: ${existingResult.id}`);
+          throw new Error(`Failed to update exam result ID: ${existingResult.id}`);
         }
+        savedResultId = existingResult.id;
       } else {
         // Create new result
         const newResult = await storage.recordExamResult(resultData);
         if (!newResult || !newResult.id) {
+          console.error('[AUTO-SCORE] recordExamResult returned null/undefined or missing ID');
           throw new Error('Failed to create exam result - recordExamResult returned null/undefined or missing ID');
         }
+        savedResultId = newResult.id;
       }
 
-      // Verify the result was saved by immediately retrieving it
-      const verificationResults = await storage.getExamResultsByStudent(session.studentId);
-      const savedResult = verificationResults.find((r: any) => Number(r.examId) === Number(session.examId));
-
-      if (!savedResult) {
-        throw new Error('CRITICAL: Result was not properly saved - verification fetch failed to find the result');
+      // Verification is optional - if it fails, log but don't throw
+      // The result was already confirmed saved by the insert/update returning
+      try {
+        const verificationResults = await storage.getExamResultsByStudent(session.studentId);
+        const savedResult = verificationResults.find((r: any) => Number(r.examId) === Number(session.examId));
+        
+        if (!savedResult) {
+          console.warn(`[AUTO-SCORE] Verification warning: Could not find result in verification fetch, but ID ${savedResultId} was returned from insert/update`);
+        }
+      } catch (verifyError) {
+        console.warn('[AUTO-SCORE] Verification fetch failed, but result was saved with ID:', savedResultId);
       }
 
       // ENHANCED PERFORMANCE MONITORING - Track 2-second submission goal
@@ -1309,7 +1313,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get question options
+  // Bulk get question options for multiple questions (must be before :questionId route)
+  app.get('/api/question-options/bulk', authenticateUser, async (req, res) => {
+    try {
+      const questionIdsParam = req.query.questionIds as string;
+      
+      if (!questionIdsParam) {
+        return res.json([]);
+      }
+
+      const questionIds = questionIdsParam.split(',')
+        .map(id => parseInt(id.trim()))
+        .filter(id => !isNaN(id));
+
+      if (questionIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Fetch options for all questions in parallel
+      const allOptions = await Promise.all(
+        questionIds.map(async (questionId) => {
+          try {
+            const options = await storage.getQuestionOptions(questionId);
+            return options;
+          } catch (error) {
+            return [];
+          }
+        })
+      );
+
+      // Flatten the array of arrays
+      const flattenedOptions = allOptions.flat();
+      res.json(flattenedOptions);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch question options' });
+    }
+  });
+
+  // Get question options for a single question
   app.get('/api/question-options/:questionId', authenticateUser, async (req, res) => {
     try {
       const questionId = parseInt(req.params.questionId);

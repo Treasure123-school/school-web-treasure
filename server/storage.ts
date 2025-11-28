@@ -2251,7 +2251,7 @@ export class DatabaseStorage implements IStorage {
   async updateExamSession(id: number, session: Partial<InsertExamSession>): Promise<ExamSession | undefined> {
     // Filter to only existing columns to avoid database errors
     const allowedFields: Partial<InsertExamSession> = {};
-    const existingColumns = ['examId', 'studentId', 'startedAt', 'submittedAt', 'timeRemaining', 'isCompleted', 'score', 'maxScore', 'status'];
+    const existingColumns = ['examId', 'studentId', 'startedAt', 'submittedAt', 'timeRemaining', 'isCompleted', 'score', 'maxScore', 'status', 'metadata'];
 
     // Only include fields that exist in the database
     for (const [key, value] of Object.entries(session)) {
