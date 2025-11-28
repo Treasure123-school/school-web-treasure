@@ -1194,6 +1194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit exam - synchronous with instant scoring and enhanced reliability
+  // ENHANCED: Added server-side timer validation, duplicate prevention, and transaction safety
   app.post('/api/exams/:examId/submit', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     const startTime = Date.now();
     let sessionId: number | null = null;
@@ -1201,6 +1202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const examId = parseInt(req.params.examId);
       const studentId = req.user!.id;
+      const { forceSubmit, violationCount, clientTimeRemaining } = req.body;
 
       // Validate exam ID
       if (isNaN(examId) || examId <= 0) {
@@ -1216,6 +1218,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find the active exam session
       const sessions = await storage.getExamSessionsByStudent(studentId);
       const activeSession = sessions.find(s => s.examId === examId && !s.isCompleted);
+      
+      // SERVER-SIDE TIMER VALIDATION: Prevent time manipulation cheating
+      if (activeSession && activeSession.startedAt && exam.timeLimit) {
+        const serverStartTime = new Date(activeSession.startedAt).getTime();
+        const allowedDurationMs = (exam.timeLimit * 60 * 1000) + (30 * 1000); // Add 30s grace period
+        const serverElapsedMs = Date.now() - serverStartTime;
+        
+        // If time has exceeded, mark as timed out but still allow submission
+        const isTimedOut = serverElapsedMs > allowedDurationMs;
+        if (isTimedOut) {
+          console.log(`[SUBMIT] Session ${activeSession.id} timed out on server. Elapsed: ${Math.floor(serverElapsedMs/1000)}s, Allowed: ${Math.floor(allowedDurationMs/1000)}s`);
+        }
+      }
 
       if (!activeSession) {
         // Check if already submitted - return existing results

@@ -20,6 +20,7 @@ import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.pn
 const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
 const PENALTY_PER_VIOLATION = 5;
 const MAX_PENALTY = 20; // System never reduces score below Test 40 base
+const MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT = 5; // Auto-submit after 5 tab switches
 
 // Question save status type
 type QuestionSaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
@@ -48,6 +49,18 @@ export default function StudentExams() {
   const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
   const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [violationPenalty, setViolationPenalty] = useState(0); // State for penalty calculation
+  
+  // RELIABILITY: Use refs to ensure latest values are always accessible for auto-submit
+  const tabSwitchCountRef = useRef(tabSwitchCount);
+  const violationPenaltyRef = useRef(violationPenalty);
+  const timeRemainingRef = useRef(timeRemaining);
+  const activeSessionRef = useRef(activeSession);
+  
+  // Keep refs in sync with state
+  useEffect(() => { tabSwitchCountRef.current = tabSwitchCount; }, [tabSwitchCount]);
+  useEffect(() => { violationPenaltyRef.current = violationPenalty; }, [violationPenalty]);
+  useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
+  useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
 
   // Network status monitoring
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -363,6 +376,22 @@ export default function StudentExams() {
               const calculatedPenalty = calculateViolationPenalty(newCount);
               setViolationPenalty(calculatedPenalty);
 
+              // AUTO-SUBMIT: If violations exceed threshold, auto-submit the exam
+              if (newCount >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT) {
+                toast({
+                  title: "Exam Auto-Submitted",
+                  description: "Your exam has been automatically submitted due to excessive tab switching. This is to maintain exam integrity.",
+                  variant: "destructive",
+                });
+                
+                // Trigger auto-submit with violation info
+                setTimeout(() => {
+                  forceSubmitExam();
+                }, 1000);
+                
+                return newCount;
+              }
+              
               if (newCount <= MAX_VIOLATIONS_BEFORE_PENALTY) {
                 setShowTabSwitchWarning(true);
 
@@ -374,15 +403,17 @@ export default function StudentExams() {
 
                 toast({
                   title: "Tab Switch Detected",
-                  description: `Warning ${newCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}: Please stay on the exam page. Excessive tab switching may be reported to your instructor.`,
+                  description: `Warning ${newCount}/${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT}: Please stay on the exam page. After ${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT} violations, your exam will be auto-submitted.`,
                   variant: "destructive",
                 });
               } else {
-                // After max warnings, just log silently
-                // Optionally show a persistent warning if penalty is applied
-                if (calculatedPenalty > 0) {
-                  setShowTabSwitchWarning(true);
-                }
+                // After initial warnings, show countdown to auto-submit
+                setShowTabSwitchWarning(true);
+                toast({
+                  title: "Final Warning",
+                  description: `Tab switch ${newCount}/${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT}: Your exam will be auto-submitted after ${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT - newCount} more violations.`,
+                  variant: "destructive",
+                });
               }
 
               // Save tab switch count and penalty to session metadata if possible
@@ -425,6 +456,63 @@ export default function StudentExams() {
       window.removeEventListener('blur', handleBlur);
     };
   }, [activeSession, tabSwitchCount]); // Add tabSwitchCount to dependency array
+
+  // ANTI-CHEAT: Disable copy, paste, and right-click during active exam
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      toast({
+        title: "Copy Disabled",
+        description: "Copying is not allowed during the exam.",
+        variant: "destructive",
+      });
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      toast({
+        title: "Paste Disabled", 
+        description: "Pasting is not allowed during the exam.",
+        variant: "destructive",
+      });
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      toast({
+        title: "Right-Click Disabled",
+        description: "Right-clicking is not allowed during the exam.",
+        variant: "destructive",
+      });
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A
+      if (e.ctrlKey || e.metaKey) {
+        if (['c', 'v', 'x', 'a'].includes(e.key.toLowerCase())) {
+          e.preventDefault();
+        }
+      }
+      // Block F12 (DevTools)
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeSession, toast]);
 
   // Function to calculate violation penalty
   const calculateViolationPenalty = (violations: number): number => {
@@ -800,113 +888,131 @@ export default function StudentExams() {
     },
   });
 
-  // MILESTONE 1: Synchronous Submit Exam Mutation - No Polling, Instant Feedback! 🚀
-  // Enhanced with retry logic and better error recovery
-  const submitExamMutation = useMutation({
-    mutationFn: async () => {
-      if (!activeSession) throw new Error('No active session');
+  // Shared submission helper - handles retry logic, response parsing, and error handling
+  // Used by both regular submit and force submit (auto-submit on violations)
+  const executeSubmission = async (isForceSubmit: boolean = false) => {
+    // Use refs for force submit to ensure latest values, state for regular submit
+    const session = isForceSubmit ? activeSessionRef.current : activeSession;
+    const violations = isForceSubmit ? tabSwitchCountRef.current : tabSwitchCount;
+    const penalty = isForceSubmit ? violationPenaltyRef.current : violationPenalty;
+    const remaining = isForceSubmit ? timeRemainingRef.current : timeRemaining;
+    
+    if (!session) throw new Error('No active session');
 
-      const startTime = Date.now();
-      const maxRetries = 3;
-      let lastError: Error | null = null;
+    const startTime = Date.now();
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      // Retry loop for network resilience
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          // Use the new synchronous submit endpoint - no polling needed!
-          const response = await apiRequest('POST', `/api/exams/${activeSession.examId}/submit`, {});
+    // Retry loop for network resilience
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Use the synchronous submit endpoint with violation info
+        // Ensure clientTimeRemaining is always numeric (fallback to 0)
+        const response = await apiRequest('POST', `/api/exams/${session.examId}/submit`, {
+          forceSubmit: isForceSubmit,
+          violationCount: violations ?? 0,
+          violationPenalty: penalty ?? 0,
+          clientTimeRemaining: remaining ?? 0
+        });
 
-          // Handle response
-          const contentType = response.headers.get('content-type');
+        // Handle response
+        const contentType = response.headers.get('content-type');
+        
+        if (!response.ok) {
+          let errorMessage = 'Failed to submit exam';
           
-          if (!response.ok) {
-            let errorMessage = 'Failed to submit exam';
-            
-            if (contentType?.includes('application/json')) {
-              try {
-                const errorData = await response.json();
-                errorMessage = errorData.message || errorMessage;
-                
-                // If already submitted, treat as success
-                if (response.status === 409 || errorMessage.includes('already submitted')) {
-                  return { 
-                    submitted: true, 
-                    alreadySubmitted: true,
-                    message: 'Exam was previously submitted.',
-                    result: errorData.result || null
-                  };
-                }
-              } catch (parseError) {
-                errorMessage = `Server error (${response.status})`;
+          if (contentType?.includes('application/json')) {
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.message || errorMessage;
+              
+              // If already submitted, treat as success
+              if (response.status === 409 || errorMessage.includes('already submitted')) {
+                return { 
+                  submitted: true, 
+                  alreadySubmitted: true,
+                  message: 'Exam was previously submitted.',
+                  result: errorData.result || null,
+                  isForceSubmit
+                };
               }
-            } else {
-              errorMessage = `Server error (${response.status}). Please try again.`;
+            } catch (parseError) {
+              errorMessage = `Server error (${response.status})`;
             }
-            
-            // Don't retry on 4xx errors (client errors)
-            if (response.status >= 400 && response.status < 500 && response.status !== 408) {
-              throw new Error(errorMessage);
-            }
-            
-            lastError = new Error(errorMessage);
-            
-            // Wait before retry with exponential backoff
-            if (attempt < maxRetries) {
-              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            }
-          }
-
-          // Success - parse response
-          let submissionData;
-          try {
-            submissionData = await response.json();
-          } catch (parseError) {
-            throw new Error('Invalid response from server. Your exam may have been submitted - please refresh to check.');
+          } else {
+            errorMessage = `Server error (${response.status}). Please try again.`;
           }
           
-          const totalTime = Date.now() - startTime;
-
-          // Send performance metrics to server (fire and forget)
-          apiRequest('POST', '/api/performance-events', {
-            sessionId: activeSession.id,
-            eventType: 'submission',
-            duration: totalTime,
-            metadata: {
-              examId: activeSession.examId,
-              clientSide: true,
-              timestamp: new Date().toISOString(),
-              attempts: attempt
-            }
-          }).catch(() => {});
-
-          return { ...submissionData, clientPerformance: { totalTime, attempts: attempt } };
+          // Don't retry on 4xx errors (client errors)
+          if (response.status >= 400 && response.status < 500 && response.status !== 408) {
+            throw new Error(errorMessage);
+          }
           
-        } catch (error: any) {
-          lastError = error;
+          lastError = new Error(errorMessage);
           
-          // Check if it's a network error that warrants retry
-          const isNetworkError = error.name === 'TypeError' || 
-                                  error.name === 'AbortError' ||
-                                  error.message?.includes('fetch') ||
-                                  error.message?.includes('network') ||
-                                  error.message?.includes('timeout');
-          
-          if (isNetworkError && attempt < maxRetries) {
+          // Wait before retry with exponential backoff
+          if (attempt < maxRetries) {
             const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
-          
-          // Non-retryable error or max retries reached
-          throw error;
         }
+
+        // Success - parse response
+        let submissionData;
+        try {
+          submissionData = await response.json();
+        } catch (parseError) {
+          throw new Error('Invalid response from server. Your exam may have been submitted - please refresh to check.');
+        }
+        
+        const totalTime = Date.now() - startTime;
+
+        // Send performance metrics to server (fire and forget)
+        apiRequest('POST', '/api/performance-events', {
+          sessionId: session.id,
+          eventType: 'submission',
+          duration: totalTime,
+          metadata: {
+            examId: session.examId,
+            clientSide: true,
+            timestamp: new Date().toISOString(),
+            attempts: attempt,
+            isForceSubmit
+          }
+        }).catch(() => {});
+
+        return { ...submissionData, clientPerformance: { totalTime, attempts: attempt }, isForceSubmit };
+        
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's a network error that warrants retry
+        const isNetworkError = error.name === 'TypeError' || 
+                                error.name === 'AbortError' ||
+                                error.message?.includes('fetch') ||
+                                error.message?.includes('network') ||
+                                error.message?.includes('timeout');
+        
+        if (isNetworkError && attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // Non-retryable error or max retries reached
+        throw error;
       }
-      
-      // All retries exhausted
-      throw lastError || new Error('Failed to submit exam after multiple attempts');
-    },
+    }
+    
+    // All retries exhausted
+    throw lastError || new Error('Failed to submit exam after multiple attempts');
+  };
+
+  // MILESTONE 1: Synchronous Submit Exam Mutation - No Polling, Instant Feedback!
+  // Uses shared executeSubmission helper for consistent behavior
+  const submitExamMutation = useMutation({
+    mutationFn: () => executeSubmission(false), // Regular submit
     onMutate: () => {
       setIsScoring(true);
     },
@@ -1159,23 +1265,65 @@ export default function StudentExams() {
     setShowTabSwitchWarning(false);
   };
 
-  // Force submit without checking pending saves (used for auto-submit)
+  // Force submit without checking pending saves (used for auto-submit on violations)
+  // Uses shared executeSubmission helper with retry logic and consistent behavior
   const forceSubmitExam = async () => {
     if (isSubmitting || isScoring) {
       return;
     }
     setIsSubmitting(true);
+    setIsScoring(true);
 
     try {
-      await submitExamMutation.mutateAsync();
-    } catch (error) {
+      // Use shared submission helper with force flag for consistent behavior
+      const data = await executeSubmission(true);
+      
+      setIsScoring(false);
+      setIsSubmitting(false);
+      
+      // Handle response - same logic as regular submission
+      if (data.submitted && data.result) {
+        setExamResults(data.result);
+        setShowResults(true);
+        
+        // Enhanced cache invalidation
+        queryClient.invalidateQueries({ queryKey: ['/api/student-answers/session', activeSessionRef.current?.id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/exam-results', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+        
+        toast({
+          title: "Exam Auto-Submitted",
+          description: `Auto-submitted due to ${tabSwitchCountRef.current} tab switches. Score: ${data.result.score}/${data.result.maxScore} (${data.result.percentage}%)`,
+        });
+      } else if (data.submitted && !data.result) {
+        toast({
+          title: "Exam Auto-Submitted",
+          description: "Your exam has been auto-submitted. Results will be available after manual grading.",
+        });
+        setActiveSession(null);
+        setAnswers({});
+        setTimeRemaining(null);
+        setCurrentQuestionIndex(0);
+      } else {
+        toast({
+          title: "Exam Submitted",
+          description: data.message || "Your exam has been auto-submitted successfully.",
+        });
+        setActiveSession(null);
+        setAnswers({});
+        setTimeRemaining(null);
+        setCurrentQuestionIndex(0);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+    } catch (error: any) {
+      setIsScoring(false);
+      setIsSubmitting(false);
       toast({
         title: "Submission Error",
-        description: "Failed to submit exam. Please try again or contact your instructor.",
+        description: error.message || "Failed to submit exam. Please try again or contact your instructor.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

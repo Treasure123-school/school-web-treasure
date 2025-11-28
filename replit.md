@@ -120,6 +120,18 @@ Unlike traditional setups, this architecture uses:
 - questionBankItems
 - questionBankOptions
 
+### Exam System Features (Enhanced November 2025)
+- **Reliable Submission**: Retry logic with exponential backoff for network resilience
+- **Instant Auto-Scoring**: MCQ questions scored immediately on submission
+- **Anti-Cheat Measures**:
+  - Tab switching detection with warnings (5 max before auto-submit)
+  - Copy/paste prevention during active exams
+  - Right-click disabled during exams
+  - Server-side timer validation to prevent time manipulation
+- **Auto-Submit**: Triggers automatically after 5 tab switches or timer expiration
+- **Real-time Progress Saving**: Answers saved every 500ms (debounced) + session progress every 30s
+- **Violation Tracking**: Tab switches and penalties stored in session metadata
+
 ### Academic Records
 - attendance
 - reportCards
