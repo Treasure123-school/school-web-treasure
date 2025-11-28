@@ -274,6 +274,13 @@ project/
 - ✅ Role-based access control (RBAC)
 - ✅ Environment-based secrets management
 
+### Exam System Security (Updated Nov 2025)
+- ✅ **Student Class Validation**: Students can only start exams assigned to their class
+- ✅ **Teacher Assignment Validation**: `teacherInChargeId` must be a valid, active teacher
+- ✅ **Dual Ownership Model**: Teachers can manage exams they created OR are assigned to
+- ✅ **Field Sanitization**: Exam updates only accept whitelisted fields to prevent injection
+- ✅ **Delete Protection**: Only exam creators can delete exams (not just assigned teachers)
+
 ## API Documentation
 
 ### Authentication Endpoints

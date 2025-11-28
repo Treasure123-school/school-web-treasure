@@ -1059,8 +1059,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only edit exams you created or are assigned to' });
       }
 
-      // SECURITY: Validate teacherInChargeId if being updated
-      if (req.body.teacherInChargeId && req.body.teacherInChargeId !== existingExam.teacherInChargeId) {
+      // SECURITY: Validate teacherInChargeId whenever it's present in request
+      // This prevents privilege escalation by assigning to non-teacher or inactive accounts
+      if (req.body.teacherInChargeId !== undefined) {
+        // If teacherInChargeId is provided, validate it's a valid active teacher
         const assignedUser = await storage.getUser(req.body.teacherInChargeId);
         if (!assignedUser) {
           return res.status(400).json({ message: 'Assigned teacher not found' });
@@ -1073,7 +1075,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const exam = await storage.updateExam(examId, req.body);
+      // Only pass allowed fields to prevent unexpected field updates
+      const allowedFields = ['name', 'description', 'date', 'timeLimit', 'totalMarks', 
+        'classId', 'subjectId', 'teacherInChargeId', 'isPublished', 'instructions',
+        'passingScore', 'maxAttempts', 'showResults', 'shuffleQuestions', 'shuffleOptions'];
+      const sanitizedData: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          sanitizedData[field] = req.body[field];
+        }
+      }
+
+      const exam = await storage.updateExam(examId, sanitizedData);
       res.json(exam);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam' });
