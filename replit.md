@@ -132,6 +132,21 @@ Unlike traditional setups, this architecture uses:
 - **Real-time Progress Saving**: Answers saved every 500ms (debounced) + session progress every 30s
 - **Violation Tracking**: Tab switches and penalties stored in session metadata
 
+### Report Card System (Enhanced November 2025)
+- **Centralized Grading**: Configurable grading scale in `server/grading-config.ts`
+- **Auto-Population**: Automatically calculates grades from exam scores per term
+- **Weighted Scoring**: Test scores (40%) + Exam scores (60%) = 100%
+- **Subject Coverage**: All class subjects included with `hasData` flags for missing assessments
+- **Teacher Authorization**: Teachers can only access report cards for their assigned classes
+- **Role-Based Access**:
+  - Students: View only their own report card
+  - Parents: View only their children's report cards
+  - Teachers: View/manage students in assigned classes only
+  - Admin/Super Admin: Full access to all report cards
+- **Class Rankings**: Automatic position calculation based on overall percentage
+- **PDF Export**: Generate printable report card documents
+- **Bulk Generation**: Generate report cards for entire class at once
+
 ### Academic Records
 - attendance
 - reportCards
