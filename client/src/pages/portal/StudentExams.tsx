@@ -1272,13 +1272,15 @@ export default function StudentExams() {
     
     // STEP 2: Store exam result in sessionStorage for the results page to consume
     if (resultData) {
+      // Find the exam title from the exams list
+      const currentExam = exams.find(e => e.id === activeSession?.examId) || selectedExam;
       const storedResult = {
         ...resultData,
-        examTitle: selectedExam?.name || activeSession?.exam?.title || 'Exam',
+        examTitle: currentExam?.name || resultData.examTitle || 'Exam',
         examId: activeSession?.examId || selectedExam?.id,
         sessionId: activeSession?.id,
         submittedAt: resultData.submittedAt || new Date().toISOString(),
-        storedTimestamp: Date.now(), // Track when we stored this
+        storedTimestamp: Date.now(),
       };
       sessionStorage.setItem('lastExamResult', JSON.stringify(storedResult));
     }

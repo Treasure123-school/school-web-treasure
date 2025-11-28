@@ -76,27 +76,11 @@ export default function StudentExamResults() {
       try {
         const parsed = JSON.parse(storedResult);
         setLatestResult(parsed);
-        // Don't remove immediately - keep until confirmed by API or user navigates away
       } catch (e) {
         console.error('Failed to parse stored exam result:', e);
       }
     }
   }, []);
-
-  // Clear sessionStorage when API confirms the result is saved (prevents duplicate on refresh)
-  useEffect(() => {
-    if (latestResult && examResults.length > 0) {
-      // Check if API results include the submitted exam
-      const apiHasLatest = examResults.some(r => 
-        r.sessionId === latestResult.sessionId || 
-        (r.examId === latestResult.examId && r.submittedAt)
-      );
-      if (apiHasLatest) {
-        // Safe to clear sessionStorage as API has the data
-        sessionStorage.removeItem('lastExamResult');
-      }
-    }
-  }, [latestResult, examResults]);
 
   // Fetch exam results from API as fallback or for history
   const { data: examResults = [], isLoading, error } = useQuery<ExamResult[]>({
@@ -115,6 +99,19 @@ export default function StudentExamResults() {
     refetchOnMount: true,
     staleTime: 0,
   });
+
+  // Clear sessionStorage when API confirms the result is saved (prevents duplicate on refresh)
+  useEffect(() => {
+    if (latestResult && examResults.length > 0) {
+      const apiHasLatest = examResults.some(r => 
+        r.sessionId === latestResult.sessionId || 
+        (r.examId === latestResult.examId && r.submittedAt)
+      );
+      if (apiHasLatest) {
+        sessionStorage.removeItem('lastExamResult');
+      }
+    }
+  }, [latestResult, examResults]);
 
   // Combine latestResult (from sessionStorage) with API results for display
   // Always prioritize the latestResult (freshly submitted) at the top
