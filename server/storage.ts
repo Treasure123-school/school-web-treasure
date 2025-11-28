@@ -149,6 +149,7 @@ export interface IStorage {
   getAllExams(): Promise<Exam[]>;
   getExamById(id: number): Promise<Exam | undefined>;
   getExamsByClass(classId: number): Promise<Exam[]>;
+  getExamsByClassAndTerm(classId: number, termId: number): Promise<Exam[]>;
   updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined>;
   deleteExam(id: number): Promise<boolean>;
   recordExamResult(result: InsertExamResult): Promise<ExamResult>;
@@ -1433,6 +1434,20 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db.select().from(schema.exams)
         .where(eq(schema.exams.classId, classId))
+        .orderBy(desc(schema.exams.date));
+      return result || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getExamsByClassAndTerm(classId: number, termId: number): Promise<Exam[]> {
+    try {
+      const result = await db.select().from(schema.exams)
+        .where(and(
+          eq(schema.exams.classId, classId),
+          eq(schema.exams.termId, termId)
+        ))
         .orderBy(desc(schema.exams.date));
       return result || [];
     } catch (error) {

@@ -6467,6 +6467,751 @@ Treasure-Home School Administration
 
     // ==================== END SUPER ADMIN ROUTES ====================
 
+    // ==================== REPORT CARD ROUTES ====================
+
+    // Get grading configuration
+    app.get('/api/grading-config', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { getGradingConfig, GRADING_SCALES } = await import('./grading-config');
+        const scaleName = req.query.scale as string || 'standard';
+        const config = getGradingConfig(scaleName);
+        res.json({
+          currentConfig: config,
+          availableScales: Object.keys(GRADING_SCALES)
+        });
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to get grading configuration' });
+      }
+    });
+
+    // Get student report card for a specific term
+    app.get('/api/reports/student-report-card/:studentId', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const { termId } = req.query;
+
+        if (!termId) {
+          return res.status(400).json({ message: 'Term ID is required' });
+        }
+
+        const { calculateGrade, calculateWeightedScore } = await import('./grading-config');
+
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+
+        if (!student.classId) {
+          return res.status(400).json({ message: 'Student not assigned to a class' });
+        }
+
+        // Authorization: Students can only view their own, parents can view their children's
+        // Teachers can only view students in their assigned classes
+        if (req.user!.roleId === ROLES.STUDENT) {
+          if (req.user!.id !== studentId) {
+            return res.status(403).json({ message: 'You can only view your own report card' });
+          }
+        } else if (req.user!.roleId === ROLES.PARENT) {
+          const children = await storage.getStudentsByParentId(req.user!.id);
+          if (!children.some(c => c.id === studentId)) {
+            return res.status(403).json({ message: 'You can only view your children\'s report cards' });
+          }
+        } else if (req.user!.roleId === ROLES.TEACHER) {
+          const teacherAssignments = await storage.getTeacherClassAssignments(req.user!.id);
+          const isAssignedToClass = teacherAssignments.some(a => a.classId === student.classId);
+          if (!isAssignedToClass) {
+            return res.status(403).json({ message: 'You are not authorized to view report cards for students in this class' });
+          }
+        }
+        // Admin and Super Admin can view any student's report card
+
+        const user = await storage.getUser(studentId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        const studentClass = await storage.getClass(student.classId);
+        const term = await storage.getAcademicTerm(Number(termId));
+        const exams = await storage.getExamsByClassAndTerm(student.classId, Number(termId));
+        
+        // Get subjects that have exams for this class/term (represents class curriculum)
+        const classSubjectIds = new Set(exams.map(e => e.subjectId));
+        const allSubjects = await storage.getSubjects();
+        const classSubjects = allSubjects.filter(s => classSubjectIds.has(s.id));
+
+        const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[], subjectName: string, hasData: boolean }> = {};
+
+        // Initialize with all class subjects
+        for (const subject of classSubjects) {
+          subjectScores[subject.id] = {
+            testScores: [],
+            testMax: [],
+            examScores: [],
+            examMax: [],
+            subjectName: subject.name,
+            hasData: false
+          };
+        }
+
+        for (const exam of exams) {
+          if (!subjectScores[exam.subjectId]) continue;
+          const result = await storage.getExamResultByExamAndStudent(exam.id, studentId);
+          if (result && result.marksObtained !== null) {
+            subjectScores[exam.subjectId].hasData = true;
+            if (exam.examType === 'test' || exam.examType === 'quiz') {
+              subjectScores[exam.subjectId].testScores.push(result.marksObtained);
+              subjectScores[exam.subjectId].testMax.push(exam.totalMarks);
+            } else {
+              subjectScores[exam.subjectId].examScores.push(result.marksObtained);
+              subjectScores[exam.subjectId].examMax.push(exam.totalMarks);
+            }
+          }
+        }
+
+        const subjects: any[] = [];
+        let totalWeightedPercentage = 0;
+        const totalSubjects = Object.keys(subjectScores).length;
+
+        for (const [subjectIdStr, scores] of Object.entries(subjectScores)) {
+          const subjectId = Number(subjectIdStr);
+          const testScore = scores.testScores.reduce((a, b) => a + b, 0);
+          const testMax = scores.testMax.reduce((a, b) => a + b, 0);
+          const examScore = scores.examScores.reduce((a, b) => a + b, 0);
+          const examMax = scores.examMax.reduce((a, b) => a + b, 0);
+
+          // Calculate weighted score - subjects without data get 0%
+          const weighted = calculateWeightedScore(testScore, testMax, examScore, examMax);
+          const gradeInfo = calculateGrade(weighted.percentage);
+
+          subjects.push({
+            subjectId,
+            subjectName: scores.subjectName,
+            testScore,
+            testMax: testMax || 40,
+            examScore,
+            examMax: examMax || 60,
+            totalScore: testScore + examScore,
+            percentage: weighted.percentage,
+            grade: gradeInfo.grade,
+            remarks: gradeInfo.remarks,
+            hasData: scores.hasData
+          });
+
+          // Include all subjects in total (missing data contributes 0)
+          totalWeightedPercentage += weighted.percentage;
+        }
+
+        // Calculate average across ALL subjects (including those with 0)
+        const overallPercentage = totalSubjects > 0 ? totalWeightedPercentage / totalSubjects : 0;
+        const overallGradeInfo = calculateGrade(overallPercentage);
+
+        const reportCard = {
+          student: {
+            id: studentId,
+            name: `${user.firstName} ${user.lastName}`,
+            admissionNumber: student.admissionNumber,
+            className: studentClass?.name || 'Unknown',
+            classLevel: studentClass?.level || 'Unknown'
+          },
+          term: term ? {
+            id: term.id,
+            name: term.name,
+            year: term.year,
+            startDate: term.startDate,
+            endDate: term.endDate
+          } : null,
+          subjects,
+          summary: {
+            percentage: Math.round(overallPercentage * 10) / 10,
+            grade: overallGradeInfo.grade,
+            remarks: overallGradeInfo.remarks,
+            subjectsCount: totalSubjects,
+            subjectsWithData: subjects.filter(s => s.hasData).length
+          },
+          generatedAt: new Date().toISOString()
+        };
+
+        res.json(reportCard);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message || 'Failed to generate report card' });
+      }
+    });
+
+    // Get all students in a class with their report card data (Teacher/Admin)
+    app.get('/api/reports/class/:classId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { termId } = req.query;
+
+        if (!termId) {
+          return res.status(400).json({ message: 'Term ID is required' });
+        }
+
+        const classInfo = await storage.getClass(Number(classId));
+        if (!classInfo) {
+          return res.status(404).json({ message: 'Class not found' });
+        }
+
+        // Authorization check for teachers - verify they are assigned to this class
+        if (req.user!.roleId === ROLES.TEACHER) {
+          const teacherAssignments = await storage.getTeacherClassAssignments(req.user!.id);
+          const isAssignedToClass = teacherAssignments.some(a => a.classId === Number(classId));
+          if (!isAssignedToClass) {
+            return res.status(403).json({ message: 'You are not authorized to view report cards for this class' });
+          }
+        }
+
+        const students = await storage.getStudentsByClass(Number(classId));
+        const term = await storage.getAcademicTerm(Number(termId));
+        const exams = await storage.getExamsByClassAndTerm(Number(classId), Number(termId));
+        
+        // Get subjects that have exams for this class/term to determine class subjects
+        const classSubjectIds = new Set(exams.map(e => e.subjectId));
+        const allSubjects = await storage.getSubjects();
+        const classSubjects = allSubjects.filter(s => classSubjectIds.has(s.id));
+
+        const { calculateGrade, calculateWeightedScore } = await import('./grading-config');
+
+        const studentReports: any[] = [];
+
+        for (const student of students) {
+          const user = await storage.getUser(student.id);
+          if (!user) continue;
+
+          const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[], subjectName: string, hasData: boolean }> = {};
+
+          // Initialize with all class subjects
+          for (const subject of classSubjects) {
+            subjectScores[subject.id] = {
+              testScores: [],
+              testMax: [],
+              examScores: [],
+              examMax: [],
+              subjectName: subject.name,
+              hasData: false
+            };
+          }
+
+          for (const exam of exams) {
+            if (!subjectScores[exam.subjectId]) continue;
+            const result = await storage.getExamResultByExamAndStudent(exam.id, student.id);
+            if (result && result.marksObtained !== null) {
+              subjectScores[exam.subjectId].hasData = true;
+              if (exam.examType === 'test' || exam.examType === 'quiz') {
+                subjectScores[exam.subjectId].testScores.push(result.marksObtained);
+                subjectScores[exam.subjectId].testMax.push(exam.totalMarks);
+              } else {
+                subjectScores[exam.subjectId].examScores.push(result.marksObtained);
+                subjectScores[exam.subjectId].examMax.push(exam.totalMarks);
+              }
+            }
+          }
+
+          const subjects: any[] = [];
+          let totalWeightedPercentage = 0;
+          let subjectsWithData = 0;
+          const totalSubjects = Object.keys(subjectScores).length;
+
+          for (const [subjectIdStr, scores] of Object.entries(subjectScores)) {
+            const testScore = scores.testScores.reduce((a, b) => a + b, 0);
+            const testMax = scores.testMax.reduce((a, b) => a + b, 0);
+            const examScore = scores.examScores.reduce((a, b) => a + b, 0);
+            const examMax = scores.examMax.reduce((a, b) => a + b, 0);
+
+            // Calculate weighted score - subjects without data get 0%
+            const weighted = calculateWeightedScore(testScore, testMax, examScore, examMax);
+            const gradeInfo = calculateGrade(weighted.percentage);
+
+            subjects.push({
+              subjectId: Number(subjectIdStr),
+              subjectName: scores.subjectName,
+              testScore,
+              examScore,
+              percentage: weighted.percentage,
+              grade: gradeInfo.grade,
+              hasData: scores.hasData
+            });
+
+            // Include all subjects in total (missing data contributes 0)
+            totalWeightedPercentage += weighted.percentage;
+            if (scores.hasData) {
+              subjectsWithData++;
+            }
+          }
+
+          // Calculate average across ALL subjects (including those with 0)
+          const overallPercentage = totalSubjects > 0 ? totalWeightedPercentage / totalSubjects : 0;
+          const overallGradeInfo = calculateGrade(overallPercentage);
+
+          studentReports.push({
+            studentId: student.id,
+            studentName: `${user.firstName} ${user.lastName}`,
+            admissionNumber: student.admissionNumber,
+            subjects,
+            percentage: Math.round(overallPercentage * 10) / 10,
+            grade: overallGradeInfo.grade,
+            subjectsCount: totalSubjects,
+            subjectsWithData
+          });
+        }
+
+        studentReports.sort((a, b) => b.percentage - a.percentage);
+        studentReports.forEach((report, index) => {
+          report.position = index + 1;
+          report.totalStudents = studentReports.length;
+        });
+
+        res.json({
+          class: {
+            id: classInfo.id,
+            name: classInfo.name,
+            level: classInfo.level
+          },
+          term: term ? {
+            id: term.id,
+            name: term.name,
+            year: term.year
+          } : null,
+          students: studentReports,
+          totalStudents: studentReports.length,
+          totalSubjects: classSubjects.length
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message || 'Failed to get class report cards' });
+      }
+    });
+
+    // Generate/Update report card for a student (Teacher/Admin)
+    app.post('/api/reports/generate', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { studentId, termId, teacherRemarks, status } = req.body;
+
+        if (!studentId || !termId) {
+          return res.status(400).json({ message: 'Student ID and Term ID are required' });
+        }
+
+        const student = await storage.getStudent(studentId);
+        if (!student || !student.classId) {
+          return res.status(404).json({ message: 'Student not found or not assigned to a class' });
+        }
+
+        // Authorization check for teachers
+        if (req.user!.roleId === ROLES.TEACHER) {
+          const teacherAssignments = await storage.getTeacherClassAssignments(req.user!.id);
+          const isAssignedToClass = teacherAssignments.some(a => a.classId === student.classId);
+          if (!isAssignedToClass) {
+            return res.status(403).json({ message: 'You are not authorized to generate report cards for students in this class' });
+          }
+        }
+
+        const { calculateGrade, calculateWeightedScore } = await import('./grading-config');
+
+        const exams = await storage.getExamsByClassAndTerm(student.classId, termId);
+        const allSubjects = await storage.getSubjects();
+
+        const reportCardData = {
+          studentId,
+          classId: student.classId,
+          termId,
+          teacherRemarks: teacherRemarks || null,
+          status: status || 'draft',
+          generatedBy: req.user!.id,
+          generatedAt: new Date()
+        };
+
+        const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[] }> = {};
+
+        for (const exam of exams) {
+          if (!subjectScores[exam.subjectId]) {
+            subjectScores[exam.subjectId] = { testScores: [], testMax: [], examScores: [], examMax: [] };
+          }
+
+          const result = await storage.getExamResultByExamAndStudent(exam.id, studentId);
+          if (result && result.marksObtained !== null) {
+            if (exam.examType === 'test' || exam.examType === 'quiz') {
+              subjectScores[exam.subjectId].testScores.push(result.marksObtained);
+              subjectScores[exam.subjectId].testMax.push(exam.totalMarks);
+            } else {
+              subjectScores[exam.subjectId].examScores.push(result.marksObtained);
+              subjectScores[exam.subjectId].examMax.push(exam.totalMarks);
+            }
+          }
+        }
+
+        const grades: any[] = [];
+        let totalScore = 0;
+        let subjectCount = 0;
+
+        for (const [subjectIdStr, scores] of Object.entries(subjectScores)) {
+          if (scores.testScores.length === 0 && scores.examScores.length === 0) continue;
+
+          const subjectId = Number(subjectIdStr);
+          const testScore = scores.testScores.reduce((a, b) => a + b, 0);
+          const testMax = scores.testMax.reduce((a, b) => a + b, 0);
+          const examScore = scores.examScores.reduce((a, b) => a + b, 0);
+          const examMax = scores.examMax.reduce((a, b) => a + b, 0);
+
+          const weighted = calculateWeightedScore(testScore, testMax, examScore, examMax);
+          const gradeInfo = calculateGrade(weighted.percentage);
+
+          grades.push({
+            subjectId,
+            score: Math.round(weighted.weightedScore),
+            maxScore: 100,
+            grade: gradeInfo.grade,
+            remarks: gradeInfo.remarks
+          });
+
+          totalScore += weighted.percentage;
+          subjectCount++;
+        }
+
+        const averageScore = subjectCount > 0 ? Math.round(totalScore / subjectCount) : 0;
+
+        const existingReportCard = await db.select()
+          .from(schema.reportCards)
+          .where(
+            and(
+              eq(schema.reportCards.studentId, studentId),
+              eq(schema.reportCards.termId, termId)
+            )
+          )
+          .limit(1);
+
+        let reportCard;
+        if (existingReportCard.length > 0) {
+          [reportCard] = await db.update(schema.reportCards)
+            .set({
+              ...reportCardData,
+              totalScore,
+              averageScore,
+              updatedAt: new Date()
+            })
+            .where(eq(schema.reportCards.id, existingReportCard[0].id))
+            .returning();
+
+          await db.delete(schema.reportCardItems)
+            .where(eq(schema.reportCardItems.reportCardId, reportCard.id));
+        } else {
+          [reportCard] = await db.insert(schema.reportCards)
+            .values({
+              ...reportCardData,
+              totalScore,
+              averageScore
+            })
+            .returning();
+        }
+
+        for (const grade of grades) {
+          await db.insert(schema.reportCardItems)
+            .values({
+              reportCardId: reportCard.id,
+              subjectId: grade.subjectId,
+              score: grade.score,
+              maxScore: grade.maxScore,
+              grade: grade.grade,
+              remarks: grade.remarks
+            });
+        }
+
+        res.json({
+          message: 'Report card generated successfully',
+          reportCard: {
+            id: reportCard.id,
+            studentId,
+            termId,
+            totalScore,
+            averageScore,
+            status: reportCard.status,
+            gradesCount: grades.length
+          }
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message || 'Failed to generate report card' });
+      }
+    });
+
+    // Update report card remarks/status (Teacher/Admin)
+    app.put('/api/reports/:reportCardId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const { teacherRemarks, principalRemarks, status } = req.body;
+
+        const [updatedReportCard] = await db.update(schema.reportCards)
+          .set({
+            teacherRemarks,
+            principalRemarks,
+            status,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.reportCards.id, Number(reportCardId)))
+          .returning();
+
+        if (!updatedReportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+
+        res.json(updatedReportCard);
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to update report card' });
+      }
+    });
+
+    // Get report card by ID with items
+    app.get('/api/reports/:reportCardId', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+
+        const [reportCard] = await db.select()
+          .from(schema.reportCards)
+          .where(eq(schema.reportCards.id, Number(reportCardId)))
+          .limit(1);
+
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+
+        const items = await db.select({
+          id: schema.reportCardItems.id,
+          subjectId: schema.reportCardItems.subjectId,
+          subjectName: schema.subjects.name,
+          score: schema.reportCardItems.score,
+          maxScore: schema.reportCardItems.maxScore,
+          grade: schema.reportCardItems.grade,
+          remarks: schema.reportCardItems.remarks
+        })
+        .from(schema.reportCardItems)
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .where(eq(schema.reportCardItems.reportCardId, Number(reportCardId)));
+
+        const student = await storage.getStudent(reportCard.studentId);
+        const user = student ? await storage.getUser(student.id) : null;
+        const classInfo = reportCard.classId ? await storage.getClass(reportCard.classId) : null;
+        const term = await storage.getAcademicTerm(reportCard.termId);
+
+        res.json({
+          ...reportCard,
+          student: user ? {
+            id: student?.id,
+            name: `${user.firstName} ${user.lastName}`,
+            admissionNumber: student?.admissionNumber
+          } : null,
+          class: classInfo ? {
+            id: classInfo.id,
+            name: classInfo.name,
+            level: classInfo.level
+          } : null,
+          term: term ? {
+            id: term.id,
+            name: term.name,
+            year: term.year
+          } : null,
+          items
+        });
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to get report card' });
+      }
+    });
+
+    // Get report cards for parent (view children's report cards)
+    app.get('/api/reports/parent/:parentId', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { parentId } = req.params;
+        const { termId } = req.query;
+
+        if (req.user!.id !== parentId && req.user!.roleId !== ROLES.ADMIN && req.user!.roleId !== ROLES.SUPER_ADMIN) {
+          return res.status(403).json({ message: 'You can only view your own children\'s report cards' });
+        }
+
+        const children = await storage.getStudentsByParentId(parentId);
+        
+        const reports: any[] = [];
+        for (const child of children) {
+          const user = await storage.getUser(child.id);
+          if (!user) continue;
+
+          let reportCards;
+          if (termId) {
+            reportCards = await db.select()
+              .from(schema.reportCards)
+              .where(
+                and(
+                  eq(schema.reportCards.studentId, child.id),
+                  eq(schema.reportCards.termId, Number(termId))
+                )
+              );
+          } else {
+            reportCards = await db.select()
+              .from(schema.reportCards)
+              .where(eq(schema.reportCards.studentId, child.id))
+              .orderBy(schema.reportCards.createdAt);
+          }
+
+          reports.push({
+            student: {
+              id: child.id,
+              name: `${user.firstName} ${user.lastName}`,
+              admissionNumber: child.admissionNumber,
+              classId: child.classId
+            },
+            reportCards
+          });
+        }
+
+        res.json(reports);
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to get children\'s report cards' });
+      }
+    });
+
+    // Bulk generate report cards for a class (Admin only)
+    app.post('/api/reports/generate-class/:classId', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { termId, status } = req.body;
+
+        if (!termId) {
+          return res.status(400).json({ message: 'Term ID is required' });
+        }
+
+        const students = await storage.getStudentsByClass(Number(classId));
+        const { calculateGrade, calculateWeightedScore } = await import('./grading-config');
+        const exams = await storage.getExamsByClassAndTerm(Number(classId), termId);
+
+        const results: any[] = [];
+        const errors: any[] = [];
+
+        for (const student of students) {
+          try {
+            const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[] }> = {};
+
+            for (const exam of exams) {
+              if (!subjectScores[exam.subjectId]) {
+                subjectScores[exam.subjectId] = { testScores: [], testMax: [], examScores: [], examMax: [] };
+              }
+
+              const result = await storage.getExamResultByExamAndStudent(exam.id, student.id);
+              if (result && result.marksObtained !== null) {
+                if (exam.examType === 'test' || exam.examType === 'quiz') {
+                  subjectScores[exam.subjectId].testScores.push(result.marksObtained);
+                  subjectScores[exam.subjectId].testMax.push(exam.totalMarks);
+                } else {
+                  subjectScores[exam.subjectId].examScores.push(result.marksObtained);
+                  subjectScores[exam.subjectId].examMax.push(exam.totalMarks);
+                }
+              }
+            }
+
+            const grades: any[] = [];
+            let totalScore = 0;
+            let subjectCount = 0;
+
+            for (const [subjectIdStr, scores] of Object.entries(subjectScores)) {
+              if (scores.testScores.length === 0 && scores.examScores.length === 0) continue;
+
+              const subjectId = Number(subjectIdStr);
+              const testScore = scores.testScores.reduce((a, b) => a + b, 0);
+              const testMax = scores.testMax.reduce((a, b) => a + b, 0);
+              const examScore = scores.examScores.reduce((a, b) => a + b, 0);
+              const examMax = scores.examMax.reduce((a, b) => a + b, 0);
+
+              const weighted = calculateWeightedScore(testScore, testMax, examScore, examMax);
+              const gradeInfo = calculateGrade(weighted.percentage);
+
+              grades.push({
+                subjectId,
+                score: Math.round(weighted.weightedScore),
+                maxScore: 100,
+                grade: gradeInfo.grade,
+                remarks: gradeInfo.remarks
+              });
+
+              totalScore += weighted.percentage;
+              subjectCount++;
+            }
+
+            const averageScore = subjectCount > 0 ? Math.round(totalScore / subjectCount) : 0;
+
+            const existingReportCard = await db.select()
+              .from(schema.reportCards)
+              .where(
+                and(
+                  eq(schema.reportCards.studentId, student.id),
+                  eq(schema.reportCards.termId, termId)
+                )
+              )
+              .limit(1);
+
+            let reportCard;
+            if (existingReportCard.length > 0) {
+              [reportCard] = await db.update(schema.reportCards)
+                .set({
+                  totalScore,
+                  averageScore,
+                  status: status || 'draft',
+                  generatedBy: req.user!.id,
+                  generatedAt: new Date(),
+                  updatedAt: new Date()
+                })
+                .where(eq(schema.reportCards.id, existingReportCard[0].id))
+                .returning();
+
+              await db.delete(schema.reportCardItems)
+                .where(eq(schema.reportCardItems.reportCardId, reportCard.id));
+            } else {
+              [reportCard] = await db.insert(schema.reportCards)
+                .values({
+                  studentId: student.id,
+                  classId: Number(classId),
+                  termId,
+                  totalScore,
+                  averageScore,
+                  status: status || 'draft',
+                  generatedBy: req.user!.id,
+                  generatedAt: new Date()
+                })
+                .returning();
+            }
+
+            for (const grade of grades) {
+              await db.insert(schema.reportCardItems)
+                .values({
+                  reportCardId: reportCard.id,
+                  subjectId: grade.subjectId,
+                  score: grade.score,
+                  maxScore: grade.maxScore,
+                  grade: grade.grade,
+                  remarks: grade.remarks
+                });
+            }
+
+            results.push({
+              studentId: student.id,
+              reportCardId: reportCard.id,
+              averageScore,
+              gradesCount: grades.length
+            });
+          } catch (err: any) {
+            errors.push({
+              studentId: student.id,
+              error: err.message
+            });
+          }
+        }
+
+        res.json({
+          message: `Generated ${results.length} report cards`,
+          success: results,
+          errors,
+          totalStudents: students.length
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message || 'Failed to generate class report cards' });
+      }
+    });
+
+    // ==================== END REPORT CARD ROUTES ====================
+
     // ==================== TEACHER ASSIGNMENT ROUTES ====================
 
     // Create teacher class/subject assignment (Admin only)

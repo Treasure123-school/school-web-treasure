@@ -76,6 +76,7 @@ import AcademicTermsManagement from "@/pages/portal/AcademicTermsManagement";
 import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerification";
 import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
 import CreateExam from "@/pages/portal/CreateExam";
+import TeacherReportCards from "@/pages/portal/TeacherReportCards";
 
 // Real-time updates are now handled by Socket.IO on the backend
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
@@ -637,6 +638,11 @@ function Router() {
       <Route path="/portal/teacher/exam-analytics">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherExamAnalytics />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/report-cards">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherReportCards />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/exams">
