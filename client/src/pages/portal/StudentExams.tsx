@@ -111,6 +111,12 @@ export default function StudentExams() {
     retryDelay: 1000,
   });
 
+  // Fetch subjects for displaying subject name in exam results
+  const { data: subjects = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ['/api/subjects'],
+    enabled: !!user,
+  });
+
   // Fetch exam questions for active session
   const { data: examQuestionsRaw = [], isLoading: loadingQuestions } = useQuery<ExamQuestion[]>({
     queryKey: ['/api/exam-questions', activeSession?.examId],
@@ -1294,11 +1300,14 @@ export default function StudentExams() {
     
     // STEP 2: Store exam result in sessionStorage for the results page to consume
     if (resultData) {
-      // Find the exam title from the exams list
+      // Find the exam title and subject from the exams list
       const currentExam = exams.find(e => e.id === activeSession?.examId) || selectedExam;
+      // Find the subject name using the exam's subjectId
+      const examSubject = subjects.find(s => s.id === currentExam?.subjectId);
       const storedResult = {
         ...resultData,
         examTitle: currentExam?.name || resultData.examTitle || 'Exam',
+        subjectName: examSubject?.name || resultData.subjectName || null,
         examId: activeSession?.examId || selectedExam?.id,
         sessionId: activeSession?.id,
         submittedAt: resultData.submittedAt || new Date().toISOString(),

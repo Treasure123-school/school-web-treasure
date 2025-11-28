@@ -19,7 +19,8 @@ import {
   Timer,
   Target,
   BarChart3,
-  Loader
+  Loader,
+  BookOpen
 } from 'lucide-react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
@@ -38,6 +39,7 @@ interface ExamResult {
   submissionReason?: 'manual' | 'timeout' | 'violation';
   violationCount?: number;
   examTitle?: string;
+  subjectName?: string;
   breakdown?: {
     correct: number;
     incorrect: number;
@@ -368,6 +370,20 @@ export default function StudentExamResults() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {result.subjectName && (
+                <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <span className="font-medium text-amber-700 dark:text-amber-300">Exam Subject</span>
+                  </div>
+                  <span className="text-lg font-bold text-amber-600" data-testid="value-subject">
+                    {result.subjectName}
+                  </span>
+                </div>
+              )}
+
               {result.breakdown && (
                 <>
                   <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
