@@ -1235,6 +1235,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get exam question counts - MUST be before /api/exams/:id to avoid route conflict
+  app.get('/api/exams/question-counts', authenticateUser, async (req, res) => {
+    try {
+      const examIdsParam = req.query.examIds;
+      let examIds: number[] = [];
+
+      if (typeof examIdsParam === 'string') {
+        const parsed = parseInt(examIdsParam);
+        if (!isNaN(parsed)) {
+          examIds = [parsed];
+        }
+      } else if (Array.isArray(examIdsParam)) {
+        examIds = examIdsParam
+          .map((id) => parseInt(id as string))
+          .filter((id) => !isNaN(id));
+      }
+      const counts: Record<number, number> = {};
+
+      for (const examId of examIds) {
+        const questions = await storage.getExamQuestions(examId);
+        counts[examId] = questions.length;
+      }
+      res.json(counts);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch question counts' });
+    }
+  });
+
   // Get single exam
   app.get('/api/exams/:id', authenticateUser, async (req, res) => {
     try {
@@ -1752,34 +1780,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         submitted: false,
         sessionId
       });
-    }
-  });
-
-  // Get exam question counts
-  app.get('/api/exams/question-counts', authenticateUser, async (req, res) => {
-    try {
-      const examIdsParam = req.query.examIds;
-      let examIds: number[] = [];
-
-      if (typeof examIdsParam === 'string') {
-        const parsed = parseInt(examIdsParam);
-        if (!isNaN(parsed)) {
-          examIds = [parsed];
-        }
-      } else if (Array.isArray(examIdsParam)) {
-        examIds = examIdsParam
-          .map((id) => parseInt(id as string))
-          .filter((id) => !isNaN(id));
-      }
-      const counts: Record<number, number> = {};
-
-      for (const examId of examIds) {
-        const questions = await storage.getExamQuestions(examId);
-        counts[examId] = questions.length;
-      }
-      res.json(counts);
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to fetch question counts' });
     }
   });
 

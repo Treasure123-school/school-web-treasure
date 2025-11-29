@@ -1540,8 +1540,30 @@ export class DatabaseStorage implements IStorage {
       
       const questionIds = examQuestions.map((q: { id: number }) => q.id);
 
+      // Get all session IDs for this exam (needed for cascading deletes)
+      const examSessions = await db.select({ id: schema.examSessions.id })
+        .from(schema.examSessions)
+        .where(eq(schema.examSessions.examId, id));
+      
+      const sessionIds = examSessions.map((s: { id: number }) => s.id);
+
+      // Delete in order respecting foreign key constraints
+      if (sessionIds.length > 0) {
+        // Delete grading tasks for these sessions
+        await db.delete(schema.gradingTasks)
+          .where(inArray(schema.gradingTasks.sessionId, sessionIds));
+        
+        // Delete performance events for these sessions  
+        await db.delete(schema.performanceEvents)
+          .where(inArray(schema.performanceEvents.sessionId, sessionIds));
+
+        // Delete student answers by session
+        await db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.sessionId, sessionIds));
+      }
+
       if (questionIds.length > 0) {
-        // Delete student answers for all questions in this exam
+        // Delete any remaining student answers by question (fallback)
         await db.delete(schema.studentAnswers)
           .where(inArray(schema.studentAnswers.questionId, questionIds));
 
@@ -1558,9 +1580,19 @@ export class DatabaseStorage implements IStorage {
       await db.delete(schema.examResults)
         .where(eq(schema.examResults.examId, id));
 
-      // Delete exam sessions
+      // Delete exam sessions (after their dependent records are gone)
       await db.delete(schema.examSessions)
         .where(eq(schema.examSessions.examId, id));
+
+      // Clear exam references from report card items (set to NULL instead of deleting)
+      // This preserves historical report card data while removing the exam link
+      await db.update(schema.reportCardItems)
+        .set({ testExamId: null })
+        .where(eq(schema.reportCardItems.testExamId, id));
+      
+      await db.update(schema.reportCardItems)
+        .set({ examExamId: null })
+        .where(eq(schema.reportCardItems.examExamId, id));
 
       // Finally delete the exam itself
       const result = await db.delete(schema.exams)

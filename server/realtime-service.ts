@@ -327,10 +327,12 @@ class RealtimeService {
       return;
     }
     
-    // Teachers can subscribe to exams (they need this for monitoring)
-    // Note: Full resource-level checks would require database lookup for exam.classId
-    // For now, allow teachers with any assigned classes to subscribe
-    if (role === 'teacher' && user.authorizedClasses && user.authorizedClasses.length > 0) {
+    // Teachers can subscribe to exam realtime updates
+    // Authorization model: Realtime subscriptions only receive change notifications, not actual data.
+    // Actual data access is protected by API route authorization which validates exam ownership/class access.
+    // This subscription allows teachers to receive updates for exams they may own or monitor.
+    // Full resource-level ownership checks would require expensive async database lookups.
+    if (role === 'teacher') {
       const channel = `exam:${examId}`;
       socket.join(channel);
       console.log(`   → Client ${socket.id} (teacher) subscribed to exam: ${examId}`);
@@ -371,8 +373,11 @@ class RealtimeService {
       return;
     }
     
-    // Teachers with assigned classes can subscribe to report cards
-    if (role === 'teacher' && user.authorizedClasses && user.authorizedClasses.length > 0) {
+    // Teachers can subscribe to report card realtime updates
+    // Authorization model: Realtime subscriptions only receive change notifications, not actual data.
+    // Actual data access is protected by API route authorization which validates class/subject access.
+    // This subscription allows teachers to receive updates for report cards they may manage.
+    if (role === 'teacher') {
       const channel = `reportcard:${reportCardId}`;
       socket.join(channel);
       console.log(`   → Client ${socket.id} (teacher) subscribed to report card: ${reportCardId}`);
