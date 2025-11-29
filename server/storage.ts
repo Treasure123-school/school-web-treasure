@@ -3817,15 +3817,55 @@ export class DatabaseStorage implements IStorage {
 
   async updateReportCardStatus(reportCardId: number, status: string, userId: string): Promise<ReportCard | undefined> {
     try {
+      // Validate status value
+      const validStatuses = ['draft', 'finalized', 'published'];
+      if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      // Get current report card to check current status
+      const currentReportCard = await this.getReportCard(reportCardId);
+      if (!currentReportCard) {
+        throw new Error('Report card not found');
+      }
+
+      const currentStatus = currentReportCard.status || 'draft';
+
+      // Short-circuit: If already in the target status, return current report card without updating timestamps
+      if (currentStatus === status) {
+        return currentReportCard;
+      }
+
+      // Define valid state transitions (centralized state machine)
+      const validTransitions: Record<string, string[]> = {
+        'draft': ['finalized'],           // Draft can only go to Finalized
+        'finalized': ['draft', 'published'],  // Finalized can revert to Draft or go to Published
+        'published': ['draft', 'finalized']   // Published can revert to Draft or Finalized
+      };
+
+      const allowedNextStatuses = validTransitions[currentStatus] || [];
+
+      // Validate transition
+      if (!allowedNextStatuses.includes(status)) {
+        throw new Error(`Invalid state transition: Cannot move from '${currentStatus}' to '${status}'. Allowed transitions: ${allowedNextStatuses.join(', ')}`);
+      }
+
       const updateData: any = {
         status: status,
         updatedAt: new Date()
       };
 
-      if (status === 'finalized') {
+      if (status === 'draft') {
+        updateData.finalizedAt = null;
+        updateData.publishedAt = null;
+        updateData.locked = false;
+      } else if (status === 'finalized') {
         updateData.finalizedAt = new Date();
+        updateData.publishedAt = null;
+        updateData.locked = true;
       } else if (status === 'published') {
         updateData.publishedAt = new Date();
+        updateData.locked = true;
       }
 
       const result = await db.update(schema.reportCards)
@@ -3836,7 +3876,7 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error) {
       console.error('Error updating report card status:', error);
-      return undefined;
+      throw error; // Re-throw to allow caller to handle
     }
   }
 

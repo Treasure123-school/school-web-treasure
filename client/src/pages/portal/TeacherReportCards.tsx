@@ -34,7 +34,10 @@ import {
   Clock,
   Calculator,
   PenTool,
-  Loader2
+  Loader2,
+  Undo2,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -235,10 +238,10 @@ export default function TeacherReportCards() {
       }
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
-        description: `Report card ${variables.status === 'finalized' ? 'finalized' : 'published'} successfully`,
+        description: data.message || "Status updated successfully",
       });
       refetchFullReport();
       refetchReportCards();
@@ -784,11 +787,22 @@ export default function TeacherReportCards() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2">
+                  {/* Status indicator */}
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground mr-2">
+                    {fullReportCard.status === 'draft' ? (
+                      <><Unlock className="w-4 h-4" /> Editing enabled</>
+                    ) : (
+                      <><Lock className="w-4 h-4" /> Editing locked</>
+                    )}
+                  </div>
+                  
+                  {/* Refresh Scores - only enabled when in draft status */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
-                    disabled={autoPopulateMutation.isPending || fullReportCard.status === 'published'}
+                    disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
+                    data-testid="button-refresh-scores"
                   >
                     {autoPopulateMutation.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -797,26 +811,77 @@ export default function TeacherReportCards() {
                     )}
                     Refresh Scores
                   </Button>
+                  
+                  {/* DRAFT status: Show Finalize button */}
                   {fullReportCard.status === 'draft' && (
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'finalized' })}
                       disabled={updateStatusMutation.isPending}
+                      data-testid="button-finalize"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {updateStatusMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                      )}
                       Finalize
                     </Button>
                   )}
+                  
+                  {/* FINALIZED status: Show Publish and Revert to Draft buttons */}
                   {fullReportCard.status === 'finalized' && (
-                    <Button
-                      size="sm"
-                      onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'published' })}
-                      disabled={updateStatusMutation.isPending}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Publish
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'published' })}
+                        disabled={updateStatusMutation.isPending}
+                        data-testid="button-publish"
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        Publish
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'draft' })}
+                        disabled={updateStatusMutation.isPending}
+                        data-testid="button-revert-to-draft"
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Revert to Draft
+                      </Button>
+                    </>
+                  )}
+                  
+                  {/* PUBLISHED status: Show Revert to Finalized and Revert to Draft buttons */}
+                  {fullReportCard.status === 'published' && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'finalized' })}
+                        disabled={updateStatusMutation.isPending}
+                        data-testid="button-revert-to-finalized"
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Revert to Finalized
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'draft' })}
+                        disabled={updateStatusMutation.isPending}
+                        data-testid="button-revert-to-draft-from-published"
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Revert to Draft
+                      </Button>
+                    </>
                   )}
                 </div>
 
@@ -874,7 +939,7 @@ export default function TeacherReportCards() {
                               size="icon"
                               variant="ghost"
                               onClick={() => handleOverrideScore(item)}
-                              disabled={fullReportCard.status === 'published'}
+                              disabled={fullReportCard.status !== 'draft'}
                               data-testid={`button-override-${item.id}`}
                             >
                               <Edit className="w-4 h-4" />
@@ -889,14 +954,21 @@ export default function TeacherReportCards() {
                 {/* Remarks */}
                 <div className="space-y-4">
                   <h4 className="font-semibold">Remarks</h4>
+                  {fullReportCard.status !== 'draft' && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-2 rounded-md">
+                      <Lock className="w-4 h-4" />
+                      <span>Remarks are locked. Revert to draft to edit.</span>
+                    </div>
+                  )}
                   <div>
                     <Label>Teacher Remarks</Label>
                     <Textarea
                       value={remarks.teacher}
                       onChange={(e) => setRemarks(prev => ({ ...prev, teacher: e.target.value }))}
                       placeholder="Enter teacher remarks..."
-                      disabled={fullReportCard.status === 'published'}
+                      disabled={fullReportCard.status !== 'draft'}
                       className="mt-1"
+                      data-testid="textarea-teacher-remarks"
                     />
                   </div>
                   <div>
@@ -905,8 +977,9 @@ export default function TeacherReportCards() {
                       value={remarks.principal}
                       onChange={(e) => setRemarks(prev => ({ ...prev, principal: e.target.value }))}
                       placeholder="Enter principal remarks..."
-                      disabled={fullReportCard.status === 'published'}
+                      disabled={fullReportCard.status !== 'draft'}
                       className="mt-1"
+                      data-testid="textarea-principal-remarks"
                     />
                   </div>
                   <Button
@@ -916,7 +989,8 @@ export default function TeacherReportCards() {
                       teacherRemarks: remarks.teacher,
                       principalRemarks: remarks.principal
                     })}
-                    disabled={updateRemarksMutation.isPending || fullReportCard.status === 'published'}
+                    disabled={updateRemarksMutation.isPending || fullReportCard.status !== 'draft'}
+                    data-testid="button-save-remarks"
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Save Remarks

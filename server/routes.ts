@@ -7330,16 +7330,21 @@ Treasure-Home School Administration
       }
     });
 
-    // Update report card status (finalize, publish)
+    // Update report card status (finalize, publish, revert)
     app.patch('/api/reports/:reportCardId/status', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { reportCardId } = req.params;
         const { status } = req.body;
         
-        if (!['draft', 'finalized', 'published'].includes(status)) {
-          return res.status(400).json({ message: 'Invalid status. Must be draft, finalized, or published' });
+        if (!status) {
+          return res.status(400).json({ message: 'Status is required' });
         }
         
+        // Get current status for message context
+        const currentReportCard = await storage.getReportCard(Number(reportCardId));
+        const currentStatus = currentReportCard?.status || 'draft';
+        
+        // Storage method handles all validation and state transitions
         const updatedReportCard = await storage.updateReportCardStatus(
           Number(reportCardId),
           status,
@@ -7347,12 +7352,31 @@ Treasure-Home School Administration
         );
         
         if (!updatedReportCard) {
-          return res.status(404).json({ message: 'Report card not found' });
+          return res.status(500).json({ message: 'Failed to update report card status' });
         }
         
-        res.json(updatedReportCard);
+        // Return descriptive message based on transition
+        let message = 'Status updated successfully';
+        if (status === 'draft') {
+          message = 'Report card reverted to draft. Editing is now enabled.';
+        } else if (status === 'finalized') {
+          message = currentStatus === 'published' 
+            ? 'Report card reverted to finalized. Ready for review before publishing.'
+            : 'Report card finalized. Ready for publishing.';
+        } else if (status === 'published') {
+          message = 'Report card published. Students and parents can now view it.';
+        }
+        
+        res.json({ ...updatedReportCard, message });
       } catch (error: any) {
         console.error('Error updating status:', error);
+        // Handle specific error messages from storage layer
+        if (error.message?.includes('Invalid status') || error.message?.includes('Invalid state transition')) {
+          return res.status(400).json({ message: error.message });
+        }
+        if (error.message?.includes('not found')) {
+          return res.status(404).json({ message: error.message });
+        }
         res.status(500).json({ message: error.message || 'Failed to update status' });
       }
     });
