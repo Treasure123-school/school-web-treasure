@@ -1823,10 +1823,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
-      const question = await storage.updateExamQuestion(questionId, req.body);
+      const { options, ...questionData } = req.body;
+      
+      // Get existing question to check if type is changing
+      const existingQuestion = await storage.getExamQuestionById(questionId);
+      if (!existingQuestion) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+      
+      // Update the question
+      const question = await storage.updateExamQuestion(questionId, questionData);
 
       if (!question) {
-        return res.status(404).json({ message: 'Question not found' });
+        return res.status(404).json({ message: 'Failed to update question' });
+      }
+      
+      // Handle options update for multiple choice questions
+      if (questionData.questionType === 'multiple_choice') {
+        if (options && Array.isArray(options)) {
+          // Delete existing options and create new ones
+          await storage.deleteQuestionOptions(questionId);
+          for (const option of options) {
+            await storage.createQuestionOption({
+              questionId,
+              optionText: option.optionText,
+              isCorrect: option.isCorrect || false,
+              explanationText: option.explanationText || null,
+              partialCreditValue: option.partialCreditValue || null,
+            });
+          }
+        }
+      } else if (existingQuestion.questionType === 'multiple_choice' && questionData.questionType !== 'multiple_choice') {
+        // If changing from multiple_choice to another type, delete options
+        await storage.deleteQuestionOptions(questionId);
       }
       
       // Emit realtime event for question update

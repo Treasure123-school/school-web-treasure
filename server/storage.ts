@@ -177,6 +177,7 @@ export interface IStorage {
   createQuestionOption(option: InsertQuestionOption): Promise<QuestionOption>;
   getQuestionOptions(questionId: number): Promise<QuestionOption[]>;
   getQuestionOptionsBulk(questionIds: number[]): Promise<QuestionOption[]>;
+  deleteQuestionOptions(questionId: number): Promise<boolean>;
 
   // Question Bank management
   createQuestionBank(bank: InsertQuestionBank): Promise<QuestionBank>;
@@ -2071,6 +2072,32 @@ export class DatabaseStorage implements IStorage {
     }).from(schema.questionOptions)
       .where(inArray(schema.questionOptions.questionId, questionIds))
       .orderBy(asc(schema.questionOptions.questionId), asc(schema.questionOptions.orderNumber));
+  }
+  async deleteQuestionOptions(questionId: number): Promise<boolean> {
+    try {
+      // First, get the option IDs to clear any references in student_answers
+      const options = await db.select({ id: schema.questionOptions.id })
+        .from(schema.questionOptions)
+        .where(eq(schema.questionOptions.questionId, questionId));
+      
+      const optionIds = options.map(o => o.id);
+      
+      // Clear selectedOptionId in student_answers that reference these options
+      if (optionIds.length > 0) {
+        await db.update(schema.studentAnswers)
+          .set({ selectedOptionId: null })
+          .where(inArray(schema.studentAnswers.selectedOptionId, optionIds));
+      }
+      
+      // Delete the options
+      await db.delete(schema.questionOptions)
+        .where(eq(schema.questionOptions.questionId, questionId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting question options:', error);
+      return false;
+    }
   }
   // Question Bank management
   async createQuestionBank(bank: InsertQuestionBank): Promise<QuestionBank> {

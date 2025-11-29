@@ -664,6 +664,115 @@ export default function ExamManagement() {
     },
   });
 
+  // Update question mutation with optimistic update
+  const updateQuestionMutation = useMutation({
+    retry: false,
+    mutationFn: async ({ questionId, questionData }: { questionId: number; questionData: Partial<QuestionForm> }) => {
+      const response = await apiRequest('PATCH', `/api/exam-questions/${questionId}`, questionData);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update question');
+      }
+      return response.json();
+    },
+    onMutate: async ({ questionId, questionData }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/exam-questions', selectedExam?.id] });
+      
+      // Snapshot previous value
+      const previousQuestions = queryClient.getQueryData<ExamQuestion[]>(['/api/exam-questions', selectedExam?.id]);
+      
+      // Optimistically update the question with only compatible fields
+      const { options, ...safeData } = questionData as any;
+      queryClient.setQueryData<ExamQuestion[]>(['/api/exam-questions', selectedExam?.id], (old = []) => 
+        old.map(q => q.id === questionId ? { ...q, ...safeData } : q)
+      );
+      
+      return { previousQuestions };
+    },
+    onSuccess: (updatedQuestion) => {
+      toast({
+        title: "Success",
+        description: "Question updated successfully",
+      });
+      // Update cache with confirmed backend data
+      queryClient.setQueryData<ExamQuestion[]>(['/api/exam-questions', selectedExam?.id], (old = []) => 
+        old.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
+      );
+      // Invalidate question options in case they changed
+      if (updatedQuestion?.id) {
+        queryClient.invalidateQueries({ queryKey: ['/api/question-options', updatedQuestion.id] });
+      }
+      setIsQuestionDialogOpen(false);
+      setEditingQuestion(null);
+      // Reset form with default values
+      resetQuestion({
+        questionType: 'multiple_choice',
+        points: 1,
+        questionText: '',
+        instructions: '',
+        sampleAnswer: '',
+        options: [
+          { optionText: '', isCorrect: false },
+          { optionText: '', isCorrect: false },
+          { optionText: '', isCorrect: false },
+          { optionText: '', isCorrect: false },
+        ]
+      });
+    },
+    onError: (error: any, variables, context) => {
+      // Rollback on error
+      if (context?.previousQuestions) {
+        queryClient.setQueryData(['/api/exam-questions', selectedExam?.id], context.previousQuestions);
+      }
+      toast({
+        title: "Failed to Update Question",
+        description: error.message || "Unable to save the question. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Function to open edit dialog with question data
+  const handleEditQuestion = async (question: ExamQuestion) => {
+    setEditingQuestion(question);
+    
+    // Fetch options if it's a multiple choice question
+    let questionOptions: any[] = [];
+    if (question.questionType === 'multiple_choice') {
+      try {
+        const response = await apiRequest('GET', `/api/question-options/${question.id}`);
+        if (response.ok) {
+          questionOptions = await response.json();
+        }
+      } catch (error) {
+        console.error('Failed to fetch question options:', error);
+      }
+    }
+    
+    // Populate form with question data
+    resetQuestion({
+      questionText: question.questionText || '',
+      questionType: question.questionType as any || 'multiple_choice',
+      points: question.points || 1,
+      instructions: (question as any).instructions || '',
+      sampleAnswer: (question as any).sampleAnswer || '',
+      options: questionOptions.length > 0 
+        ? questionOptions.map((opt: any) => ({
+            optionText: opt.optionText || '',
+            isCorrect: opt.isCorrect || false,
+          }))
+        : [
+            { optionText: '', isCorrect: false },
+            { optionText: '', isCorrect: false },
+            { optionText: '', isCorrect: false },
+            { optionText: '', isCorrect: false },
+          ],
+    });
+    
+    setIsQuestionDialogOpen(true);
+  };
+
   const onSubmitExam = (data: ExamForm) => {
     createExamMutation.mutate(data);
   };
@@ -727,13 +836,10 @@ export default function ExamManagement() {
       });
       return;
     }
-    const nextOrderNumber = examQuestions.length + 1;
 
     // Prepare the question data
     const questionData: any = {
       ...data,
-      examId: selectedExam.id,
-      orderNumber: nextOrderNumber,
       questionText: data.questionText.trim(),
       points: data.points || 1,
     };
@@ -771,7 +877,21 @@ export default function ExamManagement() {
       // For non-multiple choice questions, don't send options
       delete questionData.options;
     }
-    createQuestionMutation.mutate(questionData);
+
+    // Check if we're editing or creating
+    if (editingQuestion) {
+      updateQuestionMutation.mutate({
+        questionId: editingQuestion.id,
+        questionData,
+      });
+    } else {
+      const nextOrderNumber = examQuestions.length + 1;
+      createQuestionMutation.mutate({
+        ...questionData,
+        examId: selectedExam.id,
+        orderNumber: nextOrderNumber,
+      });
+    }
   };
 
   const addOption = () => {
@@ -2355,7 +2475,28 @@ export default function ExamManagement() {
                     </div>
 
                     {/* Manual Add Question */}
-                    <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+                    <Dialog 
+                      open={isQuestionDialogOpen} 
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setEditingQuestion(null);
+                          resetQuestion({
+                            questionType: 'multiple_choice',
+                            points: 1,
+                            questionText: '',
+                            instructions: '',
+                            sampleAnswer: '',
+                            options: [
+                              { optionText: '', isCorrect: false },
+                              { optionText: '', isCorrect: false },
+                              { optionText: '', isCorrect: false },
+                              { optionText: '', isCorrect: false },
+                            ]
+                          });
+                        }
+                        setIsQuestionDialogOpen(open);
+                      }}
+                    >
                       <DialogTrigger asChild>
                         <div title={!selectedExam ? "Select an exam from the list above to add questions" : ""} className="w-full sm:w-auto">
                           <Button 
@@ -2372,7 +2513,7 @@ export default function ExamManagement() {
                       </DialogTrigger>
                       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Add New Question</DialogTitle>
+                          <DialogTitle>{editingQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleQuestionSubmit(onSubmitQuestion, onInvalidQuestion)} className="space-y-4">
                           <div>
@@ -2508,8 +2649,15 @@ export default function ExamManagement() {
                             <Button type="button" variant="outline" onClick={() => setIsQuestionDialogOpen(false)}>
                               Cancel
                             </Button>
-                            <Button type="submit" disabled={createQuestionMutation.isPending} data-testid="button-submit-question">
-                              {createQuestionMutation.isPending ? 'Adding...' : 'Add Question'}
+                            <Button 
+                              type="submit" 
+                              disabled={createQuestionMutation.isPending || updateQuestionMutation.isPending} 
+                              data-testid="button-submit-question"
+                            >
+                              {editingQuestion 
+                                ? (updateQuestionMutation.isPending ? 'Saving...' : 'Save Changes')
+                                : (createQuestionMutation.isPending ? 'Adding...' : 'Add Question')
+                              }
                             </Button>
                           </div>
                         </form>
@@ -2569,7 +2717,13 @@ export default function ExamManagement() {
                               )}
                             </div>
                             <div className="flex space-x-1">
-                              <Button variant="outline" size="sm" data-testid={`button-edit-question-${question.id}`}>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleEditQuestion(question)}
+                                disabled={updateQuestionMutation.isPending}
+                                data-testid={`button-edit-question-${question.id}`}
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
                               <AlertDialog>
