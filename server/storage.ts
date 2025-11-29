@@ -1533,17 +1533,26 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteExam(id: number): Promise<boolean> {
     try {
-      // First delete student answers (references exam questions)
-      await db.delete(schema.studentAnswers)
-        .where(sql`${schema.studentAnswers.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
-
-      // Delete question options (references exam questions)
-      await db.delete(schema.questionOptions)
-        .where(sql`${schema.questionOptions.questionId} IN (SELECT id FROM ${schema.examQuestions} WHERE exam_id = ${id})`);
-
-      // Delete exam questions (now safe to delete)
-      await db.delete(schema.examQuestions)
+      // First get all question IDs for this exam
+      const examQuestions = await db.select({ id: schema.examQuestions.id })
+        .from(schema.examQuestions)
         .where(eq(schema.examQuestions.examId, id));
+      
+      const questionIds = examQuestions.map((q: { id: number }) => q.id);
+
+      if (questionIds.length > 0) {
+        // Delete student answers for all questions in this exam
+        await db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.questionId, questionIds));
+
+        // Delete question options for all questions in this exam  
+        await db.delete(schema.questionOptions)
+          .where(inArray(schema.questionOptions.questionId, questionIds));
+
+        // Delete exam questions
+        await db.delete(schema.examQuestions)
+          .where(eq(schema.examQuestions.examId, id));
+      }
 
       // Delete exam results
       await db.delete(schema.examResults)
@@ -1560,6 +1569,7 @@ export class DatabaseStorage implements IStorage {
 
       return result.length > 0;
     } catch (error) {
+      console.error('Error deleting exam:', error);
       throw error;
     }
   }
@@ -1974,21 +1984,23 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteExamQuestion(id: number): Promise<boolean> {
     try {
-      // First delete question options
-      await db.delete(schema.questionOptions)
-        .where(eq(schema.questionOptions.questionId, id));
-
-      // Delete student answers for this question
+      // IMPORTANT: Delete in correct order to respect foreign key constraints
+      // 1. First delete student answers (references both question_id AND selected_option_id -> question_options)
       await db.delete(schema.studentAnswers)
         .where(eq(schema.studentAnswers.questionId, id));
 
-      // Finally delete the question itself
+      // 2. Then delete question options (now safe since student_answers are gone)
+      await db.delete(schema.questionOptions)
+        .where(eq(schema.questionOptions.questionId, id));
+
+      // 3. Finally delete the question itself
       const result = await db.delete(schema.examQuestions)
         .where(eq(schema.examQuestions.id, id))
         .returning();
 
       return result.length > 0;
     } catch (error) {
+      console.error('Error deleting exam question:', error);
       throw error;
     }
   }
