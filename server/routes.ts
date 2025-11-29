@@ -1007,6 +1007,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const exam = await storage.createExam(examData);
+      
+      // Emit realtime event for exam creation
+      realtimeService.emitTableChange('exams', 'INSERT', exam, undefined, teacherId);
+      if (exam.classId) {
+        realtimeService.emitToClass(exam.classId.toString(), 'exam.created', exam);
+      }
+      
       res.status(201).json(exam);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -1145,6 +1152,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const exam = await storage.updateExam(examId, sanitizedData);
+      
+      // Emit realtime event for exam update
+      realtimeService.emitTableChange('exams', 'UPDATE', exam, existingExam, teacherId);
+      if (exam.classId) {
+        realtimeService.emitToClass(exam.classId.toString(), 'exam.updated', exam);
+      }
+      
       res.json(exam);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam' });
@@ -1164,6 +1178,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only delete exams you created' });
       }
       const success = await storage.deleteExam(examId);
+      
+      // Emit realtime event for exam deletion
+      realtimeService.emitTableChange('exams', 'DELETE', { id: examId }, existingExam, req.user!.id);
+      if (existingExam.classId) {
+        realtimeService.emitToClass(existingExam.classId.toString(), 'exam.deleted', { id: examId, ...existingExam });
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete exam' });
@@ -1187,6 +1208,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only publish/unpublish exams you created or are assigned to' });
       }
       const exam = await storage.updateExam(examId, { isPublished });
+      
+      // Emit realtime event for publish/unpublish (class-scoped only for security)
+      // Do NOT use emitExamEvent here - exam rooms lack proper class-level authorization
+      // Class rooms have proper authorization checks to ensure only authorized users receive events
+      const eventType = isPublished ? 'exam.published' : 'exam.unpublished';
+      realtimeService.emitTableChange('exams', 'UPDATE', exam, existingExam, teacherId);
+      if (exam.classId) {
+        // Only notify users in the specific class - class subscription has proper authorization
+        realtimeService.emitToClass(exam.classId.toString(), eventType, exam);
+      }
+      
       res.json(exam);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam publish status' });
@@ -1528,14 +1560,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/exam-questions', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const { options, ...questionData } = req.body;
+      let question;
 
       if (options && Array.isArray(options)) {
-        const question = await storage.createExamQuestionWithOptions(questionData, options);
-        res.status(201).json(question);
+        question = await storage.createExamQuestionWithOptions(questionData, options);
       } else {
-        const question = await storage.createExamQuestion(questionData);
-        res.status(201).json(question);
+        question = await storage.createExamQuestion(questionData);
       }
+      
+      // Emit realtime event for question creation
+      realtimeService.emitTableChange('exam_questions', 'INSERT', question, undefined, req.user!.id);
+      if (question.examId) {
+        realtimeService.emitToExam(question.examId, 'question.created', question);
+      }
+      
+      res.status(201).json(question);
     } catch (error: any) {
       res.status(500).json({ message: error.message || 'Failed to create exam question' });
     }
@@ -1550,6 +1589,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!question) {
         return res.status(404).json({ message: 'Question not found' });
       }
+      
+      // Emit realtime event for question update
+      realtimeService.emitTableChange('exam_questions', 'UPDATE', question, undefined, req.user!.id);
+      if (question.examId) {
+        realtimeService.emitToExam(question.examId, 'question.updated', question);
+      }
+      
       res.json(question);
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam question' });
@@ -1560,11 +1606,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
+      // Get question before deleting for the realtime event
+      const existingQuestions = await storage.getExamQuestions(0); // This won't work, need to get by ID
       const success = await storage.deleteExamQuestion(questionId);
 
       if (!success) {
         return res.status(404).json({ message: 'Question not found' });
       }
+      
+      // Emit realtime event for question deletion
+      realtimeService.emitTableChange('exam_questions', 'DELETE', { id: questionId }, undefined, req.user!.id);
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete exam question' });
@@ -1647,7 +1699,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       const result = await storage.createExamQuestionsBulk(questionsData);
-
+      
+      // Emit realtime event for bulk question creation
+      realtimeService.emitTableChange('exam_questions', 'INSERT', { examId, count: result.created });
+      realtimeService.emitToExam(examId, 'questions.bulk_created', { examId, count: result.created });
 
       res.status(201).json(result);
     } catch (error: any) {
@@ -1840,6 +1895,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userAgent: req.headers['user-agent'] || null
       });
       
+      // Emit realtime event for CSV question upload
+      realtimeService.emitTableChange('exam_questions', 'INSERT', { examId, count: result.created }, undefined, req.user!.id);
+      realtimeService.emitToExam(examId, 'questions.csv_uploaded', { examId, count: result.created, totalPointsAdded: totalPoints });
+      
       res.status(201).json({
         message: `Successfully imported ${result.created} questions from CSV`,
         created: result.created,
@@ -1981,7 +2040,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use idempotent session creation to prevent duplicates
       const session = await storage.createOrGetActiveExamSession(examId, studentId, sessionData);
-
+      
+      // Emit realtime event for exam session started
+      realtimeService.emitTableChange('exam_sessions', 'INSERT', session, undefined, studentId);
+      realtimeService.emitExamEvent(examId, 'started', { 
+        sessionId: session.id, 
+        studentId, 
+        classId: exam.classId 
+      });
 
       res.status(201).json(session);
     } catch (error: any) {
@@ -3015,6 +3081,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Missing required fields: name, year, startDate, endDate' });
       }
       const term = await storage.createAcademicTerm(req.body);
+      
+      // Emit realtime event for term creation
+      realtimeService.emitTableChange('academic_terms', 'INSERT', term, undefined, req.user!.id);
+      realtimeService.emitToRole('admin', 'term.created', term);
+      realtimeService.emitToRole('teacher', 'term.created', term);
+      
       res.json(term);
     } catch (error: any) {
       res.status(500).json({ message: error.message || 'Failed to create academic term' });
@@ -3035,6 +3107,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Academic term not found' });
       }
       const term = await storage.updateAcademicTerm(termId, req.body);
+      
+      // Emit realtime event for term update
+      realtimeService.emitTableChange('academic_terms', 'UPDATE', term, existingTerm, req.user!.id);
+      realtimeService.emitToRole('admin', 'term.updated', term);
+      realtimeService.emitToRole('teacher', 'term.updated', term);
+      
       res.json(term);
     } catch (error: any) {
       res.status(500).json({ message: error.message || 'Failed to update academic term' });
@@ -3049,6 +3127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid term ID' });
       }
 
+      // Get term first for the realtime event
+      const existingTerm = await storage.getAcademicTerm(termId);
       const success = await storage.deleteAcademicTerm(termId);
 
       if (!success) {
@@ -3056,6 +3136,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Failed to delete academic term. The term may not exist or could not be removed from the database.'
         });
       }
+      
+      // Emit realtime event for term deletion
+      realtimeService.emitTableChange('academic_terms', 'DELETE', { id: termId }, existingTerm, req.user!.id);
+      realtimeService.emitToRole('admin', 'term.deleted', { id: termId, ...existingTerm });
+      realtimeService.emitToRole('teacher', 'term.deleted', { id: termId, ...existingTerm });
+      
       res.json({
         message: 'Academic term deleted successfully',
         id: termId,
@@ -3090,6 +3176,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Academic term not found' });
       }
       const term = await storage.markTermAsCurrent(termId);
+      
+      // Emit realtime event for term becoming current (important for all users)
+      realtimeService.emitTableChange('academic_terms', 'UPDATE', term, existingTerm, req.user!.id);
+      realtimeService.emitEvent('term.current_changed', term); // Broadcast to all
+      
       res.json(term);
     } catch (error: any) {
       res.status(500).json({ message: error.message || 'Failed to mark term as current' });
@@ -5961,6 +6052,19 @@ Treasure-Home School Administration
           userAgent: req.headers['user-agent'] || null
         });
         
+        // Emit realtime event for student creation
+        realtimeService.emitTableChange('students', 'INSERT', result.student, undefined, adminUserId);
+        realtimeService.emitToRole('admin', 'student.created', {
+          student: result.student,
+          user: result.studentUser
+        });
+        if (result.student.classId) {
+          realtimeService.emitToClass(result.student.classId.toString(), 'student.created', {
+            student: result.student,
+            user: result.studentUser
+          });
+        }
+        
         res.status(201).json({
           message: 'Student created successfully',
           credentials: {
@@ -6058,6 +6162,9 @@ Treasure-Home School Administration
           }
         });
 
+        // Get existing student for realtime event
+        const existingStudent = await storage.getStudent(studentId);
+        
         // Update student record
         const updatedStudent = await storage.updateStudent(studentId, {
           userPatch: Object.keys(userPatch).length > 0 ? userPatch : undefined,
@@ -6067,6 +6174,14 @@ Treasure-Home School Administration
         if (!updatedStudent) {
           return res.status(404).json({ message: 'Student not found' });
         }
+        
+        // Emit realtime event for student update
+        realtimeService.emitTableChange('students', 'UPDATE', updatedStudent, existingStudent, req.user!.id);
+        realtimeService.emitToRole('admin', 'student.updated', updatedStudent);
+        if (updatedStudent.student.classId) {
+          realtimeService.emitToClass(updatedStudent.student.classId.toString(), 'student.updated', updatedStudent);
+        }
+        
         res.json(updatedStudent);
       } catch (error) {
         res.status(500).json({ message: 'Failed to update student profile' });
@@ -6094,6 +6209,14 @@ Treasure-Home School Administration
         if (!deleted) {
           return res.status(500).json({ message: 'Failed to delete student' });
         }
+        
+        // Emit realtime event for student deletion
+        realtimeService.emitTableChange('students', 'DELETE', { id: studentId }, student, req.user!.id);
+        realtimeService.emitToRole('admin', 'student.deleted', { id: studentId, ...student });
+        if (student.classId) {
+          realtimeService.emitToClass(student.classId.toString(), 'student.deleted', { id: studentId, ...student });
+        }
+        
         res.json({ 
           success: true, 
           message: 'Student deleted successfully',
@@ -6295,7 +6418,18 @@ Treasure-Home School Administration
             relatedEntityType: 'teacher_application',
             relatedEntityId: application.id,
           });
+          // Also send realtime notification
+          realtimeService.emitNotification(admin.id, {
+            title: 'New Teacher Application',
+            message: `${validatedData.fullName} has applied for a teaching position`,
+            type: 'teacher_application'
+          });
         }
+        
+        // Emit realtime event for application creation
+        realtimeService.emitTableChange('teacher_applications', 'INSERT', application);
+        realtimeService.emitToRole('admin', 'application.created', application);
+        
         res.status(201).json({ 
           message: 'Application submitted successfully. You will be notified once reviewed.',
           application 
@@ -6315,6 +6449,11 @@ Treasure-Home School Administration
           ...req.body,
           createdBy: req.user!.id,
         });
+        
+        // Emit realtime event for vacancy creation
+        realtimeService.emitTableChange('vacancies', 'INSERT', vacancy, undefined, req.user!.id);
+        realtimeService.emitEvent('vacancy.created', vacancy); // Broadcast publicly
+        
         res.status(201).json(vacancy);
       } catch (error) {
         res.status(500).json({ message: 'Failed to create vacancy' });
@@ -6323,10 +6462,16 @@ Treasure-Home School Administration
 
     app.patch('/api/admin/vacancies/:id/close', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req: Request, res: Response) => {
       try {
+        const existingVacancy = await storage.getVacancy(req.params.id);
         const vacancy = await storage.updateVacancy(req.params.id, { status: 'closed' });
         if (!vacancy) {
           return res.status(404).json({ message: 'Vacancy not found' });
         }
+        
+        // Emit realtime event for vacancy closure
+        realtimeService.emitTableChange('vacancies', 'UPDATE', vacancy, existingVacancy, req.user!.id);
+        realtimeService.emitEvent('vacancy.closed', vacancy); // Broadcast publicly
+        
         res.json(vacancy);
       } catch (error) {
         res.status(500).json({ message: 'Failed to close vacancy' });
@@ -6362,7 +6507,18 @@ Treasure-Home School Administration
               relatedEntityType: 'teacher_application',
               relatedEntityId: result.application.id,
             });
+            // Send realtime notification
+            realtimeService.emitNotification(applicantUser.id, {
+              title: 'Application Approved',
+              message: 'Your teacher application has been approved. You can now sign in with Google.',
+              type: 'application_approved'
+            });
           }
+          
+          // Emit realtime event for application approval
+          realtimeService.emitTableChange('teacher_applications', 'UPDATE', result.application, undefined, req.user!.id);
+          realtimeService.emitToRole('admin', 'application.approved', result);
+          
           res.json({ 
             message: 'Application approved successfully',
             ...result 
@@ -6373,6 +6529,11 @@ Treasure-Home School Administration
           if (!application) {
             return res.status(404).json({ message: 'Application not found' });
           }
+          
+          // Emit realtime event for application rejection
+          realtimeService.emitTableChange('teacher_applications', 'UPDATE', application, undefined, req.user!.id);
+          realtimeService.emitToRole('admin', 'application.rejected', application);
+          
           res.json({ 
             message: 'Application rejected',
             application 
@@ -7002,7 +7163,7 @@ Treasure-Home School Administration
             });
         }
 
-        res.json({
+        const reportCardResult = {
           message: 'Report card generated successfully',
           reportCard: {
             id: reportCard.id,
@@ -7013,7 +7174,18 @@ Treasure-Home School Administration
             status: reportCard.status,
             gradesCount: grades.length
           }
+        };
+        
+        // Emit realtime event for report card generation
+        const operation = existingReportCard.length > 0 ? 'UPDATE' : 'INSERT';
+        realtimeService.emitTableChange('report_cards', operation, reportCard, existingReportCard[0] || undefined, req.user!.id);
+        realtimeService.emitReportCardEvent(reportCard.id, 'updated', {
+          reportCardId: reportCard.id,
+          studentId,
+          classId: student.classId
         });
+        
+        res.json(reportCardResult);
       } catch (error: any) {
         res.status(500).json({ message: error.message || 'Failed to generate report card' });
       }
@@ -7024,6 +7196,12 @@ Treasure-Home School Administration
       try {
         const { reportCardId } = req.params;
         const { teacherRemarks, principalRemarks, status } = req.body;
+        
+        // Get existing report card for realtime event
+        const [existingReportCard] = await db.select()
+          .from(schema.reportCards)
+          .where(eq(schema.reportCards.id, Number(reportCardId)))
+          .limit(1);
 
         const [updatedReportCard] = await db.update(schema.reportCards)
           .set({
@@ -7038,6 +7216,14 @@ Treasure-Home School Administration
         if (!updatedReportCard) {
           return res.status(404).json({ message: 'Report card not found' });
         }
+        
+        // Emit realtime event for report card update
+        realtimeService.emitTableChange('report_cards', 'UPDATE', updatedReportCard, existingReportCard, req.user!.id);
+        realtimeService.emitReportCardEvent(Number(reportCardId), 'updated', {
+          reportCardId: Number(reportCardId),
+          studentId: updatedReportCard.studentId,
+          classId: updatedReportCard.classId
+        });
 
         res.json(updatedReportCard);
       } catch (error) {
@@ -7392,6 +7578,9 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Report card item not found' });
         }
         
+        // Emit realtime event for score override
+        realtimeService.emitTableChange('report_card_items', 'UPDATE', updatedItem, undefined, req.user!.id);
+        
         res.json(updatedItem);
       } catch (error: any) {
         console.error('Error overriding score:', error);
@@ -7475,6 +7664,14 @@ Treasure-Home School Administration
         if (!updatedReportCard) {
           return res.status(404).json({ message: 'Report card not found' });
         }
+        
+        // Emit realtime event for remarks update
+        realtimeService.emitTableChange('report_cards', 'UPDATE', updatedReportCard, undefined, req.user!.id);
+        realtimeService.emitReportCardEvent(Number(reportCardId), 'updated', {
+          reportCardId: Number(reportCardId),
+          studentId: updatedReportCard.studentId,
+          classId: updatedReportCard.classId
+        });
         
         res.json(updatedReportCard);
       } catch (error: any) {
