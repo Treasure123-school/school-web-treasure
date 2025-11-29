@@ -1015,7 +1015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'students':
             // Role-based scoped access - permission already verified
             if (userRoleId === ROLES.ADMIN || userRoleId === ROLES.SUPER_ADMIN) {
-              const allStudents = await storage.getStudents();
+              const allStudents = await storage.getAllStudents();
               syncData.students = Array.isArray(allStudents) ? allStudents : [];
             } else if (userRoleId === ROLES.TEACHER) {
               // Teachers only get students in their assigned classes
@@ -1023,7 +1023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const assignedClasses = teacherProfile?.assignedClasses;
               
               if (assignedClasses && Array.isArray(assignedClasses) && assignedClasses.length > 0) {
-                const allStudents = await storage.getStudents();
+                const allStudents = await storage.getAllStudents();
                 syncData.students = Array.isArray(allStudents) 
                   ? allStudents.filter((s: any) => s && s.classId && assignedClasses.includes(s.classId))
                   : [];
@@ -1634,7 +1634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // AUTO-SYNC: Sync exam score to report card immediately after scoring
       // This runs in background to not block the response
-      let reportCardSync = { success: false, message: '', reportCardId: null as number | null };
+      let reportCardSync: { success: boolean; message: string; reportCardId?: number } = { success: false, message: '' };
       try {
         reportCardSync = await storage.syncExamScoreToReportCard(studentId, examId, totalScore, maxScore);
         if (reportCardSync.success) {
@@ -1653,13 +1653,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Also emit to class channel for teachers monitoring report cards
-          realtimeService.emitTableEvent('report_cards', 'updated', {
+          realtimeService.emitTableChange('report_cards', 'UPDATE', {
             studentId,
             examId,
             classId: exam.classId,
             score: totalScore,
             maxScore,
-          });
+          }, undefined, studentId);
         } else {
           console.warn(`[SUBMIT] Report card sync warning: ${reportCardSync.message}`);
         }
@@ -3390,7 +3390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for class deletion
-      realtimeService.emitClassEvent(classId.toString(), 'deleted', { id: classId, ...existingClass }, req.user!.id);
+      realtimeService.emitClassEvent(classId.toString(), 'deleted', { ...existingClass, id: classId }, req.user!.id);
       
       res.json({ message: 'Class deleted successfully' });
     } catch (error) {
@@ -3492,7 +3492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for subject deletion
-      realtimeService.emitSubjectEvent('deleted', { id: subjectId, ...existingSubject }, req.user!.id);
+      realtimeService.emitSubjectEvent('deleted', { ...existingSubject, id: subjectId }, req.user!.id);
       
       res.json({ message: 'Subject deleted successfully' });
     } catch (error) {
@@ -3868,7 +3868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for homepage content deletion
-      realtimeService.emitHomepageContentEvent('deleted', { id, ...content }, req.user!.id);
+      realtimeService.emitHomepageContentEvent('deleted', { ...content, id }, req.user!.id);
       
       res.json({ message: 'Homepage content deleted successfully' });
     } catch (error) {
@@ -3952,15 +3952,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Announcement not found' });
       }
       
-      const { title, content, targetRole, priority, expiresAt, isActive } = req.body;
+      const { title, content, targetRoles, targetClasses, isPublished, publishedAt } = req.body;
       
       const updatedAnnouncement = await storage.updateAnnouncement(announcementId, {
         title,
         content,
-        targetRole,
-        priority,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        isActive
+        targetRoles,
+        targetClasses,
+        isPublished,
+        publishedAt: publishedAt ? new Date(publishedAt) : undefined
       });
       
       // Emit realtime event for announcement update
@@ -3993,7 +3993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for announcement deletion
-      realtimeService.emitAnnouncementEvent('deleted', { id: announcementId, ...existingAnnouncement }, req.user!.id);
+      realtimeService.emitAnnouncementEvent('deleted', { ...existingAnnouncement, id: announcementId }, req.user!.id);
       
       res.json({ message: 'Announcement deleted successfully' });
     } catch (error) {
@@ -6853,9 +6853,9 @@ Treasure-Home School Administration
         
         // Emit realtime event for student deletion
         realtimeService.emitTableChange('students', 'DELETE', { id: studentId }, student, req.user!.id);
-        realtimeService.emitToRole('admin', 'student.deleted', { id: studentId, ...student });
+        realtimeService.emitToRole('admin', 'student.deleted', { ...student, id: studentId });
         if (student.classId) {
-          realtimeService.emitToClass(student.classId.toString(), 'student.deleted', { id: studentId, ...student });
+          realtimeService.emitToClass(student.classId.toString(), 'student.deleted', { ...student, id: studentId });
         }
         
         res.json({ 
