@@ -63,6 +63,10 @@ interface ExamResult {
     classId?: number;
     timeLimit?: number;
   };
+  reportCardSync?: {
+    synced: boolean;
+    message: string;
+  };
 }
 
 export default function StudentExamResults() {
@@ -306,6 +310,20 @@ export default function StudentExamResults() {
           <p className="text-lg text-gray-600 dark:text-gray-400">
             Your exam has been successfully submitted and scored.
           </p>
+          {result.reportCardSync && (
+            <div className="mt-3 flex justify-center">
+              <Badge 
+                variant={result.reportCardSync.synced ? "default" : "outline"}
+                className={`px-3 py-1 ${result.reportCardSync.synced ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300' : ''}`}
+                data-testid="badge-report-card-sync"
+              >
+                <GraduationCap className="w-3 h-3 mr-1" />
+                {result.reportCardSync.synced 
+                  ? 'Score synced to report card' 
+                  : result.reportCardSync.message || 'Report card sync pending'}
+              </Badge>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
