@@ -896,6 +896,218 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  // ==================== REALTIME SYNC ENDPOINT ====================
+  // This endpoint allows frontend to get initial data for tables they want to subscribe to
+  // Security: Role-based access control enforced per table with scope filtering
+  // Security: All-or-nothing permission check - reject entire request if ANY table is forbidden
+  const ALLOWED_SYNC_TABLES = ['classes', 'subjects', 'academic_terms', 'users', 'students', 'announcements', 'exams', 'homepage_content', 'notifications'];
+  
+  // Permission matrix: Which roles can access which tables
+  // true = full access, 'scoped' = filtered access, false = forbidden
+  type TablePermission = boolean | 'scoped';
+  const TABLE_PERMISSIONS: Record<string, Record<number, TablePermission>> = {
+    'classes': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: true, [ROLES.STUDENT]: true, [ROLES.PARENT]: true },
+    'subjects': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: true, [ROLES.STUDENT]: true, [ROLES.PARENT]: true },
+    'academic_terms': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: true, [ROLES.STUDENT]: true, [ROLES.PARENT]: true },
+    'users': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: false, [ROLES.STUDENT]: false, [ROLES.PARENT]: false },
+    'students': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: 'scoped', [ROLES.STUDENT]: false, [ROLES.PARENT]: 'scoped' },
+    'announcements': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: 'scoped', [ROLES.STUDENT]: 'scoped', [ROLES.PARENT]: 'scoped' },
+    'exams': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: 'scoped', [ROLES.STUDENT]: 'scoped', [ROLES.PARENT]: 'scoped' },
+    'homepage_content': { [ROLES.SUPER_ADMIN]: true, [ROLES.ADMIN]: true, [ROLES.TEACHER]: false, [ROLES.STUDENT]: false, [ROLES.PARENT]: false },
+    'notifications': { [ROLES.SUPER_ADMIN]: 'scoped', [ROLES.ADMIN]: 'scoped', [ROLES.TEACHER]: 'scoped', [ROLES.STUDENT]: 'scoped', [ROLES.PARENT]: 'scoped' }
+  };
+  
+  app.post('/api/realtime/sync', authenticateUser, async (req, res) => {
+    try {
+      const { tables } = req.body as { tables: string[] };
+      
+      if (!Array.isArray(tables) || tables.length === 0) {
+        return res.status(400).json({ message: 'Tables array is required' });
+      }
+      
+      // Validate, normalize (lowercase), and deduplicate table names
+      // Security: Only accept exact lowercase matches to prevent bypass attempts
+      const normalizedTables = tables
+        .filter(t => typeof t === 'string' && t.length > 0)
+        .map(t => t.toLowerCase().trim());
+      
+      // Security: All-or-nothing validation - reject if ANY table is not in whitelist
+      const invalidTables = normalizedTables.filter(t => !ALLOWED_SYNC_TABLES.includes(t));
+      if (invalidTables.length > 0) {
+        return res.status(400).json({ 
+          message: 'Request contains invalid table names',
+          invalidTables,
+          allowedTables: ALLOWED_SYNC_TABLES 
+        });
+      }
+      
+      const uniqueTables = [...new Set(normalizedTables)];
+      
+      if (uniqueTables.length === 0) {
+        return res.status(400).json({ 
+          message: 'No valid tables specified',
+          allowedTables: ALLOWED_SYNC_TABLES 
+        });
+      }
+      
+      const userRoleId = req.user!.roleId;
+      const userId = req.user!.id;
+      
+      // Security: Check permissions for ALL requested tables BEFORE processing ANY data
+      // All-or-nothing: if user lacks permission for any table, reject entire request
+      const forbiddenTables: string[] = [];
+      for (const table of uniqueTables) {
+        const permission = TABLE_PERMISSIONS[table]?.[userRoleId];
+        if (permission === false || permission === undefined) {
+          forbiddenTables.push(table);
+        }
+      }
+      
+      if (forbiddenTables.length > 0) {
+        return res.status(403).json({
+          message: 'Access denied to one or more requested tables',
+          forbiddenTables,
+          hint: 'Remove forbidden tables from request or use appropriate credentials'
+        });
+      }
+      
+      const syncData: Record<string, any> = {};
+      
+      // Helper to get user's role name for announcement filtering
+      const getRoleName = (roleId: number): string | null => {
+        switch (roleId) {
+          case ROLES.STUDENT: return 'Student';
+          case ROLES.TEACHER: return 'Teacher';
+          case ROLES.PARENT: return 'Parent';
+          case ROLES.ADMIN: return 'Admin';
+          case ROLES.SUPER_ADMIN: return 'SuperAdmin';
+          default: return null;
+        }
+      };
+      
+      // Now process tables - all permission checks already passed
+      for (const table of uniqueTables) {
+        switch (table) {
+          case 'classes':
+            // All authenticated users can see active classes
+            syncData.classes = await storage.getClasses();
+            break;
+            
+          case 'subjects':
+            // All authenticated users can see subjects
+            syncData.subjects = await storage.getSubjects();
+            break;
+            
+          case 'academic_terms':
+            // All authenticated users can see terms
+            syncData.academic_terms = await storage.getAcademicTerms();
+            break;
+            
+          case 'users':
+            // Only admins - permission already verified
+            const allUsers = await storage.getAllUsers();
+            syncData.users = allUsers.map((u: any) => {
+              const { passwordHash, ...safe } = u;
+              return safe;
+            });
+            break;
+            
+          case 'students':
+            // Role-based scoped access - permission already verified
+            if (userRoleId === ROLES.ADMIN || userRoleId === ROLES.SUPER_ADMIN) {
+              const allStudents = await storage.getStudents();
+              syncData.students = Array.isArray(allStudents) ? allStudents : [];
+            } else if (userRoleId === ROLES.TEACHER) {
+              // Teachers only get students in their assigned classes
+              const teacherProfile = await storage.getTeacherProfile(userId);
+              const assignedClasses = teacherProfile?.assignedClasses;
+              
+              if (assignedClasses && Array.isArray(assignedClasses) && assignedClasses.length > 0) {
+                const allStudents = await storage.getStudents();
+                syncData.students = Array.isArray(allStudents) 
+                  ? allStudents.filter((s: any) => s && s.classId && assignedClasses.includes(s.classId))
+                  : [];
+              } else {
+                // Teacher has scoped permission but no assigned classes = empty result (not error)
+                syncData.students = [];
+              }
+            } else if (userRoleId === ROLES.PARENT) {
+              // Parents only get their own children
+              const children = await storage.getStudentsByParentId(userId);
+              syncData.students = Array.isArray(children) ? children : [];
+            }
+            break;
+            
+          case 'announcements':
+            // Filter announcements by target role - scoped access
+            const allAnnouncements = await storage.getAnnouncements();
+            const userRole = getRoleName(userRoleId);
+            syncData.announcements = (Array.isArray(allAnnouncements) ? allAnnouncements : []).filter((a: any) => {
+              // Show if no target role (public) or matches user's role
+              if (!a.targetRole) return true;
+              if (a.targetRole === userRole) return true;
+              // Admins can see all announcements
+              if (userRoleId === ROLES.ADMIN || userRoleId === ROLES.SUPER_ADMIN) return true;
+              return false;
+            });
+            break;
+            
+          case 'exams':
+            if (userRoleId === ROLES.ADMIN || userRoleId === ROLES.SUPER_ADMIN) {
+              syncData.exams = await storage.getAllExams();
+            } else if (userRoleId === ROLES.TEACHER) {
+              const allExams = await storage.getAllExams();
+              syncData.exams = (Array.isArray(allExams) ? allExams : []).filter((e: any) => 
+                e.createdBy === userId || e.teacherInChargeId === userId
+              );
+            } else if (userRoleId === ROLES.STUDENT) {
+              // Students only see published exams for their class
+              const student = await storage.getStudent(userId);
+              if (student?.classId) {
+                const allExams = await storage.getAllExams();
+                syncData.exams = (Array.isArray(allExams) ? allExams : []).filter((e: any) => 
+                  e.isPublished && e.classId === student.classId
+                );
+              } else {
+                syncData.exams = [];
+              }
+            } else if (userRoleId === ROLES.PARENT) {
+              // Parents see published exams for their children's classes
+              const children = await storage.getStudentsByParentId(userId);
+              const classIds = [...new Set((Array.isArray(children) ? children : []).map((c: any) => c.classId).filter(Boolean))];
+              if (classIds.length > 0) {
+                const allExams = await storage.getAllExams();
+                syncData.exams = (Array.isArray(allExams) ? allExams : []).filter((e: any) => 
+                  e.isPublished && classIds.includes(e.classId)
+                );
+              } else {
+                syncData.exams = [];
+              }
+            }
+            break;
+            
+          case 'homepage_content':
+            // Only admins - permission already verified
+            syncData.homepage_content = await storage.getHomePageContent();
+            break;
+            
+          case 'notifications':
+            // Users only get their own notifications - scoped
+            syncData.notifications = await storage.getNotificationsByUserId(userId);
+            break;
+        }
+      }
+      
+      res.json({
+        success: true,
+        data: syncData,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to sync realtime data' });
+    }
+  });
+
   // AI-assisted grading routes
   // Get AI-suggested grading tasks for teacher review
   app.get('/api/grading/tasks/ai-suggested', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.TEACHER), async (req, res) => {
@@ -3053,6 +3265,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create a new class - Admin only
+  app.post('/api/classes', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { name, level, classTeacherId, capacity } = req.body;
+      
+      if (!name || !level) {
+        return res.status(400).json({ message: 'Name and level are required' });
+      }
+      
+      const classData = {
+        name,
+        level,
+        classTeacherId: classTeacherId || null,
+        capacity: capacity || 30,
+        isActive: true
+      };
+      
+      const newClass = await storage.createClass(classData);
+      
+      // Emit realtime event for class creation
+      realtimeService.emitClassEvent(newClass.id.toString(), 'created', newClass, req.user!.id);
+      
+      res.status(201).json(newClass);
+    } catch (error: any) {
+      if (error.message?.includes('UNIQUE constraint')) {
+        return res.status(409).json({ message: 'A class with this name already exists' });
+      }
+      res.status(500).json({ message: 'Failed to create class' });
+    }
+  });
+
+  // Update a class - Admin only
+  app.put('/api/classes/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const classId = parseInt(req.params.id);
+      
+      if (isNaN(classId)) {
+        return res.status(400).json({ message: 'Invalid class ID' });
+      }
+      
+      const existingClass = await storage.getClass(classId);
+      if (!existingClass) {
+        return res.status(404).json({ message: 'Class not found' });
+      }
+      
+      const { name, level, classTeacherId, capacity, isActive } = req.body;
+      
+      const updatedClass = await storage.updateClass(classId, {
+        name,
+        level,
+        classTeacherId: classTeacherId || null,
+        capacity,
+        isActive
+      });
+      
+      // Emit realtime event for class update
+      realtimeService.emitClassEvent(classId.toString(), 'updated', updatedClass, req.user!.id);
+      
+      res.json(updatedClass);
+    } catch (error: any) {
+      if (error.message?.includes('UNIQUE constraint')) {
+        return res.status(409).json({ message: 'A class with this name already exists' });
+      }
+      res.status(500).json({ message: 'Failed to update class' });
+    }
+  });
+
+  // Delete a class - Admin only
+  app.delete('/api/classes/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const classId = parseInt(req.params.id);
+      
+      if (isNaN(classId)) {
+        return res.status(400).json({ message: 'Invalid class ID' });
+      }
+      
+      const existingClass = await storage.getClass(classId);
+      if (!existingClass) {
+        return res.status(404).json({ message: 'Class not found' });
+      }
+      
+      const success = await storage.deleteClass(classId);
+      
+      if (!success) {
+        return res.status(500).json({ message: 'Failed to delete class' });
+      }
+      
+      // Emit realtime event for class deletion
+      realtimeService.emitClassEvent(classId.toString(), 'deleted', { id: classId, ...existingClass }, req.user!.id);
+      
+      res.json({ message: 'Class deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete class' });
+    }
+  });
+
   // Subjects API endpoint
   app.get('/api/subjects', async (req, res) => {
     try {
@@ -3060,6 +3368,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(subjects);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch subjects' });
+    }
+  });
+
+  // Create a new subject - Admin only
+  app.post('/api/subjects', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { name, code, description } = req.body;
+      
+      if (!name || !code) {
+        return res.status(400).json({ message: 'Name and code are required' });
+      }
+      
+      const subjectData = {
+        name,
+        code,
+        description: description || null
+      };
+      
+      const newSubject = await storage.createSubject(subjectData);
+      
+      // Emit realtime event for subject creation
+      realtimeService.emitSubjectEvent('created', newSubject, req.user!.id);
+      
+      res.status(201).json(newSubject);
+    } catch (error: any) {
+      if (error.message?.includes('UNIQUE constraint')) {
+        return res.status(409).json({ message: 'A subject with this code already exists' });
+      }
+      res.status(500).json({ message: 'Failed to create subject' });
+    }
+  });
+
+  // Update a subject - Admin only
+  app.put('/api/subjects/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const subjectId = parseInt(req.params.id);
+      
+      if (isNaN(subjectId)) {
+        return res.status(400).json({ message: 'Invalid subject ID' });
+      }
+      
+      const existingSubject = await storage.getSubject(subjectId);
+      if (!existingSubject) {
+        return res.status(404).json({ message: 'Subject not found' });
+      }
+      
+      const { name, code, description } = req.body;
+      
+      const updatedSubject = await storage.updateSubject(subjectId, {
+        name,
+        code,
+        description
+      });
+      
+      // Emit realtime event for subject update
+      realtimeService.emitSubjectEvent('updated', updatedSubject, req.user!.id);
+      
+      res.json(updatedSubject);
+    } catch (error: any) {
+      if (error.message?.includes('UNIQUE constraint')) {
+        return res.status(409).json({ message: 'A subject with this code already exists' });
+      }
+      res.status(500).json({ message: 'Failed to update subject' });
+    }
+  });
+
+  // Delete a subject - Admin only
+  app.delete('/api/subjects/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const subjectId = parseInt(req.params.id);
+      
+      if (isNaN(subjectId)) {
+        return res.status(400).json({ message: 'Invalid subject ID' });
+      }
+      
+      const existingSubject = await storage.getSubject(subjectId);
+      if (!existingSubject) {
+        return res.status(404).json({ message: 'Subject not found' });
+      }
+      
+      const success = await storage.deleteSubject(subjectId);
+      
+      if (!success) {
+        return res.status(500).json({ message: 'Failed to delete subject' });
+      }
+      
+      // Emit realtime event for subject deletion
+      realtimeService.emitSubjectEvent('deleted', { id: subjectId, ...existingSubject }, req.user!.id);
+      
+      res.json({ message: 'Subject deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete subject' });
     }
   });
 
@@ -3355,6 +3755,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: true,
       });
 
+      // Emit realtime event for homepage content creation
+      realtimeService.emitHomepageEvent('created', content, req.user!.id);
+
       res.json(content);
     } catch (error: any) {
       res.status(500).json({ 
@@ -3391,6 +3794,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updated) {
         return res.status(404).json({ message: 'Homepage content not found' });
       }
+      
+      // Emit realtime event for homepage content update
+      realtimeService.emitHomepageEvent('updated', updated, req.user!.id);
+      
       res.json({
         message: 'Homepage content updated successfully',
         content: updated
@@ -3422,6 +3829,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!deleted) {
         return res.status(404).json({ message: 'Homepage content not found' });
       }
+      
+      // Emit realtime event for homepage content deletion
+      realtimeService.emitHomepageEvent('deleted', { id, ...content }, req.user!.id);
+      
       res.json({ message: 'Homepage content deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete homepage content' });
@@ -3457,6 +3868,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(announcements);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get announcements' });
+    }
+  });
+
+  // Create a new announcement - Admin only
+  app.post('/api/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { title, content, targetRole, priority, expiresAt } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ message: 'Title and content are required' });
+      }
+      
+      const announcementData = {
+        title,
+        content,
+        targetRole: targetRole || null,
+        priority: priority || 'normal',
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        createdBy: req.user!.id,
+        isActive: true
+      };
+      
+      const newAnnouncement = await storage.createAnnouncement(announcementData);
+      
+      // Emit realtime event for announcement creation
+      realtimeService.emitAnnouncementEvent('created', newAnnouncement, req.user!.id);
+      
+      res.status(201).json(newAnnouncement);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to create announcement' });
+    }
+  });
+
+  // Update an announcement - Admin only
+  app.put('/api/announcements/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const announcementId = parseInt(req.params.id);
+      
+      if (isNaN(announcementId)) {
+        return res.status(400).json({ message: 'Invalid announcement ID' });
+      }
+      
+      const existingAnnouncement = await storage.getAnnouncementById(announcementId);
+      if (!existingAnnouncement) {
+        return res.status(404).json({ message: 'Announcement not found' });
+      }
+      
+      const { title, content, targetRole, priority, expiresAt, isActive } = req.body;
+      
+      const updatedAnnouncement = await storage.updateAnnouncement(announcementId, {
+        title,
+        content,
+        targetRole,
+        priority,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        isActive
+      });
+      
+      // Emit realtime event for announcement update
+      realtimeService.emitAnnouncementEvent('updated', updatedAnnouncement, req.user!.id);
+      
+      res.json(updatedAnnouncement);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to update announcement' });
+    }
+  });
+
+  // Delete an announcement - Admin only
+  app.delete('/api/announcements/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const announcementId = parseInt(req.params.id);
+      
+      if (isNaN(announcementId)) {
+        return res.status(400).json({ message: 'Invalid announcement ID' });
+      }
+      
+      const existingAnnouncement = await storage.getAnnouncementById(announcementId);
+      if (!existingAnnouncement) {
+        return res.status(404).json({ message: 'Announcement not found' });
+      }
+      
+      const success = await storage.deleteAnnouncement(announcementId);
+      
+      if (!success) {
+        return res.status(500).json({ message: 'Failed to delete announcement' });
+      }
+      
+      // Emit realtime event for announcement deletion
+      realtimeService.emitAnnouncementEvent('deleted', { id: announcementId, ...existingAnnouncement }, req.user!.id);
+      
+      res.json({ message: 'Announcement deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete announcement' });
+    }
+  });
+
+  // ==================== ATTENDANCE MANAGEMENT ROUTES ====================
+
+  // Record attendance - Teacher or Admin only
+  app.post('/api/attendance', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { studentId, classId, date, status, notes } = req.body;
+      
+      if (!studentId || !classId || !date || !status) {
+        return res.status(400).json({ message: 'studentId, classId, date, and status are required' });
+      }
+      
+      const attendanceData = {
+        studentId,
+        classId,
+        date,
+        status,
+        recordedBy: req.user!.id,
+        notes: notes || null
+      };
+      
+      const newAttendance = await storage.recordAttendance(attendanceData);
+      
+      // Emit realtime event for attendance record
+      realtimeService.emitAttendanceEvent(classId.toString(), studentId, 'recorded', newAttendance, req.user!.id);
+      
+      res.status(201).json(newAttendance);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to record attendance' });
+    }
+  });
+
+  // Bulk record attendance for a class - Teacher or Admin only
+  app.post('/api/attendance/bulk', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const { classId, date, records } = req.body;
+      
+      if (!classId || !date || !Array.isArray(records) || records.length === 0) {
+        return res.status(400).json({ message: 'classId, date, and records array are required' });
+      }
+      
+      const createdRecords = [];
+      for (const record of records) {
+        const attendanceData = {
+          studentId: record.studentId,
+          classId,
+          date,
+          status: record.status,
+          recordedBy: req.user!.id,
+          notes: record.notes || null
+        };
+        const newAttendance = await storage.recordAttendance(attendanceData);
+        createdRecords.push(newAttendance);
+        
+        // Emit realtime event for each attendance record
+        realtimeService.emitAttendanceEvent(classId.toString(), record.studentId, 'recorded', newAttendance, req.user!.id);
+      }
+      
+      res.status(201).json({
+        message: `Successfully recorded ${createdRecords.length} attendance records`,
+        records: createdRecords
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to record bulk attendance' });
+    }
+  });
+
+  // Get attendance by student - Student, Teacher, Parent, Admin
+  app.get('/api/attendance/student/:studentId', authenticateUser, async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const { date } = req.query;
+      
+      const attendance = await storage.getAttendanceByStudent(studentId, date as string);
+      res.json(attendance);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch student attendance' });
+    }
+  });
+
+  // Get attendance by class and date - Teacher or Admin
+  app.get('/api/attendance/class/:classId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN), async (req, res) => {
+    try {
+      const classId = parseInt(req.params.classId);
+      const { date } = req.query;
+      
+      if (isNaN(classId)) {
+        return res.status(400).json({ message: 'Invalid class ID' });
+      }
+      
+      if (!date) {
+        return res.status(400).json({ message: 'Date is required' });
+      }
+      
+      const attendance = await storage.getAttendanceByClass(classId, date as string);
+      res.json(attendance);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch class attendance' });
     }
   });
 
