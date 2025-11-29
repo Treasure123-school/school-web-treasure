@@ -3716,7 +3716,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (roleName === 'teacher') {
         const teacherProfile = await storage.getTeacherProfile(user.id);
         if (teacherProfile?.assignedClasses) {
-          authorizedClasses = teacherProfile.assignedClasses;
+          try {
+            const parsed = typeof teacherProfile.assignedClasses === 'string' 
+              ? JSON.parse(teacherProfile.assignedClasses) 
+              : teacherProfile.assignedClasses;
+            if (Array.isArray(parsed)) {
+              authorizedClasses = parsed.map((c: any) => String(c));
+            }
+          } catch {
+            authorizedClasses = [];
+          }
         }
       }
       

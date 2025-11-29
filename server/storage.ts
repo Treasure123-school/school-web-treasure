@@ -107,6 +107,8 @@ export interface IStorage {
 
   // Student management
   getStudent(id: string): Promise<Student | undefined>;
+  getStudentByUserId(userId: string): Promise<Student | undefined>;
+  getLinkedStudents(parentId: string): Promise<Student[]>;
   createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined>;
   setUserActive(id: string, isActive: boolean): Promise<User | undefined>;
@@ -1118,6 +1120,50 @@ export class DatabaseStorage implements IStorage {
     }
     return student as any;
   }
+  
+  async getStudentByUserId(userId: string): Promise<Student | undefined> {
+    return this.getStudent(userId);
+  }
+  
+  async getLinkedStudents(parentId: string): Promise<Student[]> {
+    const result = await this.db
+      .select({
+        id: schema.students.id,
+        admissionNumber: schema.students.admissionNumber,
+        classId: schema.students.classId,
+        parentId: schema.students.parentId,
+        admissionDate: schema.students.admissionDate,
+        emergencyContact: schema.students.emergencyContact,
+        emergencyPhone: schema.students.emergencyPhone,
+        medicalInfo: schema.students.medicalInfo,
+        guardianName: schema.students.guardianName,
+        createdAt: schema.students.createdAt,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        address: schema.users.address,
+        dateOfBirth: schema.users.dateOfBirth,
+        gender: schema.users.gender,
+        profileImageUrl: schema.users.profileImageUrl,
+        className: schema.classes.name,
+      })
+      .from(schema.students)
+      .leftJoin(schema.users, eq(schema.students.id, schema.users.id))
+      .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+      .where(eq(schema.students.parentId, parentId));
+    
+    return result.map((student: any) => {
+      if (student && student.id) {
+        const normalizedId = normalizeUuid(student.id);
+        if (normalizedId) {
+          student.id = normalizedId;
+        }
+      }
+      return student;
+    }) as any[];
+  }
+  
   async getAllUsernames(): Promise<string[]> {
     const result = await this.db.select({ username: schema.users.username }).from(schema.users).where(sql`${schema.users.username} IS NOT NULL`);
     return result.map((r: { username: string | null }) => r.username).filter((u: string | null): u is string => u !== null);
