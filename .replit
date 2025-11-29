@@ -55,7 +55,3 @@ UPLOAD_DIR = "uploads"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 44399
-externalPort = 3000

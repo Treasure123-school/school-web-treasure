@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap, AlertCircle } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { getRoleName } from '@/lib/utils';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { useSocketIORealtime, useSocketConnection } from '@/hooks/useSocketIORealtime';
 
 
 // Component for displaying results by class card
@@ -211,6 +212,52 @@ export default function TeacherDashboard() {
     retryDelay: 1000
   });
 
+  // Realtime subscriptions for live updates
+  const { isConnected: socketConnected } = useSocketConnection();
+  
+  // Subscribe to exams table for realtime exam updates
+  useSocketIORealtime({
+    table: 'exams',
+    queryKey: ['/api/exams'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Teacher Dashboard: Exam update received', event.eventType);
+    }
+  });
+
+  // Subscribe to grading tasks for realtime pending grades updates
+  useSocketIORealtime({
+    table: 'grading_tasks',
+    queryKey: ['/api/grading-tasks'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Teacher Dashboard: Grading task update received', event.eventType);
+    }
+  });
+
+  // Subscribe to classes table for realtime class updates
+  useSocketIORealtime({
+    table: 'classes',
+    queryKey: ['/api/classes'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Teacher Dashboard: Class update received', event.eventType);
+    }
+  });
+
+  // Subscribe to exam sessions for live exam monitoring
+  useSocketIORealtime({
+    table: 'exam_sessions',
+    queryKey: ['/api/exam-sessions'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Teacher Dashboard: Exam session update received', event.eventType);
+      // Also refresh grading tasks and exams when sessions change
+      queryClient.invalidateQueries({ queryKey: ['/api/grading-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+    }
+  });
+
   // Show profile completion banner if incomplete, but don't redirect
   useEffect(() => {
     if (!statusLoading && profileStatus) {
@@ -392,9 +439,32 @@ export default function TeacherDashboard() {
               )}
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <div className="hidden md:flex items-center gap-3">
+            <div 
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+                socketConnected 
+                  ? 'bg-green-500/20 text-green-100' 
+                  : 'bg-red-500/20 text-red-100'
+              }`}
+              title={socketConnected ? 'Realtime updates active' : 'Connecting to realtime updates...'}
+              data-testid="realtime-status-indicator"
+            >
+              {socketConnected ? (
+                <>
+                  <Wifi className="h-3 w-3" />
+                  <span>Live</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-3 w-3" />
+                  <span>Connecting</span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+              <Clock className="h-4 w-4" />
+              <span className="text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            </div>
           </div>
         </div>
       </div>

@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
-import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap, Users as UsersIcon } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap, Users as UsersIcon, Wifi, WifiOff } from 'lucide-react';
 import { Link } from 'wouter';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { useSocketIORealtime, useSocketConnection } from '@/hooks/useSocketIORealtime';
 
 export default function ParentDashboard() {
   const { user } = useAuth();
@@ -18,6 +19,59 @@ export default function ParentDashboard() {
   const { data: linkedChildren = [], isLoading: loadingChildren } = useQuery<any[]>({
     queryKey: ['/api/parents/children', user?.id],
     enabled: !!user,
+  });
+
+  // Realtime subscriptions for live updates
+  const { isConnected: socketConnected } = useSocketConnection();
+
+  // Subscribe to linked children for live updates
+  useSocketIORealtime({
+    table: 'parent_student_links',
+    queryKey: ['/api/parents/children', user?.id || ''],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Parent Dashboard: Linked children update received', event.eventType);
+    }
+  });
+
+  // Subscribe to exam results for live grade updates for children
+  useSocketIORealtime({
+    table: 'exam_results',
+    queryKey: ['/api/parents/grades', selectedChildId || ''],
+    enabled: !!user && !!selectedChildId,
+    onEvent: (event) => {
+      console.log('📥 Parent Dashboard: Exam result update received', event.eventType);
+    }
+  });
+
+  // Subscribe to attendance for live updates for children
+  useSocketIORealtime({
+    table: 'attendance',
+    queryKey: ['/api/parents/attendance', selectedChildId || ''],
+    enabled: !!user && !!selectedChildId,
+    onEvent: (event) => {
+      console.log('📥 Parent Dashboard: Attendance update received', event.eventType);
+    }
+  });
+
+  // Subscribe to announcements for live updates
+  useSocketIORealtime({
+    table: 'announcements',
+    queryKey: ['/api/announcements'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Parent Dashboard: Announcement update received', event.eventType);
+    }
+  });
+
+  // Subscribe to report cards for live report card updates
+  useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/parents/report-cards', selectedChildId || ''],
+    enabled: !!user && !!selectedChildId,
+    onEvent: (event) => {
+      console.log('📥 Parent Dashboard: Report card update received', event.eventType);
+    }
   });
 
   // Auto-select first child if not selected
@@ -200,13 +254,36 @@ export default function ParentDashboard() {
       <div className="space-y-6 sm:space-y-8">
         {/* Parent Role Header - Brand Identity */}
         <div className="mb-6 bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600 rounded-2xl p-6 text-white shadow-xl" data-testid="parent-role-header">
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-              <Heart className="h-10 w-10 text-white" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+                <Heart className="h-10 w-10 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Welcome back, {user.firstName}!</h2>
+                <p className="text-amber-100 text-sm">Stay connected with your child's education</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Welcome back, {user.firstName}!</h2>
-              <p className="text-amber-100 text-sm">Stay connected with your child's education</p>
+            <div 
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+                socketConnected 
+                  ? 'bg-green-500/20 text-green-100' 
+                  : 'bg-red-500/20 text-red-100'
+              }`}
+              title={socketConnected ? 'Realtime updates active' : 'Connecting to realtime updates...'}
+              data-testid="realtime-status-indicator"
+            >
+              {socketConnected ? (
+                <>
+                  <Wifi className="h-3 w-3" />
+                  <span>Live</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-3 w-3" />
+                  <span>Connecting</span>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target, Clock } from 'lucide-react';
+import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
@@ -13,6 +13,7 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { MiniLineChart } from '@/components/ui/mini-line-chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Exam } from '@shared/schema';
+import { useSocketIORealtime, useSocketConnection } from '@/hooks/useSocketIORealtime';
 
 export default function StudentDashboard() {
   const { user, updateUser } = useAuth();
@@ -104,6 +105,59 @@ export default function StudentDashboard() {
     }
   });
 
+  // Realtime subscriptions for live updates
+  const { isConnected: socketConnected } = useSocketConnection();
+
+  // Subscribe to exam results for live grade updates
+  useSocketIORealtime({
+    table: 'exam_results',
+    queryKey: ['examResults', user?.id],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Student Dashboard: Exam result update received', event.eventType);
+    }
+  });
+
+  // Subscribe to announcements for live updates
+  useSocketIORealtime({
+    table: 'announcements',
+    queryKey: ['announcements', 'Student'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Student Dashboard: Announcement update received', event.eventType);
+    }
+  });
+
+  // Subscribe to attendance for live updates
+  useSocketIORealtime({
+    table: 'attendance',
+    queryKey: ['/api/student/attendance'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Student Dashboard: Attendance update received', event.eventType);
+    }
+  });
+
+  // Subscribe to exams for live exam availability updates
+  useSocketIORealtime({
+    table: 'exams',
+    queryKey: ['exams'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Student Dashboard: Exam update received', event.eventType);
+    }
+  });
+
+  // Subscribe to report cards for live report card updates
+  useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/student/report-cards'],
+    enabled: !!user,
+    onEvent: (event) => {
+      console.log('📥 Student Dashboard: Report card update received', event.eventType);
+    }
+  });
+
   const calculateGrade = (score: number) => {
     if (score >= 90) return 'A+';
     if (score >= 80) return 'A';
@@ -185,17 +239,40 @@ export default function StudentDashboard() {
 
       {/* Smart Dashboard Welcome Box */}
       <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-white shadow-lg" data-testid="student-dashboard-header">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-            <Trophy className="h-10 w-10 text-white" />
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+              <Trophy className="h-10 w-10 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-1">
+                Welcome back, {user.firstName}!
+              </h1>
+              <p className="text-blue-100 text-sm">
+                Here's what's happening with your academics today
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-1">
-              Welcome back, {user.firstName}!
-            </h1>
-            <p className="text-blue-100 text-sm">
-              Here's what's happening with your academics today
-            </p>
+          <div 
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+              socketConnected 
+                ? 'bg-green-500/20 text-green-100' 
+                : 'bg-red-500/20 text-red-100'
+            }`}
+            title={socketConnected ? 'Realtime updates active' : 'Connecting to realtime updates...'}
+            data-testid="realtime-status-indicator"
+          >
+            {socketConnected ? (
+              <>
+                <Wifi className="h-3 w-3" />
+                <span>Live</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-3 w-3" />
+                <span>Connecting</span>
+              </>
+            )}
           </div>
         </div>
       </div>
