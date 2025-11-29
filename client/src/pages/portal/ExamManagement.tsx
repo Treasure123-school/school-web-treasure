@@ -122,6 +122,14 @@ export default function ExamManagement() {
   // Track pending deletions to prevent race conditions with Realtime
   const pendingDeletionsRef = useRef<Set<number>>(new Set());
   const pendingQuestionDeletionsRef = useRef<Set<number>>(new Set());
+  
+  // Track which specific exam is currently being toggled (for button loading state)
+  const [togglingExamId, setTogglingExamId] = useState<number | null>(null);
+  // Keep a ref in sync for use in real-time event handlers (avoids stale closure)
+  const togglingExamIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    togglingExamIdRef.current = togglingExamId;
+  }, [togglingExamId]);
 
   const { register: registerExam, handleSubmit: handleExamSubmit, formState: { errors: examErrors }, control: examControl, setValue: setExamValue, reset: resetExam, watch: watchExam } = useForm<ExamForm>({
     resolver: zodResolver(examFormSchema),
@@ -180,10 +188,53 @@ export default function ExamManagement() {
   // Filter out exams that are pending deletion to prevent race conditions
   const exams = rawExams.filter((exam: Exam) => !pendingDeletionsRef.current.has(exam.id));
 
-  // Enable real-time updates for exams
+  // Enable real-time updates for exams with specific event handlers
   useSocketIORealtime({ 
     table: 'exams', 
-    queryKey: ['/api/exams']
+    queryKey: ['/api/exams'],
+    onEvent: (event) => {
+      // Handle exam.deleted event - immediately remove from cache
+      if (event.eventType === 'exam.deleted' || (event.operation === 'DELETE' && event.table === 'exams')) {
+        const deletedExamId = event.data?.id;
+        if (deletedExamId) {
+          // Clear pending deletion flag - the delete is now confirmed by backend
+          pendingDeletionsRef.current.delete(deletedExamId);
+          
+          queryClient.setQueryData(['/api/exams'], (old: Exam[] | undefined) => 
+            old?.filter((e) => e.id !== deletedExamId) || []
+          );
+          // Clear selected exam if it was deleted
+          if (selectedExam?.id === deletedExamId) {
+            setSelectedExam(null);
+            setEditingExam(null);
+            setEditingQuestion(null);
+          }
+        }
+      }
+      // Handle exam.published / exam.unpublished events - update cache and clear toggle state
+      if (event.eventType === 'exam.published' || event.eventType === 'exam.unpublished') {
+        const updatedExam = event.data;
+        if (updatedExam?.id) {
+          // Use ref to get current toggling state (avoids stale closure)
+          if (togglingExamIdRef.current === updatedExam.id) {
+            setTogglingExamId(null);
+          }
+          queryClient.setQueryData(['/api/exams'], (old: Exam[] | undefined) => 
+            old?.map((e) => e.id === updatedExam.id ? updatedExam : e) || []
+          );
+        }
+      }
+      // Handle table_change UPDATE events for exams (covers publish/unpublish via emitTableChange)
+      if (event.operation === 'UPDATE' && event.table === 'exams') {
+        const updatedExam = event.data;
+        if (updatedExam?.id) {
+          // Use ref to get current toggling state (avoids stale closure)
+          if (togglingExamIdRef.current === updatedExam.id) {
+            setTogglingExamId(null);
+          }
+        }
+      }
+    }
   });
 
   // Enable real-time updates for exam questions when viewing/editing an exam
@@ -192,7 +243,28 @@ export default function ExamManagement() {
     table: 'exam_questions', 
     queryKey: ['/api/exam-questions', selectedExam?.id],
     examId: selectedExam?.id,
-    enabled: !!selectedExam?.id
+    enabled: !!selectedExam?.id,
+    onEvent: (event) => {
+      // Handle question.deleted event - immediately remove from cache
+      if (event.eventType === 'question.deleted' || (event.operation === 'DELETE' && event.table === 'exam_questions')) {
+        const deletedQuestionId = event.data?.id;
+        const eventExamId = event.data?.examId;
+        if (deletedQuestionId) {
+          // Clear pending deletion flag - the delete is now confirmed by backend
+          pendingQuestionDeletionsRef.current.delete(deletedQuestionId);
+          
+          if (selectedExam?.id === eventExamId) {
+            queryClient.setQueryData(['/api/exam-questions', selectedExam?.id], (old: ExamQuestion[] | undefined) => 
+              old?.filter((q) => q.id !== deletedQuestionId) || []
+            );
+            // Clear editing question if it was deleted
+            if (editingQuestion?.id === deletedQuestionId) {
+              setEditingQuestion(null);
+            }
+          }
+        }
+      }
+    }
   });
 
   // Fetch classes for dropdown
@@ -295,6 +367,9 @@ export default function ExamManagement() {
       return response.json();
     },
     onMutate: async ({ examId, isPublished }) => {
+      // Track which exam is being toggled for button loading state
+      setTogglingExamId(examId);
+      
       await queryClient.cancelQueries({ queryKey: ['/api/exams'] });
       const previousExams = queryClient.getQueryData(['/api/exams']);
       
@@ -321,6 +396,9 @@ export default function ExamManagement() {
         title: "Success",
         description: `Exam ${isPublished ? 'published' : 'unpublished'} successfully`,
       });
+      
+      // Clear the toggling state
+      setTogglingExamId(null);
     },
     onError: (error: any, variables, context: any) => {
       if (context?.previousExams) {
@@ -331,6 +409,9 @@ export default function ExamManagement() {
         description: error.message || "Failed to update exam publish status",
         variant: "destructive",
       });
+      
+      // Clear the toggling state on error
+      setTogglingExamId(null);
     },
   });
 
@@ -1983,12 +2064,12 @@ export default function ExamManagement() {
                               examId: exam.id, 
                               isPublished: !exam.isPublished 
                             })}
-                            disabled={togglePublishMutation.isPending}
+                            disabled={togglingExamId === exam.id}
                             data-testid={`button-toggle-publish-${exam.id}`}
                             className="flex-1"
                           >
                             <Play className="w-4 h-4 mr-1" />
-                            {togglePublishMutation.isPending 
+                            {togglingExamId === exam.id 
                               ? (exam.isPublished ? 'Unpublishing...' : 'Publishing...') 
                               : (exam.isPublished ? 'Unpublish' : 'Publish')
                             }
@@ -2138,11 +2219,11 @@ export default function ExamManagement() {
                                   examId: exam.id, 
                                   isPublished: !exam.isPublished 
                                 })}
-                                disabled={togglePublishMutation.isPending}
+                                disabled={togglingExamId === exam.id}
                                 data-testid={`button-toggle-publish-${exam.id}`}
                               >
                                 <Play className="w-4 h-4 mr-1" />
-                                {togglePublishMutation.isPending 
+                                {togglingExamId === exam.id 
                                   ? (exam.isPublished ? 'Unpublishing...' : 'Publishing...') 
                                   : (exam.isPublished ? 'Unpublish' : 'Publish')
                                 }
