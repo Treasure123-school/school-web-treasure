@@ -1405,6 +1405,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return `${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`;
       };
 
+      // Emit realtime event for exam submission
+      realtimeService.emitExamEvent(examId, 'submitted', {
+        sessionId: activeSession.id,
+        studentId,
+        examId,
+        classId: exam.classId,
+        score: totalScore,
+        maxScore,
+        percentage: Math.round(percentage * 100) / 100,
+        submissionReason: reason,
+      });
+
       // Return instant results with enhanced metadata
       res.json({
         submitted: true,
@@ -3695,11 +3707,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (identifier) {
         lockoutViolations.delete(identifier);
       }
-      // Generate JWT token with user claims - ensure UUID is string
+      
+      // Collect authorized resource scopes for realtime subscriptions
+      let authorizedClasses: string[] = [];
+      let authorizedStudentIds: string[] = [];
+      
+      // For teachers: get their assigned classes
+      if (roleName === 'teacher') {
+        const teacherProfile = await storage.getTeacherProfile(user.id);
+        if (teacherProfile?.assignedClasses) {
+          authorizedClasses = teacherProfile.assignedClasses;
+        }
+      }
+      
+      // For students: get their own student ID
+      if (roleName === 'student') {
+        const student = await storage.getStudentByUserId(user.id);
+        if (student) {
+          authorizedStudentIds = [student.id.toString()];
+          if (student.classId) {
+            authorizedClasses = [student.classId.toString()];
+          }
+        }
+      }
+      
+      // For parents: get their linked student IDs
+      if (roleName === 'parent') {
+        const linkedStudents = await storage.getLinkedStudents(user.id);
+        if (linkedStudents && linkedStudents.length > 0) {
+          authorizedStudentIds = linkedStudents.map(s => s.id.toString());
+          authorizedClasses = linkedStudents
+            .filter(s => s.classId)
+            .map(s => s.classId!.toString());
+        }
+      }
+      
+      // Generate JWT token with user claims and resource scopes
       const tokenPayload = {
         userId: user.id,
         email: user.email,
         roleId: user.roleId,
+        roleName: roleName,
+        authorizedClasses: authorizedClasses,
+        authorizedStudentIds: authorizedStudentIds,
         iat: Math.floor(Date.now() / 1000),
       };
 
@@ -5112,6 +5162,9 @@ Treasure-Home School Administration
         userAgent: req.headers['user-agent']
       });
 
+      // Emit realtime event for user deletion
+      realtimeService.emitUserEvent(id, 'deleted', { id, email: user.email, username: user.username }, user.roleId?.toString());
+
       const totalTime = Date.now() - startTime;
 
       res.json({
@@ -5380,6 +5433,9 @@ Treasure-Home School Administration
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
 
+      // Emit realtime event for user creation
+      realtimeService.emitUserEvent(user.id, 'created', userResponse, user.roleId?.toString());
+
       // Include temporary password in response for admin/teacher to share with user
       // This is only sent once and should be displayed to admin/teacher immediately
       res.json({
@@ -5431,6 +5487,10 @@ Treasure-Home School Administration
       }
       // Remove password hash from response for security
       const { passwordHash: _, ...userResponse } = user;
+      
+      // Emit realtime event for user update
+      realtimeService.emitUserEvent(user.id, 'updated', userResponse, user.roleId?.toString());
+      
       res.json(userResponse);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -7354,6 +7414,16 @@ Treasure-Home School Administration
         if (!updatedReportCard) {
           return res.status(500).json({ message: 'Failed to update report card status' });
         }
+        
+        // Emit realtime event for report card status change
+        const eventType = status === 'published' ? 'published' : 
+                          status === 'finalized' ? 'finalized' : 'reverted';
+        realtimeService.emitReportCardEvent(Number(reportCardId), eventType, {
+          reportCardId: Number(reportCardId),
+          status,
+          studentId: updatedReportCard.studentId,
+          classId: updatedReportCard.classId,
+        });
         
         // Return descriptive message based on transition
         let message = 'Status updated successfully';

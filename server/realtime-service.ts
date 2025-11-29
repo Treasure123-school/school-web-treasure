@@ -1,16 +1,45 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-secret-key-change-in-production' : undefined);
 
 export interface RealtimeEvent {
+  eventId: string;
+  eventType: string;
   table: string;
-  event: 'INSERT' | 'UPDATE' | 'DELETE';
+  operation: 'INSERT' | 'UPDATE' | 'DELETE';
   data: any;
   oldData?: any;
+  timestamp: number;
+  userId?: string;
+}
+
+export interface SocketUser {
+  id: string;
+  userId: string;
+  role: string;
+  classIds?: string[];
+  authorizedClasses?: string[];
+  authorizedStudentIds?: string[];
+}
+
+interface SubscriptionData {
+  table?: string;
+  channel?: string;
+  userId?: string;
+  classId?: string;
+  examId?: string | number;
+  reportCardId?: string | number;
 }
 
 class RealtimeService {
   private io: SocketIOServer | null = null;
   private connectedClients = new Map<string, Set<string>>();
+  private authenticatedSockets = new Map<string, SocketUser>();
+  private recentEventIds = new Set<string>();
+  private eventIdCleanupInterval: NodeJS.Timeout | null = null;
 
   initialize(httpServer: HTTPServer) {
     const allowedOrigins = process.env.NODE_ENV === 'development'
@@ -27,101 +56,461 @@ class RealtimeService {
       transports: ['websocket', 'polling'],
     });
 
+    this.setupMiddleware();
     this.setupEventHandlers();
+    this.startEventIdCleanup();
+    
     console.log('✅ Socket.IO Realtime Service initialized');
     console.log(`   → CORS origins: ${allowedOrigins.join(', ')}`);
+  }
+
+  private setupMiddleware() {
+    if (!this.io) return;
+
+    this.io.use((socket, next) => {
+      const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '');
+      
+      if (!token) {
+        console.log(`📡 Connection rejected: No authentication token provided (${socket.id})`);
+        return next(new Error('Authentication required'));
+      }
+
+      try {
+        if (!JWT_SECRET) {
+          console.warn('⚠️  JWT_SECRET not configured - rejecting connection');
+          return next(new Error('Server configuration error'));
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET) as { 
+          userId: string; 
+          role?: string; 
+          roleName?: string;
+          roleId?: number;
+          authorizedClasses?: string[];
+          authorizedStudentIds?: string[];
+        };
+        
+        const role = decoded.roleName || decoded.role || 'unknown';
+        
+        this.authenticatedSockets.set(socket.id, {
+          id: socket.id,
+          userId: decoded.userId,
+          role: role,
+          authorizedClasses: decoded.authorizedClasses || [],
+          authorizedStudentIds: decoded.authorizedStudentIds || [],
+        });
+
+        console.log(`📡 Authenticated socket: ${socket.id} (User: ${decoded.userId}, Role: ${role}, Classes: ${(decoded.authorizedClasses || []).length})`);
+        next();
+      } catch (error) {
+        console.warn(`⚠️  Invalid token for socket ${socket.id}:`, error instanceof Error ? error.message : 'Unknown error');
+        return next(new Error('Invalid or expired token'));
+      }
+    });
   }
 
   private setupEventHandlers() {
     if (!this.io) return;
 
     this.io.on('connection', (socket) => {
-      console.log(`📡 Client connected: ${socket.id}`);
+      const user = this.authenticatedSockets.get(socket.id);
+      console.log(`📡 Client connected: ${socket.id}${user ? ` (User: ${user.userId})` : ' (Anonymous)'}`);
 
-      // Handle table subscriptions
-      socket.on('subscribe', (data: { table: string }) => {
-        const { table } = data;
-        const channel = `table:${table}`;
-        
-        socket.join(channel);
-        
-        // Track subscription
-        if (!this.connectedClients.has(table)) {
-          this.connectedClients.set(table, new Set());
-        }
-        this.connectedClients.get(table)!.add(socket.id);
+      if (user) {
+        socket.join(`user:${user.userId}`);
+        socket.join(`role:${user.role}`);
+        console.log(`   → Auto-joined rooms: user:${user.userId}, role:${user.role}`);
+      }
 
-        console.log(`   → Client ${socket.id} subscribed to table: ${table}`);
-        socket.emit('subscribed', { table, channel });
+      socket.on('subscribe', (data: SubscriptionData) => {
+        this.handleSubscribe(socket, data);
       });
 
-      // Handle table unsubscriptions
-      socket.on('unsubscribe', (data: { table: string }) => {
-        const { table } = data;
-        const channel = `table:${table}`;
-        
-        socket.leave(channel);
-        
-        // Remove from tracking
-        if (this.connectedClients.has(table)) {
-          this.connectedClients.get(table)!.delete(socket.id);
-          if (this.connectedClients.get(table)!.size === 0) {
-            this.connectedClients.delete(table);
-          }
-        }
-
-        console.log(`   → Client ${socket.id} unsubscribed from table: ${table}`);
-        socket.emit('unsubscribed', { table });
+      socket.on('subscribe:table', (data: { table: string }) => {
+        this.handleTableSubscribe(socket, data.table);
       });
 
-      // Handle disconnection
+      socket.on('subscribe:class', (data: { classId: string }) => {
+        this.handleClassSubscribe(socket, data.classId);
+      });
+
+      socket.on('subscribe:exam', (data: { examId: string | number }) => {
+        this.handleExamSubscribe(socket, data.examId);
+      });
+
+      socket.on('subscribe:reportcard', (data: { reportCardId: string | number }) => {
+        this.handleReportCardSubscribe(socket, data.reportCardId);
+      });
+
+      socket.on('unsubscribe', (data: SubscriptionData) => {
+        this.handleUnsubscribe(socket, data);
+      });
+
       socket.on('disconnect', () => {
-        console.log(`📡 Client disconnected: ${socket.id}`);
-        
-        // Clean up all subscriptions for this client
-        this.connectedClients.forEach((clients, table) => {
-          clients.delete(socket.id);
-          if (clients.size === 0) {
-            this.connectedClients.delete(table);
-          }
-        });
+        this.handleDisconnect(socket);
       });
 
-      // Ping/pong for connection health
       socket.on('ping', () => {
         socket.emit('pong', { timestamp: Date.now() });
+      });
+
+      socket.on('get:subscriptions', () => {
+        const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+        socket.emit('subscriptions', { rooms });
       });
     });
   }
 
-  /**
-   * Emit a database change event to all subscribed clients
-   */
-  emitTableChange(table: string, event: 'INSERT' | 'UPDATE' | 'DELETE', data: any, oldData?: any) {
+  private handleSubscribe(socket: Socket, data: SubscriptionData) {
+    if (data.table) {
+      this.handleTableSubscribe(socket, data.table);
+    }
+    if (data.channel) {
+      socket.join(data.channel);
+      console.log(`   → Client ${socket.id} joined channel: ${data.channel}`);
+      socket.emit('subscribed', { channel: data.channel });
+    }
+    if (data.classId) {
+      this.handleClassSubscribe(socket, data.classId);
+    }
+    if (data.examId) {
+      this.handleExamSubscribe(socket, data.examId);
+    }
+    if (data.reportCardId) {
+      this.handleReportCardSubscribe(socket, data.reportCardId);
+    }
+  }
+
+  private handleTableSubscribe(socket: Socket, table: string) {
+    const user = this.authenticatedSockets.get(socket.id);
+    if (!user) {
+      socket.emit('subscription_error', { type: 'table', table, error: 'Authentication required' });
+      return;
+    }
+
+    // Normalize role to lowercase canonical slug
+    const role = this.normalizeRole(user.role);
+
+    // Highly sensitive tables - super_admin and admin only
+    const adminOnlyTables = ['users', 'students', 'teacher_profiles', 'admin_profiles', 'parent_profiles'];
+    // Academic tables - super_admin, admin, and teachers
+    const academicTables = ['report_cards', 'report_card_items', 'exam_results', 'exam_sessions', 'exams'];
+    
+    const fullAccessRoles = ['super_admin', 'admin'];
+    const academicRoles = ['super_admin', 'admin', 'teacher'];
+    
+    if (adminOnlyTables.includes(table) && !fullAccessRoles.includes(role)) {
+      socket.emit('subscription_error', { type: 'table', table, error: 'Insufficient permissions for this table' });
+      console.log(`   ⚠️  Unauthorized table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
+      return;
+    }
+    
+    if (academicTables.includes(table) && !academicRoles.includes(role)) {
+      socket.emit('subscription_error', { type: 'table', table, error: 'Insufficient permissions for academic table' });
+      console.log(`   ⚠️  Unauthorized academic table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
+      return;
+    }
+
+    const channel = `table:${table}`;
+    socket.join(channel);
+    
+    if (!this.connectedClients.has(table)) {
+      this.connectedClients.set(table, new Set());
+    }
+    this.connectedClients.get(table)!.add(socket.id);
+
+    console.log(`   → Client ${socket.id} subscribed to table: ${table}`);
+    socket.emit('subscribed', { table, channel });
+  }
+
+  private handleClassSubscribe(socket: Socket, classId: string) {
+    const user = this.authenticatedSockets.get(socket.id);
+    if (!user) {
+      socket.emit('subscription_error', { type: 'class', classId, error: 'Authentication required' });
+      return;
+    }
+
+    // Normalize role to lowercase canonical slug
+    const role = this.normalizeRole(user.role);
+
+    // Super admins and admins can access all classes
+    const fullAccessRoles = ['super_admin', 'admin'];
+    if (fullAccessRoles.includes(role)) {
+      const channel = `class:${classId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (${role}) subscribed to class: ${classId}`);
+      socket.emit('subscribed', { type: 'class', classId, channel });
+      return;
+    }
+
+    // Teachers, students, parents must have the class in their authorized list
+    const authorizedClasses = user.authorizedClasses || [];
+    if (!authorizedClasses.includes(classId) && !authorizedClasses.includes(classId.toString())) {
+      socket.emit('subscription_error', { 
+        type: 'class', 
+        classId, 
+        error: 'Access denied: You are not authorized for this class' 
+      });
+      console.log(`   ⚠️  Unauthorized class subscription: ${user.userId} (role: ${role}) attempted to access class ${classId}`);
+      return;
+    }
+
+    const channel = `class:${classId}`;
+    socket.join(channel);
+    console.log(`   → Client ${socket.id} subscribed to class: ${classId}`);
+    socket.emit('subscribed', { type: 'class', classId, channel });
+  }
+
+  private handleExamSubscribe(socket: Socket, examId: string | number) {
+    const user = this.authenticatedSockets.get(socket.id);
+    if (!user) {
+      socket.emit('subscription_error', { type: 'exam', examId, error: 'Authentication required' });
+      return;
+    }
+
+    // Normalize role to lowercase canonical slug
+    const role = this.normalizeRole(user.role);
+    
+    // Super admins and admins can access all exams
+    const fullAccessRoles = ['super_admin', 'admin'];
+    if (fullAccessRoles.includes(role)) {
+      const channel = `exam:${examId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (${role}) subscribed to exam: ${examId}`);
+      socket.emit('subscribed', { type: 'exam', examId, channel });
+      return;
+    }
+    
+    // Teachers can subscribe to exams (they need this for monitoring)
+    // Note: Full resource-level checks would require database lookup for exam.classId
+    // For now, allow teachers with any assigned classes to subscribe
+    if (role === 'teacher' && user.authorizedClasses && user.authorizedClasses.length > 0) {
+      const channel = `exam:${examId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (teacher) subscribed to exam: ${examId}`);
+      socket.emit('subscribed', { type: 'exam', examId, channel });
+      return;
+    }
+    
+    // Students can subscribe to their own exams
+    if (role === 'student' && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+      const channel = `exam:${examId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (student) subscribed to exam: ${examId}`);
+      socket.emit('subscribed', { type: 'exam', examId, channel });
+      return;
+    }
+
+    socket.emit('subscription_error', { type: 'exam', examId, error: 'Access denied: insufficient permissions' });
+    console.log(`   ⚠️  Unauthorized exam subscription: ${user.userId} (role: ${role})`);
+  }
+
+  private handleReportCardSubscribe(socket: Socket, reportCardId: string | number) {
+    const user = this.authenticatedSockets.get(socket.id);
+    if (!user) {
+      socket.emit('subscription_error', { type: 'reportcard', reportCardId, error: 'Authentication required' });
+      return;
+    }
+
+    // Normalize role to lowercase canonical slug
+    const role = this.normalizeRole(user.role);
+    
+    // Super admins and admins can access all report cards
+    const fullAccessRoles = ['super_admin', 'admin'];
+    if (fullAccessRoles.includes(role)) {
+      const channel = `reportcard:${reportCardId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (${role}) subscribed to report card: ${reportCardId}`);
+      socket.emit('subscribed', { type: 'reportcard', reportCardId, channel });
+      return;
+    }
+    
+    // Teachers with assigned classes can subscribe to report cards
+    if (role === 'teacher' && user.authorizedClasses && user.authorizedClasses.length > 0) {
+      const channel = `reportcard:${reportCardId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (teacher) subscribed to report card: ${reportCardId}`);
+      socket.emit('subscribed', { type: 'reportcard', reportCardId, channel });
+      return;
+    }
+    
+    // Students can subscribe to their own report cards
+    if (role === 'student' && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+      const channel = `reportcard:${reportCardId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (student) subscribed to report card: ${reportCardId}`);
+      socket.emit('subscribed', { type: 'reportcard', reportCardId, channel });
+      return;
+    }
+    
+    // Parents can subscribe to report cards of their linked students
+    if (role === 'parent' && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+      const channel = `reportcard:${reportCardId}`;
+      socket.join(channel);
+      console.log(`   → Client ${socket.id} (parent) subscribed to report card: ${reportCardId}`);
+      socket.emit('subscribed', { type: 'reportcard', reportCardId, channel });
+      return;
+    }
+
+    socket.emit('subscription_error', { type: 'reportcard', reportCardId, error: 'Access denied: insufficient permissions' });
+    console.log(`   ⚠️  Unauthorized report card subscription: ${user.userId} (role: ${role})`);
+  }
+  
+  // Normalize role names to canonical lowercase slugs
+  private normalizeRole(role: string): string {
+    const roleMap: Record<string, string> = {
+      'super admin': 'super_admin',
+      'superadmin': 'super_admin',
+      'super_admin': 'super_admin',
+      'admin': 'admin',
+      'administrator': 'admin',
+      'teacher': 'teacher',
+      'student': 'student',
+      'parent': 'parent',
+    };
+    return roleMap[role.toLowerCase()] || role.toLowerCase();
+  }
+
+  private handleUnsubscribe(socket: Socket, data: SubscriptionData) {
+    if (data.table) {
+      const channel = `table:${data.table}`;
+      socket.leave(channel);
+      
+      if (this.connectedClients.has(data.table)) {
+        this.connectedClients.get(data.table)!.delete(socket.id);
+        if (this.connectedClients.get(data.table)!.size === 0) {
+          this.connectedClients.delete(data.table);
+        }
+      }
+      console.log(`   → Client ${socket.id} unsubscribed from table: ${data.table}`);
+      socket.emit('unsubscribed', { table: data.table });
+    }
+
+    if (data.channel) {
+      socket.leave(data.channel);
+      console.log(`   → Client ${socket.id} left channel: ${data.channel}`);
+      socket.emit('unsubscribed', { channel: data.channel });
+    }
+
+    if (data.classId) {
+      socket.leave(`class:${data.classId}`);
+      socket.emit('unsubscribed', { type: 'class', classId: data.classId });
+    }
+
+    if (data.examId) {
+      socket.leave(`exam:${data.examId}`);
+      socket.emit('unsubscribed', { type: 'exam', examId: data.examId });
+    }
+
+    if (data.reportCardId) {
+      socket.leave(`reportcard:${data.reportCardId}`);
+      socket.emit('unsubscribed', { type: 'reportcard', reportCardId: data.reportCardId });
+    }
+  }
+
+  private handleDisconnect(socket: Socket) {
+    const user = this.authenticatedSockets.get(socket.id);
+    console.log(`📡 Client disconnected: ${socket.id}${user ? ` (User: ${user.userId})` : ''}`);
+    
+    this.connectedClients.forEach((clients, table) => {
+      clients.delete(socket.id);
+      if (clients.size === 0) {
+        this.connectedClients.delete(table);
+      }
+    });
+
+    this.authenticatedSockets.delete(socket.id);
+  }
+
+  private generateEventId(): string {
+    return crypto.randomUUID();
+  }
+
+  private startEventIdCleanup() {
+    this.eventIdCleanupInterval = setInterval(() => {
+      this.recentEventIds.clear();
+    }, 60000);
+  }
+
+  emitTableChange(table: string, operation: 'INSERT' | 'UPDATE' | 'DELETE', data: any, oldData?: any, userId?: string) {
     if (!this.io) {
       console.warn('⚠️  Socket.IO not initialized, cannot emit event');
       return;
     }
 
+    const eventId = this.generateEventId();
+    this.recentEventIds.add(eventId);
+
     const channel = `table:${table}`;
     const payload: RealtimeEvent = {
+      eventId,
+      eventType: `${table}.${operation.toLowerCase()}`,
       table,
-      event,
+      operation,
       data,
       oldData,
+      timestamp: Date.now(),
+      userId,
     };
 
     this.io.to(channel).emit('table_change', payload);
     
     const subscriberCount = this.connectedClients.get(table)?.size || 0;
     if (subscriberCount > 0) {
-      console.log(`📤 Emitted ${event} event for table ${table} to ${subscriberCount} clients`);
+      console.log(`📤 Emitted ${operation} event for table ${table} to ${subscriberCount} clients (eventId: ${eventId.slice(0, 8)}...)`);
     }
+
+    return eventId;
   }
 
-  /**
-   * Emit a custom event to all connected clients
-   */
+  emitEvent(eventType: string, data: any, rooms?: string | string[]) {
+    if (!this.io) {
+      console.warn('⚠️  Socket.IO not initialized, cannot emit event');
+      return;
+    }
+
+    const eventId = this.generateEventId();
+    const payload = {
+      eventId,
+      eventType,
+      data,
+      timestamp: Date.now(),
+    };
+
+    if (rooms) {
+      const roomList = Array.isArray(rooms) ? rooms : [rooms];
+      roomList.forEach(room => {
+        this.io!.to(room).emit(eventType, payload);
+      });
+      console.log(`📤 Emitted ${eventType} to rooms: ${roomList.join(', ')}`);
+    } else {
+      this.io.emit(eventType, payload);
+      console.log(`📤 Broadcast event: ${eventType}`);
+    }
+
+    return eventId;
+  }
+
+  emitToUser(userId: string, eventType: string, data: any) {
+    return this.emitEvent(eventType, data, `user:${userId}`);
+  }
+
+  emitToRole(role: string, eventType: string, data: any) {
+    return this.emitEvent(eventType, data, `role:${role}`);
+  }
+
+  emitToClass(classId: string, eventType: string, data: any) {
+    return this.emitEvent(eventType, data, `class:${classId}`);
+  }
+
+  emitToExam(examId: string | number, eventType: string, data: any) {
+    return this.emitEvent(eventType, data, `exam:${examId}`);
+  }
+
+  emitToReportCard(reportCardId: string | number, eventType: string, data: any) {
+    return this.emitEvent(eventType, data, `reportcard:${reportCardId}`);
+  }
+
   emitToAll(event: string, data: any) {
     if (!this.io) {
       console.warn('⚠️  Socket.IO not initialized, cannot emit event');
@@ -132,9 +521,6 @@ class RealtimeService {
     console.log(`📤 Broadcast event: ${event}`);
   }
 
-  /**
-   * Emit to specific room/channel
-   */
   emitToRoom(room: string, event: string, data: any) {
     if (!this.io) {
       console.warn('⚠️  Socket.IO not initialized, cannot emit event');
@@ -144,27 +530,97 @@ class RealtimeService {
     this.io.to(room).emit(event, data);
   }
 
-  /**
-   * Get the Socket.IO instance
-   */
+  emitExamEvent(examId: string | number, eventType: 'started' | 'submitted' | 'graded' | 'timer_tick' | 'auto_submitted', data: any) {
+    const fullEventType = `exam.${eventType}`;
+    this.emitToExam(examId, fullEventType, { ...data, examId });
+    
+    if (data.classId) {
+      this.emitToClass(data.classId, fullEventType, { ...data, examId });
+    }
+  }
+
+  emitReportCardEvent(reportCardId: string | number, eventType: 'updated' | 'published' | 'finalized' | 'reverted', data: any) {
+    const fullEventType = `reportcard.${eventType}`;
+    this.emitToReportCard(reportCardId, fullEventType, data);
+    
+    if (data.studentId) {
+      this.emitToUser(data.studentId, fullEventType, data);
+    }
+    
+    if (data.classId) {
+      this.emitToClass(data.classId, fullEventType, data);
+    }
+  }
+
+  emitUserEvent(userId: string, eventType: 'created' | 'updated' | 'deleted', data: any, role?: string) {
+    const fullEventType = `user.${eventType}`;
+    
+    this.emitTableChange('users', eventType.toUpperCase() as 'INSERT' | 'UPDATE' | 'DELETE', data, undefined, userId);
+    
+    if (role) {
+      this.emitToRole('admin', fullEventType, data);
+      this.emitToRole('super_admin', fullEventType, data);
+    }
+  }
+
+  emitAttendanceEvent(classId: string, eventType: 'marked' | 'updated', data: any) {
+    const fullEventType = `attendance.${eventType}`;
+    this.emitToClass(classId, fullEventType, data);
+    this.emitTableChange('attendance', eventType === 'marked' ? 'INSERT' : 'UPDATE', data);
+  }
+
+  emitNotification(userId: string, notification: { title: string; message: string; type?: string }) {
+    this.emitToUser(userId, 'notification', notification);
+  }
+
+  emitUploadProgress(userId: string, uploadId: string, progress: number, status: 'uploading' | 'completed' | 'failed', url?: string) {
+    this.emitToUser(userId, 'upload.progress', {
+      uploadId,
+      progress,
+      status,
+      url,
+    });
+  }
+
   getIO(): SocketIOServer | null {
     return this.io;
   }
 
-  /**
-   * Get number of clients subscribed to a table
-   */
   getSubscriberCount(table: string): number {
     return this.connectedClients.get(table)?.size || 0;
   }
 
-  /**
-   * Get all active table subscriptions
-   */
   getActiveSubscriptions(): string[] {
     return Array.from(this.connectedClients.keys());
   }
+
+  getConnectedUserCount(): number {
+    return this.authenticatedSockets.size;
+  }
+
+  getRoomSubscriberCount(room: string): number {
+    if (!this.io) return 0;
+    const roomObj = this.io.sockets.adapter.rooms.get(room);
+    return roomObj ? roomObj.size : 0;
+  }
+
+  getStats() {
+    return {
+      totalConnections: this.io?.sockets.sockets.size || 0,
+      authenticatedUsers: this.authenticatedSockets.size,
+      tableSubscriptions: Object.fromEntries(this.connectedClients),
+      activeRooms: this.io ? Array.from(this.io.sockets.adapter.rooms.keys()).filter(r => !this.io!.sockets.sockets.has(r)) : [],
+    };
+  }
+
+  shutdown() {
+    if (this.eventIdCleanupInterval) {
+      clearInterval(this.eventIdCleanupInterval);
+    }
+    if (this.io) {
+      this.io.close();
+    }
+  }
 }
 
-// Export singleton instance
 export const realtimeService = new RealtimeService();

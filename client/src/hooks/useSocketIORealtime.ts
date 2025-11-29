@@ -1,33 +1,59 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { queryClient } from '@/lib/queryClient';
 
 interface UseSocketIORealtimeOptions {
-  table: string;
+  table?: string;
   queryKey: string | string[];
   enabled?: boolean;
-  fallbackPollingInterval?: number; // in milliseconds, default 30000 (30 seconds)
+  fallbackPollingInterval?: number;
+  channel?: string;
+  classId?: string;
+  examId?: string | number;
+  reportCardId?: string | number;
+  onEvent?: (event: RealtimeEvent) => void;
 }
 
-interface TableChangeEvent {
-  table: string;
-  event: 'INSERT' | 'UPDATE' | 'DELETE';
+interface RealtimeEvent {
+  eventId: string;
+  eventType: string;
+  table?: string;
+  operation?: 'INSERT' | 'UPDATE' | 'DELETE';
   data: any;
   oldData?: any;
+  timestamp: number;
+  userId?: string;
 }
 
 let globalSocket: Socket | null = null;
 let connectionAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
+const seenEventIds = new Set<string>();
+const EVENT_ID_TTL = 60000;
+
+function getAuthToken(): string | null {
+  try {
+    const token = localStorage.getItem('token');
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+function cleanupOldEventIds() {
+  if (seenEventIds.size > 1000) {
+    seenEventIds.clear();
+  }
+}
 
 function getOrCreateSocket(): Socket {
   if (globalSocket && globalSocket.connected) {
     return globalSocket;
   }
 
-  // Get API URL from environment or use relative path
   const apiUrl = import.meta.env.VITE_API_URL || '';
   const socketUrl = apiUrl || window.location.origin;
+  const token = getAuthToken();
 
   globalSocket = io(socketUrl, {
     path: '/socket.io/',
@@ -37,6 +63,7 @@ function getOrCreateSocket(): Socket {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 20000,
+    auth: token ? { token } : undefined,
   });
 
   globalSocket.on('connect', () => {
@@ -53,65 +80,114 @@ function getOrCreateSocket(): Socket {
     console.error(`❌ Socket.IO connection error (attempt ${connectionAttempts}):`, error.message);
   });
 
+  globalSocket.on('reconnect', () => {
+    console.log('🔄 Socket.IO reconnected');
+  });
+
   return globalSocket;
+}
+
+export function reconnectSocket() {
+  if (globalSocket) {
+    globalSocket.disconnect();
+    globalSocket = null;
+  }
+  return getOrCreateSocket();
 }
 
 export function useSocketIORealtime({ 
   table, 
   queryKey, 
   enabled = true,
-  fallbackPollingInterval = 30000
+  fallbackPollingInterval = 30000,
+  channel,
+  classId,
+  examId,
+  reportCardId,
+  onEvent,
 }: UseSocketIORealtimeOptions) {
   const socketRef = useRef<Socket | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | null>(null);
+
+  const handleEvent = useCallback((event: RealtimeEvent) => {
+    if (event.eventId && seenEventIds.has(event.eventId)) {
+      console.log(`📥 Ignoring duplicate event: ${event.eventId.slice(0, 8)}...`);
+      return;
+    }
+
+    if (event.eventId) {
+      seenEventIds.add(event.eventId);
+      cleanupOldEventIds();
+    }
+
+    setLastEventTimestamp(event.timestamp);
+
+    if (onEvent) {
+      onEvent(event);
+    }
+  }, [onEvent]);
 
   useEffect(() => {
     if (!enabled) return;
 
-    // Filter out undefined/null from queryKey
     const filteredQueryKey = Array.isArray(queryKey) 
       ? queryKey.filter(key => key !== undefined && key !== null)
       : [queryKey];
 
-    // Skip if filtered key is empty
     if (filteredQueryKey.length === 0) {
       return;
     }
 
-    // Try to establish Socket.IO connection
     try {
       const socket = getOrCreateSocket();
       socketRef.current = socket;
 
-      // Handle connection status
       const handleConnect = () => {
         setIsConnected(true);
         setIsFallbackMode(false);
         stopPolling();
 
-        // Subscribe to table changes
-        socket.emit('subscribe', { table });
+        if (table) {
+          socket.emit('subscribe:table', { table });
+        }
+        if (channel) {
+          socket.emit('subscribe', { channel });
+        }
+        if (classId) {
+          socket.emit('subscribe:class', { classId });
+        }
+        if (examId) {
+          socket.emit('subscribe:exam', { examId });
+        }
+        if (reportCardId) {
+          socket.emit('subscribe:reportcard', { reportCardId });
+        }
       };
 
       const handleDisconnect = () => {
         setIsConnected(false);
-        // Start polling fallback after disconnect
         if (connectionAttempts >= MAX_RECONNECT_ATTEMPTS) {
           startPolling();
         }
       };
 
-      const handleTableChange = (event: TableChangeEvent) => {
-        if (event.table === table) {
-          console.log(`📥 Received ${event.event} event for table: ${table}`);
-          // Invalidate the query to refetch data
+      const handleTableChange = (event: RealtimeEvent) => {
+        if (table && event.table === table) {
+          handleEvent(event);
+          console.log(`📥 Received ${event.operation} event for table: ${table}`);
           queryClient.invalidateQueries({ queryKey: filteredQueryKey });
         }
       };
 
-      // Register event listeners
+      const handleCustomEvent = (eventType: string) => (payload: any) => {
+        handleEvent(payload);
+        console.log(`📥 Received ${eventType} event`);
+        queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+      };
+
       if (socket.connected) {
         handleConnect();
       } else {
@@ -121,12 +197,44 @@ export function useSocketIORealtime({
       socket.on('disconnect', handleDisconnect);
       socket.on('table_change', handleTableChange);
 
-      // Cleanup function
+      const customEvents = [
+        'exam.started', 'exam.submitted', 'exam.graded', 'exam.auto_submitted',
+        'reportcard.updated', 'reportcard.published', 'reportcard.finalized', 'reportcard.reverted',
+        'user.created', 'user.updated', 'user.deleted',
+        'attendance.marked', 'attendance.updated',
+        'notification',
+        'upload.progress',
+      ];
+
+      customEvents.forEach(eventType => {
+        socket.on(eventType, handleCustomEvent(eventType));
+      });
+
       return () => {
         socket.off('connect', handleConnect);
         socket.off('disconnect', handleDisconnect);
         socket.off('table_change', handleTableChange);
-        socket.emit('unsubscribe', { table });
+        
+        customEvents.forEach(eventType => {
+          socket.off(eventType);
+        });
+
+        if (table) {
+          socket.emit('unsubscribe', { table });
+        }
+        if (channel) {
+          socket.emit('unsubscribe', { channel });
+        }
+        if (classId) {
+          socket.emit('unsubscribe', { classId });
+        }
+        if (examId) {
+          socket.emit('unsubscribe', { examId });
+        }
+        if (reportCardId) {
+          socket.emit('unsubscribe', { reportCardId });
+        }
+        
         stopPolling();
       };
     } catch (error) {
@@ -135,10 +243,10 @@ export function useSocketIORealtime({
     }
 
     function startPolling() {
-      if (pollingIntervalRef.current) return; // Already polling
+      if (pollingIntervalRef.current) return;
 
       setIsFallbackMode(true);
-      console.log(`📊 Starting polling fallback for table: ${table} (${fallbackPollingInterval}ms)`);
+      console.log(`📊 Starting polling fallback (${fallbackPollingInterval}ms)`);
 
       pollingIntervalRef.current = setInterval(() => {
         queryClient.invalidateQueries({ queryKey: filteredQueryKey });
@@ -152,13 +260,96 @@ export function useSocketIORealtime({
         setIsFallbackMode(false);
       }
     }
-  }, [table, enabled, fallbackPollingInterval, JSON.stringify(Array.isArray(queryKey) ? queryKey : [queryKey])]);
+  }, [table, channel, classId, examId, reportCardId, enabled, fallbackPollingInterval, handleEvent, JSON.stringify(Array.isArray(queryKey) ? queryKey : [queryKey])]);
 
-  // Return the current mode for debugging
-  return { isFallbackMode, isConnected };
+  return { isFallbackMode, isConnected, lastEventTimestamp };
 }
 
-// Cleanup on page unload
+export function useSocketConnection() {
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const socket = getOrCreateSocket();
+
+    const handleConnect = () => {
+      setIsConnected(true);
+      setConnectionError(null);
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    const handleError = (error: Error) => {
+      setConnectionError(error.message);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleError);
+
+    if (socket.connected) {
+      setIsConnected(true);
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleError);
+    };
+  }, []);
+
+  return { isConnected, connectionError, reconnect: reconnectSocket };
+}
+
+export function useNotifications(userId?: string) {
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const socket = getOrCreateSocket();
+
+    socket.on('notification', (payload: any) => {
+      setNotifications(prev => [payload.data, ...prev].slice(0, 50));
+    });
+
+    return () => {
+      socket.off('notification');
+    };
+  }, [userId]);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  return { notifications, clearNotifications };
+}
+
+export function useUploadProgress() {
+  const [uploads, setUploads] = useState<Map<string, { progress: number; status: string; url?: string }>>(new Map());
+
+  useEffect(() => {
+    const socket = getOrCreateSocket();
+
+    socket.on('upload.progress', (payload: any) => {
+      const { uploadId, progress, status, url } = payload.data;
+      setUploads(prev => {
+        const newMap = new Map(prev);
+        newMap.set(uploadId, { progress, status, url });
+        return newMap;
+      });
+    });
+
+    return () => {
+      socket.off('upload.progress');
+    };
+  }, []);
+
+  return { uploads };
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     if (globalSocket) {
