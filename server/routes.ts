@@ -1434,15 +1434,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: 'Failed to update exam publish status' });
       }
       
-      // Emit realtime event for publish/unpublish (class-scoped only for security)
-      // Do NOT use emitExamEvent here - exam rooms lack proper class-level authorization
-      // Class rooms have proper authorization checks to ensure only authorized users receive events
-      const eventType = isPublished ? 'exam.published' : 'exam.unpublished';
-      realtimeService.emitTableChange('exams', 'UPDATE', exam, existingExam, teacherId);
-      if (exam.classId) {
-        // Only notify users in the specific class - class subscription has proper authorization
-        realtimeService.emitToClass(exam.classId.toString(), eventType, exam);
-      }
+      // Use dedicated exam publish/unpublish emit method for comprehensive realtime updates
+      realtimeService.emitExamPublishEvent(examId, isPublished, exam, teacherId);
       
       res.json(exam);
     } catch (error) {
@@ -1641,11 +1634,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // AUTO-SYNC: Sync exam score to report card immediately after scoring
       // This runs in background to not block the response
-      let reportCardSync = { success: false, message: '' };
+      let reportCardSync = { success: false, message: '', reportCardId: null as number | null };
       try {
         reportCardSync = await storage.syncExamScoreToReportCard(studentId, examId, totalScore, maxScore);
         if (reportCardSync.success) {
           console.log(`[SUBMIT] Report card sync successful: ${reportCardSync.message}`);
+          
+          // Emit realtime event for report card update so dashboards refresh
+          if (reportCardSync.reportCardId) {
+            realtimeService.emitReportCardEvent(reportCardSync.reportCardId, 'updated', {
+              studentId,
+              examId,
+              classId: exam.classId,
+              score: totalScore,
+              maxScore,
+              percentage: maxScore > 0 ? Math.round((totalScore / maxScore) * 10000) / 100 : 0,
+            });
+          }
+          
+          // Also emit to class channel for teachers monitoring report cards
+          realtimeService.emitTableEvent('report_cards', 'updated', {
+            studentId,
+            examId,
+            classId: exam.classId,
+            score: totalScore,
+            maxScore,
+          });
         } else {
           console.warn(`[SUBMIT] Report card sync warning: ${reportCardSync.message}`);
         }
@@ -3779,7 +3793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Emit realtime event for homepage content creation
-      realtimeService.emitHomepageEvent('created', content, req.user!.id);
+      realtimeService.emitHomepageContentEvent('created', content, req.user!.id);
 
       res.json(content);
     } catch (error: any) {
@@ -3819,7 +3833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for homepage content update
-      realtimeService.emitHomepageEvent('updated', updated, req.user!.id);
+      realtimeService.emitHomepageContentEvent('updated', updated, req.user!.id);
       
       res.json({
         message: 'Homepage content updated successfully',
@@ -3854,7 +3868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for homepage content deletion
-      realtimeService.emitHomepageEvent('deleted', { id, ...content }, req.user!.id);
+      realtimeService.emitHomepageContentEvent('deleted', { id, ...content }, req.user!.id);
       
       res.json({ message: 'Homepage content deleted successfully' });
     } catch (error) {
@@ -4010,7 +4024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newAttendance = await storage.recordAttendance(attendanceData);
       
       // Emit realtime event for attendance record
-      realtimeService.emitAttendanceEvent(classId.toString(), studentId, 'recorded', newAttendance, req.user!.id);
+      realtimeService.emitAttendanceEvent(classId.toString(), 'marked', { ...newAttendance, recordedBy: req.user!.id });
       
       res.status(201).json(newAttendance);
     } catch (error: any) {
@@ -4041,7 +4055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdRecords.push(newAttendance);
         
         // Emit realtime event for each attendance record
-        realtimeService.emitAttendanceEvent(classId.toString(), record.studentId, 'recorded', newAttendance, req.user!.id);
+        realtimeService.emitAttendanceEvent(classId.toString(), 'marked', { ...newAttendance, recordedBy: req.user!.id });
       }
       
       res.status(201).json({

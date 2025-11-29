@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Clock, BookOpen, Trophy, Play, Eye, CheckCircle, XCircle, Timer, Save, RotateCcw, AlertCircle, Loader, FileText, Circle, CheckCircle2, HelpCircle, ClipboardCheck, GraduationCap, Award, Calendar } from 'lucide-react';
 import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } from '@shared/schema';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 // Constants for violation tracking and penalties
 const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
@@ -69,6 +70,60 @@ export default function StudentExams() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [networkIssues, setNetworkIssues] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+
+  // Socket.IO realtime updates for exams list
+  useSocketIORealtime({
+    table: 'exams',
+    queryKey: ['/api/exams', 'student-list'],
+    enabled: !!user?.id,
+    examId: selectedExam?.id,
+    onEvent: (event) => {
+      // Handle exam published/unpublished events
+      if (event.eventType === 'exam.published' || event.eventType === 'exam.unpublished') {
+        queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+      }
+      // Handle exam deleted
+      if (event.eventType === 'exam.deleted' && event.data?.id === selectedExam?.id) {
+        toast({
+          title: "Exam Removed",
+          description: "This exam is no longer available.",
+          variant: "destructive",
+        });
+        setSelectedExam(null);
+        setActiveSession(null);
+      }
+    }
+  });
+
+  // Socket.IO for exam session updates (timer sync, auto-submit notifications)
+  // Only enabled when there's an active session with both examId and sessionId
+  const activeExamId = activeSession?.examId;
+  const activeSessionId = activeSession?.id;
+  useSocketIORealtime({
+    table: 'exam_sessions',
+    queryKey: ['/api/exam-sessions', 'student', user?.id || 'none', activeExamId || 0],
+    enabled: !!activeSessionId && !!activeExamId && !!user?.id,
+    examId: activeExamId,
+    onEvent: (event) => {
+      // Handle session completion by another client (e.g., teacher force-submit)
+      if (event.eventType === 'examSession.completed' && event.data?.sessionId === activeSessionId) {
+        toast({
+          title: "Exam Submitted",
+          description: "Your exam has been submitted.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
+        setLocation('/portal/student/exam-results');
+      }
+      // Handle auto-submit notifications
+      if (event.eventType === 'exam.auto_submitted' && event.data?.studentId === user?.id) {
+        toast({
+          title: "Exam Auto-Submitted",
+          description: "Your exam was automatically submitted due to timeout or violations.",
+          variant: "destructive",
+        });
+      }
+    }
+  });
 
   // PROTECTION: Prevent re-entry to an already submitted exam session
   // Uses isRedirecting flag to prevent multiple redirects and race conditions

@@ -42,26 +42,72 @@ class RealtimeService {
   private eventIdCleanupInterval: NodeJS.Timeout | null = null;
 
   initialize(httpServer: HTTPServer) {
-    const allowedOrigins = process.env.NODE_ENV === 'development'
-      ? ['http://localhost:5173', 'http://localhost:5000', 'http://127.0.0.1:5173']
-      : (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []);
+    // Build allowed origins for CORS - production ready
+    const allowedOrigins: string[] = [];
+    
+    if (process.env.NODE_ENV === 'development') {
+      // Development origins
+      allowedOrigins.push(
+        'http://localhost:5173',
+        'http://localhost:5000',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5000'
+      );
+    }
+    
+    // Production origins from environment
+    if (process.env.FRONTEND_URL) {
+      allowedOrigins.push(process.env.FRONTEND_URL);
+    }
+    
+    // Support Replit domains dynamically
+    if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+      allowedOrigins.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+    }
+    if (process.env.REPLIT_DEV_DOMAIN) {
+      allowedOrigins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+    }
 
     this.io = new SocketIOServer(httpServer, {
       cors: {
-        origin: allowedOrigins,
+        origin: (origin, callback) => {
+          // Allow requests with no origin (like mobile apps or curl)
+          if (!origin) return callback(null, true);
+          
+          // Check against allowed origins
+          if (allowedOrigins.some(allowed => origin.startsWith(allowed) || origin.includes('.repl.co') || origin.includes('.replit.dev'))) {
+            return callback(null, true);
+          }
+          
+          // In development, be more permissive
+          if (process.env.NODE_ENV === 'development') {
+            return callback(null, true);
+          }
+          
+          console.warn(`⚠️  Socket.IO CORS blocked origin: ${origin}`);
+          callback(new Error('CORS not allowed'));
+        },
         credentials: true,
         methods: ['GET', 'POST'],
       },
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
+      // Production optimizations
+      pingTimeout: 60000,
+      pingInterval: 25000,
+      upgradeTimeout: 30000,
+      maxHttpBufferSize: 1e6, // 1MB
+      connectTimeout: 45000,
     });
 
     this.setupMiddleware();
     this.setupEventHandlers();
     this.startEventIdCleanup();
+    this.startHeartbeatCheck();
     
     console.log('✅ Socket.IO Realtime Service initialized');
-    console.log(`   → CORS origins: ${allowedOrigins.join(', ')}`);
+    console.log(`   → CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'dynamic (Replit)'}`);
+    console.log(`   → Environment: ${process.env.NODE_ENV || 'development'}`);
   }
 
   private setupMiddleware() {
@@ -432,6 +478,26 @@ class RealtimeService {
     }, 60000);
   }
 
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+
+  private startHeartbeatCheck() {
+    // Check for stale connections every 30 seconds
+    this.heartbeatInterval = setInterval(() => {
+      if (!this.io) return;
+      
+      const now = Date.now();
+      this.authenticatedSockets.forEach((user, socketId) => {
+        const socket = this.io?.sockets.sockets.get(socketId);
+        if (!socket || socket.disconnected) {
+          this.authenticatedSockets.delete(socketId);
+          this.connectedClients.forEach((clients) => {
+            clients.delete(socketId);
+          });
+        }
+      });
+    }, 30000);
+  }
+
   emitTableChange(table: string, operation: 'INSERT' | 'UPDATE' | 'DELETE', data: any, oldData?: any, userId?: string) {
     if (!this.io) {
       console.warn('⚠️  Socket.IO not initialized, cannot emit event');
@@ -537,6 +603,30 @@ class RealtimeService {
     if (data.classId) {
       this.emitToClass(data.classId, fullEventType, { ...data, examId });
     }
+  }
+
+  // Dedicated method for exam publish/unpublish events
+  emitExamPublishEvent(examId: string | number, isPublished: boolean, data: any, userId?: string) {
+    const eventType = isPublished ? 'exam.published' : 'exam.unpublished';
+    const operation = 'UPDATE';
+    
+    // Emit table change for cache invalidation
+    this.emitTableChange('exams', operation, { ...data, id: examId, isPublished }, undefined, userId);
+    
+    // Emit specific publish event to exam room
+    this.emitToExam(examId, eventType, { ...data, examId, isPublished });
+    
+    // Notify teachers and admins
+    this.emitToRole('teacher', eventType, { ...data, examId, isPublished });
+    this.emitToRole('admin', eventType, { ...data, examId, isPublished });
+    this.emitToRole('super_admin', eventType, { ...data, examId, isPublished });
+    
+    // If published, also notify students in the class
+    if (isPublished && data.classId) {
+      this.emitToClass(data.classId.toString(), eventType, { ...data, examId, isPublished });
+    }
+    
+    console.log(`📤 Emitted ${eventType} for exam ${examId}`);
   }
 
   emitReportCardEvent(reportCardId: string | number, eventType: 'updated' | 'published' | 'finalized' | 'reverted', data: any) {
@@ -818,9 +908,13 @@ class RealtimeService {
     if (this.eventIdCleanupInterval) {
       clearInterval(this.eventIdCleanupInterval);
     }
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
     if (this.io) {
       this.io.close();
     }
+    console.log('🛑 Socket.IO Realtime Service shut down');
   }
 }
 

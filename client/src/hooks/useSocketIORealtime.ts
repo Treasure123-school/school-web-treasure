@@ -27,14 +27,15 @@ interface RealtimeEvent {
 
 let globalSocket: Socket | null = null;
 let connectionAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_ATTEMPTS = 10;
 const seenEventIds = new Set<string>();
 const EVENT_ID_TTL = 60000;
+let lastTokenHash: string | null = null;
+let isAuthError = false;
 
 function getAuthToken(): string | null {
   try {
-    const token = localStorage.getItem('token');
-    return token;
+    return localStorage.getItem('token');
   } catch {
     return null;
   }
@@ -46,14 +47,55 @@ function cleanupOldEventIds() {
   }
 }
 
+// Use hash comparison to detect token changes efficiently
+function getTokenHash(token: string | null): string | null {
+  if (!token) return null;
+  // Simple hash using first and last 8 chars + length (avoids full comparison each call)
+  return `${token.slice(0, 8)}:${token.length}:${token.slice(-8)}`;
+}
+
+function hasTokenChanged(): boolean {
+  const currentHash = getTokenHash(getAuthToken());
+  return currentHash !== lastTokenHash;
+}
+
+// Check if error is an authentication error (using structured codes or known patterns)
+function isAuthenticationError(error: any): boolean {
+  // Check structured error codes first
+  if (error?.data?.code) {
+    const code = error.data.code;
+    return ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'AUTH_REQUIRED', 'UNAUTHORIZED'].includes(code);
+  }
+  // Fallback to message check for backward compatibility
+  const msg = (error?.message || '').toLowerCase();
+  return msg.includes('authentication') || msg.includes('unauthorized') || msg.includes('jwt') || msg.includes('token');
+}
+
 function getOrCreateSocket(): Socket {
-  if (globalSocket && globalSocket.connected) {
-    return globalSocket;
+  const currentToken = getAuthToken();
+  const currentHash = getTokenHash(currentToken);
+  
+  // If socket exists, check if we need to reconnect with new token
+  if (globalSocket) {
+    // If connected with same token, return existing socket
+    if (globalSocket.connected && currentHash === lastTokenHash && !isAuthError) {
+      return globalSocket;
+    }
+    
+    // Token changed or auth error occurred - force reconnect
+    if (currentHash !== lastTokenHash || isAuthError) {
+      console.log('🔄 Token changed or auth error, reconnecting with new credentials...');
+      globalSocket.removeAllListeners();
+      globalSocket.disconnect();
+      globalSocket = null;
+      isAuthError = false;
+    }
   }
 
   const apiUrl = import.meta.env.VITE_API_URL || '';
   const socketUrl = apiUrl || window.location.origin;
-  const token = getAuthToken();
+
+  lastTokenHash = currentHash;
 
   globalSocket = io(socketUrl, {
     path: '/socket.io/',
@@ -61,27 +103,70 @@ function getOrCreateSocket(): Socket {
     reconnection: true,
     reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
     reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    timeout: 20000,
-    auth: token ? { token } : undefined,
+    reconnectionDelayMax: 10000,
+    timeout: 30000,
+    auth: currentToken ? { token: currentToken } : undefined,
+    // Production optimizations
+    forceNew: false,
+    upgrade: true,
+    rememberUpgrade: true,
   });
 
   globalSocket.on('connect', () => {
-    console.log('✅ Socket.IO connected');
+    console.log('✅ Socket.IO connected (ID:', globalSocket?.id, ')');
     connectionAttempts = 0;
+    isAuthError = false;
   });
 
   globalSocket.on('disconnect', (reason: string) => {
     console.log('📡 Socket.IO disconnected:', reason);
+    // Handle server-initiated disconnects that require manual reconnect
+    if (reason === 'io server disconnect' || reason === 'transport close') {
+      // Check if token changed while disconnected
+      if (hasTokenChanged()) {
+        console.log('🔄 Token changed during disconnect, forcing fresh connection...');
+        globalSocket?.removeAllListeners();
+        globalSocket = null;
+        getOrCreateSocket();
+      } else {
+        console.log('🔄 Attempting to reconnect...');
+        setTimeout(() => {
+          if (globalSocket && !globalSocket.connected) {
+            globalSocket.connect();
+          }
+        }, 1000);
+      }
+    }
   });
 
-  globalSocket.on('connect_error', (error: Error) => {
+  globalSocket.on('connect_error', (error: any) => {
     connectionAttempts++;
-    console.error(`❌ Socket.IO connection error (attempt ${connectionAttempts}):`, error.message);
+    console.error(`❌ Socket.IO connection error (attempt ${connectionAttempts}):`, error?.message || error);
+    
+    // If authentication error, mark it and stop retrying
+    if (isAuthenticationError(error)) {
+      console.log('🔒 Authentication error detected - will reconnect when token changes');
+      isAuthError = true;
+      globalSocket?.disconnect();
+    }
   });
 
-  globalSocket.on('reconnect', () => {
-    console.log('🔄 Socket.IO reconnected');
+  globalSocket.on('reconnect', (attemptNumber: number) => {
+    console.log(`🔄 Socket.IO reconnected after ${attemptNumber} attempts`);
+    isAuthError = false;
+  });
+
+  globalSocket.on('reconnect_attempt', (attemptNumber: number) => {
+    console.log(`🔄 Socket.IO reconnection attempt ${attemptNumber}...`);
+    // Refresh token on each reconnect attempt
+    const newToken = getAuthToken();
+    if (globalSocket && newToken) {
+      globalSocket.auth = { token: newToken };
+    }
+  });
+
+  globalSocket.on('reconnect_failed', () => {
+    console.error('❌ Socket.IO reconnection failed after max attempts');
   });
 
   return globalSocket;
@@ -208,8 +293,11 @@ export function useSocketIORealtime({
         'upload.progress',
       ];
 
+      // Store handler references for proper cleanup
+      const eventHandlers: Record<string, (payload: any) => void> = {};
       customEvents.forEach(eventType => {
-        socket.on(eventType, handleCustomEvent(eventType));
+        eventHandlers[eventType] = handleCustomEvent(eventType);
+        socket.on(eventType, eventHandlers[eventType]);
       });
 
       return () => {
@@ -217,8 +305,9 @@ export function useSocketIORealtime({
         socket.off('disconnect', handleDisconnect);
         socket.off('table_change', handleTableChange);
         
+        // Remove handlers with exact references to prevent memory leaks
         customEvents.forEach(eventType => {
-          socket.off(eventType);
+          socket.off(eventType, eventHandlers[eventType]);
         });
 
         if (table) {
