@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap, Users as UsersIcon, Wifi, WifiOff } from 'lucide-react';
+import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap, Users as UsersIcon } from 'lucide-react';
 import { Link } from 'wouter';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
-import { useSocketIORealtime, useSocketConnection } from '@/hooks/useSocketIORealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 export default function ParentDashboard() {
   const { user } = useAuth();
@@ -20,9 +20,6 @@ export default function ParentDashboard() {
     queryKey: ['/api/parents/children', user?.id],
     enabled: !!user,
   });
-
-  // Realtime subscriptions for live updates
-  const { isConnected: socketConnected } = useSocketConnection();
 
   // Subscribe to linked children for live updates
   useSocketIORealtime({
@@ -263,27 +260,6 @@ export default function ParentDashboard() {
                 <h2 className="text-2xl font-bold tracking-tight">Welcome back, {user.firstName}!</h2>
                 <p className="text-amber-100 text-sm">Stay connected with your child's education</p>
               </div>
-            </div>
-            <div 
-              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-                socketConnected 
-                  ? 'bg-green-500/20 text-green-100' 
-                  : 'bg-red-500/20 text-red-100'
-              }`}
-              title={socketConnected ? 'Realtime updates active' : 'Connecting to realtime updates...'}
-              data-testid="realtime-status-indicator"
-            >
-              {socketConnected ? (
-                <>
-                  <Wifi className="h-3 w-3" />
-                  <span>Live</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-3 w-3" />
-                  <span>Connecting</span>
-                </>
-              )}
             </div>
           </div>
         </div>

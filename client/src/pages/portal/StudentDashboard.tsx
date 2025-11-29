@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target, Clock, Wifi, WifiOff } from 'lucide-react';
+import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, Star, FileText, Play, AlertCircle, ChevronRight, Award, Target, Clock } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
@@ -13,7 +13,7 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { MiniLineChart } from '@/components/ui/mini-line-chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Exam } from '@shared/schema';
-import { useSocketIORealtime, useSocketConnection } from '@/hooks/useSocketIORealtime';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 export default function StudentDashboard() {
   const { user, updateUser } = useAuth();
@@ -104,9 +104,6 @@ export default function StudentDashboard() {
       return response.json();
     }
   });
-
-  // Realtime subscriptions for live updates
-  const { isConnected: socketConnected } = useSocketConnection();
 
   // Subscribe to exam results for live grade updates
   useSocketIORealtime({
@@ -252,27 +249,6 @@ export default function StudentDashboard() {
                 Here's what's happening with your academics today
               </p>
             </div>
-          </div>
-          <div 
-            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-              socketConnected 
-                ? 'bg-green-500/20 text-green-100' 
-                : 'bg-red-500/20 text-red-100'
-            }`}
-            title={socketConnected ? 'Realtime updates active' : 'Connecting to realtime updates...'}
-            data-testid="realtime-status-indicator"
-          >
-            {socketConnected ? (
-              <>
-                <Wifi className="h-3 w-3" />
-                <span>Live</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="h-3 w-3" />
-                <span>Connecting</span>
-              </>
-            )}
           </div>
         </div>
       </div>
