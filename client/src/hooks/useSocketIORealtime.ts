@@ -4,7 +4,7 @@ import { queryClient } from '@/lib/queryClient';
 
 interface UseSocketIORealtimeOptions {
   table?: string;
-  queryKey: string | string[];
+  queryKey: (string | number | undefined)[] | string;
   enabled?: boolean;
   fallbackPollingInterval?: number;
   channel?: string;

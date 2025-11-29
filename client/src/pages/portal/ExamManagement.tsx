@@ -186,6 +186,15 @@ export default function ExamManagement() {
     queryKey: ['/api/exams']
   });
 
+  // Enable real-time updates for exam questions when viewing/editing an exam
+  // Note: queryKey must match exactly with the useQuery queryKey for cache invalidation to work
+  useSocketIORealtime({ 
+    table: 'exam_questions', 
+    queryKey: ['/api/exam-questions', selectedExam?.id],
+    examId: selectedExam?.id,
+    enabled: !!selectedExam?.id
+  });
+
   // Fetch classes for dropdown
   const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
@@ -362,11 +371,14 @@ export default function ExamManagement() {
         description: "Exam deleted successfully",
       });
       
+      // Invalidate question counts cache since an exam was deleted
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+      
       // Wait a brief moment for backend to fully commit, then clear pending flag
       setTimeout(() => {
         pendingDeletionsRef.current.delete(examId);
-        // Let Realtime handle the refetch - this prevents race conditions
-        // Manual invalidation can cause the deleted item to reappear if timed poorly
+        // Trigger cache refresh to ensure UI is in sync
+        queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
       }, 500);
     },
     onError: (error: any, examId, context) => {
@@ -403,7 +415,9 @@ export default function ExamManagement() {
       return;
     },
     onMutate: async (questionId) => {
-      const queryKey = ['/api/exam-questions', selectedExam?.id];
+      // Capture the current exam ID before any state changes
+      const currentExamId = selectedExam?.id;
+      const queryKey = ['/api/exam-questions', currentExamId];
       const context = await optimisticDelete<ExamQuestion[]>({ queryKey, idToDelete: questionId });
       
       // Mark question as pending deletion to prevent race conditions with Realtime
@@ -414,27 +428,40 @@ export default function ExamManagement() {
         description: "Removing question",
       });
       
-      return context;
+      // Return context with captured examId for use in onSuccess/onError
+      return { ...context, examId: currentExamId };
     },
-    onSuccess: (_, questionId) => {
+    onSuccess: (_, questionId, context) => {
       toast({
         title: "Success",
         description: "Question deleted successfully",
       });
       
+      // Use examId from context to ensure we target the correct cache
+      const examId = context?.examId;
+      
+      // Invalidate question counts and options caches
+      queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/question-options', questionId] });
+      
       // Wait a brief moment for backend to fully commit, then clear pending flag
       setTimeout(() => {
         pendingQuestionDeletionsRef.current.delete(questionId);
-        // Let Realtime handle the refetch - this prevents race conditions
-        // Manual invalidation can cause the deleted item to reappear if timed poorly
+        // Trigger cache refresh to ensure UI is in sync using captured examId
+        if (examId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', examId] });
+        }
       }, 500);
     },
     onError: (error: any, questionId, context) => {
       // Remove from pending deletions on error
       pendingQuestionDeletionsRef.current.delete(questionId);
       
-      if (context?.previousData) {
-        rollbackOnError(['/api/exam-questions', selectedExam?.id], context.previousData);
+      // Use examId from context to ensure we target the correct cache
+      const examId = context?.examId;
+      
+      if (context?.previousData && examId) {
+        rollbackOnError(['/api/exam-questions', examId], context.previousData);
       }
       toast({
         title: "Error",

@@ -1365,6 +1365,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const exam = await storage.updateExam(examId, sanitizedData);
       
+      if (!exam) {
+        return res.status(500).json({ message: 'Failed to update exam' });
+      }
+      
       // Emit realtime event for exam update
       realtimeService.emitTableChange('exams', 'UPDATE', exam, existingExam, teacherId);
       if (exam.classId) {
@@ -1391,10 +1395,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const success = await storage.deleteExam(examId);
       
+      if (!success) {
+        return res.status(500).json({ message: 'Failed to delete exam' });
+      }
+      
       // Emit realtime event for exam deletion
       realtimeService.emitTableChange('exams', 'DELETE', { id: examId }, existingExam, req.user!.id);
       if (existingExam.classId) {
-        realtimeService.emitToClass(existingExam.classId.toString(), 'exam.deleted', { id: examId, ...existingExam });
+        realtimeService.emitToClass(existingExam.classId.toString(), 'exam.deleted', existingExam);
       }
       
       res.status(204).send();
@@ -1420,6 +1428,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only publish/unpublish exams you created or are assigned to' });
       }
       const exam = await storage.updateExam(examId, { isPublished });
+      
+      if (!exam) {
+        return res.status(500).json({ message: 'Failed to update exam publish status' });
+      }
       
       // Emit realtime event for publish/unpublish (class-scoped only for security)
       // Do NOT use emitExamEvent here - exam rooms lack proper class-level authorization
@@ -1818,16 +1830,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/exam-questions/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
     try {
       const questionId = parseInt(req.params.id);
+      
       // Get question before deleting for the realtime event
-      const existingQuestions = await storage.getExamQuestions(0); // This won't work, need to get by ID
-      const success = await storage.deleteExamQuestion(questionId);
-
-      if (!success) {
+      const existingQuestion = await storage.getExamQuestionById(questionId);
+      if (!existingQuestion) {
         return res.status(404).json({ message: 'Question not found' });
       }
       
-      // Emit realtime event for question deletion
-      realtimeService.emitTableChange('exam_questions', 'DELETE', { id: questionId }, undefined, req.user!.id);
+      const success = await storage.deleteExamQuestion(questionId);
+      if (!success) {
+        return res.status(500).json({ message: 'Failed to delete question' });
+      }
+      
+      // Emit realtime event for question deletion with examId for proper subscription targeting
+      realtimeService.emitTableChange('exam_questions', 'DELETE', { id: questionId, examId: existingQuestion.examId }, existingQuestion, req.user!.id);
+      
+      // Also emit to the specific exam room for real-time updates
+      if (existingQuestion.examId) {
+        realtimeService.emitToExam(existingQuestion.examId, 'question.deleted', { id: questionId, examId: existingQuestion.examId });
+      }
       
       res.status(204).send();
     } catch (error) {
