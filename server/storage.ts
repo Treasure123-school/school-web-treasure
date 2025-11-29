@@ -331,6 +331,9 @@ export interface IStorage {
   getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }>;
   recalculateReportCard(reportCardId: number, gradingScale: string): Promise<ReportCard | undefined>;
 
+  // Auto-sync exam score to report card (called after exam submission)
+  syncExamScoreToReportCard(studentId: string, examId: number, score: number, maxScore: number): Promise<{ success: boolean; reportCardId?: number; message: string }>;
+
   // Report finalization methods
   getExamResultById(id: number): Promise<ExamResult | undefined>;
   getFinalizedReportsByExams(examIds: number[], filters?: {
@@ -3951,6 +3954,180 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error('Error recalculating class positions:', error);
+    }
+  }
+
+  // Auto-sync exam score to report card (called immediately after exam submission)
+  async syncExamScoreToReportCard(studentId: string, examId: number, score: number, maxScore: number): Promise<{ success: boolean; reportCardId?: number; message: string }> {
+    try {
+      console.log(`[REPORT-CARD-SYNC] Starting sync for student ${studentId}, exam ${examId}, score ${score}/${maxScore}`);
+
+      // 1. Get exam details to find subject, class, term, and type
+      const exam = await db.select()
+        .from(schema.exams)
+        .where(eq(schema.exams.id, examId))
+        .limit(1);
+
+      if (exam.length === 0) {
+        return { success: false, message: 'Exam not found' };
+      }
+
+      const examData = exam[0];
+      const { subjectId, classId, termId, examType, gradingScale: examGradingScale } = examData;
+
+      if (!subjectId || !classId || !termId) {
+        return { success: false, message: 'Exam missing required fields (subject, class, or term)' };
+      }
+
+      // 2. Get student to verify class assignment
+      const student = await db.select()
+        .from(schema.students)
+        .where(eq(schema.students.id, studentId))
+        .limit(1);
+
+      if (student.length === 0) {
+        return { success: false, message: 'Student not found' };
+      }
+
+      // 3. Find or create report card for this student/term
+      let reportCard = await db.select()
+        .from(schema.reportCards)
+        .where(and(
+          eq(schema.reportCards.studentId, studentId),
+          eq(schema.reportCards.termId, termId)
+        ))
+        .limit(1);
+
+      let reportCardId: number;
+      const gradingScale = examGradingScale || 'standard';
+
+      if (reportCard.length === 0) {
+        // Create new report card
+        console.log(`[REPORT-CARD-SYNC] Creating new report card for student ${studentId}, term ${termId}`);
+        const newReportCard = await db.insert(schema.reportCards)
+          .values({
+            studentId,
+            classId,
+            termId,
+            status: 'draft',
+            gradingScale,
+            scoreAggregationMode: 'last',
+            generatedAt: new Date()
+          })
+          .returning();
+        reportCardId = newReportCard[0].id;
+
+        // Create report card items for all subjects in the class
+        const classSubjects = await db.select()
+          .from(schema.subjects)
+          .where(eq(schema.subjects.isActive, true));
+
+        for (const subject of classSubjects) {
+          await db.insert(schema.reportCardItems)
+            .values({
+              reportCardId,
+              subjectId: subject.id,
+              totalMarks: 100,
+              obtainedMarks: 0,
+              percentage: 0
+            });
+        }
+      } else {
+        reportCardId = reportCard[0].id;
+      }
+
+      // 4. Find the report card item for this subject
+      let reportCardItem = await db.select()
+        .from(schema.reportCardItems)
+        .where(and(
+          eq(schema.reportCardItems.reportCardId, reportCardId),
+          eq(schema.reportCardItems.subjectId, subjectId)
+        ))
+        .limit(1);
+
+      // Create item if not exists
+      if (reportCardItem.length === 0) {
+        const newItem = await db.insert(schema.reportCardItems)
+          .values({
+            reportCardId,
+            subjectId,
+            totalMarks: 100,
+            obtainedMarks: 0,
+            percentage: 0
+          })
+          .returning();
+        reportCardItem = newItem;
+      }
+
+      // 5. Skip if manually overridden
+      if (reportCardItem[0].isOverridden) {
+        console.log(`[REPORT-CARD-SYNC] Item ${reportCardItem[0].id} is manually overridden, skipping auto-update`);
+        return { success: true, reportCardId, message: 'Skipped - item manually overridden' };
+      }
+
+      // 6. Determine if this is a test or exam and update accordingly
+      const isTest = ['test', 'quiz', 'assignment'].includes(examType);
+      const isMainExam = ['exam', 'final', 'midterm'].includes(examType);
+
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+
+      if (isTest) {
+        updateData.testExamId = examId;
+        updateData.testScore = score;
+        updateData.testMaxScore = maxScore;
+      } else if (isMainExam) {
+        updateData.examExamId = examId;
+        updateData.examScore = score;
+        updateData.examMaxScore = maxScore;
+      } else {
+        // Default to test if type is unknown
+        updateData.testExamId = examId;
+        updateData.testScore = score;
+        updateData.testMaxScore = maxScore;
+      }
+
+      // 7. Calculate weighted score with existing scores
+      const existingItem = reportCardItem[0];
+      const finalTestScore = isTest ? score : existingItem.testScore;
+      const finalTestMaxScore = isTest ? maxScore : existingItem.testMaxScore;
+      const finalExamScore = isMainExam ? score : existingItem.examScore;
+      const finalExamMaxScore = isMainExam ? maxScore : existingItem.examMaxScore;
+
+      const weighted = calculateWeightedScore(finalTestScore, finalTestMaxScore, finalExamScore, finalExamMaxScore, gradingScale);
+      const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
+
+      updateData.testWeightedScore = Math.round(weighted.testWeighted);
+      updateData.examWeightedScore = Math.round(weighted.examWeighted);
+      updateData.obtainedMarks = Math.round(weighted.weightedScore);
+      updateData.percentage = Math.round(weighted.percentage);
+      updateData.grade = gradeInfo.grade;
+      updateData.remarks = gradeInfo.remarks;
+
+      // 8. Update the report card item
+      await db.update(schema.reportCardItems)
+        .set(updateData)
+        .where(eq(schema.reportCardItems.id, existingItem.id));
+
+      console.log(`[REPORT-CARD-SYNC] Updated report card item ${existingItem.id} with ${isTest ? 'test' : 'exam'} score: ${score}/${maxScore}, grade: ${gradeInfo.grade}`);
+
+      // 9. Recalculate report card totals
+      await this.recalculateReportCard(reportCardId, gradingScale);
+
+      // 10. Recalculate class positions
+      await this.recalculateClassPositions(classId, termId);
+
+      console.log(`[REPORT-CARD-SYNC] Successfully synced exam ${examId} to report card ${reportCardId}`);
+
+      return { 
+        success: true, 
+        reportCardId, 
+        message: `Score synced to report card. Grade: ${gradeInfo.grade} (${Math.round(weighted.percentage)}%)` 
+      };
+    } catch (error: any) {
+      console.error('[REPORT-CARD-SYNC] Error syncing exam score to report card:', error);
+      return { success: false, message: error.message || 'Failed to sync score to report card' };
     }
   }
 

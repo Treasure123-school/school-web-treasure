@@ -1382,6 +1382,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalTime = Date.now() - startTime;
       const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 
+      // AUTO-SYNC: Sync exam score to report card immediately after scoring
+      // This runs in background to not block the response
+      let reportCardSync = { success: false, message: '' };
+      try {
+        reportCardSync = await storage.syncExamScoreToReportCard(studentId, examId, totalScore, maxScore);
+        if (reportCardSync.success) {
+          console.log(`[SUBMIT] Report card sync successful: ${reportCardSync.message}`);
+        } else {
+          console.warn(`[SUBMIT] Report card sync warning: ${reportCardSync.message}`);
+        }
+      } catch (syncError: any) {
+        console.warn('[SUBMIT] Report card sync failed (non-blocking):', syncError?.message);
+        // Don't fail the submission if report card sync fails
+      }
+
       // Format time taken for display
       const formatTimeTaken = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -1423,6 +1438,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         performance: {
           totalTime,
           scoringTime
+        },
+        reportCardSync: {
+          synced: reportCardSync.success,
+          message: reportCardSync.message
         }
       });
     } catch (error: any) {
@@ -6975,8 +6994,8 @@ Treasure-Home School Administration
           id: schema.reportCardItems.id,
           subjectId: schema.reportCardItems.subjectId,
           subjectName: schema.subjects.name,
-          score: schema.reportCardItems.score,
-          maxScore: schema.reportCardItems.maxScore,
+          score: schema.reportCardItems.obtainedMarks,
+          maxScore: schema.reportCardItems.totalMarks,
           grade: schema.reportCardItems.grade,
           remarks: schema.reportCardItems.remarks
         })
