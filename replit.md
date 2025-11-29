@@ -12,7 +12,22 @@ No specific user preferences were provided in the original `replit.md` file.
 The frontend is built with React 18, utilizing Vite for tooling. UI components are developed using shadcn/ui (Radix UI + Tailwind CSS) for a modern and consistent design. Wouter is used for routing, and TanStack Query handles data fetching for an efficient user experience. Forms are managed with React Hook Form, integrated with Zod for validation.
 
 ### Technical Implementations
-The system employs a dual-database strategy, exclusively using PostgreSQL (via Neon) for all environments to ensure cloud compatibility and scalability, removing SQLite. Cloudinary is integrated for robust cloud-based file storage in production, with a local filesystem fallback for development. JWT authentication is implemented without external providers. Real-time functionalities are powered by Socket.IO. The backend is an Express.js application built with Node.js and TypeScript, leveraging Drizzle ORM for database interactions.
+The system employs a dual-database strategy, exclusively using PostgreSQL (via Neon) for all environments to ensure cloud compatibility and scalability, removing SQLite. Cloudinary is integrated for robust cloud-based file storage in production, with a local filesystem fallback for development. JWT authentication is implemented without external providers. Real-time functionalities are powered by Socket.IO with comprehensive event coverage across 30+ mutation endpoints. The backend is an Express.js application built with Node.js and TypeScript, leveraging Drizzle ORM for database interactions.
+
+### Real-time Event System (Socket.IO)
+Comprehensive real-time updates implemented across all major features:
+- **Exam Events**: Create, update, delete, publish/unpublish, submit, auto-grade, session start
+- **Academic Terms**: Create, update, delete, mark-current (notifications to admins and teachers)
+- **Student Management**: Create, update, delete (admin notifications)
+- **Vacancies & Applications**: Create vacancy, close vacancy, create application, status updates
+- **Exam Questions**: Create, update, delete, bulk operations, CSV import
+- **Report Cards**: Generate, update, status changes (draft/finalized/published), remarks, score overrides
+
+Security features:
+- Class-scoped event broadcasting for exam publish events (only notifies authorized class members)
+- Table subscription authorization based on user roles
+- JWT-authenticated socket connections with role and class authorization data
+- Event deduplication to prevent duplicate notifications
 
 ### Feature Specifications
 - **Authentication**: JWT tokens with 24-hour expiration, bcrypt password hashing, CORS, rate limiting, account lockout, 2FA support, and RBAC.
