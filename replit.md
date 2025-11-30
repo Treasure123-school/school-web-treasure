@@ -34,7 +34,14 @@ Security features:
 - **Role-Based Access Control**: Five distinct roles (Super Admin, Admin, Teacher, Student, Parent) with granular permissions, including hierarchical user creation rules.
 - **Database Schema**: Over 40 tables covering user management, academic structure, exams, attendance, report cards, communication, and system administration.
 - **Exam System**: Features include reliable submission with retry logic, instant auto-scoring for MCQs, anti-cheat measures (tab switching detection, copy/paste prevention, server-side timer), auto-submission, and real-time progress saving. Exam creation and management are teacher-centric with strong validation for student class and teacher assignments.
-- **Report Card System**: Enhanced system with auto-population of exam scores, configurable grading scales (Standard, WAEC, Percentage), weighted scoring (Tests 40%, Exams 60%), teacher override capabilities with audit trails, a Draft → Finalized → Published workflow, score aggregation modes (last, best, average), class-wide generation with automatic position calculation, and PDF export. **NEW: Real-time auto-sync** - Exam scores are automatically synced to report cards immediately upon student exam submission. The sync respects manual teacher overrides (isOverridden flag) and provides feedback to students showing sync status.
+- **Report Card System**: Enhanced auto-generation system that creates report cards automatically when students complete exams. Key features:
+  - **Auto-Generation**: Report cards are created automatically when a student submits their first exam for a term. No manual generation required.
+  - **Status Workflow**: Draft → Finalized → Published with proper locking and reversibility. Draft cards can be edited, finalized/published cards are locked.
+  - **Role-Based Visibility**: Students and parents only see published report cards. Teachers/admins see all statuses.
+  - **Real-time Updates**: Socket.IO events notify all portals (Teacher, Student, Parent) when report card status changes. Parents receive notifications when their child's report card is published.
+  - **Configurable Grading**: Supports Standard, WAEC, and Percentage grading scales with weighted scoring (Tests 40%, Exams 60%).
+  - **Teacher Controls**: Bulk actions (Finalize All Drafts, Publish All Finalized), score overrides with audit trails.
+  - **Exam Score Sync**: Scores automatically sync from exam results, respecting teacher overrides (isOverridden flag).
 - **File Management**: Unified upload interface, with Cloudinary CDN for production handling image optimization, CDN distribution, WebP support, and responsive sizing.
 - **Deployment**: Stateless backend designed for horizontal scaling, deploying to Render (Node.js) for the backend and Vercel (React + Vite) for the frontend.
 
