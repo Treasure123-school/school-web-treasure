@@ -8425,33 +8425,6 @@ Treasure-Home School Administration
       }
     });
 
-    // Recalculate all report cards for a class (bulk operation)
-    app.post('/api/reports/recalculate-class/:classId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
-      try {
-        const { classId } = req.params;
-        const { termId, gradingScale = 'standard' } = req.body;
-        
-        if (!termId) {
-          return res.status(400).json({ message: 'Term ID is required' });
-        }
-        
-        const result = await storage.recalculateReportCardsForClass(
-          Number(classId),
-          Number(termId),
-          gradingScale
-        );
-        
-        res.json({
-          message: `Recalculated ${result.updated} report cards`,
-          count: result.updated,
-          ...result
-        });
-      } catch (error: any) {
-        console.error('Error recalculating class report cards:', error);
-        res.status(500).json({ message: error.message || 'Failed to recalculate class report cards' });
-      }
-    });
-
     // Recalculate a report card
     app.post('/api/reports/:reportCardId/recalculate', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {

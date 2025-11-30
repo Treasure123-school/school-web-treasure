@@ -334,7 +334,6 @@ export interface IStorage {
   getExamsWithSubjectsByClassAndTerm(classId: number, termId?: number): Promise<any[]>;
   getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }>;
   recalculateReportCard(reportCardId: number, gradingScale: string): Promise<ReportCard | undefined>;
-  recalculateReportCardsForClass(classId: number, termId: number, gradingScale: string): Promise<{ updated: number; errors: string[] }>;
 
   // Auto-sync exam score to report card (called after exam submission)
   syncExamScoreToReportCard(studentId: string, examId: number, score: number, maxScore: number): Promise<{ success: boolean; reportCardId?: number; message: string; isNewReportCard?: boolean }>;
@@ -4163,41 +4162,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error recalculating report card:', error);
       return undefined;
-    }
-  }
-
-  async recalculateReportCardsForClass(classId: number, termId: number, gradingScale: string): Promise<{ updated: number; errors: string[] }> {
-    const errors: string[] = [];
-    let updated = 0;
-
-    try {
-      // Get all report cards for this class and term
-      const reportCards = await db.select()
-        .from(schema.reportCards)
-        .where(and(
-          eq(schema.reportCards.classId, classId),
-          eq(schema.reportCards.termId, termId)
-        ));
-
-      // Recalculate each report card
-      for (const reportCard of reportCards) {
-        try {
-          const result = await this.recalculateReportCard(reportCard.id, gradingScale);
-          if (result) {
-            updated++;
-          }
-        } catch (error: any) {
-          errors.push(`Failed to recalculate report card ${reportCard.id}: ${error.message}`);
-        }
-      }
-
-      // Recalculate positions after all cards are updated
-      await this.recalculateClassPositions(classId, termId);
-
-      return { updated, errors };
-    } catch (error: any) {
-      console.error('Error recalculating class report cards:', error);
-      return { updated, errors: [...errors, error.message] };
     }
   }
 

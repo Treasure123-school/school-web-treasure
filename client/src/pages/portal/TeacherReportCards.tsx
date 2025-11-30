@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,8 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { 
   FileText, 
   Users, 
@@ -46,15 +43,7 @@ import {
   FileClock,
   FilePen,
   Sparkles,
-  ChevronDown,
-  Upload,
-  Camera,
-  History,
-  AlertTriangle,
-  Calendar,
-  User,
-  Building,
-  Hash
+  ChevronDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -84,7 +73,6 @@ interface ReportCardItem {
   teacherRemarks: string | null;
   isOverridden: boolean;
   overriddenAt: string | null;
-  overriddenBy?: string;
 }
 
 interface ReportCard {
@@ -103,30 +91,7 @@ interface ReportCard {
   teacherRemarks: string | null;
   principalRemarks: string | null;
   generatedAt: string;
-  finalizedAt?: string;
-  publishedAt?: string;
   items: ReportCardItem[];
-  studentPhoto?: string;
-  locked?: boolean;
-}
-
-interface AuditLogEntry {
-  id: number;
-  action: string;
-  previousValue: string;
-  newValue: string;
-  changedBy: string;
-  changedAt: string;
-  reason?: string;
-}
-
-interface ConfirmDialogState {
-  open: boolean;
-  type: 'finalize' | 'publish' | 'unpublish' | 'revert' | null;
-  reportCardId: number | null;
-  studentName: string;
-  isBulk?: boolean;
-  count?: number;
 }
 
 export default function TeacherReportCards() {
@@ -134,35 +99,25 @@ export default function TeacherReportCards() {
   const { user } = useAuth();
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedTerm, setSelectedTerm] = useState<string>('');
-  const [selectedSession, setSelectedSession] = useState<string>('');
   const [selectedReportCard, setSelectedReportCard] = useState<ReportCard | null>(null);
   const [selectedGradingScale, setSelectedGradingScale] = useState<string>('standard');
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isOverrideDialogOpen, setIsOverrideDialogOpen] = useState(false);
-  const [isAuditLogDialogOpen, setIsAuditLogDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ReportCardItem | null>(null);
   const [overrideData, setOverrideData] = useState({
     testScore: '',
     testMaxScore: '',
     examScore: '',
     examMaxScore: '',
-    teacherRemarks: '',
-    overrideReason: ''
+    teacherRemarks: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
-    open: false,
-    type: null,
-    reportCardId: null,
-    studentName: '',
-    isBulk: false,
-    count: 0
-  });
 
   // Real-time subscription for report card updates - scoped to class
+  // The hook automatically invalidates the queryKey when events are received
   const { isConnected: realtimeConnected } = useSocketIORealtime({
     table: 'report_cards',
     queryKey: ['/api/reports/class-term', selectedClass, selectedTerm],
@@ -194,36 +149,6 @@ export default function TeacherReportCards() {
     },
   });
 
-  // Extract unique session years from terms
-  const sessionYears = useMemo(() => {
-    const years = [...new Set(terms.map((term: any) => term.year))];
-    return years.sort((a: number, b: number) => b - a);
-  }, [terms]);
-
-  // Filter terms by selected session
-  const filteredTerms = useMemo(() => {
-    if (!selectedSession) return terms;
-    return terms.filter((term: any) => term.year?.toString() === selectedSession);
-  }, [terms, selectedSession]);
-
-  // Auto-select first class when teacher logs in
-  useEffect(() => {
-    if (classes.length > 0 && !selectedClass) {
-      setSelectedClass(classes[0].id.toString());
-    }
-  }, [classes, selectedClass]);
-
-  // Auto-select current term
-  useEffect(() => {
-    if (terms.length > 0 && !selectedTerm) {
-      const currentTerm = terms.find((t: any) => t.isCurrent);
-      if (currentTerm) {
-        setSelectedTerm(currentTerm.id.toString());
-        setSelectedSession(currentTerm.year?.toString() || '');
-      }
-    }
-  }, [terms, selectedTerm]);
-
   const { data: reportCards = [], isLoading: loadingReportCards, refetch: refetchReportCards } = useQuery({
     queryKey: ['/api/reports/class-term', selectedClass, selectedTerm],
     queryFn: async () => {
@@ -246,144 +171,29 @@ export default function TeacherReportCards() {
     enabled: !!selectedReportCard?.id && isViewDialogOpen,
   });
 
-  // Fetch audit logs for a report card item
-  const { data: auditLogs = [], isLoading: loadingAuditLogs } = useQuery({
-    queryKey: ['/api/audit-logs', 'report-card-item', selectedItem?.id],
-    queryFn: async () => {
-      if (!selectedItem?.id) return [];
-      const response = await apiRequest('GET', `/api/audit-logs?entityType=report_card_item&entityId=${selectedItem.id}`);
-      if (!response.ok) return [];
-      return await response.json();
-    },
-    enabled: !!selectedItem?.id && isAuditLogDialogOpen,
-  });
-
-  // Generate report cards for the entire class
-  const generateReportsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/reports/generate-enhanced/${selectedClass}`, {
-        termId: Number(selectedTerm),
-        gradingScale: selectedGradingScale
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate report cards');
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Report Cards Generated",
-        description: data.message || `Successfully generated ${data.count || 0} report cards`,
-      });
-      refetchReportCards();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to generate report cards",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Recalculate all report cards
-  const recomputeReportsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/reports/recalculate-class/${selectedClass}`, {
-        termId: Number(selectedTerm),
-        gradingScale: selectedGradingScale
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to recalculate report cards');
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      refetchReportCards();
-      
-      // Check if there were any errors during recalculation
-      if (data.errors && data.errors.length > 0) {
-        const errorDetails = data.errors.slice(0, 3).join('; ');
-        toast({
-          title: "Partial Success",
-          description: `Recalculated ${data.updated || 0} report cards. ${data.errors.length} failed: ${errorDetails}${data.errors.length > 3 ? '...' : ''}. Class positions have been updated for successful cards.`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Report Cards Recalculated",
-          description: data.message || `Successfully recalculated ${data.updated || data.count || 0} report cards. Class positions have been updated.`,
-        });
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to recalculate report cards",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Bulk status update mutation for finalizing/publishing multiple report cards
   const bulkStatusMutation = useMutation({
     mutationFn: async (data: { reportCardIds: number[]; status: string }) => {
-      // Use Promise.allSettled to handle partial failures gracefully
-      const results = await Promise.allSettled(
+      const results = await Promise.all(
         data.reportCardIds.map(async (reportCardId) => {
           const response = await apiRequest('PATCH', `/api/reports/${reportCardId}/status`, { status: data.status });
           if (!response.ok) {
             const error = await response.json();
             throw new Error(error.message || `Failed to update report card ${reportCardId}`);
           }
-          return { reportCardId, result: await response.json() };
+          return response.json();
         })
       );
-      
-      const fulfilled = results.filter((r): r is PromiseFulfilledResult<{ reportCardId: number; result: any }> => r.status === 'fulfilled');
-      const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
-      
-      return { 
-        successCount: fulfilled.length, 
-        failureCount: rejected.length, 
-        errors: rejected.map(r => r.reason?.message || 'Unknown error'),
-        totalCount: data.reportCardIds.length
-      };
+      return results;
     },
-    onSuccess: (result, { status }) => {
+    onSuccess: (_, { status }) => {
       const statusLabel = status === 'published' ? 'published' : 
                          status === 'finalized' ? 'finalized' : 'reverted to draft';
-      
-      // Always refetch to show updated data
+      toast({
+        title: "Success",
+        description: `Report cards ${statusLabel} successfully`,
+      });
       refetchReportCards();
-      
-      if (result.failureCount === 0) {
-        // Only close dialog on complete success
-        toast({
-          title: "Success",
-          description: `All ${result.successCount} report cards ${statusLabel} successfully`,
-        });
-        setConfirmDialog({ open: false, type: null, reportCardId: null, studentName: '' });
-      } else if (result.successCount > 0) {
-        // Keep dialog open on partial failure so user can review/retry
-        const errorDetails = result.errors.slice(0, 3).join('; ');
-        toast({
-          title: "Partial Success",
-          description: `${result.successCount} of ${result.totalCount} report cards ${statusLabel}. ${result.failureCount} failed: ${errorDetails}${result.errors.length > 3 ? '...' : ''}`,
-          variant: "destructive",
-        });
-        // Dialog stays open - user can close manually or retry
-      } else {
-        // All failed - keep dialog open
-        toast({
-          title: "Error",
-          description: `Failed to update all report cards: ${result.errors[0] || 'Unknown error'}`,
-          variant: "destructive",
-        });
-        // Dialog stays open - user can close manually or retry
-      }
     },
     onError: (error: any) => {
       toast({
@@ -421,7 +231,7 @@ export default function TeacherReportCards() {
   });
 
   const overrideScoreMutation = useMutation({
-    mutationFn: async (data: { itemId: number; testScore?: number; testMaxScore?: number; examScore?: number; examMaxScore?: number; teacherRemarks?: string; reason?: string }) => {
+    mutationFn: async (data: { itemId: number; testScore?: number; testMaxScore?: number; examScore?: number; examMaxScore?: number; teacherRemarks?: string }) => {
       const response = await apiRequest('PATCH', `/api/reports/items/${data.itemId}/override`, data);
       if (!response.ok) {
         const error = await response.json();
@@ -432,7 +242,7 @@ export default function TeacherReportCards() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Score overridden successfully. Changes have been logged.",
+        description: "Score overridden successfully",
       });
       setIsOverrideDialogOpen(false);
       refetchFullReport();
@@ -457,20 +267,25 @@ export default function TeacherReportCards() {
       return response.json();
     },
     onMutate: async ({ reportCardId, status, classId, termId }) => {
+      // Cancel any outgoing refetches immediately
       queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
       queryClient.cancelQueries({ queryKey: ['/api/reports/class-term', classId, termId] });
       
+      // Snapshot previous values for rollback (full objects to restore all fields)
       const previousFullReport = queryClient.getQueryData(['/api/reports', reportCardId, 'full']);
       const previousReportCards = queryClient.getQueryData(['/api/reports/class-term', classId, termId]);
       const previousSelectedReportCard = selectedReportCard;
       
+      // Determine locked state based on new status
       const locked = status !== 'draft';
       
+      // Optimistically update the full report (instant UI update)
       queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
         if (!old || typeof old !== 'object') return old;
         return { ...old, status, locked };
       });
       
+      // Optimistically update the report cards list (instant UI update)
       queryClient.setQueryData(['/api/reports/class-term', classId, termId], (old: any) => {
         if (!old || !Array.isArray(old)) return old;
         return old.map((rc: any) => 
@@ -478,24 +293,31 @@ export default function TeacherReportCards() {
         );
       });
       
+      // Update the selected report card state immediately for instant visual feedback
       setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, status, locked } : prev);
       
       return { previousFullReport, previousReportCards, previousSelectedReportCard, classId, termId };
     },
     onSuccess: (data, { reportCardId, status, classId, termId }) => {
+      // Extract the server response data
       const reportCard = data.reportCard;
+      const message = data.message;
       
+      // Reconcile caches with authoritative server data (updates timestamps like finalizedAt, publishedAt)
       if (reportCard && typeof reportCard === 'object') {
+        // Update full report cache with server data
         queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
           if (!old || typeof old !== 'object') return { ...reportCard };
           return { ...old, ...reportCard };
         });
         
+        // Update the list cache with server data
         queryClient.setQueryData(['/api/reports/class-term', classId, termId], (old: any) => {
           if (!old || !Array.isArray(old)) return old;
           return old.map((rc: any) => rc.id === reportCardId ? { ...rc, ...reportCard } : rc);
         });
         
+        // Update selected report card state with server data
         setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, ...reportCard } : prev);
       }
       
@@ -503,17 +325,18 @@ export default function TeacherReportCards() {
                          status === 'finalized' ? 'Finalized' : 'Reverted to Draft';
       toast({
         title: "Success",
-        description: data.message || `Report card ${statusLabel.toLowerCase()} successfully`,
+        description: message || `Report card ${statusLabel.toLowerCase()} successfully`,
       });
-      setConfirmDialog({ open: false, type: null, reportCardId: null, studentName: '' });
     },
     onError: (error: any, { reportCardId }, context: any) => {
+      // Rollback to previous values on error (restore full objects)
       if (context?.previousFullReport) {
         queryClient.setQueryData(['/api/reports', reportCardId, 'full'], context.previousFullReport);
       }
       if (context?.previousReportCards && context?.classId && context?.termId) {
         queryClient.setQueryData(['/api/reports/class-term', context.classId, context.termId], context.previousReportCards);
       }
+      // Rollback selected report card state to full previous object
       if (context?.previousSelectedReportCard) {
         setSelectedReportCard(context.previousSelectedReportCard);
       }
@@ -563,8 +386,7 @@ export default function TeacherReportCards() {
       testMaxScore: item.testMaxScore?.toString() || '',
       examScore: item.examScore?.toString() || '',
       examMaxScore: item.examMaxScore?.toString() || '',
-      teacherRemarks: item.teacherRemarks || '',
-      overrideReason: ''
+      teacherRemarks: item.teacherRemarks || ''
     });
     setIsOverrideDialogOpen(true);
   };
@@ -578,95 +400,34 @@ export default function TeacherReportCards() {
       testMaxScore: overrideData.testMaxScore ? Number(overrideData.testMaxScore) : undefined,
       examScore: overrideData.examScore ? Number(overrideData.examScore) : undefined,
       examMaxScore: overrideData.examMaxScore ? Number(overrideData.examMaxScore) : undefined,
-      teacherRemarks: overrideData.teacherRemarks || undefined,
-      reason: overrideData.overrideReason || undefined
+      teacherRemarks: overrideData.teacherRemarks || undefined
     });
   };
 
-  const handleViewAuditLog = (item: ReportCardItem) => {
-    setSelectedItem(item);
-    setIsAuditLogDialogOpen(true);
-  };
-
-  // Open confirmation dialog for status changes
-  const openConfirmDialog = (type: 'finalize' | 'publish' | 'unpublish' | 'revert', reportCardId: number, studentName: string) => {
-    setConfirmDialog({
-      open: true,
-      type,
-      reportCardId,
-      studentName,
-      isBulk: false
-    });
-  };
-
-  // Open confirmation dialog for bulk status changes
-  const openBulkConfirmDialog = (type: 'finalize' | 'publish', count: number) => {
-    setConfirmDialog({
-      open: true,
-      type,
-      reportCardId: null,
-      studentName: '',
-      isBulk: true,
-      count
-    });
-  };
-
-  // Handle confirm dialog action
-  const handleConfirmAction = () => {
-    if (confirmDialog.isBulk) {
-      let targetIds: number[] = [];
-      const status = confirmDialog.type === 'finalize' ? 'finalized' : 'published';
-      
-      if (confirmDialog.type === 'finalize') {
-        targetIds = reportCards.filter((rc: any) => rc.status === 'draft').map((rc: any) => rc.id);
-      } else if (confirmDialog.type === 'publish') {
-        targetIds = reportCards.filter((rc: any) => rc.status === 'finalized').map((rc: any) => rc.id);
-      }
-      
-      bulkStatusMutation.mutate({ reportCardIds: targetIds, status });
-    } else if (confirmDialog.reportCardId) {
-      let status = 'draft';
-      if (confirmDialog.type === 'finalize') status = 'finalized';
-      else if (confirmDialog.type === 'publish') status = 'published';
-      else if (confirmDialog.type === 'unpublish') status = 'finalized';
-      else if (confirmDialog.type === 'revert') status = 'draft';
-      
-      updateStatusMutation.mutate({
-        reportCardId: confirmDialog.reportCardId,
-        status,
-        classId: selectedClass,
-        termId: selectedTerm
-      });
-    }
-  };
-
-  // Handle bulk status updates with confirmation
+  // Handle bulk status updates
   const handleBulkStatusUpdate = (status: string) => {
     let targetIds: number[] = [];
     
     if (status === 'finalized') {
+      // Finalize all draft report cards
       targetIds = reportCards.filter((rc: any) => rc.status === 'draft').map((rc: any) => rc.id);
-      if (targetIds.length > 0) {
-        openBulkConfirmDialog('finalize', targetIds.length);
-      } else {
-        toast({
-          title: "No Report Cards to Finalize",
-          description: "No draft report cards found.",
-          variant: "destructive",
-        });
-      }
     } else if (status === 'published') {
+      // Publish all finalized report cards
       targetIds = reportCards.filter((rc: any) => rc.status === 'finalized').map((rc: any) => rc.id);
-      if (targetIds.length > 0) {
-        openBulkConfirmDialog('publish', targetIds.length);
-      } else {
-        toast({
-          title: "No Report Cards to Publish",
-          description: "No finalized report cards found.",
-          variant: "destructive",
-        });
-      }
     }
+    
+    if (targetIds.length === 0) {
+      toast({
+        title: "No Report Cards to Update",
+        description: status === 'finalized' 
+          ? "No draft report cards found to finalize." 
+          : "No finalized report cards found to publish.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    bulkStatusMutation.mutate({ reportCardIds: targetIds, status });
   };
 
   const getGradeColor = (grade: string) => {
@@ -692,52 +453,6 @@ export default function TeacherReportCards() {
     }
   };
 
-  const getConfirmDialogContent = () => {
-    const { type, studentName, isBulk, count } = confirmDialog;
-    
-    switch (type) {
-      case 'finalize':
-        return {
-          title: isBulk ? `Finalize ${count} Report Cards?` : `Finalize Report Card?`,
-          description: isBulk 
-            ? `You are about to finalize ${count} draft report cards. Once finalized, scores cannot be edited unless you revert to draft. Students and parents will NOT see these yet.`
-            : `You are about to finalize the report card for ${studentName}. Once finalized, scores cannot be edited unless you revert to draft. The student and parents will NOT see this yet.`,
-          confirmText: 'Finalize',
-          confirmClass: 'bg-blue-600 hover:bg-blue-700'
-        };
-      case 'publish':
-        return {
-          title: isBulk ? `Publish ${count} Report Cards?` : `Publish Report Card?`,
-          description: isBulk
-            ? `You are about to publish ${count} finalized report cards. Students and parents will be able to view their report cards immediately.`
-            : `You are about to publish the report card for ${studentName}. The student and their parents will be able to view this report card immediately.`,
-          confirmText: 'Publish',
-          confirmClass: 'bg-green-600 hover:bg-green-700'
-        };
-      case 'unpublish':
-        return {
-          title: 'Unpublish Report Card?',
-          description: `You are about to unpublish the report card for ${studentName}. Students and parents will no longer be able to view this report card. The report card will be reverted to Finalized status.`,
-          confirmText: 'Unpublish',
-          confirmClass: 'bg-yellow-600 hover:bg-yellow-700'
-        };
-      case 'revert':
-        return {
-          title: 'Revert to Draft?',
-          description: `You are about to revert the report card for ${studentName} to draft status. This will unlock editing capabilities. If the report was published, students and parents will no longer be able to view it.`,
-          confirmText: 'Revert to Draft',
-          confirmClass: 'bg-yellow-600 hover:bg-yellow-700'
-        };
-      default:
-        return {
-          title: 'Confirm Action',
-          description: 'Are you sure you want to proceed?',
-          confirmText: 'Confirm',
-          confirmClass: ''
-        };
-    }
-  };
-
   const filteredReportCards = reportCards.filter((rc: any) => {
     const matchesSearch = rc.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       rc.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -755,8 +470,6 @@ export default function TeacherReportCards() {
     publishedCount: reportCards.filter((rc: any) => rc.status === 'published').length,
   } : null;
 
-  const confirmDialogContent = getConfirmDialogContent();
-
   return (
     <PortalLayout 
       userRole={userRole} 
@@ -767,36 +480,28 @@ export default function TeacherReportCards() {
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Report Cards</h1>
-            <p className="text-muted-foreground">Manage and publish student report cards</p>
+            <p className="text-muted-foreground">View and manage auto-generated student report cards</p>
           </div>
         </div>
 
-        {/* Top Bar with Selectors and Actions */}
         <Card>
-          <CardHeader className="pb-4">
+          <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Report Card Management
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Auto-Generated Report Cards
                 </CardTitle>
                 <CardDescription>
-                  Select class, session, and term to view and manage report cards
+                  Report cards are automatically created when students complete exams. Select a class and term to view and manage them.
                 </CardDescription>
               </div>
-              {realtimeConnected && (
-                <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  Live Updates
-                </div>
-              )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4 items-end">
-              {/* Class Selector */}
               <div className="flex flex-col gap-2">
-                <Label className="text-xs font-medium">Class</Label>
+                <Label>Class</Label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
                   <SelectTrigger className="w-40" data-testid="select-class">
                     <SelectValue placeholder="Select Class" />
@@ -810,49 +515,27 @@ export default function TeacherReportCards() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Session Year Selector */}
-              <div className="flex flex-col gap-2">
-                <Label className="text-xs font-medium">Session Year</Label>
-                <Select value={selectedSession} onValueChange={(value) => {
-                  setSelectedSession(value);
-                  setSelectedTerm('');
-                }}>
-                  <SelectTrigger className="w-32" data-testid="select-session">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sessionYears.map((year: number) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}/{year + 1}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               
-              {/* Term Selector */}
               <div className="flex flex-col gap-2">
-                <Label className="text-xs font-medium">Term</Label>
+                <Label>Term</Label>
                 <Select value={selectedTerm} onValueChange={setSelectedTerm}>
                   <SelectTrigger className="w-48" data-testid="select-term">
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredTerms.map((term: any) => (
+                    {terms.map((term: any) => (
                       <SelectItem key={term.id} value={term.id.toString()}>
-                        {term.name}
+                        {term.name} ({term.year})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               
-              {/* Grading Scale Selector */}
               <div className="flex flex-col gap-2">
-                <Label className="text-xs font-medium">Grading Scale</Label>
+                <Label>Grading Scale</Label>
                 <Select value={selectedGradingScale} onValueChange={setSelectedGradingScale}>
-                  <SelectTrigger className="w-36" data-testid="select-grading-scale">
+                  <SelectTrigger className="w-40" data-testid="select-grading-scale">
                     <SelectValue placeholder="Grading Scale" />
                   </SelectTrigger>
                   <SelectContent>
@@ -863,39 +546,35 @@ export default function TeacherReportCards() {
                 </Select>
               </div>
 
-              <Separator orientation="vertical" className="h-8 hidden md:block" />
-
-              {/* Generate Button */}
-              <Button
-                variant="default"
-                onClick={() => generateReportsMutation.mutate()}
-                disabled={!selectedClass || !selectedTerm || generateReportsMutation.isPending}
-                data-testid="button-generate-reports"
-              >
-                {generateReportsMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4 mr-2" />
+              <div className="flex flex-col gap-2">
+                <Label>Status Filter</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-status-filter">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="finalized">Finalized</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+                {statusFilter !== 'all' && (
+                  <span className="text-xs text-muted-foreground">
+                    Showing {filteredReportCards.length} of {reportCards.length}
+                  </span>
                 )}
-                Generate
-              </Button>
+              </div>
 
-              {/* Recompute Button */}
-              <Button
-                variant="outline"
-                onClick={() => recomputeReportsMutation.mutate()}
-                disabled={!selectedClass || !selectedTerm || recomputeReportsMutation.isPending || reportCards.length === 0}
-                data-testid="button-recompute-reports"
-              >
-                {recomputeReportsMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                )}
-                Recompute
-              </Button>
+              {/* Real-time connection indicator */}
+              {realtimeConnected && (
+                <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </div>
+              )}
 
-              {/* Bulk Actions */}
+              {/* Bulk Actions Dropdown */}
               {reportCards.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -945,52 +624,9 @@ export default function TeacherReportCards() {
                 </DropdownMenu>
               )}
             </div>
-
-            {/* Status Filter Row */}
-            <div className="flex flex-wrap gap-4 items-center mt-4 pt-4 border-t">
-              <Label className="text-xs font-medium">Filter:</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('all')}
-                  data-testid="filter-all"
-                >
-                  All ({reportCards.length})
-                </Button>
-                <Button
-                  variant={statusFilter === 'draft' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('draft')}
-                  data-testid="filter-draft"
-                >
-                  <Clock className="w-3 h-3 mr-1" />
-                  Draft ({statistics?.draftCount || 0})
-                </Button>
-                <Button
-                  variant={statusFilter === 'finalized' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('finalized')}
-                  data-testid="filter-finalized"
-                >
-                  <FileCheck className="w-3 h-3 mr-1" />
-                  Finalized ({statistics?.finalizedCount || 0})
-                </Button>
-                <Button
-                  variant={statusFilter === 'published' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('published')}
-                  data-testid="filter-published"
-                >
-                  <Send className="w-3 h-3 mr-1" />
-                  Published ({statistics?.publishedCount || 0})
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Main Content Area */}
         {!selectedClass || !selectedTerm ? (
           <Card>
             <CardContent className="text-center py-12">
@@ -1011,13 +647,12 @@ export default function TeacherReportCards() {
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-              <TabsTrigger value="students" data-testid="tab-students">Students</TabsTrigger>
-              <TabsTrigger value="analytics" data-testid="tab-analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="students">Students</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
-              {/* Statistics Cards */}
               {statistics && (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                   <Card>
@@ -1086,7 +721,6 @@ export default function TeacherReportCards() {
                 </div>
               )}
 
-              {/* Report Cards Table */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1099,163 +733,70 @@ export default function TeacherReportCards() {
                     <div className="text-center py-8">
                       <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-medium mb-2">No Report Cards Yet</h3>
-                      <p className="text-muted-foreground mb-4">Click "Generate" to create report cards for this class.</p>
-                      <Button onClick={() => generateReportsMutation.mutate()} disabled={generateReportsMutation.isPending}>
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Generate Report Cards
-                      </Button>
+                      <p className="text-muted-foreground mb-2">Report cards will appear here automatically as students complete their exams.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Once a student submits their first exam for this term, their report card will be created and updated with each subsequent exam.
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="relative max-w-sm">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                         <Input
-                          placeholder="Search by name or admission number..."
+                          placeholder="Search students..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           className="pl-10"
                           data-testid="input-search-students"
                         />
                       </div>
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-16">Pos</TableHead>
-                              <TableHead>Student Name</TableHead>
-                              <TableHead>Adm. No.</TableHead>
-                              <TableHead className="text-center">Average</TableHead>
-                              <TableHead className="text-center">Grade</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Pos</TableHead>
+                            <TableHead>Student Name</TableHead>
+                            <TableHead>Adm. No.</TableHead>
+                            <TableHead>Average</TableHead>
+                            <TableHead>Grade</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredReportCards.map((rc: any) => (
+                            <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
+                              <TableCell className="font-medium">
+                                {rc.position || '-'}/{rc.totalStudentsInClass || reportCards.length}
+                              </TableCell>
+                              <TableCell className="font-medium">{rc.studentName}</TableCell>
+                              <TableCell>{rc.admissionNumber || '-'}</TableCell>
+                              <TableCell>
+                                <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}>
+                                  {rc.averagePercentage || 0}%
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={getGradeColor(rc.overallGrade)}>
+                                  {rc.overallGrade || '-'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {getStatusBadge(rc.status)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleViewReportCard(rc)}
+                                  data-testid={`button-view-${rc.id}`}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredReportCards.map((rc: any) => (
-                              <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
-                                <TableCell className="font-medium">
-                                  {rc.position || '-'}/{rc.totalStudentsInClass || reportCards.length}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
-                                      <AvatarFallback className="text-xs">
-                                        {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{rc.studentName}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-mono text-sm">{rc.admissionNumber || '-'}</TableCell>
-                                <TableCell className="text-center">
-                                  <span className={`font-medium ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {rc.averagePercentage || 0}%
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge className={getGradeColor(rc.overallGrade)}>
-                                    {rc.overallGrade || '-'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {getStatusBadge(rc.status)}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center justify-end gap-1">
-                                    {/* View Button */}
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleViewReportCard(rc)}
-                                      title="View Report Card"
-                                      data-testid={`button-view-${rc.id}`}
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                    
-                                    {/* Edit Button - only for draft */}
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleViewReportCard(rc)}
-                                      disabled={rc.status !== 'draft'}
-                                      title={rc.status === 'draft' ? 'Edit Scores' : 'Locked - Revert to draft to edit'}
-                                      data-testid={`button-edit-${rc.id}`}
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-
-                                    {/* Status Action Buttons */}
-                                    {rc.status === 'draft' && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => openConfirmDialog('finalize', rc.id, rc.studentName)}
-                                        title="Finalize Report Card"
-                                        className="text-blue-600 hover:text-blue-700"
-                                        data-testid={`button-finalize-${rc.id}`}
-                                      >
-                                        <FileCheck className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                    
-                                    {rc.status === 'finalized' && (
-                                      <>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => openConfirmDialog('publish', rc.id, rc.studentName)}
-                                          title="Publish Report Card"
-                                          className="text-green-600 hover:text-green-700"
-                                          data-testid={`button-publish-${rc.id}`}
-                                        >
-                                          <Send className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => openConfirmDialog('revert', rc.id, rc.studentName)}
-                                          title="Revert to Draft"
-                                          className="text-yellow-600 hover:text-yellow-700"
-                                          data-testid={`button-revert-${rc.id}`}
-                                        >
-                                          <Undo2 className="w-4 h-4" />
-                                        </Button>
-                                      </>
-                                    )}
-                                    
-                                    {rc.status === 'published' && (
-                                      <>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => openConfirmDialog('unpublish', rc.id, rc.studentName)}
-                                          title="Unpublish Report Card"
-                                          className="text-yellow-600 hover:text-yellow-700"
-                                          data-testid={`button-unpublish-${rc.id}`}
-                                        >
-                                          <Unlock className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => openConfirmDialog('revert', rc.id, rc.studentName)}
-                                          title="Revert to Draft"
-                                          className="text-red-600 hover:text-red-700"
-                                          data-testid={`button-revert-published-${rc.id}`}
-                                        >
-                                          <Undo2 className="w-4 h-4" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </CardContent>
@@ -1285,15 +826,12 @@ export default function TeacherReportCards() {
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10">
-                                  <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
-                                  <AvatarFallback>
-                                    {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                  </AvatarFallback>
-                                </Avatar>
+                                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
+                                  {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                                </div>
                                 <div>
                                   <h4 className="font-medium">{rc.studentName}</h4>
-                                  <p className="text-sm text-muted-foreground font-mono">{rc.admissionNumber}</p>
+                                  <p className="text-sm text-muted-foreground">{rc.admissionNumber}</p>
                                 </div>
                               </div>
                               <Badge className={getGradeColor(rc.overallGrade)}>
@@ -1306,32 +844,8 @@ export default function TeacherReportCards() {
                                 {rc.averagePercentage || 0}%
                               </span>
                             </div>
-                            <div className="mt-2 flex items-center justify-between">
+                            <div className="mt-2">
                               {getStatusBadge(rc.status)}
-                              <div className="flex gap-1">
-                                {rc.status === 'draft' && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => { e.stopPropagation(); openConfirmDialog('finalize', rc.id, rc.studentName); }}
-                                    className="h-7 text-blue-600"
-                                  >
-                                    <FileCheck className="w-3 h-3 mr-1" />
-                                    Finalize
-                                  </Button>
-                                )}
-                                {rc.status === 'finalized' && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => { e.stopPropagation(); openConfirmDialog('publish', rc.id, rc.studentName); }}
-                                    className="h-7 text-green-600"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    Publish
-                                  </Button>
-                                )}
-                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1367,7 +881,7 @@ export default function TeacherReportCards() {
                                   style={{ width: `${percentage}%` }}
                                 ></div>
                               </div>
-                              <span className="text-sm w-16 text-right">{count} ({percentage}%)</span>
+                              <span className="text-sm w-12 text-right">{count} ({percentage}%)</span>
                             </div>
                           );
                         })}
@@ -1414,14 +928,17 @@ export default function TeacherReportCards() {
         )}
       </div>
 
-      {/* View Report Card Dialog - Enhanced with Student Header and Signature Area */}
+      {/* View Report Card Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] p-0">
-          <DialogHeader className="p-4 sm:p-6 pb-0">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] p-4 sm:p-6">
+          <DialogHeader className="pb-2">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              <span>Report Card Details</span>
+              <span className="truncate">Report Card - {fullReportCard?.studentName}</span>
             </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              {fullReportCard?.className} - {fullReportCard?.termName}
+            </DialogDescription>
           </DialogHeader>
           
           {loadingFullReport ? (
@@ -1430,327 +947,278 @@ export default function TeacherReportCards() {
               <p>Loading report card...</p>
             </div>
           ) : fullReportCard ? (
-            <ScrollArea className="max-h-[calc(90vh-80px)]">
-              <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-2">
-                {/* Student Header Section */}
-                <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 sm:p-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
-                      <AvatarImage src={fullReportCard.studentPhoto} alt={fullReportCard.studentName} />
-                      <AvatarFallback className="text-xl font-bold bg-primary text-primary-foreground">
-                        {fullReportCard.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h2 className="text-xl sm:text-2xl font-bold">{fullReportCard.studentName}</h2>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-sm">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Hash className="w-3 h-3" />
-                          <span>{fullReportCard.admissionNumber}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Building className="w-3 h-3" />
-                          <span>{fullReportCard.className}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          <span>{fullReportCard.termName}</span>
-                        </div>
-                        <div>
-                          {getStatusBadge(fullReportCard.status)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right hidden sm:block">
-                      <div className="text-4xl font-bold text-primary">{fullReportCard.averagePercentage || 0}%</div>
-                      <Badge className={`text-lg ${getGradeColor(fullReportCard.overallGrade)}`}>
-                        {fullReportCard.overallGrade || '-'}
-                      </Badge>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Position: {fullReportCard.position || '-'}/{fullReportCard.totalStudentsInClass || '-'}
-                      </div>
-                    </div>
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 sm:space-y-6 pr-2 sm:pr-4">
+                {/* Summary - Responsive Grid */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Average</p>
+                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.averagePercentage || 0}%</p>
                   </div>
-                  {/* Mobile stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-4 sm:hidden">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{fullReportCard.averagePercentage || 0}%</div>
-                      <div className="text-xs text-muted-foreground">Average</div>
-                    </div>
-                    <div className="text-center">
-                      <Badge className={`text-lg ${getGradeColor(fullReportCard.overallGrade)}`}>
-                        {fullReportCard.overallGrade || '-'}
-                      </Badge>
-                      <div className="text-xs text-muted-foreground">Grade</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold">{fullReportCard.position || '-'}/{fullReportCard.totalStudentsInClass || '-'}</div>
-                      <div className="text-xs text-muted-foreground">Position</div>
-                    </div>
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Grade</p>
+                    <Badge className={`text-base sm:text-lg ${getGradeColor(fullReportCard.overallGrade)}`}>
+                      {fullReportCard.overallGrade || '-'}
+                    </Badge>
+                  </div>
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Position</p>
+                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.position || '-'}/{fullReportCard.totalStudentsInClass || '-'}</p>
+                  </div>
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Status</p>
+                    <div className="mt-1">{getStatusBadge(fullReportCard.status)}</div>
                   </div>
                 </div>
 
-                {/* Actions Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {/* Actions - Responsive with Dropdown Menu */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Status indicator */}
+                  <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                     {fullReportCard.status === 'draft' ? (
-                      <><Unlock className="w-4 h-4" /> Editing enabled</>
+                      <><Unlock className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Editing enabled</span></>
                     ) : (
-                      <><Lock className="w-4 h-4" /> Editing locked</>
+                      <><Lock className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Editing locked</span></>
                     )}
                   </div>
                   
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
-                      disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
-                      data-testid="button-refresh-scores"
-                    >
-                      {autoPopulateMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                      )}
-                      Refresh Scores
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.print()}
-                      data-testid="button-print"
-                    >
-                      <Printer className="w-4 h-4 mr-2" />
-                      Print
-                    </Button>
-
-                    {/* Status Change Buttons */}
-                    {fullReportCard.status === 'draft' && (
-                      <Button
+                  {/* Refresh Scores - only enabled when in draft status */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
+                    disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
+                    className="text-xs sm:text-sm"
+                    data-testid="button-refresh-scores"
+                  >
+                    {autoPopulateMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    )}
+                    <span className="hidden sm:inline">Refresh Scores</span>
+                    <span className="sm:hidden">Refresh</span>
+                  </Button>
+                  
+                  {/* Status Change Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="default" 
                         size="sm"
-                        onClick={() => openConfirmDialog('finalize', fullReportCard.id, fullReportCard.studentName)}
-                        className="bg-blue-600 hover:bg-blue-700"
-                        data-testid="button-modal-finalize"
+                        className="text-xs sm:text-sm"
+                        data-testid="button-status-menu"
                       >
-                        <FileCheck className="w-4 h-4 mr-2" />
-                        Finalize
+                        {fullReportCard.status === 'draft' && <FilePen className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                        {fullReportCard.status === 'finalized' && <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                        {fullReportCard.status === 'published' && <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                        <span className="hidden sm:inline">Change Status</span>
+                        <span className="sm:hidden">Status</span>
+                        <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                       </Button>
-                    )}
-                    
-                    {fullReportCard.status === 'finalized' && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => openConfirmDialog('publish', fullReportCard.id, fullReportCard.studentName)}
-                          className="bg-green-600 hover:bg-green-700"
-                          data-testid="button-modal-publish"
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {/* Show options based on current status */}
+                      {fullReportCard.status === 'draft' && (
+                        <DropdownMenuItem 
+                          onClick={() => updateStatusMutation.mutate({ 
+                            reportCardId: fullReportCard.id, 
+                            status: 'finalized',
+                            classId: selectedClass,
+                            termId: selectedTerm
+                          })}
+                          className="cursor-pointer"
+                          data-testid="menu-finalize"
                         >
-                          <Send className="w-4 h-4 mr-2" />
-                          Publish
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openConfirmDialog('revert', fullReportCard.id, fullReportCard.studentName)}
-                          data-testid="button-modal-revert"
-                        >
-                          <Undo2 className="w-4 h-4 mr-2" />
-                          Revert to Draft
-                        </Button>
-                      </>
-                    )}
-                    
-                    {fullReportCard.status === 'published' && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openConfirmDialog('unpublish', fullReportCard.id, fullReportCard.studentName)}
-                          data-testid="button-modal-unpublish"
-                        >
-                          <Unlock className="w-4 h-4 mr-2" />
-                          Unpublish
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openConfirmDialog('revert', fullReportCard.id, fullReportCard.studentName)}
-                          className="text-red-600"
-                          data-testid="button-modal-revert-published"
-                        >
-                          <Undo2 className="w-4 h-4 mr-2" />
-                          Revert to Draft
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                          <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
+                          <span>Finalize Report Card</span>
+                        </DropdownMenuItem>
+                      )}
+                      
+                      {fullReportCard.status === 'finalized' && (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'published',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-publish"
+                          >
+                            <Send className="w-4 h-4 mr-2 text-green-500" />
+                            <span>Publish to Parents/Students</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'draft',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-revert-draft"
+                          >
+                            <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
+                            <span>Revert to Draft (Edit)</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      
+                      {fullReportCard.status === 'published' && (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'finalized',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-revert-finalized"
+                          >
+                            <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
+                            <span>Unpublish (Finalized)</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'draft',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-revert-draft-published"
+                          >
+                            <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
+                            <span>Revert to Draft (Edit)</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {/* Subject Scores Table */}
+                {/* Subject Scores - Responsive Table */}
                 <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Subject Scores
-                  </h4>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Subject</TableHead>
-                          <TableHead className="text-center">Test (40%)</TableHead>
-                          <TableHead className="text-center">Exam (60%)</TableHead>
-                          <TableHead className="text-center">Total</TableHead>
-                          <TableHead className="text-center">Grade</TableHead>
-                          <TableHead className="text-center">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fullReportCard.items?.map((item: ReportCardItem) => (
-                          <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <span>{item.subjectName}</span>
-                                {item.isOverridden && (
-                                  <Badge variant="outline" className="text-xs">
-                                    <PenTool className="w-3 h-3 mr-1" />
-                                    Modified
-                                  </Badge>
+                  <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Subject Scores</h4>
+                  <div className="overflow-x-auto -mx-2 sm:mx-0">
+                    <div className="min-w-[500px] sm:min-w-0 px-2 sm:px-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs sm:text-sm">Subject</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Test<br className="sm:hidden"/><span className="hidden sm:inline"> </span>(40%)</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Exam<br className="sm:hidden"/><span className="hidden sm:inline"> </span>(60%)</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">Total</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Grade</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Edit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {fullReportCard.items?.map((item: ReportCardItem) => (
+                            <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
+                              <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                  <span className="truncate max-w-[100px] sm:max-w-none">{item.subjectName}</span>
+                                  {item.isOverridden && (
+                                    <Badge variant="outline" className="text-[10px] sm:text-xs w-fit">
+                                      <PenTool className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                                      Modified
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-4">
+                                {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
+                                {item.testWeightedScore !== null && (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.testWeightedScore})</span>
                                 )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
-                              {item.testWeightedScore !== null && (
-                                <span className="text-xs text-muted-foreground block">({item.testWeightedScore})</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
-                              {item.examWeightedScore !== null && (
-                                <span className="text-xs text-muted-foreground block">({item.examWeightedScore})</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center font-medium">
-                              {item.obtainedMarks}/{item.totalMarks}
-                              <span className="text-xs text-muted-foreground block">({item.percentage}%)</span>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge className={getGradeColor(item.grade)}>
-                                {item.grade || '-'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
+                              </TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-4">
+                                {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
+                                {item.examWeightedScore !== null && (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.examWeightedScore})</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-xs sm:text-sm py-2 sm:py-4">
+                                {item.obtainedMarks}/{item.totalMarks}
+                                <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.percentage}%)</span>
+                              </TableCell>
+                              <TableCell className="py-2 sm:py-4">
+                                <Badge className={`text-[10px] sm:text-xs ${getGradeColor(item.grade)}`}>
+                                  {item.grade || '-'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="py-2 sm:py-4">
                                 <Button
                                   size="icon"
                                   variant="ghost"
                                   onClick={() => handleOverrideScore(item)}
                                   disabled={fullReportCard.status !== 'draft'}
-                                  title={fullReportCard.status === 'draft' ? 'Edit Score' : 'Locked'}
+                                  className="h-7 w-7 sm:h-9 sm:w-9"
                                   data-testid={`button-override-${item.id}`}
                                 >
-                                  <Edit className="w-4 h-4" />
+                                  <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </Button>
-                                {item.isOverridden && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleViewAuditLog(item)}
-                                    title="View Edit History"
-                                    data-testid={`button-history-${item.id}`}
-                                  >
-                                    <History className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </div>
 
-                {/* Remarks Section */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <PenTool className="w-4 h-4" />
-                    Remarks
-                  </h4>
+                {/* Remarks - Responsive */}
+                <div className="space-y-3 sm:space-y-4">
+                  <h4 className="font-semibold text-sm sm:text-base">Remarks</h4>
                   {fullReportCard.status !== 'draft' && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded-md">
-                      <Lock className="w-4 h-4 flex-shrink-0" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-muted p-2 rounded-md">
+                      <Lock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                       <span>Remarks are locked. Revert to draft to edit.</span>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Teacher Remarks</Label>
-                      <Textarea
-                        value={remarks.teacher}
-                        onChange={(e) => setRemarks(prev => ({ ...prev, teacher: e.target.value }))}
-                        placeholder="Enter teacher remarks..."
-                        disabled={fullReportCard.status !== 'draft'}
-                        className="mt-1 min-h-[80px]"
-                        data-testid="textarea-teacher-remarks"
-                      />
-                    </div>
-                    <div>
-                      <Label>Principal Remarks</Label>
-                      <Textarea
-                        value={remarks.principal}
-                        onChange={(e) => setRemarks(prev => ({ ...prev, principal: e.target.value }))}
-                        placeholder="Enter principal remarks..."
-                        disabled={fullReportCard.status !== 'draft'}
-                        className="mt-1 min-h-[80px]"
-                        data-testid="textarea-principal-remarks"
-                      />
-                    </div>
+                  <div>
+                    <Label className="text-xs sm:text-sm">Teacher Remarks</Label>
+                    <Textarea
+                      value={remarks.teacher}
+                      onChange={(e) => setRemarks(prev => ({ ...prev, teacher: e.target.value }))}
+                      placeholder="Enter teacher remarks..."
+                      disabled={fullReportCard.status !== 'draft'}
+                      className="mt-1 text-sm min-h-[60px] sm:min-h-[80px]"
+                      data-testid="textarea-teacher-remarks"
+                    />
                   </div>
-                  {fullReportCard.status === 'draft' && (
-                    <Button
-                      variant="outline"
-                      onClick={() => updateRemarksMutation.mutate({
-                        reportCardId: fullReportCard.id,
-                        teacherRemarks: remarks.teacher,
-                        principalRemarks: remarks.principal
-                      })}
-                      disabled={updateRemarksMutation.isPending}
-                      data-testid="button-save-remarks"
-                    >
-                      {updateRemarksMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Remarks
-                    </Button>
-                  )}
-                </div>
-
-                {/* Signature Section */}
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold mb-4 flex items-center gap-2">
-                    <PenTool className="w-4 h-4" />
-                    Signatures
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="text-center p-4 border rounded-lg">
-                      <div className="h-16 border-b-2 border-dashed border-gray-300 mb-2 flex items-end justify-center">
-                        <span className="text-xl font-cursive text-primary italic">{userName}</span>
-                      </div>
-                      <p className="text-sm font-medium">Class Teacher</p>
-                      <p className="text-xs text-muted-foreground">Date: {format(new Date(), 'dd/MM/yyyy')}</p>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg">
-                      <div className="h-16 border-b-2 border-dashed border-gray-300 mb-2 flex items-end justify-center">
-                        <span className="text-xl font-cursive text-purple-600 italic">Principal</span>
-                      </div>
-                      <p className="text-sm font-medium">Principal/Head</p>
-                      <p className="text-xs text-muted-foreground">
-                        {fullReportCard.publishedAt ? `Published: ${format(new Date(fullReportCard.publishedAt), 'dd/MM/yyyy')}` : 'Not yet published'}
-                      </p>
-                    </div>
+                  <div>
+                    <Label className="text-xs sm:text-sm">Principal Remarks</Label>
+                    <Textarea
+                      value={remarks.principal}
+                      onChange={(e) => setRemarks(prev => ({ ...prev, principal: e.target.value }))}
+                      placeholder="Enter principal remarks..."
+                      disabled={fullReportCard.status !== 'draft'}
+                      className="mt-1 text-sm min-h-[60px] sm:min-h-[80px]"
+                      data-testid="textarea-principal-remarks"
+                    />
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateRemarksMutation.mutate({
+                      reportCardId: fullReportCard.id,
+                      teacherRemarks: remarks.teacher,
+                      principalRemarks: remarks.principal
+                    })}
+                    disabled={updateRemarksMutation.isPending || fullReportCard.status !== 'draft'}
+                    className="text-xs sm:text-sm"
+                    data-testid="button-save-remarks"
+                  >
+                    <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    Save Remarks
+                  </Button>
                 </div>
               </div>
             </ScrollArea>
@@ -1763,29 +1231,17 @@ export default function TeacherReportCards() {
         </DialogContent>
       </Dialog>
 
-      {/* Override Score Dialog with Audit Trail */}
+      {/* Override Score Dialog */}
       <Dialog open={isOverrideDialogOpen} onOpenChange={setIsOverrideDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit className="w-5 h-5" />
-              Override Score
-            </DialogTitle>
+            <DialogTitle>Override Score</DialogTitle>
             <DialogDescription>
-              Modify scores for {selectedItem?.subjectName}. All changes are logged for audit purposes.
+              Modify scores for {selectedItem?.subjectName}. This will be tracked as a teacher override.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5" />
-                <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Important:</strong> Score overrides are tracked and logged. Please provide a reason for the change.
-                </div>
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Test Score</Label>
@@ -1833,23 +1289,12 @@ export default function TeacherReportCards() {
             </div>
             
             <div>
-              <Label>Subject Remarks</Label>
+              <Label>Teacher Remarks</Label>
               <Textarea
                 value={overrideData.teacherRemarks}
                 onChange={(e) => setOverrideData(prev => ({ ...prev, teacherRemarks: e.target.value }))}
-                placeholder="Remarks for this subject..."
-                data-testid="input-subject-remarks"
-              />
-            </div>
-
-            <div>
-              <Label className="text-yellow-700 dark:text-yellow-400">Reason for Override *</Label>
-              <Textarea
-                value={overrideData.overrideReason}
-                onChange={(e) => setOverrideData(prev => ({ ...prev, overrideReason: e.target.value }))}
-                placeholder="Please explain why you are overriding this score (e.g., correction of marking error, late submission consideration)..."
-                className="border-yellow-300 focus:border-yellow-500"
-                data-testid="input-override-reason"
+                placeholder="Reason for override..."
+                data-testid="input-override-remarks"
               />
             </div>
           </div>
@@ -1858,111 +1303,13 @@ export default function TeacherReportCards() {
             <Button variant="outline" onClick={() => setIsOverrideDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveOverride} 
-              disabled={overrideScoreMutation.isPending || !overrideData.overrideReason.trim()}
-            >
+            <Button onClick={handleSaveOverride} disabled={overrideScoreMutation.isPending}>
               {overrideScoreMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Override
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Audit Log Dialog */}
-      <Dialog open={isAuditLogDialogOpen} onOpenChange={setIsAuditLogDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="w-5 h-5" />
-              Edit History
-            </DialogTitle>
-            <DialogDescription>
-              Audit log for {selectedItem?.subjectName}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {loadingAuditLogs ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-              <p>Loading history...</p>
-            </div>
-          ) : auditLogs.length > 0 ? (
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-3">
-                {auditLogs.map((log: AuditLogEntry) => (
-                  <div key={log.id} className="border rounded-md p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-sm">{log.action}</p>
-                        <p className="text-xs text-muted-foreground">
-                          By {log.changedBy} on {format(new Date(log.changedAt), 'dd MMM yyyy HH:mm')}
-                        </p>
-                      </div>
-                    </div>
-                    {log.reason && (
-                      <p className="text-sm mt-2 bg-muted p-2 rounded">
-                        <strong>Reason:</strong> {log.reason}
-                      </p>
-                    )}
-                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Previous:</span>
-                        <span className="ml-1">{log.previousValue || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">New:</span>
-                        <span className="ml-1">{log.newValue || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No edit history found for this item.</p>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAuditLogDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              {confirmDialog.type === 'finalize' && <FileCheck className="w-5 h-5 text-blue-500" />}
-              {confirmDialog.type === 'publish' && <Send className="w-5 h-5 text-green-500" />}
-              {(confirmDialog.type === 'unpublish' || confirmDialog.type === 'revert') && <AlertTriangle className="w-5 h-5 text-yellow-500" />}
-              {confirmDialogContent.title}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDialogContent.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmAction}
-              className={confirmDialogContent.confirmClass}
-              disabled={updateStatusMutation.isPending || bulkStatusMutation.isPending}
-            >
-              {(updateStatusMutation.isPending || bulkStatusMutation.isPending) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              {confirmDialogContent.confirmText}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PortalLayout>
   );
 }
