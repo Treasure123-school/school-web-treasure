@@ -319,7 +319,7 @@ export default function StudentReportCard() {
 
                 {/* Signature Section */}
                 <div className="bg-white p-6 border-t print:border-gray-400">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="text-center">
                       <div className="border-b border-gray-400 mb-2 h-16 flex items-end justify-center">
                         <span className="text-2xl font-cursive text-blue-600">{user.firstName.charAt(0)}. {user.lastName}</span>
@@ -333,21 +333,6 @@ export default function StudentReportCard() {
                         <span className="text-2xl font-cursive text-purple-600">Dr. S. Chen</span>
                       </div>
                       <p className="text-sm font-medium">Principal/Head Signature</p>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="flex justify-center space-x-2 mb-4">
-                        <Button variant="outline" size="sm" onClick={handlePrint}>
-                          🖨️ Print
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                          📄 Export PDF
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          📊 Export Excel
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">Academic Year: {reportCard.termYear}</p>
                     </div>
                   </div>
                 </div>
