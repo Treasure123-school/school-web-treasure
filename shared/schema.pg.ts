@@ -681,16 +681,19 @@ export const auditLogs = pgTable("audit_logs", {
 // Performance events table
 export const performanceEvents = pgTable("performance_events", {
   id: serial("id").primaryKey(),
+  sessionId: integer("session_id").references(() => examSessions.id, { onDelete: 'cascade' }),
   eventType: varchar("event_type", { length: 50 }).notNull(),
-  entityType: varchar("entity_type", { length: 50 }),
-  entityId: varchar("entity_id", { length: 36 }),
-  duration: integer("duration"),
-  metGoal: boolean("met_goal"),
+  duration: integer("duration").notNull().default(0),
+  goalAchieved: boolean("goal_achieved").notNull().default(false),
   metadata: text("metadata"),
+  clientSide: boolean("client_side").notNull().default(false),
+  userId: varchar("user_id", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   performanceEventsTypeIdx: index("performance_events_type_idx").on(table.eventType),
   performanceEventsDateIdx: index("performance_events_date_idx").on(table.createdAt),
+  performanceEventsSessionIdx: index("performance_events_session_idx").on(table.sessionId),
+  performanceEventsGoalIdx: index("performance_events_goal_idx").on(table.goalAchieved, table.eventType),
 }));
 
 // Settings table

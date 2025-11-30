@@ -2080,7 +2080,7 @@ export class DatabaseStorage implements IStorage {
         .from(schema.questionOptions)
         .where(eq(schema.questionOptions.questionId, questionId));
       
-      const optionIds = options.map((o) => o.id).filter((id): id is number => typeof id === 'number');
+      const optionIds = options.map((o: { id: number }) => o.id).filter((id: number | null | undefined): id is number => id != null);
       
       // Clear selectedOptionId in student_answers that reference these options
       if (optionIds.length > 0) {
