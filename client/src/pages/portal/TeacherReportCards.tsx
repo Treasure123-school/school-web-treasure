@@ -37,8 +37,19 @@ import {
   Loader2,
   Undo2,
   Lock,
-  Unlock
+  Unlock,
+  MoreVertical,
+  FileCheck,
+  FileClock,
+  FilePen
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 
 interface ReportCardItem {
@@ -230,7 +241,7 @@ export default function TeacherReportCards() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async (data: { reportCardId: number; status: string }) => {
+    mutationFn: async (data: { reportCardId: number; status: string; classId: string; termId: string }) => {
       const response = await apiRequest('PATCH', `/api/reports/${data.reportCardId}/status`, { status: data.status });
       if (!response.ok) {
         const error = await response.json();
@@ -238,15 +249,81 @@ export default function TeacherReportCards() {
       }
       return response.json();
     },
-    onSuccess: (data) => {
+    onMutate: async ({ reportCardId, status, classId, termId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/reports/class-term', classId, termId] });
+      
+      // Snapshot previous values
+      const previousFullReport = queryClient.getQueryData(['/api/reports', reportCardId, 'full']);
+      const previousReportCards = queryClient.getQueryData(['/api/reports/class-term', classId, termId]);
+      
+      // Optimistically update the full report (with guard)
+      queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
+        if (!old || typeof old !== 'object') return old;
+        return { ...old, status };
+      });
+      
+      // Optimistically update the report cards list (with array guard)
+      queryClient.setQueryData(['/api/reports/class-term', classId, termId], (old: any) => {
+        if (!old || !Array.isArray(old)) return old;
+        return old.map((rc: any) => 
+          rc.id === reportCardId ? { ...rc, status } : rc
+        );
+      });
+      
+      // Update the selected report card state immediately
+      setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, status } : prev);
+      
+      return { previousFullReport, previousReportCards, classId, termId };
+    },
+    onSuccess: (data, { reportCardId, classId, termId }) => {
+      // Backend returns { message, reportCard } - extract the report card data
+      const reportCard = data.reportCard;
+      const message = data.message;
+      
+      // Only update caches if we received valid reportCard data with matching ID
+      if (reportCard && typeof reportCard === 'object' && reportCard.id === reportCardId) {
+        // Reconcile full report cache with backend response
+        queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
+          // If old doesn't exist, use the server data directly
+          if (!old || typeof old !== 'object') return reportCard;
+          return { ...old, ...reportCard };
+        });
+        
+        // Update the list with actual server data
+        queryClient.setQueryData(['/api/reports/class-term', classId, termId], (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
+          return old.map((rc: any) => rc.id === reportCardId ? { ...rc, ...reportCard } : rc);
+        });
+        
+        // Update the selected report card state
+        setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, ...reportCard } : prev);
+      } else {
+        // If reportCard data is missing or invalid, refetch to get canonical data
+        queryClient.invalidateQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/reports/class-term', classId, termId] });
+      }
+      
+      const statusLabel = (reportCard?.status || data.status) === 'published' ? 'Published' : 
+                         (reportCard?.status || data.status) === 'finalized' ? 'Finalized' : 'Reverted to Draft';
       toast({
         title: "Success",
-        description: data.message || "Status updated successfully",
+        description: message || `Report card ${statusLabel.toLowerCase()} successfully`,
       });
-      refetchFullReport();
-      refetchReportCards();
     },
-    onError: (error: any) => {
+    onError: (error: any, { reportCardId }, context: any) => {
+      // Rollback to previous values using captured classId and termId
+      if (context?.previousFullReport) {
+        queryClient.setQueryData(['/api/reports', reportCardId, 'full'], context.previousFullReport);
+      }
+      if (context?.previousReportCards && context?.classId && context?.termId) {
+        queryClient.setQueryData(['/api/reports/class-term', context.classId, context.termId], context.previousReportCards);
+      }
+      // Rollback selected report card state
+      if (context?.previousFullReport) {
+        setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, status: context.previousFullReport.status } : prev);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update status",
@@ -744,13 +821,13 @@ export default function TeacherReportCards() {
 
       {/* View Report Card Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Report Card - {fullReportCard?.studentName}
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] p-4 sm:p-6">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+              <span className="truncate">Report Card - {fullReportCard?.studentName}</span>
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">
               {fullReportCard?.className} - {fullReportCard?.termName}
             </DialogDescription>
           </DialogHeader>
@@ -762,37 +839,37 @@ export default function TeacherReportCards() {
             </div>
           ) : fullReportCard ? (
             <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-6 pr-4">
-                {/* Summary */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm text-muted-foreground">Average</p>
-                    <p className="text-2xl font-bold">{fullReportCard.averagePercentage || 0}%</p>
+              <div className="space-y-4 sm:space-y-6 pr-2 sm:pr-4">
+                {/* Summary - Responsive Grid */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Average</p>
+                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.averagePercentage || 0}%</p>
                   </div>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm text-muted-foreground">Grade</p>
-                    <Badge className={`text-lg ${getGradeColor(fullReportCard.overallGrade)}`}>
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Grade</p>
+                    <Badge className={`text-base sm:text-lg ${getGradeColor(fullReportCard.overallGrade)}`}>
                       {fullReportCard.overallGrade || '-'}
                     </Badge>
                   </div>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm text-muted-foreground">Position</p>
-                    <p className="text-2xl font-bold">{fullReportCard.position || '-'}/{fullReportCard.totalStudentsInClass || '-'}</p>
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Position</p>
+                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.position || '-'}/{fullReportCard.totalStudentsInClass || '-'}</p>
                   </div>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm text-muted-foreground">Status</p>
+                  <div className="bg-muted p-2 sm:p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Status</p>
                     <div className="mt-1">{getStatusBadge(fullReportCard.status)}</div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-wrap gap-2">
+                {/* Actions - Responsive with Dropdown Menu */}
+                <div className="flex flex-wrap items-center gap-2">
                   {/* Status indicator */}
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground mr-2">
+                  <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                     {fullReportCard.status === 'draft' ? (
-                      <><Unlock className="w-4 h-4" /> Editing enabled</>
+                      <><Unlock className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Editing enabled</span></>
                     ) : (
-                      <><Lock className="w-4 h-4" /> Editing locked</>
+                      <><Lock className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Editing locked</span></>
                     )}
                   </div>
                   
@@ -802,197 +879,235 @@ export default function TeacherReportCards() {
                     size="sm"
                     onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
                     disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
+                    className="text-xs sm:text-sm"
                     data-testid="button-refresh-scores"
                   >
                     {autoPopulateMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
                     ) : (
-                      <RefreshCw className="w-4 h-4 mr-2" />
+                      <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     )}
-                    Refresh Scores
+                    <span className="hidden sm:inline">Refresh Scores</span>
+                    <span className="sm:hidden">Refresh</span>
                   </Button>
                   
-                  {/* DRAFT status: Show Finalize button */}
-                  {fullReportCard.status === 'draft' && (
-                    <Button
-                      size="sm"
-                      onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'finalized' })}
-                      disabled={updateStatusMutation.isPending}
-                      data-testid="button-finalize"
-                    >
-                      {updateStatusMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4 mr-2" />
+                  {/* Status Change Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="text-xs sm:text-sm"
+                        data-testid="button-status-menu"
+                      >
+                        {fullReportCard.status === 'draft' && <FilePen className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                        {fullReportCard.status === 'finalized' && <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                        {fullReportCard.status === 'published' && <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                        <span className="hidden sm:inline">Change Status</span>
+                        <span className="sm:hidden">Status</span>
+                        <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {/* Show options based on current status */}
+                      {fullReportCard.status === 'draft' && (
+                        <DropdownMenuItem 
+                          onClick={() => updateStatusMutation.mutate({ 
+                            reportCardId: fullReportCard.id, 
+                            status: 'finalized',
+                            classId: selectedClass,
+                            termId: selectedTerm
+                          })}
+                          className="cursor-pointer"
+                          data-testid="menu-finalize"
+                        >
+                          <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
+                          <span>Finalize Report Card</span>
+                        </DropdownMenuItem>
                       )}
-                      Finalize
-                    </Button>
-                  )}
-                  
-                  {/* FINALIZED status: Show Publish and Revert to Draft buttons */}
-                  {fullReportCard.status === 'finalized' && (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'published' })}
-                        disabled={updateStatusMutation.isPending}
-                        data-testid="button-publish"
-                      >
-                        {updateStatusMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4 mr-2" />
-                        )}
-                        Publish
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'draft' })}
-                        disabled={updateStatusMutation.isPending}
-                        data-testid="button-revert-to-draft"
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" />
-                        Revert to Draft
-                      </Button>
-                    </>
-                  )}
-                  
-                  {/* PUBLISHED status: Show Revert to Finalized and Revert to Draft buttons */}
-                  {fullReportCard.status === 'published' && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'finalized' })}
-                        disabled={updateStatusMutation.isPending}
-                        data-testid="button-revert-to-finalized"
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" />
-                        Revert to Finalized
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateStatusMutation.mutate({ reportCardId: fullReportCard.id, status: 'draft' })}
-                        disabled={updateStatusMutation.isPending}
-                        data-testid="button-revert-to-draft-from-published"
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" />
-                        Revert to Draft
-                      </Button>
-                    </>
-                  )}
+                      
+                      {fullReportCard.status === 'finalized' && (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'published',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-publish"
+                          >
+                            <Send className="w-4 h-4 mr-2 text-green-500" />
+                            <span>Publish to Parents/Students</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'draft',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-revert-draft"
+                          >
+                            <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
+                            <span>Revert to Draft (Edit)</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      
+                      {fullReportCard.status === 'published' && (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'finalized',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-revert-finalized"
+                          >
+                            <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
+                            <span>Unpublish (Finalized)</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              reportCardId: fullReportCard.id, 
+                              status: 'draft',
+                              classId: selectedClass,
+                              termId: selectedTerm
+                            })}
+                            className="cursor-pointer"
+                            data-testid="menu-revert-draft-published"
+                          >
+                            <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
+                            <span>Revert to Draft (Edit)</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {/* Subject Scores */}
+                {/* Subject Scores - Responsive Table */}
                 <div>
-                  <h4 className="font-semibold mb-3">Subject Scores</h4>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Subject</TableHead>
-                        <TableHead className="text-center">Test (40%)</TableHead>
-                        <TableHead className="text-center">Exam (60%)</TableHead>
-                        <TableHead className="text-center">Total</TableHead>
-                        <TableHead>Grade</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fullReportCard.items?.map((item: ReportCardItem) => (
-                        <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              {item.subjectName}
-                              {item.isOverridden && (
-                                <Badge variant="outline" className="text-xs">
-                                  <PenTool className="w-3 h-3 mr-1" />
-                                  Modified
+                  <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Subject Scores</h4>
+                  <div className="overflow-x-auto -mx-2 sm:mx-0">
+                    <div className="min-w-[500px] sm:min-w-0 px-2 sm:px-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs sm:text-sm">Subject</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Test<br className="sm:hidden"/><span className="hidden sm:inline"> </span>(40%)</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Exam<br className="sm:hidden"/><span className="hidden sm:inline"> </span>(60%)</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">Total</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Grade</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Edit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {fullReportCard.items?.map((item: ReportCardItem) => (
+                            <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
+                              <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                  <span className="truncate max-w-[100px] sm:max-w-none">{item.subjectName}</span>
+                                  {item.isOverridden && (
+                                    <Badge variant="outline" className="text-[10px] sm:text-xs w-fit">
+                                      <PenTool className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                                      Modified
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-4">
+                                {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
+                                {item.testWeightedScore !== null && (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.testWeightedScore})</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-4">
+                                {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
+                                {item.examWeightedScore !== null && (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.examWeightedScore})</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-xs sm:text-sm py-2 sm:py-4">
+                                {item.obtainedMarks}/{item.totalMarks}
+                                <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.percentage}%)</span>
+                              </TableCell>
+                              <TableCell className="py-2 sm:py-4">
+                                <Badge className={`text-[10px] sm:text-xs ${getGradeColor(item.grade)}`}>
+                                  {item.grade || '-'}
                                 </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
-                            {item.testWeightedScore !== null && (
-                              <span className="text-xs text-muted-foreground block">({item.testWeightedScore})</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
-                            {item.examWeightedScore !== null && (
-                              <span className="text-xs text-muted-foreground block">({item.examWeightedScore})</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center font-medium">
-                            {item.obtainedMarks}/{item.totalMarks}
-                            <span className="text-xs text-muted-foreground block">({item.percentage}%)</span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getGradeColor(item.grade)}>
-                              {item.grade || '-'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleOverrideScore(item)}
-                              disabled={fullReportCard.status !== 'draft'}
-                              data-testid={`button-override-${item.id}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                              </TableCell>
+                              <TableCell className="py-2 sm:py-4">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleOverrideScore(item)}
+                                  disabled={fullReportCard.status !== 'draft'}
+                                  className="h-7 w-7 sm:h-9 sm:w-9"
+                                  data-testid={`button-override-${item.id}`}
+                                >
+                                  <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Remarks */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Remarks</h4>
+                {/* Remarks - Responsive */}
+                <div className="space-y-3 sm:space-y-4">
+                  <h4 className="font-semibold text-sm sm:text-base">Remarks</h4>
                   {fullReportCard.status !== 'draft' && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-2 rounded-md">
-                      <Lock className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-muted p-2 rounded-md">
+                      <Lock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                       <span>Remarks are locked. Revert to draft to edit.</span>
                     </div>
                   )}
                   <div>
-                    <Label>Teacher Remarks</Label>
+                    <Label className="text-xs sm:text-sm">Teacher Remarks</Label>
                     <Textarea
                       value={remarks.teacher}
                       onChange={(e) => setRemarks(prev => ({ ...prev, teacher: e.target.value }))}
                       placeholder="Enter teacher remarks..."
                       disabled={fullReportCard.status !== 'draft'}
-                      className="mt-1"
+                      className="mt-1 text-sm min-h-[60px] sm:min-h-[80px]"
                       data-testid="textarea-teacher-remarks"
                     />
                   </div>
                   <div>
-                    <Label>Principal Remarks</Label>
+                    <Label className="text-xs sm:text-sm">Principal Remarks</Label>
                     <Textarea
                       value={remarks.principal}
                       onChange={(e) => setRemarks(prev => ({ ...prev, principal: e.target.value }))}
                       placeholder="Enter principal remarks..."
                       disabled={fullReportCard.status !== 'draft'}
-                      className="mt-1"
+                      className="mt-1 text-sm min-h-[60px] sm:min-h-[80px]"
                       data-testid="textarea-principal-remarks"
                     />
                   </div>
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => updateRemarksMutation.mutate({
                       reportCardId: fullReportCard.id,
                       teacherRemarks: remarks.teacher,
                       principalRemarks: remarks.principal
                     })}
                     disabled={updateRemarksMutation.isPending || fullReportCard.status !== 'draft'}
+                    className="text-xs sm:text-sm"
                     data-testid="button-save-remarks"
                   >
-                    <Save className="w-4 h-4 mr-2" />
+                    <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     Save Remarks
                   </Button>
                 </div>
