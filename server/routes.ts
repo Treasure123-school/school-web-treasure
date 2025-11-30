@@ -8260,7 +8260,7 @@ Treasure-Home School Administration
       }
     });
 
-    // Update report card status (finalize, publish, revert)
+    // Update report card status (finalize, publish, revert) - OPTIMIZED for instant response
     app.patch('/api/reports/:reportCardId/status', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { reportCardId } = req.params;
@@ -8270,29 +8270,29 @@ Treasure-Home School Administration
           return res.status(400).json({ message: 'Status is required' });
         }
         
-        // Get current status for message context
-        const currentReportCard = await storage.getReportCard(Number(reportCardId));
-        const currentStatus = currentReportCard?.status || 'draft';
-        
-        // Storage method handles all validation and state transitions
-        const updatedReportCard = await storage.updateReportCardStatus(
+        // Single optimized call - storage method handles validation and returns result with previous status
+        const result = await storage.updateReportCardStatusOptimized(
           Number(reportCardId),
           status,
           req.user!.id
         );
         
-        if (!updatedReportCard) {
+        if (!result) {
           return res.status(500).json({ message: 'Failed to update report card status' });
         }
         
-        // Emit realtime event for report card status change
-        const eventType = status === 'published' ? 'published' : 
-                          status === 'finalized' ? 'finalized' : 'reverted';
-        realtimeService.emitReportCardEvent(Number(reportCardId), eventType, {
-          reportCardId: Number(reportCardId),
-          status,
-          studentId: updatedReportCard.studentId,
-          classId: updatedReportCard.classId,
+        const { reportCard: updatedReportCard, previousStatus } = result;
+        
+        // Emit realtime event asynchronously (non-blocking)
+        setImmediate(() => {
+          const eventType = status === 'published' ? 'published' : 
+                            status === 'finalized' ? 'finalized' : 'reverted';
+          realtimeService.emitReportCardEvent(Number(reportCardId), eventType, {
+            reportCardId: Number(reportCardId),
+            status,
+            studentId: updatedReportCard.studentId,
+            classId: updatedReportCard.classId,
+          });
         });
         
         // Return descriptive message based on transition
@@ -8300,14 +8300,14 @@ Treasure-Home School Administration
         if (status === 'draft') {
           message = 'Report card reverted to draft. Editing is now enabled.';
         } else if (status === 'finalized') {
-          message = currentStatus === 'published' 
+          message = previousStatus === 'published' 
             ? 'Report card reverted to finalized. Ready for review before publishing.'
             : 'Report card finalized. Ready for publishing.';
         } else if (status === 'published') {
           message = 'Report card published. Students and parents can now view it.';
         }
         
-        res.json({ ...updatedReportCard, message });
+        res.json({ reportCard: updatedReportCard, message, status: updatedReportCard.status });
       } catch (error: any) {
         console.error('Error updating status:', error);
         // Handle specific error messages from storage layer

@@ -250,79 +250,78 @@ export default function TeacherReportCards() {
       return response.json();
     },
     onMutate: async ({ reportCardId, status, classId, termId }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
-      await queryClient.cancelQueries({ queryKey: ['/api/reports/class-term', classId, termId] });
+      // Cancel any outgoing refetches immediately
+      queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+      queryClient.cancelQueries({ queryKey: ['/api/reports/class-term', classId, termId] });
       
-      // Snapshot previous values
+      // Snapshot previous values for rollback (full objects to restore all fields)
       const previousFullReport = queryClient.getQueryData(['/api/reports', reportCardId, 'full']);
       const previousReportCards = queryClient.getQueryData(['/api/reports/class-term', classId, termId]);
+      const previousSelectedReportCard = selectedReportCard;
       
-      // Optimistically update the full report (with guard)
+      // Determine locked state based on new status
+      const locked = status !== 'draft';
+      
+      // Optimistically update the full report (instant UI update)
       queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
         if (!old || typeof old !== 'object') return old;
-        return { ...old, status };
+        return { ...old, status, locked };
       });
       
-      // Optimistically update the report cards list (with array guard)
+      // Optimistically update the report cards list (instant UI update)
       queryClient.setQueryData(['/api/reports/class-term', classId, termId], (old: any) => {
         if (!old || !Array.isArray(old)) return old;
         return old.map((rc: any) => 
-          rc.id === reportCardId ? { ...rc, status } : rc
+          rc.id === reportCardId ? { ...rc, status, locked } : rc
         );
       });
       
-      // Update the selected report card state immediately
-      setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, status } : prev);
+      // Update the selected report card state immediately for instant visual feedback
+      setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, status, locked } : prev);
       
-      return { previousFullReport, previousReportCards, classId, termId };
+      return { previousFullReport, previousReportCards, previousSelectedReportCard, classId, termId };
     },
-    onSuccess: (data, { reportCardId, classId, termId }) => {
-      // Backend returns { message, reportCard } - extract the report card data
+    onSuccess: (data, { reportCardId, status, classId, termId }) => {
+      // Extract the server response data
       const reportCard = data.reportCard;
       const message = data.message;
       
-      // Only update caches if we received valid reportCard data with matching ID
-      if (reportCard && typeof reportCard === 'object' && reportCard.id === reportCardId) {
-        // Reconcile full report cache with backend response
+      // Reconcile caches with authoritative server data (updates timestamps like finalizedAt, publishedAt)
+      if (reportCard && typeof reportCard === 'object') {
+        // Update full report cache with server data
         queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
-          // If old doesn't exist, use the server data directly
-          if (!old || typeof old !== 'object') return reportCard;
+          if (!old || typeof old !== 'object') return { ...reportCard };
           return { ...old, ...reportCard };
         });
         
-        // Update the list with actual server data
+        // Update the list cache with server data
         queryClient.setQueryData(['/api/reports/class-term', classId, termId], (old: any) => {
           if (!old || !Array.isArray(old)) return old;
           return old.map((rc: any) => rc.id === reportCardId ? { ...rc, ...reportCard } : rc);
         });
         
-        // Update the selected report card state
+        // Update selected report card state with server data
         setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, ...reportCard } : prev);
-      } else {
-        // If reportCard data is missing or invalid, refetch to get canonical data
-        queryClient.invalidateQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/reports/class-term', classId, termId] });
       }
       
-      const statusLabel = (reportCard?.status || data.status) === 'published' ? 'Published' : 
-                         (reportCard?.status || data.status) === 'finalized' ? 'Finalized' : 'Reverted to Draft';
+      const statusLabel = status === 'published' ? 'Published' : 
+                         status === 'finalized' ? 'Finalized' : 'Reverted to Draft';
       toast({
         title: "Success",
         description: message || `Report card ${statusLabel.toLowerCase()} successfully`,
       });
     },
     onError: (error: any, { reportCardId }, context: any) => {
-      // Rollback to previous values using captured classId and termId
+      // Rollback to previous values on error (restore full objects)
       if (context?.previousFullReport) {
         queryClient.setQueryData(['/api/reports', reportCardId, 'full'], context.previousFullReport);
       }
       if (context?.previousReportCards && context?.classId && context?.termId) {
         queryClient.setQueryData(['/api/reports/class-term', context.classId, context.termId], context.previousReportCards);
       }
-      // Rollback selected report card state
-      if (context?.previousFullReport) {
-        setSelectedReportCard(prev => prev?.id === reportCardId ? { ...prev, status: context.previousFullReport.status } : prev);
+      // Rollback selected report card state to full previous object
+      if (context?.previousSelectedReportCard) {
+        setSelectedReportCard(context.previousSelectedReportCard);
       }
       toast({
         title: "Error",

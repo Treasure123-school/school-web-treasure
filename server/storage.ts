@@ -329,6 +329,7 @@ export interface IStorage {
     overriddenBy: string;
   }): Promise<ReportCardItem | undefined>;
   updateReportCardStatus(reportCardId: number, status: string, userId: string): Promise<ReportCard | undefined>;
+  updateReportCardStatusOptimized(reportCardId: number, status: string, userId: string): Promise<{ reportCard: ReportCard; previousStatus: string } | undefined>;
   updateReportCardRemarks(reportCardId: number, teacherRemarks?: string, principalRemarks?: string): Promise<ReportCard | undefined>;
   getExamsWithSubjectsByClassAndTerm(classId: number, termId?: number): Promise<any[]>;
   getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }>;
@@ -3994,6 +3995,83 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error updating report card status:', error);
       throw error; // Re-throw to allow caller to handle
+    }
+  }
+
+  // OPTIMIZED version - single query with conditional update for instant status changes
+  async updateReportCardStatusOptimized(reportCardId: number, status: string, userId: string): Promise<{ reportCard: ReportCard; previousStatus: string } | undefined> {
+    try {
+      // Validate status value upfront
+      const validStatuses = ['draft', 'finalized', 'published'];
+      if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      // Single efficient query to get just the current status
+      const current = await db.select({ 
+        id: schema.reportCards.id, 
+        status: schema.reportCards.status 
+      })
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.id, reportCardId))
+        .limit(1);
+
+      if (!current.length) {
+        throw new Error('Report card not found');
+      }
+
+      const currentStatus = current[0].status || 'draft';
+
+      // Short-circuit: If already in the target status, get and return full report card
+      if (currentStatus === status) {
+        const existing = await db.select()
+          .from(schema.reportCards)
+          .where(eq(schema.reportCards.id, reportCardId))
+          .limit(1);
+        return { reportCard: existing[0], previousStatus: currentStatus };
+      }
+
+      // Validate state transition
+      const validTransitions: Record<string, string[]> = {
+        'draft': ['finalized'],
+        'finalized': ['draft', 'published'],
+        'published': ['draft', 'finalized']
+      };
+
+      const allowedNextStatuses = validTransitions[currentStatus] || [];
+      if (!allowedNextStatuses.includes(status)) {
+        throw new Error(`Invalid state transition: Cannot move from '${currentStatus}' to '${status}'. Allowed transitions: ${allowedNextStatuses.join(', ')}`);
+      }
+
+      // Build update data based on target status
+      const updateData: any = {
+        status: status,
+        updatedAt: new Date()
+      };
+
+      if (status === 'draft') {
+        updateData.finalizedAt = null;
+        updateData.publishedAt = null;
+        updateData.locked = false;
+      } else if (status === 'finalized') {
+        updateData.finalizedAt = new Date();
+        updateData.publishedAt = null;
+        updateData.locked = true;
+      } else if (status === 'published') {
+        updateData.publishedAt = new Date();
+        updateData.locked = true;
+      }
+
+      // Execute update and return in single operation
+      const result = await db.update(schema.reportCards)
+        .set(updateData)
+        .where(eq(schema.reportCards.id, reportCardId))
+        .returning();
+
+      return { reportCard: result[0], previousStatus: currentStatus };
+    } catch (error) {
+      console.error('Error updating report card status (optimized):', error);
+      throw error;
     }
   }
 
