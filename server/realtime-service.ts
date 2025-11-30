@@ -634,17 +634,73 @@ class RealtimeService {
     console.log(`📤 Emitted ${eventType} for exam ${examId}`);
   }
 
-  emitReportCardEvent(reportCardId: string | number, eventType: 'created' | 'updated' | 'published' | 'finalized' | 'reverted', data: any) {
+  emitReportCardEvent(reportCardId: string | number, eventType: 'created' | 'updated' | 'published' | 'finalized' | 'reverted', data: any, userId?: string) {
     const fullEventType = `reportcard.${eventType}`;
+    const operation = eventType === 'created' ? 'INSERT' : 'UPDATE';
+    
+    // Emit table change for cache invalidation across all subscribers
+    this.emitTableChange('report_cards', operation, { ...data, id: reportCardId }, undefined, userId);
+    
+    // Emit to specific report card room
     this.emitToReportCard(reportCardId, fullEventType, data);
     
+    // Always notify teachers and admins about all report card changes
+    this.emitToRole('teacher', fullEventType, { ...data, reportCardId });
+    this.emitToRole('admin', fullEventType, { ...data, reportCardId });
+    this.emitToRole('super_admin', fullEventType, { ...data, reportCardId });
+    
+    // Notify the student directly
     if (data.studentId) {
       this.emitToUser(data.studentId, fullEventType, data);
     }
     
+    // Notify class subscribers
     if (data.classId) {
-      this.emitToClass(data.classId, fullEventType, data);
+      this.emitToClass(data.classId.toString(), fullEventType, data);
     }
+    
+    // For published reports, also notify parents of the student
+    // This ensures parents see real-time updates when report cards become available
+    if (eventType === 'published' && data.studentId && data.parentIds) {
+      const parentIds = Array.isArray(data.parentIds) ? data.parentIds : [data.parentIds];
+      parentIds.forEach((parentId: string) => {
+        this.emitToUser(parentId, fullEventType, { 
+          ...data, 
+          message: 'A new report card has been published for your child'
+        });
+      });
+    }
+    
+    console.log(`📤 Emitted reportcard.${eventType} for report card ${reportCardId} (student: ${data.studentId || 'unknown'})`);
+  }
+  
+  // Bulk emit for status changes affecting multiple report cards
+  emitBulkReportCardStatusChange(reportCardIds: (string | number)[], newStatus: 'finalized' | 'published' | 'draft', classId: string, termId: number, userId?: string) {
+    const eventType = newStatus === 'published' ? 'bulk_published' : 
+                      newStatus === 'finalized' ? 'bulk_finalized' : 'bulk_reverted';
+    const fullEventType = `reportcard.${eventType}`;
+    
+    const data = {
+      reportCardIds,
+      newStatus,
+      classId,
+      termId,
+      count: reportCardIds.length,
+      timestamp: Date.now()
+    };
+    
+    // Notify teachers and admins about bulk changes
+    this.emitToRole('teacher', fullEventType, data);
+    this.emitToRole('admin', fullEventType, data);
+    this.emitToRole('super_admin', fullEventType, data);
+    
+    // Notify the class about bulk changes
+    this.emitToClass(classId.toString(), fullEventType, data);
+    
+    // Emit table change for cache invalidation
+    this.emitTableChange('report_cards', 'UPDATE', data, undefined, userId);
+    
+    console.log(`📤 Emitted ${fullEventType} for ${reportCardIds.length} report cards in class ${classId}`);
   }
 
   emitUserEvent(userId: string, eventType: 'created' | 'updated' | 'deleted', data: any, role?: string) {

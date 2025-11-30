@@ -8319,15 +8319,31 @@ Treasure-Home School Administration
         const { reportCard: updatedReportCard, previousStatus } = result;
         
         // Emit realtime event asynchronously (non-blocking)
-        setImmediate(() => {
+        setImmediate(async () => {
           const eventType = status === 'published' ? 'published' : 
                             status === 'finalized' ? 'finalized' : 'reverted';
+          
+          // Get parent ID for published notifications
+          let parentIds: string[] = [];
+          if (status === 'published' && updatedReportCard.studentId) {
+            try {
+              const student = await storage.getStudent(updatedReportCard.studentId);
+              if (student?.parentId) {
+                parentIds = [student.parentId];
+              }
+            } catch (e) {
+              console.warn('Could not fetch parent ID for notification:', e);
+            }
+          }
+          
           realtimeService.emitReportCardEvent(Number(reportCardId), eventType, {
             reportCardId: Number(reportCardId),
             status,
             studentId: updatedReportCard.studentId,
             classId: updatedReportCard.classId,
-          });
+            termId: updatedReportCard.termId,
+            parentIds
+          }, req.user!.id);
         });
         
         // Return descriptive message based on transition
@@ -8373,12 +8389,12 @@ Treasure-Home School Administration
         }
         
         // Emit realtime event for remarks update
-        realtimeService.emitTableChange('report_cards', 'UPDATE', updatedReportCard, undefined, req.user!.id);
         realtimeService.emitReportCardEvent(Number(reportCardId), 'updated', {
           reportCardId: Number(reportCardId),
           studentId: updatedReportCard.studentId,
-          classId: updatedReportCard.classId
-        });
+          classId: updatedReportCard.classId,
+          termId: updatedReportCard.termId
+        }, req.user!.id);
         
         res.json(updatedReportCard);
       } catch (error: any) {
