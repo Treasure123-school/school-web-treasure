@@ -8,19 +8,28 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Search, BookOpen, Trash2 } from 'lucide-react';
+import { Plus, Edit, Search, BookOpen, Trash2, GraduationCap, Palette, Briefcase, BookMarked } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+
+const SUBJECT_CATEGORIES = [
+  { value: 'general', label: 'General', description: 'For all classes (KG1-SS3)', icon: BookMarked },
+  { value: 'science', label: 'Science', description: 'For SS1-SS3 Science department', icon: GraduationCap },
+  { value: 'art', label: 'Art', description: 'For SS1-SS3 Art department', icon: Palette },
+  { value: 'commercial', label: 'Commercial', description: 'For SS1-SS3 Commercial department', icon: Briefcase },
+] as const;
 
 const subjectFormSchema = z.object({
   name: z.string().min(1, 'Subject name is required'),
   code: z.string().min(1, 'Subject code is required'),
   description: z.string().optional(),
+  category: z.enum(['general', 'science', 'art', 'commercial']).default('general'),
 });
 
 type SubjectForm = z.infer<typeof subjectFormSchema>;
@@ -48,9 +57,14 @@ export default function SubjectsManagement() {
   };
   const userRole = user ? getRoleName(user.roleId) : 'admin';
 
-  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<SubjectForm>({
+  const { register, handleSubmit, formState: { errors }, setValue, reset, control, watch } = useForm<SubjectForm>({
     resolver: zodResolver(subjectFormSchema),
+    defaultValues: {
+      category: 'general',
+    }
   });
+  
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Fetch subjects
   const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
@@ -219,6 +233,7 @@ export default function SubjectsManagement() {
     setValue('name', subject.name);
     setValue('code', subject.code);
     setValue('description', subject.description || '');
+    setValue('category', subject.category || 'general');
     
     setIsDialogOpen(true);
   };
@@ -229,13 +244,33 @@ export default function SubjectsManagement() {
     reset();
   };
 
-  // Filter subjects based on search
+  // Filter subjects based on search and category
   const filteredSubjects = subjects.filter((subject: any) => {
-    return !searchTerm || 
+    const matchesSearch = !searchTerm || 
       subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (subject.description && subject.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesCategory = categoryFilter === 'all' || subject.category === categoryFilter;
+    
+    return matchesSearch && matchesCategory;
   });
+  
+  // Helper function to get category badge color
+  const getCategoryBadgeVariant = (category: string) => {
+    switch (category) {
+      case 'science': return 'default';
+      case 'art': return 'secondary';
+      case 'commercial': return 'outline';
+      default: return 'secondary';
+    }
+  };
+  
+  // Helper function to get category icon
+  const getCategoryIcon = (category: string) => {
+    const categoryInfo = SUBJECT_CATEGORIES.find(c => c.value === category);
+    return categoryInfo?.icon || BookMarked;
+  };
 
   return (
     <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
@@ -295,6 +330,42 @@ export default function SubjectsManagement() {
                 )}
               </div>
 
+              <div>
+                <Label htmlFor="category">Category *</Label>
+                <Controller
+                  name="category"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger data-testid="select-category">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUBJECT_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            <div className="flex items-center gap-2">
+                              <cat.icon className="w-4 h-4" />
+                              <div>
+                                <span className="font-medium">{cat.label}</span>
+                                <span className="text-muted-foreground text-xs ml-2">
+                                  ({cat.description})
+                                </span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.category && (
+                  <p className="text-sm text-red-500 mt-1">{errors.category.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  General subjects are for all classes. Science/Art/Commercial are for SS1-SS3 departments only.
+                </p>
+              </div>
+
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={handleCloseDialog}>
                   Cancel
@@ -316,7 +387,7 @@ export default function SubjectsManagement() {
       {/* Filters */}
       <Card>
         <CardContent className="py-4">
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -328,6 +399,24 @@ export default function SubjectsManagement() {
                   data-testid="input-search"
                 />
               </div>
+            </div>
+            <div className="w-full sm:w-48">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger data-testid="select-category-filter">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {SUBJECT_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      <div className="flex items-center gap-2">
+                        <cat.icon className="w-4 h-4" />
+                        <span>{cat.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -354,69 +443,79 @@ export default function SubjectsManagement() {
                 <TableRow>
                   <TableHead>Subject</TableHead>
                   <TableHead>Code</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSubjects.length > 0 ? (
-                  filteredSubjects.map((subject: any) => (
-                    <TableRow key={subject.id} data-testid={`row-subject-${subject.id}`}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <BookOpen className="w-4 h-4 text-primary" />
-                          </div>
-                          <div>
-                            <div className="font-medium" data-testid={`text-subject-name-${subject.id}`}>
-                              {subject.name}
+                  filteredSubjects.map((subject: any) => {
+                    const CategoryIcon = getCategoryIcon(subject.category || 'general');
+                    const categoryInfo = SUBJECT_CATEGORIES.find(c => c.value === (subject.category || 'general'));
+                    return (
+                      <TableRow key={subject.id} data-testid={`row-subject-${subject.id}`}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <CategoryIcon className="w-4 h-4 text-primary" />
                             </div>
-                            {subject.description && (
-                              <div className="text-sm text-muted-foreground">
-                                {subject.description}
+                            <div>
+                              <div className="font-medium" data-testid={`text-subject-name-${subject.id}`}>
+                                {subject.name}
                               </div>
-                            )}
+                              {subject.description && (
+                                <div className="text-sm text-muted-foreground">
+                                  {subject.description}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell data-testid={`text-subject-code-${subject.id}`}>
-                        <Badge variant="outline">
-                          {subject.code}
-                        </Badge>
-                      </TableCell>
-                      <TableCell data-testid={`text-created-${subject.id}`}>
-                        {subject.createdAt ? 
-                          new Date(subject.createdAt).toLocaleDateString() : 
-                          'Unknown'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(subject)}
-                            data-testid={`button-edit-subject-${subject.id}`}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => setSubjectToDelete(subject)}
-                            data-testid={`button-delete-subject-${subject.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell data-testid={`text-subject-code-${subject.id}`}>
+                          <Badge variant="outline">
+                            {subject.code}
+                          </Badge>
+                        </TableCell>
+                        <TableCell data-testid={`text-category-${subject.id}`}>
+                          <Badge variant={getCategoryBadgeVariant(subject.category || 'general')}>
+                            {categoryInfo?.label || 'General'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell data-testid={`text-created-${subject.id}`}>
+                          {subject.createdAt ? 
+                            new Date(subject.createdAt).toLocaleDateString() : 
+                            'Unknown'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(subject)}
+                              data-testid={`button-edit-subject-${subject.id}`}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setSubjectToDelete(subject)}
+                              data-testid={`button-delete-subject-${subject.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       No subjects found
                     </TableCell>
                   </TableRow>
