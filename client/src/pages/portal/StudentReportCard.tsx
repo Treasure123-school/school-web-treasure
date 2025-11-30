@@ -13,14 +13,8 @@ import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { 
   Download, 
   FileText, 
-  GraduationCap, 
-  Award,
   Calendar,
-  User,
-  School,
-  TrendingUp,
-  Clock,
-  Wifi
+  Clock
 } from 'lucide-react';
 
 export default function StudentReportCard() {
@@ -130,20 +124,6 @@ export default function StudentReportCard() {
     }
   };
 
-  const calculateOverallGPA = () => {
-    if (!reportCard?.subjects) return 0;
-    
-    const gradePoints = {
-      'A+': 4.0, 'A': 3.7, 'B+': 3.3, 'B': 3.0, 'C': 2.0, 'F': 0.0
-    };
-    
-    const totalPoints = reportCard.subjects.reduce((sum: number, subject: any) => {
-      return sum + (gradePoints[subject.grade as keyof typeof gradePoints] || 0);
-    }, 0);
-    
-    return (totalPoints / reportCard.subjects.length).toFixed(2);
-  };
-
   if (!user) {
     return <div>Please log in to access your report card.</div>;
   }
@@ -224,88 +204,6 @@ export default function StudentReportCard() {
           </Card>
         ) : (
           <>
-            {/* Student Information Header */}
-            <Card className="print:shadow-none">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 print:bg-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                      {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                    </div>
-                    <div>
-                      <CardTitle className="text-2xl">{user.firstName} {user.lastName}</CardTitle>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                        <span className="flex items-center">
-                          <User className="w-4 h-4 mr-1" />
-                          ID: {studentDetails?.admissionNumber || 'N/A'}
-                        </span>
-                        <span className="flex items-center">
-                          <School className="w-4 h-4 mr-1" />
-                          Class: {studentDetails?.className || 'N/A'}
-                        </span>
-                        <span className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          Term: {reportCard.termName} ({reportCard.termYear})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">{calculateOverallGPA()}</div>
-                    <div className="text-sm text-muted-foreground">Overall GPA</div>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-
-            {/* Performance Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
-              <Card className="print:shadow-none">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Subjects</p>
-                      <p className="text-2xl font-bold">{reportCard.subjects?.length || 0}</p>
-                    </div>
-                    <GraduationCap className="h-8 w-8 text-blue-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="print:shadow-none">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Average Score</p>
-                      <p className="text-2xl font-bold">{reportCard.overallAverage || 0}%</p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="print:shadow-none">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Overall Grade</p>
-                      <p className="text-2xl font-bold">{reportCard.overallGrade || 'N/A'}</p>
-                    </div>
-                    <Award className="h-8 w-8 text-yellow-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="print:shadow-none">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Class Rank</p>
-                      <p className="text-2xl font-bold">{reportCard.classRank || 'N/A'}</p>
-                    </div>
-                    <Award className="h-8 w-8 text-purple-600" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Professional Report Card Format */}
             <Card className="print:shadow-none bg-gradient-to-br from-blue-50 to-blue-100 print:bg-white">
               <CardHeader className="text-center border-b-2 border-blue-200 print:border-gray-400">
