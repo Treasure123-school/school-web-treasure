@@ -8655,6 +8655,8 @@ Treasure-Home School Administration
           isActive: true
         });
 
+        // Emit real-time event for teacher assignment creation
+        realtimeService.broadcastTableUpdate('teacher_class_assignments', assignment);
 
         res.status(201).json(assignment);
       } catch (error) {
@@ -8783,6 +8785,9 @@ Treasure-Home School Administration
           return res.status(404).json({ message: "Assignment not found" });
         }
 
+        // Emit real-time event for teacher assignment update
+        realtimeService.broadcastTableUpdate('teacher_class_assignments', updatedAssignment);
+
         res.json(updatedAssignment);
       } catch (error) {
         res.status(500).json({ message: "Failed to update teacher assignment" });
@@ -8799,6 +8804,9 @@ Treasure-Home School Administration
         if (!success) {
           return res.status(404).json({ message: "Assignment not found" });
         }
+
+        // Emit real-time event for teacher assignment deletion
+        realtimeService.broadcastTableUpdate('teacher_class_assignments', { id: Number(id), deleted: true });
 
         res.json({ message: "Teacher assignment deleted successfully" });
       } catch (error) {

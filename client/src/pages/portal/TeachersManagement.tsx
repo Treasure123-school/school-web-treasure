@@ -159,6 +159,19 @@ export default function TeachersManagement() {
     table: 'users', 
     queryKey: ['/api/users', 'Teacher']
   });
+  
+  // Real-time subscription for teacher assignments - broad subscription for any assignment changes
+  // This will invalidate the selected teacher's assignments when any assignment changes
+  useSocketIORealtime({
+    table: 'teacher_class_assignments',
+    queryKey: ['/api/teacher-assignments', selectedTeacherForAssignment?.id],
+    onUpdate: () => {
+      // Also invalidate all teacher assignment queries to keep UI in sync
+      if (selectedTeacherForAssignment?.id) {
+        refetchAssignments();
+      }
+    },
+  });
 
   // Create teacher mutation
   const createTeacherMutation = useMutation({
