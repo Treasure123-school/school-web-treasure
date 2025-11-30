@@ -1848,10 +1848,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createQuestionOption({
               questionId,
               optionText: option.optionText,
-              isCorrect: option.isCorrect || false,
-              orderNumber: option.orderNumber ?? (i + 1),
-              explanationText: option.explanationText || null,
-              partialCreditValue: option.partialCreditValue || 0,
+              isCorrect: option.isCorrect ?? false,
+              orderNumber: typeof option.orderNumber === 'number' ? option.orderNumber : (i + 1),
+              explanationText: option.explanationText ?? null,
+              partialCreditValue: typeof option.partialCreditValue === 'number' ? option.partialCreditValue : 0,
             });
           }
         }
