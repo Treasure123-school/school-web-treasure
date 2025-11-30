@@ -634,7 +634,7 @@ class RealtimeService {
     console.log(`📤 Emitted ${eventType} for exam ${examId}`);
   }
 
-  emitReportCardEvent(reportCardId: string | number, eventType: 'updated' | 'published' | 'finalized' | 'reverted', data: any) {
+  emitReportCardEvent(reportCardId: string | number, eventType: 'created' | 'updated' | 'published' | 'finalized' | 'reverted', data: any) {
     const fullEventType = `reportcard.${eventType}`;
     this.emitToReportCard(reportCardId, fullEventType, data);
     
