@@ -4,7 +4,14 @@
 Treasure-Home is a comprehensive, production-ready school management system designed to streamline administrative and academic processes. It features JWT authentication, a robust PostgreSQL database, and cloud-based file storage. The system supports five distinct role-based access levels (Super Admin, Admin, Teacher, Student, Parent) and offers a wide array of features including a sophisticated exam system with auto-grading, real-time updates, attendance management, report card generation, and various communication tools. The project aims to provide an efficient, scalable, and secure platform for educational institutions.
 
 ## User Preferences
-No specific user preferences were provided in the original `replit.md` file.
+- Username (admission ID format: THS-STU-###, THS-TCH-###) should be displayed prominently as the canonical student identifier
+- Grading weights (40% Test, 60% Exam) should be visible in report card interfaces
+
+## Recent Changes (November 2025)
+
+### UI/UX Enhancements
+- **Teacher Report Cards Page**: Redesigned with professional UI including enhanced student cards with prominent username display, avatar with gradient fallback, grade/percentage badges, position with award icons, and status indicators. Report card dialog header now shows student avatar, username badge, class info, and grading weights.
+- **Super Admin Settings Page**: Added grading scale preview table showing all grade ranges with color-coded badges, points, and remarks. Preview updates dynamically when changing grading scales.
 
 ## System Architecture
 
