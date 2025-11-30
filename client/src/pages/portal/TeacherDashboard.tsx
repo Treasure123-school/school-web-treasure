@@ -1,5 +1,4 @@
 import PortalLayout from '@/components/layout/PortalLayout';
-import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +8,6 @@ import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, T
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
-import { getRoleName } from '@/lib/utils';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 

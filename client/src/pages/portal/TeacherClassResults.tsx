@@ -75,88 +75,88 @@ export default function TeacherClassResults() {
 
   return (
     <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild data-testid="button-back">
+      <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+        {/* Header - Mobile Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <Button variant="outline" size="sm" asChild data-testid="button-back" className="w-fit">
               <Link href="/portal/teacher">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                Back
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold" data-testid="text-page-title">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold" data-testid="text-page-title">
                 {currentClass?.name || 'Class'} - All Results
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 View all exam results for this class
               </p>
             </div>
           </div>
-          <Button variant="outline" data-testid="button-export">
+          <Button variant="outline" data-testid="button-export" className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export Results
           </Button>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid md:grid-cols-4 gap-4">
+        {/* Statistics Cards - Mobile Responsive */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card data-testid="card-total-students">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-blue-500" />
                 Total Students
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-students">{totalStudents}</div>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <div className="text-xl sm:text-2xl font-bold" data-testid="text-total-students">{totalStudents}</div>
             </CardContent>
           </Card>
 
           <Card data-testid="card-total-exams">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
                 <Award className="h-4 w-4 text-purple-500" />
                 Total Exams
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-exams">{totalExams}</div>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <div className="text-xl sm:text-2xl font-bold" data-testid="text-total-exams">{totalExams}</div>
             </CardContent>
           </Card>
 
           <Card data-testid="card-average-score">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-green-500" />
                 Average Score
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-average-score">
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <div className="text-xl sm:text-2xl font-bold" data-testid="text-average-score">
                 {averageScore.toFixed(1)}
               </div>
             </CardContent>
           </Card>
 
           <Card data-testid="card-average-percentage">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-orange-500" />
                 Average %
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-average-percentage">
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <div className="text-xl sm:text-2xl font-bold" data-testid="text-average-percentage">
                 {averagePercentage.toFixed(1)}%
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Results by Exam */}
-        <div className="space-y-6">
+        {/* Results by Exam - Mobile Responsive */}
+        <div className="space-y-4 sm:space-y-6">
           {Object.entries(resultsByExam).map(([examId, results]) => {
             const exam = exams.find((e) => e.id === parseInt(examId));
             const subject = subjects.find((s) => s.id === exam?.subjectId);
@@ -164,41 +164,32 @@ export default function TeacherClassResults() {
 
             return (
               <Card key={examId} data-testid={`card-exam-${examId}`}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+                <CardHeader className="p-3 sm:p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                      <CardTitle data-testid={`text-exam-name-${examId}`}>
+                      <CardTitle className="text-base sm:text-lg" data-testid={`text-exam-name-${examId}`}>
                         {exam?.name || `Exam ${examId}`}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {subject?.name} • {exam?.date ? new Date(exam.date).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
-                    <Badge variant={exam?.isPublished ? 'default' : 'secondary'}>
+                    <Badge variant={exam?.isPublished ? 'default' : 'secondary'} className="w-fit">
                       {examResultsList.length} submissions
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
                   {isLoading ? (
-                    <div className="text-center py-8">Loading results...</div>
+                    <div className="text-center py-6 sm:py-8 text-sm">Loading results...</div>
                   ) : examResultsList.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
+                    <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
                       No results yet for this exam
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Student</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Percentage</TableHead>
-                          <TableHead>Grade</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Recorded By</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="block sm:hidden space-y-3">
                         {examResultsList.map((result, index) => {
                           const student = users.find((u) => u.id === result.studentId);
                           const percentage = (result.maxScore ?? 0) > 0 
@@ -206,35 +197,94 @@ export default function TeacherClassResults() {
                             : '0';
                           
                           return (
-                            <TableRow key={result.id} data-testid={`row-result-${result.id}`}>
-                              <TableCell data-testid={`text-student-${index}`}>
-                                {student ? `${student.firstName} ${student.lastName}` : 'Unknown Student'}
-                              </TableCell>
-                              <TableCell data-testid={`text-score-${index}`}>
-                                {result.score || 0} / {result.maxScore || 0}
-                              </TableCell>
-                              <TableCell data-testid={`text-percentage-${index}`}>
-                                {percentage}%
-                              </TableCell>
-                              <TableCell data-testid={`text-grade-${index}`}>
-                                {result.grade || '-'}
-                              </TableCell>
-                              <TableCell>
+                            <div 
+                              key={result.id}
+                              className="border rounded-lg p-3 bg-muted/30"
+                              data-testid={`card-result-mobile-${result.id}`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-medium text-sm" data-testid={`text-student-mobile-${index}`}>
+                                  {student ? `${student.firstName} ${student.lastName}` : 'Unknown Student'}
+                                </span>
                                 <Badge 
                                   variant={result.autoScored ? 'secondary' : 'default'}
-                                  data-testid={`badge-status-${index}`}
+                                  className="text-xs"
                                 >
-                                  {result.autoScored ? 'Auto-scored' : 'Manual'}
+                                  {result.autoScored ? 'Auto' : 'Manual'}
                                 </Badge>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {result.recordedBy ? users.find((u) => u.id === result.recordedBy)?.firstName || 'System' : 'System'}
-                              </TableCell>
-                            </TableRow>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Score</span>
+                                  <p className="font-medium">{result.score || 0}/{result.maxScore || 0}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Percentage</span>
+                                  <p className="font-medium">{percentage}%</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Grade</span>
+                                  <p className="font-medium">{result.grade || '-'}</p>
+                                </div>
+                              </div>
+                            </div>
                           );
                         })}
-                      </TableBody>
-                    </Table>
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden sm:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Student</TableHead>
+                              <TableHead className="text-xs">Score</TableHead>
+                              <TableHead className="text-xs hidden md:table-cell">Percentage</TableHead>
+                              <TableHead className="text-xs">Grade</TableHead>
+                              <TableHead className="text-xs">Status</TableHead>
+                              <TableHead className="text-xs hidden lg:table-cell">Recorded By</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {examResultsList.map((result, index) => {
+                              const student = users.find((u) => u.id === result.studentId);
+                              const percentage = (result.maxScore ?? 0) > 0 
+                                ? (((result.score ?? 0) / (result.maxScore ?? 0)) * 100).toFixed(1)
+                                : '0';
+                              
+                              return (
+                                <TableRow key={result.id} data-testid={`row-result-${result.id}`}>
+                                  <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-student-${index}`}>
+                                    {student ? `${student.firstName} ${student.lastName}` : 'Unknown Student'}
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-score-${index}`}>
+                                    {result.score || 0} / {result.maxScore || 0}
+                                  </TableCell>
+                                  <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-percentage-${index}`}>
+                                    {percentage}%
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-grade-${index}`}>
+                                    {result.grade || '-'}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Badge 
+                                      variant={result.autoScored ? 'secondary' : 'default'}
+                                      className="text-xs"
+                                      data-testid={`badge-status-${index}`}
+                                    >
+                                      {result.autoScored ? 'Auto' : 'Manual'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground hidden lg:table-cell py-2">
+                                    {result.recordedBy ? users.find((u) => u.id === result.recordedBy)?.firstName || 'System' : 'System'}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -243,12 +293,12 @@ export default function TeacherClassResults() {
 
           {!isLoading && Object.keys(resultsByExam).length === 0 && (
             <Card>
-              <CardContent className="py-12">
-                <div className="text-center space-y-4">
-                  <Award className="h-16 w-16 mx-auto text-muted-foreground" />
+              <CardContent className="py-8 sm:py-12">
+                <div className="text-center space-y-3 sm:space-y-4">
+                  <Award className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground" />
                   <div>
-                    <h3 className="text-lg font-semibold">No Results Yet</h3>
-                    <p className="text-muted-foreground">
+                    <h3 className="text-base sm:text-lg font-semibold">No Results Yet</h3>
+                    <p className="text-sm text-muted-foreground">
                       No exam results have been recorded for this class yet.
                     </p>
                   </div>
