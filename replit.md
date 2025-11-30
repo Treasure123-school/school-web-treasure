@@ -18,6 +18,13 @@ Schema enhancements for teacher-student-department-class assignment and report c
 - **teacherClassAssignments.assignedBy**: New column to track who created the assignment
 - New indexes: `teacher_class_assignments_dept_idx`, `report_card_items_teacher_idx`
 
+#### Department Auto-Assignment & Validation
+- **Senior Secondary Detection**: Uses `classes.level` field (value: "Senior Secondary") for reliable detection
+- **Department Validation**: Only SS1-SS3 students can have department assignments
+- **Auto-Clear on Class Change**: Department is automatically cleared when student moves from SS class to non-SS class
+- **Case-Insensitive Filtering**: Subject filtering by category/department uses lowercase comparison
+- **Valid Departments**: science, art, commercial (normalized to lowercase)
+
 ### UI/UX Enhancements
 - **Teacher Report Cards Page**: Redesigned with professional UI including enhanced student cards with prominent username display, avatar with gradient fallback, grade/percentage badges, position with award icons, and status indicators. Report card dialog header now shows student avatar, username badge, class info, and grading weights.
 - **Super Admin Settings Page**: Added grading scale preview table showing all grade ranges with color-coded badges, points, and remarks. Preview updates dynamically when changing grading scales.

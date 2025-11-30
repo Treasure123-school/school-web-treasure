@@ -901,6 +901,7 @@ export const createStudentSchema = z.object({
   emergencyContact: z.string().optional(),
   medicalInfo: z.string().optional(),
   guardianName: z.string().optional(),
+  department: z.enum(['science', 'art', 'commercial']).optional().nullable(),
 });
 
 export type CreateStudentRequest = z.infer<typeof createStudentSchema>;

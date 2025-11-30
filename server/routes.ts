@@ -3438,7 +3438,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Subjects API endpoint
   app.get('/api/subjects', async (req, res) => {
     try {
-      const subjects = await storage.getSubjects();
+      const { category, department } = req.query;
+      let subjects = await storage.getSubjects();
+      
+      // Filter by category if provided (general, science, art, commercial)
+      // Case-insensitive comparison to handle mixed-case category values
+      if (category && typeof category === 'string') {
+        const normalizedCategory = category.toLowerCase();
+        subjects = subjects.filter(s => (s.category || '').toLowerCase() === normalizedCategory);
+      }
+      
+      // Filter by department for senior secondary students
+      // Department maps to subject categories: science -> science, art -> art, commercial -> commercial
+      // All departments also get 'general' subjects
+      // Case-insensitive comparison for consistent filtering
+      if (department && typeof department === 'string') {
+        const normalizedDept = department.toLowerCase();
+        const validDepartments = ['science', 'art', 'commercial'];
+        if (validDepartments.includes(normalizedDept)) {
+          subjects = subjects.filter(s => {
+            const subjectCategory = (s.category || '').toLowerCase();
+            return subjectCategory === 'general' || subjectCategory === normalizedDept;
+          });
+        }
+      }
+      
       res.json(subjects);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch subjects' });
@@ -6632,6 +6656,33 @@ Treasure-Home School Administration
           // Generate admission number
           const admissionNumber = `THS/${year}/${String(Date.now()).slice(-6)}`;
           
+          // Get class info to determine if department is required (SS1-SS3)
+          const classInfo = await storage.getClass(validatedData.classId);
+          // Use the class level field for reliable senior secondary detection
+          // The level field contains "Senior Secondary" for SS classes
+          const classLevel = (classInfo?.level || '').toLowerCase();
+          const isSeniorSecondary = classLevel.includes('senior secondary') || classLevel.includes('senior_secondary');
+          
+          // For SS1-SS3 classes, department is required
+          // If not provided, it will be set when the student selects their subjects
+          let department: string | null = null;
+          if (validatedData.department) {
+            const normalizedDept = validatedData.department.toLowerCase();
+            const validDepartments = ['science', 'art', 'commercial'];
+            if (validDepartments.includes(normalizedDept)) {
+              // Only allow department for senior secondary students
+              if (isSeniorSecondary) {
+                department = normalizedDept;
+              } else {
+                console.log(`[CREATE-STUDENT] Department ignored for non-senior secondary class: ${classInfo?.name}`);
+              }
+            }
+          }
+          
+          if (isSeniorSecondary && !department) {
+            console.log(`[CREATE-STUDENT] Senior Secondary student created without department - will be set when subjects are selected`);
+          }
+          
           // Create student record
           const [student] = await tx.insert(students).values({
             id: studentUser.id,
@@ -6640,7 +6691,8 @@ Treasure-Home School Administration
             admissionDate: validatedData.admissionDate,
             emergencyContact: validatedData.emergencyContact || null,
             medicalInfo: validatedData.medicalInfo || null,
-            parentId: validatedData.parentId || null
+            parentId: validatedData.parentId || null,
+            department: department
           }).returning();
           
           // Handle parent linking/creation if parentPhone provided
@@ -6824,7 +6876,7 @@ Treasure-Home School Administration
 
         // Separate user fields from student fields
         const userFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'recoveryEmail', 'dateOfBirth', 'gender', 'profileImageUrl'];
-        const studentFields = ['emergencyContact', 'emergencyPhone', 'medicalInfo', 'guardianName'];
+        const studentFields = ['emergencyContact', 'emergencyPhone', 'medicalInfo', 'guardianName', 'department', 'classId'];
 
         const userPatch: any = {};
         const studentPatch: any = {};
@@ -6840,8 +6892,51 @@ Treasure-Home School Administration
           }
         });
 
-        // Get existing student for realtime event
+        // Get existing student for realtime event and validation
         const existingStudent = await storage.getStudent(studentId);
+        
+        // Determine the target class ID (new class if provided, otherwise existing)
+        const targetClassId = studentPatch.classId || existingStudent?.classId;
+        
+        // Get the target class info to check if it's senior secondary
+        // Use the class level field for reliable detection
+        let isSeniorSecondary = false;
+        if (targetClassId) {
+          const classInfo = await storage.getClass(targetClassId);
+          const classLevel = (classInfo?.level || '').toLowerCase();
+          isSeniorSecondary = classLevel.includes('senior secondary') || classLevel.includes('senior_secondary');
+        }
+        
+        // Handle department validation based on class type
+        if (studentPatch.department !== undefined) {
+          if (!isSeniorSecondary) {
+            // Non-senior secondary students cannot have departments
+            delete studentPatch.department;
+            console.log(`[UPDATE-STUDENT] Department update ignored for non-senior secondary class`);
+          } else if (studentPatch.department) {
+            // Normalize and validate department value
+            const normalizedDept = studentPatch.department.toLowerCase();
+            const validDepartments = ['science', 'art', 'commercial'];
+            if (validDepartments.includes(normalizedDept)) {
+              studentPatch.department = normalizedDept;
+            } else {
+              delete studentPatch.department;
+            }
+          }
+        }
+        
+        // If changing from SS class to non-SS class, clear the department
+        if (studentPatch.classId && existingStudent?.classId) {
+          const oldClassInfo = await storage.getClass(existingStudent.classId);
+          const oldClassLevel = (oldClassInfo?.level || '').toLowerCase();
+          const wasInSeniorSecondary = oldClassLevel.includes('senior secondary') || oldClassLevel.includes('senior_secondary');
+          
+          if (wasInSeniorSecondary && !isSeniorSecondary) {
+            // Moving from SS class to non-SS class - clear department
+            studentPatch.department = null;
+            console.log(`[UPDATE-STUDENT] Clearing department as student moved from SS class to non-SS class`);
+          }
+        }
         
         // Update student record
         const updatedStudent = await storage.updateStudent(studentId, {
