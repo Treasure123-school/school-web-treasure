@@ -8045,7 +8045,9 @@ Treasure-Home School Administration
       }
     });
 
-    // Bulk generate report cards for a class (Admin only)
+    // Bulk generate report cards for a class (Admin only) - FALLBACK for edge cases
+    // NOTE: Report cards are normally auto-generated when students complete exams
+    // This route is a fallback for administrative purposes or data recovery
     app.post('/api/reports/generate-class/:classId', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { classId } = req.params;
@@ -8222,7 +8224,9 @@ Treasure-Home School Administration
       }
     });
 
-    // Generate report cards for a class with auto-population (Enhanced version)
+    // Generate report cards for a class with auto-population (Enhanced version) - FALLBACK
+    // NOTE: Report cards are normally auto-generated when students complete exams
+    // This route is a fallback for teachers/admins to regenerate or update report cards
     app.post('/api/reports/generate-enhanced/:classId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { classId } = req.params;
