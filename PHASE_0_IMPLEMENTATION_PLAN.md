@@ -152,7 +152,7 @@
 | Username as canonical ID | Username exists but not enforced as primary lookup | Add NOT NULL constraint, backfill missing usernames |
 | Department auto-assignment for SS1-SS3 | Logic exists but may need validation | Verify and enhance student creation flow |
 | Auto-generate report card on first exam | Currently manual/batch only | Add event trigger on exam submission |
-| Teacher editable test scores only | Teachers can override both | Restrict override to test_score only |
+| Teacher editable test AND exam scores | Needs explicit edit functionality | Add dedicated score editing endpoints |
 | Signed by teacher_username | Uses user.id currently | Add signed_by_username field or use JOIN |
 | Settings table for grading weights | Uses system_settings JSON | Verify or add key-value settings entries |
 
