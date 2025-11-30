@@ -77,6 +77,7 @@ import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerificatio
 import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
 import CreateExam from "@/pages/portal/CreateExam";
 import TeacherReportCards from "@/pages/portal/TeacherReportCards";
+import PortalComingSoon from "@/pages/portal/PortalComingSoon";
 
 // Real-time updates are now handled by Socket.IO on the backend
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
@@ -679,7 +680,34 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* Fallback to 404 */}
+      {/* Portal catch-all routes - show Coming Soon for undefined portal pages */}
+      <Route path="/portal/superadmin/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <PortalComingSoon />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <PortalComingSoon />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <PortalComingSoon />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
+          <PortalComingSoon />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/parent/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
+          <PortalComingSoon />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Fallback to 404 for non-portal pages */}
       <Route component={NotFound} />
     </Switch>
   );
