@@ -97,7 +97,6 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               { href: '/portal/teacher/exam-analytics', icon: Award, label: 'Exam Analytics' },
             ]
           },
-          { name: 'Grades & Results', href: `/portal/${userRole}/grades`, icon: BookOpen },
           { name: 'Report Cards', href: `/portal/${userRole}/report-cards`, icon: FileText },
           { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
           { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },

@@ -1003,12 +1003,6 @@ export default function TeacherProfile() {
                 </Link>
               </Button>
               <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
-                <Link href="/portal/teacher/grades">
-                  <GraduationCap className="h-6 w-6" />
-                  <span className="text-sm">Grades</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2" asChild>
                 <Link href="/portal/teacher/attendance">
                   <GraduationCap className="h-6 w-6" />
                   <span className="text-sm">Attendance</span>

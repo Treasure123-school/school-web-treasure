@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Clock, ClipboardCheck, GraduationCap, AlertCircle } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Bell, MessageSquare, TrendingUp, Clock, ClipboardCheck, GraduationCap, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
@@ -485,16 +485,6 @@ export default function TeacherDashboard() {
                       <UserCheck className="w-4 h-4 text-primary" />
                     </div>
                     <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Take Attendance</span>
-                  </div>
-                </Button>
-              </Link>
-              <Link to="/portal/teacher/grades">
-                <Button variant="outline" className="w-full justify-start h-auto py-3 px-4 hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary bg-gradient-to-r hover:from-primary/5 hover:to-transparent group">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                      <Star className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Manage Grades</span>
                   </div>
                 </Button>
               </Link>
