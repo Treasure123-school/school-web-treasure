@@ -152,6 +152,7 @@ export const subjects = pgTable("subjects", {
   name: varchar("name", { length: 255 }).notNull(),
   code: varchar("code", { length: 50 }).notNull().unique(),
   description: text("description"),
+  category: varchar("category", { length: 20 }).notNull().default('general'),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -162,6 +163,7 @@ export const students = pgTable("students", {
   admissionNumber: varchar("admission_number", { length: 50 }).notNull().unique(),
   classId: integer("class_id").references(() => classes.id),
   parentId: varchar("parent_id", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  department: varchar("department", { length: 50 }),
   admissionDate: varchar("admission_date", { length: 10 }).notNull(),
   emergencyContact: varchar("emergency_contact", { length: 255 }),
   emergencyPhone: varchar("emergency_phone", { length: 50 }),
@@ -572,6 +574,7 @@ export const reportCardItems = pgTable("report_card_items", {
   id: serial("id").primaryKey(),
   reportCardId: integer("report_card_id").notNull().references(() => reportCards.id, { onDelete: 'cascade' }),
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  teacherId: varchar("teacher_id", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   testExamId: integer("test_exam_id").references(() => exams.id),
   testScore: integer("test_score"),
   testMaxScore: integer("test_max_score"),
@@ -594,6 +597,7 @@ export const reportCardItems = pgTable("report_card_items", {
 }, (table) => ({
   reportCardItemsReportCardIdx: index("report_card_items_report_card_idx").on(table.reportCardId),
   reportCardItemsSubjectIdx: index("report_card_items_subject_idx").on(table.subjectId),
+  reportCardItemsTeacherIdx: index("report_card_items_teacher_idx").on(table.teacherId),
 }));
 
 // Study resources table
@@ -624,12 +628,15 @@ export const teacherClassAssignments = pgTable("teacher_class_assignments", {
   teacherId: varchar("teacher_id", { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   classId: integer("class_id").notNull().references(() => classes.id),
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  department: varchar("department", { length: 50 }),
   termId: integer("term_id").references(() => academicTerms.id),
+  assignedBy: varchar("assigned_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   teacherClassAssignmentsTeacherIdx: index("teacher_class_assignments_teacher_idx").on(table.teacherId),
   teacherClassAssignmentsClassSubjectIdx: index("teacher_class_assignments_class_subject_idx").on(table.classId, table.subjectId),
+  teacherClassAssignmentsDeptIdx: index("teacher_class_assignments_dept_idx").on(table.department),
 }));
 
 // Timetable table

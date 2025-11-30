@@ -9,9 +9,19 @@ Treasure-Home is a comprehensive, production-ready school management system desi
 
 ## Recent Changes (November 2025)
 
+### Phase 1: Department & Assignment Schema Update (Nov 30, 2025)
+Schema enhancements for teacher-student-department-class assignment and report card automation:
+- **subjects.category**: New column for categorizing subjects as 'general', 'science', 'art', or 'commercial' (default: 'general')
+- **students.department**: New column for SS1-SS3 student department assignment (nullable for JSS students)
+- **reportCardItems.teacherId**: New column to track which teacher is responsible for each subject grade
+- **teacherClassAssignments.department**: New column linking assignments to departments
+- **teacherClassAssignments.assignedBy**: New column to track who created the assignment
+- New indexes: `teacher_class_assignments_dept_idx`, `report_card_items_teacher_idx`
+
 ### UI/UX Enhancements
 - **Teacher Report Cards Page**: Redesigned with professional UI including enhanced student cards with prominent username display, avatar with gradient fallback, grade/percentage badges, position with award icons, and status indicators. Report card dialog header now shows student avatar, username badge, class info, and grading weights.
 - **Super Admin Settings Page**: Added grading scale preview table showing all grade ranges with color-coded badges, points, and remarks. Preview updates dynamically when changing grading scales.
+- **Teacher Attendance Management**: Temporarily disabled and redirected to Coming Soon page
 
 ## System Architecture
 

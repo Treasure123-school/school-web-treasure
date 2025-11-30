@@ -164,6 +164,7 @@ export const subjects = sqliteTable("subjects", {
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
   description: text("description"),
+  category: text("category").notNull().default('general'),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
@@ -173,6 +174,7 @@ export const students = sqliteTable("students", {
   admissionNumber: text("admission_number").notNull().unique(),
   classId: integer("class_id").references(() => classes.id),
   parentId: text("parent_id").references(() => users.id, { onDelete: 'set null' }),
+  department: text("department"),
   admissionDate: text("admission_date").notNull(), // YYYY-MM-DD format
   emergencyContact: text("emergency_contact"),
   emergencyPhone: text("emergency_phone"),
@@ -566,6 +568,7 @@ export const reportCardItems = sqliteTable("report_card_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   reportCardId: integer("report_card_id").notNull().references(() => reportCards.id),
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  teacherId: text("teacher_id").references(() => users.id, { onDelete: 'set null' }),
   testExamId: integer("test_exam_id").references(() => exams.id),
   testScore: integer("test_score"),
   testMaxScore: integer("test_max_score"),
@@ -623,6 +626,7 @@ export const teacherClassAssignments = sqliteTable("teacher_class_assignments", 
   teacherId: text("teacher_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   classId: integer("class_id").notNull().references(() => classes.id),
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  department: text("department"),
   termId: integer("term_id").references(() => academicTerms.id),
   assignedBy: text("assigned_by").references(() => users.id, { onDelete: 'set null' }),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
@@ -630,6 +634,7 @@ export const teacherClassAssignments = sqliteTable("teacher_class_assignments", 
 }, (table) => ({
   teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
   teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId),
+  teacherAssignmentsDeptIdx: index("teacher_assignments_dept_idx").on(table.department),
 }));
 
 // Timetable table
