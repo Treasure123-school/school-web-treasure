@@ -2,11 +2,10 @@ import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Trophy, Clock, Calendar, CheckSquare, ClipboardCheck, GraduationCap, AlertCircle } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, UserCheck, Star, Bell, MessageSquare, TrendingUp, Clock, ClipboardCheck, GraduationCap, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
@@ -15,80 +14,6 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 
-// Component for displaying results by class card
-function ResultsByClassCard({ cls, index }: { cls: any, index: number }) {
-  const { data: classResults = [], isLoading } = useQuery({
-    queryKey: [`/api/exam-results/class/${cls.id}`],
-    enabled: !!cls.id,
-  });
-
-  const results = classResults as any[];
-  const totalResults = results.length;
-  const averageScore = totalResults > 0 
-    ? Math.round((results.reduce((sum: number, r: any) => sum + (r.score || r.marksObtained || 0), 0) / totalResults))
-    : 0;
-
-  const recentResultsCount = results.filter((r: any) => {
-    const resultDate = new Date(r.createdAt);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return resultDate >= weekAgo;
-  }).length;
-
-  if (isLoading) {
-    return (
-      <div className="p-4 bg-muted/50 rounded-lg border" data-testid={`class-results-loading-${index}`}>
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-300 rounded mb-2"></div>
-          <div className="h-3 bg-gray-300 rounded mb-1"></div>
-          <div className="h-3 bg-gray-300 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div 
-      className="p-4 bg-muted/50 rounded-lg border hover:bg-muted/70 transition-colors"
-      data-testid={`card-class-results-${index}`}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm" data-testid={`text-class-name-${index}`}>
-          {cls.name}
-        </h3>
-        <Badge variant="secondary" data-testid={`badge-results-count-${index}`}>
-          {totalResults} results
-        </Badge>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex justify-between text-xs">
-          <span>Average Score</span>
-          <span className="font-medium text-primary" data-testid={`text-average-score-${index}`}>
-            {averageScore}%
-          </span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span>Recent Results (7 days)</span>
-          <span className="font-medium text-green-600" data-testid={`text-recent-count-${index}`}>
-            {recentResultsCount}
-          </span>
-        </div>
-      </div>
-
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="w-full mt-3" 
-        asChild
-        data-testid={`button-view-class-results-${index}`}
-      >
-        <Link href={`/portal/teacher/results/class/${cls.id}`}>
-          View All Results
-        </Link>
-      </Button>
-    </div>
-  );
-}
 // Component for displaying recent exam result card
 function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   const { data: examResults = [], isLoading } = useQuery({
@@ -534,59 +459,9 @@ export default function TeacherDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-        {/* Grading Queue - Fully Responsive */}
-        <Card className="lg:col-span-1 order-2 lg:order-1">
-          <CardHeader className="p-3 sm:p-4 md:p-6">
-            <CardTitle className="flex items-center justify-between text-xs sm:text-sm md:text-base">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <CheckSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-                <span>Grading Queue</span>
-              </div>
-              {(pendingGradingTasks as any[]).length > 0 && (
-                <Badge variant="destructive" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
-                  {(pendingGradingTasks as any[]).length} pending
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-            {(pendingGradingTasks as any[]).length === 0 ? (
-              <div className="text-center py-4 sm:py-6 text-muted-foreground">
-                <CheckSquare className="w-8 h-8 sm:w-10 sm:w-10 md:w-12 md:h-12 mx-auto mb-2 sm:mb-3 opacity-50" />
-                <p className="text-xs sm:text-sm">No pending grading tasks</p>
-                <p className="text-[10px] sm:text-xs mt-1">Great! All exams are graded.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 sm:space-y-3">
-                {(pendingGradingTasks as any[]).slice(0, 3).map((task: any) => (
-                  <div key={task.id} className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 p-2 sm:p-3 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-xs sm:text-sm truncate">{task.student_name}</h4>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                        {task.exam_title} • {task.question_type} question
-                      </p>
-                    </div>
-                    <div className="text-left xs:text-right flex-shrink-0">
-                      <Badge variant="outline" className="text-[10px] sm:text-xs">
-                        {task.max_marks} marks
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                <Link to="/portal/teacher/grading-queue">
-                  <Button className="w-full text-xs sm:text-sm h-8 sm:h-9 md:h-10">
-                    <CheckSquare className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                    Grade Now ({(pendingGradingTasks as any[]).length})
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-6">
         {/* Quick Actions - Fully Responsive */}
-        <Card className="lg:col-span-2 order-1 lg:order-2">
+        <Card>
           <CardHeader className="p-4 sm:p-5 md:p-6">
             <CardTitle className="flex items-center text-sm sm:text-base">
               <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
@@ -640,24 +515,6 @@ export default function TeacherDashboard() {
         </Card>
       </div>
 
-      {/* Results by Class - New Section */}
-      {teacherClasses.length > 0 && (
-        <Card className="mt-6 shadow-sm border border-border" data-testid="card-results-by-class">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <GraduationCap className="h-5 w-5" />
-              <span>Results by Class</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {teacherClasses.map((cls: any, index: number) => (
-                <ResultsByClassCard key={cls.id} cls={cls} index={index} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Recent Exam Results - New Section */}
       {recentExams.length > 0 && (
