@@ -9,6 +9,26 @@ Treasure-Home is a comprehensive, production-ready school management system desi
 
 ## Recent Changes (November 2025)
 
+### Phase 2 & 3: Subject Categories and Teacher Assignment UI (Nov 30, 2025)
+Enhanced UI for managing subject categories and teacher-class-subject assignments:
+
+#### SubjectsManagement.tsx Enhancements
+- **Category Field**: Added dropdown for categorizing subjects as General, Science, Art, or Commercial
+- **Category Filter**: Added filter dropdown to filter subjects by category
+- **Category Column**: Added new column in subjects table showing category with color-coded badges
+- **Category Icons**: Different icons for each category (BookMarked, GraduationCap, Palette, Briefcase)
+
+#### TeachersManagement.tsx Enhancements
+- **Assignment Dialog**: New "Assign" button opens a dialog to manage teacher assignments
+- **Class Selection**: Teachers can be assigned to specific classes
+- **Department Selection**: For SS1-SS3 (Senior Secondary) classes, department selection is required
+- **Subject Filtering**: Subjects are filtered based on class level and department:
+  - General subjects are available to all classes
+  - Science/Art/Commercial subjects only appear for senior secondary classes with matching department
+- **Multi-Subject Selection**: Teachers can select multiple subjects to assign at once
+- **Assignment Display**: Current assignments are displayed grouped by class with subjects as removable badges
+- **Remove Assignment**: Individual subject assignments can be removed via X button
+
 ### Phase 1: Department & Assignment Schema Update (Nov 30, 2025)
 Schema enhancements for teacher-student-department-class assignment and report card automation:
 - **subjects.category**: New column for categorizing subjects as 'general', 'science', 'art', or 'commercial' (default: 'general')

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,15 +9,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Copy, CheckCircle } from 'lucide-react';
+import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Copy, CheckCircle, BookOpen, Plus, X, Briefcase, Palette } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { ROLE_IDS } from '@/lib/roles';
+
+// Classes that require department selection (Senior Secondary)
+const SENIOR_CLASSES = ['SS1', 'SS2', 'SS3'];
+const DEPARTMENTS = [
+  { value: 'science', label: 'Science', icon: GraduationCap },
+  { value: 'art', label: 'Art', icon: Palette },
+  { value: 'commercial', label: 'Commercial', icon: Briefcase },
+] as const;
+
+// Subject categories
+const SUBJECT_CATEGORIES = [
+  { value: 'general', label: 'General' },
+  { value: 'science', label: 'Science' },
+  { value: 'art', label: 'Art' },
+  { value: 'commercial', label: 'Commercial' },
+] as const;
 
 const teacherFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -50,13 +67,84 @@ export default function TeachersManagement() {
     password: string;
     email: string;
   }>({ open: false, username: '', password: '', email: '' });
+  
+  // Assignment dialog state
+  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [selectedTeacherForAssignment, setSelectedTeacherForAssignment] = useState<any>(null);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedDepartmentForAssignment, setSelectedDepartmentForAssignment] = useState<string>('');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>([]);
 
-  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<TeacherForm>({
+  const { register, handleSubmit, formState: { errors }, setValue, reset, control } = useForm<TeacherForm>({
     resolver: zodResolver(teacherFormSchema),
     defaultValues: {
       roleId: ROLE_IDS.TEACHER, // Teacher role = 3
     }
   });
+  
+  // Fetch classes
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/classes');
+      return await response.json();
+    },
+  });
+  
+  // Fetch subjects
+  const { data: subjects = [] } = useQuery({
+    queryKey: ['/api/subjects'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/subjects');
+      return await response.json();
+    },
+  });
+  
+  // Fetch teacher assignments when a teacher is selected
+  const { data: teacherAssignments = [], refetch: refetchAssignments } = useQuery({
+    queryKey: ['/api/teacher-assignments', selectedTeacherForAssignment?.id],
+    queryFn: async () => {
+      if (!selectedTeacherForAssignment?.id) return [];
+      const response = await apiRequest('GET', `/api/teachers/${selectedTeacherForAssignment.id}/assignments`);
+      return await response.json();
+    },
+    enabled: !!selectedTeacherForAssignment?.id,
+  });
+  
+  // Helper to check if a class is a senior class (SS1-SS3)
+  const isSeniorClass = (className: string) => {
+    return SENIOR_CLASSES.some(sc => className?.toUpperCase().includes(sc));
+  };
+  
+  // Get the selected class object
+  const selectedClass = useMemo(() => {
+    return classes.find((c: any) => String(c.id) === selectedClassId);
+  }, [classes, selectedClassId]);
+  
+  // Filter subjects based on selected class level and department
+  const filteredSubjects = useMemo(() => {
+    if (!selectedClass) return [];
+    
+    const className = selectedClass.name || '';
+    const isSenior = isSeniorClass(className);
+    
+    return subjects.filter((subject: any) => {
+      const category = subject.category || 'general';
+      
+      // General subjects are available to all classes
+      if (category === 'general') return true;
+      
+      // For senior classes with department selection
+      if (isSenior && selectedDepartmentForAssignment) {
+        return category === selectedDepartmentForAssignment;
+      }
+      
+      // For non-senior classes, only show general subjects
+      if (!isSenior) return category === 'general';
+      
+      return false;
+    });
+  }, [subjects, selectedClass, selectedDepartmentForAssignment]);
 
   // Fetch teachers
   const { data: teachers = [], isLoading: loadingTeachers } = useQuery({
@@ -212,6 +300,118 @@ export default function TeachersManagement() {
       });
     },
   });
+  
+  // Create teacher assignment mutation
+  const createAssignmentMutation = useMutation({
+    mutationFn: async (data: { teacherId: string; classId: number; subjectId: number; department?: string }) => {
+      const response = await apiRequest('POST', '/api/teacher-assignments', data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create assignment');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subject assigned successfully",
+      });
+      refetchAssignments();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign subject",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Delete teacher assignment mutation
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: async (assignmentId: number) => {
+      const response = await apiRequest('DELETE', `/api/teacher-assignments/${assignmentId}`);
+      if (!response.ok) throw new Error('Failed to remove assignment');
+      return response.status === 204 ? null : response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Assignment removed successfully",
+      });
+      refetchAssignments();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove assignment",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle opening assignment dialog
+  const handleOpenAssignmentDialog = (teacher: any) => {
+    setSelectedTeacherForAssignment(teacher);
+    setSelectedClassId('');
+    setSelectedDepartmentForAssignment('');
+    setSelectedSubjectIds([]);
+    setAssignmentDialogOpen(true);
+  };
+  
+  // Handle class selection change
+  const handleClassChange = (classId: string) => {
+    setSelectedClassId(classId);
+    setSelectedDepartmentForAssignment('');
+    setSelectedSubjectIds([]);
+  };
+  
+  // Handle adding assignments for selected subjects
+  const handleAddAssignments = async () => {
+    if (!selectedTeacherForAssignment || !selectedClassId || selectedSubjectIds.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a class and at least one subject",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const className = selectedClass?.name || '';
+    const isSenior = isSeniorClass(className);
+    
+    // For senior classes, department is required
+    if (isSenior && !selectedDepartmentForAssignment) {
+      toast({
+        title: "Error",
+        description: "Please select a department for senior secondary classes",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create assignments for each selected subject
+    for (const subjectId of selectedSubjectIds) {
+      await createAssignmentMutation.mutateAsync({
+        teacherId: selectedTeacherForAssignment.id,
+        classId: Number(selectedClassId),
+        subjectId,
+        department: isSenior ? selectedDepartmentForAssignment : undefined,
+      });
+    }
+    
+    // Reset selection after adding
+    setSelectedSubjectIds([]);
+  };
+  
+  // Toggle subject selection
+  const toggleSubjectSelection = (subjectId: number) => {
+    setSelectedSubjectIds(prev => 
+      prev.includes(subjectId) 
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    );
+  };
 
   const onSubmit = (data: TeacherForm) => {
     if (editingTeacher) {
@@ -588,7 +788,16 @@ export default function TeachersManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleOpenAssignmentDialog(teacher)}
+                            data-testid={`button-assign-subjects-${teacher.id}`}
+                          >
+                            <BookOpen className="w-4 h-4 mr-1" />
+                            Assign
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -734,6 +943,195 @@ export default function TeachersManagement() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Teacher Assignment Dialog */}
+      <Dialog open={assignmentDialogOpen} onOpenChange={setAssignmentDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              Manage Class & Subject Assignments
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedTeacherForAssignment && (
+            <div className="space-y-6">
+              {/* Teacher Info */}
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="font-medium">
+                  {selectedTeacherForAssignment.firstName} {selectedTeacherForAssignment.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground">{selectedTeacherForAssignment.email}</p>
+              </div>
+              
+              {/* Current Assignments */}
+              <div>
+                <h3 className="font-medium mb-3">Current Assignments</h3>
+                {teacherAssignments.length > 0 ? (
+                  <div className="space-y-2">
+                    {teacherAssignments.map((assignment: any) => (
+                      <div 
+                        key={assignment.classId} 
+                        className="border rounded-lg p-3"
+                        data-testid={`assignment-class-${assignment.classId}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{assignment.className}</span>
+                          {assignment.department && (
+                            <Badge variant="secondary">{assignment.department}</Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {assignment.subjects?.map((subject: any) => (
+                            <Badge 
+                              key={subject.id} 
+                              variant="outline"
+                              className="flex items-center gap-1"
+                            >
+                              {subject.name}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-4 w-4 p-0 ml-1"
+                                onClick={() => deleteAssignmentMutation.mutate(subject.assignmentId)}
+                                disabled={deleteAssignmentMutation.isPending}
+                                data-testid={`button-remove-assignment-${subject.assignmentId}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No subjects assigned yet.</p>
+                )}
+              </div>
+              
+              {/* Add New Assignment */}
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-3">Add New Assignment</h3>
+                
+                <div className="space-y-4">
+                  {/* Class Selection */}
+                  <div>
+                    <Label>Select Class</Label>
+                    <Select value={selectedClassId} onValueChange={handleClassChange}>
+                      <SelectTrigger data-testid="select-assignment-class">
+                        <SelectValue placeholder="Choose a class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls: any) => (
+                          <SelectItem key={cls.id} value={String(cls.id)}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Department Selection (for SS1-SS3) */}
+                  {selectedClass && isSeniorClass(selectedClass.name) && (
+                    <div>
+                      <Label>Select Department</Label>
+                      <Select 
+                        value={selectedDepartmentForAssignment} 
+                        onValueChange={setSelectedDepartmentForAssignment}
+                      >
+                        <SelectTrigger data-testid="select-assignment-department">
+                          <SelectValue placeholder="Choose a department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEPARTMENTS.map((dept) => (
+                            <SelectItem key={dept.value} value={dept.value}>
+                              <div className="flex items-center gap-2">
+                                <dept.icon className="w-4 h-4" />
+                                {dept.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Senior secondary classes require department selection.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Subject Selection */}
+                  {selectedClassId && (!isSeniorClass(selectedClass?.name || '') || selectedDepartmentForAssignment) && (
+                    <div>
+                      <Label>Select Subjects</Label>
+                      <div className="border rounded-lg p-3 mt-2 max-h-48 overflow-y-auto">
+                        {filteredSubjects.length > 0 ? (
+                          <div className="space-y-2">
+                            {filteredSubjects.map((subject: any) => (
+                              <div 
+                                key={subject.id} 
+                                className="flex items-center gap-2"
+                              >
+                                <Checkbox
+                                  id={`subject-${subject.id}`}
+                                  checked={selectedSubjectIds.includes(subject.id)}
+                                  onCheckedChange={() => toggleSubjectSelection(subject.id)}
+                                  data-testid={`checkbox-subject-${subject.id}`}
+                                />
+                                <label 
+                                  htmlFor={`subject-${subject.id}`}
+                                  className="text-sm flex items-center gap-2 cursor-pointer flex-1"
+                                >
+                                  <span>{subject.name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {subject.category || 'General'}
+                                  </Badge>
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No subjects available for this class/department combination.
+                          </p>
+                        )}
+                      </div>
+                      {selectedSubjectIds.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {selectedSubjectIds.length} subject(s) selected
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Add Button */}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setAssignmentDialogOpen(false)}
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      onClick={handleAddAssignments}
+                      disabled={
+                        !selectedClassId || 
+                        selectedSubjectIds.length === 0 ||
+                        createAssignmentMutation.isPending ||
+                        (isSeniorClass(selectedClass?.name || '') && !selectedDepartmentForAssignment)
+                      }
+                      data-testid="button-add-assignments"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      {createAssignmentMutation.isPending ? 'Adding...' : 'Add Subjects'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
