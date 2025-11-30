@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, TrendingUp, Award, Calendar, User } from 'lucide-react';
+import { Download, FileText, TrendingUp, Award, Calendar, User, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Child {
@@ -173,9 +173,15 @@ export default function ParentReportCards() {
         ) : reportCards.length === 0 ? (
           <Card>
             <CardContent className="py-12">
-              <div className="text-center text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No report cards available yet</p>
+              <div className="text-center">
+                <Clock className="h-12 w-12 mx-auto mb-4 text-amber-500" />
+                <h3 className="text-lg font-medium mb-2">No Published Report Cards Yet</h3>
+                <p className="text-muted-foreground mb-2">
+                  Report cards for this child haven't been published yet.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Report cards become available once teachers finalize and publish them. Please check back later.
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -18,7 +18,8 @@ import {
   Calendar,
   User,
   School,
-  TrendingUp
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 
 export default function StudentReportCard() {
@@ -202,10 +203,13 @@ export default function StudentReportCard() {
         ) : !reportCard ? (
           <Card>
             <CardContent className="text-center py-12">
-              <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Report Available</h3>
-              <p className="text-muted-foreground">
-                No report card data found for the selected term.
+              <Clock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
+              <h3 className="text-lg font-medium mb-2">Report Card Not Yet Available</h3>
+              <p className="text-muted-foreground mb-2">
+                Your report card for this term has not been published yet.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Please check back later or contact your teacher for more information.
               </p>
             </CardContent>
           </Card>

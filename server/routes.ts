@@ -7452,6 +7452,28 @@ Treasure-Home School Administration
         }
         // Admin and Super Admin can view any student's report card
 
+        // For students and parents, check if there's a published report card
+        // Teachers, admins can see regardless of status
+        if (req.user!.roleId === ROLES.STUDENT || req.user!.roleId === ROLES.PARENT) {
+          const existingReportCard = await db.select({ status: schema.reportCards.status })
+            .from(schema.reportCards)
+            .where(
+              and(
+                eq(schema.reportCards.studentId, studentId),
+                eq(schema.reportCards.termId, Number(termId)),
+                eq(schema.reportCards.status, 'published')
+              )
+            )
+            .limit(1);
+          
+          if (!existingReportCard.length) {
+            return res.status(404).json({ 
+              message: 'Report card not yet published. Please check back later.',
+              status: 'not_published'
+            });
+          }
+        }
+
         const user = await storage.getUser(studentId);
         if (!user) {
           return res.status(404).json({ message: 'User not found' });
@@ -7982,6 +8004,7 @@ Treasure-Home School Administration
           const user = await storage.getUser(child.id);
           if (!user) continue;
 
+          // Only show PUBLISHED report cards to parents (not draft or finalized)
           let reportCards;
           if (termId) {
             reportCards = await db.select()
@@ -7989,13 +8012,19 @@ Treasure-Home School Administration
               .where(
                 and(
                   eq(schema.reportCards.studentId, child.id),
-                  eq(schema.reportCards.termId, Number(termId))
+                  eq(schema.reportCards.termId, Number(termId)),
+                  eq(schema.reportCards.status, 'published')
                 )
               );
           } else {
             reportCards = await db.select()
               .from(schema.reportCards)
-              .where(eq(schema.reportCards.studentId, child.id))
+              .where(
+                and(
+                  eq(schema.reportCards.studentId, child.id),
+                  eq(schema.reportCards.status, 'published')
+                )
+              )
               .orderBy(schema.reportCards.createdAt);
           }
 
