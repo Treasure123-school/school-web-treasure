@@ -48,7 +48,6 @@ import TeacherProfileAssignmentDashboard from "@/pages/portal/TeacherProfileAssi
 import AdminDashboard from "@/pages/portal/AdminDashboard";
 import ParentDashboard from "@/pages/portal/ParentDashboard";
 import StudentManagement from "@/pages/portal/StudentManagement";
-import AttendanceManagement from "@/pages/portal/AttendanceManagement";
 import TeachersManagement from "@/pages/portal/TeachersManagement";
 import ClassesManagement from "@/pages/portal/ClassesManagement";
 import SubjectsManagement from "@/pages/portal/SubjectsManagement";
@@ -595,9 +594,9 @@ function Router() {
           <AdminRecoveryTools />
         </ProtectedRoute>
       </Route>
-      <Route path="/portal/teacher/attendance">
+      <Route path="/portal/teacher/coming-soon">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <AttendanceManagement />
+          <PortalComingSoon />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher/grading-queue">
