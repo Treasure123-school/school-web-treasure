@@ -415,7 +415,7 @@ export default function ExamManagement() {
     },
   });
 
-  // Delete exam mutation with optimistic update and race condition prevention
+  // Delete exam mutation with optimistic update - instant deletion
   const deleteExamMutation = useMutation({
     mutationFn: async (examId: number) => {
       const response = await apiRequest('DELETE', `/api/exams/${examId}`);
@@ -439,14 +439,13 @@ export default function ExamManagement() {
         setEditingExam(null);
         setEditingQuestion(null);
       }
-      toast({
-        title: "Deleting...",
-        description: "Removing exam from the system",
-      });
       
       return context;
     },
     onSuccess: (_, examId) => {
+      // Clear pending flag immediately
+      pendingDeletionsRef.current.delete(examId);
+      
       toast({
         title: "Success",
         description: "Exam deleted successfully",
@@ -454,13 +453,6 @@ export default function ExamManagement() {
       
       // Invalidate question counts cache since an exam was deleted
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
-      
-      // Wait a brief moment for backend to fully commit, then clear pending flag
-      setTimeout(() => {
-        pendingDeletionsRef.current.delete(examId);
-        // Trigger cache refresh to ensure UI is in sync
-        queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
-      }, 500);
     },
     onError: (error: any, examId, context) => {
       // Remove from pending deletions on error
@@ -475,15 +467,9 @@ export default function ExamManagement() {
         variant: "destructive",
       });
     },
-    onSettled: (_, __, examId) => {
-      // Final cleanup after a delay to ensure smooth transition
-      setTimeout(() => {
-        pendingDeletionsRef.current.delete(examId);
-      }, 1000);
-    },
   });
 
-  // Delete question mutation with optimistic update and race condition prevention
+  // Delete question mutation with optimistic update - instant deletion
   const deleteQuestionMutation = useMutation({
     mutationFn: async (questionId: number) => {
       const response = await apiRequest('DELETE', `/api/exam-questions/${questionId}`);
@@ -504,35 +490,21 @@ export default function ExamManagement() {
       // Mark question as pending deletion to prevent race conditions with Realtime
       pendingQuestionDeletionsRef.current.add(questionId);
       
-      toast({
-        title: "Deleting...",
-        description: "Removing question",
-      });
-      
       // Return context with captured examId for use in onSuccess/onError
       return { ...context, examId: currentExamId };
     },
     onSuccess: (_, questionId, context) => {
+      // Clear pending flag immediately
+      pendingQuestionDeletionsRef.current.delete(questionId);
+      
       toast({
         title: "Success",
         description: "Question deleted successfully",
       });
       
-      // Use examId from context to ensure we target the correct cache
-      const examId = context?.examId;
-      
       // Invalidate question counts and options caches
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/question-options', questionId] });
-      
-      // Wait a brief moment for backend to fully commit, then clear pending flag
-      setTimeout(() => {
-        pendingQuestionDeletionsRef.current.delete(questionId);
-        // Trigger cache refresh to ensure UI is in sync using captured examId
-        if (examId) {
-          queryClient.invalidateQueries({ queryKey: ['/api/exam-questions', examId] });
-        }
-      }, 500);
     },
     onError: (error: any, questionId, context) => {
       // Remove from pending deletions on error
@@ -549,12 +521,6 @@ export default function ExamManagement() {
         description: error.message || "Failed to delete question",
         variant: "destructive",
       });
-    },
-    onSettled: (_, __, questionId) => {
-      // Final cleanup after a delay to ensure smooth transition
-      setTimeout(() => {
-        pendingQuestionDeletionsRef.current.delete(questionId);
-      }, 1000);
     },
   });
 
