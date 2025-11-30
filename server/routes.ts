@@ -1843,13 +1843,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (options && Array.isArray(options)) {
           // Delete existing options and create new ones
           await storage.deleteQuestionOptions(questionId);
-          for (const option of options) {
+          for (let i = 0; i < options.length; i++) {
+            const option = options[i];
             await storage.createQuestionOption({
               questionId,
               optionText: option.optionText,
               isCorrect: option.isCorrect || false,
+              orderNumber: option.orderNumber ?? (i + 1),
               explanationText: option.explanationText || null,
-              partialCreditValue: option.partialCreditValue || null,
+              partialCreditValue: option.partialCreditValue || 0,
             });
           }
         }
