@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -111,8 +112,18 @@ export default function TeacherReportCards() {
     teacherRemarks: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
+
+  // Real-time subscription for report card updates - scoped to class
+  // The hook automatically invalidates the queryKey when events are received
+  const { isConnected: realtimeConnected } = useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/reports/class-term', selectedClass, selectedTerm],
+    enabled: !!selectedClass && !!selectedTerm,
+    classId: selectedClass,
+  });
 
   if (!user) {
     return <div>Loading...</div>;
@@ -442,10 +453,12 @@ export default function TeacherReportCards() {
     }
   };
 
-  const filteredReportCards = reportCards.filter((rc: any) =>
-    rc.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rc.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReportCards = reportCards.filter((rc: any) => {
+    const matchesSearch = rc.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      rc.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || rc.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const statistics = reportCards.length > 0 ? {
     totalStudents: reportCards.length,
@@ -532,6 +545,34 @@ export default function TeacherReportCards() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>Status Filter</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-status-filter">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="finalized">Finalized</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+                {statusFilter !== 'all' && (
+                  <span className="text-xs text-muted-foreground">
+                    Showing {filteredReportCards.length} of {reportCards.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Real-time connection indicator */}
+              {realtimeConnected && (
+                <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </div>
+              )}
 
               {/* Bulk Actions Dropdown */}
               {reportCards.length > 0 && (

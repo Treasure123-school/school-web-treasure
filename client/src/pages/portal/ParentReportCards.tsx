@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, TrendingUp, Award, Calendar, User, Clock } from 'lucide-react';
+import { Download, FileText, TrendingUp, Award, Calendar, User, Clock, Wifi } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 interface Child {
   id: string;
@@ -62,7 +63,7 @@ export default function ParentReportCards() {
   });
 
   // Fetch selected child's report cards
-  const { data: reportCards = [], isLoading: loadingReports, refetch } = useQuery<ReportCard[]>({
+  const { data: reportCards = [], isLoading: loadingReports } = useQuery<ReportCard[]>({
     queryKey: ['/api/parent/child-reports', selectedChild],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/parent/child-reports/${selectedChild}`);
@@ -71,6 +72,14 @@ export default function ParentReportCards() {
       }
       return response.json();
     },
+    enabled: !!selectedChild,
+  });
+
+  // Real-time subscription for when report cards are published for the selected child
+  // The hook automatically invalidates the queryKey when events are received
+  const { isConnected: realtimeConnected } = useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/parent/child-reports', selectedChild],
     enabled: !!selectedChild,
   });
 
@@ -127,7 +136,15 @@ export default function ParentReportCards() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold" data-testid="text-page-title">Report Cards</h1>
-            <p className="text-muted-foreground">View your children's academic performance</p>
+            <div className="flex items-center gap-2">
+              <p className="text-muted-foreground">View your children's academic performance</p>
+              {realtimeConnected && (
+                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              )}
+            </div>
           </div>
 
           {children.length > 0 && (

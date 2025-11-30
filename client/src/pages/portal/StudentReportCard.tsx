@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { 
   Download, 
   FileText, 
@@ -19,7 +19,8 @@ import {
   User,
   School,
   TrendingUp,
-  Clock
+  Clock,
+  Wifi
 } from 'lucide-react';
 
 export default function StudentReportCard() {
@@ -56,6 +57,14 @@ export default function StudentReportCard() {
       return await response.json();
     },
     enabled: !!user?.id,
+  });
+
+  // Real-time subscription for when report cards are published
+  // The hook automatically invalidates the queryKey when events are received
+  const { isConnected: realtimeConnected } = useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/reports/student-report-card', user?.id, selectedTerm],
+    enabled: !!user?.id && !!selectedTerm,
   });
 
   const handleExportPDF = async () => {
