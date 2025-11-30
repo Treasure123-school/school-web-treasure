@@ -1022,15 +1022,26 @@ export default function TeacherReportCards() {
             <TabsContent value="students" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Student Report Cards</CardTitle>
-                  <CardDescription>Click on a card to view details and manage scores</CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="w-5 h-5" />
+                        Student Report Cards
+                      </CardTitle>
+                      <CardDescription>Click on a card to view details and manage scores</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+                      <BarChart3 className="w-3 h-3" />
+                      <span>Test {testWeight}% | Exam {examWeight}%</span>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="relative max-w-sm">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
-                        placeholder="Search students..."
+                        placeholder="Search by name or ID..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"
@@ -1038,38 +1049,46 @@ export default function TeacherReportCards() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredReportCards.map((rc: any) => (
-                        <Card key={rc.id} className="hover-elevate cursor-pointer" onClick={() => handleViewReportCard(rc)} data-testid={`card-student-${rc.id}`}>
+                        <Card 
+                          key={rc.id} 
+                          className="hover-elevate cursor-pointer group relative overflow-visible" 
+                          onClick={() => handleViewReportCard(rc)} 
+                          data-testid={`card-student-${rc.id}`}
+                        >
                           <CardContent className="p-4">
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-start justify-between gap-2 mb-3">
                               <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10">
+                                <Avatar className="h-12 w-12 border-2 border-primary/10">
                                   {rc.studentPhoto ? (
                                     <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
                                   ) : null}
-                                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold">
                                     {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div>
-                                  <h4 className="font-medium">{rc.studentName}</h4>
-                                  <p className="text-xs text-muted-foreground font-mono">
+                                <div className="min-w-0">
+                                  <h4 className="font-semibold text-sm truncate">{rc.studentName}</h4>
+                                  <Badge variant="outline" className="font-mono text-xs mt-1 bg-muted/50">
                                     {rc.studentUsername || rc.admissionNumber || '-'}
-                                  </p>
+                                  </Badge>
                                 </div>
                               </div>
-                              <Badge className={getGradeColor(rc.overallGrade)}>
-                                {rc.overallGrade || '-'}
-                              </Badge>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge className={`text-lg px-3 ${getGradeColor(rc.overallGrade)}`}>
+                                  {rc.overallGrade || '-'}
+                                </Badge>
+                                <span className={`text-sm font-bold ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {rc.averagePercentage || 0}%
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex justify-between items-center text-sm mt-3">
-                              <span className="text-muted-foreground">
-                                {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
-                              </span>
-                              <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                                {rc.averagePercentage || 0}%
-                              </span>
-                            </div>
-                            <div className="mt-2">
+                            <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                              <div className="flex items-center gap-2">
+                                <Award className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                  {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
+                                </span>
+                              </div>
                               {getStatusBadge(rc.status)}
                             </div>
                           </CardContent>
@@ -1156,14 +1175,39 @@ export default function TeacherReportCards() {
       {/* View Report Card Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] p-4 sm:p-6">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              <span className="truncate">Report Card - {fullReportCard?.studentName}</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {fullReportCard?.className} - {fullReportCard?.termName}
-            </DialogDescription>
+          <DialogHeader className="pb-4 border-b">
+            <div className="flex items-start gap-4">
+              <Avatar className="h-12 w-12 sm:h-16 sm:w-16 border-2 border-primary/20">
+                {fullReportCard?.studentPhoto ? (
+                  <AvatarImage src={fullReportCard.studentPhoto} alt={fullReportCard?.studentName} />
+                ) : null}
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                  {fullReportCard?.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-6 h-6" />}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <DialogTitle className="flex items-center gap-2 text-base sm:text-xl">
+                  <span className="truncate">{fullReportCard?.studentName}</span>
+                </DialogTitle>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <Badge variant="outline" className="font-mono text-xs bg-primary/5">
+                    {fullReportCard?.studentUsername || fullReportCard?.admissionNumber || '-'}
+                  </Badge>
+                  <span className="text-xs sm:text-sm text-muted-foreground">
+                    {fullReportCard?.className}
+                  </span>
+                  <span className="text-muted-foreground">-</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">
+                    {fullReportCard?.termName}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-muted-foreground">
+                    Grading: Test {testWeight}% | Exam {examWeight}%
+                  </span>
+                </div>
+              </div>
+            </div>
           </DialogHeader>
           
           {loadingFullReport ? (

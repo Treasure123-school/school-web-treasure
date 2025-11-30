@@ -8,11 +8,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Save, AlertTriangle, GraduationCap, BarChart3, Settings2, FileText
-} from "lucide-react";
+import { Save, AlertTriangle, GraduationCap, BarChart3, Settings2, FileText, Eye } from "lucide-react";
+import { GRADING_SCALES, getGradeColor, getGradeBgColor, type GradingConfig } from "@shared/grading-utils";
 
 interface SettingsData {
   schoolName: string;
@@ -280,26 +282,67 @@ export default function SuperAdminSettings() {
               </div>
 
               {/* Grading Scale */}
-              <div className="space-y-2">
-                <Label htmlFor="gradingScale" className="text-sm dark:text-slate-300">
-                  Default Grading Scale
-                </Label>
-                <Select 
-                  value={formData.defaultGradingScale} 
-                  onValueChange={(value) => setFormData({ ...formData, defaultGradingScale: value })}
-                >
-                  <SelectTrigger className="w-full md:w-64 dark:bg-slate-900 dark:border-slate-700" data-testid="select-grading-scale">
-                    <SelectValue placeholder="Select grading scale" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard (A-F)</SelectItem>
-                    <SelectItem value="waec">WAEC (A1-F9)</SelectItem>
-                    <SelectItem value="percentage">Percentage Based</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  This determines how percentage scores are converted to letter grades
-                </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gradingScale" className="text-sm dark:text-slate-300">
+                    Default Grading Scale
+                  </Label>
+                  <Select 
+                    value={formData.defaultGradingScale} 
+                    onValueChange={(value) => setFormData({ ...formData, defaultGradingScale: value })}
+                  >
+                    <SelectTrigger className="w-full md:w-64 dark:bg-slate-900 dark:border-slate-700" data-testid="select-grading-scale">
+                      <SelectValue placeholder="Select grading scale" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard (A-F)</SelectItem>
+                      <SelectItem value="waec">WAEC (A1-F9)</SelectItem>
+                      <SelectItem value="percentage">Percentage Based</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    This determines how percentage scores are converted to letter grades
+                  </p>
+                </div>
+
+                {/* Grading Scale Preview */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium dark:text-slate-200">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    Grade Scale Preview
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Score Range</TableHead>
+                          <TableHead className="text-xs">Grade</TableHead>
+                          <TableHead className="text-xs">Points</TableHead>
+                          <TableHead className="text-xs">Remarks</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(GRADING_SCALES[formData.defaultGradingScale] || GRADING_SCALES.standard).ranges.map((range, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-xs font-medium">
+                              {range.min} - {range.max}%
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant="outline" 
+                                className={`${getGradeColor(range.grade)} ${getGradeBgColor(range.grade)} border-0`}
+                              >
+                                {range.grade}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">{range.points.toFixed(1)}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{range.remarks}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
 
               {/* Score Aggregation Mode */}
