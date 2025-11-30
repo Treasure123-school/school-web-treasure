@@ -7386,6 +7386,15 @@ Treasure-Home School Administration
           reason: 'System settings updated by Super Admin',
         });
 
+        // Broadcast settings change to all connected clients via Socket.IO
+        realtimeService.emitTableChange('system_settings', 'UPDATE', {
+          ...settings,
+          testWeight: settings.testWeight,
+          examWeight: settings.examWeight,
+          defaultGradingScale: settings.defaultGradingScale,
+          scoreAggregationMode: settings.scoreAggregationMode,
+        }, undefined, req.user!.id);
+
         res.json(settings);
       } catch (error) {
         res.status(500).json({ message: 'Failed to update system settings' });

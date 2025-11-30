@@ -3580,6 +3580,8 @@ export class DatabaseStorage implements IStorage {
         finalizedAt: schema.reportCards.finalizedAt,
         publishedAt: schema.reportCards.publishedAt,
         studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        studentUsername: schema.users.username,
+        studentPhoto: schema.users.profilePicture,
         admissionNumber: schema.students.admissionNumber
       })
         .from(schema.reportCards)
@@ -3616,6 +3618,8 @@ export class DatabaseStorage implements IStorage {
         gradingScale: schema.reportCards.gradingScale,
         generatedAt: schema.reportCards.generatedAt,
         studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        studentUsername: schema.users.username,
+        studentPhoto: schema.users.profilePicture,
         admissionNumber: schema.students.admissionNumber,
         className: schema.classes.name,
         termName: schema.academicTerms.name

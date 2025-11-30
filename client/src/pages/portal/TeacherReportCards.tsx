@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Label } from '@/components/ui/label';
@@ -43,7 +44,13 @@ import {
   FileClock,
   FilePen,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Download,
+  FileSpreadsheet,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  User
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -80,6 +87,8 @@ interface ReportCard {
   id: number;
   studentId: string;
   studentName: string;
+  studentUsername?: string;
+  studentPhoto?: string;
   admissionNumber: string;
   className: string;
   termName: string;
@@ -94,6 +103,9 @@ interface ReportCard {
   generatedAt: string;
   items: ReportCardItem[];
 }
+
+type SortField = 'position' | 'studentName' | 'averagePercentage' | 'overallGrade' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 export default function TeacherReportCards() {
   const { toast } = useToast();
@@ -116,6 +128,8 @@ export default function TeacherReportCards() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
+  const [sortField, setSortField] = useState<SortField>('position');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const { data: gradingConfig } = useQuery({
     queryKey: ['/api/grading-config', selectedGradingScale],
@@ -466,12 +480,100 @@ export default function TeacherReportCards() {
     }
   };
 
-  const filteredReportCards = reportCards.filter((rc: any) => {
-    const matchesSearch = rc.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rc.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || rc.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" /> 
+      : <ArrowDown className="w-3 h-3 ml-1" />;
+  };
+
+  const filteredReportCards = reportCards
+    .filter((rc: any) => {
+      const matchesSearch = rc.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rc.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rc.studentUsername?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || rc.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      switch (sortField) {
+        case 'position':
+          aVal = a.position || 999;
+          bVal = b.position || 999;
+          break;
+        case 'studentName':
+          aVal = a.studentName?.toLowerCase() || '';
+          bVal = b.studentName?.toLowerCase() || '';
+          break;
+        case 'averagePercentage':
+          aVal = a.averagePercentage || 0;
+          bVal = b.averagePercentage || 0;
+          break;
+        case 'overallGrade':
+          aVal = a.overallGrade || 'Z';
+          bVal = b.overallGrade || 'Z';
+          break;
+        case 'status':
+          const statusOrder = { draft: 1, finalized: 2, published: 3 };
+          aVal = statusOrder[a.status as keyof typeof statusOrder] || 4;
+          bVal = statusOrder[b.status as keyof typeof statusOrder] || 4;
+          break;
+        default:
+          aVal = 0;
+          bVal = 0;
+      }
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  const handleExportCSV = () => {
+    if (!filteredReportCards.length) {
+      toast({ title: "No Data", description: "No report cards to export", variant: "destructive" });
+      return;
+    }
+    const selectedClassName = classes.find((c: any) => c.id.toString() === selectedClass)?.name || 'Class';
+    const selectedTermName = terms.find((t: any) => t.id.toString() === selectedTerm)?.name || 'Term';
+    
+    const headers = ['Position', 'Student Name', 'Username', 'Admission No.', 'Average %', 'Grade', 'Status'];
+    const rows = filteredReportCards.map((rc: any) => [
+      rc.position ? formatPosition(rc.position) : '-',
+      rc.studentName || '',
+      rc.studentUsername || '-',
+      rc.admissionNumber || '-',
+      `${rc.averagePercentage || 0}%`,
+      rc.overallGrade || '-',
+      rc.status || 'draft'
+    ]);
+    
+    const csvContent = [headers, ...rows]
+      .map(row => row.map((cell: string) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Report_Cards_${selectedClassName}_${selectedTermName}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    
+    toast({ title: "Exported", description: `Report cards exported as CSV` });
+  };
+
+  const handlePrintAll = () => {
+    window.print();
+    toast({ title: "Print", description: "Print dialog opened" });
+  };
 
   const statistics = reportCards.length > 0 ? {
     totalStudents: reportCards.length,
@@ -589,6 +691,40 @@ export default function TeacherReportCards() {
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   Live
                 </div>
+              )}
+
+              {/* Export Buttons */}
+              {reportCards.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      data-testid="button-export"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem 
+                      onClick={handleExportCSV}
+                      className="cursor-pointer"
+                      data-testid="export-csv"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
+                      <span>Export as CSV</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handlePrintAll}
+                      className="cursor-pointer"
+                      data-testid="export-print"
+                    >
+                      <Printer className="w-4 h-4 mr-2 text-blue-600" />
+                      <span>Print Report Cards</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               {/* Bulk Actions Dropdown */}
@@ -770,12 +906,58 @@ export default function TeacherReportCards() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Pos</TableHead>
-                            <TableHead>Student Name</TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort('position')}
+                              data-testid="sort-position"
+                            >
+                              <div className="flex items-center">
+                                Pos
+                                {getSortIcon('position')}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort('studentName')}
+                              data-testid="sort-name"
+                            >
+                              <div className="flex items-center">
+                                Student
+                                {getSortIcon('studentName')}
+                              </div>
+                            </TableHead>
+                            <TableHead>Username</TableHead>
                             <TableHead>Adm. No.</TableHead>
-                            <TableHead>Average</TableHead>
-                            <TableHead>Grade</TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort('averagePercentage')}
+                              data-testid="sort-average"
+                            >
+                              <div className="flex items-center">
+                                Average
+                                {getSortIcon('averagePercentage')}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort('overallGrade')}
+                              data-testid="sort-grade"
+                            >
+                              <div className="flex items-center">
+                                Grade
+                                {getSortIcon('overallGrade')}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort('status')}
+                              data-testid="sort-status"
+                            >
+                              <div className="flex items-center">
+                                Status
+                                {getSortIcon('status')}
+                              </div>
+                            </TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -785,10 +967,27 @@ export default function TeacherReportCards() {
                               <TableCell className="font-medium">
                                 {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
                               </TableCell>
-                              <TableCell className="font-medium">{rc.studentName}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    {rc.studentPhoto ? (
+                                      <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
+                                    ) : null}
+                                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                      {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-4 h-4" />}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium">{rc.studentName}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-muted-foreground font-mono">
+                                  {rc.studentUsername || '-'}
+                                </span>
+                              </TableCell>
                               <TableCell>{rc.admissionNumber || '-'}</TableCell>
                               <TableCell>
-                                <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}>
+                                <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
                                   {rc.averagePercentage || 0}%
                                 </span>
                               </TableCell>
@@ -839,16 +1038,23 @@ export default function TeacherReportCards() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredReportCards.map((rc: any) => (
-                        <Card key={rc.id} className="hover-elevate cursor-pointer" onClick={() => handleViewReportCard(rc)}>
+                        <Card key={rc.id} className="hover-elevate cursor-pointer" onClick={() => handleViewReportCard(rc)} data-testid={`card-student-${rc.id}`}>
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
-                                  {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                </div>
+                                <Avatar className="h-10 w-10">
+                                  {rc.studentPhoto ? (
+                                    <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
+                                  ) : null}
+                                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                                    {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
                                 <div>
                                   <h4 className="font-medium">{rc.studentName}</h4>
-                                  <p className="text-sm text-muted-foreground">{rc.admissionNumber}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    {rc.studentUsername || rc.admissionNumber || '-'}
+                                  </p>
                                 </div>
                               </div>
                               <Badge className={getGradeColor(rc.overallGrade)}>
@@ -856,8 +1062,10 @@ export default function TeacherReportCards() {
                               </Badge>
                             </div>
                             <div className="flex justify-between items-center text-sm mt-3">
-                              <span className="text-muted-foreground">Position: {rc.position || '-'}/{rc.totalStudentsInClass || reportCards.length}</span>
-                              <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                              <span className="text-muted-foreground">
+                                {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
+                              </span>
+                              <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
                                 {rc.averagePercentage || 0}%
                               </span>
                             </div>
