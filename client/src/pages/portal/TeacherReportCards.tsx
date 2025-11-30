@@ -53,6 +53,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
+import { STANDARD_GRADING_SCALE, GRADING_SCALES, formatPosition } from '@shared/grading-utils';
 
 interface ReportCardItem {
   id: number;
@@ -115,6 +116,18 @@ export default function TeacherReportCards() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
+
+  const { data: gradingConfig } = useQuery({
+    queryKey: ['/api/grading-config', selectedGradingScale],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/grading-config?scale=${selectedGradingScale}`);
+      if (!response.ok) return null;
+      return await response.json();
+    },
+  });
+
+  const testWeight = gradingConfig?.dbSettings?.testWeight ?? STANDARD_GRADING_SCALE.testWeight;
+  const examWeight = gradingConfig?.dbSettings?.examWeight ?? STANDARD_GRADING_SCALE.examWeight;
 
   // Real-time subscription for report card updates - scoped to class
   // The hook automatically invalidates the queryKey when events are received
@@ -544,6 +557,10 @@ export default function TeacherReportCards() {
                     <SelectItem value="percentage">Percentage</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <BarChart3 className="w-3 h-3" />
+                  <span>Test: {testWeight}% | Exam: {examWeight}%</span>
+                </div>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -766,7 +783,7 @@ export default function TeacherReportCards() {
                           {filteredReportCards.map((rc: any) => (
                             <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
                               <TableCell className="font-medium">
-                                {rc.position || '-'}/{rc.totalStudentsInClass || reportCards.length}
+                                {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
                               </TableCell>
                               <TableCell className="font-medium">{rc.studentName}</TableCell>
                               <TableCell>{rc.admissionNumber || '-'}</TableCell>
@@ -963,7 +980,7 @@ export default function TeacherReportCards() {
                   </div>
                   <div className="bg-muted p-2 sm:p-3 rounded-md">
                     <p className="text-xs sm:text-sm text-muted-foreground">Position</p>
-                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.position || '-'}/{fullReportCard.totalStudentsInClass || '-'}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.position ? formatPosition(fullReportCard.position) : '-'} <span className="text-sm font-normal text-muted-foreground">of {fullReportCard.totalStudentsInClass || '-'}</span></p>
                   </div>
                   <div className="bg-muted p-2 sm:p-3 rounded-md">
                     <p className="text-xs sm:text-sm text-muted-foreground">Status</p>
@@ -1111,8 +1128,8 @@ export default function TeacherReportCards() {
                         <TableHeader>
                           <TableRow>
                             <TableHead className="text-xs sm:text-sm">Subject</TableHead>
-                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Test<br className="sm:hidden"/><span className="hidden sm:inline"> </span>(40%)</TableHead>
-                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Exam<br className="sm:hidden"/><span className="hidden sm:inline"> </span>(60%)</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Test<br className="sm:hidden"/><span className="hidden sm:inline"> </span>({testWeight}%)</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Exam<br className="sm:hidden"/><span className="hidden sm:inline"> </span>({examWeight}%)</TableHead>
                             <TableHead className="text-center text-xs sm:text-sm">Total</TableHead>
                             <TableHead className="text-xs sm:text-sm">Grade</TableHead>
                             <TableHead className="text-xs sm:text-sm">Edit</TableHead>

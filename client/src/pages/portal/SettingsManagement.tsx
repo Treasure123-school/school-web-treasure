@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,8 +23,19 @@ import {
   Save,
   RefreshCw,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  GraduationCap,
+  Scale,
+  Info,
+  Loader2
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger 
+} from '@/components/ui/tooltip';
 
 const schoolSettingsSchema = z.object({
   schoolName: z.string().min(1, 'School name is required'),
@@ -51,9 +62,35 @@ const notificationSettingsSchema = z.object({
   announcementNotifications: z.boolean(),
 });
 
+const gradingSettingsSchema = z.object({
+  testWeight: z.number().min(0).max(100),
+  examWeight: z.number().min(0).max(100),
+  defaultGradingScale: z.string().min(1, 'Grading scale is required'),
+}).refine(data => data.testWeight + data.examWeight === 100, {
+  message: 'Test and exam weights must add up to 100%',
+  path: ['testWeight'],
+});
+
 type SchoolSettings = z.infer<typeof schoolSettingsSchema>;
 type SecuritySettings = z.infer<typeof securitySettingsSchema>;
 type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+type GradingSettings = z.infer<typeof gradingSettingsSchema>;
+
+interface GradingConfigResponse {
+  testWeight: number;
+  examWeight: number;
+  defaultGradingScale: string;
+  gradingScales: Record<string, {
+    name: string;
+    ranges: Array<{
+      grade: string;
+      minScore: number;
+      maxScore: number;
+      gpa: number;
+      remark: string;
+    }>;
+  }>;
+}
 
 export default function SettingsManagement() {
   const { toast } = useToast();
@@ -92,6 +129,31 @@ export default function SettingsManagement() {
       announcementNotifications: true,
     },
   });
+
+  // State for grading weight slider
+  const [testWeight, setTestWeight] = useState(40);
+  const [selectedScale, setSelectedScale] = useState('standard');
+
+  // Fetch grading config from API
+  const { data: gradingConfig, isLoading: isLoadingGrading } = useQuery<GradingConfigResponse>({
+    queryKey: ['/api/grading-config'],
+  });
+
+  // Update local state when config is fetched
+  useState(() => {
+    if (gradingConfig) {
+      setTestWeight(gradingConfig.testWeight);
+      setSelectedScale(gradingConfig.defaultGradingScale);
+    }
+  });
+
+  // Effect to update state when grading config loads
+  if (gradingConfig && testWeight === 40 && selectedScale === 'standard') {
+    if (gradingConfig.testWeight !== 40 || gradingConfig.defaultGradingScale !== 'standard') {
+      setTestWeight(gradingConfig.testWeight);
+      setSelectedScale(gradingConfig.defaultGradingScale);
+    }
+  }
 
   // Mock settings state (in real app, this would come from API)
   const [systemStatus] = useState({

@@ -7396,18 +7396,86 @@ Treasure-Home School Administration
 
     // ==================== REPORT CARD ROUTES ====================
 
-    // Get grading configuration
+    // Get grading configuration (includes database-configured weights)
     app.get('/api/grading-config', authenticateUser, async (req: Request, res: Response) => {
       try {
         const { getGradingConfig, GRADING_SCALES } = await import('./grading-config');
         const scaleName = req.query.scale as string || 'standard';
         const config = getGradingConfig(scaleName);
+        
+        const systemSettings = await storage.getSystemSettings();
+        const dbTestWeight = systemSettings?.testWeight ?? 40;
+        const dbExamWeight = systemSettings?.examWeight ?? 60;
+        const dbGradingScale = systemSettings?.defaultGradingScale ?? 'standard';
+        
         res.json({
-          currentConfig: config,
-          availableScales: Object.keys(GRADING_SCALES)
+          currentConfig: {
+            ...config,
+            testWeight: dbTestWeight,
+            examWeight: dbExamWeight,
+          },
+          availableScales: Object.keys(GRADING_SCALES),
+          dbSettings: {
+            testWeight: dbTestWeight,
+            examWeight: dbExamWeight,
+            defaultGradingScale: dbGradingScale
+          }
         });
       } catch (error) {
         res.status(500).json({ message: 'Failed to get grading configuration' });
+      }
+    });
+
+    // Update grading settings (Admin only)
+    app.put('/api/grading-settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { testWeight, examWeight, defaultGradingScale } = req.body;
+        
+        if (testWeight !== undefined && examWeight !== undefined) {
+          if (testWeight + examWeight !== 100) {
+            return res.status(400).json({ 
+              message: 'Test weight and exam weight must sum to 100%' 
+            });
+          }
+          if (testWeight < 0 || testWeight > 100 || examWeight < 0 || examWeight > 100) {
+            return res.status(400).json({ 
+              message: 'Weights must be between 0 and 100' 
+            });
+          }
+        }
+        
+        const updateData: any = { updatedBy: req.user!.id };
+        if (testWeight !== undefined) updateData.testWeight = testWeight;
+        if (examWeight !== undefined) updateData.examWeight = examWeight;
+        if (defaultGradingScale !== undefined) updateData.defaultGradingScale = defaultGradingScale;
+        
+        const settings = await storage.updateSystemSettings(updateData);
+        
+        await storage.createAuditLog({
+          userId: req.user!.id,
+          action: 'grading_settings_updated',
+          entityType: 'system_settings',
+          entityId: String(settings.id),
+          reason: `Grading settings updated: Test ${settings.testWeight}%, Exam ${settings.examWeight}%`,
+        });
+        
+        const { realtimeService } = await import('./realtime-service');
+        realtimeService.emitGradingSettingsEvent('updated', {
+          testWeight: settings.testWeight,
+          examWeight: settings.examWeight,
+          gradingScale: settings.defaultGradingScale,
+        }, req.user!.id);
+        
+        res.json({ 
+          message: 'Grading settings updated successfully',
+          settings: {
+            testWeight: settings.testWeight,
+            examWeight: settings.examWeight,
+            defaultGradingScale: settings.defaultGradingScale
+          }
+        });
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to update grading settings' });
       }
     });
 

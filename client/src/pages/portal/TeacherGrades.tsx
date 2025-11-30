@@ -19,6 +19,13 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { 
+  calculateWeightedScore, 
+  calculateGradeFromPercentage, 
+  STANDARD_GRADING_SCALE,
+  getGradeColor,
+  getGradeBgColor
+} from '@shared/grading-utils';
 import { Plus, Search, BookOpen, Users, TrendingUp, Clock, GraduationCap, Edit, Eye, Filter, Download, Upload, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Star, RefreshCw, BarChart3, ClipboardCheck, Trophy, Signature } from 'lucide-react';
 
 const examSchema = z.object({
@@ -1492,19 +1499,16 @@ function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
   const [teacherRemarks, setTeacherRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const calculateWeightedTotal = () => {
-    const testWeighted = (testScore / 40) * 40; // Test out of 40
-    const examWeighted = (examScore / 60) * 60; // Exam out of 60
-    return Math.round(testWeighted + examWeighted);
+  const getWeightedResult = () => {
+    return calculateWeightedScore(testScore, 40, examScore, 60, STANDARD_GRADING_SCALE);
   };
 
-  const calculateGrade = (total: number) => {
-    if (total >= 90) return 'A+';
-    if (total >= 80) return 'A';
-    if (total >= 70) return 'B+';
-    if (total >= 60) return 'B';
-    if (total >= 50) return 'C';
-    return 'F';
+  const calculateWeightedTotal = () => {
+    return Math.round(getWeightedResult().percentage);
+  };
+
+  const getCalculatedGrade = (total: number) => {
+    return calculateGradeFromPercentage(total, 'standard').grade;
   };
 
   const submitGrade = async () => {
@@ -1527,7 +1531,7 @@ function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
     setIsSubmitting(true);
     try {
       const totalScore = calculateWeightedTotal();
-      const grade = calculateGrade(totalScore);
+      const grade = getCalculatedGrade(totalScore);
 
       const response = await apiRequest('POST', '/api/comprehensive-grades', {
         studentId: student.id,
@@ -1566,7 +1570,7 @@ function TestExamGradeEntry({ student, subjects, term, onGradeSubmitted }: {
   };
 
   const weightedTotal = calculateWeightedTotal();
-  const finalGrade = calculateGrade(weightedTotal);
+  const finalGrade = getCalculatedGrade(weightedTotal);
 
   return (
     <Card>
@@ -1780,31 +1784,21 @@ function StudentReportFinalization({ exam, students, onReportFinalized }: {
     const result = allExamResults.find((r: any) => r.studentId === student.id);
     if (!result) return { testScore: 0, examScore: 0, total: 0, grade: 'F' };
 
-    // For the comprehensive report, we need to calculate Test (40%) + Exam (60%)
-    // This is a simplified version - in reality, you'd fetch all test and exam results for the term
     const rawScore = result.score || result.marksObtained || 0;
     const maxScore = result.maxScore || exam.totalMarks || 100;
     const percentage = Math.round((rawScore / maxScore) * 100);
 
-    // Simulate test and exam breakdown (you would fetch this from actual test/exam results)
-    const testScore = exam.examType === 'test' ? percentage : Math.round(percentage * 0.7); // Simulate test score
-    const examScore = exam.examType === 'exam' ? percentage : Math.round(percentage * 1.2); // Simulate exam score
+    const testScore = exam.examType === 'test' ? percentage : Math.round(percentage * 0.7);
+    const examScore = exam.examType === 'exam' ? percentage : Math.round(percentage * 1.2);
 
-    // Calculate weighted total: Test (40%) + Exam (60%)
-    const weightedTotal = Math.round((testScore * 0.4) + (examScore * 0.6));
-
-    let grade = 'F';
-    if (weightedTotal >= 90) grade = 'A+';
-    else if (weightedTotal >= 80) grade = 'A';
-    else if (weightedTotal >= 70) grade = 'B+';
-    else if (weightedTotal >= 60) grade = 'B';
-    else if (weightedTotal >= 50) grade = 'C';
+    const weightedResult = calculateWeightedScore(testScore, 100, examScore, 100, STANDARD_GRADING_SCALE);
+    const gradeInfo = calculateGradeFromPercentage(weightedResult.percentage, 'standard');
 
     return {
       testScore: testScore,
       examScore: examScore, 
-      total: weightedTotal,
-      grade: grade,
+      total: Math.round(weightedResult.percentage),
+      grade: gradeInfo.grade,
       rawScore: rawScore,
       maxScore: maxScore
     };

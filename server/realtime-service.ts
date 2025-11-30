@@ -934,6 +934,38 @@ class RealtimeService {
     this.emitToRole(role, 'dashboard.stats_updated', stats);
   }
 
+  // Grading settings event for real-time config updates
+  emitGradingSettingsEvent(eventType: 'updated', data: any, userId?: string) {
+    const fullEventType = `grading_settings.${eventType}`;
+    
+    this.emitToRole('admin', fullEventType, data);
+    this.emitToRole('super_admin', fullEventType, data);
+    this.emitToRole('teacher', fullEventType, data);
+    
+    this.emitEvent('grading_settings.changed', {
+      testWeight: data.testWeight,
+      examWeight: data.examWeight,
+      gradingScale: data.gradingScale,
+      timestamp: Date.now()
+    });
+    
+    console.log(`📤 Emitted ${fullEventType} - Test: ${data.testWeight}%, Exam: ${data.examWeight}%`);
+  }
+
+  // Enhanced student-specific report card subscription
+  emitStudentReportCardUpdate(studentId: string, reportCardId: number | string, eventType: string, data: any) {
+    const fullEventType = `reportcard.${eventType}`;
+    
+    this.emitToUser(studentId, fullEventType, data);
+    this.emitToReportCard(reportCardId, fullEventType, data);
+    
+    if (data.parentId) {
+      this.emitToUser(data.parentId, fullEventType, data);
+    }
+    
+    console.log(`📤 Emitted student report card update for student ${studentId}`);
+  }
+
   getIO(): SocketIOServer | null {
     return this.io;
   }

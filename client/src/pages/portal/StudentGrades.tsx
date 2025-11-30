@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Download, Filter, TrendingUp } from 'lucide-react';
 import { Link } from 'wouter';
+import { calculateGradeFromPercentage, getGradeColor as getGradeColorUtil, getGradeBgColor } from '@shared/grading-utils';
 export default function StudentGrades() {
   const { user } = useAuth();
 
@@ -48,30 +49,12 @@ function StudentGradesContent({ user }: { user: any }) {
     }
   });
 
-  // Calculate grade based on score
   const calculateGrade = (score: number) => {
-    if (score >= 90) return 'A+';
-    if (score >= 80) return 'A';
-    if (score >= 70) return 'B+';
-    if (score >= 60) return 'B';
-    if (score >= 50) return 'C';
-    return 'F';
+    return calculateGradeFromPercentage(score, 'standard').grade;
   };
 
-  // Get grade color
   const getGradeColor = (grade: string) => {
-    switch (grade) {
-      case 'A+':
-      case 'A':
-        return 'text-green-600 bg-green-50';
-      case 'B+':
-      case 'B':
-        return 'text-blue-600 bg-blue-50';
-      case 'C':
-        return 'text-yellow-600 bg-yellow-50';
-      default:
-        return 'text-red-600 bg-red-50';
-    }
+    return `${getGradeColorUtil(grade)} ${getGradeBgColor(grade)}`;
   };
 
   // Format exam results for display
