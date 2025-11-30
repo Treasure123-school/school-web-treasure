@@ -32,7 +32,6 @@ import {
   Save,
   Send,
   Clock,
-  Calculator,
   PenTool,
   Loader2,
   Undo2,
@@ -41,7 +40,9 @@ import {
   MoreVertical,
   FileCheck,
   FileClock,
-  FilePen
+  FilePen,
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -159,29 +160,34 @@ export default function TeacherReportCards() {
     enabled: !!selectedReportCard?.id && isViewDialogOpen,
   });
 
-  const generateReportCardsMutation = useMutation({
-    mutationFn: async (data: { classId: string; termId: number; gradingScale: string }) => {
-      const response = await apiRequest('POST', `/api/reports/generate-enhanced/${data.classId}`, {
-        termId: data.termId,
-        gradingScale: data.gradingScale
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate report cards');
-      }
-      return response.json();
+  // Bulk status update mutation for finalizing/publishing multiple report cards
+  const bulkStatusMutation = useMutation({
+    mutationFn: async (data: { reportCardIds: number[]; status: string }) => {
+      const results = await Promise.all(
+        data.reportCardIds.map(async (reportCardId) => {
+          const response = await apiRequest('PATCH', `/api/reports/${reportCardId}/status`, { status: data.status });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Failed to update report card ${reportCardId}`);
+          }
+          return response.json();
+        })
+      );
+      return results;
     },
-    onSuccess: (data) => {
+    onSuccess: (_, { status }) => {
+      const statusLabel = status === 'published' ? 'published' : 
+                         status === 'finalized' ? 'finalized' : 'reverted to draft';
       toast({
         title: "Success",
-        description: data.message || "Report cards generated successfully",
+        description: `Report cards ${statusLabel} successfully`,
       });
       refetchReportCards();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to generate report cards",
+        description: error.message || "Failed to update report cards",
         variant: "destructive",
       });
     },
@@ -387,13 +393,30 @@ export default function TeacherReportCards() {
     });
   };
 
-  const handleGenerateReportCards = () => {
-    if (!selectedClass || !selectedTerm) return;
-    generateReportCardsMutation.mutate({
-      classId: selectedClass,
-      termId: Number(selectedTerm),
-      gradingScale: selectedGradingScale
-    });
+  // Handle bulk status updates
+  const handleBulkStatusUpdate = (status: string) => {
+    let targetIds: number[] = [];
+    
+    if (status === 'finalized') {
+      // Finalize all draft report cards
+      targetIds = reportCards.filter((rc: any) => rc.status === 'draft').map((rc: any) => rc.id);
+    } else if (status === 'published') {
+      // Publish all finalized report cards
+      targetIds = reportCards.filter((rc: any) => rc.status === 'finalized').map((rc: any) => rc.id);
+    }
+    
+    if (targetIds.length === 0) {
+      toast({
+        title: "No Report Cards to Update",
+        description: status === 'finalized' 
+          ? "No draft report cards found to finalize." 
+          : "No finalized report cards found to publish.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    bulkStatusMutation.mutate({ reportCardIds: targetIds, status });
   };
 
   const getGradeColor = (grade: string) => {
@@ -444,14 +467,23 @@ export default function TeacherReportCards() {
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Report Cards</h1>
-            <p className="text-muted-foreground">Generate, view and manage student report cards with auto-population</p>
+            <p className="text-muted-foreground">View and manage auto-generated student report cards</p>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Generate Report Cards</CardTitle>
-            <CardDescription>Select class, term, and grading scale to generate report cards with auto-populated exam scores</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Auto-Generated Report Cards
+                </CardTitle>
+                <CardDescription>
+                  Report cards are automatically created when students complete exams. Select a class and term to view and manage them.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4 items-end">
@@ -500,19 +532,56 @@ export default function TeacherReportCards() {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <Button 
-                onClick={handleGenerateReportCards}
-                disabled={!selectedClass || !selectedTerm || generateReportCardsMutation.isPending}
-                data-testid="button-generate-all"
-              >
-                {generateReportCardsMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Calculator className="w-4 h-4 mr-2" />
-                )}
-                Generate Report Cards
-              </Button>
+
+              {/* Bulk Actions Dropdown */}
+              {reportCards.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      disabled={bulkStatusMutation.isPending}
+                      data-testid="button-bulk-actions"
+                    >
+                      {bulkStatusMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <MoreVertical className="w-4 h-4 mr-2" />
+                      )}
+                      Bulk Actions
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem 
+                      onClick={() => handleBulkStatusUpdate('finalized')}
+                      disabled={statistics?.draftCount === 0}
+                      className="cursor-pointer"
+                      data-testid="bulk-finalize-all"
+                    >
+                      <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
+                      <span>Finalize All Drafts ({statistics?.draftCount || 0})</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleBulkStatusUpdate('published')}
+                      disabled={statistics?.finalizedCount === 0}
+                      className="cursor-pointer"
+                      data-testid="bulk-publish-all"
+                    >
+                      <Send className="w-4 h-4 mr-2 text-green-500" />
+                      <span>Publish All Finalized ({statistics?.finalizedCount || 0})</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => refetchReportCards()}
+                      className="cursor-pointer"
+                      data-testid="bulk-refresh"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      <span>Refresh Report Cards</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -621,12 +690,12 @@ export default function TeacherReportCards() {
                 <CardContent>
                   {reportCards.length === 0 ? (
                     <div className="text-center py-8">
-                      <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground mb-4">No report cards found for this class and term.</p>
-                      <Button onClick={handleGenerateReportCards} disabled={generateReportCardsMutation.isPending}>
-                        <Calculator className="w-4 h-4 mr-2" />
-                        Generate Report Cards
-                      </Button>
+                      <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No Report Cards Yet</h3>
+                      <p className="text-muted-foreground mb-2">Report cards will appear here automatically as students complete their exams.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Once a student submits their first exam for this term, their report card will be created and updated with each subsequent exam.
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
