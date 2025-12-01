@@ -900,6 +900,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== TEACHER ASSIGNMENT ROUTES ====================
   // Register teacher class/subject assignment management routes
+  // Note: Authentication is handled within the router via requireAuth/requireAdmin
+  // which use the same JWT verification logic
   app.use(teacherAssignmentRoutes);
 
   // ==================== REALTIME SYNC ENDPOINT ====================

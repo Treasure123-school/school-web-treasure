@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
+import { storage } from './storage';
+import jwt from 'jsonwebtoken';
 import { 
   teacherClassAssignments, 
   teacherAssignmentHistory, 
@@ -19,6 +21,34 @@ import {
   getTeacherAssignments, 
   logUnauthorizedAccess 
 } from './teacher-auth-middleware';
+
+// JWT secret - must match the one in routes.ts
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-secret-key-change-in-production' : undefined);
+
+// Helper to normalize UUIDs from various formats
+function normalizeUuid(raw: any): string | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
+    return raw;
+  }
+  let bytes: number[] | undefined;
+  if (typeof raw === 'string' && raw.includes(',')) {
+    const parts = raw.split(',').map(s => parseInt(s.trim()));
+    if (parts.length === 16 && parts.every(n => n >= 0 && n <= 255)) {
+      bytes = parts;
+    }
+  }
+  if (Array.isArray(raw) && raw.length === 16) {
+    bytes = raw;
+  } else if (raw instanceof Uint8Array && raw.length === 16) {
+    bytes = Array.from(raw);
+  }
+  if (bytes) {
+    const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
+  }
+  return undefined;
+}
 
 const router = Router();
 
@@ -62,22 +92,72 @@ const continuousAssessmentSchema = z.object({
   examScore: z.number().int().min(0).max(60).optional(),
 });
 
-const requireAuth = (req: Request, res: Response, next: any) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
+// Secure JWT authentication middleware for this router
+const requireAuth = async (req: Request, res: Response, next: any) => {
+  try {
+    // If req.user is already set by parent middleware, use it
+    if (req.user) {
+      return next();
+    }
+
+    // Otherwise, verify JWT token ourselves
+    const authHeader = (req.headers.authorization || '').trim();
+    const [scheme, token] = authHeader.split(/\s+/);
+
+    if (!/^bearer$/i.test(scheme) || !token) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Verify JWT token
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET as string);
+    } catch (jwtError) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    // Normalize decoded userId before database lookup
+    const normalizedUserId = normalizeUuid(decoded.userId);
+    if (!normalizedUserId) {
+      return res.status(401).json({ message: 'Invalid token format' });
+    }
+
+    // Validate user still exists in database
+    const user = await storage.getUser(normalizedUserId);
+    if (!user) {
+      return res.status(401).json({ message: 'User no longer exists' });
+    }
+
+    // Block inactive users
+    if (user.isActive === false) {
+      return res.status(401).json({ message: 'Account has been deactivated' });
+    }
+
+    // Ensure role hasn't changed since token was issued
+    if (user.roleId !== decoded.roleId) {
+      return res.status(401).json({ message: 'User role has changed, please log in again' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    res.status(401).json({ message: 'Authentication failed' });
   }
-  next();
 };
 
-const requireAdmin = (req: Request, res: Response, next: any) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-  const user = req.user as { roleId: number };
-  if (user.roleId !== ROLE_IDS.SUPER_ADMIN && user.roleId !== ROLE_IDS.ADMIN) {
-    return res.status(403).json({ message: 'Admin access required' });
-  }
-  next();
+const requireAdmin = async (req: Request, res: Response, next: any) => {
+  // First authenticate the user
+  await requireAuth(req, res, () => {
+    if (!req.user) {
+      return; // requireAuth already sent response
+    }
+    const user = req.user as { roleId: number };
+    if (user.roleId !== ROLE_IDS.SUPER_ADMIN && user.roleId !== ROLE_IDS.ADMIN) {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    next();
+  });
 };
 
 function sanitizeIp(ip: string | undefined): string | null {
