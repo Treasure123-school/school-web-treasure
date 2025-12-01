@@ -74,9 +74,8 @@ export default function TeachersManagement() {
   const [selectedDepartmentForAssignment, setSelectedDepartmentForAssignment] = useState<string>('');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>([]);
   
-  // NEW: Create modal assignment state (for creating new teachers with assignments)
+  // Create modal assignment state (for creating new teachers with assignments)
   const [createSelectedClassIds, setCreateSelectedClassIds] = useState<number[]>([]);
-  const [createSelectedDepartment, setCreateSelectedDepartment] = useState<string>('');
   const [createSelectedSubjectIds, setCreateSelectedSubjectIds] = useState<number[]>([]);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset, control } = useForm<TeacherForm>({
@@ -143,14 +142,6 @@ export default function TeachersManagement() {
       });
   }, [subjects]);
   
-  // NEW: Check if any selected class in create modal is a senior class
-  const createHasSeniorClass = useMemo(() => {
-    return createSelectedClassIds.some(classId => {
-      const classObj = classes.find((c: any) => c.id === classId);
-      return classObj && isSeniorClass(classObj.name || '');
-    });
-  }, [createSelectedClassIds, classes]);
-  
   // Show ALL subjects for create modal - admin can assign any subject to teacher
   // No class selection requirement - always show all 17 subjects for visibility
   const createFilteredSubjects = useMemo(() => {
@@ -201,7 +192,6 @@ export default function TeachersManagement() {
     mutationFn: async (teacherData: TeacherForm & { 
       classIds?: number[]; 
       subjectIds?: number[]; 
-      teacherDepartment?: string; 
     }) => {
       // Generate a temporary password for the teacher
       const currentYear = new Date().getFullYear();
@@ -209,7 +199,7 @@ export default function TeachersManagement() {
       const tempPassword = `THS@${currentYear}#${randomString}`;
       
       // Extract assignment data (these are not part of the user API)
-      const { classIds, subjectIds, teacherDepartment, ...userData } = teacherData;
+      const { classIds, subjectIds, ...userData } = teacherData;
       
       const response = await apiRequest('POST', '/api/users', {
         ...userData,
@@ -233,7 +223,6 @@ export default function TeachersManagement() {
                 teacherId: createdTeacher.id,
                 classId,
                 subjectId,
-                department: teacherDepartment || undefined,
               });
               if (assignResponse.ok) {
                 assignmentResults.success++;
@@ -279,36 +268,11 @@ export default function TeachersManagement() {
     onSuccess: (data) => {
       const { assignmentResults, ...teacherData } = data;
       
-      // Show success message with assignment info if applicable
-      if (assignmentResults && (assignmentResults.success > 0 || assignmentResults.skipped > 0 || assignmentResults.failed > 0)) {
-        if (assignmentResults.failed > 0) {
-          toast({
-            title: "Teacher Created",
-            description: `Teacher created successfully. ${assignmentResults.success} assignment(s) created${assignmentResults.skipped > 0 ? `, ${assignmentResults.skipped} already existed` : ''}, ${assignmentResults.failed} failed.`,
-            variant: "default",
-          });
-        } else if (assignmentResults.skipped > 0 && assignmentResults.success === 0) {
-          toast({
-            title: "Teacher Created",
-            description: `Teacher created successfully. All ${assignmentResults.skipped} assignment(s) already existed.`,
-          });
-        } else if (assignmentResults.skipped > 0) {
-          toast({
-            title: "Success",
-            description: `Teacher created with ${assignmentResults.success} new assignment(s). ${assignmentResults.skipped} already existed.`,
-          });
-        } else {
-          toast({
-            title: "Success",
-            description: `Teacher created with ${assignmentResults.success} assignment(s).`,
-          });
-        }
-      } else {
-        toast({
-          title: "Success",
-          description: "Teacher created successfully. Login credentials are displayed below.",
-        });
-      }
+      // Show simple success message
+      toast({
+        title: "Success",
+        description: "Teacher created successfully.",
+      });
       
       queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setIsDialogOpen(false);
@@ -316,7 +280,6 @@ export default function TeachersManagement() {
       
       // Reset create modal assignment state
       setCreateSelectedClassIds([]);
-      setCreateSelectedDepartment('');
       setCreateSelectedSubjectIds([]);
       
       // Show credentials dialog
@@ -532,7 +495,6 @@ export default function TeachersManagement() {
         ...data,
         classIds: createSelectedClassIds,
         subjectIds: createSelectedSubjectIds,
-        teacherDepartment: createHasSeniorClass ? createSelectedDepartment : undefined,
       });
     }
   };
@@ -563,7 +525,6 @@ export default function TeachersManagement() {
     reset();
     // Reset create modal assignment state
     setCreateSelectedClassIds([]);
-    setCreateSelectedDepartment('');
     setCreateSelectedSubjectIds([]);
   };
   
@@ -573,16 +534,6 @@ export default function TeachersManagement() {
       const newSelection = prev.includes(classId) 
         ? prev.filter(id => id !== classId)
         : [...prev, classId];
-      
-      // Reset department and subjects when classes change
-      const hasSenior = newSelection.some(id => {
-        const classObj = classes.find((c: any) => c.id === id);
-        return classObj && isSeniorClass(classObj.name || '');
-      });
-      
-      if (!hasSenior) {
-        setCreateSelectedDepartment('');
-      }
       
       // Clear subject selection when classes change
       setCreateSelectedSubjectIds([]);
@@ -753,34 +704,6 @@ export default function TeachersManagement() {
                       </p>
                     )}
                   </div>
-                  
-                  {/* Assign Department - Only if SS1-SS3 is selected */}
-                  {createHasSeniorClass && (
-                    <div>
-                      <Label>Assign Department (Required for SS1-SS3)</Label>
-                      <Select 
-                        value={createSelectedDepartment} 
-                        onValueChange={(value) => {
-                          setCreateSelectedDepartment(value);
-                          setCreateSelectedSubjectIds([]); // Reset subjects when department changes
-                        }}
-                      >
-                        <SelectTrigger data-testid="select-create-department" className="mt-2">
-                          <SelectValue placeholder="Choose a department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DEPARTMENTS.map((dept) => (
-                            <SelectItem key={dept.value} value={dept.value}>
-                              <div className="flex items-center gap-2">
-                                <dept.icon className="w-4 h-4" />
-                                {dept.label}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   
                   {/* Assign Subjects - Always show ALL subjects for visibility */}
                   <div>
