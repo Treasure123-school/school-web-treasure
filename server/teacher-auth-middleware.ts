@@ -132,7 +132,14 @@ export const authorizeTeacherForClassSubject = (action: string) => {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      const { roleId, userId } = req.user;
+      // Support both id and userId for compatibility
+      const roleId = req.user.roleId;
+      const userId = req.user.userId || req.user.id;
+      
+      // Guard: ensure userId is defined
+      if (!userId) {
+        return res.status(401).json({ message: "User identification not found" });
+      }
 
       if (roleId === ROLE_IDS.SUPER_ADMIN || roleId === ROLE_IDS.ADMIN) {
         return next();
@@ -195,7 +202,14 @@ export const validateTeacherCanCreateExam = async (req: any, res: any, next: any
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const { roleId, userId } = req.user;
+    // Support both id and userId for compatibility
+    const roleId = req.user.roleId;
+    const userId = req.user.userId || req.user.id;
+    
+    // Guard: ensure userId is defined
+    if (!userId) {
+      return res.status(401).json({ message: "User identification not found" });
+    }
 
     if (roleId === ROLE_IDS.SUPER_ADMIN || roleId === ROLE_IDS.ADMIN) {
       return next();
@@ -242,7 +256,14 @@ export const validateTeacherCanEnterScores = async (req: any, res: any, next: an
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const { roleId, userId } = req.user;
+    // Support both id and userId for compatibility
+    const roleId = req.user.roleId;
+    const userId = req.user.userId || req.user.id;
+    
+    // Guard: ensure userId is defined
+    if (!userId) {
+      return res.status(401).json({ message: "User identification not found" });
+    }
 
     if (roleId === ROLE_IDS.SUPER_ADMIN || roleId === ROLE_IDS.ADMIN) {
       return next();
@@ -290,7 +311,14 @@ export const validateTeacherCanViewResults = async (req: any, res: any, next: an
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const { roleId, userId } = req.user;
+    // Support both id and userId for compatibility
+    const roleId = req.user.roleId;
+    const userId = req.user.userId || req.user.id;
+    
+    // Guard: ensure userId is defined
+    if (!userId) {
+      return res.status(401).json({ message: "User identification not found" });
+    }
 
     if (roleId === ROLE_IDS.SUPER_ADMIN || roleId === ROLE_IDS.ADMIN) {
       return next();

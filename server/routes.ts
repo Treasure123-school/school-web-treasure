@@ -26,6 +26,7 @@ import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
+import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments } from "./teacher-auth-middleware";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -1235,8 +1236,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create exam - TEACHERS ONLY
-  app.post('/api/exams', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+  // Create exam - TEACHERS ONLY (with assignment validation)
+  app.post('/api/exams', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), validateTeacherCanCreateExam, async (req, res) => {
     try {
       const teacherId = req.user!.id;
       const assignedTeacherId = req.body.teacherInChargeId || teacherId;
@@ -1408,8 +1409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update exam - TEACHERS ONLY (creator or teacher in charge)
-  app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+  // Update exam - TEACHERS ONLY (creator or teacher in charge) with assignment validation
+  app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
       const teacherId = req.user!.id;
@@ -1418,9 +1419,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
+      
+      // Admins and Super Admins can edit any exam, teachers need to be creator or assigned
+      const isAdmin = req.user!.roleId === ROLES.ADMIN || req.user!.roleId === ROLES.SUPER_ADMIN;
       const isCreator = existingExam.createdBy === teacherId;
       const isTeacherInCharge = existingExam.teacherInChargeId === teacherId;
-      if (!isCreator && !isTeacherInCharge) {
+      if (!isAdmin && !isCreator && !isTeacherInCharge) {
         return res.status(403).json({ message: 'You can only edit exams you created or are assigned to' });
       }
 
@@ -1469,8 +1473,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete exam - TEACHERS ONLY (only creator can delete)
-  app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+  // Delete exam - TEACHERS ONLY (only creator can delete) or ADMIN/SUPER_ADMIN
+  app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
       
@@ -1478,7 +1482,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      if (existingExam.createdBy !== req.user!.id) {
+      
+      // Admins and Super Admins can delete any exam, teachers can only delete their own
+      const isAdmin = req.user!.roleId === ROLES.ADMIN || req.user!.roleId === ROLES.SUPER_ADMIN;
+      if (!isAdmin && existingExam.createdBy !== req.user!.id) {
         return res.status(403).json({ message: 'You can only delete exams you created' });
       }
       const success = await storage.deleteExam(examId);
@@ -1500,8 +1507,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Toggle exam publish status - TEACHERS ONLY (creator or teacher in charge)
-  app.patch('/api/exams/:id/publish', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req, res) => {
+  // Toggle exam publish status - TEACHERS ONLY (creator or teacher in charge) or ADMIN/SUPER_ADMIN
+  app.patch('/api/exams/:id/publish', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
       const teacherId = req.user!.id;
@@ -1511,9 +1518,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingExam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
+      
+      // Admins and Super Admins can publish any exam, teachers need to be creator or assigned
+      const isAdmin = req.user!.roleId === ROLES.ADMIN || req.user!.roleId === ROLES.SUPER_ADMIN;
       const isCreator = existingExam.createdBy === teacherId;
       const isTeacherInCharge = existingExam.teacherInChargeId === teacherId;
-      if (!isCreator && !isTeacherInCharge) {
+      if (!isAdmin && !isCreator && !isTeacherInCharge) {
         return res.status(403).json({ message: 'You can only publish/unpublish exams you created or are assigned to' });
       }
       const exam = await storage.updateExam(examId, { isPublished });
