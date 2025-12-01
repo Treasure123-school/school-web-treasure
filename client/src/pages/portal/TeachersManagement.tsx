@@ -68,12 +68,17 @@ export default function TeachersManagement() {
     email: string;
   }>({ open: false, username: '', password: '', email: '' });
   
-  // Assignment dialog state
+  // Assignment dialog state (for editing existing teachers)
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
   const [selectedTeacherForAssignment, setSelectedTeacherForAssignment] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedDepartmentForAssignment, setSelectedDepartmentForAssignment] = useState<string>('');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>([]);
+  
+  // NEW: Create modal assignment state (for creating new teachers with assignments)
+  const [createSelectedClassIds, setCreateSelectedClassIds] = useState<number[]>([]);
+  const [createSelectedDepartment, setCreateSelectedDepartment] = useState<string>('');
+  const [createSelectedSubjectIds, setCreateSelectedSubjectIds] = useState<number[]>([]);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset, control } = useForm<TeacherForm>({
     resolver: zodResolver(teacherFormSchema),
@@ -145,6 +150,36 @@ export default function TeachersManagement() {
       return false;
     });
   }, [subjects, selectedClass, selectedDepartmentForAssignment]);
+  
+  // NEW: Check if any selected class in create modal is a senior class
+  const createHasSeniorClass = useMemo(() => {
+    return createSelectedClassIds.some(classId => {
+      const classObj = classes.find((c: any) => c.id === classId);
+      return classObj && isSeniorClass(classObj.name || '');
+    });
+  }, [createSelectedClassIds, classes]);
+  
+  // NEW: Filter subjects for create modal based on selected classes and department
+  const createFilteredSubjects = useMemo(() => {
+    if (createSelectedClassIds.length === 0) return [];
+    
+    return subjects.filter((subject: any) => {
+      const category = (subject.category || 'general').toLowerCase();
+      
+      // General subjects are always available
+      if (category === 'general') return true;
+      
+      // If senior classes are selected and department is chosen
+      if (createHasSeniorClass && createSelectedDepartment) {
+        return category === createSelectedDepartment.toLowerCase();
+      }
+      
+      // If no senior classes, only show general subjects
+      if (!createHasSeniorClass) return category === 'general';
+      
+      return false;
+    });
+  }, [subjects, createSelectedClassIds, createHasSeniorClass, createSelectedDepartment]);
 
   // Fetch teachers
   const { data: teachers = [], isLoading: loadingTeachers } = useQuery({
@@ -173,30 +208,77 @@ export default function TeachersManagement() {
     },
   });
 
-  // Create teacher mutation
+  // Create teacher mutation with assignments
   const createTeacherMutation = useMutation({
-    mutationFn: async (teacherData: TeacherForm) => {
+    mutationFn: async (teacherData: TeacherForm & { 
+      classIds?: number[]; 
+      subjectIds?: number[]; 
+      teacherDepartment?: string; 
+    }) => {
       // Generate a temporary password for the teacher
       const currentYear = new Date().getFullYear();
       const randomString = Math.random().toString(36).substring(2, 10).toUpperCase();
       const tempPassword = `THS@${currentYear}#${randomString}`;
       
+      // Extract assignment data (these are not part of the user API)
+      const { classIds, subjectIds, teacherDepartment, ...userData } = teacherData;
+      
       const response = await apiRequest('POST', '/api/users', {
-        ...teacherData,
+        ...userData,
         password: tempPassword,
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to create teacher');
       }
-      return response.json();
+      const createdTeacher = await response.json();
+      
+      // Track assignment results
+      const assignmentResults = { success: 0, failed: 0 };
+      
+      // Create assignments if classes and subjects are selected
+      if (classIds && classIds.length > 0 && subjectIds && subjectIds.length > 0) {
+        for (const classId of classIds) {
+          for (const subjectId of subjectIds) {
+            try {
+              const assignResponse = await apiRequest('POST', '/api/teacher-assignments', {
+                teacherId: createdTeacher.id,
+                classId,
+                subjectId,
+                department: teacherDepartment || undefined,
+              });
+              if (assignResponse.ok) {
+                assignmentResults.success++;
+              } else {
+                assignmentResults.failed++;
+              }
+            } catch (err) {
+              console.error('Failed to create assignment:', err);
+              assignmentResults.failed++;
+            }
+          }
+        }
+      }
+      
+      return { ...createdTeacher, assignmentResults };
     },
     onMutate: async (newTeacher) => {
       await queryClient.cancelQueries({ queryKey: ['/api/users', 'Teacher'] });
       const previousData = queryClient.getQueryData(['/api/users', 'Teacher']);
       
+      // Only include user-related fields in the optimistic update (exclude assignment data)
       queryClient.setQueryData(['/api/users', 'Teacher'], (old: any) => {
-        const tempTeacher = { ...newTeacher, id: 'temp-' + Date.now(), createdAt: new Date(), role: { id: ROLE_IDS.TEACHER, name: 'Teacher' } };
+        const tempTeacher = { 
+          firstName: newTeacher.firstName,
+          lastName: newTeacher.lastName,
+          email: newTeacher.email,
+          phone: newTeacher.phone,
+          gender: newTeacher.gender,
+          id: 'temp-' + Date.now(), 
+          createdAt: new Date(), 
+          role: { id: ROLE_IDS.TEACHER, name: 'Teacher' },
+          isActive: true
+        };
         if (!old) return [tempTeacher];
         return [tempTeacher, ...old];
       });
@@ -204,20 +286,44 @@ export default function TeachersManagement() {
       return { previousData };
     },
     onSuccess: (data) => {
-      toast({
-        title: "Success",
-        description: "Teacher created successfully. Login credentials are displayed below.",
-      });
+      const { assignmentResults, ...teacherData } = data;
+      
+      // Show success message with assignment info if applicable
+      if (assignmentResults && (assignmentResults.success > 0 || assignmentResults.failed > 0)) {
+        if (assignmentResults.failed > 0) {
+          toast({
+            title: "Teacher Created",
+            description: `Teacher created successfully. ${assignmentResults.success} assignment(s) created, ${assignmentResults.failed} failed.`,
+            variant: assignmentResults.success > 0 ? "default" : "destructive",
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: `Teacher created with ${assignmentResults.success} assignment(s).`,
+          });
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: "Teacher created successfully. Login credentials are displayed below.",
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
       setIsDialogOpen(false);
       reset();
       
+      // Reset create modal assignment state
+      setCreateSelectedClassIds([]);
+      setCreateSelectedDepartment('');
+      setCreateSelectedSubjectIds([]);
+      
       // Show credentials dialog
       setCredentialsDialog({
         open: true,
-        username: data.username || '',
-        password: data.temporaryPassword || '',
-        email: data.email || ''
+        username: teacherData.username || '',
+        password: teacherData.temporaryPassword || '',
+        email: teacherData.email || ''
       });
     },
     onError: (error: any, newTeacher, context: any) => {
@@ -430,7 +536,13 @@ export default function TeachersManagement() {
     if (editingTeacher) {
       updateTeacherMutation.mutate({ id: editingTeacher.id, data });
     } else {
-      createTeacherMutation.mutate(data);
+      // Include assignment data for new teachers
+      createTeacherMutation.mutate({
+        ...data,
+        classIds: createSelectedClassIds,
+        subjectIds: createSelectedSubjectIds,
+        teacherDepartment: createHasSeniorClass ? createSelectedDepartment : undefined,
+      });
     }
   };
 
@@ -458,6 +570,43 @@ export default function TeachersManagement() {
     setIsDialogOpen(false);
     setEditingTeacher(null);
     reset();
+    // Reset create modal assignment state
+    setCreateSelectedClassIds([]);
+    setCreateSelectedDepartment('');
+    setCreateSelectedSubjectIds([]);
+  };
+  
+  // Toggle class selection for create modal
+  const toggleCreateClassSelection = (classId: number) => {
+    setCreateSelectedClassIds(prev => {
+      const newSelection = prev.includes(classId) 
+        ? prev.filter(id => id !== classId)
+        : [...prev, classId];
+      
+      // Reset department and subjects when classes change
+      const hasSenior = newSelection.some(id => {
+        const classObj = classes.find((c: any) => c.id === id);
+        return classObj && isSeniorClass(classObj.name || '');
+      });
+      
+      if (!hasSenior) {
+        setCreateSelectedDepartment('');
+      }
+      
+      // Clear subject selection when classes change
+      setCreateSelectedSubjectIds([]);
+      
+      return newSelection;
+    });
+  };
+  
+  // Toggle subject selection for create modal
+  const toggleCreateSubjectSelection = (subjectId: number) => {
+    setCreateSelectedSubjectIds(prev => 
+      prev.includes(subjectId) 
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    );
   };
 
   // Filter teachers based on search and department
@@ -494,66 +643,196 @@ export default function TeachersManagement() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Section 1: Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b pb-2">
+                  Basic Information
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input 
+                      id="firstName" 
+                      {...register('firstName')} 
+                      data-testid="input-first-name"
+                    />
+                    {errors.firstName && (
+                      <p className="text-sm text-red-500 mt-1">{errors.firstName.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input 
+                      id="lastName" 
+                      {...register('lastName')} 
+                      data-testid="input-last-name"
+                    />
+                    {errors.lastName && (
+                      <p className="text-sm text-red-500 mt-1">{errors.lastName.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="gender">Gender *</Label>
+                    <Controller
+                      name="gender"
+                      control={control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger data-testid="select-gender">
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.gender && (
+                      <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input 
+                      id="phone" 
+                      {...register('phone')} 
+                      placeholder="e.g., 08012345678"
+                      data-testid="input-phone"
+                    />
+                    {errors.phone && (
+                      <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    {...register('email')} 
+                    data-testid="input-email"
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 2: Teaching Assignment (only for new teachers) */}
               {!editingTeacher && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Quick Setup:</strong> Just enter the teacher's basic information. They can complete their profile when they log in.
-                  </p>
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b pb-2">
+                    Teaching Assignment
+                  </h3>
+                  
+                  {/* Assign Classes - Multi-select */}
+                  <div>
+                    <Label>Assign Classes</Label>
+                    <div className="border rounded-lg p-3 mt-2 max-h-40 overflow-y-auto">
+                      {classes.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {classes.map((classItem: any) => (
+                            <label 
+                              key={classItem.id} 
+                              className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={createSelectedClassIds.includes(classItem.id)}
+                                onCheckedChange={() => toggleCreateClassSelection(classItem.id)}
+                                data-testid={`checkbox-class-${classItem.id}`}
+                              />
+                              <span className="text-sm">{classItem.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">No classes available</p>
+                      )}
+                    </div>
+                    {createSelectedClassIds.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selected: {createSelectedClassIds.map(id => classes.find((c: any) => c.id === id)?.name).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Assign Department - Only if SS1-SS3 is selected */}
+                  {createHasSeniorClass && (
+                    <div>
+                      <Label>Assign Department (Required for SS1-SS3)</Label>
+                      <Select 
+                        value={createSelectedDepartment} 
+                        onValueChange={(value) => {
+                          setCreateSelectedDepartment(value);
+                          setCreateSelectedSubjectIds([]); // Reset subjects when department changes
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-create-department" className="mt-2">
+                          <SelectValue placeholder="Choose a department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEPARTMENTS.map((dept) => (
+                            <SelectItem key={dept.value} value={dept.value}>
+                              <div className="flex items-center gap-2">
+                                <dept.icon className="w-4 h-4" />
+                                {dept.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {/* Assign Subjects - Multi-select with filtering */}
+                  {createSelectedClassIds.length > 0 && (!createHasSeniorClass || createSelectedDepartment) && (
+                    <div>
+                      <Label>Assign Subjects</Label>
+                      <div className="border rounded-lg p-3 mt-2 max-h-48 overflow-y-auto">
+                        {createFilteredSubjects.length > 0 ? (
+                          <div className="space-y-1">
+                            {createFilteredSubjects.map((subject: any) => (
+                              <label 
+                                key={subject.id} 
+                                className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={createSelectedSubjectIds.includes(subject.id)}
+                                  onCheckedChange={() => toggleCreateSubjectSelection(subject.id)}
+                                  data-testid={`checkbox-subject-${subject.id}`}
+                                />
+                                <span className="text-sm flex-1">{subject.name}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {subject.category || 'General'}
+                                </Badge>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-2">No subjects available for selected classes</p>
+                        )}
+                      </div>
+                      {createSelectedSubjectIds.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Selected: {createSelectedSubjectIds.length} subject(s)
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input 
-                    id="firstName" 
-                    {...register('firstName')} 
-                    data-testid="input-first-name"
-                  />
-                  {errors.firstName && (
-                    <p className="text-sm text-red-500 mt-1">{errors.firstName.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input 
-                    id="lastName" 
-                    {...register('lastName')} 
-                    data-testid="input-last-name"
-                  />
-                  {errors.lastName && (
-                    <p className="text-sm text-red-500 mt-1">{errors.lastName.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  {...register('email')} 
-                  data-testid="input-email"
-                />
-                {errors.email && (
-                  <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
-                )}
-              </div>
-
+              {/* Additional fields for editing */}
               {editingTeacher && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input 
-                        id="phone" 
-                        {...register('phone')} 
-                        data-testid="input-phone"
-                      />
-                      {errors.phone && (
-                        <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>
-                      )}
-                    </div>
                     <div>
                       <Label htmlFor="employeeId">Employee ID</Label>
                       <Input 
@@ -564,6 +843,18 @@ export default function TeachersManagement() {
                       />
                       {errors.employeeId && (
                         <p className="text-sm text-red-500 mt-1">{errors.employeeId.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                      <Input 
+                        id="dateOfBirth" 
+                        type="date" 
+                        {...register('dateOfBirth')} 
+                        data-testid="input-date-of-birth"
+                      />
+                      {errors.dateOfBirth && (
+                        <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth.message}</p>
                       )}
                     </div>
                   </div>
@@ -578,37 +869,6 @@ export default function TeachersManagement() {
                     {errors.address && (
                       <p className="text-sm text-red-500 mt-1">{errors.address.message}</p>
                     )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                      <Input 
-                        id="dateOfBirth" 
-                        type="date" 
-                        {...register('dateOfBirth')} 
-                        data-testid="input-date-of-birth"
-                      />
-                      {errors.dateOfBirth && (
-                        <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select onValueChange={(value) => setValue('gender', value as any)}>
-                        <SelectTrigger data-testid="select-gender">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {errors.gender && (
-                        <p className="text-sm text-red-500 mt-1">{errors.gender.message}</p>
-                      )}
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
