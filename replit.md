@@ -9,6 +9,53 @@ Treasure-Home is a comprehensive, production-ready school management system desi
 
 ## Recent Changes (December 2025)
 
+### Module 1: Student Subject Assignment System (Dec 1, 2025)
+Complete implementation of the teacher-student-department-class assignment system with automated report card generation:
+
+#### New Database Tables
+- **student_subject_assignments**: Tracks which subjects each student is enrolled in
+  - Columns: id, studentId, subjectId, assignedBy, assignedAt, isActive, notes
+  - Supports manual and automatic assignment based on class level and department
+  - Foreign key cascade delete for student/subject removal
+  
+- **class_subject_mappings**: Links subjects to class levels with department categorization
+  - Columns: id, classId, subjectId, isCompulsory, department, createdBy, createdAt
+  - Enables department-specific subject requirements (Science, Art, Commercial)
+
+#### Storage Layer
+- `getStudentSubjectAssignments(studentId)`: Get all subject assignments for a student
+- `createStudentSubjectAssignment(data)`: Assign a subject to a student
+- `deleteStudentSubjectAssignment(id)`: Remove a subject assignment
+- `autoAssignSubjectsToStudent(studentId, assignedBy)`: Auto-assign subjects based on class level and department
+- `getClassSubjectMappings(classId)`: Get subject mappings for a class
+- `createClassSubjectMapping(data)`: Create a class-subject mapping
+- `deleteClassSubjectMapping(id)`: Remove a class-subject mapping
+
+#### API Endpoints
+- `GET /api/student-subject-assignments/:studentId` - Get student's assigned subjects
+- `POST /api/student-subject-assignments` - Assign subject to student
+- `DELETE /api/student-subject-assignments/:id` - Remove assignment
+- `POST /api/student-subject-assignments/auto-assign` - Auto-assign based on class/department
+- `GET /api/class-subject-mappings/:classId` - Get class-subject mappings
+- `POST /api/class-subject-mappings` - Create class-subject mapping
+- `DELETE /api/class-subject-mappings/:id` - Remove mapping
+- `GET /api/subjects/by-category` - Get subjects by category
+
+#### Student Subject Assignment UI
+- New admin page at `/admin/academics/student-subjects`
+- Features student search by name/username, class and department filters
+- Auto-assign button to automatically assign subjects based on student's class and department
+- Manual assignment via multi-select dropdown
+- Remove individual assignments with confirmation
+- Navigation added under "Academics" section in admin portal
+
+#### Report Card Integration
+- `generateReportCardsForClass` now uses student subject assignments instead of class-level subjects
+- Validates subjects exist and are active before creating report card items
+- Falls back to class-level subjects if no student assignments exist
+- Auto-grading uses system settings for test/exam weights (configurable, default 40%/60%)
+- Graceful handling when no valid subjects found for a student
+
 ### Phase 4 & 5: Department-Based Exam & Report Card Filtering (Dec 1, 2025)
 Enhanced department-based filtering for Senior Secondary (SS1-SS3) students:
 
