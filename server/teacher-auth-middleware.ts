@@ -1,5 +1,5 @@
 import { db } from './db';
-import { teacherClassAssignments, unauthorizedAccessLogs } from '@shared/schema.pg';
+import { teacherClassAssignments, unauthorizedAccessLogs, exams, students } from '@shared/schema.pg';
 import { eq, and, isNull, or, gte, sql } from 'drizzle-orm';
 import { ROLE_IDS } from '@shared/role-constants';
 
@@ -358,5 +358,169 @@ export const validateTeacherCanViewResults = async (req: any, res: any, next: an
   } catch (error) {
     console.error('View results authorization error:', error);
     return res.status(500).json({ message: "Authorization check failed" });
+  }
+};
+
+// Exam time-window validation middleware for online exam security
+export const validateExamTimeWindow = async (req: any, res: any, next: any) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const userId = req.user.userId || req.user.id;
+    const roleId = req.user.roleId;
+    
+    // Guard: ensure userId is defined
+    if (!userId) {
+      return res.status(401).json({ message: "User identification not found" });
+    }
+
+    // Admins and teachers can access exams anytime (for management)
+    if (roleId === ROLE_IDS.SUPER_ADMIN || roleId === ROLE_IDS.ADMIN || roleId === ROLE_IDS.TEACHER) {
+      return next();
+    }
+
+    // Only students need time-window validation
+    if (roleId !== ROLE_IDS.STUDENT) {
+      await logUnauthorizedAccess(
+        userId,
+        'access_exam',
+        req.originalUrl,
+        undefined,
+        undefined,
+        'User is not a student',
+        req
+      );
+      return res.status(403).json({ message: "Only students can take exams" });
+    }
+
+    const examId = parseInt(req.params.examId || req.params.id || req.body.examId);
+    
+    if (!examId) {
+      return res.status(400).json({ message: "Exam ID is required" });
+    }
+
+    // Get exam details
+    const [exam] = await db
+      .select()
+      .from(exams)
+      .where(eq(exams.id, examId))
+      .limit(1);
+
+    if (!exam) {
+      return res.status(404).json({ message: "Exam not found" });
+    }
+
+    // Check if exam is published
+    if (!exam.isPublished) {
+      await logUnauthorizedAccess(
+        userId,
+        'access_exam',
+        req.originalUrl,
+        exam.classId,
+        exam.subjectId,
+        'Exam is not published',
+        req
+      );
+      return res.status(403).json({ 
+        message: "This exam is not yet available. Please wait for your teacher to publish it." 
+      });
+    }
+
+    // Check time window if specified
+    const now = new Date();
+    
+    if (exam.startTime && now < new Date(exam.startTime)) {
+      await logUnauthorizedAccess(
+        userId,
+        'access_exam_early',
+        req.originalUrl,
+        exam.classId,
+        exam.subjectId,
+        `Exam not yet started. Starts at: ${exam.startTime}`,
+        req
+      );
+      return res.status(403).json({ 
+        message: "This exam has not started yet. Please check the scheduled start time.",
+        startsAt: exam.startTime
+      });
+    }
+
+    if (exam.endTime && now > new Date(exam.endTime)) {
+      await logUnauthorizedAccess(
+        userId,
+        'access_exam_late',
+        req.originalUrl,
+        exam.classId,
+        exam.subjectId,
+        `Exam has ended. Ended at: ${exam.endTime}`,
+        req
+      );
+      return res.status(403).json({ 
+        message: "This exam has ended and is no longer available.",
+        endedAt: exam.endTime
+      });
+    }
+
+    // Verify student is in the correct class
+    const [student] = await db
+      .select()
+      .from(students)
+      .where(eq(students.id, userId))
+      .limit(1);
+
+    if (!student) {
+      await logUnauthorizedAccess(
+        userId,
+        'access_exam',
+        req.originalUrl,
+        exam.classId,
+        exam.subjectId,
+        'Student record not found',
+        req
+      );
+      return res.status(403).json({ message: "Student record not found" });
+    }
+
+    if (student.classId !== exam.classId) {
+      await logUnauthorizedAccess(
+        userId,
+        'access_exam',
+        req.originalUrl,
+        exam.classId,
+        exam.subjectId,
+        `Student class (${student.classId}) does not match exam class (${exam.classId})`,
+        req
+      );
+      return res.status(403).json({ 
+        message: "You are not enrolled in the class for this exam." 
+      });
+    }
+
+    // Attach exam and student to request for downstream use
+    req.exam = exam;
+    req.student = student;
+
+    next();
+  } catch (error) {
+    console.error('Exam time-window validation error:', error);
+    return res.status(500).json({ message: "Exam access validation failed" });
+  }
+};
+
+// Middleware to log all exam access attempts for security auditing
+export const logExamAccess = async (req: any, res: any, next: any) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const examId = parseInt(req.params.examId || req.params.id || req.body.examId);
+    
+    // Log access attempt (even successful ones for audit trail)
+    console.log(`[EXAM-ACCESS] User: ${userId}, Exam: ${examId}, Time: ${new Date().toISOString()}, IP: ${req.ip}`);
+    
+    next();
+  } catch (error) {
+    console.error('Error logging exam access:', error);
+    next(); // Don't block on logging errors
   }
 };

@@ -26,7 +26,7 @@ import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
-import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments } from "./teacher-auth-middleware";
+import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -1542,8 +1542,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit exam - synchronous with instant scoring and enhanced reliability
-  // ENHANCED: Added server-side timer validation, duplicate prevention, and transaction safety
-  app.post('/api/exams/:examId/submit', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+  // ENHANCED: Added server-side timer validation, duplicate prevention, transaction safety, and time-window validation
+  app.post('/api/exams/:examId/submit', authenticateUser, authorizeRoles(ROLES.STUDENT), logExamAccess, validateExamTimeWindow, async (req, res) => {
     const startTime = Date.now();
     let sessionId: number | null = null;
     
@@ -2276,8 +2276,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Exam Sessions - Student exam taking functionality
 
-  // Start exam - Create new exam session (with re-entry prevention)
-  app.post('/api/exam-sessions', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+  // Start exam - Create new exam session (with re-entry prevention and time-window validation)
+  app.post('/api/exam-sessions', authenticateUser, authorizeRoles(ROLES.STUDENT), logExamAccess, validateExamTimeWindow, async (req, res) => {
     try {
       const { examId } = req.body;
       const studentId = req.user!.id;

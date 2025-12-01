@@ -91,22 +91,26 @@ export default function TeacherDashboard() {
     enabled: !!user
   });
 
-  // Fetch dashboard data from real API endpoints - MUST be before any conditional returns
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ['/api/classes'],
+  // Fetch dashboard data from SCOPED API endpoints - only teacher's assigned data
+  // Use scoped endpoint for teacher's assigned classes only
+  const { data: myClasses = [], isLoading: classesLoading } = useQuery({
+    queryKey: ['/api/teacher/my-classes'],
     enabled: !!user,
   });
 
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
-    queryKey: ['/api/subjects'],
+  // Use scoped endpoint for teacher's assigned subjects only
+  const { data: mySubjects = [], isLoading: subjectsLoading } = useQuery({
+    queryKey: ['/api/teacher/my-subjects'],
     enabled: !!user,
   });
 
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ['/api/students'],
+  // Use scoped endpoint for students in teacher's assigned classes only
+  const { data: myStudents = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ['/api/teacher/my-all-students'],
     enabled: !!user,
   });
 
+  // Exams endpoint already filters for teachers (returns only created/assigned exams)
   const { data: exams = [], isLoading: examsLoading } = useQuery({
     queryKey: ['/api/exams'],
     enabled: !!user,
@@ -114,6 +118,12 @@ export default function TeacherDashboard() {
 
   const { data: pendingGradingTasks = [], isLoading: gradingTasksLoading } = useQuery({
     queryKey: ['/api/grading-tasks'],
+    enabled: !!user,
+  });
+
+  // Get teacher dashboard stats from scoped endpoint
+  const { data: dashboardStats } = useQuery({
+    queryKey: ['/api/teacher/my-dashboard-stats'],
     enabled: !!user,
   });
 
@@ -155,13 +165,17 @@ export default function TeacherDashboard() {
     }
   });
 
-  // Subscribe to classes table for realtime class updates
+  // Subscribe to teacher's classes for realtime updates
   useSocketIORealtime({
-    table: 'classes',
-    queryKey: ['/api/classes'],
+    table: 'teacher_class_assignments',
+    queryKey: ['/api/teacher/my-classes'],
     enabled: !!user,
     onEvent: (event) => {
-      console.log('📥 Teacher Dashboard: Class update received', event.eventType);
+      console.log('📥 Teacher Dashboard: Assignment update received', event.eventType);
+      // Also refresh stats and students when assignments change
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/my-dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/my-all-students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/my-subjects'] });
     }
   });
 
@@ -210,11 +224,8 @@ export default function TeacherDashboard() {
   }
   const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
 
-  // Get teacher's classes for results (limit to first 3 for dashboard)
-  const teacherClasses = (classes as any[]).filter((cls: any) => 
-    cls.classTeacherId === user.id || 
-    (exams as any[]).some((exam: any) => exam.createdBy === user.id && exam.classId === cls.id)
-  ).slice(0, 3);
+  // Teacher's assigned classes from scoped endpoint (limit to first 3 for dashboard display)
+  const teacherClasses = (myClasses as any[]).slice(0, 3);
 
   // Get recent exams created by this teacher (limit to 5 for dashboard)
   const recentExams = (exams as any[])
@@ -222,30 +233,18 @@ export default function TeacherDashboard() {
     .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
-  // Calculate real statistics from fetched data
-  const totalStudents = (students as any[]).length;
-  const totalClasses = teacherClasses.length;
+  // Calculate statistics from scoped data (prefer server-side stats if available)
+  const totalStudents = dashboardStats?.totalStudents ?? (myStudents as any[]).length;
+  const totalClasses = dashboardStats?.totalClasses ?? (myClasses as any[]).length;
   const pendingGradesCount = (pendingGradingTasks as any[]).length;
 
-  // Helper functions to get subject and class names
+  // Helper functions to get subject and class names from scoped data
   const getSubjectNames = () => {
-    if (!teacherProfile || !Array.isArray(teacherProfile.subjects) || !Array.isArray(subjects)) return [];
-    return teacherProfile.subjects
-      .map((subjectId: number) => {
-        const subject = subjects.find((s: any) => s.id === subjectId);
-        return subject ? subject.name : null;
-      })
-      .filter(Boolean); // Remove nulls
+    return (mySubjects as any[]).map((s: any) => s.name).filter(Boolean);
   };
 
   const getClassNames = () => {
-    if (!teacherProfile || !Array.isArray(teacherProfile.assignedClasses) || !Array.isArray(classes)) return [];
-    return teacherProfile.assignedClasses
-      .map((classId: number) => {
-        const classObj = classes.find((c: any) => c.id === classId);
-        return classObj ? classObj.name : null;
-      })
-      .filter(Boolean); // Remove nulls
+    return (myClasses as any[]).map((c: any) => c.className || c.name).filter(Boolean);
   };
 
   return (

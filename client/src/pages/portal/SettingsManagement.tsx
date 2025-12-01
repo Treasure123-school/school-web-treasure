@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { 
   Settings, 
   School, 
@@ -27,7 +29,10 @@ import {
   GraduationCap,
   Scale,
   Info,
-  Loader2
+  Loader2,
+  Plus,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +41,17 @@ import {
   TooltipContent,
   TooltipTrigger 
 } from '@/components/ui/tooltip';
+
+interface GradingBoundary {
+  id: number;
+  name: string;
+  grade: string;
+  minScore: number;
+  maxScore: number;
+  remark?: string;
+  gradePoint?: number;
+  isDefault: boolean;
+}
 
 const schoolSettingsSchema = z.object({
   schoolName: z.string().min(1, 'School name is required'),
@@ -90,6 +106,373 @@ interface GradingConfigResponse {
       remark: string;
     }>;
   }>;
+}
+
+function GradingBoundariesSection() {
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingBoundary, setEditingBoundary] = useState<GradingBoundary | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [boundaryToDelete, setBoundaryToDelete] = useState<number | null>(null);
+
+  const [formData, setFormData] = useState({
+    name: 'Standard',
+    grade: '',
+    minScore: 0,
+    maxScore: 100,
+    remark: '',
+    gradePoint: 0,
+    isDefault: true,
+  });
+
+  const { data: boundaries = [], isLoading } = useQuery<GradingBoundary[]>({
+    queryKey: ['/api/grading-boundaries'],
+  });
+
+  const createBoundaryMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      return apiRequest('POST', '/api/grading-boundaries', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grading-boundaries'] });
+      toast({ title: 'Success', description: 'Grading boundary created successfully' });
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to create grading boundary', variant: 'destructive' });
+    },
+  });
+
+  const updateBoundaryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: typeof formData }) => {
+      return apiRequest('PATCH', `/api/grading-boundaries/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grading-boundaries'] });
+      toast({ title: 'Success', description: 'Grading boundary updated successfully' });
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to update grading boundary', variant: 'destructive' });
+    },
+  });
+
+  const deleteBoundaryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('DELETE', `/api/grading-boundaries/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grading-boundaries'] });
+      toast({ title: 'Success', description: 'Grading boundary deleted successfully' });
+      setDeleteConfirmOpen(false);
+      setBoundaryToDelete(null);
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete grading boundary', variant: 'destructive' });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: 'Standard',
+      grade: '',
+      minScore: 0,
+      maxScore: 100,
+      remark: '',
+      gradePoint: 0,
+      isDefault: true,
+    });
+    setEditingBoundary(null);
+  };
+
+  const handleSubmit = () => {
+    if (!formData.grade) {
+      toast({ title: 'Error', description: 'Grade letter is required', variant: 'destructive' });
+      return;
+    }
+    if (formData.minScore > formData.maxScore) {
+      toast({ title: 'Error', description: 'Minimum score cannot be greater than maximum score', variant: 'destructive' });
+      return;
+    }
+    if (editingBoundary) {
+      updateBoundaryMutation.mutate({ id: editingBoundary.id, data: formData });
+    } else {
+      createBoundaryMutation.mutate(formData);
+    }
+  };
+
+  const handleEdit = (boundary: GradingBoundary) => {
+    setFormData({
+      name: boundary.name,
+      grade: boundary.grade,
+      minScore: boundary.minScore,
+      maxScore: boundary.maxScore,
+      remark: boundary.remark || '',
+      gradePoint: boundary.gradePoint || 0,
+      isDefault: boundary.isDefault,
+    });
+    setEditingBoundary(boundary);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (id: number) => {
+    setBoundaryToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (boundaryToDelete) {
+      deleteBoundaryMutation.mutate(boundaryToDelete);
+    }
+  };
+
+  const defaultBoundaries = [
+    { grade: 'A+', minScore: 90, maxScore: 100, remark: 'Excellent', gradePoint: 4.0 },
+    { grade: 'A', minScore: 80, maxScore: 89, remark: 'Very Good', gradePoint: 3.7 },
+    { grade: 'B+', minScore: 70, maxScore: 79, remark: 'Good', gradePoint: 3.3 },
+    { grade: 'B', minScore: 60, maxScore: 69, remark: 'Credit', gradePoint: 3.0 },
+    { grade: 'C', minScore: 50, maxScore: 59, remark: 'Pass', gradePoint: 2.0 },
+    { grade: 'D', minScore: 40, maxScore: 49, remark: 'Fair', gradePoint: 1.0 },
+    { grade: 'F', minScore: 0, maxScore: 39, remark: 'Fail', gradePoint: 0.0 },
+  ];
+
+  const createDefaultBoundariesMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/grading-boundaries/bulk', {
+        name: 'Standard',
+        isDefault: true,
+        boundaries: defaultBoundaries,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grading-boundaries'] });
+      toast({ title: 'Success', description: 'Default grading boundaries created' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to create default boundaries', variant: 'destructive' });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle className="flex items-center">
+          <GraduationCap className="w-5 h-5 mr-2" />
+          Grading Boundaries
+        </CardTitle>
+        <div className="flex gap-2 flex-wrap">
+          {boundaries.length === 0 && (
+            <Button
+              variant="outline"
+              onClick={() => createDefaultBoundariesMutation.mutate()}
+              disabled={createDefaultBoundariesMutation.isPending}
+              data-testid="button-create-defaults"
+            >
+              {createDefaultBoundariesMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create Default Scale
+            </Button>
+          )}
+          <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} data-testid="button-add-boundary">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Boundary
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : boundaries.length === 0 ? (
+          <div className="text-center py-8">
+            <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground mb-4">No grading boundaries configured yet.</p>
+            <p className="text-sm text-muted-foreground">Click "Create Default Scale" to set up the standard A-F grading scale, or add custom boundaries.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Score Range</TableHead>
+                  <TableHead>Grade Point</TableHead>
+                  <TableHead>Remark</TableHead>
+                  <TableHead>Scale Name</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {boundaries.map((boundary) => (
+                  <TableRow key={boundary.id} data-testid={`row-boundary-${boundary.id}`}>
+                    <TableCell className="font-semibold">
+                      <Badge variant="outline">{boundary.grade}</Badge>
+                    </TableCell>
+                    <TableCell>{boundary.minScore} - {boundary.maxScore}%</TableCell>
+                    <TableCell>{boundary.gradePoint?.toFixed(1) || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{boundary.remark || '-'}</TableCell>
+                    <TableCell>
+                      {boundary.name}
+                      {boundary.isDefault && <Badge className="ml-2" variant="secondary">Default</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleEdit(boundary)}
+                          data-testid={`button-edit-boundary-${boundary.id}`}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDelete(boundary.id)}
+                          data-testid={`button-delete-boundary-${boundary.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingBoundary ? 'Edit Grading Boundary' : 'Add Grading Boundary'}</DialogTitle>
+            <DialogDescription>
+              Define the score range for this grade level.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="grade">Grade Letter</Label>
+                <Input
+                  id="grade"
+                  value={formData.grade}
+                  onChange={(e) => setFormData({ ...formData, grade: e.target.value.toUpperCase() })}
+                  placeholder="e.g., A+"
+                  data-testid="input-grade"
+                />
+              </div>
+              <div>
+                <Label htmlFor="gradePoint">Grade Point</Label>
+                <Input
+                  id="gradePoint"
+                  type="number"
+                  step="0.1"
+                  value={formData.gradePoint}
+                  onChange={(e) => setFormData({ ...formData, gradePoint: parseFloat(e.target.value) || 0 })}
+                  placeholder="e.g., 4.0"
+                  data-testid="input-grade-point"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="minScore">Minimum Score (%)</Label>
+                <Input
+                  id="minScore"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.minScore}
+                  onChange={(e) => setFormData({ ...formData, minScore: parseInt(e.target.value) || 0 })}
+                  data-testid="input-min-score"
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxScore">Maximum Score (%)</Label>
+                <Input
+                  id="maxScore"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.maxScore}
+                  onChange={(e) => setFormData({ ...formData, maxScore: parseInt(e.target.value) || 100 })}
+                  data-testid="input-max-score"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="remark">Remark</Label>
+              <Input
+                id="remark"
+                value={formData.remark}
+                onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                placeholder="e.g., Excellent, Very Good, Pass"
+                data-testid="input-remark"
+              />
+            </div>
+            <div>
+              <Label htmlFor="name">Scale Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Standard, Custom"
+                data-testid="input-scale-name"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="isDefault"
+                checked={formData.isDefault}
+                onCheckedChange={(checked) => setFormData({ ...formData, isDefault: checked })}
+                data-testid="switch-is-default"
+              />
+              <Label htmlFor="isDefault">Set as default grading scale</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={createBoundaryMutation.isPending || updateBoundaryMutation.isPending} 
+              data-testid="button-save-boundary"
+            >
+              {(createBoundaryMutation.isPending || updateBoundaryMutation.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {editingBoundary ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this grading boundary? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} data-testid="button-cancel-delete">
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteBoundaryMutation.isPending} data-testid="button-confirm-delete">
+              {deleteBoundaryMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
 }
 
 export default function SettingsManagement() {
@@ -294,10 +677,14 @@ export default function SettingsManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5" data-testid="tabs-settings">
+        <TabsList className="grid w-full grid-cols-6" data-testid="tabs-settings">
           <TabsTrigger value="school" data-testid="tab-school">
             <School className="w-4 h-4 mr-2" />
             School
+          </TabsTrigger>
+          <TabsTrigger value="grading" data-testid="tab-grading">
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Grading
           </TabsTrigger>
           <TabsTrigger value="security" data-testid="tab-security">
             <Shield className="w-4 h-4 mr-2" />
@@ -402,6 +789,10 @@ export default function SettingsManagement() {
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="grading" className="space-y-4">
+          <GradingBoundariesSection />
         </TabsContent>
 
         <TabsContent value="security" className="space-y-4">

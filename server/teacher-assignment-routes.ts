@@ -405,6 +405,52 @@ router.post('/api/grading-boundaries/bulk', requireAdmin, async (req: Request, r
   }
 });
 
+router.patch('/api/grading-boundaries/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const boundaryId = parseInt(req.params.id);
+    
+    if (isNaN(boundaryId) || boundaryId <= 0) {
+      return res.status(400).json({ message: 'Invalid boundary ID' });
+    }
+
+    const { name, grade, minScore, maxScore, remark, gradePoint, isDefault, termId, classId, subjectId } = req.body;
+
+    if (minScore !== undefined && maxScore !== undefined && minScore > maxScore) {
+      return res.status(400).json({ message: 'Minimum score cannot be greater than maximum score' });
+    }
+
+    const updateData: Record<string, any> = {};
+    if (name !== undefined) updateData.name = name;
+    if (grade !== undefined) updateData.grade = grade;
+    if (minScore !== undefined) updateData.minScore = minScore;
+    if (maxScore !== undefined) updateData.maxScore = maxScore;
+    if (remark !== undefined) updateData.remark = remark;
+    if (gradePoint !== undefined) updateData.gradePoint = gradePoint;
+    if (isDefault !== undefined) updateData.isDefault = isDefault;
+    if (termId !== undefined) updateData.termId = termId;
+    if (classId !== undefined) updateData.classId = classId;
+    if (subjectId !== undefined) updateData.subjectId = subjectId;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'No update data provided' });
+    }
+
+    const [updated] = await db.update(gradingBoundaries)
+      .set(updateData)
+      .where(eq(gradingBoundaries.id, boundaryId))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ message: 'Grading boundary not found' });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating grading boundary:', error);
+    res.status(500).json({ message: 'Failed to update grading boundary' });
+  }
+});
+
 router.delete('/api/grading-boundaries/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const boundaryId = parseInt(req.params.id);
@@ -730,6 +776,150 @@ router.get('/api/teacher/my-students/:classId/:subjectId', requireAuth, async (r
     res.json(studentList);
   } catch (error) {
     console.error('Error fetching students:', error);
+    res.status(500).json({ message: 'Failed to fetch students' });
+  }
+});
+
+// Get teacher's assigned subjects (scoped endpoint)
+router.get('/api/teacher/my-subjects', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as { id: string; roleId: number };
+    
+    if (user.roleId !== ROLE_IDS.TEACHER) {
+      return res.status(403).json({ message: 'Only teachers can access this endpoint' });
+    }
+
+    const now = new Date();
+    const assignedSubjects = await db
+      .selectDistinct({
+        id: subjects.id,
+        name: subjects.name,
+        code: subjects.code,
+        description: subjects.description,
+        category: subjects.category,
+      })
+      .from(teacherClassAssignments)
+      .innerJoin(subjects, eq(teacherClassAssignments.subjectId, subjects.id))
+      .where(and(
+        eq(teacherClassAssignments.teacherId, user.id),
+        eq(teacherClassAssignments.isActive, true),
+        or(
+          isNull(teacherClassAssignments.validUntil),
+          gte(teacherClassAssignments.validUntil, now)
+        )
+      ));
+
+    res.json(assignedSubjects);
+  } catch (error) {
+    console.error('Error fetching teacher subjects:', error);
+    res.status(500).json({ message: 'Failed to fetch assigned subjects' });
+  }
+});
+
+// Get teacher's dashboard statistics (scoped endpoint)
+router.get('/api/teacher/my-dashboard-stats', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as { id: string; roleId: number };
+    
+    if (user.roleId !== ROLE_IDS.TEACHER) {
+      return res.status(403).json({ message: 'Only teachers can access this endpoint' });
+    }
+
+    const now = new Date();
+    
+    // Get teacher's active assignments
+    const assignments = await db
+      .select({
+        classId: teacherClassAssignments.classId,
+        subjectId: teacherClassAssignments.subjectId,
+      })
+      .from(teacherClassAssignments)
+      .where(and(
+        eq(teacherClassAssignments.teacherId, user.id),
+        eq(teacherClassAssignments.isActive, true),
+        or(
+          isNull(teacherClassAssignments.validUntil),
+          gte(teacherClassAssignments.validUntil, now)
+        )
+      ));
+
+    // Get unique class and subject counts
+    const uniqueClassIds = [...new Set(assignments.map(a => a.classId))];
+    const uniqueSubjectIds = [...new Set(assignments.map(a => a.subjectId))];
+
+    // Get student count for assigned classes
+    let studentCount = 0;
+    if (uniqueClassIds.length > 0) {
+      const studentData = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(students)
+        .where(inArray(students.classId, uniqueClassIds));
+      studentCount = Number(studentData[0]?.count || 0);
+    }
+
+    res.json({
+      totalClasses: uniqueClassIds.length,
+      totalSubjects: uniqueSubjectIds.length,
+      totalStudents: studentCount,
+      assignmentCount: assignments.length,
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ message: 'Failed to fetch dashboard stats' });
+  }
+});
+
+// Get teacher's assigned students (all students across all assignments)
+router.get('/api/teacher/my-all-students', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as { id: string; roleId: number };
+    
+    if (user.roleId !== ROLE_IDS.TEACHER) {
+      return res.status(403).json({ message: 'Only teachers can access this endpoint' });
+    }
+
+    const now = new Date();
+    
+    // Get teacher's assigned class IDs
+    const assignments = await db
+      .select({ classId: teacherClassAssignments.classId })
+      .from(teacherClassAssignments)
+      .where(and(
+        eq(teacherClassAssignments.teacherId, user.id),
+        eq(teacherClassAssignments.isActive, true),
+        or(
+          isNull(teacherClassAssignments.validUntil),
+          gte(teacherClassAssignments.validUntil, now)
+        )
+      ));
+
+    const classIds = [...new Set(assignments.map(a => a.classId))];
+    
+    if (classIds.length === 0) {
+      return res.json([]);
+    }
+
+    const studentList = await db
+      .select({
+        id: students.id,
+        admissionNumber: students.admissionNumber,
+        classId: students.classId,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        department: students.department,
+        className: classes.name,
+        classLevel: classes.level,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.id, users.id))
+      .innerJoin(classes, eq(students.classId, classes.id))
+      .where(inArray(students.classId, classIds))
+      .orderBy(classes.name, users.firstName, users.lastName);
+
+    res.json(studentList);
+  } catch (error) {
+    console.error('Error fetching teacher students:', error);
     res.status(500).json({ message: 'Failed to fetch students' });
   }
 });
