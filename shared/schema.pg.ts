@@ -636,13 +636,107 @@ export const teacherClassAssignments = pgTable("teacher_class_assignments", {
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
   department: varchar("department", { length: 50 }),
   termId: integer("term_id").references(() => academicTerms.id),
+  session: varchar("session", { length: 20 }), // Academic session e.g., "2024/2025"
   assignedBy: varchar("assigned_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   isActive: boolean("is_active").notNull().default(true),
+  validUntil: timestamp("valid_until"), // Optional expiration date
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
   teacherClassAssignmentsTeacherIdx: index("teacher_class_assignments_teacher_idx").on(table.teacherId),
   teacherClassAssignmentsClassSubjectIdx: index("teacher_class_assignments_class_subject_idx").on(table.classId, table.subjectId),
   teacherClassAssignmentsDeptIdx: index("teacher_class_assignments_dept_idx").on(table.department),
+  teacherClassAssignmentsSessionIdx: index("teacher_class_assignments_session_idx").on(table.session),
+  teacherClassAssignmentsUniqueIdx: uniqueIndex("teacher_class_assignments_unique_idx").on(table.teacherId, table.classId, table.subjectId, table.termId),
+}));
+
+// Teacher assignment history/audit log
+export const teacherAssignmentHistory = pgTable("teacher_assignment_history", {
+  id: serial("id").primaryKey(),
+  assignmentId: integer("assignment_id").references(() => teacherClassAssignments.id, { onDelete: 'set null' }),
+  teacherId: varchar("teacher_id", { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  action: varchar("action", { length: 50 }).notNull(), // 'created', 'updated', 'disabled', 'deleted'
+  previousValues: text("previous_values"), // JSON of old values
+  newValues: text("new_values"), // JSON of new values
+  performedBy: varchar("performed_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  reason: text("reason"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  assignmentHistoryTeacherIdx: index("assignment_history_teacher_idx").on(table.teacherId),
+  assignmentHistoryActionIdx: index("assignment_history_action_idx").on(table.action),
+  assignmentHistoryDateIdx: index("assignment_history_date_idx").on(table.createdAt),
+}));
+
+// Grading boundaries table - Configurable grade thresholds
+export const gradingBoundaries = pgTable("grading_boundaries", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(), // e.g., "Standard", "Custom Science"
+  grade: varchar("grade", { length: 10 }).notNull(), // e.g., "A", "B", "C", "D", "E", "F"
+  minScore: integer("min_score").notNull(), // Minimum score for this grade
+  maxScore: integer("max_score").notNull(), // Maximum score for this grade
+  remark: varchar("remark", { length: 100 }), // e.g., "Excellent", "Very Good", "Good", "Pass", "Fail"
+  gradePoint: integer("grade_point"), // Optional: for GPA calculation
+  isDefault: boolean("is_default").notNull().default(false),
+  termId: integer("term_id").references(() => academicTerms.id),
+  classId: integer("class_id").references(() => classes.id), // Optional: class-specific grading
+  subjectId: integer("subject_id").references(() => subjects.id), // Optional: subject-specific grading
+  createdBy: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  gradingBoundariesNameIdx: index("grading_boundaries_name_idx").on(table.name),
+  gradingBoundariesGradeIdx: index("grading_boundaries_grade_idx").on(table.grade),
+  gradingBoundariesDefaultIdx: index("grading_boundaries_default_idx").on(table.isDefault),
+}));
+
+// Continuous Assessment scores table
+export const continuousAssessment = pgTable("continuous_assessment", {
+  id: serial("id").primaryKey(),
+  studentId: varchar("student_id", { length: 36 }).notNull().references(() => students.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  termId: integer("term_id").notNull().references(() => academicTerms.id),
+  testScore: integer("test_score"), // CA score (max typically 40)
+  examScore: integer("exam_score"), // Exam score (max typically 60)
+  totalScore: integer("total_score"), // Calculated: testScore + examScore
+  grade: varchar("grade", { length: 10 }), // Auto-calculated based on grading boundaries
+  remark: varchar("remark", { length: 100 }),
+  teacherId: varchar("teacher_id", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  enteredBy: varchar("entered_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  verifiedBy: varchar("verified_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  verifiedAt: timestamp("verified_at"),
+  isLocked: boolean("is_locked").notNull().default(false),
+  lockedBy: varchar("locked_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  lockedAt: timestamp("locked_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  caStudentIdx: index("ca_student_idx").on(table.studentId),
+  caClassSubjectIdx: index("ca_class_subject_idx").on(table.classId, table.subjectId),
+  caTermIdx: index("ca_term_idx").on(table.termId),
+  caTeacherIdx: index("ca_teacher_idx").on(table.teacherId),
+  caUniqueIdx: uniqueIndex("ca_unique_idx").on(table.studentId, table.subjectId, table.classId, table.termId),
+}));
+
+// Unauthorized access attempts log
+export const unauthorizedAccessLogs = pgTable("unauthorized_access_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  attemptedAction: varchar("attempted_action", { length: 100 }).notNull(),
+  attemptedResource: varchar("attempted_resource", { length: 255 }).notNull(),
+  classId: integer("class_id").references(() => classes.id),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  reason: text("reason"), // Why access was denied
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  unauthorizedUserIdx: index("unauthorized_user_idx").on(table.userId),
+  unauthorizedActionIdx: index("unauthorized_action_idx").on(table.attemptedAction),
+  unauthorizedDateIdx: index("unauthorized_date_idx").on(table.createdAt),
 }));
 
 // Student subject assignments table - Links students to their assigned subjects based on class and department

@@ -25,6 +25,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
+import teacherAssignmentRoutes from "./teacher-assignment-routes";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -895,6 +896,10 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  // ==================== TEACHER ASSIGNMENT ROUTES ====================
+  // Register teacher class/subject assignment management routes
+  app.use(teacherAssignmentRoutes);
 
   // ==================== REALTIME SYNC ENDPOINT ====================
   // This endpoint allows frontend to get initial data for tables they want to subscribe to

@@ -629,13 +629,107 @@ export const teacherClassAssignments = sqliteTable("teacher_class_assignments", 
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
   department: text("department"),
   termId: integer("term_id").references(() => academicTerms.id),
+  session: text("session"), // Academic session e.g., "2024/2025"
   assignedBy: text("assigned_by").references(() => users.id, { onDelete: 'set null' }),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  validUntil: integer("valid_until", { mode: "timestamp" }), // Optional expiration date
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   teacherAssignmentsTeacherIdx: index("teacher_assignments_teacher_idx").on(table.teacherId, table.isActive),
   teacherAssignmentsClassSubjectIdx: index("teacher_assignments_class_subject_idx").on(table.classId, table.subjectId),
   teacherAssignmentsDeptIdx: index("teacher_assignments_dept_idx").on(table.department),
+  teacherAssignmentsSessionIdx: index("teacher_assignments_session_idx").on(table.session),
+  teacherAssignmentsUniqueIdx: uniqueIndex("teacher_assignments_unique_idx").on(table.teacherId, table.classId, table.subjectId, table.termId),
+}));
+
+// Teacher assignment history/audit log
+export const teacherAssignmentHistory = sqliteTable("teacher_assignment_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  assignmentId: integer("assignment_id").references(() => teacherClassAssignments.id, { onDelete: 'set null' }),
+  teacherId: text("teacher_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  action: text("action").notNull(), // 'created', 'updated', 'disabled', 'deleted'
+  previousValues: text("previous_values"), // JSON of old values
+  newValues: text("new_values"), // JSON of new values
+  performedBy: text("performed_by").references(() => users.id, { onDelete: 'set null' }),
+  reason: text("reason"),
+  ipAddress: text("ip_address"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  assignmentHistoryTeacherIdx: index("assignment_history_teacher_idx").on(table.teacherId),
+  assignmentHistoryActionIdx: index("assignment_history_action_idx").on(table.action),
+  assignmentHistoryDateIdx: index("assignment_history_date_idx").on(table.createdAt),
+}));
+
+// Grading boundaries table - Configurable grade thresholds
+export const gradingBoundaries = sqliteTable("grading_boundaries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(), // e.g., "Standard", "Custom Science"
+  grade: text("grade").notNull(), // e.g., "A", "B", "C", "D", "E", "F"
+  minScore: integer("min_score").notNull(), // Minimum score for this grade
+  maxScore: integer("max_score").notNull(), // Maximum score for this grade
+  remark: text("remark"), // e.g., "Excellent", "Very Good", "Good", "Pass", "Fail"
+  gradePoint: integer("grade_point"), // Optional: for GPA calculation
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  termId: integer("term_id").references(() => academicTerms.id),
+  classId: integer("class_id").references(() => classes.id), // Optional: class-specific grading
+  subjectId: integer("subject_id").references(() => subjects.id), // Optional: subject-specific grading
+  createdBy: text("created_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  gradingBoundariesNameIdx: index("grading_boundaries_name_idx").on(table.name),
+  gradingBoundariesGradeIdx: index("grading_boundaries_grade_idx").on(table.grade),
+  gradingBoundariesDefaultIdx: index("grading_boundaries_default_idx").on(table.isDefault),
+}));
+
+// Continuous Assessment scores table
+export const continuousAssessment = sqliteTable("continuous_assessment", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  termId: integer("term_id").notNull().references(() => academicTerms.id),
+  testScore: integer("test_score"), // CA score (max typically 40)
+  examScore: integer("exam_score"), // Exam score (max typically 60)
+  totalScore: integer("total_score"), // Calculated: testScore + examScore
+  grade: text("grade"), // Auto-calculated based on grading boundaries
+  remark: text("remark"),
+  teacherId: text("teacher_id").references(() => users.id, { onDelete: 'set null' }),
+  enteredBy: text("entered_by").references(() => users.id, { onDelete: 'set null' }),
+  verifiedBy: text("verified_by").references(() => users.id, { onDelete: 'set null' }),
+  verifiedAt: integer("verified_at", { mode: "timestamp" }),
+  isLocked: integer("is_locked", { mode: "boolean" }).notNull().default(false),
+  lockedBy: text("locked_by").references(() => users.id, { onDelete: 'set null' }),
+  lockedAt: integer("locked_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  caStudentIdx: index("ca_student_idx").on(table.studentId),
+  caClassSubjectIdx: index("ca_class_subject_idx").on(table.classId, table.subjectId),
+  caTermIdx: index("ca_term_idx").on(table.termId),
+  caTeacherIdx: index("ca_teacher_idx").on(table.teacherId),
+  caUniqueIdx: uniqueIndex("ca_unique_idx").on(table.studentId, table.subjectId, table.classId, table.termId),
+}));
+
+// Unauthorized access attempts log
+export const unauthorizedAccessLogs = sqliteTable("unauthorized_access_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id, { onDelete: 'set null' }),
+  attemptedAction: text("attempted_action").notNull(),
+  attemptedResource: text("attempted_resource").notNull(),
+  classId: integer("class_id").references(() => classes.id),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  reason: text("reason"), // Why access was denied
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  unauthorizedUserIdx: index("unauthorized_user_idx").on(table.userId),
+  unauthorizedActionIdx: index("unauthorized_action_idx").on(table.attemptedAction),
+  unauthorizedDateIdx: index("unauthorized_date_idx").on(table.createdAt),
 }));
 
 // Student subject assignments table - Links students to their assigned subjects based on class and department
@@ -891,7 +985,11 @@ export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id:
 export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
 export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
 export const insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
-export const insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true });
+export const insertTeacherClassAssignmentSchema = createInsertSchema(teacherClassAssignments).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTeacherAssignmentHistorySchema = createInsertSchema(teacherAssignmentHistory).omit({ id: true, createdAt: true });
+export const insertGradingBoundarySchema = createInsertSchema(gradingBoundaries).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertContinuousAssessmentSchema = createInsertSchema(continuousAssessment).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUnauthorizedAccessLogSchema = createInsertSchema(unauthorizedAccessLogs).omit({ id: true, createdAt: true });
 export const insertTimetableSchema = createInsertSchema(timetable).omit({ id: true, createdAt: true });
 export const insertGradingTaskSchema = createInsertSchema(gradingTasks).omit({ id: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
@@ -1135,6 +1233,14 @@ export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
 export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;
 export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema>;
 export type InsertTeacherClassAssignment = z.infer<typeof insertTeacherClassAssignmentSchema>;
+export type TeacherAssignmentHistory = typeof teacherAssignmentHistory.$inferSelect;
+export type InsertTeacherAssignmentHistory = z.infer<typeof insertTeacherAssignmentHistorySchema>;
+export type GradingBoundary = typeof gradingBoundaries.$inferSelect;
+export type InsertGradingBoundary = z.infer<typeof insertGradingBoundarySchema>;
+export type ContinuousAssessment = typeof continuousAssessment.$inferSelect;
+export type InsertContinuousAssessment = z.infer<typeof insertContinuousAssessmentSchema>;
+export type UnauthorizedAccessLog = typeof unauthorizedAccessLogs.$inferSelect;
+export type InsertUnauthorizedAccessLog = z.infer<typeof insertUnauthorizedAccessLogSchema>;
 export type InsertTimetable = z.infer<typeof insertTimetableSchema>;
 export type InsertGradingTask = z.infer<typeof insertGradingTaskSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
