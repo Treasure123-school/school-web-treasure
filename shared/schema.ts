@@ -1037,6 +1037,21 @@ export const createStudentSchema = z.object({
 
 export type CreateStudentRequest = z.infer<typeof createStudentSchema>;
 
+export const quickCreateStudentSchema = z.object({
+  fullName: z.string()
+    .min(2, "Full name is required")
+    .refine(
+      (name) => name.trim().split(/\s+/).length >= 2,
+      "Please enter both first and last name (e.g., 'John Adebayo')"
+    ),
+  gender: z.enum(['Male', 'Female', 'Other'], { required_error: "Gender is required" }),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format"),
+  classId: z.coerce.number().positive("Please select a valid class"),
+  department: z.enum(['science', 'art', 'commercial']).optional().nullable(),
+});
+
+export type QuickCreateStudentRequest = z.infer<typeof quickCreateStudentSchema>;
+
 export const csvStudentSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
   class: z.string().min(1, "Class is required"),
