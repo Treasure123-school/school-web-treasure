@@ -57,19 +57,9 @@ export default function TeacherProfile() {
   if (!user) {
     return <div>Please log in to access your profile.</div>;
   }
-  const { data: teacher, isLoading: teacherLoading, error: teacherError } = useQuery({
-    queryKey: ['teacher', user.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/users/${user.id}`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch teacher data');
-      return response.json();
-    }
-  });
 
-  // Fetch teacher professional profile - this already has merged user data
-  const { data: teacherProfile, isLoading: teacherProfileLoading } = useQuery<TeacherProfileWithUser>({
+  // Fetch teacher professional profile - this already has merged user data from both users and teacher_profiles tables
+  const { data: teacherProfile, isLoading: teacherProfileLoading, error: teacherProfileError } = useQuery<TeacherProfileWithUser>({
     queryKey: ['/api/teacher/profile/me'],
     enabled: !!user
   });
@@ -86,7 +76,7 @@ export default function TeacherProfile() {
     enabled: !!user
   });
 
-  const isLoading = teacherLoading || teacherProfileLoading || classesLoading || subjectsLoading;
+  const isLoading = teacherProfileLoading || classesLoading || subjectsLoading;
 
   // Calculate profile completion percentage
   const calculateCompletion = () => {
@@ -197,7 +187,7 @@ export default function TeacherProfile() {
       description: "Your profile image has been uploaded successfully.",
     });
 
-    queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
+    queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
     setShowImageUpload(false);
   };
 
@@ -275,7 +265,6 @@ export default function TeacherProfile() {
       setIsEditing(false);
       
       // Invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ['teacher', user.id] });
       await queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
 
     } catch (error) {
@@ -312,8 +301,32 @@ export default function TeacherProfile() {
       </PortalLayout>
     );
   }
-  if (teacherError) {
-    return <div>Error loading profile</div>;
+  if (teacherProfileError) {
+    return (
+      <PortalLayout
+        userRole="teacher"
+        userName={`${user.firstName} ${user.lastName}`}
+        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
+      >
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center text-destructive">
+              <p className="font-semibold">Error loading profile</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {teacherProfileError instanceof Error ? teacherProfileError.message : 'Failed to load profile data. Please try again later.'}
+              </p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] })}
+              >
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </PortalLayout>
+    );
   }
 
   return (

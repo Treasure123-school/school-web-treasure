@@ -343,11 +343,44 @@ export default function CreateExam() {
   };
 
   const onSubmit = (data: CreateExamFormData) => {
+    // Validate class/subject assignment before submission
+    if (!myAssignments?.isAdmin) {
+      const isValidAssignment = myAssignments?.assignments?.some(
+        a => a.classId === data.classId && a.subjectId === data.subjectId && a.isActive
+      );
+      
+      if (!isValidAssignment) {
+        toast({
+          title: 'Invalid Assignment',
+          description: 'You are not assigned to teach this subject for the selected class. Please refresh and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    
     createExamMutation.mutate(data);
   };
 
   const onSaveDraft = () => {
     const data = form.getValues();
+    
+    // Validate class/subject assignment before saving draft
+    if (!myAssignments?.isAdmin && data.classId && data.subjectId) {
+      const isValidAssignment = myAssignments?.assignments?.some(
+        a => a.classId === data.classId && a.subjectId === data.subjectId && a.isActive
+      );
+      
+      if (!isValidAssignment) {
+        toast({
+          title: 'Invalid Assignment',
+          description: 'You are not assigned to teach this subject for the selected class.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    
     createExamMutation.mutate({ ...data, isPublished: false });
   };
 
