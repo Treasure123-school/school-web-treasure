@@ -155,7 +155,10 @@ export const subjects = pgTable("subjects", {
   category: varchar("category", { length: 20 }).notNull().default('general'),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  subjectsCategoryIdx: index("subjects_category_idx").on(table.category),
+  subjectsIsActiveIdx: index("subjects_is_active_idx").on(table.isActive),
+}));
 
 // Students table
 export const students = pgTable("students", {
@@ -170,7 +173,10 @@ export const students = pgTable("students", {
   medicalInfo: text("medical_info"),
   guardianName: varchar("guardian_name", { length: 255 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  studentsDepartmentIdx: index("students_department_idx").on(table.department),
+  studentsClassIdIdx: index("students_class_id_idx").on(table.classId),
+}));
 
 // Teacher profiles table
 export const teacherProfiles = pgTable("teacher_profiles", {
