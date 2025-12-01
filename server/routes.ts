@@ -1250,6 +1250,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // DEPARTMENT ENFORCEMENT: Validate subject is appropriate for the class
+      if (req.body.classId && req.body.subjectId) {
+        const classInfo = await storage.getClass(req.body.classId);
+        const subjectInfo = await storage.getSubject(req.body.subjectId);
+        
+        if (classInfo && subjectInfo) {
+          const isSeniorSecondary = (classInfo.level || '').toLowerCase().includes('senior secondary');
+          const subjectCategory = (subjectInfo.category || 'general').toLowerCase();
+          
+          if (isSeniorSecondary && subjectCategory !== 'general') {
+            // For department-specific subjects in SS classes, warn but allow
+            // Teachers should only assign exams for subjects in their class's department
+            console.log(`[EXAM-CREATE] Creating ${subjectCategory} subject exam for SS class ${classInfo.name}`);
+          }
+        }
+      }
+
       const examData = insertExamSchema.parse({
         ...req.body,
         createdBy: teacherId,
@@ -3510,16 +3527,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new subject - Admin only
   app.post('/api/subjects', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const { name, code, description } = req.body;
+      const { name, code, description, category } = req.body;
       
       if (!name || !code) {
         return res.status(400).json({ message: 'Name and code are required' });
       }
       
+      // Validate category if provided
+      const validCategories = ['general', 'science', 'art', 'commercial'];
+      const normalizedCategory = category ? category.trim().toLowerCase() : 'general';
+      if (!validCategories.includes(normalizedCategory)) {
+        return res.status(400).json({ message: 'Invalid category. Must be one of: general, science, art, commercial' });
+      }
+      
       const subjectData = {
         name,
         code,
-        description: description || null
+        description: description || null,
+        category: normalizedCategory,
+        isActive: true
       };
       
       const newSubject = await storage.createSubject(subjectData);
@@ -3550,13 +3576,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Subject not found' });
       }
       
-      const { name, code, description } = req.body;
+      const { name, code, description, category, isActive } = req.body;
       
-      const updatedSubject = await storage.updateSubject(subjectId, {
-        name,
-        code,
-        description
-      });
+      // Validate category if provided
+      if (category !== undefined) {
+        const validCategories = ['general', 'science', 'art', 'commercial'];
+        const normalizedCategory = category ? category.trim().toLowerCase() : null;
+        if (normalizedCategory && !validCategories.includes(normalizedCategory)) {
+          return res.status(400).json({ message: 'Invalid category. Must be one of: general, science, art, commercial' });
+        }
+      }
+      
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (code !== undefined) updateData.code = code;
+      if (description !== undefined) updateData.description = description;
+      if (category !== undefined) updateData.category = category ? category.trim().toLowerCase() : null;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      
+      const updatedSubject = await storage.updateSubject(subjectId, updateData);
       
       // Emit realtime event for subject update
       realtimeService.emitSubjectEvent('updated', updatedSubject, req.user!.id);
@@ -6805,6 +6843,36 @@ Treasure-Home School Administration
           };
         });
         
+        // Auto-assign subjects to student based on class and department
+        try {
+          const classInfo = await storage.getClass(validatedData.classId);
+          const studentDepartment = validatedData.department?.toLowerCase();
+          
+          // Determine if senior secondary and get appropriate subjects
+          const isSeniorSecondary = (classInfo?.level || '').toLowerCase().includes('senior secondary');
+          
+          if (isSeniorSecondary && studentDepartment) {
+            // Senior secondary with department - assign department-specific subjects
+            await storage.autoAssignSubjectsToStudent(
+              result.studentUser.id,
+              validatedData.classId,
+              studentDepartment
+            );
+            console.log(`[CREATE-STUDENT] Auto-assigned ${studentDepartment} department subjects to student ${result.studentUser.id}`);
+          } else if (!isSeniorSecondary) {
+            // Non-senior secondary - assign general subjects only
+            await storage.autoAssignSubjectsToStudent(
+              result.studentUser.id,
+              validatedData.classId
+            );
+            console.log(`[CREATE-STUDENT] Auto-assigned general subjects to student ${result.studentUser.id}`);
+          }
+          // Note: SS students without department will get subjects assigned when department is set
+        } catch (assignmentError: any) {
+          console.error(`[CREATE-STUDENT] Failed to auto-assign subjects:`, assignmentError.message);
+          // Don't fail student creation if subject assignment fails
+        }
+        
         // Log audit event
         await storage.createAuditLog({
           userId: adminUserId,
@@ -8692,6 +8760,33 @@ Treasure-Home School Administration
           assignedBy: req.user!.id,
           isActive: true
         });
+
+        // Also create a class-subject mapping for department tracking
+        // This ensures the class has a record of what subjects are offered
+        try {
+          const subjectInfo = await storage.getSubject(subjectId);
+          const classInfo = await storage.getClass(classId);
+          
+          if (subjectInfo && classInfo) {
+            const subjectCategory = (subjectInfo.category || 'general').toLowerCase();
+            const isSeniorSecondary = (classInfo.level || '').toLowerCase().includes('senior secondary');
+            
+            // For SS classes with department subjects, create mapping with department
+            // For other classes, create mapping without department
+            const department = (isSeniorSecondary && subjectCategory !== 'general') ? subjectCategory : null;
+            
+            await storage.createClassSubjectMapping({
+              classId,
+              subjectId,
+              department,
+              isCompulsory: false
+            });
+            console.log(`[TEACHER-ASSIGNMENT] Also created class-subject mapping for ${classInfo.name} - ${subjectInfo.name}`);
+          }
+        } catch (mappingError: any) {
+          // Don't fail if mapping already exists or fails
+          console.log(`[TEACHER-ASSIGNMENT] Class-subject mapping creation note: ${mappingError.message}`);
+        }
 
         // Emit real-time event for teacher assignment creation
         realtimeService.emitTableChange('teacher_class_assignments', 'INSERT', assignment, undefined, req.user!.id);

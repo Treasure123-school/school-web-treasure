@@ -9,6 +9,30 @@ Treasure-Home is a comprehensive, production-ready school management system desi
 
 ## Recent Changes (December 2025)
 
+### Department-Aware Subject Mapping System (Dec 1, 2025)
+Critical fixes to properly wire up the department-based subject assignment tables:
+
+#### Student Creation Auto-Assignment
+- When a student is created, subjects are automatically assigned based on class level and department
+- For SS1-SS3 students with department: Assigns general + department-specific subjects
+- For non-SS students: Assigns general subjects only
+- Uses `autoAssignSubjectsToStudent` function from storage layer
+
+#### Report Card Sync Priority System
+- `syncExamScoreToReportCard` now prioritizes `studentSubjectAssignments` table
+- **Priority 1**: Uses student's personal subject assignments if they exist
+- **Priority 2**: Falls back to class-level filtering via `teacherClassAssignments`
+- Maintains department filtering for senior secondary students
+
+#### Teacher Assignment Class-Subject Mapping
+- When a teacher is assigned to a class/subject, also creates a `classSubjectMapping`
+- Sets department on the mapping for SS class department-specific subjects
+- Uses conflict-safe logic (onConflictDoNothing) to handle duplicates gracefully
+
+#### Duplicate Handling
+- `createClassSubjectMapping` now uses `onConflictDoNothing()` to prevent unique constraint violations
+- Falls back to fetching existing mapping if insert conflicts
+
 ### Module 1: Student Subject Assignment System (Dec 1, 2025)
 Complete implementation of the teacher-student-department-class assignment system with automated report card generation:
 

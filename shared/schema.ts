@@ -165,6 +165,7 @@ export const subjects = sqliteTable("subjects", {
   code: text("code").notNull().unique(),
   description: text("description"),
   category: text("category").notNull().default('general'),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
@@ -637,6 +638,38 @@ export const teacherClassAssignments = sqliteTable("teacher_class_assignments", 
   teacherAssignmentsDeptIdx: index("teacher_assignments_dept_idx").on(table.department),
 }));
 
+// Student subject assignments table - Links students to their assigned subjects based on class and department
+export const studentSubjectAssignments = sqliteTable("student_subject_assignments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  termId: integer("term_id").references(() => academicTerms.id),
+  assignedBy: text("assigned_by").references(() => users.id, { onDelete: 'set null' }),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  studentSubjectAssignmentsStudentIdx: index("student_subject_assignments_student_idx").on(table.studentId),
+  studentSubjectAssignmentsSubjectIdx: index("student_subject_assignments_subject_idx").on(table.subjectId),
+  studentSubjectAssignmentsClassIdx: index("student_subject_assignments_class_idx").on(table.classId),
+  studentSubjectAssignmentsUniqueIdx: uniqueIndex("student_subject_assignments_unique_idx").on(table.studentId, table.subjectId, table.classId),
+}));
+
+// Class subject mappings table - Defines which subjects are available for each class level
+export const classSubjectMappings = sqliteTable("class_subject_mappings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  department: text("department"),
+  isCompulsory: integer("is_compulsory", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  classSubjectMappingsClassIdx: index("class_subject_mappings_class_idx").on(table.classId),
+  classSubjectMappingsSubjectIdx: index("class_subject_mappings_subject_idx").on(table.subjectId),
+  classSubjectMappingsDeptIdx: index("class_subject_mappings_dept_idx").on(table.department),
+  classSubjectMappingsUniqueIdx: uniqueIndex("class_subject_mappings_unique_idx").on(table.classId, table.subjectId, table.department),
+}));
+
 // Timetable table
 export const timetable = sqliteTable("timetable", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -981,6 +1014,8 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export const insertTeacherProfileSchema = createInsertSchema(teacherProfiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAdminProfileSchema = createInsertSchema(adminProfiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertParentProfileSchema = createInsertSchema(parentProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertStudentSubjectAssignmentSchema = createInsertSchema(studentSubjectAssignments).omit({ id: true, createdAt: true });
+export const insertClassSubjectMappingSchema = createInsertSchema(classSubjectMappings).omit({ id: true, createdAt: true });
 
 // Vacancy schemas
 export const insertVacancySchema = createInsertSchema(vacancies).omit({ 
@@ -1133,3 +1168,8 @@ export type SuperAdminProfile = typeof superAdminProfiles.$inferSelect;
 export type SystemSettings = typeof systemSettings.$inferSelect;
 export type InsertSuperAdminProfile = z.infer<typeof insertSuperAdminProfileSchema>;
 export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
+
+export type StudentSubjectAssignment = typeof studentSubjectAssignments.$inferSelect;
+export type InsertStudentSubjectAssignment = z.infer<typeof insertStudentSubjectAssignmentSchema>;
+export type ClassSubjectMapping = typeof classSubjectMappings.$inferSelect;
+export type InsertClassSubjectMapping = z.infer<typeof insertClassSubjectMappingSchema>;

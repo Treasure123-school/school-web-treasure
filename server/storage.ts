@@ -4346,46 +4346,69 @@ export class DatabaseStorage implements IStorage {
         const rawDepartment = (student[0].department || '').trim().toLowerCase();
         const studentDepartment = rawDepartment.length > 0 ? rawDepartment : undefined;
 
-        // Get subjects assigned to this class via teacher_class_assignments
-        // This ensures we only include subjects actually offered for this class
-        const classSubjectAssignments = await db.select({ subjectId: schema.teacherClassAssignments.subjectId })
-          .from(schema.teacherClassAssignments)
+        // PRIORITY 1: Check student's personal subject assignments (from studentSubjectAssignments table)
+        // This is the authoritative source for what subjects a student should have on their report card
+        const studentSubjectAssignments = await db.select({ subjectId: schema.studentSubjectAssignments.subjectId })
+          .from(schema.studentSubjectAssignments)
           .where(and(
-            eq(schema.teacherClassAssignments.classId, classId),
-            eq(schema.teacherClassAssignments.isActive, true)
+            eq(schema.studentSubjectAssignments.studentId, studentId),
+            eq(schema.studentSubjectAssignments.classId, classId),
+            eq(schema.studentSubjectAssignments.isActive, true)
           ));
         
-        const assignedSubjectIds = new Set(classSubjectAssignments.map(a => a.subjectId));
-        const hasAssignedSubjects = assignedSubjectIds.size > 0;
+        let relevantSubjects: any[] = [];
         
-        // Get all active subjects
-        const allSubjects = await db.select()
-          .from(schema.subjects)
-          .where(eq(schema.subjects.isActive, true));
-
-        // Filter subjects based on class assignments (if available) and department rules
-        // If no teacher assignments exist for the class, fall back to department-only filtering
-        const relevantSubjects = allSubjects.filter((subject: any) => {
-          const category = (subject.category || 'general').trim().toLowerCase();
+        if (studentSubjectAssignments.length > 0) {
+          // Use student's personal subject assignments - respects department selection
+          const studentSubjectIds = studentSubjectAssignments.map(a => a.subjectId);
+          relevantSubjects = await db.select()
+            .from(schema.subjects)
+            .where(and(
+              inArray(schema.subjects.id, studentSubjectIds),
+              eq(schema.subjects.isActive, true)
+            ));
+          console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from student's personal assignments`);
+        } else {
+          // PRIORITY 2: Fall back to class-level subject assignments via teacher_class_assignments
+          const classSubjectAssignments = await db.select({ subjectId: schema.teacherClassAssignments.subjectId })
+            .from(schema.teacherClassAssignments)
+            .where(and(
+              eq(schema.teacherClassAssignments.classId, classId),
+              eq(schema.teacherClassAssignments.isActive, true)
+            ));
           
-          // If class has assigned subjects, only include those
-          if (hasAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
-            return false;
-          }
+          const assignedSubjectIds = new Set(classSubjectAssignments.map(a => a.subjectId));
+          const hasClassAssignedSubjects = assignedSubjectIds.size > 0;
           
-          if (isSeniorSecondary && studentDepartment) {
-            // SS student with department: include general + department subjects
-            return category === 'general' || category === studentDepartment;
-          } else if (isSeniorSecondary && !studentDepartment) {
-            // SS student without department: include only general subjects (awaiting department assignment)
-            return category === 'general';
-          } else {
-            // Non-SS student: include all (assigned) subjects
-            return true;
-          }
-        });
+          // Get all active subjects
+          const allSubjects = await db.select()
+            .from(schema.subjects)
+            .where(eq(schema.subjects.isActive, true));
 
-        console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || 'no-dept'}` : 'non-SS'} student (${hasAssignedSubjects ? `${assignedSubjectIds.size} subjects assigned` : 'no class assignments, using department filter only'})`);
+          // Filter subjects based on class assignments (if available) and department rules
+          relevantSubjects = allSubjects.filter((subject: any) => {
+            const category = (subject.category || 'general').trim().toLowerCase();
+            
+            // If class has assigned subjects, only include those
+            if (hasClassAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
+              return false;
+            }
+            
+            if (isSeniorSecondary && studentDepartment) {
+              // SS student with department: include general + department subjects
+              return category === 'general' || category === studentDepartment;
+            } else if (isSeniorSecondary && !studentDepartment) {
+              // SS student without department: include only general subjects (awaiting department assignment)
+              return category === 'general';
+            } else {
+              // Non-SS student: include all (assigned) subjects
+              return true;
+            }
+          });
+          console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class-level filtering (${hasClassAssignedSubjects ? 'with teacher assignments' : 'department-only'})`);
+        }
+
+        console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || 'no-dept'}` : 'non-SS'} student`);
 
         for (const subject of relevantSubjects) {
           await db.insert(schema.reportCardItems)
@@ -5750,10 +5773,27 @@ export class DatabaseStorage implements IStorage {
 
   // Class subject mapping implementations
   async createClassSubjectMapping(mapping: InsertClassSubjectMapping): Promise<ClassSubjectMapping> {
+    // Use onConflictDoNothing to handle duplicate mappings gracefully
     const result = await this.db
       .insert(schema.classSubjectMappings)
       .values(mapping)
+      .onConflictDoNothing()
       .returning();
+    
+    // If conflict occurred (no result), fetch the existing mapping
+    if (!result[0]) {
+      const existing = await this.db
+        .select()
+        .from(schema.classSubjectMappings)
+        .where(
+          and(
+            eq(schema.classSubjectMappings.classId, mapping.classId),
+            eq(schema.classSubjectMappings.subjectId, mapping.subjectId)
+          )
+        )
+        .limit(1);
+      return existing[0];
+    }
     return result[0];
   }
 
