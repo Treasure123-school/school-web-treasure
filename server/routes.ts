@@ -27,6 +27,7 @@ import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils"
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
+import { getVisibleExamsForStudent, getVisibleExamsForParent } from "./exam-visibility";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -1061,6 +1062,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
             
           case 'exams':
+            // Uses centralized visibility logic for consistency across all endpoints
+            // KG1-JSS3: See all general subject exams for their class
+            // SS1-SS3: See general + department-specific exams only
             if (userRoleId === ROLES.ADMIN || userRoleId === ROLES.SUPER_ADMIN) {
               syncData.exams = await storage.getAllExams();
             } else if (userRoleId === ROLES.TEACHER) {
@@ -1069,28 +1073,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 e.createdBy === userId || e.teacherInChargeId === userId
               );
             } else if (userRoleId === ROLES.STUDENT) {
-              // Students only see published exams for their class
-              const student = await storage.getStudent(userId);
-              if (student?.classId) {
-                const allExams = await storage.getAllExams();
-                syncData.exams = (Array.isArray(allExams) ? allExams : []).filter((e: any) => 
-                  e.isPublished && e.classId === student.classId
-                );
-              } else {
-                syncData.exams = [];
-              }
+              syncData.exams = await getVisibleExamsForStudent(userId);
             } else if (userRoleId === ROLES.PARENT) {
-              // Parents see published exams for their children's classes
-              const children = await storage.getStudentsByParentId(userId);
-              const classIds = [...new Set((Array.isArray(children) ? children : []).map((c: any) => c.classId).filter(Boolean))];
-              if (classIds.length > 0) {
-                const allExams = await storage.getAllExams();
-                syncData.exams = (Array.isArray(allExams) ? allExams : []).filter((e: any) => 
-                  e.isPublished && classIds.includes(e.classId)
-                );
-              } else {
-                syncData.exams = [];
-              }
+              syncData.exams = await getVisibleExamsForParent(userId);
             }
             break;
             
@@ -1133,67 +1118,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exam management routes
-  // Get all exams
+  // Get all exams - Uses centralized visibility logic for consistency
   app.get('/api/exams', authenticateUser, async (req, res) => {
     try {
       const userId = req.user!.id;
       const userRoleId = req.user!.roleId;
       
-      // Students should only see exams assigned to their class
-      // For SS1-SS3 students with a department, also filter by department-specific subjects
+      // Students: Use centralized visibility logic
+      // - KG1-JSS3: See all general subject exams for their class
+      // - SS1-SS3: See general + department-specific exams only
       if (userRoleId === ROLES.STUDENT) {
-        // Get the student's class and department info
-        const student = await storage.getStudent(userId);
-        
-        if (!student || !student.classId) {
-          // Student not enrolled in any class - return empty array
-          return res.json([]);
-        }
-        
-        // Get the student's class to check if it's Senior Secondary
-        const studentClass = await storage.getClass(student.classId);
-        const isSeniorSecondary = (studentClass?.level || '').trim().toLowerCase() === 'senior secondary';
-        // Normalize department - treat empty/whitespace-only as undefined
-        const rawDepartment = (student.department || '').trim().toLowerCase();
-        const studentDepartment = rawDepartment.length > 0 ? rawDepartment : undefined;
-        
-        // Get exams for student's class that are published
-        const allExams = await storage.getAllExams();
-        
-        // Filter to only show published exams for the student's class
-        let studentExams = allExams.filter((exam: any) => {
-          // Only show published exams for the student's class
-          return exam.isPublished && exam.classId === student.classId;
-        });
-        
-        // For SS students, filter exams based on department
-        if (isSeniorSecondary) {
-          const subjects = await storage.getSubjects();
-          
-          if (studentDepartment) {
-            // SS student with department: show general + department subjects
-            const validSubjectIds = subjects
-              .filter(s => {
-                const category = (s.category || 'general').trim().toLowerCase();
-                return category === 'general' || category === studentDepartment;
-              })
-              .map(s => s.id);
-            
-            studentExams = studentExams.filter((exam: any) => 
-              validSubjectIds.includes(exam.subjectId)
-            );
-          } else {
-            // SS student without department: show only general subjects
-            const generalSubjectIds = subjects
-              .filter(s => (s.category || 'general').trim().toLowerCase() === 'general')
-              .map(s => s.id);
-            
-            studentExams = studentExams.filter((exam: any) => 
-              generalSubjectIds.includes(exam.subjectId)
-            );
-          }
-        }
-        
+        const studentExams = await getVisibleExamsForStudent(userId);
         return res.json(studentExams);
       }
       
@@ -1206,26 +1141,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(teacherExams);
       }
       
-      // Parents see exams for their children's classes
+      // Parents: Use centralized visibility logic for all children
+      // Shows proper department-filtered exams for each child
       if (userRoleId === ROLES.PARENT) {
-        const children = await storage.getStudentsByParentId(userId);
-        
-        if (!children || children.length === 0) {
-          return res.json([]);
-        }
-        
-        // Get unique class IDs from all children
-        const classIds = Array.from(new Set(children.map((c: any) => c.classId).filter(Boolean)));
-        
-        if (classIds.length === 0) {
-          return res.json([]);
-        }
-        
-        const allExams = await storage.getAllExams();
-        const parentExams = allExams.filter((exam: any) => {
-          return exam.isPublished && classIds.includes(exam.classId);
-        });
-        
+        const parentExams = await getVisibleExamsForParent(userId);
         return res.json(parentExams);
       }
       

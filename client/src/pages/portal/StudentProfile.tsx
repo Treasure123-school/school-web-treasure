@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit, Camera } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, School, Save, Edit, Camera, BookOpen } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -232,6 +232,17 @@ export default function StudentProfile() {
                       </p>
                     </div>
                   </div>
+                  {student?.department && (
+                    <div className="flex items-center space-x-3">
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Department</p>
+                        <p className="text-sm text-muted-foreground capitalize" data-testid="text-student-department">
+                          {student.department}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
