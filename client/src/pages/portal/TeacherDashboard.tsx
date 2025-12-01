@@ -138,7 +138,7 @@ export default function TeacherDashboard() {
       const data = await response.json();
       return data;
     },
-    enabled: !!user && !!profileStatus?.hasProfile,
+    enabled: !!user, // Always fetch - endpoint returns synthetic profile for new teachers
     staleTime: 0,
     gcTime: 0,
     retry: 2,

@@ -64,8 +64,8 @@ export default function RequireCompleteProfile({
     );
   }
   // If profile is complete, render children
-  // For teachers: check hasProfile, for students: check completed
-  const isProfileComplete = isTeacher ? profileStatus?.hasProfile : profileStatus?.completed;
+  // For teachers: check profileCompleted, for students: check completed
+  const isProfileComplete = isTeacher ? profileStatus?.profileCompleted : profileStatus?.completed;
   
   if (isProfileComplete) {
     return <>{children}</>;
