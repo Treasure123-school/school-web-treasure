@@ -27,6 +27,13 @@ Comprehensive real-time updates are implemented across major features including 
 - **File Management**: Unified upload interface with Cloudinary CDN for production, handling image optimization, CDN distribution, and responsive sizing.
 - **Department-Aware Subject Mapping**: Students are automatically assigned subjects based on class level and department. Report card generation prioritizes student's personal subject assignments. Teachers can be assigned to classes and subjects, with department-specific filtering for senior secondary classes.
 - **Department Selection UI**: Student management includes department selection for senior secondary students (SS1-SS3) with conditional rendering and pre-population.
+- **Teacher-Class-Subject Assignment Module**: Comprehensive module for managing teacher assignments to specific class-subject combinations. Features include:
+  - Admin interface at `/portal/admin/teacher-assignments` for creating, editing, and deleting assignments
+  - Assignment validation middleware (`validateTeacherCanCreateExam`, `validateTeacherCanEnterScores`, `validateTeacherCanViewResults`) that enforces teachers can only create exams and enter scores for their assigned class-subject combinations
+  - Audit logging via `teacherAssignmentHistory` table tracking all assignment changes
+  - Support for term-specific and session-based assignments with optional validity periods
+  - Admin/Super Admin bypass - elevated roles can perform any exam operation
+  - Ownership-based authorization for exam updates/deletes (creator or teacherInCharge)
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
