@@ -1152,7 +1152,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get the student's class to check if it's Senior Secondary
         const studentClass = await storage.getClass(student.classId);
-        
         const isSeniorSecondary = (studentClass?.level || '').trim().toLowerCase() === 'senior secondary';
         // Normalize department - treat empty/whitespace-only as undefined
         const rawDepartment = (student.department || '').trim().toLowerCase();
@@ -1163,6 +1162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Filter to only show published exams for the student's class
         let studentExams = allExams.filter((exam: any) => {
+          // Only show published exams for the student's class
           return exam.isPublished && exam.classId === student.classId;
         });
         
@@ -1301,8 +1301,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get exam question counts - MUST be before /api/exams/:id to avoid route conflict
   app.get('/api/exams/question-counts', authenticateUser, async (req, res) => {
     try {
-      const userId = req.user!.id;
-      const userRoleId = req.user!.roleId;
       const examIdsParam = req.query.examIds;
       let examIds: number[] = [];
 
@@ -1316,40 +1314,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .map((id) => parseInt(id as string))
           .filter((id) => !isNaN(id));
       }
-      
       const counts: Record<number, number> = {};
-      
-      // For students, validate they can only access exams for their class
-      if (userRoleId === ROLES.STUDENT) {
-        const student = await storage.getStudent(userId);
-        if (!student || !student.classId) {
-          return res.json({});
-        }
-        
-        // Get all exams and filter to only student's class
-        const allExams = await storage.getAllExams();
-        const allowedExams = new Set(
-          allExams
-            .filter((e: any) => e.classId === student.classId && e.isPublished)
-            .map((e: any) => e.id)
-        );
-        
-        // Only count questions for exams the student can access
-        for (const examId of examIds) {
-          if (!allowedExams.has(examId)) {
-            continue; // Skip exams student doesn't have access to
-          }
-          const questions = await storage.getExamQuestions(examId);
-          counts[examId] = questions.length;
-        }
-      } else {
-        // Teachers, admins, and super admins can get counts for any exam
-        for (const examId of examIds) {
-          const questions = await storage.getExamQuestions(examId);
-          counts[examId] = questions.length;
-        }
+
+      for (const examId of examIds) {
+        const questions = await storage.getExamQuestions(examId);
+        counts[examId] = questions.length;
       }
-      
       res.json(counts);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch question counts' });
@@ -1360,40 +1330,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exams/:id', authenticateUser, async (req, res) => {
     try {
       const examId = parseInt(req.params.id);
-      const userId = req.user!.id;
-      const userRoleId = req.user!.roleId;
-      
       const exam = await storage.getExamById(examId);
 
       if (!exam) {
         return res.status(404).json({ message: 'Exam not found' });
       }
-      
-      // Students can only view exams for their class (and must be published)
-      if (userRoleId === ROLES.STUDENT) {
-        const student = await storage.getStudent(userId);
-        
-        if (!student || !student.classId || exam.classId !== student.classId || !exam.isPublished) {
-          return res.status(403).json({ message: 'You do not have access to this exam' });
-        }
-      }
-      // Teachers can view exams they created or are assigned to
-      else if (userRoleId === ROLES.TEACHER) {
-        if (exam.createdBy !== userId && exam.teacherInChargeId !== userId) {
-          return res.status(403).json({ message: 'You do not have access to this exam' });
-        }
-      }
-      // Parents can view exams for their children's classes
-      else if (userRoleId === ROLES.PARENT) {
-        const children = await storage.getStudentsByParentId(userId);
-        const childClassIds = new Set(children?.map((c: any) => c.classId).filter(Boolean) || []);
-        
-        if (!exam.isPublished || !childClassIds.has(exam.classId)) {
-          return res.status(403).json({ message: 'You do not have access to this exam' });
-        }
-      }
-      // Admins and super admins can view any exam
-      
       res.json(exam);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch exam' });
