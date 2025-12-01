@@ -277,7 +277,19 @@ export default function ExamManagement() {
     staleTime: 30000,
   });
 
-  // Use teacher's assigned classes only (not all classes)
+  // Fetch ALL subjects for display purposes (showing subject names for existing exams)
+  const { data: allSubjects = [] } = useQuery<Subject[]>({
+    queryKey: ['/api/subjects'],
+    staleTime: 60000,
+  });
+
+  // Fetch ALL classes for display purposes (showing class names for existing exams)
+  const { data: allClasses = [] } = useQuery<Class[]>({
+    queryKey: ['/api/classes'],
+    staleTime: 60000,
+  });
+
+  // Use teacher's assigned classes only (not all classes) for dropdowns
   const classes = myAssignments?.classes || [];
   const classesLoading = assignmentsLoading;
 
@@ -291,6 +303,7 @@ export default function ExamManagement() {
         )
   ) : [];
 
+  // availableSubjects is for dropdown selections (filtered to teacher's assignments)
   const subjects = availableSubjects;
 
   // Clear subject and teacher when class changes (to prevent stale selections)
@@ -1325,12 +1338,14 @@ export default function ExamManagement() {
   );
 
   const getClassNameById = (classId: number) => {
-    const classItem = classes.find((c: Class) => c.id === classId);
+    // Use allClasses for display (contains all classes, not just assigned ones)
+    const classItem = allClasses.find((c: Class) => c.id === classId);
     return classItem?.name || 'Unknown Class';
   };
 
   const getSubjectNameById = (subjectId: number) => {
-    const subject = subjects.find((s: Subject) => s.id === subjectId);
+    // Use allSubjects for display (contains all subjects, not just assigned ones)
+    const subject = allSubjects.find((s: Subject) => s.id === subjectId);
     return subject?.name || 'Unknown Subject';
   };
 
