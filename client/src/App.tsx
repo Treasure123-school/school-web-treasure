@@ -76,6 +76,7 @@ import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
 import CreateExam from "@/pages/portal/CreateExam";
 import TeacherReportCards from "@/pages/portal/TeacherReportCards";
 import PortalComingSoon from "@/pages/portal/PortalComingSoon";
+import StudentSubjectAssignment from "@/pages/portal/StudentSubjectAssignment";
 
 // Real-time updates are now handled by Socket.IO on the backend
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
@@ -552,6 +553,11 @@ function Router() {
       <Route path="/portal/admin/subjects">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <SubjectsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/admin/student-subjects">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN]}>
+          <StudentSubjectAssignment />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/announcements">

@@ -18,7 +18,8 @@ import type {
   AdminProfile, InsertAdminProfile, ParentProfile, InsertParentProfile, InsertTeacherProfile,
   SuperAdminProfile, InsertSuperAdminProfile, SystemSettings, InsertSystemSettings, Vacancy, InsertVacancy,
   TeacherApplication, InsertTeacherApplication, ApprovedTeacher,
-  Timetable, InsertTimetable
+  Timetable, InsertTimetable,
+  StudentSubjectAssignment, InsertStudentSubjectAssignment, ClassSubjectMapping, InsertClassSubjectMapping
 } from "@shared/schema";
 
 // Get centralized database instance and schema from db.ts
@@ -461,6 +462,26 @@ export interface IStorage {
   }>;
   getSystemSettings(): Promise<SystemSettings | undefined>;
   updateSystemSettings(settings: Partial<InsertSystemSettings>): Promise<SystemSettings>;
+
+  // Student subject assignments
+  createStudentSubjectAssignment(assignment: InsertStudentSubjectAssignment): Promise<StudentSubjectAssignment>;
+  getStudentSubjectAssignments(studentId: string): Promise<StudentSubjectAssignment[]>;
+  getStudentSubjectAssignmentsByClass(classId: number): Promise<StudentSubjectAssignment[]>;
+  deleteStudentSubjectAssignment(id: number): Promise<boolean>;
+  deleteStudentSubjectAssignmentsByStudent(studentId: string): Promise<boolean>;
+  assignSubjectsToStudent(studentId: string, classId: number, subjectIds: number[], termId?: number, assignedBy?: string): Promise<StudentSubjectAssignment[]>;
+  
+  // Class subject mappings
+  createClassSubjectMapping(mapping: InsertClassSubjectMapping): Promise<ClassSubjectMapping>;
+  getClassSubjectMappings(classId: number, department?: string): Promise<ClassSubjectMapping[]>;
+  getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]>;
+  deleteClassSubjectMapping(id: number): Promise<boolean>;
+  deleteClassSubjectMappingsByClass(classId: number): Promise<boolean>;
+
+  // Department-based subject logic
+  getSubjectsByCategory(category: string): Promise<Subject[]>;
+  getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]>;
+  autoAssignSubjectsToStudent(studentId: string, classId: number, department?: string): Promise<StudentSubjectAssignment[]>;
 }
 // Helper to normalize UUIDs from various formats
 function normalizeUuid(raw: any): string | undefined {
@@ -3677,8 +3698,8 @@ export class DatabaseStorage implements IStorage {
         .from(schema.students)
         .where(eq(schema.students.classId, classId));
 
-      // Get all subjects for the class
-      const subjects = await db.select()
+      // Get class-level subjects as fallback
+      const classSubjects = await db.select()
         .from(schema.subjects)
         .where(eq(schema.subjects.classId, classId));
 
@@ -3714,6 +3735,39 @@ export class DatabaseStorage implements IStorage {
           } else {
             reportCardId = existingReportCard[0].id;
             updated++;
+          }
+
+          // Get student's assigned subjects, falling back to class subjects if none assigned
+          const studentAssignments = await this.getStudentSubjectAssignments(student.id);
+          let subjectIds: number[];
+          
+          if (studentAssignments.length > 0) {
+            // Use student's assigned subjects (respects department-based assignment)
+            // Only include active assignments
+            subjectIds = studentAssignments
+              .filter(a => a.isActive)
+              .map(a => a.subjectId);
+          } else {
+            // Fallback to class-level subjects
+            subjectIds = classSubjects.map(s => s.id);
+          }
+
+          // Get the actual subject objects for the IDs - only include active subjects
+          let subjects = subjectIds.length > 0 
+            ? await db.select()
+                .from(schema.subjects)
+                .where(
+                  and(
+                    inArray(schema.subjects.id, subjectIds),
+                    eq(schema.subjects.isActive, true)
+                  )
+                )
+            : classSubjects.filter((s: any) => s.isActive !== false);
+          
+          // If no valid subjects found after filtering, skip this student
+          if (subjects.length === 0) {
+            errors.push(`No active subjects found for student ${student.id}`);
+            continue;
           }
 
           // Create or update report card items for each subject
@@ -3768,7 +3822,16 @@ export class DatabaseStorage implements IStorage {
       }
 
       const gradingScale = (reportCard as any).gradingScale || 'standard';
-      const config = getGradingConfig(gradingScale);
+      let config = getGradingConfig(gradingScale);
+      
+      // Get system settings for test/exam weights
+      const systemSettings = await this.getSystemSettings();
+      if (systemSettings) {
+        // Override grading config with system settings weights
+        const testWeight = systemSettings.testWeight ?? 40;
+        const examWeight = systemSettings.examWeight ?? 60;
+        config = { ...config, testWeight, examWeight };
+      }
 
       // Get all report card items
       const items = await db.select()
@@ -3806,8 +3869,8 @@ export class DatabaseStorage implements IStorage {
             examMaxScore = lastExam.maxScore;
           }
 
-          // Calculate weighted score
-          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+          // Calculate weighted score using system settings weights
+          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, config);
           const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
 
           // Update the report card item
@@ -5611,6 +5674,215 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+
+  // Student subject assignment implementations
+  async createStudentSubjectAssignment(assignment: InsertStudentSubjectAssignment): Promise<StudentSubjectAssignment> {
+    const result = await this.db
+      .insert(schema.studentSubjectAssignments)
+      .values(assignment)
+      .returning();
+    return result[0];
+  }
+
+  async getStudentSubjectAssignments(studentId: string): Promise<StudentSubjectAssignment[]> {
+    return await this.db
+      .select()
+      .from(schema.studentSubjectAssignments)
+      .where(eq(schema.studentSubjectAssignments.studentId, studentId));
+  }
+
+  async getStudentSubjectAssignmentsByClass(classId: number): Promise<StudentSubjectAssignment[]> {
+    return await this.db
+      .select()
+      .from(schema.studentSubjectAssignments)
+      .where(eq(schema.studentSubjectAssignments.classId, classId));
+  }
+
+  async deleteStudentSubjectAssignment(id: number): Promise<boolean> {
+    const result = await this.db
+      .delete(schema.studentSubjectAssignments)
+      .where(eq(schema.studentSubjectAssignments.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteStudentSubjectAssignmentsByStudent(studentId: string): Promise<boolean> {
+    await this.db
+      .delete(schema.studentSubjectAssignments)
+      .where(eq(schema.studentSubjectAssignments.studentId, studentId));
+    return true;
+  }
+
+  async assignSubjectsToStudent(
+    studentId: string,
+    classId: number,
+    subjectIds: number[],
+    termId?: number,
+    assignedBy?: string
+  ): Promise<StudentSubjectAssignment[]> {
+    const assignments: StudentSubjectAssignment[] = [];
+    
+    for (const subjectId of subjectIds) {
+      try {
+        const result = await this.db
+          .insert(schema.studentSubjectAssignments)
+          .values({
+            studentId,
+            classId,
+            subjectId,
+            termId: termId || null,
+            assignedBy: assignedBy || null,
+            isActive: true,
+          })
+          .onConflictDoNothing()
+          .returning();
+        if (result[0]) {
+          assignments.push(result[0]);
+        }
+      } catch (e) {
+        // Skip duplicates
+      }
+    }
+    
+    return assignments;
+  }
+
+  // Class subject mapping implementations
+  async createClassSubjectMapping(mapping: InsertClassSubjectMapping): Promise<ClassSubjectMapping> {
+    const result = await this.db
+      .insert(schema.classSubjectMappings)
+      .values(mapping)
+      .returning();
+    return result[0];
+  }
+
+  async getClassSubjectMappings(classId: number, department?: string): Promise<ClassSubjectMapping[]> {
+    if (department) {
+      return await this.db
+        .select()
+        .from(schema.classSubjectMappings)
+        .where(
+          and(
+            eq(schema.classSubjectMappings.classId, classId),
+            or(
+              eq(schema.classSubjectMappings.department, department),
+              isNull(schema.classSubjectMappings.department)
+            )
+          )
+        );
+    }
+    return await this.db
+      .select()
+      .from(schema.classSubjectMappings)
+      .where(eq(schema.classSubjectMappings.classId, classId));
+  }
+
+  async getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]> {
+    const mappings = await this.getClassSubjectMappings(classId, department);
+    if (mappings.length === 0) return [];
+    
+    const subjectIds = mappings.map(m => m.subjectId);
+    return await this.db
+      .select()
+      .from(schema.subjects)
+      .where(
+        and(
+          inArray(schema.subjects.id, subjectIds),
+          eq(schema.subjects.isActive, true)
+        )
+      );
+  }
+
+  async deleteClassSubjectMapping(id: number): Promise<boolean> {
+    const result = await this.db
+      .delete(schema.classSubjectMappings)
+      .where(eq(schema.classSubjectMappings.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteClassSubjectMappingsByClass(classId: number): Promise<boolean> {
+    await this.db
+      .delete(schema.classSubjectMappings)
+      .where(eq(schema.classSubjectMappings.classId, classId));
+    return true;
+  }
+
+  // Department-based subject logic implementations
+  async getSubjectsByCategory(category: string): Promise<Subject[]> {
+    return await this.db
+      .select()
+      .from(schema.subjects)
+      .where(
+        and(
+          eq(schema.subjects.category, category),
+          eq(schema.subjects.isActive, true)
+        )
+      );
+  }
+
+  async getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]> {
+    // Class levels: KG1-KG3, Primary1-6, JSS1-JSS3, SS1-SS3
+    // For KG1-JSS3: Only general subjects
+    // For SS1-SS3: Department-specific subjects + general subjects
+    
+    const seniorSecondaryLevels = ['SS1', 'SS2', 'SS3'];
+    const isSeniorSecondary = seniorSecondaryLevels.includes(classLevel);
+    
+    if (isSeniorSecondary && department) {
+      // For SS1-SS3: Get department subjects + general subjects
+      const categories = ['general', department.toLowerCase()];
+      return await this.db
+        .select()
+        .from(schema.subjects)
+        .where(
+          and(
+            inArray(schema.subjects.category, categories),
+            eq(schema.subjects.isActive, true)
+          )
+        );
+    } else {
+      // For KG1-JSS3: Only general subjects
+      return await this.db
+        .select()
+        .from(schema.subjects)
+        .where(
+          and(
+            eq(schema.subjects.category, 'general'),
+            eq(schema.subjects.isActive, true)
+          )
+        );
+    }
+  }
+
+  async autoAssignSubjectsToStudent(
+    studentId: string,
+    classId: number,
+    department?: string
+  ): Promise<StudentSubjectAssignment[]> {
+    // Get the class to determine level
+    const classInfo = await this.getClass(classId);
+    if (!classInfo) {
+      throw new Error('Class not found');
+    }
+    
+    // Get current term
+    const currentTerm = await this.getCurrentTerm();
+    const termId = currentTerm?.id;
+    
+    // Get subjects based on class level and department
+    const subjects = await this.getSubjectsForClassLevel(classInfo.level, department);
+    
+    if (subjects.length === 0) {
+      // Fallback: get all general subjects if no subjects found
+      const generalSubjects = await this.getSubjectsByCategory('general');
+      const subjectIds = generalSubjects.map(s => s.id);
+      return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+    }
+    
+    const subjectIds = subjects.map(s => s.id);
+    return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
   }
 }
 // Initialize storage - PostgreSQL database only

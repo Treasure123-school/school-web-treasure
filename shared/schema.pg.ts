@@ -639,6 +639,38 @@ export const teacherClassAssignments = pgTable("teacher_class_assignments", {
   teacherClassAssignmentsDeptIdx: index("teacher_class_assignments_dept_idx").on(table.department),
 }));
 
+// Student subject assignments table - Links students to their assigned subjects based on class and department
+export const studentSubjectAssignments = pgTable("student_subject_assignments", {
+  id: serial("id").primaryKey(),
+  studentId: varchar("student_id", { length: 36 }).notNull().references(() => students.id, { onDelete: 'cascade' }),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  termId: integer("term_id").references(() => academicTerms.id),
+  assignedBy: varchar("assigned_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  studentSubjectAssignmentsStudentIdx: index("student_subject_assignments_student_idx").on(table.studentId),
+  studentSubjectAssignmentsSubjectIdx: index("student_subject_assignments_subject_idx").on(table.subjectId),
+  studentSubjectAssignmentsClassIdx: index("student_subject_assignments_class_idx").on(table.classId),
+  studentSubjectAssignmentsUniqueIdx: uniqueIndex("student_subject_assignments_unique_idx").on(table.studentId, table.subjectId, table.classId),
+}));
+
+// Class subject mappings table - Defines which subjects are available for each class level
+export const classSubjectMappings = pgTable("class_subject_mappings", {
+  id: serial("id").primaryKey(),
+  classId: integer("class_id").notNull().references(() => classes.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  department: varchar("department", { length: 50 }),
+  isCompulsory: boolean("is_compulsory").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  classSubjectMappingsClassIdx: index("class_subject_mappings_class_idx").on(table.classId),
+  classSubjectMappingsSubjectIdx: index("class_subject_mappings_subject_idx").on(table.subjectId),
+  classSubjectMappingsDeptIdx: index("class_subject_mappings_dept_idx").on(table.department),
+  classSubjectMappingsUniqueIdx: uniqueIndex("class_subject_mappings_unique_idx").on(table.classId, table.subjectId, table.department),
+}));
+
 // Timetable table
 export const timetable = pgTable("timetable", {
   id: serial("id").primaryKey(),
@@ -882,3 +914,7 @@ export type TeacherApplication = typeof teacherApplications.$inferSelect;
 export type InsertTeacherApplication = typeof teacherApplications.$inferInsert;
 export type ApprovedTeacher = typeof approvedTeachers.$inferSelect;
 export type InsertApprovedTeacher = typeof approvedTeachers.$inferInsert;
+export type StudentSubjectAssignment = typeof studentSubjectAssignments.$inferSelect;
+export type InsertStudentSubjectAssignment = typeof studentSubjectAssignments.$inferInsert;
+export type ClassSubjectMapping = typeof classSubjectMappings.$inferSelect;
+export type InsertClassSubjectMapping = typeof classSubjectMappings.$inferInsert;

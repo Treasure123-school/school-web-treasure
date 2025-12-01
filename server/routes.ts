@@ -8882,6 +8882,240 @@ Treasure-Home School Administration
 
     // ==================== END TEACHER ASSIGNMENT ROUTES ====================
 
+    // ==================== STUDENT SUBJECT ASSIGNMENT ROUTES ====================
+
+    // Get subjects for a student based on their class and department
+    app.get('/api/students/:studentId/subjects', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        
+        // Get student info
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+        
+        // Get assigned subjects
+        const assignments = await storage.getStudentSubjectAssignments(studentId);
+        
+        // Enrich with subject details
+        const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+          const subject = await storage.getSubject(assignment.subjectId);
+          return {
+            ...assignment,
+            subjectName: subject?.name,
+            subjectCode: subject?.code,
+            category: subject?.category
+          };
+        }));
+        
+        res.json(enrichedAssignments);
+      } catch (error: any) {
+        console.error('Error fetching student subjects:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch student subjects' });
+      }
+    });
+
+    // Auto-assign subjects to student based on class level and department
+    app.post('/api/students/:studentId/auto-assign-subjects', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        
+        // Get student info
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+        
+        if (!student.classId) {
+          return res.status(400).json({ message: 'Student has no class assigned' });
+        }
+        
+        // Auto-assign subjects
+        const assignments = await storage.autoAssignSubjectsToStudent(
+          studentId,
+          student.classId,
+          student.department || undefined
+        );
+        
+        res.json({
+          message: `Successfully assigned ${assignments.length} subjects to student`,
+          assignments
+        });
+      } catch (error: any) {
+        console.error('Error auto-assigning subjects:', error);
+        res.status(500).json({ message: error.message || 'Failed to auto-assign subjects' });
+      }
+    });
+
+    // Manually assign subjects to student
+    app.post('/api/students/:studentId/subjects', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const { subjectIds, termId } = req.body;
+        
+        if (!Array.isArray(subjectIds) || subjectIds.length === 0) {
+          return res.status(400).json({ message: 'subjectIds array is required' });
+        }
+        
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student not found' });
+        }
+        
+        if (!student.classId) {
+          return res.status(400).json({ message: 'Student has no class assigned' });
+        }
+        
+        const assignments = await storage.assignSubjectsToStudent(
+          studentId,
+          student.classId,
+          subjectIds,
+          termId,
+          req.user!.id
+        );
+        
+        res.status(201).json({
+          message: `Successfully assigned ${assignments.length} subjects`,
+          assignments
+        });
+      } catch (error: any) {
+        console.error('Error assigning subjects:', error);
+        res.status(500).json({ message: error.message || 'Failed to assign subjects' });
+      }
+    });
+
+    // Remove subject assignment from student
+    app.delete('/api/student-subject-assignments/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        
+        const success = await storage.deleteStudentSubjectAssignment(Number(id));
+        
+        if (!success) {
+          return res.status(404).json({ message: 'Assignment not found' });
+        }
+        
+        res.json({ message: 'Subject assignment removed successfully' });
+      } catch (error: any) {
+        console.error('Error removing subject assignment:', error);
+        res.status(500).json({ message: error.message || 'Failed to remove subject assignment' });
+      }
+    });
+
+    // ==================== CLASS SUBJECT MAPPING ROUTES ====================
+
+    // Get subjects available for a class (with optional department filter)
+    app.get('/api/classes/:classId/available-subjects', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { department } = req.query;
+        
+        // Get the class info
+        const classInfo = await storage.getClass(Number(classId));
+        if (!classInfo) {
+          return res.status(404).json({ message: 'Class not found' });
+        }
+        
+        // Get subjects based on class level and department
+        const subjects = await storage.getSubjectsForClassLevel(
+          classInfo.level,
+          department as string | undefined
+        );
+        
+        res.json(subjects);
+      } catch (error: any) {
+        console.error('Error fetching available subjects:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch available subjects' });
+      }
+    });
+
+    // Create class-subject mapping
+    app.post('/api/class-subject-mappings', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId, subjectId, department, isCompulsory } = req.body;
+        
+        if (!classId || !subjectId) {
+          return res.status(400).json({ message: 'classId and subjectId are required' });
+        }
+        
+        const mapping = await storage.createClassSubjectMapping({
+          classId,
+          subjectId,
+          department: department || null,
+          isCompulsory: isCompulsory || false
+        });
+        
+        res.status(201).json(mapping);
+      } catch (error: any) {
+        console.error('Error creating class-subject mapping:', error);
+        res.status(500).json({ message: error.message || 'Failed to create mapping' });
+      }
+    });
+
+    // Get class-subject mappings
+    app.get('/api/class-subject-mappings/:classId', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { department } = req.query;
+        
+        const mappings = await storage.getClassSubjectMappings(
+          Number(classId),
+          department as string | undefined
+        );
+        
+        // Enrich with subject details
+        const enrichedMappings = await Promise.all(mappings.map(async (mapping) => {
+          const subject = await storage.getSubject(mapping.subjectId);
+          return {
+            ...mapping,
+            subjectName: subject?.name,
+            subjectCode: subject?.code,
+            category: subject?.category
+          };
+        }));
+        
+        res.json(enrichedMappings);
+      } catch (error: any) {
+        console.error('Error fetching class-subject mappings:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch mappings' });
+      }
+    });
+
+    // Delete class-subject mapping
+    app.delete('/api/class-subject-mappings/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        
+        const success = await storage.deleteClassSubjectMapping(Number(id));
+        
+        if (!success) {
+          return res.status(404).json({ message: 'Mapping not found' });
+        }
+        
+        res.json({ message: 'Mapping deleted successfully' });
+      } catch (error: any) {
+        console.error('Error deleting class-subject mapping:', error);
+        res.status(500).json({ message: error.message || 'Failed to delete mapping' });
+      }
+    });
+
+    // Get subjects by category (general, science, art, commercial)
+    app.get('/api/subjects/by-category/:category', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { category } = req.params;
+        
+        const subjects = await storage.getSubjectsByCategory(category);
+        
+        res.json(subjects);
+      } catch (error: any) {
+        console.error('Error fetching subjects by category:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch subjects' });
+      }
+    });
+
+    // ==================== END STUDENT SUBJECT ASSIGNMENT ROUTES ====================
+
     // ==================== END MODULE 1 ROUTES ====================
 
     // Catch-all for non-API routes - redirect to frontend (PRODUCTION ONLY)
