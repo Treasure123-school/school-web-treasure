@@ -102,6 +102,8 @@ export async function getVisibleExamsForStudent(studentId: string): Promise<any[
   const context = await getStudentExamVisibilityContext(studentId);
   
   if (!context) {
+    console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
+    console.log(`[EXAM-VISIBILITY] Make sure student has a record in students table with valid classId`);
     return [];
   }
   
@@ -110,7 +112,17 @@ export async function getVisibleExamsForStudent(studentId: string): Promise<any[
     storage.getSubjects()
   ]);
   
-  return filterExamsForStudentContext(allExams, context, subjects);
+  const visibleExams = filterExamsForStudentContext(allExams, context, subjects);
+  
+  console.log(`[EXAM-VISIBILITY] Student ${studentId} context:`, {
+    classId: context.classId,
+    classLevel: context.classLevel,
+    department: context.department,
+    isSS: isSeniorSecondaryLevel(context.classLevel)
+  });
+  console.log(`[EXAM-VISIBILITY] Found ${allExams.length} total exams, ${visibleExams.length} visible to student`);
+  
+  return visibleExams;
 }
 
 export async function getVisibleExamsForParent(parentId: string): Promise<any[]> {

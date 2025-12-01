@@ -76,7 +76,7 @@ export async function seedTestUsers() {
 
     // Fetch all classes to get a default class for test student
     const classes = await db.select().from(schema.classes);
-    const defaultStudentClass = classes.find(c => c.name === 'JSS 1') || classes[0];
+    const defaultStudentClass = classes.find((c: { name: string }) => c.name === 'JSS 1') || classes[0];
 
     console.log('📋 Creating test user accounts for all 5 roles...');
 
