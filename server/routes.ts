@@ -8990,6 +8990,60 @@ Treasure-Home School Administration
       }
     });
 
+    // Get current teacher's assigned classes and subjects (for filtering in exam creation, score entry, etc.)
+    app.get('/api/my-assignments', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const userId = req.user!.id;
+        const roleId = req.user!.roleId;
+
+        // Admins and Super Admins can see all classes and subjects
+        if (roleId === ROLES.SUPER_ADMIN || roleId === ROLES.ADMIN) {
+          const allClasses = await storage.getClasses();
+          const allSubjects = await storage.getSubjects();
+          return res.json({
+            isAdmin: true,
+            classes: allClasses,
+            subjects: allSubjects,
+            assignments: [],
+          });
+        }
+
+        // Teachers can only see their assigned classes and subjects
+        if (roleId !== ROLES.TEACHER) {
+          return res.status(403).json({ message: "Only teachers can access their assignments" });
+        }
+
+        const assignments = await storage.getTeacherClassAssignments(userId);
+        
+        // Get unique class IDs and subject IDs
+        const classIds = [...new Set(assignments.map(a => a.classId))];
+        const subjectIds = [...new Set(assignments.map(a => a.subjectId))];
+
+        // Fetch full class and subject details
+        const classes = await Promise.all(classIds.map(id => storage.getClass(id)));
+        const subjects = await Promise.all(subjectIds.map(id => storage.getSubject(id)));
+
+        // Create a mapping of valid class-subject combinations
+        const validCombinations = assignments.map(a => ({
+          classId: a.classId,
+          subjectId: a.subjectId,
+          department: a.department,
+          termId: a.termId,
+          isActive: a.isActive,
+        }));
+
+        res.json({
+          isAdmin: false,
+          classes: classes.filter(Boolean),
+          subjects: subjects.filter(Boolean),
+          assignments: validCombinations,
+        });
+      } catch (error) {
+        console.error('Error fetching my assignments:', error);
+        res.status(500).json({ message: "Failed to fetch your assignments" });
+      }
+    });
+
     // ==================== END TEACHER ASSIGNMENT ROUTES ====================
 
     // ==================== STUDENT SUBJECT ASSIGNMENT ROUTES ====================

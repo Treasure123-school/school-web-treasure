@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
@@ -194,19 +194,40 @@ export default function CreateExam() {
   const selectedClassId = form.watch('classId');
   const selectedSubjectId = form.watch('subjectId');
 
-  // Fetch classes with real-time updates
-  const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
-    queryKey: ['/api/classes'],
-    refetchOnWindowFocus: true,
-    staleTime: 30000, // 30 seconds
-  });
-
-  // Fetch subjects with real-time updates
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<Subject[]>({
-    queryKey: ['/api/subjects'],
+  // Fetch teacher's assigned classes and subjects (teachers only see their assignments)
+  const { data: myAssignments, isLoading: assignmentsLoading } = useQuery<{
+    isAdmin: boolean;
+    classes: Class[];
+    subjects: Subject[];
+    assignments: Array<{ classId: number; subjectId: number; department?: string; termId?: number; isActive: boolean }>;
+  }>({
+    queryKey: ['/api/my-assignments'],
     refetchOnWindowFocus: true,
     staleTime: 30000,
   });
+
+  // Use teacher's assigned classes only (not all classes)
+  const classes = myAssignments?.classes || [];
+  const classesLoading = assignmentsLoading;
+
+  // Filter subjects based on selected class - only show subjects the teacher is assigned to for that class
+  const availableSubjects = useMemo(() => {
+    if (!myAssignments || !selectedClassId) return [];
+    
+    // If admin, show all subjects
+    if (myAssignments.isAdmin) {
+      return myAssignments.subjects;
+    }
+    
+    // For teachers, only show subjects they are assigned to for the selected class
+    const validSubjectIds = myAssignments.assignments
+      .filter(a => a.classId === selectedClassId && a.isActive)
+      .map(a => a.subjectId);
+    
+    return myAssignments.subjects.filter(s => validSubjectIds.includes(s.id));
+  }, [myAssignments, selectedClassId]);
+
+  const subjectsLoading = assignmentsLoading;
 
   // Fetch academic terms with real-time updates
   const { data: terms = [], isLoading: termsLoading } = useQuery<AcademicTerm[]>({
@@ -224,6 +245,14 @@ export default function CreateExam() {
       }
     }
   }, [terms, form]);
+
+  // Clear subject and teacher selection when class changes to avoid stale selections
+  useEffect(() => {
+    if (selectedClassId) {
+      form.setValue('subjectId', undefined as any);
+      form.setValue('teacherInChargeId', undefined);
+    }
+  }, [selectedClassId, form]);
 
   // Fetch teachers filtered by class and subject (dynamic filtering)
   const { data: teachers = [], isLoading: teachersLoading } = useQuery({
@@ -346,6 +375,21 @@ export default function CreateExam() {
                 <CardDescription>Essential information about the exam</CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
+                {/* Show notice if teacher has no assignments */}
+                {!assignmentsLoading && myAssignments && !myAssignments.isAdmin && classes.length === 0 && (
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-orange-800 dark:text-orange-200">No Class Assignments Found</p>
+                        <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                          You don't have any class or subject assignments yet. Please contact your administrator to be assigned to classes and subjects before creating exams.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2 space-y-2">
                     <Label htmlFor="name">
@@ -430,13 +474,18 @@ export default function CreateExam() {
                         <Select 
                           value={field.value?.toString()} 
                           onValueChange={(value) => field.onChange(Number(value))}
-                          disabled={subjectsLoading}
+                          disabled={subjectsLoading || !selectedClassId}
                         >
                           <SelectTrigger data-testid="select-subject" className="h-12">
-                            <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select subject"} />
+                            <SelectValue placeholder={
+                              subjectsLoading ? "Loading subjects..." : 
+                              !selectedClassId ? "Select a class first" :
+                              availableSubjects.length === 0 ? "No subjects assigned for this class" :
+                              "Select subject"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
-                            {subjects.map((subject: any) => (
+                            {availableSubjects.map((subject: any) => (
                               <SelectItem key={subject.id} value={subject.id.toString()}>
                                 {subject.name}
                               </SelectItem>
@@ -1101,7 +1150,7 @@ export default function CreateExam() {
 
       case 5:
         const selectedClass = classes.find((c: any) => c.id === formValues.classId);
-        const selectedSubject = subjects.find((s: any) => s.id === formValues.subjectId);
+        const selectedSubject = (myAssignments?.subjects || []).find((s: any) => s.id === formValues.subjectId);
         const selectedTerm = terms.find((t: any) => t.id === formValues.termId);
         
         return (
