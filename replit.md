@@ -7,6 +7,31 @@ Treasure-Home is a comprehensive, production-ready school management system desi
 - Username (admission ID format: THS-STU-###, THS-TCH-###) should be displayed prominently as the canonical student identifier
 - Grading weights (40% Test, 60% Exam) should be visible in report card interfaces
 
+## Recent Changes (December 2025)
+
+### Phase 4 & 5: Department-Based Exam & Report Card Filtering (Dec 1, 2025)
+Enhanced department-based filtering for Senior Secondary (SS1-SS3) students:
+
+#### Exam Visibility Filtering (GET /api/exams)
+- **SS students with department**: See exams for general + department-specific subjects only
+- **SS students without department**: See only general subject exams (awaiting department assignment)
+- **Non-SS students**: See all published exams for their class
+- Proper trimming + lowercase normalization for robust string comparison
+- Empty/whitespace department values treated as undefined
+
+#### Report Card Auto-Generation (syncExamScoreToReportCard)
+- Report card items now created only for subjects relevant to the student
+- **Class-subject scoping**: Uses teacher_class_assignments table to determine assigned subjects
+- **Graceful fallback**: If no teacher assignments exist, uses department-only filtering
+- **SS students with department**: General + department subjects
+- **SS students without department**: Only general subjects
+- **Non-SS students**: All subjects assigned to their class
+- Enhanced logging for subject filtering and class assignment count
+
+#### Subject API Enhancements
+- Added trimming for category and department query parameters
+- Case-insensitive filtering for consistent results
+
 ## Recent Changes (November 2025)
 
 ### Phase 2 & 3: Subject Categories and Teacher Assignment UI (Nov 30, 2025)

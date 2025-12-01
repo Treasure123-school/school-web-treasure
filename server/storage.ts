@@ -4271,12 +4271,60 @@ export class DatabaseStorage implements IStorage {
           .returning();
         reportCardId = newReportCard[0].id;
 
-        // Create report card items for all subjects in the class
-        const classSubjects = await db.select()
+        // Get student's class to check if Senior Secondary
+        const studentClass = await db.select()
+          .from(schema.classes)
+          .where(eq(schema.classes.id, classId))
+          .limit(1);
+        
+        const isSeniorSecondary = studentClass.length > 0 && 
+          (studentClass[0].level || '').trim().toLowerCase() === 'senior secondary';
+        // Normalize department - treat empty/whitespace-only as undefined
+        const rawDepartment = (student[0].department || '').trim().toLowerCase();
+        const studentDepartment = rawDepartment.length > 0 ? rawDepartment : undefined;
+
+        // Get subjects assigned to this class via teacher_class_assignments
+        // This ensures we only include subjects actually offered for this class
+        const classSubjectAssignments = await db.select({ subjectId: schema.teacherClassAssignments.subjectId })
+          .from(schema.teacherClassAssignments)
+          .where(and(
+            eq(schema.teacherClassAssignments.classId, classId),
+            eq(schema.teacherClassAssignments.isActive, true)
+          ));
+        
+        const assignedSubjectIds = new Set(classSubjectAssignments.map(a => a.subjectId));
+        const hasAssignedSubjects = assignedSubjectIds.size > 0;
+        
+        // Get all active subjects
+        const allSubjects = await db.select()
           .from(schema.subjects)
           .where(eq(schema.subjects.isActive, true));
 
-        for (const subject of classSubjects) {
+        // Filter subjects based on class assignments (if available) and department rules
+        // If no teacher assignments exist for the class, fall back to department-only filtering
+        const relevantSubjects = allSubjects.filter((subject: any) => {
+          const category = (subject.category || 'general').trim().toLowerCase();
+          
+          // If class has assigned subjects, only include those
+          if (hasAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
+            return false;
+          }
+          
+          if (isSeniorSecondary && studentDepartment) {
+            // SS student with department: include general + department subjects
+            return category === 'general' || category === studentDepartment;
+          } else if (isSeniorSecondary && !studentDepartment) {
+            // SS student without department: include only general subjects (awaiting department assignment)
+            return category === 'general';
+          } else {
+            // Non-SS student: include all (assigned) subjects
+            return true;
+          }
+        });
+
+        console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || 'no-dept'}` : 'non-SS'} student (${hasAssignedSubjects ? `${assignedSubjectIds.size} subjects assigned` : 'no class assignments, using department filter only'})`);
+
+        for (const subject of relevantSubjects) {
           await db.insert(schema.reportCardItems)
             .values({
               reportCardId,

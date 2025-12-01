@@ -1132,8 +1132,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userRoleId = req.user!.roleId;
       
       // Students should only see exams assigned to their class
+      // For SS1-SS3 students with a department, also filter by department-specific subjects
       if (userRoleId === ROLES.STUDENT) {
-        // Get the student's class
+        // Get the student's class and department info
         const student = await storage.getStudent(userId);
         
         if (!student || !student.classId) {
@@ -1141,12 +1142,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json([]);
         }
         
+        // Get the student's class to check if it's Senior Secondary
+        const studentClass = await storage.getClass(student.classId);
+        const isSeniorSecondary = (studentClass?.level || '').trim().toLowerCase() === 'senior secondary';
+        // Normalize department - treat empty/whitespace-only as undefined
+        const rawDepartment = (student.department || '').trim().toLowerCase();
+        const studentDepartment = rawDepartment.length > 0 ? rawDepartment : undefined;
+        
         // Get exams for student's class that are published
         const allExams = await storage.getAllExams();
-        const studentExams = allExams.filter((exam: any) => {
+        
+        // Filter to only show published exams for the student's class
+        let studentExams = allExams.filter((exam: any) => {
           // Only show published exams for the student's class
           return exam.isPublished && exam.classId === student.classId;
         });
+        
+        // For SS students, filter exams based on department
+        if (isSeniorSecondary) {
+          const subjects = await storage.getSubjects();
+          
+          if (studentDepartment) {
+            // SS student with department: show general + department subjects
+            const validSubjectIds = subjects
+              .filter(s => {
+                const category = (s.category || 'general').trim().toLowerCase();
+                return category === 'general' || category === studentDepartment;
+              })
+              .map(s => s.id);
+            
+            studentExams = studentExams.filter((exam: any) => 
+              validSubjectIds.includes(exam.subjectId)
+            );
+          } else {
+            // SS student without department: show only general subjects
+            const generalSubjectIds = subjects
+              .filter(s => (s.category || 'general').trim().toLowerCase() === 'general')
+              .map(s => s.id);
+            
+            studentExams = studentExams.filter((exam: any) => 
+              generalSubjectIds.includes(exam.subjectId)
+            );
+          }
+        }
         
         return res.json(studentExams);
       }
@@ -3442,22 +3480,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let subjects = await storage.getSubjects();
       
       // Filter by category if provided (general, science, art, commercial)
-      // Case-insensitive comparison to handle mixed-case category values
+      // Case-insensitive comparison with trimming to handle mixed-case and whitespace
       if (category && typeof category === 'string') {
-        const normalizedCategory = category.toLowerCase();
-        subjects = subjects.filter(s => (s.category || '').toLowerCase() === normalizedCategory);
+        const normalizedCategory = category.trim().toLowerCase();
+        subjects = subjects.filter(s => (s.category || '').trim().toLowerCase() === normalizedCategory);
       }
       
       // Filter by department for senior secondary students
       // Department maps to subject categories: science -> science, art -> art, commercial -> commercial
       // All departments also get 'general' subjects
-      // Case-insensitive comparison for consistent filtering
+      // Case-insensitive comparison with trimming for consistent filtering
       if (department && typeof department === 'string') {
-        const normalizedDept = department.toLowerCase();
+        const normalizedDept = department.trim().toLowerCase();
         const validDepartments = ['science', 'art', 'commercial'];
         if (validDepartments.includes(normalizedDept)) {
           subjects = subjects.filter(s => {
-            const subjectCategory = (s.category || '').toLowerCase();
+            const subjectCategory = (s.category || '').trim().toLowerCase();
             return subjectCategory === 'general' || subjectCategory === normalizedDept;
           });
         }
@@ -8656,7 +8694,7 @@ Treasure-Home School Administration
         });
 
         // Emit real-time event for teacher assignment creation
-        realtimeService.broadcastTableUpdate('teacher_class_assignments', assignment);
+        realtimeService.emitTableChange('teacher_class_assignments', 'INSERT', assignment, undefined, req.user!.id);
 
         res.status(201).json(assignment);
       } catch (error) {
@@ -8786,7 +8824,7 @@ Treasure-Home School Administration
         }
 
         // Emit real-time event for teacher assignment update
-        realtimeService.broadcastTableUpdate('teacher_class_assignments', updatedAssignment);
+        realtimeService.emitTableChange('teacher_class_assignments', 'UPDATE', updatedAssignment, undefined, req.user!.id);
 
         res.json(updatedAssignment);
       } catch (error) {
@@ -8806,7 +8844,7 @@ Treasure-Home School Administration
         }
 
         // Emit real-time event for teacher assignment deletion
-        realtimeService.broadcastTableUpdate('teacher_class_assignments', { id: Number(id), deleted: true });
+        realtimeService.emitTableChange('teacher_class_assignments', 'DELETE', { id: Number(id) }, undefined, req.user!.id);
 
         res.json({ message: "Teacher assignment deleted successfully" });
       } catch (error) {
