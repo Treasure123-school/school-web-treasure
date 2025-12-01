@@ -1152,6 +1152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get the student's class to check if it's Senior Secondary
         const studentClass = await storage.getClass(student.classId);
+        
         const isSeniorSecondary = (studentClass?.level || '').trim().toLowerCase() === 'senior secondary';
         // Normalize department - treat empty/whitespace-only as undefined
         const rawDepartment = (student.department || '').trim().toLowerCase();

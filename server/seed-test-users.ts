@@ -3,6 +3,7 @@ import { db } from './storage';
 import * as schema from "@shared/schema";
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { isPostgres } from './db';
 
 /**
  * Seeds test user accounts for all 5 roles
@@ -75,6 +76,21 @@ export async function seedTestUsers() {
 
     console.log('📋 Creating test user accounts for all 5 roles...');
 
+    // Get SS3 class for student enrollment
+    let ss3Class: typeof schema.classes.$inferSelect | undefined;
+    try {
+      const classResult = await db
+        .select()
+        .from(schema.classes)
+        .where(eq(schema.classes.name, 'SSS 3'))
+        .limit(1);
+      if (classResult.length > 0) {
+        ss3Class = classResult[0];
+      }
+    } catch (e) {
+      console.warn('⚠️ Could not fetch SS3 class for student enrollment');
+    }
+
     for (const userData of testUsers) {
       // Check if user already exists
       const existingUser = await db
@@ -114,8 +130,80 @@ export async function seedTestUsers() {
           .returning();
 
         console.log(`✅ Created ${userData.roleName} account: ${userData.username}`);
+
+        // If it's a student, create a Student record and enroll in SS3
+        if (userData.roleName === 'Student' && ss3Class) {
+          try {
+            // Check if student record already exists
+            const existingStudent = await db
+              .select()
+              .from(schema.students)
+              .where(eq(schema.students.id, userData.id))
+              .limit(1);
+
+            if (existingStudent.length === 0) {
+              const admissionNumber = `STU-${Date.now()}`;
+              await db
+                .insert(schema.students)
+                .values({
+                  id: userData.id,
+                  classId: ss3Class.id,
+                  admissionNumber,
+                  dateOfAdmission: new Date(),
+                  department: undefined
+                })
+                .returning();
+              
+              console.log(`✅ Enrolled student in class: SSS 3`);
+            }
+          } catch (e) {
+            console.warn('⚠️ Could not create student record:', e instanceof Error ? e.message : 'Unknown error');
+          }
+        }
       } else {
         console.log(`ℹ️  ${userData.roleName} account already exists: ${userData.username}`);
+        
+        // For existing student user, ensure they have a Student record in SS3
+        if (userData.roleName === 'Student' && ss3Class) {
+          try {
+            const existingStudent = await db
+              .select()
+              .from(schema.students)
+              .where(eq(schema.students.id, userData.id))
+              .limit(1);
+
+            if (existingStudent.length === 0) {
+              // Student record doesn't exist, create it
+              const admissionNumber = `STU-${Date.now()}`;
+              await db
+                .insert(schema.students)
+                .values({
+                  id: userData.id,
+                  classId: ss3Class.id,
+                  admissionNumber,
+                  dateOfAdmission: new Date(),
+                  department: undefined
+                })
+                .returning();
+              
+              console.log(`✅ Enrolled existing student in class: SSS 3`);
+            } else {
+              // Student record exists, ensure it has a class assignment
+              if (!existingStudent[0].classId) {
+                // Update with class assignment
+                await db
+                  .update(schema.students)
+                  .set({ classId: ss3Class.id })
+                  .where(eq(schema.students.id, userData.id))
+                  .returning();
+                
+                console.log(`✅ Updated existing student with class assignment: SSS 3`);
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Could not ensure student class enrollment:', e instanceof Error ? e.message : 'Unknown error');
+          }
+        }
       }
     }
 
