@@ -43,6 +43,14 @@ Comprehensive real-time updates are implemented across major features including 
   - Admin/Super Admin bypass - elevated roles can perform any exam operation
   - Ownership-based authorization for exam updates/deletes (creator or teacherInCharge)
   - **Frontend Permission Enforcement**: CreateExam.tsx filters class and subject dropdowns based on teacher's active assignments via `/api/my-assignments` endpoint. Subjects are dynamically filtered when a class is selected, showing only subjects the teacher is assigned to teach for that specific class. Teachers without assignments see a helpful notice directing them to contact their administrator.
+- **Exam Visibility System**: Centralized exam visibility logic in `server/exam-visibility.ts` ensures students only see exams they should have access to:
+  - **KG1-JSS3 Students**: Only see published exams for their class where subject category is "general"
+  - **SS1-SS3 Students with Department**: See published exams for their class where subject category is "general" OR matches their department
+  - **SS1-SS3 Students without Department**: Only see published exams with general subject category (defensive fallback)
+  - **Parents**: See a union of all exams their children have access to
+  - Centralized functions: `getVisibleExamsForStudent()`, `getVisibleExamsForParent()`, `filterExamsForStudentContext()`, `canStudentAccessExam()`, `getStudentsForTeacherExam()`
+  - Both `/api/exams` and `/api/realtime/sync` endpoints use the same centralized logic for consistency
+  - Optimized with Promise.all for batch queries to minimize database round-trips
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
