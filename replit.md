@@ -34,6 +34,7 @@ Comprehensive real-time updates are implemented across major features including 
   - Support for term-specific and session-based assignments with optional validity periods
   - Admin/Super Admin bypass - elevated roles can perform any exam operation
   - Ownership-based authorization for exam updates/deletes (creator or teacherInCharge)
+  - **Frontend Permission Enforcement**: CreateExam.tsx filters class and subject dropdowns based on teacher's active assignments via `/api/my-assignments` endpoint. Subjects are dynamically filtered when a class is selected, showing only subjects the teacher is assigned to teach for that specific class. Teachers without assignments see a helpful notice directing them to contact their administrator.
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
