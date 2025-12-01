@@ -803,15 +803,6 @@ export default function TeachersManagement() {
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
                           <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleOpenAssignmentDialog(teacher)}
-                            data-testid={`button-assign-subjects-${teacher.id}`}
-                          >
-                            <BookOpen className="w-4 h-4 mr-1" />
-                            Assign
-                          </Button>
-                          <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleEdit(teacher)}
