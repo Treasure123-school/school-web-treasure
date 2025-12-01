@@ -127,9 +127,8 @@ export default function TeachersManagement() {
   }, [classes, selectedClassId]);
   
   // Show ALL subjects for assignment dialog - admin can assign any subject to teacher
+  // No class selection requirement - always show all 17 subjects for visibility
   const filteredSubjects = useMemo(() => {
-    if (!selectedClass) return [];
-    
     // Return ALL active subjects so admin can choose any subject for the teacher
     // Sort by category to group similar subjects together
     return [...subjects]
@@ -143,7 +142,7 @@ export default function TeachersManagement() {
         if (orderA !== orderB) return orderA - orderB;
         return (a.name || '').localeCompare(b.name || '');
       });
-  }, [subjects, selectedClass]);
+  }, [subjects]);
   
   // NEW: Check if any selected class in create modal is a senior class
   const createHasSeniorClass = useMemo(() => {
@@ -153,11 +152,9 @@ export default function TeachersManagement() {
     });
   }, [createSelectedClassIds, classes]);
   
-  // NEW: Show ALL subjects for create modal - admin can assign any subject to teacher
-  // Filter is removed to allow admin full flexibility in subject assignment
+  // Show ALL subjects for create modal - admin can assign any subject to teacher
+  // No class selection requirement - always show all 17 subjects for visibility
   const createFilteredSubjects = useMemo(() => {
-    if (createSelectedClassIds.length === 0) return [];
-    
     // Return ALL active subjects so admin can choose any subject for the teacher
     // Sort by category to group similar subjects together
     return [...subjects]
@@ -171,7 +168,7 @@ export default function TeachersManagement() {
         if (orderA !== orderB) return orderA - orderB;
         return (a.name || '').localeCompare(b.name || '');
       });
-  }, [subjects, createSelectedClassIds]);
+  }, [subjects]);
 
   // Fetch teachers
   const { data: teachers = [], isLoading: loadingTeachers } = useQuery({
@@ -773,52 +770,54 @@ export default function TeachersManagement() {
                     </div>
                   )}
                   
-                  {/* Assign Subjects - Show ALL subjects when classes are selected */}
-                  {createSelectedClassIds.length > 0 && (
-                    <div>
-                      <Label>Assign Subjects</Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Select subjects to assign to this teacher for the selected class(es)
-                      </p>
-                      <div className="border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto">
-                        {createFilteredSubjects.length > 0 ? (
-                          <div className="space-y-1">
-                            {createFilteredSubjects.map((subject: any) => (
-                              <label 
-                                key={subject.id} 
-                                className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                  {/* Assign Subjects - Always show ALL subjects for visibility */}
+                  <div>
+                    <Label>Assign Subjects</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {createSelectedClassIds.length > 0 
+                        ? `Select subjects to assign to this teacher for the selected class(es)`
+                        : `All available subjects (${createFilteredSubjects.length}). Select class(es) above first.`
+                      }
+                    </p>
+                    <div className={`border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto ${createSelectedClassIds.length === 0 ? 'opacity-60' : ''}`}>
+                      {createFilteredSubjects.length > 0 ? (
+                        <div className="space-y-1">
+                          {createFilteredSubjects.map((subject: any) => (
+                            <label 
+                              key={subject.id} 
+                              className={`flex items-center gap-2 p-2 rounded ${createSelectedClassIds.length > 0 ? 'hover:bg-muted cursor-pointer' : 'cursor-not-allowed'}`}
+                            >
+                              <Checkbox
+                                checked={createSelectedSubjectIds.includes(subject.id)}
+                                onCheckedChange={() => toggleCreateSubjectSelection(subject.id)}
+                                disabled={createSelectedClassIds.length === 0}
+                                data-testid={`checkbox-subject-${subject.id}`}
+                              />
+                              <span className="text-sm flex-1">{subject.name}</span>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${
+                                  (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
+                                  (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
+                                  (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
+                                  'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                }`}
                               >
-                                <Checkbox
-                                  checked={createSelectedSubjectIds.includes(subject.id)}
-                                  onCheckedChange={() => toggleCreateSubjectSelection(subject.id)}
-                                  data-testid={`checkbox-subject-${subject.id}`}
-                                />
-                                <span className="text-sm flex-1">{subject.name}</span>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${
-                                    (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
-                                    (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
-                                    (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
-                                    'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
-                                  }`}
-                                >
-                                  {subject.category || 'general'}
-                                </Badge>
-                              </label>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground text-center py-2">No subjects available. Please add subjects first.</p>
-                        )}
-                      </div>
-                      {createSelectedSubjectIds.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Selected: {createSelectedSubjectIds.length} subject(s)
-                        </p>
+                                {subject.category || 'general'}
+                              </Badge>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">No subjects available. Please add subjects first.</p>
                       )}
                     </div>
-                  )}
+                    {createSelectedSubjectIds.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selected: {createSelectedSubjectIds.length} subject(s)
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1319,60 +1318,62 @@ export default function TeachersManagement() {
                     </div>
                   )}
                   
-                  {/* Subject Selection - Show ALL subjects when class is selected */}
-                  {selectedClassId && (
-                    <div>
-                      <Label>Select Subjects</Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Select subjects to assign to this teacher
-                      </p>
-                      <div className="border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto">
-                        {filteredSubjects.length > 0 ? (
-                          <div className="space-y-2">
-                            {filteredSubjects.map((subject: any) => (
-                              <div 
-                                key={subject.id} 
-                                className="flex items-center gap-2"
+                  {/* Subject Selection - Always show ALL subjects for visibility */}
+                  <div>
+                    <Label>Select Subjects</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {selectedClassId 
+                        ? `Select subjects to assign to this teacher`
+                        : `All available subjects (${filteredSubjects.length}). Select a class above first.`
+                      }
+                    </p>
+                    <div className={`border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto ${!selectedClassId ? 'opacity-60' : ''}`}>
+                      {filteredSubjects.length > 0 ? (
+                        <div className="space-y-2">
+                          {filteredSubjects.map((subject: any) => (
+                            <div 
+                              key={subject.id} 
+                              className="flex items-center gap-2"
+                            >
+                              <Checkbox
+                                id={`subject-${subject.id}`}
+                                checked={selectedSubjectIds.includes(subject.id)}
+                                onCheckedChange={() => toggleSubjectSelection(subject.id)}
+                                disabled={!selectedClassId}
+                                data-testid={`checkbox-subject-${subject.id}`}
+                              />
+                              <label 
+                                htmlFor={`subject-${subject.id}`}
+                                className={`text-sm flex items-center gap-2 flex-1 ${selectedClassId ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                               >
-                                <Checkbox
-                                  id={`subject-${subject.id}`}
-                                  checked={selectedSubjectIds.includes(subject.id)}
-                                  onCheckedChange={() => toggleSubjectSelection(subject.id)}
-                                  data-testid={`checkbox-subject-${subject.id}`}
-                                />
-                                <label 
-                                  htmlFor={`subject-${subject.id}`}
-                                  className="text-sm flex items-center gap-2 cursor-pointer flex-1"
+                                <span>{subject.name}</span>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
+                                    (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
+                                    (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
+                                    'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                  }`}
                                 >
-                                  <span>{subject.name}</span>
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`text-xs ${
-                                      (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
-                                      (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
-                                      (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
-                                      'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
-                                    }`}
-                                  >
-                                    {subject.category || 'general'}
-                                  </Badge>
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No subjects available. Please add subjects first.
-                          </p>
-                        )}
-                      </div>
-                      {selectedSubjectIds.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {selectedSubjectIds.length} subject(s) selected
+                                  {subject.category || 'general'}
+                                </Badge>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No subjects available. Please add subjects first.
                         </p>
                       )}
                     </div>
-                  )}
+                    {selectedSubjectIds.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedSubjectIds.length} subject(s) selected
+                      </p>
+                    )}
+                  </div>
                   
                   {/* Add Button */}
                   <div className="flex justify-end gap-2">
