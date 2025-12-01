@@ -1,12 +1,13 @@
 import bcrypt from 'bcrypt';
 import { db } from './storage';
 import * as schema from "@shared/schema";
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 /**
  * Seeds test user accounts for all 5 roles
  * Each user has a default password that should be changed on first login
+ * Also creates corresponding profile records (e.g., students table for student users)
  */
 export async function seedTestUsers() {
   try {
@@ -73,6 +74,10 @@ export async function seedTestUsers() {
       roleMap[role.name] = role.id;
     }
 
+    // Fetch all classes to get a default class for test student
+    const classes = await db.select().from(schema.classes);
+    const defaultStudentClass = classes.find(c => c.name === 'JSS 1') || classes[0];
+
     console.log('📋 Creating test user accounts for all 5 roles...');
 
     for (const userData of testUsers) {
@@ -82,6 +87,8 @@ export async function seedTestUsers() {
         .from(schema.users)
         .where(eq(schema.users.username, userData.username))
         .limit(1);
+
+      let userId = userData.id;
 
       if (existingUser.length === 0) {
         // Get the correct role ID
@@ -113,9 +120,37 @@ export async function seedTestUsers() {
           })
           .returning();
 
+        userId = newUser.id;
         console.log(`✅ Created ${userData.roleName} account: ${userData.username}`);
       } else {
+        userId = existingUser[0].id;
         console.log(`ℹ️  ${userData.roleName} account already exists: ${userData.username}`);
+      }
+
+      // For student users, ensure they have a student record
+      if (userData.roleName === 'Student' && defaultStudentClass) {
+        const existingStudent = await db
+          .select()
+          .from(schema.students)
+          .where(eq(schema.students.id, userId))
+          .limit(1);
+
+        if (existingStudent.length === 0) {
+          // Generate admission number
+          const year = new Date().getFullYear();
+          const randomNum = Math.floor(100000 + Math.random() * 900000);
+          const admissionNumber = `THS/${year}/${randomNum}`;
+
+          await db.insert(schema.students).values({
+            id: userId,
+            admissionNumber,
+            classId: defaultStudentClass.id,
+            admissionDate: new Date().toISOString().split('T')[0],
+          });
+          console.log(`   ✅ Created student record for ${userData.username} in class ${defaultStudentClass.name}`);
+        } else {
+          console.log(`   ℹ️  Student record already exists for ${userData.username}`);
+        }
       }
     }
 
