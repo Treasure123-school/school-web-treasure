@@ -140,13 +140,11 @@ export default function ExamManagement() {
       isPublished: false,
       allowRetakes: false,
       shuffleQuestions: false,
-      // Enhanced auto-grading defaults
       autoGradingEnabled: true,
       instantFeedback: false,
       showCorrectAnswers: false,
       passingScore: 60,
       gradingScale: 'standard',
-      // Proctoring and security defaults
       enableProctoring: false,
       lockdownMode: false,
       requireWebcam: false,
@@ -267,23 +265,41 @@ export default function ExamManagement() {
     }
   });
 
-  // Fetch classes for dropdown
-  const { data: classes = [] } = useQuery({
-    queryKey: ['/api/classes'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/classes');
-      return await response.json();
-    },
+  // Fetch teacher's assigned classes and subjects (teachers only see their assignments)
+  const { data: myAssignments, isLoading: assignmentsLoading } = useQuery<{
+    isAdmin: boolean;
+    classes: any[];
+    subjects: any[];
+    assignments: Array<{ classId: number; subjectId: number; isActive: boolean }>;
+  }>({
+    queryKey: ['/api/my-assignments'],
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
   });
 
-  // Fetch subjects for dropdown
-  const { data: subjects = [] } = useQuery({
-    queryKey: ['/api/subjects'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/subjects');
-      return await response.json();
-    },
-  });
+  // Use teacher's assigned classes only (not all classes)
+  const classes = myAssignments?.classes || [];
+  const classesLoading = assignmentsLoading;
+
+  // Filter subjects based on selected class - only show subjects the teacher is assigned to for that class
+  const selectedClassId = watchExam('classId');
+  const availableSubjects = myAssignments && selectedClassId ? (
+    myAssignments.isAdmin 
+      ? myAssignments.subjects
+      : myAssignments.subjects.filter((s: any) => 
+          myAssignments.assignments.some(a => a.classId === selectedClassId && a.subjectId === s.id && a.isActive)
+        )
+  ) : [];
+
+  const subjects = availableSubjects;
+
+  // Clear subject and teacher when class changes (to prevent stale selections)
+  useEffect(() => {
+    if (selectedClassId) {
+      setExamValue('subjectId', undefined as any);
+      setExamValue('teacherInChargeId', undefined);
+    }
+  }, [selectedClassId, setExamValue]);
 
   // Fetch teachers for teacher in-charge dropdown
   const { data: teachers = [], isLoading: loadingTeachers } = useQuery({
