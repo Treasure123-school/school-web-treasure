@@ -697,46 +697,32 @@ export default function StudentManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <Label htmlFor="classId" className="text-sm">Class</Label>
-                  <Select onValueChange={(value) => {
-                    const classId = parseInt(value);
-                    setValue('classId', classId);
-                    setFormSelectedClassId(classId);
-                    // Clear department when class changes to non-senior
-                    const cls = classes.find((c: any) => c.id === classId);
-                    if (!isSeniorClass(cls?.name)) {
-                      setValue('department', null);
-                    }
-                  }}>
-                    <SelectTrigger data-testid="select-class">
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id.toString()}>
-                          {cls.name} ({cls.level})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.classId && (
-                    <p className="text-red-500 text-sm">{errors.classId.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="admissionDate" className="text-sm">Admission Date</Label>
-                  <Input
-                    id="admissionDate"
-                    type="date"
-                    {...register('admissionDate')}
-                    data-testid="input-admissionDate"
-                  />
-                  {errors.admissionDate && (
-                    <p className="text-red-500 text-sm">{errors.admissionDate.message}</p>
-                  )}
-                </div>
+              <div>
+                <Label htmlFor="classId" className="text-sm">Class</Label>
+                <Select onValueChange={(value) => {
+                  const classId = parseInt(value);
+                  setValue('classId', classId);
+                  setFormSelectedClassId(classId);
+                  // Clear department when class changes to non-senior
+                  const cls = classes.find((c: any) => c.id === classId);
+                  if (!isSeniorClass(cls?.name)) {
+                    setValue('department', null);
+                  }
+                }}>
+                  <SelectTrigger data-testid="select-class">
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls: any) => (
+                      <SelectItem key={cls.id} value={cls.id.toString()}>
+                        {cls.name} ({cls.level})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.classId && (
+                  <p className="text-red-500 text-sm">{errors.classId.message}</p>
+                )}
               </div>
 
               {requiresDepartment && (
