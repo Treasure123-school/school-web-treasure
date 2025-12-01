@@ -17,6 +17,7 @@ import { Search, Plus, Edit, Trash2, History, Users, BookOpen, GraduationCap, Ch
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { ROLE_IDS } from '@/lib/roles';
+import { isSeniorSecondaryClass } from '@/lib/utils';
 import { format } from 'date-fns';
 
 interface TeacherAssignment {
@@ -53,7 +54,6 @@ interface AssignmentHistory {
   performedByLastName?: string;
 }
 
-const SENIOR_CLASSES = ['SS1', 'SS2', 'SS3'];
 const DEPARTMENTS = [
   { value: 'science', label: 'Science' },
   { value: 'art', label: 'Art' },
@@ -218,8 +218,8 @@ export default function TeacherAssignmentManagement() {
     });
   };
 
-  const isSeniorClass = (className: string) => {
-    return SENIOR_CLASSES.some(sc => className?.toUpperCase().includes(sc));
+  const isSeniorClass = (className: string | undefined | null) => {
+    return isSeniorSecondaryClass(className);
   };
 
   const selectedClassObj = useMemo(() => {

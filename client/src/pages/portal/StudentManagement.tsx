@@ -20,9 +20,8 @@ import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { ROLE_IDS } from '@/lib/roles';
+import { isSeniorSecondaryClass } from '@/lib/utils';
 
-// Classes that require department selection (Senior Secondary)
-const SENIOR_CLASSES = ['SS1', 'SS2', 'SS3'];
 const DEPARTMENTS = [
   { value: 'science', label: 'Science', icon: GraduationCap },
   { value: 'art', label: 'Art', icon: Palette },
@@ -94,10 +93,9 @@ export default function StudentManagement() {
     },
   });
 
-  // Helper to check if a class is a senior class (SS1-SS3)
+  // Helper to check if a class is a senior secondary class (SS1-SS3, SSS1-SSS3)
   const isSeniorClass = (className: string | undefined) => {
-    if (!className) return false;
-    return SENIOR_CLASSES.some(sc => className.toUpperCase().includes(sc));
+    return isSeniorSecondaryClass(className);
   };
   
   // Get the selected class object for the create form (must be after classes query)

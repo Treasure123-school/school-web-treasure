@@ -19,9 +19,8 @@ import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Cop
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { ROLE_IDS } from '@/lib/roles';
+import { isSeniorSecondaryClass } from '@/lib/utils';
 
-// Classes that require department selection (Senior Secondary)
-const SENIOR_CLASSES = ['SS1', 'SS2', 'SS3'];
 const DEPARTMENTS = [
   { value: 'science', label: 'Science', icon: GraduationCap },
   { value: 'art', label: 'Art', icon: Palette },
@@ -117,8 +116,8 @@ export default function TeachersManagement() {
   });
   
   // Helper to check if a class is a senior class (SS1-SS3)
-  const isSeniorClass = (className: string) => {
-    return SENIOR_CLASSES.some(sc => className?.toUpperCase().includes(sc));
+  const isSeniorClass = (className: string | undefined | null) => {
+    return isSeniorSecondaryClass(className);
   };
   
   // Get the selected class object
