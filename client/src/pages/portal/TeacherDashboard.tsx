@@ -238,15 +238,6 @@ export default function TeacherDashboard() {
   const totalClasses = dashboardStats?.totalClasses ?? (myClasses as any[]).length;
   const pendingGradesCount = (pendingGradingTasks as any[]).length;
 
-  // Helper functions to get subject and class names from scoped data
-  const getSubjectNames = () => {
-    return (mySubjects as any[]).map((s: any) => s.name).filter(Boolean);
-  };
-
-  const getClassNames = () => {
-    return (myClasses as any[]).map((c: any) => c.className || c.name).filter(Boolean);
-  };
-
   return (
     <PortalLayout 
       userRole="teacher" 
@@ -285,7 +276,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* Teacher Role Header - Personalized with Dynamic Subject/Class Info */}
+      {/* Teacher Role Header - Clean Welcome */}
       <div className="mb-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl" data-testid="teacher-role-header">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
@@ -297,65 +288,8 @@ export default function TeacherDashboard() {
                 Welcome back, {user.firstName}!
               </h2>
               <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
-                {profileLoading ? (
-                  'Ready to inspire minds today?'
-                ) : profileError ? (
-                  'Ready to inspire minds today?'
-                ) : teacherProfile && (getSubjectNames().length > 0 || getClassNames().length > 0) ? (
-                  <>
-                    {teacherProfile.department || 'Teaching'}
-                    {getSubjectNames().length > 0 && (
-                      <> • Teaching {getSubjectNames().join(', ')}</>
-                    )}
-                    {getClassNames().length > 0 && (
-                      <> • {getClassNames().join(', ')}</>
-                    )}
-                  </>
-                ) : (
-                  'Ready to inspire minds today?'
-                )}
+                Ready to inspire minds today?
               </p>
-              {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {/* Subject Badges - Get actual subject names from mySubjects array */}
-                  {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(mySubjects) && mySubjects.length > 0 && (
-                    <>
-                      {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
-                        const subjectItem = (mySubjects as any[]).find((s: any) => s.id === subjectId);
-                        return subjectItem ? (
-                          <span key={`subject-${subjectId}-${idx}`} className="px-2 py-1 bg-white/20 rounded-full text-xs">
-                            {subjectItem.name}
-                          </span>
-                        ) : null;
-                      })}
-                      {teacherProfile.subjects.length > 3 && (
-                        <span className="px-2 py-1 bg-white/20 rounded-full text-xs">
-                          +{teacherProfile.subjects.length - 3} more
-                        </span>
-                      )}
-                    </>
-                  )}
-
-                  {/* Class Badges - Get actual class names from myClasses array */}
-                  {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(myClasses) && myClasses.length > 0 && (
-                    <>
-                      {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
-                        const classObj = (myClasses as any[]).find((c: any) => c.id === classId);
-                        return classObj ? (
-                          <span key={`class-${classId}-${idx}`} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
-                            {classObj.name}
-                          </span>
-                        ) : null;
-                      })}
-                      {teacherProfile.assignedClasses.length > 2 && (
-                        <span className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
-                          +{teacherProfile.assignedClasses.length - 2} more
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </div>
           <div className="hidden md:flex items-center gap-3">

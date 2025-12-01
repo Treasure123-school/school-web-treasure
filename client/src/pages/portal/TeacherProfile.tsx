@@ -64,19 +64,50 @@ export default function TeacherProfile() {
     enabled: !!user
   });
 
-  // Fetch classes for display
+  // Fetch actual teacher assignments from the assignments table (admin-assigned)
+  const { data: teacherAssignments = [], isLoading: assignmentsLoading } = useQuery<any[]>({
+    queryKey: ['/api/teacher-assignments'],
+    enabled: !!user
+  });
+
+  // Extract unique classes and subjects from actual assignments
+  const uniqueAssignedClasses = React.useMemo(() => {
+    const classMap = new Map<number, { id: number; name: string }>();
+    (teacherAssignments as any[]).forEach((assignment: any) => {
+      if (assignment.classId && assignment.className && !classMap.has(assignment.classId)) {
+        classMap.set(assignment.classId, { id: assignment.classId, name: assignment.className });
+      }
+    });
+    return Array.from(classMap.values());
+  }, [teacherAssignments]);
+
+  const uniqueAssignedSubjects = React.useMemo(() => {
+    const subjectMap = new Map<number, { id: number; name: string; code: string }>();
+    (teacherAssignments as any[]).forEach((assignment: any) => {
+      if (assignment.subjectId && assignment.subjectName && !subjectMap.has(assignment.subjectId)) {
+        subjectMap.set(assignment.subjectId, { 
+          id: assignment.subjectId, 
+          name: assignment.subjectName,
+          code: assignment.subjectCode || ''
+        });
+      }
+    });
+    return Array.from(subjectMap.values());
+  }, [teacherAssignments]);
+
+  // Fetch classes for display (fallback)
   const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
     enabled: !!user
   });
 
-  // Fetch subjects for display
+  // Fetch subjects for display (fallback)
   const { data: subjects = [], isLoading: subjectsLoading } = useQuery<any[]>({
     queryKey: ['/api/subjects'],
     enabled: !!user
   });
 
-  const isLoading = teacherProfileLoading || classesLoading || subjectsLoading;
+  const isLoading = teacherProfileLoading || classesLoading || subjectsLoading || assignmentsLoading;
 
   // Calculate profile completion percentage
   const calculateCompletion = () => {
@@ -89,8 +120,9 @@ export default function TeacherProfile() {
     if (teacherProfile.qualification) completed++;
     if (teacherProfile.specialization) completed++;
     if (teacherProfile.yearsOfExperience && teacherProfile.yearsOfExperience > 0) completed++;
-    if (teacherProfile.subjects && teacherProfile.subjects.length > 0) completed++;
-    if (teacherProfile.assignedClasses && teacherProfile.assignedClasses.length > 0) completed++;
+    // Use actual assignments instead of profile data
+    if (uniqueAssignedSubjects.length > 0) completed++;
+    if (uniqueAssignedClasses.length > 0) completed++;
     if (teacherProfile.department) completed++;
 
     // Personal fields (from setup) - now from teacherProfile which has merged data
@@ -150,19 +182,9 @@ export default function TeacherProfile() {
   }, [teacherProfile]); // Remove 'user' from dependencies to prevent re-initialization
 
   // Initialize professional data when teacher profile loads
+  // NOTE: subjects and assignedClasses are NOT from profile - they come from assignments table
   React.useEffect(() => {
     if (teacherProfile) {
-
-      // Handle subjects - ensure it's always an array of numbers
-      const subjectsArray: number[] = Array.isArray(teacherProfile.subjects) 
-        ? (teacherProfile.subjects as any[]).map(s => typeof s === 'string' ? parseInt(s) : s).filter(Boolean)
-        : teacherProfile.subjects ? [typeof teacherProfile.subjects === 'string' ? parseInt(teacherProfile.subjects) : teacherProfile.subjects] : [];
-
-      // Handle assignedClasses - ensure it's always an array of numbers
-      const classesArray: number[] = Array.isArray(teacherProfile.assignedClasses) 
-        ? (teacherProfile.assignedClasses as any[]).map(c => typeof c === 'string' ? parseInt(c) : c).filter(Boolean)
-        : teacherProfile.assignedClasses ? [typeof teacherProfile.assignedClasses === 'string' ? parseInt(teacherProfile.assignedClasses) : teacherProfile.assignedClasses] : [];
-
       const newProfessionalData = {
         qualification: teacherProfile.qualification || '',
         specialization: teacherProfile.specialization || '',
@@ -171,8 +193,8 @@ export default function TeacherProfile() {
         gradingMode: teacherProfile.gradingMode || 'manual',
         notificationPreference: teacherProfile.notificationPreference || 'all',
         availability: teacherProfile.availability || 'full-time',
-        subjects: subjectsArray,
-        assignedClasses: classesArray,
+        subjects: [], // Admin-controlled via teacher_class_assignments
+        assignedClasses: [], // Admin-controlled via teacher_class_assignments
         staffId: teacherProfile.staffId || '',
         signatureUrl: teacherProfile.signatureUrl || ''
       };
@@ -226,9 +248,8 @@ export default function TeacherProfile() {
       formData.append('notificationPreference', professionalData.notificationPreference || 'all');
       formData.append('availability', professionalData.availability || 'full-time');
       
-      // Add arrays as JSON strings
-      formData.append('subjects', JSON.stringify(professionalData.subjects || []));
-      formData.append('assignedClasses', JSON.stringify(professionalData.assignedClasses || []));
+      // NOTE: subjects and assignedClasses are NOT sent here
+      // They are admin-controlled via teacher_class_assignments table
 
       // Add current URLs if no new files uploaded
       if (!profileImageFile && profileData.profileImageUrl) {
@@ -396,8 +417,9 @@ export default function TeacherProfile() {
                     if (!teacherProfile?.staffId) missing.push('Staff ID');
                     if (!teacherProfile?.qualification) missing.push('Qualification');
                     if (!teacherProfile?.department) missing.push('Department');
-                    if (!teacherProfile?.subjects?.length) missing.push('Subjects');
-                    if (!teacherProfile?.assignedClasses?.length) missing.push('Classes');
+                    // Use actual assignments for subjects/classes check
+                    if (uniqueAssignedSubjects.length === 0) missing.push('Subjects (Admin assigns)');
+                    if (uniqueAssignedClasses.length === 0) missing.push('Classes (Admin assigns)');
                     if (!teacherProfile?.gender) missing.push('Gender');
                     if (!teacherProfile?.dateOfBirth) missing.push('Date of Birth');
                     if (!teacherProfile?.phone) missing.push('Phone');
@@ -719,7 +741,7 @@ export default function TeacherProfile() {
               </Card>
             )}
 
-            {/* Teaching Assignments */}
+            {/* Teaching Assignments - Read Only (Admin Assigned) */}
             {teacherProfile && (
               <Card className="lg:col-span-3">
                 <CardHeader>
@@ -727,57 +749,51 @@ export default function TeacherProfile() {
                     <BookOpen className="h-5 w-5" />
                     <span>Teaching Assignments</span>
                   </CardTitle>
-                  <CardDescription>Your subjects and classes you teach</CardDescription>
+                  <CardDescription>
+                    Your assigned subjects and classes (managed by school administrators)
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-muted-foreground mb-2 block">Subjects</Label>
-                    {/* Subjects are admin-controlled - teachers can only view */}
+                    <Label className="text-muted-foreground mb-2 block">Assigned Subjects</Label>
+                    {/* Subjects are admin-controlled - read-only display from actual assignments */}
                     <div className="flex flex-wrap gap-2" data-testid="container-subjects">
-                      {teacherProfile.subjects && (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length > 0 : String(teacherProfile.subjects).length > 0) ? (
-                        (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects : String(teacherProfile.subjects).split(',').map(s => parseInt(s.trim()))).map((subjectId: any, idx: number) => {
-                          const parsedId = typeof subjectId === 'string' ? parseInt(subjectId) : subjectId;
-                          const subjectData = subjects.find((s: any) => s.id === parsedId);
-                          return (
-                            <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
-                              <BookOpen className="w-3 h-3 mr-1" />
-                              {subjectData?.name || `Subject ${parsedId}`}
-                            </Badge>
-                          );
-                        })
+                      {uniqueAssignedSubjects.length > 0 ? (
+                        uniqueAssignedSubjects.map((subject, idx) => (
+                          <Badge key={`subject-${subject.id}`} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
+                            <BookOpen className="w-3 h-3 mr-1" />
+                            {subject.name}
+                          </Badge>
+                        ))
                       ) : (
-                        <p className="text-sm text-muted-foreground">No subjects assigned</p>
+                        <p className="text-sm text-muted-foreground">No subjects assigned yet</p>
                       )}
                     </div>
-                    {isEditing && (
-                      <p className="text-xs text-muted-foreground mt-2">Subject assignments are managed by school administrators</p>
-                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Contact your administrator to update subject assignments
+                    </p>
                   </div>
 
                   <Separator />
 
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Assigned Classes</Label>
-                    {/* Classes are admin-controlled - teachers can only view */}
+                    {/* Classes are admin-controlled - read-only display from actual assignments */}
                     <div className="flex flex-wrap gap-2" data-testid="container-classes">
-                      {teacherProfile.assignedClasses && (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length > 0 : String(teacherProfile.assignedClasses).length > 0) ? (
-                        (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses : String(teacherProfile.assignedClasses).split(',').map(c => parseInt(c.trim()))).map((classId: any, idx: number) => {
-                          const parsedId = typeof classId === 'string' ? parseInt(classId) : classId;
-                          const classData = classes.find((c) => c.id === parsedId);
-                          return (
-                            <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
-                              <Users className="w-3 h-3 mr-1" />
-                              {classData?.name || `Class ${parsedId}`}
-                            </Badge>
-                          );
-                        })
+                      {uniqueAssignedClasses.length > 0 ? (
+                        uniqueAssignedClasses.map((classItem, idx) => (
+                          <Badge key={`class-${classItem.id}`} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
+                            <Users className="w-3 h-3 mr-1" />
+                            {classItem.name}
+                          </Badge>
+                        ))
                       ) : (
-                        <p className="text-sm text-muted-foreground">No classes assigned</p>
+                        <p className="text-sm text-muted-foreground">No classes assigned yet</p>
                       )}
                     </div>
-                    {isEditing && (
-                      <p className="text-xs text-muted-foreground mt-2">Class assignments are managed by school administrators</p>
-                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Contact your administrator to update class assignments
+                    </p>
                   </div>
 
                   <Separator />
