@@ -98,7 +98,7 @@ export default function RequireCompleteProfile({
 
               <div className="flex gap-3 pt-2">
                 <Button 
-                  onClick={() => navigate(isTeacher ? '/portal/teacher/profile-setup' : '/portal/student/profile-setup')}
+                  onClick={() => navigate(isTeacher ? '/portal/teacher/profile' : '/portal/student/profile')}
                   className="flex-1"
                   data-testid="button-goto-profile-setup"
                 >

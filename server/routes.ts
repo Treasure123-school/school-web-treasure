@@ -2971,9 +2971,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teacherId = req.user!.id;
       const profile = await storage.getTeacherProfile(teacherId);
+      const user = await storage.getUser(teacherId);
+
+      // Check if profile has minimum required fields filled (AND-based for core professional fields)
+      // Profile is complete when: has at least department OR qualification, AND has subjects or classes assigned
+      const hasBasicProfessionalInfo = profile && (profile.department || profile.qualification);
+      const hasAssignments = profile && (
+        (profile.subjects && profile.subjects.length > 0) ||
+        (profile.assignedClasses && profile.assignedClasses.length > 0)
+      );
+      
+      // Profile is considered complete when it has basic info OR has assignments
+      // This allows admins to assign classes/subjects without requiring all fields
+      const isProfileComplete = profile && (hasBasicProfessionalInfo || hasAssignments);
 
       const status = {
         hasProfile: !!profile,
+        profileCompleted: !!isProfileComplete,
         verified: profile?.verified || false,
         firstLogin: profile?.firstLogin !== false
       };
@@ -3013,18 +3027,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/teacher/profile/me', authenticateUser, async (req, res) => {
     try {
       const userId = req.user!.id;
-
       const profile = await storage.getTeacherProfile(userId);
-
-      if (!profile) {
-        return res.status(404).json({ message: 'Profile not found' });
-      }
-      // Get user data to merge with profile
+      
+      // Get user data first
       const user = await storage.getUser(userId);
-
+      
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
+      
+      // If no profile exists, return user data with empty profile fields
+      // This allows the profile page to display an empty form for new teachers
+      if (!profile) {
+        const emptyProfile = {
+          id: null,
+          userId: userId,
+          staffId: null,
+          subjects: [],
+          assignedClasses: [],
+          department: null,
+          qualification: null,
+          yearsOfExperience: null,
+          specialization: null,
+          verified: false,
+          firstLogin: true,
+          gradingMode: 'manual',
+          notificationPreference: 'all',
+          availability: 'full-time',
+          signatureUrl: null,
+          // User fields
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          gender: user.gender || '',
+          dateOfBirth: user.dateOfBirth || '',
+          nationalId: user.nationalId || '',
+          address: user.address || '',
+          recoveryEmail: user.recoveryEmail || '',
+          profileImageUrl: user.profileImageUrl || '',
+          updatedAt: null,
+          isNewProfile: true // Flag to indicate this is a new profile that needs creation
+        };
+        return res.json(emptyProfile);
+      }
+
       // Build complete profile with ALL fields merged from both tables
       const completeProfile = {
         // Profile fields
@@ -3145,8 +3192,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       await storage.updateUser(teacherId, userUpdateData);
 
-      // Update teacher profile table (professional information)
-      const profileUpdateData: any = {
+      // Check if profile exists
+      const existingProfile = await storage.getTeacherProfile(teacherId);
+      
+      // Prepare profile data
+      const profileData: any = {
         qualification: updateData.qualification || null,
         specialization: updateData.specialization || null,
         yearsOfExperience: parseInt(updateData.yearsOfExperience) || 0,
@@ -3160,9 +3210,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       if (signatureUrl) {
-        profileUpdateData.signatureUrl = signatureUrl;
+        profileData.signatureUrl = signatureUrl;
       }
-      await storage.updateTeacherProfile(teacherId, profileUpdateData);
+      
+      // Create or update teacher profile
+      if (!existingProfile) {
+        // Create new profile
+        await storage.createTeacherProfile({
+          userId: teacherId,
+          staffId: updateData.staffId || null,
+          ...profileData,
+          verified: false,
+          firstLogin: false,
+        });
+      } else {
+        // Update existing profile
+        await storage.updateTeacherProfile(teacherId, profileData);
+      }
 
       // Fetch and return updated profile
       const updatedProfile = await storage.getTeacherProfile(teacherId);

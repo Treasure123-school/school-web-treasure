@@ -122,7 +122,7 @@ export default function TeacherDashboard() {
   });
 
   // Get teacher dashboard stats from scoped endpoint
-  const { data: dashboardStats } = useQuery({
+  const { data: dashboardStats } = useQuery<{ totalStudents?: number; totalClasses?: number }>({
     queryKey: ['/api/teacher/my-dashboard-stats'],
     enabled: !!user,
   });
@@ -253,8 +253,8 @@ export default function TeacherDashboard() {
       userName={`${user.firstName} ${user.lastName}`}
       userInitials={`${user.firstName[0]}${user.lastName[0]}`}
     >
-      {/* Profile Completion Notice */}
-      {!statusLoading && profileStatus && !profileStatus.hasProfile && (
+      {/* Profile Completion Notice - Shows when profile is not complete (even if exists but empty) */}
+      {!statusLoading && profileStatus && !profileStatus.profileCompleted && (
         <div className="mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
@@ -274,7 +274,7 @@ export default function TeacherDashboard() {
               </div>
             </div>
             <Button
-              onClick={() => navigate('/portal/teacher/profile-setup')}
+              onClick={() => navigate('/portal/teacher/profile')}
               variant="outline"
               className="bg-white dark:bg-gray-800 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 font-medium shadow-sm w-full sm:w-auto text-sm sm:text-base"
               data-testid="button-complete-profile"
@@ -317,14 +317,14 @@ export default function TeacherDashboard() {
               </p>
               {!profileLoading && teacherProfile && !subjectsLoading && !classesLoading && (
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  {/* Subject Badges - Get actual subject names from subjects array */}
-                  {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(subjects) && subjects.length > 0 && (
+                  {/* Subject Badges - Get actual subject names from mySubjects array */}
+                  {teacherProfile.subjects && Array.isArray(teacherProfile.subjects) && teacherProfile.subjects.length > 0 && Array.isArray(mySubjects) && mySubjects.length > 0 && (
                     <>
                       {teacherProfile.subjects.slice(0, 3).map((subjectId: number, idx: number) => {
-                        const subject = subjects.find((s: any) => s.id === subjectId);
-                        return subject ? (
+                        const subjectItem = (mySubjects as any[]).find((s: any) => s.id === subjectId);
+                        return subjectItem ? (
                           <span key={`subject-${subjectId}-${idx}`} className="px-2 py-1 bg-white/20 rounded-full text-xs">
-                            {subject.name}
+                            {subjectItem.name}
                           </span>
                         ) : null;
                       })}
@@ -336,11 +336,11 @@ export default function TeacherDashboard() {
                     </>
                   )}
 
-                  {/* Class Badges - Get actual class names from classes array */}
-                  {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(classes) && classes.length > 0 && (
+                  {/* Class Badges - Get actual class names from myClasses array */}
+                  {teacherProfile.assignedClasses && Array.isArray(teacherProfile.assignedClasses) && teacherProfile.assignedClasses.length > 0 && Array.isArray(myClasses) && myClasses.length > 0 && (
                     <>
                       {teacherProfile.assignedClasses.slice(0, 2).map((classId: number, idx: number) => {
-                        const classObj = classes.find((c: any) => c.id === classId);
+                        const classObj = (myClasses as any[]).find((c: any) => c.id === classId);
                         return classObj ? (
                           <span key={`class-${classId}-${idx}`} className="px-2 py-1 bg-emerald-700/40 rounded-full text-xs">
                             {classObj.name}

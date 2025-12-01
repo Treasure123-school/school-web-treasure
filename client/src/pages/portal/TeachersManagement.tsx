@@ -223,7 +223,7 @@ export default function TeachersManagement() {
       const createdTeacher = await response.json();
       
       // Track assignment results
-      const assignmentResults = { success: 0, failed: 0 };
+      const assignmentResults = { success: 0, skipped: 0, failed: 0 };
       
       // Create assignments if classes and subjects are selected
       if (classIds && classIds.length > 0 && subjectIds && subjectIds.length > 0) {
@@ -238,6 +238,9 @@ export default function TeachersManagement() {
               });
               if (assignResponse.ok) {
                 assignmentResults.success++;
+              } else if (assignResponse.status === 409) {
+                // Assignment already exists - skip it (not an error)
+                assignmentResults.skipped++;
               } else {
                 assignmentResults.failed++;
               }
@@ -278,12 +281,22 @@ export default function TeachersManagement() {
       const { assignmentResults, ...teacherData } = data;
       
       // Show success message with assignment info if applicable
-      if (assignmentResults && (assignmentResults.success > 0 || assignmentResults.failed > 0)) {
+      if (assignmentResults && (assignmentResults.success > 0 || assignmentResults.skipped > 0 || assignmentResults.failed > 0)) {
         if (assignmentResults.failed > 0) {
           toast({
             title: "Teacher Created",
-            description: `Teacher created successfully. ${assignmentResults.success} assignment(s) created, ${assignmentResults.failed} failed.`,
-            variant: assignmentResults.success > 0 ? "default" : "destructive",
+            description: `Teacher created successfully. ${assignmentResults.success} assignment(s) created${assignmentResults.skipped > 0 ? `, ${assignmentResults.skipped} already existed` : ''}, ${assignmentResults.failed} failed.`,
+            variant: "default",
+          });
+        } else if (assignmentResults.skipped > 0 && assignmentResults.success === 0) {
+          toast({
+            title: "Teacher Created",
+            description: `Teacher created successfully. All ${assignmentResults.skipped} assignment(s) already existed.`,
+          });
+        } else if (assignmentResults.skipped > 0) {
+          toast({
+            title: "Success",
+            description: `Teacher created with ${assignmentResults.success} new assignment(s). ${assignmentResults.skipped} already existed.`,
           });
         } else {
           toast({
