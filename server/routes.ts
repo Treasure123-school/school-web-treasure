@@ -1162,7 +1162,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Filter to only show published exams for the student's class
         let studentExams = allExams.filter((exam: any) => {
-          // Only show published exams for the student's class
           return exam.isPublished && exam.classId === student.classId;
         });
         
