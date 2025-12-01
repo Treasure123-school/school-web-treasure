@@ -226,21 +226,22 @@ export default function TeacherAssignmentManagement() {
     return classes.find((c: any) => String(c.id) === formData.classId);
   }, [classes, formData.classId]);
 
+  // Show ALL subjects - admin can assign any subject to teacher
   const filteredSubjects = useMemo(() => {
-    if (!selectedClassObj) return subjects;
-    const className = selectedClassObj.name || '';
-    const isSenior = isSeniorClass(className);
-    
-    return subjects.filter((subject: any) => {
-      const category = subject.category || 'general';
-      if (category === 'general') return true;
-      if (isSenior && formData.department) {
-        return category === formData.department;
-      }
-      if (!isSenior) return category === 'general';
-      return false;
-    });
-  }, [subjects, selectedClassObj, formData.department]);
+    // Return ALL active subjects so admin can choose any subject for the teacher
+    // Sort by category to group similar subjects together
+    return [...subjects]
+      .filter((subject: any) => subject.isActive !== false)
+      .sort((a: any, b: any) => {
+        const categoryOrder: Record<string, number> = { 'general': 0, 'science': 1, 'art': 2, 'commercial': 3 };
+        const catA = (a.category || 'general').toLowerCase();
+        const catB = (b.category || 'general').toLowerCase();
+        const orderA = categoryOrder[catA] ?? 99;
+        const orderB = categoryOrder[catB] ?? 99;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [subjects]);
 
   const filteredAssignments = useMemo(() => {
     return assignments.filter((a: TeacherAssignment) => {

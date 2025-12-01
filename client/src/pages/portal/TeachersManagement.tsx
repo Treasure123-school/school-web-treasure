@@ -126,30 +126,24 @@ export default function TeachersManagement() {
     return classes.find((c: any) => String(c.id) === selectedClassId);
   }, [classes, selectedClassId]);
   
-  // Filter subjects based on selected class level and department
+  // Show ALL subjects for assignment dialog - admin can assign any subject to teacher
   const filteredSubjects = useMemo(() => {
     if (!selectedClass) return [];
     
-    const className = selectedClass.name || '';
-    const isSenior = isSeniorClass(className);
-    
-    return subjects.filter((subject: any) => {
-      const category = subject.category || 'general';
-      
-      // General subjects are available to all classes
-      if (category === 'general') return true;
-      
-      // For senior classes with department selection
-      if (isSenior && selectedDepartmentForAssignment) {
-        return category === selectedDepartmentForAssignment;
-      }
-      
-      // For non-senior classes, only show general subjects
-      if (!isSenior) return category === 'general';
-      
-      return false;
-    });
-  }, [subjects, selectedClass, selectedDepartmentForAssignment]);
+    // Return ALL active subjects so admin can choose any subject for the teacher
+    // Sort by category to group similar subjects together
+    return [...subjects]
+      .filter((subject: any) => subject.isActive !== false)
+      .sort((a: any, b: any) => {
+        const categoryOrder: Record<string, number> = { 'general': 0, 'science': 1, 'art': 2, 'commercial': 3 };
+        const catA = (a.category || 'general').toLowerCase();
+        const catB = (b.category || 'general').toLowerCase();
+        const orderA = categoryOrder[catA] ?? 99;
+        const orderB = categoryOrder[catB] ?? 99;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [subjects, selectedClass]);
   
   // NEW: Check if any selected class in create modal is a senior class
   const createHasSeniorClass = useMemo(() => {
@@ -159,27 +153,25 @@ export default function TeachersManagement() {
     });
   }, [createSelectedClassIds, classes]);
   
-  // NEW: Filter subjects for create modal based on selected classes and department
+  // NEW: Show ALL subjects for create modal - admin can assign any subject to teacher
+  // Filter is removed to allow admin full flexibility in subject assignment
   const createFilteredSubjects = useMemo(() => {
     if (createSelectedClassIds.length === 0) return [];
     
-    return subjects.filter((subject: any) => {
-      const category = (subject.category || 'general').toLowerCase();
-      
-      // General subjects are always available
-      if (category === 'general') return true;
-      
-      // If senior classes are selected and department is chosen
-      if (createHasSeniorClass && createSelectedDepartment) {
-        return category === createSelectedDepartment.toLowerCase();
-      }
-      
-      // If no senior classes, only show general subjects
-      if (!createHasSeniorClass) return category === 'general';
-      
-      return false;
-    });
-  }, [subjects, createSelectedClassIds, createHasSeniorClass, createSelectedDepartment]);
+    // Return ALL active subjects so admin can choose any subject for the teacher
+    // Sort by category to group similar subjects together
+    return [...subjects]
+      .filter((subject: any) => subject.isActive !== false)
+      .sort((a: any, b: any) => {
+        const categoryOrder: Record<string, number> = { 'general': 0, 'science': 1, 'art': 2, 'commercial': 3 };
+        const catA = (a.category || 'general').toLowerCase();
+        const catB = (b.category || 'general').toLowerCase();
+        const orderA = categoryOrder[catA] ?? 99;
+        const orderB = categoryOrder[catB] ?? 99;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [subjects, createSelectedClassIds]);
 
   // Fetch teachers
   const { data: teachers = [], isLoading: loadingTeachers } = useQuery({
@@ -496,18 +488,8 @@ export default function TeachersManagement() {
       return;
     }
     
-    const className = selectedClass?.name || '';
-    const isSenior = isSeniorClass(className);
-    
-    // For senior classes, department is required
-    if (isSenior && !selectedDepartmentForAssignment) {
-      toast({
-        title: "Error",
-        description: "Please select a department for senior secondary classes",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Get department if provided (optional for all classes)
+    const department = selectedDepartmentForAssignment || undefined;
     
     // Create assignments for each selected subject
     for (const subjectId of selectedSubjectIds) {
@@ -515,7 +497,7 @@ export default function TeachersManagement() {
         teacherId: selectedTeacherForAssignment.id,
         classId: Number(selectedClassId),
         subjectId,
-        department: isSenior ? selectedDepartmentForAssignment : undefined,
+        department,
       });
     }
     
@@ -791,11 +773,14 @@ export default function TeachersManagement() {
                     </div>
                   )}
                   
-                  {/* Assign Subjects - Multi-select with filtering */}
-                  {createSelectedClassIds.length > 0 && (!createHasSeniorClass || createSelectedDepartment) && (
+                  {/* Assign Subjects - Show ALL subjects when classes are selected */}
+                  {createSelectedClassIds.length > 0 && (
                     <div>
                       <Label>Assign Subjects</Label>
-                      <div className="border rounded-lg p-3 mt-2 max-h-48 overflow-y-auto">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Select subjects to assign to this teacher for the selected class(es)
+                      </p>
+                      <div className="border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto">
                         {createFilteredSubjects.length > 0 ? (
                           <div className="space-y-1">
                             {createFilteredSubjects.map((subject: any) => (
@@ -809,14 +794,22 @@ export default function TeachersManagement() {
                                   data-testid={`checkbox-subject-${subject.id}`}
                                 />
                                 <span className="text-sm flex-1">{subject.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {subject.category || 'General'}
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
+                                    (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
+                                    (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
+                                    'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                  }`}
+                                >
+                                  {subject.category || 'general'}
                                 </Badge>
                               </label>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground text-center py-2">No subjects available for selected classes</p>
+                          <p className="text-sm text-muted-foreground text-center py-2">No subjects available. Please add subjects first.</p>
                         )}
                       </div>
                       {createSelectedSubjectIds.length > 0 && (
@@ -1326,11 +1319,14 @@ export default function TeachersManagement() {
                     </div>
                   )}
                   
-                  {/* Subject Selection */}
-                  {selectedClassId && (!isSeniorClass(selectedClass?.name || '') || selectedDepartmentForAssignment) && (
+                  {/* Subject Selection - Show ALL subjects when class is selected */}
+                  {selectedClassId && (
                     <div>
                       <Label>Select Subjects</Label>
-                      <div className="border rounded-lg p-3 mt-2 max-h-48 overflow-y-auto">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Select subjects to assign to this teacher
+                      </p>
+                      <div className="border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto">
                         {filteredSubjects.length > 0 ? (
                           <div className="space-y-2">
                             {filteredSubjects.map((subject: any) => (
@@ -1349,8 +1345,16 @@ export default function TeachersManagement() {
                                   className="text-sm flex items-center gap-2 cursor-pointer flex-1"
                                 >
                                   <span>{subject.name}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {subject.category || 'General'}
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs ${
+                                      (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
+                                      (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
+                                      (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
+                                      'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                    }`}
+                                  >
+                                    {subject.category || 'general'}
                                   </Badge>
                                 </label>
                               </div>
@@ -1358,7 +1362,7 @@ export default function TeachersManagement() {
                           </div>
                         ) : (
                           <p className="text-sm text-muted-foreground">
-                            No subjects available for this class/department combination.
+                            No subjects available. Please add subjects first.
                           </p>
                         )}
                       </div>
@@ -1383,8 +1387,7 @@ export default function TeachersManagement() {
                       disabled={
                         !selectedClassId || 
                         selectedSubjectIds.length === 0 ||
-                        createAssignmentMutation.isPending ||
-                        (isSeniorClass(selectedClass?.name || '') && !selectedDepartmentForAssignment)
+                        createAssignmentMutation.isPending
                       }
                       data-testid="button-add-assignments"
                     >

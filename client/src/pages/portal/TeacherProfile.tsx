@@ -719,53 +719,25 @@ export default function TeacherProfile() {
                 <CardContent className="space-y-4">
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Subjects</Label>
-                    {isEditing ? (
-                      <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
-                        {subjects.map((subject: any) => (
-                          <div key={subject.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`subject-${subject.id}`}
-                              checked={professionalData.subjects.includes(subject.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setProfessionalData(prev => ({
-                                    ...prev,
-                                    subjects: [...prev.subjects, subject.id]
-                                  }));
-                                } else {
-                                  setProfessionalData(prev => ({
-                                    ...prev,
-                                    subjects: prev.subjects.filter(id => id !== subject.id)
-                                  }));
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={`subject-${subject.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                              {subject.name}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2" data-testid="container-subjects">
-                        {teacherProfile.subjects && (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length > 0 : String(teacherProfile.subjects).length > 0) ? (
-                          (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects : String(teacherProfile.subjects).split(',').map(s => parseInt(s.trim()))).map((subjectId: any, idx: number) => {
-                            const parsedId = typeof subjectId === 'string' ? parseInt(subjectId) : subjectId;
-                            const subjectData = subjects.find((s: any) => s.id === parsedId);
-                            return (
-                              <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
-                                <BookOpen className="w-3 h-3 mr-1" />
-                                {subjectData?.name || `Subject ${parsedId}`}
-                              </Badge>
-                            );
-                          })
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No subjects assigned</p>
-                        )}
-                      </div>
+                    {/* Subjects are admin-controlled - teachers can only view */}
+                    <div className="flex flex-wrap gap-2" data-testid="container-subjects">
+                      {teacherProfile.subjects && (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects.length > 0 : String(teacherProfile.subjects).length > 0) ? (
+                        (Array.isArray(teacherProfile.subjects) ? teacherProfile.subjects : String(teacherProfile.subjects).split(',').map(s => parseInt(s.trim()))).map((subjectId: any, idx: number) => {
+                          const parsedId = typeof subjectId === 'string' ? parseInt(subjectId) : subjectId;
+                          const subjectData = subjects.find((s: any) => s.id === parsedId);
+                          return (
+                            <Badge key={idx} variant="secondary" className="text-sm" data-testid={`badge-subject-${idx}`}>
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              {subjectData?.name || `Subject ${parsedId}`}
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No subjects assigned</p>
+                      )}
+                    </div>
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground mt-2">Subject assignments are managed by school administrators</p>
                     )}
                   </div>
 
@@ -773,53 +745,25 @@ export default function TeacherProfile() {
 
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Assigned Classes</Label>
-                    {isEditing ? (
-                      <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
-                        {classes.map((cls: any) => (
-                          <div key={cls.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`class-${cls.id}`}
-                              checked={professionalData.assignedClasses.includes(cls.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setProfessionalData(prev => ({
-                                    ...prev,
-                                    assignedClasses: [...prev.assignedClasses, cls.id]
-                                  }));
-                                } else {
-                                  setProfessionalData(prev => ({
-                                    ...prev,
-                                    assignedClasses: prev.assignedClasses.filter(id => id !== cls.id)
-                                  }));
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={`class-${cls.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                              {cls.name}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2" data-testid="container-classes">
-                        {teacherProfile.assignedClasses && (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length > 0 : String(teacherProfile.assignedClasses).length > 0) ? (
-                          (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses : String(teacherProfile.assignedClasses).split(',').map(c => parseInt(c.trim()))).map((classId: any, idx: number) => {
-                            const parsedId = typeof classId === 'string' ? parseInt(classId) : classId;
-                            const classData = classes.find((c) => c.id === parsedId);
-                            return (
-                              <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
-                                <Users className="w-3 h-3 mr-1" />
-                                {classData?.name || `Class ${parsedId}`}
-                              </Badge>
-                            );
-                          })
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No classes assigned</p>
-                        )}
-                      </div>
+                    {/* Classes are admin-controlled - teachers can only view */}
+                    <div className="flex flex-wrap gap-2" data-testid="container-classes">
+                      {teacherProfile.assignedClasses && (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses.length > 0 : String(teacherProfile.assignedClasses).length > 0) ? (
+                        (Array.isArray(teacherProfile.assignedClasses) ? teacherProfile.assignedClasses : String(teacherProfile.assignedClasses).split(',').map(c => parseInt(c.trim()))).map((classId: any, idx: number) => {
+                          const parsedId = typeof classId === 'string' ? parseInt(classId) : classId;
+                          const classData = classes.find((c) => c.id === parsedId);
+                          return (
+                            <Badge key={idx} variant="outline" className="text-sm" data-testid={`badge-class-${idx}`}>
+                              <Users className="w-3 h-3 mr-1" />
+                              {classData?.name || `Class ${parsedId}`}
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No classes assigned</p>
+                      )}
+                    </div>
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground mt-2">Class assignments are managed by school administrators</p>
                     )}
                   </div>
 
