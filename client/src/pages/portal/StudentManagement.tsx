@@ -15,11 +15,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentRequest } from '@shared/schema';
-import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle, AlertCircle } from 'lucide-react';
+import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle, AlertCircle, GraduationCap, Palette, Briefcase } from 'lucide-react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { ROLE_IDS } from '@/lib/roles';
+
+// Classes that require department selection (Senior Secondary)
+const SENIOR_CLASSES = ['SS1', 'SS2', 'SS3'];
+const DEPARTMENTS = [
+  { value: 'science', label: 'Science', icon: GraduationCap },
+  { value: 'art', label: 'Art', icon: Palette },
+  { value: 'commercial', label: 'Commercial', icon: Briefcase },
+] as const;
 
 // Use shared schema to prevent frontend/backend drift
 type StudentForm = CreateStudentRequest;
@@ -41,6 +49,9 @@ export default function StudentManagement() {
   const [uploadedStudents, setUploadedStudents] = useState<any[]>([]);
   const [csvPreview, setCsvPreview] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [formSelectedClassId, setFormSelectedClassId] = useState<number | null>(null);
+  const [editFormSelectedClassId, setEditFormSelectedClassId] = useState<number | null>(null);
+  const [editFormDepartment, setEditFormDepartment] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<StudentForm>({
     resolver: zodResolver(createStudentSchema),
@@ -74,6 +85,20 @@ export default function StudentManagement() {
       return await response.json();
     },
   });
+
+  // Helper to check if a class is a senior class (SS1-SS3)
+  const isSeniorClass = (className: string | undefined) => {
+    if (!className) return false;
+    return SENIOR_CLASSES.some(sc => className.toUpperCase().includes(sc));
+  };
+  
+  // Get the selected class object for the create form (must be after classes query)
+  const formSelectedClass = classes.find((c: any) => c.id === formSelectedClassId);
+  const requiresDepartment = isSeniorClass(formSelectedClass?.name);
+  
+  // Get the selected class object for the edit form
+  const editFormSelectedClass = classes.find((c: any) => c.id === editFormSelectedClassId);
+  const editRequiresDepartment = isSeniorClass(editFormSelectedClass?.name);
 
   // Fetch users (for parents)
   const { data: parents = [] } = useQuery({
@@ -116,6 +141,8 @@ export default function StudentManagement() {
         emergencyContact: data.emergencyContact || undefined,
         medicalInfo: data.medicalInfo?.trim() || undefined,
         admissionDate: data.admissionDate,
+        // Department for senior classes (SS1-SS3)
+        department: data.department || undefined,
       });
 
       if (!studentResponse.ok) {
@@ -139,6 +166,7 @@ export default function StudentManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setIsDialogOpen(false);
       reset();
+      setFormSelectedClassId(null); // Reset form class selection
     },
     onError: (error: Error) => {
       toast({
@@ -381,6 +409,9 @@ export default function StudentManagement() {
 
   const handleEditClick = (student: any) => {
     setEditingStudent(student);
+    // Track class and department for conditional rendering
+    setEditFormSelectedClassId(student.classId || null);
+    setEditFormDepartment(student.department || null);
     // Populate edit form with current student data (email, password, admissionNumber are not editable)
     resetEdit({
       firstName: student.user?.firstName || '',
@@ -395,6 +426,7 @@ export default function StudentManagement() {
       emergencyContact: student.emergencyContact || '',
       medicalInfo: student.medicalInfo || '',
       guardianName: student.guardianName || '',
+      department: student.department || undefined,
     });
     setIsEditDialogOpen(true);
   };
@@ -668,7 +700,16 @@ export default function StudentManagement() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="classId" className="text-sm">Class</Label>
-                  <Select onValueChange={(value) => setValue('classId', parseInt(value))}>
+                  <Select onValueChange={(value) => {
+                    const classId = parseInt(value);
+                    setValue('classId', classId);
+                    setFormSelectedClassId(classId);
+                    // Clear department when class changes to non-senior
+                    const cls = classes.find((c: any) => c.id === classId);
+                    if (!isSeniorClass(cls?.name)) {
+                      setValue('department', null);
+                    }
+                  }}>
                     <SelectTrigger data-testid="select-class">
                       <SelectValue placeholder="Select class" />
                     </SelectTrigger>
@@ -697,6 +738,46 @@ export default function StudentManagement() {
                   )}
                 </div>
               </div>
+
+              {requiresDepartment && (
+                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-start gap-2 mb-3">
+                    <GraduationCap className="h-4 w-4 text-orange-700 dark:text-orange-300 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
+                        Department Selection Required
+                      </p>
+                      <p className="text-xs text-orange-600 dark:text-orange-300 mt-1">
+                        Senior secondary students (SS1-SS3) must select a department. This determines which subjects they will be assigned.
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="department" className="text-sm">Department</Label>
+                    <Select onValueChange={(value) => setValue('department', value as 'science' | 'art' | 'commercial')}>
+                      <SelectTrigger data-testid="select-department">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENTS.map((dept) => {
+                          const Icon = dept.icon;
+                          return (
+                            <SelectItem key={dept.value} value={dept.value}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4" />
+                                {dept.label}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {errors.department && (
+                      <p className="text-red-500 text-sm">{errors.department.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="border-t pt-4 mt-2">
                 <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
@@ -1271,8 +1352,18 @@ export default function StudentManagement() {
                 <div>
                   <Label htmlFor="editClassId" className="text-sm">Class</Label>
                   <Select 
-                    value={editingStudent?.classId ? editingStudent.classId.toString() : ''} 
-                    onValueChange={(value) => setEditValue('classId', parseInt(value))}
+                    value={editFormSelectedClassId ? editFormSelectedClassId.toString() : ''} 
+                    onValueChange={(value) => {
+                      const classId = parseInt(value);
+                      setEditValue('classId', classId);
+                      setEditFormSelectedClassId(classId);
+                      // Clear department when class changes to non-senior
+                      const cls = classes.find((c: any) => c.id === classId);
+                      if (!isSeniorClass(cls?.name)) {
+                        setEditValue('department', null);
+                        setEditFormDepartment(null);
+                      }
+                    }}
                   >
                     <SelectTrigger data-testid="select-edit-class">
                       <SelectValue placeholder="Select class" />
@@ -1312,6 +1403,52 @@ export default function StudentManagement() {
                   )}
                 </div>
               </div>
+
+              {editRequiresDepartment && (
+                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-start gap-2 mb-3">
+                    <GraduationCap className="h-4 w-4 text-orange-700 dark:text-orange-300 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
+                        Department Selection Required
+                      </p>
+                      <p className="text-xs text-orange-600 dark:text-orange-300 mt-1">
+                        Senior secondary students (SS1-SS3) must select a department. This determines which subjects they will be assigned.
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="editDepartment" className="text-sm">Department</Label>
+                    <Select 
+                      value={editFormDepartment || ''}
+                      onValueChange={(value) => {
+                        setEditValue('department', value as 'science' | 'art' | 'commercial');
+                        setEditFormDepartment(value);
+                      }}
+                    >
+                      <SelectTrigger data-testid="select-edit-department">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENTS.map((dept) => {
+                          const Icon = dept.icon;
+                          return (
+                            <SelectItem key={dept.value} value={dept.value}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4" />
+                                {dept.label}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {editErrors.department && (
+                      <p className="text-red-500 text-sm">{editErrors.department.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="editEmergencyContact" className="text-sm">Emergency Contact</Label>
@@ -1463,12 +1600,33 @@ export default function StudentManagement() {
                           </div>
                         </div>
                         <div>
+                          <span className="text-muted-foreground">Department:</span>
+                          <div className="font-medium mt-0.5">
+                            {student.department ? (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs capitalize ${
+                                  student.department === 'science' 
+                                    ? 'border-blue-500 text-blue-700 dark:text-blue-300' 
+                                    : student.department === 'art' 
+                                      ? 'border-purple-500 text-purple-700 dark:text-purple-300' 
+                                      : 'border-green-500 text-green-700 dark:text-green-300'
+                                }`}
+                              >
+                                {student.department}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
                           <span className="text-muted-foreground">Parent:</span>
                           <div className="font-medium mt-0.5 truncate">
                             {student.parent?.firstName ? `${student.parent.firstName} ${student.parent.lastName}` : 'N/A'}
                           </div>
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <span className="text-muted-foreground">Emergency:</span>
                           <div className="font-medium mt-0.5">{student.emergencyContact}</div>
                         </div>
@@ -1562,6 +1720,7 @@ export default function StudentManagement() {
                       <TableHead className="text-xs lg:text-sm">Admission Number</TableHead>
                       <TableHead className="text-xs lg:text-sm">Name</TableHead>
                       <TableHead className="text-xs lg:text-sm">Class</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Department</TableHead>
                       <TableHead className="text-xs lg:text-sm">Parent</TableHead>
                       <TableHead className="text-xs lg:text-sm">Contact</TableHead>
                       <TableHead className="text-xs lg:text-sm">Status</TableHead>
@@ -1597,6 +1756,24 @@ export default function StudentManagement() {
                           <Badge variant="secondary" className="text-xs">
                             {student.class?.name}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs lg:text-sm">
+                          {student.department ? (
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs capitalize ${
+                                student.department === 'science' 
+                                  ? 'border-blue-500 text-blue-700 dark:text-blue-300' 
+                                  : student.department === 'art' 
+                                    ? 'border-purple-500 text-purple-700 dark:text-purple-300' 
+                                    : 'border-green-500 text-green-700 dark:text-green-300'
+                              }`}
+                            >
+                              {student.department}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs lg:text-sm">
                           {student.parent?.firstName} {student.parent?.lastName}

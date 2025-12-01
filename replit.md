@@ -56,6 +56,26 @@ Complete implementation of the teacher-student-department-class assignment syste
 - Auto-grading uses system settings for test/exam weights (configurable, default 40%/60%)
 - Graceful handling when no valid subjects found for a student
 
+### Department Selection UI in Student Management (Dec 1, 2025)
+Enhanced StudentManagement.tsx with department selection for senior secondary students:
+
+#### Create Student Form
+- **Department Dropdown**: When selecting SS1, SS2, or SS3 as the class, a department selection dropdown appears
+- **Three Departments**: Science, Art, Commercial with color-coded icons
+- **Smart Clearing**: Department is automatically cleared when switching to a non-senior class
+- **Required for SS**: The dropdown is conditionally rendered only for senior secondary classes
+
+#### Edit Student Form
+- **Pre-populated Department**: When editing an existing student, the department is pre-populated
+- **Consistent Behavior**: Same conditional rendering and clearing logic as the create form
+
+#### Student Table Display
+- **Department Column**: New column showing student's department with color-coded badges
+  - Science: Blue badge
+  - Art: Purple badge
+  - Commercial: Green badge
+- **Both Views**: Department displayed in both mobile card view and desktop table view
+
 ### Phase 4 & 5: Department-Based Exam & Report Card Filtering (Dec 1, 2025)
 Enhanced department-based filtering for Senior Secondary (SS1-SS3) students:
 

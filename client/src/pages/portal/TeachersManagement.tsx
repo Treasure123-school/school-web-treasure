@@ -165,7 +165,7 @@ export default function TeachersManagement() {
   useSocketIORealtime({
     table: 'teacher_class_assignments',
     queryKey: ['/api/teacher-assignments', selectedTeacherForAssignment?.id],
-    onUpdate: () => {
+    onEvent: () => {
       // Also invalidate all teacher assignment queries to keep UI in sync
       if (selectedTeacherForAssignment?.id) {
         refetchAssignments();
