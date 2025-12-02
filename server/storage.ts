@@ -2,6 +2,7 @@ import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull, gte, lte, or, li
 import { randomUUID } from "crypto";
 import { getDatabase, getSchema, getPgClient, getPgPool, isPostgres, isSqlite } from "./db";
 import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGrade } from "./grading-config";
+import { deleteFile } from "./cloudinary-service";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -698,49 +699,190 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      // CRITICAL FIX: Manual cascade delete due to foreign key constraints
-      // We must delete in correct order to avoid constraint violations
+      // COMPREHENSIVE CASCADE DELETE for complete data removal
+      // First, get the user to check for profile image and role
+      const user = await this.getUser(id);
+      if (!user) {
+        return false;
+      }
+
+      // --- PHASE 1: Delete files from Cloudinary/local storage ---
+      // Delete profile image if exists
+      if (user.profileImageUrl) {
+        try {
+          await deleteFile(user.profileImageUrl);
+        } catch (fileError) {
+          console.error('Error deleting profile image:', fileError);
+          // Continue with deletion even if file deletion fails
+        }
+      }
+
+      // --- PHASE 2: If teacher, delete all exams created by them ---
+      // This cascades to delete exam questions, options, sessions, answers, results
+      const teacherExams = await this.db.select({ id: schema.exams.id })
+        .from(schema.exams)
+        .where(eq(schema.exams.createdBy, id));
       
+      for (const exam of teacherExams) {
+        try {
+          await this.deleteExam(exam.id);
+        } catch (examError) {
+          console.error(`Error deleting exam ${exam.id}:`, examError);
+        }
+      }
+
+      // Delete question banks created by this user
+      const questionBanks = await this.db.select({ id: schema.questionBanks.id })
+        .from(schema.questionBanks)
+        .where(eq(schema.questionBanks.createdBy, id));
       
-      // 1. Delete teacher profile first (has foreign key to users)
+      for (const qb of questionBanks) {
+        try {
+          // Delete question bank options first
+          const qbItems = await this.db.select({ id: schema.questionBankItems.id })
+            .from(schema.questionBankItems)
+            .where(eq(schema.questionBankItems.questionBankId, qb.id));
+          
+          const qbItemIds = qbItems.map((item: { id: number }) => item.id);
+          if (qbItemIds.length > 0) {
+            await this.db.delete(schema.questionBankOptions)
+              .where(inArray(schema.questionBankOptions.questionId, qbItemIds));
+            await this.db.delete(schema.questionBankItems)
+              .where(eq(schema.questionBankItems.questionBankId, qb.id));
+          }
+          await this.db.delete(schema.questionBanks)
+            .where(eq(schema.questionBanks.id, qb.id));
+        } catch (qbError) {
+          console.error(`Error deleting question bank ${qb.id}:`, qbError);
+        }
+      }
+
+      // --- PHASE 3: Delete gallery and study resources with their files ---
+      // Get gallery items to delete their images
+      const galleryItems = await this.db.select({ id: schema.gallery.id, imageUrl: schema.gallery.imageUrl })
+        .from(schema.gallery)
+        .where(eq(schema.gallery.uploadedBy, id));
+      
+      for (const item of galleryItems) {
+        if (item.imageUrl) {
+          try {
+            await deleteFile(item.imageUrl);
+          } catch (fileError) {
+            console.error(`Error deleting gallery image ${item.id}:`, fileError);
+          }
+        }
+      }
+      await this.db.delete(schema.gallery)
+        .where(eq(schema.gallery.uploadedBy, id));
+
+      // Get study resources to delete their files
+      const studyResources = await this.db.select({ id: schema.studyResources.id, fileUrl: schema.studyResources.fileUrl })
+        .from(schema.studyResources)
+        .where(eq(schema.studyResources.uploadedBy, id));
+      
+      for (const resource of studyResources) {
+        if (resource.fileUrl) {
+          try {
+            await deleteFile(resource.fileUrl);
+          } catch (fileError) {
+            console.error(`Error deleting study resource file ${resource.id}:`, fileError);
+          }
+        }
+      }
+      await this.db.delete(schema.studyResources)
+        .where(eq(schema.studyResources.uploadedBy, id));
+
+      // --- PHASE 4: Delete all user-related records in correct order ---
+      
+      // Delete teacher-specific records
       await this.db.delete(schema.teacherProfiles)
         .where(eq(schema.teacherProfiles.userId, id));
       
-      // 2. Delete admin profile
-      await this.db.delete(schema.adminProfiles)
-        .where(eq(schema.adminProfiles.userId, id));
-      
-      // 3. Delete parent profile
-      await this.db.delete(schema.parentProfiles)
-        .where(eq(schema.parentProfiles.userId, id));
-      
-      // 4. Delete password reset tokens
-      await this.db.delete(schema.passwordResetTokens)
-        .where(eq(schema.passwordResetTokens.userId, id));
-      
-      // 5. Delete invites (if user was invited)
-      await this.db.delete(schema.invites)
-        .where(eq(schema.invites.acceptedBy, id));
-      
-      // 6. Delete notifications
-      await this.db.delete(schema.notifications)
-        .where(eq(schema.notifications.userId, id));
-      
-      // 7. Delete teacher class assignments (if table exists)
       try {
         if (schema.teacherClassAssignments) {
           await this.db.delete(schema.teacherClassAssignments)
             .where(eq(schema.teacherClassAssignments.teacherId, id));
         }
-      } catch (assignmentError: any) {
-        // Table might not exist yet, skip it
-        if (assignmentError?.cause?.code === '42P01') {
-        } else {
-          throw assignmentError;
-        }
-      }
+      } catch (e) { /* Table might not exist */ }
       
-      // 8. Get exam sessions to cascade delete properly
+      try {
+        if (schema.teacherAssignmentHistory) {
+          await this.db.delete(schema.teacherAssignmentHistory)
+            .where(eq(schema.teacherAssignmentHistory.teacherId, id));
+        }
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete timetable entries where teacher is assigned
+      try {
+        await this.db.delete(schema.timetable)
+          .where(eq(schema.timetable.teacherId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete grading tasks assigned to this teacher
+      try {
+        await this.db.delete(schema.gradingTasks)
+          .where(eq(schema.gradingTasks.assignedTeacherId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete admin profile
+      await this.db.delete(schema.adminProfiles)
+        .where(eq(schema.adminProfiles.userId, id));
+      
+      // Delete parent profile
+      await this.db.delete(schema.parentProfiles)
+        .where(eq(schema.parentProfiles.userId, id));
+
+      // Delete super admin profile
+      try {
+        await this.db.delete(schema.superAdminProfiles)
+          .where(eq(schema.superAdminProfiles.userId, id));
+      } catch (e) { /* Table might not exist */ }
+      
+      // Delete password reset tokens
+      await this.db.delete(schema.passwordResetTokens)
+        .where(eq(schema.passwordResetTokens.userId, id));
+      
+      // Delete invites (if user was invited or created invites)
+      await this.db.delete(schema.invites)
+        .where(eq(schema.invites.acceptedBy, id));
+      await this.db.delete(schema.invites)
+        .where(eq(schema.invites.createdBy, id));
+      
+      // Delete notifications
+      await this.db.delete(schema.notifications)
+        .where(eq(schema.notifications.userId, id));
+
+      // Delete messages sent or received
+      await this.db.delete(schema.messages)
+        .where(or(
+          eq(schema.messages.senderId, id),
+          eq(schema.messages.recipientId, id)
+        ));
+
+      // Delete announcements authored by this user
+      await this.db.delete(schema.announcements)
+        .where(eq(schema.announcements.authorId, id));
+
+      // Delete performance events
+      try {
+        await this.db.delete(schema.performanceEvents)
+          .where(eq(schema.performanceEvents.userId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete audit logs for this user
+      try {
+        await this.db.delete(schema.auditLogs)
+          .where(eq(schema.auditLogs.userId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete unauthorized access logs
+      try {
+        await this.db.delete(schema.unauthorizedAccessLogs)
+          .where(eq(schema.unauthorizedAccessLogs.userId, id));
+      } catch (e) { /* Table might not exist */ }
+      
+      // --- PHASE 5: Delete student-specific records ---
+      // Get exam sessions to cascade delete properly
       const examSessions = await this.db.select({ id: schema.examSessions.id })
         .from(schema.examSessions)
         .where(eq(schema.examSessions.studentId, id));
@@ -748,6 +890,18 @@ export class DatabaseStorage implements IStorage {
       const sessionIds = examSessions.map((s: { id: number }) => s.id);
       
       if (sessionIds.length > 0) {
+        // Delete grading tasks for these sessions
+        try {
+          await this.db.delete(schema.gradingTasks)
+            .where(inArray(schema.gradingTasks.sessionId, sessionIds));
+        } catch (e) { /* Table might not exist */ }
+
+        // Delete performance events for these sessions
+        try {
+          await this.db.delete(schema.performanceEvents)
+            .where(inArray(schema.performanceEvents.sessionId, sessionIds));
+        } catch (e) { /* Table might not exist */ }
+
         // Delete student answers
         await this.db.delete(schema.studentAnswers)
           .where(inArray(schema.studentAnswers.sessionId, sessionIds));
@@ -756,30 +910,85 @@ export class DatabaseStorage implements IStorage {
         await this.db.delete(schema.examSessions)
           .where(inArray(schema.examSessions.id, sessionIds));
       }
-      // 9. Delete exam results
+
+      // Delete exam results
       await this.db.delete(schema.examResults)
         .where(eq(schema.examResults.studentId, id));
       
-      // 10. Delete attendance records
+      // Delete attendance records
       await this.db.delete(schema.attendance)
         .where(eq(schema.attendance.studentId, id));
+
+      // Delete continuous assessment records
+      try {
+        await this.db.delete(schema.continuousAssessment)
+          .where(eq(schema.continuousAssessment.studentId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete student subject assignments
+      try {
+        await this.db.delete(schema.studentSubjectAssignments)
+          .where(eq(schema.studentSubjectAssignments.studentId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete report card items for this student
+      try {
+        await this.db.delete(schema.reportCardItems)
+          .where(eq(schema.reportCardItems.studentId, id));
+      } catch (e) { /* Table might not exist */ }
+
+      // Delete report cards for this student
+      try {
+        await this.db.delete(schema.reportCards)
+          .where(eq(schema.reportCards.studentId, id));
+      } catch (e) { /* Table might not exist */ }
       
-      // 11. Update students who have this user as a parent (set parent_id to null)
+      // Update students who have this user as a parent (set parent_id to null)
       await this.db.update(schema.students)
         .set({ parentId: null })
         .where(eq(schema.students.parentId, id));
       
-      // 12. Delete student record if exists
+      // Delete student record if exists
       await this.db.delete(schema.students)
         .where(eq(schema.students.id, id));
-      
-      // 13. Finally, delete the user
+
+      // --- PHASE 6: Clear references in other tables (set to null) ---
+      // Update classes where this user is class teacher
+      try {
+        await this.db.update(schema.classes)
+          .set({ classTeacherId: null })
+          .where(eq(schema.classes.classTeacherId, id));
+      } catch (e) { /* Column might not exist */ }
+
+      // Update contact messages respondedBy
+      try {
+        await this.db.update(schema.contactMessages)
+          .set({ respondedBy: null })
+          .where(eq(schema.contactMessages.respondedBy, id));
+      } catch (e) { /* Column might not exist */ }
+
+      // Update system settings updatedBy
+      try {
+        await this.db.update(schema.systemSettings)
+          .set({ updatedBy: null })
+          .where(eq(schema.systemSettings.updatedBy, id));
+      } catch (e) { /* Column might not exist */ }
+
+      // Update settings updatedBy
+      try {
+        await this.db.update(schema.settings)
+          .set({ updatedBy: null })
+          .where(eq(schema.settings.updatedBy, id));
+      } catch (e) { /* Column might not exist */ }
+
+      // --- PHASE 7: Finally, delete the user ---
       const result = await this.db.delete(schema.users)
         .where(eq(schema.users.id, id))
         .returning();
       
       return result.length > 0;
     } catch (error) {
+      console.error('Error in deleteUser:', error);
       throw error;
     }
   }
@@ -1562,12 +1771,52 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteExam(id: number): Promise<boolean> {
     try {
-      // First get all question IDs for this exam
-      const examQuestions = await db.select({ id: schema.examQuestions.id })
+      // First get all question IDs and image URLs for this exam
+      const examQuestions = await db.select({ 
+        id: schema.examQuestions.id,
+        imageUrl: schema.examQuestions.imageUrl 
+      })
         .from(schema.examQuestions)
         .where(eq(schema.examQuestions.examId, id));
       
       const questionIds = examQuestions.map((q: { id: number }) => q.id);
+
+      // Delete question images from Cloudinary/local storage
+      for (const question of examQuestions) {
+        if (question.imageUrl) {
+          try {
+            await deleteFile(question.imageUrl);
+          } catch (fileError) {
+            console.error(`Error deleting question image for question ${question.id}:`, fileError);
+            // Continue with deletion even if file deletion fails
+          }
+        }
+      }
+
+      // Get all question option images for these questions
+      if (questionIds.length > 0) {
+        try {
+          const questionOptions = await db.select({
+            id: schema.questionOptions.id,
+            imageUrl: schema.questionOptions.imageUrl
+          })
+            .from(schema.questionOptions)
+            .where(inArray(schema.questionOptions.questionId, questionIds));
+          
+          // Delete question option images from Cloudinary/local storage
+          for (const option of questionOptions) {
+            if (option.imageUrl) {
+              try {
+                await deleteFile(option.imageUrl);
+              } catch (fileError) {
+                console.error(`Error deleting option image for option ${option.id}:`, fileError);
+              }
+            }
+          }
+        } catch (e) {
+          // imageUrl column might not exist in question_options
+        }
+      }
 
       // Get all session IDs for this exam (needed for cascading deletes)
       const examSessions = await db.select({ id: schema.examSessions.id })
@@ -2045,6 +2294,46 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteExamQuestion(id: number): Promise<boolean> {
     try {
+      // Get the question first to delete its image
+      const question = await db.select({
+        id: schema.examQuestions.id,
+        imageUrl: schema.examQuestions.imageUrl
+      })
+        .from(schema.examQuestions)
+        .where(eq(schema.examQuestions.id, id))
+        .limit(1);
+      
+      // Delete question image from Cloudinary/local storage if exists
+      if (question[0]?.imageUrl) {
+        try {
+          await deleteFile(question[0].imageUrl);
+        } catch (fileError) {
+          console.error(`Error deleting question image for question ${id}:`, fileError);
+        }
+      }
+
+      // Get question options to delete their images
+      try {
+        const options = await db.select({
+          id: schema.questionOptions.id,
+          imageUrl: schema.questionOptions.imageUrl
+        })
+          .from(schema.questionOptions)
+          .where(eq(schema.questionOptions.questionId, id));
+        
+        for (const option of options) {
+          if (option.imageUrl) {
+            try {
+              await deleteFile(option.imageUrl);
+            } catch (fileError) {
+              console.error(`Error deleting option image for option ${option.id}:`, fileError);
+            }
+          }
+        }
+      } catch (e) {
+        // imageUrl column might not exist in question_options
+      }
+
       // IMPORTANT: Delete in correct order to respect foreign key constraints
       // 1. First delete student answers (references both question_id AND selected_option_id -> question_options)
       await db.delete(schema.studentAnswers)
@@ -3036,6 +3325,21 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   async deleteGalleryImage(id: string): Promise<boolean> {
+    // First get the image to delete the file
+    const image = await db.select({ id: schema.gallery.id, imageUrl: schema.gallery.imageUrl })
+      .from(schema.gallery)
+      .where(eq(schema.gallery.id, parseInt(id)))
+      .limit(1);
+    
+    // Delete the image file from Cloudinary/local storage
+    if (image[0]?.imageUrl) {
+      try {
+        await deleteFile(image[0].imageUrl);
+      } catch (fileError) {
+        console.error(`Error deleting gallery image file for image ${id}:`, fileError);
+      }
+    }
+
     const result = await db.delete(schema.gallery)
       .where(eq(schema.gallery.id, parseInt(id)))
       .returning();
@@ -3081,6 +3385,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.studyResources.id, id));
   }
   async deleteStudyResource(id: number): Promise<boolean> {
+    // First get the resource to delete the file
+    const resource = await db.select({ id: schema.studyResources.id, fileUrl: schema.studyResources.fileUrl })
+      .from(schema.studyResources)
+      .where(eq(schema.studyResources.id, id))
+      .limit(1);
+    
+    // Delete the file from Cloudinary/local storage
+    if (resource[0]?.fileUrl) {
+      try {
+        await deleteFile(resource[0].fileUrl);
+      } catch (fileError) {
+        console.error(`Error deleting study resource file for resource ${id}:`, fileError);
+      }
+    }
+
     const result = await db.delete(schema.studyResources)
       .where(eq(schema.studyResources.id, id))
       .returning();
@@ -3375,6 +3694,21 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   async deleteHomePageContent(id: number): Promise<boolean> {
+    // First get the content to delete the file
+    const content = await db.select({ id: schema.homePageContent.id, imageUrl: schema.homePageContent.imageUrl })
+      .from(schema.homePageContent)
+      .where(eq(schema.homePageContent.id, id))
+      .limit(1);
+    
+    // Delete the image file from Cloudinary/local storage
+    if (content[0]?.imageUrl) {
+      try {
+        await deleteFile(content[0].imageUrl);
+      } catch (fileError) {
+        console.error(`Error deleting homepage content image for content ${id}:`, fileError);
+      }
+    }
+
     const result = await db.delete(schema.homePageContent)
       .where(eq(schema.homePageContent.id, id))
       .returning();
