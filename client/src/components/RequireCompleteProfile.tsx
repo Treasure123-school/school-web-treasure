@@ -100,7 +100,7 @@ export default function RequireCompleteProfile({
                 <Button 
                   onClick={() => navigate(isTeacher ? '/portal/teacher/profile' : '/portal/student/profile')}
                   className="flex-1"
-                  data-testid="button-goto-profile-setup"
+                  data-testid="button-goto-profile"
                 >
                   <AlertCircle className="w-4 h-4 mr-2" />
                   Complete Profile Now

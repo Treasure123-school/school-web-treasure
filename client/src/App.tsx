@@ -35,7 +35,6 @@ import StudentAnnouncements from "@/pages/portal/StudentAnnouncements";
 import StudentAttendance from "@/pages/portal/StudentAttendance";
 import StudentMessages from "@/pages/portal/StudentMessages";
 import StudentProfile from "@/pages/portal/StudentProfile";
-import StudentProfileSetup from "@/pages/portal/StudentProfileSetup";
 import StudentExams from "@/pages/portal/StudentExams";
 import StudentExamResults from "@/pages/portal/StudentExamResults";
 import StudentStudyResources from "@/pages/portal/StudentStudyResources";
@@ -463,11 +462,6 @@ function Router() {
       <Route path="/portal/student/report-card">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentReportCard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/profile-setup">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentProfileSetup />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/student/profile">

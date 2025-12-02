@@ -223,9 +223,10 @@ export default function StudentDashboard() {
                 )}
               </div>
               <Button 
-                onClick={() => navigate('/portal/student/profile-setup')}
+                onClick={() => navigate('/portal/student/profile')}
                 variant="default"
                 className="bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg"
+                data-testid="button-complete-profile"
               >
                 Complete Profile
               </Button>
