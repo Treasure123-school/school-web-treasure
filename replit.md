@@ -27,8 +27,15 @@ Comprehensive real-time updates are implemented across major features including 
   - **Auto-Generation**: Report cards are automatically created when students complete their first exam. The `syncExamScoreToReportCard` function handles this flow.
   - **Exam Type Detection**: System distinguishes between test types (test, quiz, assignment) which map to testScore/testMaxScore, and main exam types (exam, final, midterm) which map to examScore/examMaxScore.
   - **Weighted Scoring**: Uses 40% test weight and 60% exam weight for grade calculations via `calculateWeightedScore` in `shared/grading-utils.ts`.
+  - **Teacher-Specific Editing Permissions**: Teachers can ONLY edit scores for subjects where they created the exams:
+    - `testExamCreatedBy` and `examExamCreatedBy` fields track which teacher created each exam type
+    - Teachers can edit test scores only if they created the test (test, quiz, assignment)
+    - Teachers can edit exam scores only if they created the main exam (exam, final, midterm)
+    - Teachers can add remarks only if they created at least one exam for that subject
+    - Admins and Super Admins can edit all scores regardless of creator
+    - Legacy items (null creator fields) remain editable by all teachers for backwards compatibility
   - **Teacher Score Override**: Teachers can add/edit test and exam scores via `/api/reports/items/:itemId/override` endpoint. Overrides are marked with `isOverridden` flag to prevent auto-sync from overwriting manual edits.
-  - **Auto-Recalculation**: After any score change, the system automatically recalculates weighted grades, report card totals, and class positions.
+  - **Auto-Recalculation**: After any score change, the system automatically recalculates weighted grades, report card totals, and percentages.
   - **Status Workflow**: Draft → Finalized → Published with role-based visibility.
   - **Real-time Updates**: Socket.IO events emitted for all report card and item changes.
   - **Grading Scales**: Supports Standard, WAEC, and Percentage scales with configurable thresholds.
