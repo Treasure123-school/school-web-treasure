@@ -644,27 +644,16 @@ export default function TeacherReportCards() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4 items-end">
-              {/* Class dropdown with red highlight - shows only assigned classes for teachers */}
               <div className="flex flex-col gap-2">
-                <Label className="text-red-600 dark:text-red-400 font-semibold flex items-center gap-1">
-                  Class
-                  {!isAdmin && classes.length > 0 && (
-                    <Badge variant="outline" className="text-xs text-red-600 dark:text-red-400 border-red-300 dark:border-red-600 ml-1">
-                      Assigned
-                    </Badge>
-                  )}
-                </Label>
+                <Label>Class</Label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger 
-                    className="w-44 ring-2 ring-red-500 dark:ring-red-400 border-red-500 dark:border-red-400 focus:ring-red-600 dark:focus:ring-red-500" 
-                    data-testid="select-class"
-                  >
+                  <SelectTrigger className="w-40" data-testid="select-class">
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
                     {classes.length === 0 ? (
                       <SelectItem value="no-classes" disabled>
-                        {isAdmin ? 'No classes found' : 'No classes assigned'}
+                        No classes found
                       </SelectItem>
                     ) : (
                       classes.map((cls: any) => (
@@ -675,11 +664,6 @@ export default function TeacherReportCards() {
                     )}
                   </SelectContent>
                 </Select>
-                {!isAdmin && classes.length === 0 && (
-                  <p className="text-xs text-red-500 dark:text-red-400">
-                    Contact admin for class assignments
-                  </p>
-                )}
               </div>
               
               <div className="flex flex-col gap-2">
