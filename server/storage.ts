@@ -3995,6 +3995,13 @@ export class DatabaseStorage implements IStorage {
       // Recalculate report card totals
       await this.recalculateReportCard(reportCard.id, gradingScale);
 
+      // Recalculate class positions since scores changed
+      if (reportCard.classId && reportCard.termId) {
+        await this.recalculateClassPositions(reportCard.classId, reportCard.termId);
+      }
+
+      console.log(`[REPORT-CARD-OVERRIDE] Successfully updated item ${itemId} with test: ${testScore}/${testMaxScore}, exam: ${examScore}/${examMaxScore}, grade: ${gradeInfo.grade}`);
+
       return result[0];
     } catch (error) {
       console.error('Error overriding report card item score:', error);

@@ -8570,6 +8570,19 @@ Treasure-Home School Administration
         // Emit realtime event for score override
         realtimeService.emitTableChange('report_card_items', 'UPDATE', updatedItem, undefined, req.user!.id);
         
+        // Also emit report card update event for dashboard refresh
+        if (updatedItem.reportCardId) {
+          realtimeService.emitReportCardEvent(updatedItem.reportCardId, 'updated', {
+            itemId: updatedItem.id,
+            subjectId: updatedItem.subjectId,
+            testScore: updatedItem.testScore,
+            examScore: updatedItem.examScore,
+            grade: updatedItem.grade,
+            percentage: updatedItem.percentage,
+            overriddenBy: req.user!.id
+          }, req.user!.id);
+        }
+        
         res.json(updatedItem);
       } catch (error: any) {
         console.error('Error overriding score:', error);
