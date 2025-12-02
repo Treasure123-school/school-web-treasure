@@ -955,7 +955,10 @@ function getDatabase() {
 function getPgClient() {
   return neonClient;
 }
-var isProduction, databaseUrl, isPostgres, db, pool, neonClient, dbInfo, database;
+function getPgPool() {
+  return pool;
+}
+var isProduction, databaseUrl, isPostgres, isSqlite, db, pool, neonClient, dbInfo, database;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
@@ -964,6 +967,7 @@ var init_db = __esm({
     isProduction = process.env.NODE_ENV === "production";
     databaseUrl = process.env.DATABASE_URL;
     isPostgres = true;
+    isSqlite = false;
     db = null;
     pool = null;
     neonClient = null;
@@ -1175,6 +1179,16 @@ var init_grading_config = __esm({
 });
 
 // server/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  DatabaseStorage: () => DatabaseStorage,
+  db: () => db2,
+  getPgClient: () => getPgClient,
+  getPgPool: () => getPgPool,
+  isPostgres: () => isPostgres,
+  isSqlite: () => isSqlite,
+  storage: () => storage
+});
 import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 function normalizeUuid(raw) {
@@ -3545,7 +3559,7 @@ var init_storage = __esm({
             publishedAt: schema.reportCards.publishedAt,
             studentName: sql`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as("studentName"),
             studentUsername: schema.users.username,
-            studentPhoto: schema.users.profilePicture,
+            studentPhoto: schema.users.profileImageUrl,
             admissionNumber: schema.students.admissionNumber
           }).from(schema.reportCards).innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id)).innerJoin(schema.users, eq(schema.students.id, schema.users.id)).where(and(
             eq(schema.reportCards.classId, classId),
@@ -3577,7 +3591,7 @@ var init_storage = __esm({
             generatedAt: schema.reportCards.generatedAt,
             studentName: sql`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as("studentName"),
             studentUsername: schema.users.username,
-            studentPhoto: schema.users.profilePicture,
+            studentPhoto: schema.users.profileImageUrl,
             admissionNumber: schema.students.admissionNumber,
             className: schema.classes.name,
             termName: schema.academicTerms.name
@@ -4096,38 +4110,48 @@ var init_storage = __esm({
           }
           const isTest = ["test", "quiz", "assignment"].includes(examType);
           const isMainExam = ["exam", "final", "midterm"].includes(examType);
+          const safeScore = typeof score === "number" ? score : parseInt(String(score), 10) || 0;
+          const safeMaxScore = typeof maxScore === "number" ? maxScore : parseInt(String(maxScore), 10) || 0;
+          const safeExamId = typeof examId === "number" ? examId : parseInt(String(examId), 10);
+          console.log(`[REPORT-CARD-SYNC] Type-safe values: score=${safeScore}, maxScore=${safeMaxScore}, examId=${safeExamId}, examType=${examType}`);
           const updateData = {
             updatedAt: /* @__PURE__ */ new Date()
           };
           if (isTest) {
-            updateData.testExamId = examId;
+            updateData.testExamId = safeExamId;
             updateData.testExamCreatedBy = examCreatedBy;
-            updateData.testScore = score;
-            updateData.testMaxScore = maxScore;
+            updateData.testScore = safeScore;
+            updateData.testMaxScore = safeMaxScore;
           } else if (isMainExam) {
-            updateData.examExamId = examId;
+            updateData.examExamId = safeExamId;
             updateData.examExamCreatedBy = examCreatedBy;
-            updateData.examScore = score;
-            updateData.examMaxScore = maxScore;
+            updateData.examScore = safeScore;
+            updateData.examMaxScore = safeMaxScore;
           } else {
-            updateData.testExamId = examId;
+            updateData.testExamId = safeExamId;
             updateData.testExamCreatedBy = examCreatedBy;
-            updateData.testScore = score;
-            updateData.testMaxScore = maxScore;
+            updateData.testScore = safeScore;
+            updateData.testMaxScore = safeMaxScore;
           }
           const existingItem = reportCardItem[0];
-          const finalTestScore = isTest ? score : existingItem.testScore;
-          const finalTestMaxScore = isTest ? maxScore : existingItem.testMaxScore;
-          const finalExamScore = isMainExam ? score : existingItem.examScore;
-          const finalExamMaxScore = isMainExam ? maxScore : existingItem.examMaxScore;
-          const weighted = calculateWeightedScore(finalTestScore, finalTestMaxScore, finalExamScore, finalExamMaxScore, gradingScale);
+          const finalTestScore = isTest ? safeScore : existingItem.testScore ?? null;
+          const finalTestMaxScore = isTest ? safeMaxScore : existingItem.testMaxScore ?? null;
+          const finalExamScore = isMainExam ? safeScore : existingItem.examScore ?? null;
+          const finalExamMaxScore = isMainExam ? safeMaxScore : existingItem.examMaxScore ?? null;
+          const gradingConfig = getGradingConfig(gradingScale);
+          const weighted = calculateWeightedScore(finalTestScore, finalTestMaxScore, finalExamScore, finalExamMaxScore, gradingConfig);
           const gradeInfo = calculateGradeFromPercentage(weighted.percentage, gradingScale);
-          updateData.testWeightedScore = Math.round(weighted.testWeighted);
-          updateData.examWeightedScore = Math.round(weighted.examWeighted);
-          updateData.obtainedMarks = Math.round(weighted.weightedScore);
-          updateData.percentage = Math.round(weighted.percentage);
+          const safeTestWeighted = Number.isFinite(weighted.testWeighted) ? Math.round(weighted.testWeighted) : 0;
+          const safeExamWeighted = Number.isFinite(weighted.examWeighted) ? Math.round(weighted.examWeighted) : 0;
+          const safeObtainedMarks = Number.isFinite(weighted.weightedScore) ? Math.round(weighted.weightedScore) : 0;
+          const safePercentage = Number.isFinite(weighted.percentage) ? Math.round(weighted.percentage) : 0;
+          updateData.testWeightedScore = safeTestWeighted;
+          updateData.examWeightedScore = safeExamWeighted;
+          updateData.obtainedMarks = safeObtainedMarks;
+          updateData.percentage = safePercentage;
           updateData.grade = gradeInfo.grade;
           updateData.remarks = gradeInfo.remarks;
+          console.log(`[REPORT-CARD-SYNC] Update data: testWeighted=${safeTestWeighted}, examWeighted=${safeExamWeighted}, obtained=${safeObtainedMarks}, pct=${safePercentage}, grade=${gradeInfo.grade}`);
           await db2.update(schema.reportCardItems).set(updateData).where(eq(schema.reportCardItems.id, existingItem.id));
           console.log(`[REPORT-CARD-SYNC] Updated report card item ${existingItem.id} with ${isTest ? "test" : "exam"} score: ${score}/${maxScore}, grade: ${gradeInfo.grade}`);
           await this.recalculateReportCard(reportCardId, gradingScale);
@@ -4172,7 +4196,7 @@ var init_storage = __esm({
             testWeightedScore: schema.reportCardItems.testWeightedScore,
             examWeightedScore: schema.reportCardItems.examWeightedScore,
             obtainedMarks: schema.reportCardItems.obtainedMarks,
-            maxMarks: schema.reportCardItems.maxMarks,
+            totalMarks: schema.reportCardItems.totalMarks,
             percentage: schema.reportCardItems.percentage,
             grade: schema.reportCardItems.grade,
             remarks: schema.reportCardItems.remarks,
@@ -4218,7 +4242,7 @@ var init_storage = __esm({
               testWeightedScore: item.testWeightedScore,
               examWeightedScore: item.examWeightedScore,
               obtainedMarks: item.obtainedMarks,
-              maxMarks: item.maxMarks,
+              totalMarks: item.totalMarks,
               percentage: item.percentage,
               grade: item.grade,
               remarks: item.remarks,
@@ -7424,6 +7448,188 @@ var init_realtime_service = __esm({
   }
 });
 
+// server/performance-cache.ts
+var performance_cache_exports = {};
+__export(performance_cache_exports, {
+  PerformanceCache: () => PerformanceCache,
+  performanceCache: () => performanceCache
+});
+var PerformanceCache, performanceCache;
+var init_performance_cache = __esm({
+  "server/performance-cache.ts"() {
+    "use strict";
+    PerformanceCache = class _PerformanceCache {
+      // 30 minutes - for static data
+      constructor() {
+        this.cache = /* @__PURE__ */ new Map();
+        this.pendingRequests = /* @__PURE__ */ new Map();
+        // Request coalescing
+        this.hits = 0;
+        this.misses = 0;
+        this.cleanupInterval = null;
+        this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 1e3);
+      }
+      static {
+        // Default TTL values in milliseconds
+        this.TTL_SHORT = 30 * 1e3;
+      }
+      static {
+        // 30 seconds - for dynamic data
+        this.TTL_MEDIUM = 5 * 60 * 1e3;
+      }
+      static {
+        // 5 minutes - for semi-static data
+        this.TTL_LONG = 30 * 60 * 1e3;
+      }
+      /**
+       * Get cached data or fetch from source with request coalescing
+       * Request coalescing prevents thundering herd by sharing in-flight requests
+       */
+      async getOrSet(key, fetchFn, ttlMs = _PerformanceCache.TTL_MEDIUM) {
+        const cached = this.cache.get(key);
+        if (cached && cached.expiresAt > Date.now()) {
+          this.hits++;
+          cached.hits++;
+          return cached.data;
+        }
+        const pending = this.pendingRequests.get(key);
+        if (pending) {
+          this.hits++;
+          return pending;
+        }
+        this.misses++;
+        const fetchPromise = fetchFn().then((data) => {
+          this.cache.set(key, {
+            data,
+            expiresAt: Date.now() + ttlMs,
+            hits: 0
+          });
+          this.pendingRequests.delete(key);
+          return data;
+        }).catch((error) => {
+          this.pendingRequests.delete(key);
+          throw error;
+        });
+        this.pendingRequests.set(key, fetchPromise);
+        return fetchPromise;
+      }
+      /**
+       * Get cached data without fetching
+       */
+      get(key) {
+        const cached = this.cache.get(key);
+        if (cached && cached.expiresAt > Date.now()) {
+          this.hits++;
+          cached.hits++;
+          return cached.data;
+        }
+        this.misses++;
+        return null;
+      }
+      /**
+       * Set cache data directly
+       */
+      set(key, data, ttlMs = _PerformanceCache.TTL_MEDIUM) {
+        this.cache.set(key, {
+          data,
+          expiresAt: Date.now() + ttlMs,
+          hits: 0
+        });
+      }
+      /**
+       * Invalidate cache by key or pattern
+       */
+      invalidate(keyOrPattern) {
+        let invalidatedCount = 0;
+        if (typeof keyOrPattern === "string") {
+          if (this.cache.delete(keyOrPattern)) {
+            invalidatedCount++;
+          }
+        } else {
+          for (const key of this.cache.keys()) {
+            if (keyOrPattern.test(key)) {
+              this.cache.delete(key);
+              invalidatedCount++;
+            }
+          }
+        }
+        return invalidatedCount;
+      }
+      /**
+       * Invalidate all cache entries
+       */
+      clear() {
+        this.cache.clear();
+      }
+      /**
+       * Get cache statistics
+       */
+      getStats() {
+        return {
+          hits: this.hits,
+          misses: this.misses,
+          size: this.cache.size,
+          hitRate: this.hits + this.misses > 0 ? this.hits / (this.hits + this.misses) * 100 : 0
+        };
+      }
+      /**
+       * Cleanup expired entries
+       */
+      cleanup() {
+        const now = Date.now();
+        for (const [key, entry] of this.cache.entries()) {
+          if (entry.expiresAt < now) {
+            this.cache.delete(key);
+          }
+        }
+      }
+      /**
+       * Shutdown cache
+       */
+      shutdown() {
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+        }
+        this.cache.clear();
+      }
+      static {
+        // ==================== CACHE KEY GENERATORS ====================
+        this.keys = {
+          homepageContent: () => "homepage:content",
+          homepageContentByType: (type) => `homepage:content:${type}`,
+          announcements: () => "announcements:all",
+          announcementsByRole: (role) => `announcements:role:${role}`,
+          classes: () => "classes:all",
+          activeClasses: () => "classes:active",
+          subjects: () => "subjects:all",
+          activeSubjects: () => "subjects:active",
+          academicTerms: () => "terms:all",
+          currentTerm: () => "terms:current",
+          systemSettings: () => "settings:system",
+          roles: () => "roles:all",
+          userById: (id) => `user:${id}`,
+          studentById: (id) => `student:${id}`,
+          teacherDashboard: (teacherId) => `teacher:dashboard:${teacherId}`,
+          examsByClass: (classId) => `exams:class:${classId}`,
+          examQuestions: (examId) => `exam:questions:${examId}`,
+          examQuestionCounts: (examIds) => `exam:questionCounts:${examIds}`,
+          reportCardsByStudent: (studentId) => `reports:student:${studentId}`,
+          reportCardsByClass: (classId, termId) => `reports:class:${classId}:term:${termId}`
+        };
+      }
+      static {
+        // ==================== TTL CONSTANTS FOR EXTERNAL USE ====================
+        this.TTL = {
+          SHORT: _PerformanceCache.TTL_SHORT,
+          MEDIUM: _PerformanceCache.TTL_MEDIUM,
+          LONG: _PerformanceCache.TTL_LONG
+        };
+      }
+    };
+    performanceCache = new PerformanceCache();
+  }
+});
+
 // server/email-service.ts
 var email_service_exports = {};
 __export(email_service_exports, {
@@ -9624,6 +9830,7 @@ async function getVisibleExamsForParent(parentId) {
 }
 
 // server/routes.ts
+init_performance_cache();
 var loginSchema = z3.object({
   identifier: z3.string().min(1),
   // Can be username or email
@@ -9671,11 +9878,12 @@ function normalizeUuid3(raw) {
 }
 var loginAttempts = /* @__PURE__ */ new Map();
 var lockoutViolations = /* @__PURE__ */ new Map();
-var MAX_LOGIN_ATTEMPTS = 5;
+var isDevelopment = process.env.NODE_ENV !== "production";
+var MAX_LOGIN_ATTEMPTS = isDevelopment ? 100 : 5;
 var RATE_LIMIT_WINDOW = 15 * 60 * 1e3;
 var LOCKOUT_VIOLATION_WINDOW = 60 * 60 * 1e3;
-var MAX_RATE_LIMIT_VIOLATIONS = 3;
-var BCRYPT_ROUNDS = 12;
+var MAX_RATE_LIMIT_VIOLATIONS = isDevelopment ? 50 : 3;
+var BCRYPT_ROUNDS = isDevelopment ? 8 : 12;
 setInterval(() => {
   const now = Date.now();
   for (const [key, data] of Array.from(loginAttempts.entries())) {
@@ -12161,7 +12369,12 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/classes", authenticateUser, async (req, res) => {
     try {
-      const classes3 = await storage.getAllClasses(true);
+      const classes3 = await performanceCache.getOrSet(
+        PerformanceCache.keys.activeClasses(),
+        () => storage.getAllClasses(true),
+        PerformanceCache.TTL.MEDIUM
+        // 5 minute cache
+      );
       res.json(classes3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch classes" });
@@ -12181,6 +12394,8 @@ async function registerRoutes(app2) {
         isActive: true
       };
       const newClass = await storage.createClass(classData);
+      performanceCache.invalidate(PerformanceCache.keys.activeClasses());
+      performanceCache.invalidate(PerformanceCache.keys.classes());
       realtimeService.emitClassEvent(newClass.id.toString(), "created", newClass, req.user.id);
       res.status(201).json(newClass);
     } catch (error) {
@@ -12208,6 +12423,8 @@ async function registerRoutes(app2) {
         capacity,
         isActive
       });
+      performanceCache.invalidate(PerformanceCache.keys.activeClasses());
+      performanceCache.invalidate(PerformanceCache.keys.classes());
       realtimeService.emitClassEvent(classId.toString(), "updated", updatedClass, req.user.id);
       res.json(updatedClass);
     } catch (error) {
@@ -12231,6 +12448,8 @@ async function registerRoutes(app2) {
       if (!success) {
         return res.status(500).json({ message: "Failed to delete class" });
       }
+      performanceCache.invalidate(PerformanceCache.keys.activeClasses());
+      performanceCache.invalidate(PerformanceCache.keys.classes());
       realtimeService.emitClassEvent(classId.toString(), "deleted", { ...existingClass, id: classId }, req.user.id);
       res.json({ message: "Class deleted successfully" });
     } catch (error) {
@@ -12240,7 +12459,12 @@ async function registerRoutes(app2) {
   app2.get("/api/subjects", async (req, res) => {
     try {
       const { category, department } = req.query;
-      let subjects3 = await storage.getSubjects();
+      let subjects3 = await performanceCache.getOrSet(
+        PerformanceCache.keys.subjects(),
+        () => storage.getSubjects(),
+        PerformanceCache.TTL.MEDIUM
+        // 5 minute cache
+      );
       if (category && typeof category === "string") {
         const normalizedCategory = category.trim().toLowerCase();
         subjects3 = subjects3.filter((s) => (s.category || "").trim().toLowerCase() === normalizedCategory);
@@ -12279,6 +12503,8 @@ async function registerRoutes(app2) {
         isActive: true
       };
       const newSubject = await storage.createSubject(subjectData);
+      performanceCache.invalidate(PerformanceCache.keys.subjects());
+      performanceCache.invalidate(PerformanceCache.keys.activeSubjects());
       realtimeService.emitSubjectEvent("created", newSubject, req.user.id);
       res.status(201).json(newSubject);
     } catch (error) {
@@ -12313,6 +12539,8 @@ async function registerRoutes(app2) {
       if (category !== void 0) updateData.category = category ? category.trim().toLowerCase() : null;
       if (isActive !== void 0) updateData.isActive = isActive;
       const updatedSubject = await storage.updateSubject(subjectId, updateData);
+      performanceCache.invalidate(PerformanceCache.keys.subjects());
+      performanceCache.invalidate(PerformanceCache.keys.activeSubjects());
       realtimeService.emitSubjectEvent("updated", updatedSubject, req.user.id);
       res.json(updatedSubject);
     } catch (error) {
@@ -12336,6 +12564,8 @@ async function registerRoutes(app2) {
       if (!success) {
         return res.status(500).json({ message: "Failed to delete subject" });
       }
+      performanceCache.invalidate(PerformanceCache.keys.subjects());
+      performanceCache.invalidate(PerformanceCache.keys.activeSubjects());
       realtimeService.emitSubjectEvent("deleted", { ...existingSubject, id: subjectId }, req.user.id);
       res.json({ message: "Subject deleted successfully" });
     } catch (error) {
@@ -12628,7 +12858,12 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/public/homepage-content", async (req, res) => {
     try {
-      const content = await storage.getHomePageContent();
+      const content = await performanceCache.getOrSet(
+        PerformanceCache.keys.homepageContent(),
+        () => storage.getHomePageContent(),
+        PerformanceCache.TTL.MEDIUM
+        // 5 minute cache
+      );
       res.json(content);
     } catch (error) {
       res.status(500).json({ message: "Failed to get homepage content" });
@@ -12646,7 +12881,13 @@ async function registerRoutes(app2) {
   app2.get("/api/announcements", async (req, res) => {
     try {
       const { targetRole } = req.query;
-      const announcements3 = await storage.getAnnouncements(targetRole);
+      const cacheKey = targetRole ? PerformanceCache.keys.announcementsByRole(targetRole) : PerformanceCache.keys.announcements();
+      const announcements3 = await performanceCache.getOrSet(
+        cacheKey,
+        () => storage.getAnnouncements(targetRole),
+        PerformanceCache.TTL.SHORT
+        // 30 second cache for more dynamic content
+      );
       res.json(announcements3);
     } catch (error) {
       res.status(500).json({ message: "Failed to get announcements" });
@@ -15554,13 +15795,14 @@ Treasure-Home School Administration
         if (!subjectScores[exam.subjectId]) continue;
         const result = await storage.getExamResultByExamAndStudent(exam.id, studentId);
         if (result && result.marksObtained !== null) {
+          const actualMaxScore = result.maxScore || exam.totalMarks;
           subjectScores[exam.subjectId].hasData = true;
           if (exam.examType === "test" || exam.examType === "quiz") {
             subjectScores[exam.subjectId].testScores.push(result.marksObtained);
-            subjectScores[exam.subjectId].testMax.push(exam.totalMarks);
+            subjectScores[exam.subjectId].testMax.push(actualMaxScore);
           } else {
             subjectScores[exam.subjectId].examScores.push(result.marksObtained);
-            subjectScores[exam.subjectId].examMax.push(exam.totalMarks);
+            subjectScores[exam.subjectId].examMax.push(actualMaxScore);
           }
         }
       }
@@ -16741,6 +16983,22 @@ Treasure-Home School Administration
       res.status(500).json({ message: error.message || "Failed to fetch subjects" });
     }
   });
+  app2.post("/api/admin/resync-exam-score", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { studentId, examId, score, maxScore } = req.body;
+      console.log("[DEBUG-RESYNC] Received request:", { studentId, examId, score, maxScore });
+      const result = await storage.syncExamScoreToReportCard(
+        String(studentId),
+        Number(examId),
+        Number(score),
+        Number(maxScore)
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("[DEBUG-RESYNC] Error:", error);
+      res.status(500).json({ message: error.message || "Sync failed" });
+    }
+  });
   if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
     app2.get("*", (req, res) => {
       if (!req.path.startsWith("/api/") && !req.path.startsWith("/uploads/")) {
@@ -17277,6 +17535,24 @@ function sanitizeLogData(data) {
     res.status(410).json({ message: "Gone - Route disabled for security" });
   });
   const server = await registerRoutes(app);
+  try {
+    console.log("Pre-warming cache for classes, subjects, and homepage content...");
+    const { performanceCache: performanceCache2, PerformanceCache: PerformanceCache2 } = await Promise.resolve().then(() => (init_performance_cache(), performance_cache_exports));
+    const { storage: storage2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
+    const [classes3, subjects3, homepage, announcements3] = await Promise.all([
+      storage2.getAllClasses(true),
+      storage2.getSubjects(),
+      storage2.getHomePageContent(),
+      storage2.getAnnouncements()
+    ]);
+    performanceCache2.set(PerformanceCache2.keys.activeClasses(), classes3, PerformanceCache2.TTL.MEDIUM);
+    performanceCache2.set(PerformanceCache2.keys.subjects(), subjects3, PerformanceCache2.TTL.MEDIUM);
+    performanceCache2.set(PerformanceCache2.keys.homepageContent(), homepage, PerformanceCache2.TTL.MEDIUM);
+    performanceCache2.set(PerformanceCache2.keys.announcements(), announcements3, PerformanceCache2.TTL.SHORT);
+    console.log(`\u2705 Cache pre-warmed: ${classes3.length} classes, ${subjects3.length} subjects`);
+  } catch (error) {
+    console.log(`\u26A0\uFE0F Cache pre-warming failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
   try {
     console.log("Initializing Socket.IO Realtime Service...");
     const { realtimeService: realtimeService2 } = await Promise.resolve().then(() => (init_realtime_service(), realtime_service_exports));

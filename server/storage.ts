@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull, gte, lte, or, like } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { getDatabase, getSchema, getPgClient, isPostgres, isSqlite } from "./db";
+import { getDatabase, getSchema, getPgClient, getPgPool, isPostgres, isSqlite } from "./db";
 import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGrade } from "./grading-config";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
@@ -29,7 +29,7 @@ const db: any = getDatabase();
 const schema: any = getSchema();
 
 // Re-export for external use
-export { db, isPostgres, isSqlite, getPgClient };
+export { db, isPostgres, isSqlite, getPgClient, getPgPool };
 
 export interface IStorage {
   // User management
