@@ -26,6 +26,7 @@ interface CacheStats {
 
 class PerformanceCache {
   private cache: Map<string, CacheEntry<any>> = new Map();
+  private pendingRequests: Map<string, Promise<any>> = new Map(); // Request coalescing
   private hits: number = 0;
   private misses: number = 0;
   private cleanupInterval: NodeJS.Timeout | null = null;
@@ -41,7 +42,8 @@ class PerformanceCache {
   }
 
   /**
-   * Get cached data or fetch from source
+   * Get cached data or fetch from source with request coalescing
+   * Request coalescing prevents thundering herd by sharing in-flight requests
    */
   async getOrSet<T>(
     key: string, 
@@ -56,16 +58,31 @@ class PerformanceCache {
       return cached.data as T;
     }
 
-    this.misses++;
-    const data = await fetchFn();
-    
-    this.cache.set(key, {
-      data,
-      expiresAt: Date.now() + ttlMs,
-      hits: 0,
-    });
+    // Request coalescing: if a request is already in flight, wait for it
+    const pending = this.pendingRequests.get(key);
+    if (pending) {
+      this.hits++; // Count as a "soft hit" since we're sharing the request
+      return pending as Promise<T>;
+    }
 
-    return data;
+    this.misses++;
+    
+    // Create and store the promise to coalesce requests
+    const fetchPromise = fetchFn().then(data => {
+      this.cache.set(key, {
+        data,
+        expiresAt: Date.now() + ttlMs,
+        hits: 0,
+      });
+      this.pendingRequests.delete(key);
+      return data;
+    }).catch(error => {
+      this.pendingRequests.delete(key);
+      throw error;
+    });
+    
+    this.pendingRequests.set(key, fetchPromise);
+    return fetchPromise;
   }
 
   /**

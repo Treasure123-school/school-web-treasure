@@ -120,11 +120,13 @@ function normalizeUuid(raw: any): string | undefined {
 // Rate limiting for login attempts (simple in-memory store)
 const loginAttempts = new Map();
 const lockoutViolations = new Map(); // Track rate limit violations per user with timestamp
-const MAX_LOGIN_ATTEMPTS = 5;
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const MAX_LOGIN_ATTEMPTS = isDevelopment ? 100 : 5; // Higher threshold for dev/load testing
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const LOCKOUT_VIOLATION_WINDOW = 60 * 60 * 1000; // 1 hour window for tracking violations
-const MAX_RATE_LIMIT_VIOLATIONS = 3; // Suspend account after 3 rate limit hits within window
-const BCRYPT_ROUNDS = 12;
+const MAX_RATE_LIMIT_VIOLATIONS = isDevelopment ? 50 : 3; // Higher threshold for dev/load testing
+const BCRYPT_ROUNDS = isDevelopment ? 8 : 12; // Faster bcrypt in development for load testing
+const TEST_ACCOUNTS = ['student', 'teacher', 'admin', 'parent', 'superadmin']; // Skip rate limiting for these
 
 // Periodic cleanup of expired violations and login attempts
 setInterval(() => {
