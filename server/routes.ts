@@ -7784,13 +7784,16 @@ Treasure-Home School Administration
           if (!subjectScores[exam.subjectId]) continue;
           const result = await storage.getExamResultByExamAndStudent(exam.id, studentId);
           if (result && result.marksObtained !== null) {
+            // Use the actual max score from the exam session, not the exam's totalMarks
+            // This correctly handles exams where not all configured questions were used
+            const actualMaxScore = result.maxScore || exam.totalMarks;
             subjectScores[exam.subjectId].hasData = true;
             if (exam.examType === 'test' || exam.examType === 'quiz') {
               subjectScores[exam.subjectId].testScores.push(result.marksObtained);
-              subjectScores[exam.subjectId].testMax.push(exam.totalMarks);
+              subjectScores[exam.subjectId].testMax.push(actualMaxScore);
             } else {
               subjectScores[exam.subjectId].examScores.push(result.marksObtained);
-              subjectScores[exam.subjectId].examMax.push(exam.totalMarks);
+              subjectScores[exam.subjectId].examMax.push(actualMaxScore);
             }
           }
         }
