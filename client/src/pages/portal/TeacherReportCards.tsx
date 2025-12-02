@@ -162,13 +162,19 @@ export default function TeacherReportCards() {
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
   const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
-  const { data: classes = [] } = useQuery({
-    queryKey: ['/api/classes'],
+  // Use /api/my-assignments to get only teacher's assigned classes (or all classes for admins)
+  const { data: assignmentData } = useQuery({
+    queryKey: ['/api/my-assignments'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/classes');
+      const response = await apiRequest('GET', '/api/my-assignments');
+      if (!response.ok) return { isAdmin: false, classes: [], subjects: [], assignments: [] };
       return await response.json();
     },
   });
+  
+  // Extract classes from assignment data - teachers only see their assigned classes
+  const classes = assignmentData?.classes || [];
+  const isAdmin = assignmentData?.isAdmin || false;
 
   const { data: terms = [] } = useQuery({
     queryKey: ['/api/terms'],
@@ -638,20 +644,42 @@ export default function TeacherReportCards() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4 items-end">
+              {/* Class dropdown with red highlight - shows only assigned classes for teachers */}
               <div className="flex flex-col gap-2">
-                <Label>Class</Label>
+                <Label className="text-red-600 dark:text-red-400 font-semibold flex items-center gap-1">
+                  Class
+                  {!isAdmin && classes.length > 0 && (
+                    <Badge variant="outline" className="text-xs text-red-600 dark:text-red-400 border-red-300 dark:border-red-600 ml-1">
+                      Assigned
+                    </Badge>
+                  )}
+                </Label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="w-40" data-testid="select-class">
+                  <SelectTrigger 
+                    className="w-44 ring-2 ring-red-500 dark:ring-red-400 border-red-500 dark:border-red-400 focus:ring-red-600 dark:focus:ring-red-500" 
+                    data-testid="select-class"
+                  >
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((cls: any) => (
-                      <SelectItem key={cls.id} value={cls.id.toString()}>
-                        {cls.name}
+                    {classes.length === 0 ? (
+                      <SelectItem value="no-classes" disabled>
+                        {isAdmin ? 'No classes found' : 'No classes assigned'}
                       </SelectItem>
-                    ))}
+                    ) : (
+                      classes.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id.toString()}>
+                          {cls.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {!isAdmin && classes.length === 0 && (
+                  <p className="text-xs text-red-500 dark:text-red-400">
+                    Contact admin for class assignments
+                  </p>
+                )}
               </div>
               
               <div className="flex flex-col gap-2">
