@@ -259,6 +259,31 @@ function sanitizeLogData(data: any): any {
 
   const server = await registerRoutes(app);
 
+  // Pre-warm cache for frequently accessed data to avoid cold cache delays
+  try {
+    console.log("Pre-warming cache for classes, subjects, and homepage content...");
+    const { performanceCache, PerformanceCache } = await import("./performance-cache");
+    const { storage } = await import("./storage");
+    
+    // Pre-load frequently accessed data into cache
+    const [classes, subjects, homepage, announcements] = await Promise.all([
+      storage.getAllClasses(true),
+      storage.getSubjects(),
+      storage.getHomePageContent(),
+      storage.getAnnouncements()
+    ]);
+    
+    // Populate cache
+    performanceCache.set(PerformanceCache.keys.activeClasses(), classes, PerformanceCache.TTL.MEDIUM);
+    performanceCache.set(PerformanceCache.keys.subjects(), subjects, PerformanceCache.TTL.MEDIUM);
+    performanceCache.set(PerformanceCache.keys.homepageContent(), homepage, PerformanceCache.TTL.MEDIUM);
+    performanceCache.set(PerformanceCache.keys.announcements(), announcements, PerformanceCache.TTL.SHORT);
+    
+    console.log(`✅ Cache pre-warmed: ${classes.length} classes, ${subjects.length} subjects`);
+  } catch (error) {
+    console.log(`⚠️ Cache pre-warming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
   // Initialize Socket.IO for realtime features
   try {
     console.log("Initializing Socket.IO Realtime Service...");

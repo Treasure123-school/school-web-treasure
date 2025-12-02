@@ -28,6 +28,7 @@ import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./uploa
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
 import { getVisibleExamsForStudent, getVisibleExamsForParent } from "./exam-visibility";
+import { performanceCache, PerformanceCache } from "./performance-cache";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -3387,7 +3388,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Classes API endpoint - returns all classes (including inactive) for dropdown population
   app.get('/api/classes', authenticateUser, async (req, res) => {
     try {
-      const classes = await storage.getAllClasses(true);
+      // Use cache for classes (rarely changes, high read frequency)
+      const classes = await performanceCache.getOrSet(
+        PerformanceCache.keys.activeClasses(),
+        () => storage.getAllClasses(true),
+        PerformanceCache.TTL.MEDIUM // 5 minute cache
+      );
       res.json(classes);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch classes' });
@@ -3412,6 +3418,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const newClass = await storage.createClass(classData);
+      
+      // Invalidate classes cache
+      performanceCache.invalidate(PerformanceCache.keys.activeClasses());
+      performanceCache.invalidate(PerformanceCache.keys.classes());
       
       // Emit realtime event for class creation
       realtimeService.emitClassEvent(newClass.id.toString(), 'created', newClass, req.user!.id);
@@ -3449,6 +3459,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive
       });
       
+      // Invalidate classes cache
+      performanceCache.invalidate(PerformanceCache.keys.activeClasses());
+      performanceCache.invalidate(PerformanceCache.keys.classes());
+      
       // Emit realtime event for class update
       realtimeService.emitClassEvent(classId.toString(), 'updated', updatedClass, req.user!.id);
       
@@ -3481,6 +3495,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: 'Failed to delete class' });
       }
       
+      // Invalidate classes cache
+      performanceCache.invalidate(PerformanceCache.keys.activeClasses());
+      performanceCache.invalidate(PerformanceCache.keys.classes());
+      
       // Emit realtime event for class deletion
       realtimeService.emitClassEvent(classId.toString(), 'deleted', { ...existingClass, id: classId }, req.user!.id);
       
@@ -3490,11 +3508,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Subjects API endpoint
+  // Subjects API endpoint - cached for performance
   app.get('/api/subjects', async (req, res) => {
     try {
       const { category, department } = req.query;
-      let subjects = await storage.getSubjects();
+      
+      // Use cache for base subjects (rarely changes, high read frequency)
+      let subjects = await performanceCache.getOrSet(
+        PerformanceCache.keys.subjects(),
+        () => storage.getSubjects(),
+        PerformanceCache.TTL.MEDIUM // 5 minute cache
+      );
       
       // Filter by category if provided (general, science, art, commercial)
       // Case-insensitive comparison with trimming to handle mixed-case and whitespace
@@ -3550,6 +3574,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newSubject = await storage.createSubject(subjectData);
       
+      // Invalidate subjects cache
+      performanceCache.invalidate(PerformanceCache.keys.subjects());
+      performanceCache.invalidate(PerformanceCache.keys.activeSubjects());
+      
       // Emit realtime event for subject creation
       realtimeService.emitSubjectEvent('created', newSubject, req.user!.id);
       
@@ -3596,6 +3624,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedSubject = await storage.updateSubject(subjectId, updateData);
       
+      // Invalidate subjects cache
+      performanceCache.invalidate(PerformanceCache.keys.subjects());
+      performanceCache.invalidate(PerformanceCache.keys.activeSubjects());
+      
       // Emit realtime event for subject update
       realtimeService.emitSubjectEvent('updated', updatedSubject, req.user!.id);
       
@@ -3627,6 +3659,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!success) {
         return res.status(500).json({ message: 'Failed to delete subject' });
       }
+      
+      // Invalidate subjects cache
+      performanceCache.invalidate(PerformanceCache.keys.subjects());
+      performanceCache.invalidate(PerformanceCache.keys.activeSubjects());
       
       // Emit realtime event for subject deletion
       realtimeService.emitSubjectEvent('deleted', { ...existingSubject, id: subjectId }, req.user!.id);
@@ -4016,7 +4052,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public endpoint to get all active homepage content (no auth required)
   app.get('/api/public/homepage-content', async (req, res) => {
     try {
-      const content = await storage.getHomePageContent();
+      // Use cache for homepage content (rarely changes, high read frequency)
+      const content = await performanceCache.getOrSet(
+        PerformanceCache.keys.homepageContent(),
+        () => storage.getHomePageContent(),
+        PerformanceCache.TTL.MEDIUM // 5 minute cache
+      );
       res.json(content);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get homepage content' });
@@ -4038,7 +4079,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/announcements', async (req, res) => {
     try {
       const { targetRole } = req.query;
-      const announcements = await storage.getAnnouncements(targetRole as string);
+      // Use cache for announcements (semi-static, high read frequency)
+      const cacheKey = targetRole 
+        ? PerformanceCache.keys.announcementsByRole(targetRole as string)
+        : PerformanceCache.keys.announcements();
+      const announcements = await performanceCache.getOrSet(
+        cacheKey,
+        () => storage.getAnnouncements(targetRole as string),
+        PerformanceCache.TTL.SHORT // 30 second cache for more dynamic content
+      );
       res.json(announcements);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get announcements' });
