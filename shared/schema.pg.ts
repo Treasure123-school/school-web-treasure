@@ -581,11 +581,13 @@ export const reportCardItems = pgTable("report_card_items", {
   reportCardId: integer("report_card_id").notNull().references(() => reportCards.id, { onDelete: 'cascade' }),
   subjectId: integer("subject_id").notNull().references(() => subjects.id),
   teacherId: varchar("teacher_id", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
-  testExamId: integer("test_exam_id").references(() => exams.id),
+  testExamId: integer("test_exam_id").references(() => exams.id, { onDelete: 'set null' }),
+  testExamCreatedBy: varchar("test_exam_created_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   testScore: integer("test_score"),
   testMaxScore: integer("test_max_score"),
   testWeightedScore: integer("test_weighted_score"),
-  examExamId: integer("exam_exam_id").references(() => exams.id),
+  examExamId: integer("exam_exam_id").references(() => exams.id, { onDelete: 'set null' }),
+  examExamCreatedBy: varchar("exam_exam_created_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   examScore: integer("exam_score"),
   examMaxScore: integer("exam_max_score"),
   examWeightedScore: integer("exam_weighted_score"),
@@ -604,6 +606,8 @@ export const reportCardItems = pgTable("report_card_items", {
   reportCardItemsReportCardIdx: index("report_card_items_report_card_idx").on(table.reportCardId),
   reportCardItemsSubjectIdx: index("report_card_items_subject_idx").on(table.subjectId),
   reportCardItemsTeacherIdx: index("report_card_items_teacher_idx").on(table.teacherId),
+  reportCardItemsTestCreatedByIdx: index("report_card_items_test_created_by_idx").on(table.testExamCreatedBy),
+  reportCardItemsExamCreatedByIdx: index("report_card_items_exam_created_by_idx").on(table.examExamCreatedBy),
 }));
 
 // Study resources table

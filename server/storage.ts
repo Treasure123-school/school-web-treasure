@@ -313,6 +313,7 @@ export interface IStorage {
   getReportCard(id: number): Promise<ReportCard | undefined>;
   getReportCardsByStudentId(studentId: string): Promise<ReportCard[]>;
   getReportCardItems(reportCardId: number): Promise<ReportCardItem[]>;
+  getReportCardItemById(itemId: number): Promise<ReportCardItem | undefined>;
   getStudentsByParentId(parentId: string): Promise<Student[]>;
   getAcademicTerm(id: number): Promise<AcademicTerm | undefined>;
 
@@ -338,6 +339,9 @@ export interface IStorage {
 
   // Auto-sync exam score to report card (called after exam submission)
   syncExamScoreToReportCard(studentId: string, examId: number, score: number, maxScore: number): Promise<{ success: boolean; reportCardId?: number; message: string; isNewReportCard?: boolean }>;
+  
+  // Get report cards accessible by a specific teacher (only subjects where they created exams)
+  getTeacherAccessibleReportCards(teacherId: string, termId?: number, classId?: number): Promise<any[]>;
 
   // Report finalization methods
   getExamResultById(id: number): Promise<ExamResult | undefined>;
@@ -3571,6 +3575,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getReportCardItemById(itemId: number): Promise<ReportCardItem | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.reportCardItems)
+        .where(eq(schema.reportCardItems.id, itemId))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error getting report card item by id:', error);
+      return undefined;
+    }
+  }
+
   async getStudentsByParentId(parentId: string): Promise<Student[]> {
     try {
       return await db.select()
@@ -4242,30 +4259,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async recalculateClassPositions(classId: number, termId: number): Promise<void> {
-    try {
-      // Get all report cards for this class and term
-      const reportCards = await db.select()
-        .from(schema.reportCards)
-        .where(and(
-          eq(schema.reportCards.classId, classId),
-          eq(schema.reportCards.termId, termId)
-        ))
-        .orderBy(desc(schema.reportCards.averagePercentage));
-
-      const totalStudents = reportCards.length;
-
-      // Update positions
-      for (let i = 0; i < reportCards.length; i++) {
-        await db.update(schema.reportCards)
-          .set({
-            position: i + 1,
-            totalStudentsInClass: totalStudents
-          })
-          .where(eq(schema.reportCards.id, reportCards[i].id));
-      }
-    } catch (error) {
-      console.error('Error recalculating class positions:', error);
-    }
+    // Position calculation has been removed per user request
+    // Report cards now only track grades and percentages, not rankings
+    // This function is kept for backward compatibility but does nothing
+    console.log(`[REPORT-CARD] Position calculation skipped for class ${classId}, term ${termId} (feature disabled)`);
   }
 
   // Auto-sync exam score to report card (called immediately after exam submission)
@@ -4284,7 +4281,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       const examData = exam[0];
-      const { subjectId, classId, termId, examType, gradingScale: examGradingScale } = examData;
+      const { subjectId, classId, termId, examType, gradingScale: examGradingScale, createdBy: examCreatedBy } = examData;
 
       if (!subjectId || !classId || !termId) {
         return { success: false, message: 'Exam missing required fields (subject, class, or term)' };
@@ -4472,15 +4469,18 @@ export class DatabaseStorage implements IStorage {
 
       if (isTest) {
         updateData.testExamId = examId;
+        updateData.testExamCreatedBy = examCreatedBy; // Store which teacher created this test
         updateData.testScore = score;
         updateData.testMaxScore = maxScore;
       } else if (isMainExam) {
         updateData.examExamId = examId;
+        updateData.examExamCreatedBy = examCreatedBy; // Store which teacher created this exam
         updateData.examScore = score;
         updateData.examMaxScore = maxScore;
       } else {
         // Default to test if type is unknown
         updateData.testExamId = examId;
+        updateData.testExamCreatedBy = examCreatedBy;
         updateData.testScore = score;
         updateData.testMaxScore = maxScore;
       }
@@ -4528,6 +4528,114 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('[REPORT-CARD-SYNC] Error syncing exam score to report card:', error);
       return { success: false, message: error.message || 'Failed to sync score to report card' };
+    }
+  }
+
+  // Get report cards accessible by a specific teacher (only subjects where they created exams)
+  // This allows teachers to see and edit only the subjects where they created the test or main exam
+  async getTeacherAccessibleReportCards(teacherId: string, termId?: number, classId?: number): Promise<any[]> {
+    try {
+      // Build conditions for filtering
+      const conditions: any[] = [
+        or(
+          eq(schema.reportCardItems.testExamCreatedBy, teacherId),
+          eq(schema.reportCardItems.examExamCreatedBy, teacherId)
+        )
+      ];
+
+      if (termId) {
+        conditions.push(eq(schema.reportCards.termId, termId));
+      }
+      if (classId) {
+        conditions.push(eq(schema.reportCards.classId, classId));
+      }
+
+      // Get all report card items where teacher created the test or main exam
+      const items = await db.select({
+        itemId: schema.reportCardItems.id,
+        reportCardId: schema.reportCardItems.reportCardId,
+        subjectId: schema.reportCardItems.subjectId,
+        subjectName: schema.subjects.name,
+        testScore: schema.reportCardItems.testScore,
+        testMaxScore: schema.reportCardItems.testMaxScore,
+        examScore: schema.reportCardItems.examScore,
+        examMaxScore: schema.reportCardItems.examMaxScore,
+        testWeightedScore: schema.reportCardItems.testWeightedScore,
+        examWeightedScore: schema.reportCardItems.examWeightedScore,
+        obtainedMarks: schema.reportCardItems.obtainedMarks,
+        maxMarks: schema.reportCardItems.maxMarks,
+        percentage: schema.reportCardItems.percentage,
+        grade: schema.reportCardItems.grade,
+        remarks: schema.reportCardItems.remarks,
+        teacherRemarks: schema.reportCardItems.teacherRemarks,
+        testExamCreatedBy: schema.reportCardItems.testExamCreatedBy,
+        examExamCreatedBy: schema.reportCardItems.examExamCreatedBy,
+        overriddenBy: schema.reportCardItems.overriddenBy,
+        studentId: schema.reportCards.studentId,
+        classId: schema.reportCards.classId,
+        termId: schema.reportCards.termId,
+        status: schema.reportCards.status,
+        studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
+        admissionNumber: schema.students.admissionNumber,
+        className: schema.classes.name,
+        termName: schema.academicTerms.name,
+        canEditTest: sql<boolean>`CASE WHEN ${schema.reportCardItems.testExamCreatedBy} = ${teacherId} THEN true ELSE false END`.as('canEditTest'),
+        canEditExam: sql<boolean>`CASE WHEN ${schema.reportCardItems.examExamCreatedBy} = ${teacherId} THEN true ELSE false END`.as('canEditExam')
+      })
+        .from(schema.reportCardItems)
+        .innerJoin(schema.reportCards, eq(schema.reportCardItems.reportCardId, schema.reportCards.id))
+        .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+        .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .innerJoin(schema.classes, eq(schema.reportCards.classId, schema.classes.id))
+        .innerJoin(schema.academicTerms, eq(schema.reportCards.termId, schema.academicTerms.id))
+        .where(and(...conditions))
+        .orderBy(desc(schema.reportCards.id), schema.subjects.name);
+
+      // Group items by report card for easier frontend consumption
+      const reportCardMap = new Map<number, any>();
+      
+      for (const item of items) {
+        if (!reportCardMap.has(item.reportCardId)) {
+          reportCardMap.set(item.reportCardId, {
+            reportCardId: item.reportCardId,
+            studentId: item.studentId,
+            studentName: item.studentName,
+            admissionNumber: item.admissionNumber,
+            classId: item.classId,
+            className: item.className,
+            termId: item.termId,
+            termName: item.termName,
+            status: item.status,
+            items: []
+          });
+        }
+        
+        reportCardMap.get(item.reportCardId)!.items.push({
+          itemId: item.itemId,
+          subjectId: item.subjectId,
+          subjectName: item.subjectName,
+          testScore: item.testScore,
+          testMaxScore: item.testMaxScore,
+          examScore: item.examScore,
+          examMaxScore: item.examMaxScore,
+          testWeightedScore: item.testWeightedScore,
+          examWeightedScore: item.examWeightedScore,
+          obtainedMarks: item.obtainedMarks,
+          maxMarks: item.maxMarks,
+          percentage: item.percentage,
+          grade: item.grade,
+          remarks: item.remarks,
+          teacherRemarks: item.teacherRemarks,
+          canEditTest: item.canEditTest,
+          canEditExam: item.canEditExam
+        });
+      }
+
+      return Array.from(reportCardMap.values());
+    } catch (error) {
+      console.error('Error getting teacher accessible report cards:', error);
+      return [];
     }
   }
 

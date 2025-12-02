@@ -81,6 +81,8 @@ interface ReportCardItem {
   teacherRemarks: string | null;
   isOverridden: boolean;
   overriddenAt: string | null;
+  canEditTest?: boolean;
+  canEditExam?: boolean;
 }
 
 interface ReportCard {
@@ -421,14 +423,35 @@ export default function TeacherReportCards() {
   const handleSaveOverride = () => {
     if (!selectedItem) return;
     
-    overrideScoreMutation.mutate({
-      itemId: selectedItem.id,
-      testScore: overrideData.testScore ? Number(overrideData.testScore) : undefined,
-      testMaxScore: overrideData.testMaxScore ? Number(overrideData.testMaxScore) : undefined,
-      examScore: overrideData.examScore ? Number(overrideData.examScore) : undefined,
-      examMaxScore: overrideData.examMaxScore ? Number(overrideData.examMaxScore) : undefined,
-      teacherRemarks: overrideData.teacherRemarks || undefined
-    });
+    // Only send fields the teacher is allowed to edit
+    const canEditTest = selectedItem.canEditTest !== false;
+    const canEditExam = selectedItem.canEditExam !== false;
+    
+    // Build payload with only permitted fields
+    const payload: any = { itemId: selectedItem.id };
+    
+    // Only include test scores if teacher can edit them
+    if (canEditTest && overrideData.testScore) {
+      payload.testScore = Number(overrideData.testScore);
+    }
+    if (canEditTest && overrideData.testMaxScore) {
+      payload.testMaxScore = Number(overrideData.testMaxScore);
+    }
+    
+    // Only include exam scores if teacher can edit them
+    if (canEditExam && overrideData.examScore) {
+      payload.examScore = Number(overrideData.examScore);
+    }
+    if (canEditExam && overrideData.examMaxScore) {
+      payload.examMaxScore = Number(overrideData.examMaxScore);
+    }
+    
+    // Teacher can add remarks if they can edit at least one score type
+    if ((canEditTest || canEditExam) && overrideData.teacherRemarks) {
+      payload.teacherRemarks = overrideData.teacherRemarks;
+    }
+    
+    overrideScoreMutation.mutate(payload);
   };
 
   // Handle bulk status updates
@@ -1423,16 +1446,31 @@ export default function TeacherReportCards() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="py-2 sm:py-4">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleOverrideScore(item)}
-                                  disabled={fullReportCard.status !== 'draft'}
-                                  className="h-7 w-7 sm:h-9 sm:w-9"
-                                  data-testid={`button-override-${item.id}`}
-                                >
-                                  <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                                </Button>
+                                {(item.canEditTest !== false || item.canEditExam !== false) ? (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleOverrideScore(item)}
+                                    disabled={fullReportCard.status !== 'draft'}
+                                    className="h-7 w-7 sm:h-9 sm:w-9"
+                                    data-testid={`button-override-${item.id}`}
+                                    title={
+                                      item.canEditTest && item.canEditExam 
+                                        ? "Edit test and exam scores" 
+                                        : item.canEditTest 
+                                          ? "Edit test score only" 
+                                          : item.canEditExam 
+                                            ? "Edit exam score only" 
+                                            : undefined
+                                    }
+                                  >
+                                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground" title="You can only edit subjects where you created the exams">
+                                    <Lock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/50" />
+                                  </span>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1507,51 +1545,72 @@ export default function TeacherReportCards() {
             <DialogTitle>Override Score</DialogTitle>
             <DialogDescription>
               Modify scores for {selectedItem?.subjectName}. This will be tracked as a teacher override.
+              {selectedItem && (selectedItem.canEditTest === false || selectedItem.canEditExam === false) && (
+                <span className="block mt-2 text-muted-foreground text-xs">
+                  Note: You can only edit scores for exams you created.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Test Score</Label>
+              <div className={selectedItem?.canEditTest === false ? "opacity-50" : ""}>
+                <Label className="flex items-center gap-2">
+                  Test Score
+                  {selectedItem?.canEditTest === false && <Lock className="w-3 h-3" />}
+                </Label>
                 <Input
                   type="number"
                   value={overrideData.testScore}
                   onChange={(e) => setOverrideData(prev => ({ ...prev, testScore: e.target.value }))}
                   placeholder="Score"
+                  disabled={selectedItem?.canEditTest === false}
                   data-testid="input-test-score"
                 />
               </div>
-              <div>
-                <Label>Test Max Score</Label>
+              <div className={selectedItem?.canEditTest === false ? "opacity-50" : ""}>
+                <Label className="flex items-center gap-2">
+                  Test Max Score
+                  {selectedItem?.canEditTest === false && <Lock className="w-3 h-3" />}
+                </Label>
                 <Input
                   type="number"
                   value={overrideData.testMaxScore}
                   onChange={(e) => setOverrideData(prev => ({ ...prev, testMaxScore: e.target.value }))}
                   placeholder="Max"
+                  disabled={selectedItem?.canEditTest === false}
                   data-testid="input-test-max"
                 />
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Exam Score</Label>
+              <div className={selectedItem?.canEditExam === false ? "opacity-50" : ""}>
+                <Label className="flex items-center gap-2">
+                  Exam Score
+                  {selectedItem?.canEditExam === false && <Lock className="w-3 h-3" />}
+                </Label>
                 <Input
                   type="number"
                   value={overrideData.examScore}
                   onChange={(e) => setOverrideData(prev => ({ ...prev, examScore: e.target.value }))}
                   placeholder="Score"
+                  disabled={selectedItem?.canEditExam === false}
                   data-testid="input-exam-score"
                 />
               </div>
-              <div>
-                <Label>Exam Max Score</Label>
+              <div className={selectedItem?.canEditExam === false ? "opacity-50" : ""}>
+                <Label className="flex items-center gap-2">
+                  Exam Max Score
+                  {selectedItem?.canEditExam === false && <Lock className="w-3 h-3" />}
+                </Label>
                 <Input
                   type="number"
                   value={overrideData.examMaxScore}
                   onChange={(e) => setOverrideData(prev => ({ ...prev, examMaxScore: e.target.value }))}
                   placeholder="Max"
+                  disabled={selectedItem?.canEditExam === false}
                   data-testid="input-exam-max"
                 />
               </div>

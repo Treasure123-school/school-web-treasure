@@ -8473,6 +8473,28 @@ Treasure-Home School Administration
 
     // ==================== ENHANCED REPORT CARD ROUTES (Teacher Portal) ====================
 
+    // Get teacher's accessible report cards - shows only subjects where they created exams
+    // This endpoint returns report cards with items filtered to show only subjects
+    // where the teacher created the test or main exam
+    app.get('/api/teacher/my-report-cards', authenticateUser, authorizeRoles(ROLES.TEACHER), async (req: Request, res: Response) => {
+      try {
+        const teacherId = req.user!.id;
+        const { termId, classId } = req.query;
+        
+        // Get report cards containing items where this teacher created the exams
+        const reportCards = await storage.getTeacherAccessibleReportCards(
+          teacherId,
+          termId ? Number(termId) : undefined,
+          classId ? Number(classId) : undefined
+        );
+        
+        res.json(reportCards);
+      } catch (error: any) {
+        console.error('Error getting teacher report cards:', error);
+        res.status(500).json({ message: error.message || 'Failed to get teacher report cards' });
+      }
+    });
+
     // Get all report cards for a class and term
     app.get('/api/reports/class-term/:classId/:termId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
@@ -8549,26 +8571,87 @@ Treasure-Home School Administration
     });
 
     // Override a report card item score (Teacher override)
+    // Teachers can ONLY edit scores for exams they created:
+    // - testScore/testMaxScore: only if they created the test exam (testExamCreatedBy matches)
+    // - examScore/examMaxScore: only if they created the main exam (examExamCreatedBy matches)
+    // - teacherRemarks: only if they created at least one of the exams (test or main)
+    // Admins and Super Admins can edit all scores
     app.patch('/api/reports/items/:itemId/override', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { itemId } = req.params;
         const { testScore, testMaxScore, examScore, examMaxScore, teacherRemarks } = req.body;
+        const userId = req.user!.id;
+        const userRoleId = req.user!.roleId;
         
-        const updatedItem = await storage.overrideReportCardItemScore(Number(itemId), {
-          testScore: testScore !== undefined ? Number(testScore) : undefined,
-          testMaxScore: testMaxScore !== undefined ? Number(testMaxScore) : undefined,
-          examScore: examScore !== undefined ? Number(examScore) : undefined,
-          examMaxScore: examMaxScore !== undefined ? Number(examMaxScore) : undefined,
-          teacherRemarks,
-          overriddenBy: req.user!.id
-        });
+        // Get the current report card item to check permissions
+        const currentItem = await storage.getReportCardItemById(Number(itemId));
+        if (!currentItem) {
+          return res.status(404).json({ message: 'Report card item not found' });
+        }
+        
+        // Check teacher permissions - they can only edit scores for exams they created
+        // Admin (roleId 2) and Super Admin (roleId 1) can edit all scores
+        const isAdmin = userRoleId === 1 || userRoleId === 2;
+        
+        // Determine what the teacher can edit based on ownership
+        const canEditTest = !currentItem.testExamCreatedBy || currentItem.testExamCreatedBy === userId;
+        const canEditExam = !currentItem.examExamCreatedBy || currentItem.examExamCreatedBy === userId;
+        const canEditAny = canEditTest || canEditExam;
+        
+        if (!isAdmin) {
+          // Teacher trying to edit - check permissions for each score type
+          const isEditingTestScore = testScore !== undefined || testMaxScore !== undefined;
+          const isEditingExamScore = examScore !== undefined || examMaxScore !== undefined;
+          const isEditingRemarks = teacherRemarks !== undefined;
+          
+          // Teachers must have created at least one exam to add remarks
+          if (isEditingRemarks && !canEditAny) {
+            return res.status(403).json({ 
+              message: 'You can only add remarks for subjects where you created at least one exam.' 
+            });
+          }
+          
+          if (isEditingTestScore && !canEditTest) {
+            return res.status(403).json({ 
+              message: 'You can only edit test scores for exams you created. This test was created by another teacher.' 
+            });
+          }
+          
+          if (isEditingExamScore && !canEditExam) {
+            return res.status(403).json({ 
+              message: 'You can only edit exam scores for exams you created. This exam was created by another teacher.' 
+            });
+          }
+        }
+        
+        // Build the update payload - only include fields that were actually provided
+        // This prevents empty strings from being treated as valid values
+        const updatePayload: any = { overriddenBy: userId };
+        
+        if (testScore !== undefined && testScore !== '') {
+          updatePayload.testScore = Number(testScore);
+        }
+        if (testMaxScore !== undefined && testMaxScore !== '') {
+          updatePayload.testMaxScore = Number(testMaxScore);
+        }
+        if (examScore !== undefined && examScore !== '') {
+          updatePayload.examScore = Number(examScore);
+        }
+        if (examMaxScore !== undefined && examMaxScore !== '') {
+          updatePayload.examMaxScore = Number(examMaxScore);
+        }
+        if (teacherRemarks !== undefined && teacherRemarks !== '') {
+          updatePayload.teacherRemarks = teacherRemarks;
+        }
+        
+        const updatedItem = await storage.overrideReportCardItemScore(Number(itemId), updatePayload);
         
         if (!updatedItem) {
           return res.status(404).json({ message: 'Report card item not found' });
         }
         
         // Emit realtime event for score override
-        realtimeService.emitTableChange('report_card_items', 'UPDATE', updatedItem, undefined, req.user!.id);
+        realtimeService.emitTableChange('report_card_items', 'UPDATE', updatedItem, undefined, userId);
         
         // Also emit report card update event for dashboard refresh
         if (updatedItem.reportCardId) {
@@ -8579,8 +8662,8 @@ Treasure-Home School Administration
             examScore: updatedItem.examScore,
             grade: updatedItem.grade,
             percentage: updatedItem.percentage,
-            overriddenBy: req.user!.id
-          }, req.user!.id);
+            overriddenBy: userId
+          }, userId);
         }
         
         res.json(updatedItem);
