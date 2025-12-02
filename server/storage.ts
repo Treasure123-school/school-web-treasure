@@ -4659,18 +4659,18 @@ export class DatabaseStorage implements IStorage {
   // Analytics and Reports
   async getAnalyticsOverview(): Promise<any> {
     try {
-      // Get basic counts
+      // Get basic counts - ONLY counting ACTIVE users for consistency with management pages
       // Role IDs: 1=Super Admin, 2=Admin, 3=Teacher, 4=Student, 5=Parent
       const [students, teachers, admins, parents] = await Promise.all([
-        db.select().from(schema.users).where(eq(schema.users.roleId, 4)), // Student
-        db.select().from(schema.users).where(eq(schema.users.roleId, 3)), // Teacher
-        db.select().from(schema.users).where(eq(schema.users.roleId, 2)), // Admin
-        db.select().from(schema.users).where(eq(schema.users.roleId, 5))  // Parent
+        db.select().from(schema.users).where(and(eq(schema.users.roleId, 4), eq(schema.users.isActive, true))), // Active Students only
+        db.select().from(schema.users).where(and(eq(schema.users.roleId, 3), eq(schema.users.isActive, true))), // Active Teachers only
+        db.select().from(schema.users).where(and(eq(schema.users.roleId, 2), eq(schema.users.isActive, true))), // Active Admins only
+        db.select().from(schema.users).where(and(eq(schema.users.roleId, 5), eq(schema.users.isActive, true)))  // Active Parents only
       ]);
 
       const [classes, subjects, exams, examResults] = await Promise.all([
-        db.select().from(schema.classes),
-        db.select().from(schema.subjects),
+        db.select().from(schema.classes).where(eq(schema.classes.isActive, true)), // Active classes only
+        db.select().from(schema.subjects).where(eq(schema.subjects.isActive, true)), // Active subjects only
         db.select().from(schema.exams),
         db.select().from(schema.examResults)
       ]);

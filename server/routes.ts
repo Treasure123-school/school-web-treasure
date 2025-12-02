@@ -5486,8 +5486,8 @@ Treasure-Home School Administration
 
       // Parallel fetch for performance
       const [
-        allStudents,
-        allTeachers,
+        allStudentsRaw,
+        allTeachersRaw,
         allClasses
       ] = await Promise.all([
         studentRoleId ? storage.getUsersByRole(studentRoleId) : [],
@@ -5495,7 +5495,11 @@ Treasure-Home School Administration
         storage.getAllClasses()
       ]);
 
-      // Calculate students added this month
+      // Filter to only include ACTIVE users - this ensures consistency with Student Management page
+      const allStudents = allStudentsRaw.filter(student => student.isActive === true);
+      const allTeachers = allTeachersRaw.filter(teacher => teacher.isActive === true);
+
+      // Calculate students added this month (only counting active students)
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const newStudentsThisMonth = allStudents.filter(student => {
@@ -5504,7 +5508,7 @@ Treasure-Home School Administration
         return createdAt >= startOfMonth;
       }).length;
 
-      // Calculate teachers added this term (approximation: last 3 months)
+      // Calculate teachers added this term (approximation: last 3 months, only active)
       const startOfTerm = new Date(now.getFullYear(), now.getMonth() - 3, 1);
       const newTeachersThisTerm = allTeachers.filter(teacher => {
         if (!teacher.createdAt) return false;
