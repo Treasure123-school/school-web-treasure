@@ -4019,23 +4019,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete homepage content
+  // Delete homepage content (file deletion now handled in storage.deleteHomePageContent)
   app.delete('/api/homepage-content/:id', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
 
-      // Get the content first to retrieve the image URL
+      // Get the content first for the realtime event
       const contentList = await storage.getHomePageContent();
       const content = contentList.find((c: any) => c.id === id);
 
       if (!content) {
         return res.status(404).json({ message: 'Homepage content not found' });
       }
-      // Delete file using organized storage system
-      if (content.imageUrl) {
-        await deleteFileFromStorage(content.imageUrl);
-      }
 
+      // deleteHomePageContent now handles file deletion from Cloudinary/local storage
       const deleted = await storage.deleteHomePageContent(id);
 
       if (!deleted) {
