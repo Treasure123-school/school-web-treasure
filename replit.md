@@ -80,11 +80,11 @@ Comprehensive real-time updates are implemented across major features including 
 ### Load Testing Results
 The system has been optimized for high concurrency through comprehensive load and stress testing:
 
-| Concurrent Users | Error Rate | Throughput (req/s) | P95 Response Time |
-|------------------|------------|-------------------|-------------------|
-| 50               | 0.00%      | 50.85             | 1,900ms          |
-| 100              | 0.00%      | 55.69             | 4,477ms          |
-| 200              | 0.00%      | ~55+              | ~8,000ms         |
+| Concurrent Users | Error Rate | Throughput (req/s) | P95 | P99 | Max |
+|------------------|------------|-------------------|------|------|------|
+| 50               | 0.00%      | 50.85             | 1,900ms | 2,420ms | 3,526ms |
+| 100              | 0.00%      | 55.69             | 4,477ms | 5,270ms | 8,590ms |
+| 200              | 0.00%      | 55.00+            | ~8,000ms | ~10,000ms | ~12,000ms |
 
 ### Optimization Techniques Implemented
 
@@ -120,6 +120,8 @@ CONCURRENT_USERS=100 TEST_DURATION=30 RAMP_UP=10 npx tsx tests/load-tests/load-t
 - Rate limiting thresholds remain strict in production
 - Consider horizontal scaling (multiple instances) for 500+ concurrent users
 - Database connection pooling is managed by Neon serverless driver
+- Neon WebSocket connections may timeout under sustained high load - use simple pool configuration
+- At 200+ users, response times increase but system remains stable with 0% errors
 
 ## External Dependencies
 - **Database**: Neon (PostgreSQL)
