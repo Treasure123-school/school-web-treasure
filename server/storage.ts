@@ -4463,44 +4463,61 @@ export class DatabaseStorage implements IStorage {
       const isTest = ['test', 'quiz', 'assignment'].includes(examType);
       const isMainExam = ['exam', 'final', 'midterm'].includes(examType);
 
+      // CRITICAL: Ensure all values are proper JavaScript numbers to avoid PostgreSQL type conversion errors
+      const safeScore = typeof score === 'number' ? score : parseInt(String(score), 10) || 0;
+      const safeMaxScore = typeof maxScore === 'number' ? maxScore : parseInt(String(maxScore), 10) || 0;
+      const safeExamId = typeof examId === 'number' ? examId : parseInt(String(examId), 10);
+      
+      console.log(`[REPORT-CARD-SYNC] Type-safe values: score=${safeScore}, maxScore=${safeMaxScore}, examId=${safeExamId}, examType=${examType}`);
+
       const updateData: any = {
         updatedAt: new Date()
       };
 
       if (isTest) {
-        updateData.testExamId = examId;
+        updateData.testExamId = safeExamId;
         updateData.testExamCreatedBy = examCreatedBy; // Store which teacher created this test
-        updateData.testScore = score;
-        updateData.testMaxScore = maxScore;
+        updateData.testScore = safeScore;
+        updateData.testMaxScore = safeMaxScore;
       } else if (isMainExam) {
-        updateData.examExamId = examId;
+        updateData.examExamId = safeExamId;
         updateData.examExamCreatedBy = examCreatedBy; // Store which teacher created this exam
-        updateData.examScore = score;
-        updateData.examMaxScore = maxScore;
+        updateData.examScore = safeScore;
+        updateData.examMaxScore = safeMaxScore;
       } else {
         // Default to test if type is unknown
-        updateData.testExamId = examId;
+        updateData.testExamId = safeExamId;
         updateData.testExamCreatedBy = examCreatedBy;
-        updateData.testScore = score;
-        updateData.testMaxScore = maxScore;
+        updateData.testScore = safeScore;
+        updateData.testMaxScore = safeMaxScore;
       }
 
       // 7. Calculate weighted score with existing scores
       const existingItem = reportCardItem[0];
-      const finalTestScore = isTest ? score : existingItem.testScore;
-      const finalTestMaxScore = isTest ? maxScore : existingItem.testMaxScore;
-      const finalExamScore = isMainExam ? score : existingItem.examScore;
-      const finalExamMaxScore = isMainExam ? maxScore : existingItem.examMaxScore;
+      const finalTestScore = isTest ? safeScore : (existingItem.testScore ?? null);
+      const finalTestMaxScore = isTest ? safeMaxScore : (existingItem.testMaxScore ?? null);
+      const finalExamScore = isMainExam ? safeScore : (existingItem.examScore ?? null);
+      const finalExamMaxScore = isMainExam ? safeMaxScore : (existingItem.examMaxScore ?? null);
 
-      const weighted = calculateWeightedScore(finalTestScore, finalTestMaxScore, finalExamScore, finalExamMaxScore, gradingScale);
+      // CRITICAL: Convert gradingScale string to GradingConfig object
+      const gradingConfig = getGradingConfig(gradingScale);
+      const weighted = calculateWeightedScore(finalTestScore, finalTestMaxScore, finalExamScore, finalExamMaxScore, gradingConfig);
       const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
 
-      updateData.testWeightedScore = Math.round(weighted.testWeighted);
-      updateData.examWeightedScore = Math.round(weighted.examWeighted);
-      updateData.obtainedMarks = Math.round(weighted.weightedScore);
-      updateData.percentage = Math.round(weighted.percentage);
+      // CRITICAL: Ensure all weighted values are finite integers, defaulting to 0 for NaN/Infinity
+      const safeTestWeighted = Number.isFinite(weighted.testWeighted) ? Math.round(weighted.testWeighted) : 0;
+      const safeExamWeighted = Number.isFinite(weighted.examWeighted) ? Math.round(weighted.examWeighted) : 0;
+      const safeObtainedMarks = Number.isFinite(weighted.weightedScore) ? Math.round(weighted.weightedScore) : 0;
+      const safePercentage = Number.isFinite(weighted.percentage) ? Math.round(weighted.percentage) : 0;
+
+      updateData.testWeightedScore = safeTestWeighted;
+      updateData.examWeightedScore = safeExamWeighted;
+      updateData.obtainedMarks = safeObtainedMarks;
+      updateData.percentage = safePercentage;
       updateData.grade = gradeInfo.grade;
       updateData.remarks = gradeInfo.remarks;
+      
+      console.log(`[REPORT-CARD-SYNC] Update data: testWeighted=${safeTestWeighted}, examWeighted=${safeExamWeighted}, obtained=${safeObtainedMarks}, pct=${safePercentage}, grade=${gradeInfo.grade}`);
 
       // 8. Update the report card item
       await db.update(schema.reportCardItems)
@@ -4563,7 +4580,7 @@ export class DatabaseStorage implements IStorage {
         testWeightedScore: schema.reportCardItems.testWeightedScore,
         examWeightedScore: schema.reportCardItems.examWeightedScore,
         obtainedMarks: schema.reportCardItems.obtainedMarks,
-        maxMarks: schema.reportCardItems.maxMarks,
+        totalMarks: schema.reportCardItems.totalMarks,
         percentage: schema.reportCardItems.percentage,
         grade: schema.reportCardItems.grade,
         remarks: schema.reportCardItems.remarks,
@@ -4622,7 +4639,7 @@ export class DatabaseStorage implements IStorage {
           testWeightedScore: item.testWeightedScore,
           examWeightedScore: item.examWeightedScore,
           obtainedMarks: item.obtainedMarks,
-          maxMarks: item.maxMarks,
+          totalMarks: item.totalMarks,
           percentage: item.percentage,
           grade: item.grade,
           remarks: item.remarks,

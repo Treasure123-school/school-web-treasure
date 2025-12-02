@@ -9359,6 +9359,29 @@ Treasure-Home School Administration
       }
     });
 
+    // ADMIN DEBUG: Force resync exam score to report card
+    // This is a temporary debug endpoint to test the fix for pg_strtoint32_safe error
+    app.post('/api/admin/resync-exam-score', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { studentId, examId, score, maxScore } = req.body;
+        
+        console.log('[DEBUG-RESYNC] Received request:', { studentId, examId, score, maxScore });
+        
+        // Call the sync function with explicit type conversion
+        const result = await storage.syncExamScoreToReportCard(
+          String(studentId),
+          Number(examId),
+          Number(score),
+          Number(maxScore)
+        );
+        
+        res.json(result);
+      } catch (error: any) {
+        console.error('[DEBUG-RESYNC] Error:', error);
+        res.status(500).json({ message: error.message || 'Sync failed' });
+      }
+    });
+
     // ==================== END STUDENT SUBJECT ASSIGNMENT ROUTES ====================
 
     // ==================== END MODULE 1 ROUTES ====================
