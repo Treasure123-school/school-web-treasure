@@ -23,7 +23,15 @@ Comprehensive real-time updates are implemented across major features including 
 - **Role-Based Access Control**: Five distinct roles (Super Admin, Admin, Teacher, Student, Parent) with hierarchical user creation rules.
 - **Database Schema**: Over 40 tables covering various academic and administrative functions.
 - **Exam System**: Features reliable submission, instant auto-scoring for MCQs, anti-cheat measures, auto-submission, and real-time progress saving. Exam creation is teacher-centric with strong validation.
-- **Report Card System**: Enhanced auto-generation when students complete exams. Features a Draft → Finalized → Published status workflow with role-based visibility and real-time updates via Socket.IO. Supports configurable grading scales (Standard, WAEC, Percentage) with weighted scoring (Tests 40%, Exams 60%). Teachers have controls for bulk actions and score overrides with audit trails.
+- **Report Card System**: Comprehensive auto-generation and score management system:
+  - **Auto-Generation**: Report cards are automatically created when students complete their first exam. The `syncExamScoreToReportCard` function handles this flow.
+  - **Exam Type Detection**: System distinguishes between test types (test, quiz, assignment) which map to testScore/testMaxScore, and main exam types (exam, final, midterm) which map to examScore/examMaxScore.
+  - **Weighted Scoring**: Uses 40% test weight and 60% exam weight for grade calculations via `calculateWeightedScore` in `shared/grading-utils.ts`.
+  - **Teacher Score Override**: Teachers can add/edit test and exam scores via `/api/reports/items/:itemId/override` endpoint. Overrides are marked with `isOverridden` flag to prevent auto-sync from overwriting manual edits.
+  - **Auto-Recalculation**: After any score change, the system automatically recalculates weighted grades, report card totals, and class positions.
+  - **Status Workflow**: Draft → Finalized → Published with role-based visibility.
+  - **Real-time Updates**: Socket.IO events emitted for all report card and item changes.
+  - **Grading Scales**: Supports Standard, WAEC, and Percentage scales with configurable thresholds.
 - **File Management**: Unified upload interface with Cloudinary CDN for production, handling image optimization, CDN distribution, and responsive sizing.
 - **Department-Aware Subject Mapping**: Students are automatically assigned subjects based on class level and department. Report card generation prioritizes student's personal subject assignments. Teachers can be assigned to classes and subjects, with department-specific filtering for senior secondary classes.
 - **Department Selection UI**: Student management includes department selection for senior secondary students (SS1-SS3) with conditional rendering and pre-population.
