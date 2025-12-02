@@ -36,6 +36,7 @@ Comprehensive real-time updates are implemented across major features including 
     - Legacy items (null creator fields) remain editable by all teachers for backwards compatibility
   - **Teacher Score Override**: Teachers can add/edit test and exam scores via `/api/reports/items/:itemId/override` endpoint. Overrides are marked with `isOverridden` flag to prevent auto-sync from overwriting manual edits.
   - **Auto-Recalculation**: After any score change, the system automatically recalculates weighted grades, report card totals, and percentages.
+  - **Max Score Handling**: Report card API uses `result.maxScore` (actual exam session score) with fallback to `exam.totalMarks` (configured value) - this correctly handles exams where not all configured questions were used.
   - **Status Workflow**: Draft → Finalized → Published with role-based visibility.
   - **Real-time Updates**: Socket.IO events emitted for all report card and item changes.
   - **Grading Scales**: Supports Standard, WAEC, and Percentage scales with configurable thresholds.
