@@ -34,12 +34,27 @@ interface SubscriptionData {
   reportCardId?: string | number;
 }
 
+// Track active exam sessions for duplicate detection
+interface ActiveExamSession {
+  socketId: string;
+  sessionId: number;
+  userId: string;
+  examId: number;
+  registeredAt: Date;
+  lastPing: Date;
+}
+
 class RealtimeService {
   private io: SocketIOServer | null = null;
   private connectedClients = new Map<string, Set<string>>();
   private authenticatedSockets = new Map<string, SocketUser>();
   private recentEventIds = new Set<string>();
   private eventIdCleanupInterval: NodeJS.Timeout | null = null;
+  
+  // Duplicate session detection: Map<sessionId, ActiveExamSession>
+  private activeExamSessions = new Map<number, ActiveExamSession>();
+  // Track socket to session mapping for cleanup
+  private socketToSession = new Map<string, number>();
 
   initialize(httpServer: HTTPServer) {
     // Build allowed origins for CORS - production ready
@@ -204,7 +219,109 @@ class RealtimeService {
         const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
         socket.emit('subscriptions', { rooms });
       });
+
+      // EXAM SESSION SECURITY: Register active exam session for duplicate detection
+      socket.on('exam:register_session', (data: { sessionId: number; examId: number }) => {
+        this.handleExamSessionRegister(socket, data);
+      });
+
+      // EXAM SESSION SECURITY: Heartbeat to keep session active
+      socket.on('exam:session_heartbeat', (data: { sessionId: number }) => {
+        this.handleExamSessionHeartbeat(socket, data);
+      });
+
+      // EXAM SESSION SECURITY: Unregister session when exam ends
+      socket.on('exam:unregister_session', (data: { sessionId: number }) => {
+        this.handleExamSessionUnregister(socket, data);
+      });
     });
+  }
+
+  // EXAM SECURITY: Handle exam session registration for duplicate detection
+  private handleExamSessionRegister(socket: Socket, data: { sessionId: number; examId: number }) {
+    const user = this.authenticatedSockets.get(socket.id);
+    if (!user) {
+      socket.emit('exam:session_error', { error: 'Authentication required' });
+      return;
+    }
+
+    const { sessionId, examId } = data;
+    const now = new Date();
+
+    // Check if this session is already registered by another socket
+    const existingSession = this.activeExamSessions.get(sessionId);
+    
+    if (existingSession && existingSession.socketId !== socket.id) {
+      // Check if existing session is still active (pinged within last 10 seconds)
+      const timeSinceLastPing = now.getTime() - existingSession.lastPing.getTime();
+      
+      if (timeSinceLastPing < 10000) {
+        // Duplicate session detected! Notify both clients
+        console.log(`⚠️  DUPLICATE EXAM SESSION DETECTED: Session ${sessionId}, User ${user.userId}`);
+        console.log(`   → Existing socket: ${existingSession.socketId}, New socket: ${socket.id}`);
+        
+        // Notify the new client (the one trying to connect)
+        socket.emit('exam:duplicate_session', {
+          sessionId,
+          examId,
+          message: 'This exam session is already open in another tab or device',
+          existingSocketId: existingSession.socketId
+        });
+        
+        // Optionally notify the original client too
+        this.io?.to(existingSession.socketId).emit('exam:duplicate_session', {
+          sessionId,
+          examId,
+          message: 'This exam session was opened in another tab or device',
+          newSocketId: socket.id
+        });
+        
+        return;
+      }
+      
+      // Old session is stale, clean it up
+      console.log(`   → Cleaning up stale exam session: ${sessionId} (socket: ${existingSession.socketId})`);
+      this.socketToSession.delete(existingSession.socketId);
+    }
+
+    // Register this session
+    this.activeExamSessions.set(sessionId, {
+      socketId: socket.id,
+      sessionId,
+      userId: user.userId,
+      examId,
+      registeredAt: now,
+      lastPing: now
+    });
+    this.socketToSession.set(socket.id, sessionId);
+
+    // Join exam-specific room for session events
+    socket.join(`exam_session:${sessionId}`);
+
+    console.log(`📋 Exam session registered: Session ${sessionId}, User ${user.userId}, Socket ${socket.id}`);
+    socket.emit('exam:session_registered', { sessionId, examId });
+  }
+
+  // EXAM SECURITY: Handle session heartbeat to keep session alive
+  private handleExamSessionHeartbeat(socket: Socket, data: { sessionId: number }) {
+    const session = this.activeExamSessions.get(data.sessionId);
+    
+    if (session && session.socketId === socket.id) {
+      session.lastPing = new Date();
+      socket.emit('exam:heartbeat_ack', { sessionId: data.sessionId, timestamp: Date.now() });
+    }
+  }
+
+  // EXAM SECURITY: Handle session unregistration when exam ends
+  private handleExamSessionUnregister(socket: Socket, data: { sessionId: number }) {
+    const session = this.activeExamSessions.get(data.sessionId);
+    
+    if (session && session.socketId === socket.id) {
+      this.activeExamSessions.delete(data.sessionId);
+      this.socketToSession.delete(socket.id);
+      socket.leave(`exam_session:${data.sessionId}`);
+      console.log(`📋 Exam session unregistered: Session ${data.sessionId}, Socket ${socket.id}`);
+    }
   }
 
   private handleSubscribe(socket: Socket, data: SubscriptionData) {
@@ -462,6 +579,17 @@ class RealtimeService {
   private handleDisconnect(socket: Socket) {
     const user = this.authenticatedSockets.get(socket.id);
     console.log(`📡 Client disconnected: ${socket.id}${user ? ` (User: ${user.userId})` : ''}`);
+    
+    // Clean up exam session if this socket had one registered
+    const sessionId = this.socketToSession.get(socket.id);
+    if (sessionId) {
+      const session = this.activeExamSessions.get(sessionId);
+      if (session && session.socketId === socket.id) {
+        this.activeExamSessions.delete(sessionId);
+        console.log(`   → Cleaned up exam session ${sessionId} on disconnect`);
+      }
+      this.socketToSession.delete(socket.id);
+    }
     
     this.connectedClients.forEach((clients, table) => {
       clients.delete(socket.id);

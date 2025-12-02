@@ -18,11 +18,30 @@ import type { Exam, ExamSession, ExamQuestion, QuestionOption, StudentAnswer } f
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
-// Constants for violation tracking and penalties
-const MAX_VIOLATIONS_BEFORE_PENALTY = 3;
+// ENHANCED EXAM SECURITY CONSTANTS
+// Allow only 2 warnings per exam session. On the 3rd violation, auto-submit the exam instantly.
+const MAX_WARNINGS_ALLOWED = 2; // Students get 2 warnings
+const MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT = 3; // Auto-submit on 3rd violation
 const PENALTY_PER_VIOLATION = 5;
-const MAX_PENALTY = 20; // System never reduces score below Test 40 base
-const MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT = 5; // Auto-submit after 5 tab switches
+const MAX_PENALTY = 20;
+const VIOLATION_DETECTION_DELAY = 500; // ms delay to avoid false positives
+const DEVTOOLS_CHECK_INTERVAL = 1000; // Check for DevTools every second
+
+// Violation types for comprehensive tracking
+type ViolationType = 
+  | 'tab_switch'      // Tab switching/visibility change
+  | 'browser_minimize' // Browser window minimized/backgrounded
+  | 'devtools'        // DevTools/Inspect Element opened
+  | 'refresh_attempt' // Refresh or back button detected
+  | 'duplicate_session' // Same exam accessed from another device
+  | 'screenshot'      // Screenshot/screen recording attempt (if detectable)
+  | 'copy_paste';     // Copy/paste attempt
+
+interface ViolationRecord {
+  type: ViolationType;
+  timestamp: Date;
+  details?: string;
+}
 
 // Question save status type
 type QuestionSaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
@@ -48,19 +67,28 @@ export default function StudentExams() {
   const [pendingSaves, setPendingSaves] = useState<Set<number>>(new Set());
   const saveTimeoutsRef = useRef<Record<number, NodeJS.Timeout>>({});
 
-  // Tab switch detection state
-  const [tabSwitchCount, setTabSwitchCount] = useState(0);
-  const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
+  // ENHANCED SECURITY: Comprehensive violation tracking state
+  const [violationCount, setViolationCount] = useState(0); // Total violations (renamed from tabSwitchCount)
+  const [tabSwitchCount, setTabSwitchCount] = useState(0); // Keep for backward compatibility
+  const [showViolationWarning, setShowViolationWarning] = useState(false);
+  const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false); // Keep for compatibility
+  const [violationHistory, setViolationHistory] = useState<ViolationRecord[]>([]);
+  const [lastViolationType, setLastViolationType] = useState<ViolationType | null>(null);
+  const violationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tabSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [violationPenalty, setViolationPenalty] = useState(0); // State for penalty calculation
+  const [violationPenalty, setViolationPenalty] = useState(0);
+  const devToolsCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoSubmittingRef = useRef(false); // Prevent double auto-submit
   
   // RELIABILITY: Use refs to ensure latest values are always accessible for auto-submit
+  const violationCountRef = useRef(violationCount);
   const tabSwitchCountRef = useRef(tabSwitchCount);
   const violationPenaltyRef = useRef(violationPenalty);
   const timeRemainingRef = useRef(timeRemaining);
   const activeSessionRef = useRef(activeSession);
   
   // Keep refs in sync with state
+  useEffect(() => { violationCountRef.current = violationCount; }, [violationCount]);
   useEffect(() => { tabSwitchCountRef.current = tabSwitchCount; }, [tabSwitchCount]);
   useEffect(() => { violationPenaltyRef.current = violationPenalty; }, [violationPenalty]);
   useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
@@ -473,149 +501,341 @@ export default function StudentExams() {
       Object.values(saveTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
       Object.values(debounceTimersRef.current).forEach(timeout => clearTimeout(timeout));
       if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
+      if (violationTimeoutRef.current) clearTimeout(violationTimeoutRef.current);
+      if (devToolsCheckRef.current) clearTimeout(devToolsCheckRef.current);
     };
   }, []);
 
-  // TAB SWITCH DETECTION - Security Feature to detect when students leave exam page
+  // Function to calculate violation penalty
+  const calculateViolationPenalty = (violations: number): number => {
+    if (violations === 0) return 0;
+    const penalty = violations * PENALTY_PER_VIOLATION;
+    return Math.min(penalty, MAX_PENALTY);
+  };
+
+  // UNIFIED VIOLATION HANDLER: Centralizes all security violation processing
+  // Handles: tab switches, browser minimize, DevTools, refresh attempts, duplicate sessions
+  const handleSecurityViolation = useCallback((type: ViolationType, details?: string) => {
+    if (!activeSession || activeSession.isCompleted || isAutoSubmittingRef.current) return;
+    
+    // Update violation count and history
+    setViolationCount(prev => {
+      const newCount = prev + 1;
+      
+      // Record this violation
+      const violationRecord: ViolationRecord = {
+        type,
+        timestamp: new Date(),
+        details
+      };
+      setViolationHistory(history => [...history, violationRecord]);
+      setLastViolationType(type);
+      
+      // Update penalty
+      const calculatedPenalty = calculateViolationPenalty(newCount);
+      setViolationPenalty(calculatedPenalty);
+      
+      // Also update tabSwitchCount for backward compatibility
+      if (type === 'tab_switch' || type === 'browser_minimize') {
+        setTabSwitchCount(tc => tc + 1);
+      }
+      
+      // Save violation to session metadata
+      if (activeSession?.id) {
+        apiRequest('PATCH', `/api/exam-sessions/${activeSession.id}/metadata`, {
+          metadata: JSON.stringify({
+            violationCount: newCount,
+            violationPenalty: calculatedPenalty,
+            lastViolationType: type,
+            violationHistory: [...violationHistory, violationRecord].slice(-10) // Keep last 10
+          })
+        }).catch(() => {});
+      }
+      
+      // Get violation type display name
+      const violationNames: Record<ViolationType, string> = {
+        'tab_switch': 'Tab Switch',
+        'browser_minimize': 'Browser Minimized',
+        'devtools': 'DevTools Detected',
+        'refresh_attempt': 'Refresh/Back Attempt',
+        'duplicate_session': 'Duplicate Session',
+        'screenshot': 'Screenshot Attempt',
+        'copy_paste': 'Copy/Paste Attempt'
+      };
+      
+      // CHECK IF AUTO-SUBMIT REQUIRED (3rd violation)
+      if (newCount >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT) {
+        isAutoSubmittingRef.current = true;
+        
+        toast({
+          title: "EXAM AUTO-SUBMITTED",
+          description: `Your exam has been automatically submitted due to ${newCount} security violations. This is to maintain exam integrity.`,
+          variant: "destructive",
+        });
+        
+        // Trigger auto-submit immediately
+        setTimeout(() => {
+          forceSubmitExam();
+        }, 500);
+        
+        return newCount;
+      }
+      
+      // Show warning for 1st and 2nd violations
+      setShowViolationWarning(true);
+      setShowTabSwitchWarning(true);
+      
+      // Auto-hide warning after 5 seconds
+      if (violationTimeoutRef.current) clearTimeout(violationTimeoutRef.current);
+      violationTimeoutRef.current = setTimeout(() => {
+        setShowViolationWarning(false);
+        setShowTabSwitchWarning(false);
+      }, 5000);
+      
+      const warningsRemaining = MAX_WARNINGS_ALLOWED - newCount + 1;
+      
+      if (newCount === 1) {
+        toast({
+          title: `WARNING 1 of ${MAX_WARNINGS_ALLOWED}: ${violationNames[type]}`,
+          description: `This is your first warning. You have ${warningsRemaining - 1} more warning(s) before your exam is auto-submitted. Please stay focused on the exam.`,
+          variant: "destructive",
+        });
+      } else if (newCount === 2) {
+        toast({
+          title: `FINAL WARNING: ${violationNames[type]}`,
+          description: `This is your LAST warning! One more violation will automatically submit your exam. Stay on the exam page.`,
+          variant: "destructive",
+        });
+      }
+      
+      return newCount;
+    });
+  }, [activeSession, violationHistory, toast]);
+
+  // =============================================================================
+  // COMPREHENSIVE EXAM SECURITY SYSTEM
+  // Detects: Tab switching, Browser minimize, DevTools, Refresh/Back, Duplicate sessions
+  // =============================================================================
+
+  // 1. TAB SWITCH & BROWSER MINIMIZE DETECTION
   useEffect(() => {
     if (!activeSession || activeSession.isCompleted) return;
 
-    let tabSwitchTimer: NodeJS.Timeout | null = null;
+    let visibilityTimer: NodeJS.Timeout | null = null;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Delay the warning to avoid false positives from quick system notifications
-        tabSwitchTimer = setTimeout(() => {
+        visibilityTimer = setTimeout(() => {
           if (document.hidden) {
-            // Student switched away from the tab
-            setTabSwitchCount(prev => {
-              const newCount = prev + 1;
-
-              // Update penalty based on new count
-              const calculatedPenalty = calculateViolationPenalty(newCount);
-              setViolationPenalty(calculatedPenalty);
-
-              // AUTO-SUBMIT: If violations exceed threshold, auto-submit the exam
-              if (newCount >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT) {
-                toast({
-                  title: "Exam Auto-Submitted",
-                  description: "Your exam has been automatically submitted due to excessive tab switching. This is to maintain exam integrity.",
-                  variant: "destructive",
-                });
-                
-                // Trigger auto-submit with violation info
-                setTimeout(() => {
-                  forceSubmitExam();
-                }, 1000);
-                
-                return newCount;
-              }
-              
-              if (newCount <= MAX_VIOLATIONS_BEFORE_PENALTY) {
-                setShowTabSwitchWarning(true);
-
-                // Auto-hide warning after 5 seconds
-                if (tabSwitchTimeoutRef.current) clearTimeout(tabSwitchTimeoutRef.current);
-                tabSwitchTimeoutRef.current = setTimeout(() => {
-                  setShowTabSwitchWarning(false);
-                }, 5000);
-
-                toast({
-                  title: "Tab Switch Detected",
-                  description: `Warning ${newCount}/${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT}: Please stay on the exam page. After ${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT} violations, your exam will be auto-submitted.`,
-                  variant: "destructive",
-                });
-              } else {
-                // After initial warnings, show countdown to auto-submit
-                setShowTabSwitchWarning(true);
-                toast({
-                  title: "Final Warning",
-                  description: `Tab switch ${newCount}/${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT}: Your exam will be auto-submitted after ${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT - newCount} more violations.`,
-                  variant: "destructive",
-                });
-              }
-
-              // Save tab switch count and penalty to session metadata if possible
-              if (activeSession?.id) {
-                apiRequest('PATCH', `/api/exam-sessions/${activeSession.id}/metadata`, {
-                  metadata: JSON.stringify({
-                    ...JSON.parse(activeSession.metadata || '{}'),
-                    tabSwitchCount: newCount,
-                    violationPenalty: calculatedPenalty
-                  })
-                }).catch(() => {
-                  // Handle metadata update error silently
-                });
-              }
-              return newCount;
-            });
+            handleSecurityViolation('tab_switch', 'Student left the exam tab');
           }
-        }, 1000); // 1 second delay to avoid false positives
+        }, VIOLATION_DETECTION_DELAY);
       } else {
-        // Tab became visible again, cancel any pending warnings
-        if (tabSwitchTimer) {
-          clearTimeout(tabSwitchTimer);
-          tabSwitchTimer = null;
+        if (visibilityTimer) {
+          clearTimeout(visibilityTimer);
+          visibilityTimer = null;
         }
       }
     };
 
-    const handleBlur = () => {
-      // Window lost focus (less strict than tab switch)
+    const handleWindowBlur = () => {
       if (!document.hidden) {
+        visibilityTimer = setTimeout(() => {
+          if (!document.hasFocus()) {
+            handleSecurityViolation('browser_minimize', 'Browser window lost focus');
+          }
+        }, VIOLATION_DETECTION_DELAY * 2);
       }
     };
 
-    // Listen for visibility changes (tab switches)
+    const handleWindowFocus = () => {
+      if (visibilityTimer) {
+        clearTimeout(visibilityTimer);
+        visibilityTimer = null;
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+      if (visibilityTimer) clearTimeout(visibilityTimer);
     };
-  }, [activeSession, tabSwitchCount]); // Add tabSwitchCount to dependency array
+  }, [activeSession, handleSecurityViolation]);
 
-  // ANTI-CHEAT: Disable copy, paste, and right-click during active exam
+  // 2. ENHANCED DEVTOOLS DETECTION - Non-blocking detection methods
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    let devToolsOpen = false;
+    let consecutiveDetections = 0;
+    const DETECTION_THRESHOLD = 2; // Require 2 consecutive detections to reduce false positives
+
+    // Method 1: Window size difference detection (works for docked DevTools)
+    const checkDevToolsBySize = (): boolean => {
+      const widthThreshold = window.outerWidth - window.innerWidth > 160;
+      const heightThreshold = window.outerHeight - window.innerHeight > 160;
+      return widthThreshold || heightThreshold;
+    };
+
+    // Method 2: Console timing trick using Image getter (non-blocking)
+    // When DevTools console is open, accessing certain properties triggers inspection
+    let consoleDetected = false;
+    const checkDevToolsByConsole = (): boolean => {
+      const result = consoleDetected;
+      consoleDetected = false; // Reset for next check
+      
+      try {
+        const element = new Image();
+        Object.defineProperty(element, 'id', {
+          get: function() {
+            consoleDetected = true;
+            return 'devtools-detector';
+          }
+        });
+        
+        // Using console.debug which is less intrusive than console.dir
+        console.debug(element);
+      } catch (e) {
+        // Silently ignore if Object.defineProperty fails
+      }
+      
+      return result;
+    };
+
+    // Method 3: Performance timing check (non-blocking, measures toString/valueOf overhead)
+    const checkDevToolsByTiming = (): boolean => {
+      const start = performance.now();
+      
+      // Create an object with a slow toString (only triggers when DevTools inspects it)
+      const obj = {
+        toString: function() {
+          // This is called when DevTools tries to display the object
+          return 'test';
+        }
+      };
+      
+      // Trigger potential inspection
+      console.debug('%c', obj);
+      
+      const end = performance.now();
+      
+      // If DevTools is open and inspecting, there's usually a slight delay
+      // Keep threshold low to avoid false positives
+      return (end - start) > 50;
+    };
+
+    const checkDevTools = () => {
+      const sizeCheck = checkDevToolsBySize();
+      const consoleCheck = checkDevToolsByConsole();
+      
+      // Combine detection methods - size check is most reliable
+      const detected = sizeCheck || consoleCheck;
+      
+      if (detected) {
+        consecutiveDetections++;
+        if (consecutiveDetections >= DETECTION_THRESHOLD && !devToolsOpen) {
+          devToolsOpen = true;
+          const method = sizeCheck ? 'window size analysis' : 'console inspection';
+          handleSecurityViolation('devtools', `DevTools detected via ${method}`);
+        }
+      } else {
+        consecutiveDetections = 0;
+        devToolsOpen = false;
+      }
+    };
+
+    const interval = setInterval(checkDevTools, DEVTOOLS_CHECK_INTERVAL);
+    devToolsCheckRef.current = interval as unknown as NodeJS.Timeout;
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [activeSession, handleSecurityViolation]);
+
+  // 3. REFRESH & BACK BUTTON DETECTION
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'You have an exam in progress. Leaving will be recorded as a violation.';
+      return e.returnValue;
+    };
+
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+      handleSecurityViolation('refresh_attempt', 'Attempted to use browser back/forward button');
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [activeSession, handleSecurityViolation]);
+
+  // 4. SCREENSHOT DETECTION (limited browser support)
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen') {
+        handleSecurityViolation('screenshot', 'PrintScreen key detected');
+      }
+    };
+
+    document.addEventListener('keyup', handleKeyUp);
+    return () => {
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [activeSession, handleSecurityViolation]);
+
+  // 5. ANTI-CHEAT: Disable copy, paste, right-click, and DevTools shortcuts
   useEffect(() => {
     if (!activeSession || activeSession.isCompleted) return;
 
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
-      toast({
-        title: "Copy Disabled",
-        description: "Copying is not allowed during the exam.",
-        variant: "destructive",
-      });
+      toast({ title: "Copy Disabled", description: "Copying is not allowed during the exam.", variant: "destructive" });
     };
 
     const handlePaste = (e: ClipboardEvent) => {
       e.preventDefault();
-      toast({
-        title: "Paste Disabled", 
-        description: "Pasting is not allowed during the exam.",
-        variant: "destructive",
-      });
+      toast({ title: "Paste Disabled", description: "Pasting is not allowed during the exam.", variant: "destructive" });
     };
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      toast({
-        title: "Right-Click Disabled",
-        description: "Right-clicking is not allowed during the exam.",
-        variant: "destructive",
-      });
+      toast({ title: "Right-Click Disabled", description: "Right-clicking is not allowed during the exam.", variant: "destructive" });
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Block Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A
       if (e.ctrlKey || e.metaKey) {
         if (['c', 'v', 'x', 'a'].includes(e.key.toLowerCase())) {
           e.preventDefault();
         }
       }
-      // Block F12 (DevTools)
       if (e.key === 'F12') {
+        e.preventDefault();
+        handleSecurityViolation('devtools', 'F12 key pressed');
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        handleSecurityViolation('devtools', 'Ctrl+Shift+I pressed');
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        handleSecurityViolation('devtools', 'Ctrl+Shift+J pressed');
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
         e.preventDefault();
       }
     };
@@ -631,14 +851,132 @@ export default function StudentExams() {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeSession, toast]);
+  }, [activeSession, toast, handleSecurityViolation]);
 
-  // Function to calculate violation penalty
-  const calculateViolationPenalty = (violations: number): number => {
-    if (violations === 0) return 0;
-    const penalty = violations * PENALTY_PER_VIOLATION;
-    return Math.min(penalty, MAX_PENALTY);
-  };
+  // 6. DUPLICATE SESSION DETECTION - Prevents opening exam in multiple tabs/devices
+  // Uses BOTH localStorage (same browser) AND Socket.IO (cross-browser/device)
+  useEffect(() => {
+    if (!activeSession || activeSession.isCompleted) return;
+
+    // Generate unique tab ID for this browser tab
+    const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionKey = `exam_session_${activeSession.id}`;
+    
+    // === PART A: LocalStorage for same-browser tab detection ===
+    const existingSession = localStorage.getItem(sessionKey);
+    if (existingSession) {
+      try {
+        const existing = JSON.parse(existingSession);
+        const timeSinceLastPing = Date.now() - existing.lastPing;
+        if (timeSinceLastPing < 5000 && existing.tabId !== tabId) {
+          handleSecurityViolation('duplicate_session', 'Exam already open in another tab');
+        }
+      } catch (e) {
+        localStorage.removeItem(sessionKey);
+      }
+    }
+    
+    const registerLocalSession = () => {
+      localStorage.setItem(sessionKey, JSON.stringify({
+        tabId,
+        sessionId: activeSession.id,
+        lastPing: Date.now()
+      }));
+    };
+    
+    registerLocalSession();
+    const localHeartbeatInterval = setInterval(registerLocalSession, 2000);
+    
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === sessionKey && e.newValue) {
+        try {
+          const newSession = JSON.parse(e.newValue);
+          if (newSession.tabId !== tabId && Date.now() - newSession.lastPing < 5000) {
+            handleSecurityViolation('duplicate_session', 'Exam opened in another browser tab');
+          }
+        } catch (e) {}
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // === PART B: Socket.IO for cross-browser/device detection ===
+    // Get the socket from the global socket manager
+    const token = localStorage.getItem('token');
+    if (token && typeof window !== 'undefined') {
+      // Create a connection to register this exam session with the server
+      const socketUrl = window.location.origin;
+      
+      // Use dynamic import to get socket.io-client
+      import('socket.io-client').then(({ io }) => {
+        const socket = io(socketUrl, {
+          path: '/socket.io/',
+          auth: { token },
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+        });
+        
+        // Register this exam session with the server
+        socket.on('connect', () => {
+          socket.emit('exam:register_session', {
+            sessionId: activeSession.id,
+            examId: activeSession.examId
+          });
+        });
+        
+        // Listen for duplicate session events from server
+        socket.on('exam:duplicate_session', (data: { sessionId: number; message: string }) => {
+          if (data.sessionId === activeSession.id) {
+            handleSecurityViolation('duplicate_session', data.message || 'Exam opened on another device');
+          }
+        });
+        
+        // Send heartbeats to keep session active on server
+        const serverHeartbeatInterval = setInterval(() => {
+          if (socket.connected) {
+            socket.emit('exam:session_heartbeat', { sessionId: activeSession.id });
+          }
+        }, 5000);
+        
+        // Store socket for cleanup
+        (window as any).__examSecuritySocket = socket;
+        (window as any).__examSecurityHeartbeat = serverHeartbeatInterval;
+      }).catch(() => {
+        // Socket.IO import failed - rely on localStorage only
+        console.warn('Socket.IO not available for cross-device duplicate detection');
+      });
+    }
+    
+    // Cleanup on unmount or session end
+    return () => {
+      clearInterval(localHeartbeatInterval);
+      window.removeEventListener('storage', handleStorageChange);
+      
+      // Cleanup localStorage
+      const currentSession = localStorage.getItem(sessionKey);
+      if (currentSession) {
+        try {
+          const parsed = JSON.parse(currentSession);
+          if (parsed.tabId === tabId) {
+            localStorage.removeItem(sessionKey);
+          }
+        } catch (e) {
+          localStorage.removeItem(sessionKey);
+        }
+      }
+      
+      // Cleanup Socket.IO
+      const socket = (window as any).__examSecuritySocket;
+      const heartbeat = (window as any).__examSecurityHeartbeat;
+      if (heartbeat) clearInterval(heartbeat);
+      if (socket) {
+        socket.emit('exam:unregister_session', { sessionId: activeSession.id });
+        socket.disconnect();
+        delete (window as any).__examSecuritySocket;
+        delete (window as any).__examSecurityHeartbeat;
+      }
+    };
+  }, [activeSession, handleSecurityViolation]);
 
   // Client-side answer validation - relaxed for better UX
   const validateAnswer = (questionType: string, answer: any): { isValid: boolean; error?: string } => {
@@ -1479,7 +1817,11 @@ export default function StudentExams() {
 
   // Force submit without checking pending saves (used for auto-submit on timeout or violations)
   // Uses shared executeSubmission helper with retry logic and consistent behavior
-  const forceSubmitExam = async () => {
+  // CRITICAL: Includes retry mechanism to ensure exam is submitted on security violations
+  const forceSubmitExam = async (retryCount = 0): Promise<void> => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000; // 2 seconds between retries
+    
     if (isSubmitting || isScoring || isRedirecting) {
       return;
     }
@@ -1490,8 +1832,14 @@ export default function StudentExams() {
       // Use shared submission helper with force flag for consistent behavior
       const data = await executeSubmission(true);
       
+      // Verify submission was successful by checking the response
+      if (!data || (!data.submitted && !data.result)) {
+        throw new Error('Submission response invalid - server did not confirm submission');
+      }
+      
       setIsScoring(false);
       setIsSubmitting(false);
+      isAutoSubmittingRef.current = false; // Reset the auto-submit flag
       
       // Enhanced cache invalidation
       queryClient.invalidateQueries({ queryKey: ['/api/student-answers/session', activeSessionRef.current?.id] });
@@ -1499,7 +1847,7 @@ export default function StudentExams() {
       queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
       
       // Determine the appropriate message based on the submission context
-      const violations = tabSwitchCountRef.current;
+      const violations = violationCountRef.current;
       const timeExpired = timeRemainingRef.current !== null && timeRemainingRef.current <= 0;
       const score = data.result?.score ?? 0;
       const maxScore = data.result?.maxScore ?? 0;
@@ -1517,7 +1865,7 @@ export default function StudentExams() {
       };
       
       if (violations >= MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT) {
-        message = `Your exam was automatically submitted due to ${violations} tab switch violation(s). Score: ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
+        message = `Your exam was automatically submitted due to ${violations} security violation(s). Score: ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
         variant = 'destructive';
       } else if (timeExpired) {
         message = `Your exam time has ended. Score: ${score}/${maxScore} (${percentage}%). Redirecting to results...`;
@@ -1532,13 +1880,71 @@ export default function StudentExams() {
       redirectToExamResults(resultData, message, variant);
       
     } catch (error: any) {
+      // RETRY LOGIC: Critical for security - must ensure exam is submitted
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`Auto-submit attempt ${retryCount + 1} failed, retrying in ${RETRY_DELAY}ms...`);
+        setIsScoring(false);
+        setIsSubmitting(false);
+        
+        toast({
+          title: "Submission in Progress",
+          description: `Attempting to submit your exam (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`,
+          variant: "default",
+        });
+        
+        // Wait and retry
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return forceSubmitExam(retryCount + 1);
+      }
+      
+      // All retries exhausted - notify user and try one final time with a direct API call
       setIsScoring(false);
       setIsSubmitting(false);
+      
+      // Final fallback: Try to submit via direct API call without the mutation
+      try {
+        if (activeSessionRef.current?.id) {
+          const response = await apiRequest('POST', `/api/exam-sessions/${activeSessionRef.current.id}/submit`, {
+            answers: Object.entries(answers).map(([qId, answer]) => ({
+              questionId: parseInt(qId),
+              answer
+            })),
+            forceSubmit: true,
+            submittedAt: new Date().toISOString(),
+            violationCount: violationCountRef.current
+          });
+          
+          if (response.ok) {
+            toast({
+              title: "Exam Submitted",
+              description: "Your exam has been submitted. Please check your results.",
+              variant: "destructive",
+            });
+            setLocation('/portal/student/exam-results');
+            return;
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Fallback submission also failed:', fallbackError);
+      }
+      
       toast({
-        title: "Submission Error",
-        description: error.message || "Failed to submit exam. Please try again or contact your instructor.",
+        title: "Submission Error - Please Contact Instructor",
+        description: `Failed to submit exam after ${MAX_RETRIES + 1} attempts. Your answers have been saved locally. Please contact your instructor immediately.`,
         variant: "destructive",
       });
+      
+      // Save answers to localStorage as emergency backup
+      try {
+        localStorage.setItem(`exam_backup_${activeSessionRef.current?.id}`, JSON.stringify({
+          answers,
+          timestamp: new Date().toISOString(),
+          violationCount: violationCountRef.current,
+          sessionId: activeSessionRef.current?.id
+        }));
+      } catch (e) {
+        console.error('Failed to save local backup:', e);
+      }
     }
   };
 
@@ -1661,12 +2067,12 @@ export default function StudentExams() {
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-semibold">
-                      {tabSwitchCount <= MAX_VIOLATIONS_BEFORE_PENALTY 
-                        ? `Warning ${tabSwitchCount}/${MAX_VIOLATIONS_BEFORE_PENALTY}`
-                        : `Penalty Applied: -${violationPenalty} marks`
+                      {violationCount < MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT 
+                        ? `Security Warning ${violationCount}/${MAX_WARNINGS_ALLOWED} - ${MAX_VIOLATIONS_BEFORE_AUTO_SUBMIT - violationCount} violation(s) until auto-submit`
+                        : `EXAM AUTO-SUBMITTED: ${violationCount} violations detected`
                       }
                     </p>
-                    <p className="text-xs mt-0.5">Please stay on the exam page to avoid penalties</p>
+                    <p className="text-xs mt-0.5">Stay on this page. Any violation will be recorded and may auto-submit your exam.</p>
                   </div>
                 </div>
               )}
