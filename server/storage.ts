@@ -3768,7 +3768,7 @@ export class DatabaseStorage implements IStorage {
               .map(a => a.subjectId);
           } else {
             // Fallback to class-level subjects
-            subjectIds = classSubjects.map(s => s.id);
+            subjectIds = classSubjects.map((s: { id: number }) => s.id);
           }
 
           // Get the actual subject objects for the IDs - only include active subjects
@@ -4366,7 +4366,7 @@ export class DatabaseStorage implements IStorage {
         
         if (studentSubjectAssignments.length > 0) {
           // Use student's personal subject assignments - respects department selection
-          const studentSubjectIds = studentSubjectAssignments.map(a => a.subjectId);
+          const studentSubjectIds = studentSubjectAssignments.map((a: { subjectId: number }) => a.subjectId);
           relevantSubjects = await db.select()
             .from(schema.subjects)
             .where(and(
@@ -4383,7 +4383,7 @@ export class DatabaseStorage implements IStorage {
               eq(schema.teacherClassAssignments.isActive, true)
             ));
           
-          const assignedSubjectIds = new Set(classSubjectAssignments.map(a => a.subjectId));
+          const assignedSubjectIds = new Set(classSubjectAssignments.map((a: { subjectId: number }) => a.subjectId));
           const hasClassAssignedSubjects = assignedSubjectIds.size > 0;
           
           // Get all active subjects
