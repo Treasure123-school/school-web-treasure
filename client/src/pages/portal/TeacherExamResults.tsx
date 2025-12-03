@@ -16,7 +16,8 @@ import {
   CheckCircle, 
   XCircle,
   RefreshCw,
-  Loader2
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { format } from 'date-fns';
@@ -24,6 +25,16 @@ import { useAuth } from '@/lib/auth';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Class, ExamResult, Exam, Subject } from '@shared/schema';
 
 interface EnrichedExamResult extends ExamResult {
@@ -46,6 +57,13 @@ export default function TeacherExamResults() {
   const examId = params?.examId ? parseInt(params.examId) : null;
   const [editingScores, setEditingScores] = useState<Map<number, EditableScore>>(new Map());
   const [syncingResults, setSyncingResults] = useState<Set<number>>(new Set());
+  const [allowingRetake, setAllowingRetake] = useState<Set<number>>(new Set());
+  const [retakeConfirmDialog, setRetakeConfirmDialog] = useState<{
+    isOpen: boolean;
+    studentId: string;
+    studentName: string;
+    resultId: number;
+  } | null>(null);
 
   if (!user) {
     return <div>Loading...</div>;
@@ -152,6 +170,43 @@ export default function TeacherExamResults() {
     },
   });
 
+  const allowRetakeMutation = useMutation({
+    mutationFn: async ({ studentId }: { studentId: string; resultId: number }) => {
+      const response = await apiRequest('POST', `/api/teacher/exams/${examId}/allow-retake/${studentId}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to allow retake');
+      }
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "Retake Allowed",
+        description: "The student can now retake this exam. Their previous submission has been archived.",
+      });
+      setAllowingRetake((prev) => {
+        const next = new Set(prev);
+        next.delete(variables.resultId);
+        return next;
+      });
+      setRetakeConfirmDialog(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-results/exam', examId] });
+    },
+    onError: (error: Error, variables) => {
+      toast({
+        title: "Failed to Allow Retake",
+        description: error.message,
+        variant: "destructive",
+      });
+      setAllowingRetake((prev) => {
+        const next = new Set(prev);
+        next.delete(variables.resultId);
+        return next;
+      });
+      setRetakeConfirmDialog(null);
+    },
+  });
+
   const subject = subjects.find((s) => s.id === currentExam?.subjectId);
   const examClass = classes.find((c) => c.id === currentExam?.classId);
 
@@ -216,6 +271,25 @@ export default function TeacherExamResults() {
 
   const handleSyncToReportCard = (resultId: number) => {
     syncToReportCardMutation.mutate({ resultId });
+  };
+
+  const handleAllowRetakeClick = (result: EnrichedExamResult) => {
+    setRetakeConfirmDialog({
+      isOpen: true,
+      studentId: result.studentId,
+      studentName: result.studentName || 'Unknown Student',
+      resultId: result.id,
+    });
+  };
+
+  const handleConfirmRetake = () => {
+    if (retakeConfirmDialog) {
+      setAllowingRetake((prev) => new Set(prev).add(retakeConfirmDialog.resultId));
+      allowRetakeMutation.mutate({
+        studentId: retakeConfirmDialog.studentId,
+        resultId: retakeConfirmDialog.resultId,
+      });
+    }
   };
 
   const downloadResults = () => {
@@ -456,6 +530,21 @@ export default function TeacherExamResults() {
                             )}
                             Sync to Report
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAllowRetakeClick(result)}
+                            disabled={allowingRetake.has(result.id)}
+                            className="flex-1"
+                            data-testid={`button-retake-mobile-${index}`}
+                          >
+                            {allowingRetake.has(result.id) ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                            )}
+                            Allow Retake
+                          </Button>
                         </div>
                       </div>
                     );
@@ -534,12 +623,27 @@ export default function TeacherExamResults() {
                                   size="sm"
                                   onClick={() => handleSyncToReportCard(result.id)}
                                   disabled={isSyncing}
+                                  title="Sync to Report Card"
                                   data-testid={`button-sync-${index}`}
                                 >
                                   {isSyncing ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
                                     <RefreshCw className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleAllowRetakeClick(result)}
+                                  disabled={allowingRetake.has(result.id)}
+                                  title="Allow Retake"
+                                  data-testid={`button-retake-${index}`}
+                                >
+                                  {allowingRetake.has(result.id) ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-3 w-3" />
                                   )}
                                 </Button>
                               </div>
@@ -554,6 +658,45 @@ export default function TeacherExamResults() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog 
+          open={retakeConfirmDialog?.isOpen ?? false} 
+          onOpenChange={(open) => !open && setRetakeConfirmDialog(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Allow Exam Retake</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to allow <strong>{retakeConfirmDialog?.studentName}</strong> to retake this exam?
+                <br /><br />
+                This will:
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Archive their current submission for your records</li>
+                  <li>Remove their current result from the exam</li>
+                  <li>Allow them to start the exam fresh</li>
+                </ul>
+                <br />
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-retake">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmRetake}
+                data-testid="button-confirm-retake"
+              >
+                {allowRetakeMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  'Allow Retake'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </PortalLayout>
   );

@@ -423,6 +423,25 @@ export const examResults = sqliteTable("exam_results", {
   examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId),
 }));
 
+// Exam submissions archive table - For audit trail when students are allowed to retake exams
+export const examSubmissionsArchive = sqliteTable("exam_submissions_archive", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  examId: integer("exam_id").notNull().references(() => exams.id),
+  studentId: text("student_id").notNull().references(() => students.id, { onDelete: 'cascade' }),
+  originalSessionId: integer("original_session_id"),
+  originalResultId: integer("original_result_id"),
+  oldScore: integer("old_score"),
+  oldMaxScore: integer("old_max_score"),
+  oldAnswers: text("old_answers"), // JSON string of archived answers
+  archivedBy: text("archived_by").notNull().references(() => users.id),
+  archiveReason: text("archive_reason").notNull().default('retake_allowed'),
+  archivedAt: integer("archived_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  examSubmissionsArchiveExamIdx: index("exam_submissions_archive_exam_idx").on(table.examId),
+  examSubmissionsArchiveStudentIdx: index("exam_submissions_archive_student_idx").on(table.studentId),
+  examSubmissionsArchiveExamStudentIdx: index("exam_submissions_archive_exam_student_idx").on(table.examId, table.studentId),
+}));
+
 // Question Bank tables
 export const questionBanks = sqliteTable("question_banks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -977,6 +996,7 @@ export const insertExamSchema = createInsertSchema(exams).omit({ id: true, creat
   showCorrectAnswers: z.boolean().default(false),
 });
 export const insertExamResultSchema = createInsertSchema(examResults).omit({ id: true, createdAt: true });
+export const insertExamSubmissionsArchiveSchema = createInsertSchema(examSubmissionsArchive).omit({ id: true, archivedAt: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 export const insertGalleryCategorySchema = createInsertSchema(galleryCategories).omit({ id: true, createdAt: true });
@@ -1184,6 +1204,7 @@ export type AcademicTerm = typeof academicTerms.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
 export type Exam = typeof exams.$inferSelect;
 export type ExamResult = typeof examResults.$inferSelect;
+export type ExamSubmissionsArchive = typeof examSubmissionsArchive.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type GalleryCategory = typeof galleryCategories.$inferSelect;
@@ -1239,6 +1260,7 @@ export type InsertAcademicTerm = z.infer<typeof insertAcademicTermSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertExam = z.infer<typeof insertExamSchema>;
 export type InsertExamResult = z.infer<typeof insertExamResultSchema>;
+export type InsertExamSubmissionsArchive = z.infer<typeof insertExamSubmissionsArchiveSchema>;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;

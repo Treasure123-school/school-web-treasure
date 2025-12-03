@@ -1782,6 +1782,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Allow student to retake an exam - TEACHERS AND ADMINS
+  // This archives the previous submission and removes session/result data so student can retake
+  app.post('/api/teacher/exams/:examId/allow-retake/:studentId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const studentId = req.params.studentId;
+      const teacherId = req.user!.id;
+
+      if (isNaN(examId) || examId <= 0) {
+        return res.status(400).json({ message: 'Invalid exam ID' });
+      }
+
+      if (!studentId) {
+        return res.status(400).json({ message: 'Student ID is required' });
+      }
+
+      // Get the exam
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      // Verify the student exists
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      // For teachers, verify ownership of the exam
+      if (req.user!.roleId === ROLES.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t: any) => t.id === teacherId) || false;
+          } catch (e) {
+            // Silent fail
+          }
+        }
+
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: 'You can only allow retakes for exams you created, are assigned to, or teach' });
+        }
+      }
+
+      // Call the storage method to allow retake
+      const result = await storage.allowExamRetake(examId, studentId, teacherId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      // Emit realtime events to notify the student
+      realtimeService.emitToUser(studentId, 'exam.retake.allowed', {
+        examId,
+        examTitle: exam.title,
+        message: 'You have been allowed to retake this exam'
+      });
+
+      // Log the action
+      await storage.createAuditLog({
+        userId: teacherId,
+        action: 'ALLOW_EXAM_RETAKE',
+        resourceType: 'exam',
+        resourceId: examId.toString(),
+        details: JSON.stringify({
+          examId,
+          studentId,
+          examTitle: exam.title,
+          archivedSubmissionId: result.archivedSubmissionId
+        })
+      });
+
+      res.json({ 
+        success: true,
+        message: result.message,
+        archivedSubmissionId: result.archivedSubmissionId
+      });
+    } catch (error: any) {
+      console.error('[EXAM-RETAKE] Error allowing exam retake:', error?.message);
+      res.status(500).json({ message: 'Failed to allow exam retake' });
+    }
+  });
+
   // Update exam - TEACHERS ONLY (creator or teacher in charge) with assignment validation
   app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {

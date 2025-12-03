@@ -226,6 +226,10 @@ export interface IStorage {
   getActiveExamSessions(): Promise<ExamSession[]>; // For background cleanup service
   getExpiredExamSessions(now: Date, limit?: number): Promise<ExamSession[]>; // Optimized cleanup query
   createOrGetActiveExamSession(examId: number, studentId: string, sessionData: InsertExamSession): Promise<ExamSession & { wasCreated?: boolean }>; // Idempotent session creation
+  
+  // Exam retake management
+  allowExamRetake(examId: number, studentId: string, archivedBy: string): Promise<{ success: boolean; message: string; archivedSubmissionId?: number }>;
+  getExamResultById(id: number): Promise<ExamResult | undefined>;
 
   // Student answers management
   createStudentAnswer(answer: InsertStudentAnswer): Promise<StudentAnswer>;
@@ -3157,6 +3161,95 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       throw error;
     }
+  }
+
+  // Exam retake management - allows teacher to reset student exam for retake
+  // Uses a transaction to ensure atomic operation - either all changes succeed or all roll back
+  async allowExamRetake(examId: number, studentId: string, archivedBy: string): Promise<{ success: boolean; message: string; archivedSubmissionId?: number }> {
+    try {
+      console.log(`[allowExamRetake] Starting retake process for exam ${examId}, student ${studentId}`);
+      
+      // 1. Get the existing exam result (outside transaction for validation)
+      const existingResult = await this.getExamResultByExamAndStudent(examId, studentId);
+      if (!existingResult) {
+        return { success: false, message: 'No exam submission found for this student' };
+      }
+
+      // 2. Get all exam sessions for this student and exam
+      const sessions = await db.select()
+        .from(schema.examSessions)
+        .where(and(
+          eq(schema.examSessions.examId, examId),
+          eq(schema.examSessions.studentId, studentId)
+        ));
+
+      // 3. Get the student answers from all sessions
+      let studentAnswers: any[] = [];
+      for (const session of sessions) {
+        const answers = await this.getStudentAnswers(session.id);
+        studentAnswers = [...studentAnswers, ...answers];
+      }
+
+      // 4. Execute archive and cleanup in a transaction for atomicity
+      const result = await db.transaction(async (tx: any) => {
+        // Archive the submission in exam_submissions_archive table
+        const archivedSubmission = await tx.insert(schema.examSubmissionsArchive).values({
+          examId,
+          studentId,
+          originalResultId: existingResult.id,
+          originalSessionId: sessions[0]?.id || null,
+          score: existingResult.score || existingResult.marksObtained || 0,
+          maxScore: existingResult.maxScore || 100,
+          grade: existingResult.grade || null,
+          remarks: existingResult.remarks || null,
+          answersSnapshot: JSON.stringify(studentAnswers),
+          archivedBy,
+          archiveReason: 'Teacher allowed retake',
+          archivedAt: new Date(),
+        }).returning();
+
+        console.log(`[allowExamRetake] Archived submission ID: ${archivedSubmission[0]?.id}`);
+
+        // Delete student answers for all sessions
+        for (const session of sessions) {
+          await tx.delete(schema.studentAnswers)
+            .where(eq(schema.studentAnswers.sessionId, session.id));
+          console.log(`[allowExamRetake] Deleted answers for session ${session.id}`);
+        }
+
+        // Delete all exam sessions
+        await tx.delete(schema.examSessions)
+          .where(and(
+            eq(schema.examSessions.examId, examId),
+            eq(schema.examSessions.studentId, studentId)
+          ));
+        console.log(`[allowExamRetake] Deleted ${sessions.length} sessions`);
+
+        // Delete the exam result
+        await tx.delete(schema.examResults)
+          .where(eq(schema.examResults.id, existingResult.id));
+        console.log(`[allowExamRetake] Deleted exam result ${existingResult.id}`);
+
+        return { archivedSubmissionId: archivedSubmission[0]?.id };
+      });
+
+      return {
+        success: true,
+        message: 'Student can now retake the exam. Previous submission has been archived.',
+        archivedSubmissionId: result.archivedSubmissionId
+      };
+
+    } catch (error: any) {
+      console.error('[allowExamRetake] Error (transaction rolled back):', error);
+      return { success: false, message: `Failed to allow retake: ${error.message}` };
+    }
+  }
+
+  async getExamResultById(id: number): Promise<ExamResult | undefined> {
+    const result = await db.select().from(schema.examResults)
+      .where(eq(schema.examResults.id, id))
+      .limit(1);
+    return result[0];
   }
 
   // Enhanced session management for students

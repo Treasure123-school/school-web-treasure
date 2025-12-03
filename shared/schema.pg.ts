@@ -417,6 +417,27 @@ export const examResults = pgTable("exam_results", {
   examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId),
 }));
 
+// Exam submissions archive table - stores archived exam submissions when retakes are allowed
+export const examSubmissionsArchive = pgTable("exam_submissions_archive", {
+  id: serial("id").primaryKey(),
+  examId: integer("exam_id").notNull().references(() => exams.id),
+  studentId: varchar("student_id", { length: 36 }).notNull().references(() => students.id, { onDelete: 'cascade' }),
+  originalResultId: integer("original_result_id"),
+  originalSessionId: integer("original_session_id"),
+  score: integer("score").notNull(),
+  maxScore: integer("max_score").notNull(),
+  grade: varchar("grade", { length: 10 }),
+  remarks: text("remarks"),
+  answersSnapshot: text("answers_snapshot"),
+  archivedBy: varchar("archived_by", { length: 36 }).notNull().references(() => users.id),
+  archiveReason: text("archive_reason"),
+  archivedAt: timestamp("archived_at").notNull().defaultNow(),
+}, (table) => ({
+  examSubmissionsArchiveExamIdx: index("exam_submissions_archive_exam_idx").on(table.examId),
+  examSubmissionsArchiveStudentIdx: index("exam_submissions_archive_student_idx").on(table.studentId),
+  examSubmissionsArchiveExamStudentIdx: index("exam_submissions_archive_exam_student_idx").on(table.examId, table.studentId),
+}));
+
 // Question Bank tables
 export const questionBanks = pgTable("question_banks", {
   id: serial("id").primaryKey(),
@@ -954,6 +975,8 @@ export type StudentAnswer = typeof studentAnswers.$inferSelect;
 export type InsertStudentAnswer = typeof studentAnswers.$inferInsert;
 export type ExamResult = typeof examResults.$inferSelect;
 export type InsertExamResult = typeof examResults.$inferInsert;
+export type ExamSubmissionsArchive = typeof examSubmissionsArchive.$inferSelect;
+export type InsertExamSubmissionsArchive = typeof examSubmissionsArchive.$inferInsert;
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = typeof announcements.$inferInsert;
 export type Message = typeof messages.$inferSelect;
