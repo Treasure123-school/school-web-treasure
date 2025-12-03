@@ -440,11 +440,16 @@ export default function TeacherDashboard() {
       {/* Recent Exam Results - New Section */}
       {recentExams.length > 0 && (
         <Card className="mt-6 shadow-sm border border-border" data-testid="card-recent-exam-results">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center space-x-2">
               <TrendingUp className="h-5 w-5" />
               <span>Recent Exam Results</span>
             </CardTitle>
+            <Button variant="outline" size="sm" asChild data-testid="button-see-all-exams">
+              <Link href="/portal/teacher/recent-exam-results">
+                See All
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

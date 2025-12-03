@@ -73,6 +73,7 @@ import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerificatio
 import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
 import CreateExam from "@/pages/portal/CreateExam";
 import TeacherReportCards from "@/pages/portal/TeacherReportCards";
+import TeacherRecentExamResults from "@/pages/portal/TeacherRecentExamResults";
 import PortalComingSoon from "@/pages/portal/PortalComingSoon";
 import StudentSubjectAssignment from "@/pages/portal/StudentSubjectAssignment";
 import TeacherAssignmentManagement from "@/pages/portal/TeacherAssignmentManagement";
@@ -637,6 +638,11 @@ function Router() {
       <Route path="/portal/teacher/report-cards">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherReportCards />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/teacher/recent-exam-results">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherRecentExamResults />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin/exams">

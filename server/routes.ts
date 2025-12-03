@@ -1621,6 +1621,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update exam result - TEACHERS ONLY (update test score, remarks)
+  app.patch('/api/teacher/exam-results/:resultId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const resultId = parseInt(req.params.resultId);
+      const teacherId = req.user!.id;
+
+      if (isNaN(resultId) || resultId <= 0) {
+        return res.status(400).json({ message: 'Invalid result ID' });
+      }
+
+      // Zod schema validation for input
+      const updateExamResultSchema = z.object({
+        testScore: z.number().min(0).nullable().optional(),
+        remarks: z.string().max(500).optional()
+      });
+
+      const parseResult = updateExamResultSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: 'Invalid input', 
+          errors: parseResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const { testScore, remarks } = parseResult.data;
+
+      // Get the exam result to verify it exists
+      const result = await storage.getExamResultById(resultId);
+      if (!result) {
+        return res.status(404).json({ message: 'Exam result not found' });
+      }
+
+      // Get the exam to verify teacher ownership
+      const exam = await storage.getExamById(result.examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      // Validate testScore is within bounds of exam.totalMarks
+      if (testScore !== undefined && testScore !== null) {
+        const maxScore = result.maxScore || exam.totalMarks || 100;
+        if (testScore > maxScore) {
+          return res.status(400).json({ 
+            message: `Test score cannot exceed maximum score of ${maxScore}` 
+          });
+        }
+      }
+
+      // For teachers, verify ownership of the exam
+      if (req.user!.roleId === ROLES.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t: any) => t.id === teacherId) || false;
+          } catch (e) {
+            // Silent fail - if we can't check, we fall back to other ownership checks
+          }
+        }
+
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: 'You can only update results for exams you created, are assigned to, or teach' });
+        }
+      }
+
+      // Update the exam result
+      const updateData: any = {};
+      if (testScore !== undefined) {
+        updateData.score = testScore;
+      }
+      if (remarks !== undefined) {
+        updateData.remarks = remarks;
+      }
+
+      const updatedResult = await storage.updateExamResult(resultId, updateData);
+      
+      // Emit realtime event
+      realtimeService.emitTableChange('exam_results', 'UPDATE', updatedResult, result, teacherId);
+
+      res.json(updatedResult);
+    } catch (error: any) {
+      console.error('[EXAM-RESULTS] Error updating exam result:', error?.message);
+      res.status(500).json({ message: 'Failed to update exam result' });
+    }
+  });
+
+  // Sync exam result to report card - TEACHERS ONLY
+  app.post('/api/teacher/exam-results/:resultId/sync-reportcard', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    try {
+      const resultId = parseInt(req.params.resultId);
+      const teacherId = req.user!.id;
+
+      if (isNaN(resultId) || resultId <= 0) {
+        return res.status(400).json({ message: 'Invalid result ID' });
+      }
+
+      // Get the exam result
+      const result = await storage.getExamResultById(resultId);
+      if (!result) {
+        return res.status(404).json({ message: 'Exam result not found' });
+      }
+
+      // Get the exam
+      const exam = await storage.getExamById(result.examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      // For teachers, verify ownership
+      if (req.user!.roleId === ROLES.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t: any) => t.id === teacherId) || false;
+          } catch (e) {
+            // Silent fail
+          }
+        }
+
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: 'You can only sync results for exams you created, are assigned to, or teach' });
+        }
+      }
+
+      // Use the existing syncExamScoreToReportCard method
+      const syncResult = await storage.syncExamScoreToReportCard(
+        result.studentId,
+        result.examId,
+        result.score || 0,
+        result.maxScore || exam.totalMarks || 100
+      );
+
+      if (!syncResult.success) {
+        return res.status(400).json({ message: syncResult.message });
+      }
+
+      // Emit realtime event
+      if (syncResult.reportCardId) {
+        realtimeService.emitTableChange('report_cards', 'UPDATE', { id: syncResult.reportCardId }, undefined, teacherId);
+      }
+
+      res.json({ 
+        message: syncResult.message,
+        reportCardId: syncResult.reportCardId,
+        isNewReportCard: syncResult.isNewReportCard
+      });
+    } catch (error: any) {
+      console.error('[EXAM-RESULTS] Error syncing to report card:', error?.message);
+      res.status(500).json({ message: 'Failed to sync to report card' });
+    }
+  });
+
   // Update exam - TEACHERS ONLY (creator or teacher in charge) with assignment validation
   app.patch('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {

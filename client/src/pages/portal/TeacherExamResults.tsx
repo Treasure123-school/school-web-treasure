@@ -1,20 +1,48 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute } from 'wouter';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Download, Users, TrendingUp, Award, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Download, 
+  Users, 
+  TrendingUp, 
+  Award, 
+  FileText, 
+  CheckCircle, 
+  XCircle,
+  Save,
+  RefreshCw,
+  Loader2,
+  Eye
+} from 'lucide-react';
 import { Link } from 'wouter';
 import { format } from 'date-fns';
 import { useAuth } from '@/lib/auth';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import type { Class, ExamResult, Exam, Subject, User } from '@shared/schema';
+
+interface EditableScore {
+  resultId: number;
+  testScore: number | null;
+  remarks: string;
+}
 
 export default function TeacherExamResults() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [, params] = useRoute('/portal/teacher/results/exam/:examId');
   const examId = params?.examId ? parseInt(params.examId) : null;
+  const [editingScores, setEditingScores] = useState<Map<number, EditableScore>>(new Map());
+  const [syncingResults, setSyncingResults] = useState<Set<number>>(new Set());
 
   if (!user) {
     return <div>Loading...</div>;
@@ -23,38 +51,111 @@ export default function TeacherExamResults() {
   const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
   const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
-  // Fetch exam details
   const { data: exams = [] } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
   });
 
   const currentExam = exams.find((e) => e.id === examId);
 
-  // Fetch exam results for this exam
-  const { data: examResults = [], isLoading } = useQuery<ExamResult[]>({
-    queryKey: [`/api/exam-results/exam/${examId}`],
+  const { data: examResults = [], isLoading, refetch } = useQuery<ExamResult[]>({
+    queryKey: ['/api/exam-results/exam', examId],
     enabled: !!examId,
   });
 
-  // Fetch all users to get student details
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
 
-  // Fetch subjects for subject names
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['/api/subjects'],
   });
 
-  // Fetch classes for class names
   const { data: classes = [] } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
+  });
+
+  useSocketIORealtime({
+    table: 'exam_results',
+    queryKey: ['/api/exam-results/exam', examId ?? 0],
+    enabled: !!examId,
+    onEvent: (event) => {
+      console.log('[Exam Results] Result update received', event.eventType);
+      refetch();
+    }
+  });
+
+  const updateScoreMutation = useMutation({
+    mutationFn: async ({ resultId, testScore, remarks }: { resultId: number; testScore: number | null; remarks?: string }) => {
+      const response = await apiRequest('PATCH', `/api/teacher/exam-results/${resultId}`, {
+        testScore,
+        remarks
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update score');
+      }
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "Score Updated",
+        description: "Test score has been saved successfully.",
+      });
+      setEditingScores((prev) => {
+        const next = new Map(prev);
+        next.delete(variables.resultId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-results/exam', examId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const syncToReportCardMutation = useMutation({
+    mutationFn: async ({ resultId }: { resultId: number }) => {
+      setSyncingResults((prev) => new Set(prev).add(resultId));
+      const response = await apiRequest('POST', `/api/teacher/exam-results/${resultId}/sync-reportcard`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to sync to report card');
+      }
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "Synced to Report Card",
+        description: "Result has been synced to the student's report card.",
+      });
+      setSyncingResults((prev) => {
+        const next = new Set(prev);
+        next.delete(variables.resultId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-results/exam', examId] });
+    },
+    onError: (error: Error, variables) => {
+      toast({
+        title: "Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setSyncingResults((prev) => {
+        const next = new Set(prev);
+        next.delete(variables.resultId);
+        return next;
+      });
+    },
   });
 
   const subject = subjects.find((s) => s.id === currentExam?.subjectId);
   const examClass = classes.find((c) => c.id === currentExam?.classId);
 
-  // Calculate statistics
   const totalSubmissions = examResults.length;
   const averageScore = totalSubmissions > 0
     ? examResults.reduce((sum: number, r) => sum + (r.score ?? 0), 0) / totalSubmissions
@@ -82,7 +183,6 @@ export default function TeacherExamResults() {
 
   const failCount = totalSubmissions - passCount;
 
-  // Sort results by score (highest first)
   const sortedResults = [...examResults].sort((a, b) => (b.score || 0) - (a.score || 0));
 
   const getGrade = (percentage: number) => {
@@ -94,11 +194,36 @@ export default function TeacherExamResults() {
     return { grade: 'F', color: 'text-red-500' };
   };
 
+  const handleTestScoreChange = (resultId: number, value: string) => {
+    const numValue = value === '' ? null : parseInt(value, 10);
+    setEditingScores((prev) => {
+      const next = new Map(prev);
+      const existing = prev.get(resultId) || { resultId, testScore: null, remarks: '' };
+      next.set(resultId, { ...existing, testScore: isNaN(numValue as number) ? null : numValue });
+      return next;
+    });
+  };
+
+  const handleSaveTestScore = (resultId: number) => {
+    const editData = editingScores.get(resultId);
+    if (editData) {
+      updateScoreMutation.mutate({
+        resultId,
+        testScore: editData.testScore,
+        remarks: editData.remarks
+      });
+    }
+  };
+
+  const handleSyncToReportCard = (resultId: number) => {
+    syncToReportCardMutation.mutate({ resultId });
+  };
+
   const downloadResults = () => {
     if (!currentExam || examResults.length === 0) return;
 
     const csvContent = [
-      ['Student Name', 'Student ID', 'Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
+      ['Student Name', 'Student ID', 'Exam Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
       ...sortedResults.map((result) => {
         const student = users.find((u) => u.id === result.studentId);
         const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
@@ -141,11 +266,10 @@ export default function TeacherExamResults() {
   return (
     <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
       <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
-        {/* Header - Mobile Responsive */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Button variant="outline" size="sm" asChild data-testid="button-back" className="w-fit">
-              <Link href="/portal/teacher">
+              <Link href="/portal/teacher/recent-exam-results">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>
@@ -153,7 +277,7 @@ export default function TeacherExamResults() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-exam-title">{currentExam.name}</h1>
               <p className="text-xs sm:text-sm text-muted-foreground" data-testid="text-exam-info">
-                {subject?.name || 'Subject'} • {examClass?.name || 'Class'} • {currentExam.date ? format(new Date(currentExam.date), 'PPP') : 'N/A'}
+                {subject?.name || 'Subject'} • {examClass?.name || 'Class'} • {currentExam.date ? format(new Date(currentExam.date), 'MMMM do, yyyy') : 'N/A'}
               </p>
             </div>
           </div>
@@ -163,7 +287,6 @@ export default function TeacherExamResults() {
           </Button>
         </div>
 
-        {/* Statistics Cards - Mobile Responsive */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card data-testid="card-total-submissions">
             <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
@@ -237,7 +360,6 @@ export default function TeacherExamResults() {
           </Card>
         </div>
 
-        {/* Results Table - Mobile Responsive */}
         <Card>
           <CardHeader className="p-3 sm:p-4 md:p-6">
             <CardTitle className="text-base sm:text-lg">Student Results</CardTitle>
@@ -254,13 +376,14 @@ export default function TeacherExamResults() {
               </div>
             ) : (
               <>
-                {/* Mobile Card View */}
                 <div className="block sm:hidden space-y-3">
                   {sortedResults.map((result, index) => {
                     const student = users.find((u) => u.id === result.studentId);
                     const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
                     const { grade, color } = getGrade(percentage);
                     const isPassed = percentage >= 50;
+                    const editData = editingScores.get(result.id);
+                    const isSyncing = syncingResults.has(result.id);
 
                     return (
                       <div 
@@ -285,7 +408,7 @@ export default function TeacherExamResults() {
                             )}
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="grid grid-cols-3 gap-2 text-xs mb-3">
                           <div>
                             <span className="text-muted-foreground">Score</span>
                             <p className="font-medium" data-testid={`text-score-mobile-${index}`}>
@@ -305,12 +428,28 @@ export default function TeacherExamResults() {
                             </p>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2 pt-2 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSyncToReportCard(result.id)}
+                            disabled={isSyncing}
+                            className="flex-1"
+                            data-testid={`button-sync-mobile-${index}`}
+                          >
+                            {isSyncing ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                            )}
+                            Sync to Report
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Desktop Table View */}
                 <div className="hidden sm:block overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -318,11 +457,12 @@ export default function TeacherExamResults() {
                         <TableHead className="text-xs">Rank</TableHead>
                         <TableHead className="text-xs">Student Name</TableHead>
                         <TableHead className="text-xs hidden md:table-cell">Student ID</TableHead>
-                        <TableHead className="text-xs">Score</TableHead>
+                        <TableHead className="text-xs">Exam Score</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Percentage</TableHead>
                         <TableHead className="text-xs">Grade</TableHead>
                         <TableHead className="text-xs">Status</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Submitted At</TableHead>
+                        <TableHead className="text-xs">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -331,6 +471,8 @@ export default function TeacherExamResults() {
                         const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
                         const { grade, color } = getGrade(percentage);
                         const isPassed = percentage >= 50;
+                        const editData = editingScores.get(result.id);
+                        const isSyncing = syncingResults.has(result.id);
 
                         return (
                           <TableRow key={result.id} data-testid={`row-result-${index}`}>
@@ -370,6 +512,23 @@ export default function TeacherExamResults() {
                             </TableCell>
                             <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-submitted-at-${index}`}>
                               {result.createdAt ? format(new Date(result.createdAt), 'PPp') : 'N/A'}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSyncToReportCard(result.id)}
+                                  disabled={isSyncing}
+                                  data-testid={`button-sync-${index}`}
+                                >
+                                  {isSyncing ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
