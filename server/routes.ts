@@ -1398,9 +1398,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete exam - TEACHERS ONLY (only creator can delete) or ADMIN/SUPER_ADMIN
+  // Implements comprehensive smart deletion with cascade, audit logging, and cleanup
   app.delete('/api/exams/:id', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
+    const startTime = Date.now();
     try {
       const examId = parseInt(req.params.id);
+      const deletedBy = req.user!;
       
       const existingExam = await storage.getExamById(examId);
       if (!existingExam) {
@@ -1408,25 +1411,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Admins and Super Admins can delete any exam, teachers can only delete their own
-      const isAdmin = req.user!.roleId === ROLES.ADMIN || req.user!.roleId === ROLES.SUPER_ADMIN;
-      if (!isAdmin && existingExam.createdBy !== req.user!.id) {
+      const isAdmin = deletedBy.roleId === ROLES.ADMIN || deletedBy.roleId === ROLES.SUPER_ADMIN;
+      if (!isAdmin && existingExam.createdBy !== deletedBy.id) {
         return res.status(403).json({ message: 'You can only delete exams you created' });
       }
-      const success = await storage.deleteExam(examId);
+
+      // Get additional context for audit log
+      const examClass = await storage.getClass(existingExam.classId);
+      const examSubject = await storage.getSubject(existingExam.subjectId);
       
-      if (!success) {
+      // Perform comprehensive smart deletion
+      const deletionResult = await storage.deleteExam(examId);
+      
+      if (!deletionResult.success) {
         return res.status(500).json({ message: 'Failed to delete exam' });
       }
-      
-      // Emit realtime event for exam deletion
-      realtimeService.emitTableChange('exams', 'DELETE', { id: examId }, existingExam, req.user!.id);
-      if (existingExam.classId) {
-        realtimeService.emitToClass(existingExam.classId.toString(), 'exam.deleted', existingExam);
+
+      const duration = Date.now() - startTime;
+
+      // Create audit log for accountability
+      try {
+        await storage.createAuditLog({
+          userId: deletedBy.id,
+          action: 'exam_deleted',
+          entityType: 'exam',
+          entityId: examId.toString(),
+          oldValue: JSON.stringify({
+            exam: existingExam,
+            className: examClass?.name,
+            subjectName: examSubject?.name
+          }),
+          newValue: JSON.stringify({
+            deletedAt: new Date().toISOString(),
+            deletedCounts: deletionResult.deletedCounts,
+            duration: `${duration}ms`
+          }),
+          reason: `Exam "${existingExam.name}" permanently deleted by ${deletedBy.email || deletedBy.username}. Cascade deleted: ${deletionResult.deletedCounts.questions} questions, ${deletionResult.deletedCounts.questionOptions} options, ${deletionResult.deletedCounts.sessions} sessions, ${deletionResult.deletedCounts.studentAnswers} student answers, ${deletionResult.deletedCounts.results} results. ${deletionResult.deletedCounts.filesDeleted} files removed from storage. ${deletionResult.deletedCounts.reportCardRefsCleared} report card references cleared.`,
+          ipAddress: req.ip || req.headers['x-forwarded-for']?.toString(),
+          userAgent: req.headers['user-agent']
+        });
+      } catch (auditError) {
+        console.error('[SmartDeletion] Error creating audit log:', auditError);
+        // Don't fail the deletion if audit logging fails
       }
       
-      res.status(204).send();
+      // Emit realtime events for cache invalidation and UI updates
+      realtimeService.emitTableChange('exams', 'DELETE', { id: examId }, existingExam, deletedBy.id);
+      if (existingExam.classId) {
+        realtimeService.emitToClass(existingExam.classId.toString(), 'exam.deleted', {
+          ...existingExam,
+          deletedCounts: deletionResult.deletedCounts
+        });
+      }
+
+      // Also emit to teachers and admins for subject-specific views
+      if (existingExam.subjectId) {
+        realtimeService.emitToRole('teacher', 'subject.exam.deleted', {
+          subjectId: existingExam.subjectId,
+          examId: examId,
+          examName: existingExam.name
+        });
+        realtimeService.emitToRole('admin', 'subject.exam.deleted', {
+          subjectId: existingExam.subjectId,
+          examId: examId,
+          examName: existingExam.name
+        });
+      }
+
+      console.log(`[SmartDeletion] Exam ${examId} "${existingExam.name}" deleted in ${duration}ms by ${deletedBy.email || deletedBy.username}`);
+      
+      res.status(200).json({ 
+        message: 'Exam deleted successfully',
+        deletedCounts: deletionResult.deletedCounts,
+        duration: `${duration}ms`
+      });
     } catch (error: any) {
-      console.error('Error deleting exam:', error);
+      console.error('[SmartDeletion] Error deleting exam:', error);
       res.status(500).json({ message: error?.message || 'Failed to delete exam' });
     }
   });

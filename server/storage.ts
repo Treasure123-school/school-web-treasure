@@ -158,7 +158,20 @@ export interface IStorage {
   getExamsByClass(classId: number): Promise<Exam[]>;
   getExamsByClassAndTerm(classId: number, termId: number): Promise<Exam[]>;
   updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined>;
-  deleteExam(id: number): Promise<boolean>;
+  deleteExam(id: number): Promise<{
+    success: boolean;
+    deletedCounts: {
+      questions: number;
+      questionOptions: number;
+      sessions: number;
+      studentAnswers: number;
+      results: number;
+      gradingTasks: number;
+      performanceEvents: number;
+      filesDeleted: number;
+      reportCardRefsCleared: number;
+    };
+  }>;
   recordExamResult(result: InsertExamResult): Promise<ExamResult>;
   updateExamResult(id: number, result: Partial<InsertExamResult>): Promise<ExamResult | undefined>;
   getExamResultsByStudent(studentId: string): Promise<ExamResult[]>;
@@ -1939,8 +1952,35 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-  async deleteExam(id: number): Promise<boolean> {
+  async deleteExam(id: number): Promise<{
+    success: boolean;
+    deletedCounts: {
+      questions: number;
+      questionOptions: number;
+      sessions: number;
+      studentAnswers: number;
+      results: number;
+      gradingTasks: number;
+      performanceEvents: number;
+      filesDeleted: number;
+      reportCardRefsCleared: number;
+    };
+  }> {
+    const deletedCounts = {
+      questions: 0,
+      questionOptions: 0,
+      sessions: 0,
+      studentAnswers: 0,
+      results: 0,
+      gradingTasks: 0,
+      performanceEvents: 0,
+      filesDeleted: 0,
+      reportCardRefsCleared: 0
+    };
+
     try {
+      console.log(`[SmartDeletion] Starting comprehensive exam deletion for exam ID: ${id}`);
+
       // First get all question IDs and image URLs for this exam
       const examQuestions = await db.select({ 
         id: schema.examQuestions.id,
@@ -1950,20 +1990,22 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.examQuestions.examId, id));
       
       const questionIds = examQuestions.map((q: { id: number }) => q.id);
+      deletedCounts.questions = questionIds.length;
 
       // Delete question images from Cloudinary/local storage
       for (const question of examQuestions) {
         if (question.imageUrl) {
           try {
-            await deleteFile(question.imageUrl);
+            const deleted = await deleteFile(question.imageUrl);
+            if (deleted) deletedCounts.filesDeleted++;
           } catch (fileError) {
-            console.error(`Error deleting question image for question ${question.id}:`, fileError);
-            // Continue with deletion even if file deletion fails
+            console.error(`[SmartDeletion] Error deleting question image for question ${question.id}:`, fileError);
           }
         }
       }
 
       // Get all question option images for these questions
+      let optionCount = 0;
       if (questionIds.length > 0) {
         try {
           const questionOptions = await db.select({
@@ -1973,20 +2015,28 @@ export class DatabaseStorage implements IStorage {
             .from(schema.questionOptions)
             .where(inArray(schema.questionOptions.questionId, questionIds));
           
+          optionCount = questionOptions.length;
+          
           // Delete question option images from Cloudinary/local storage
           for (const option of questionOptions) {
             if (option.imageUrl) {
               try {
-                await deleteFile(option.imageUrl);
+                const deleted = await deleteFile(option.imageUrl);
+                if (deleted) deletedCounts.filesDeleted++;
               } catch (fileError) {
-                console.error(`Error deleting option image for option ${option.id}:`, fileError);
+                console.error(`[SmartDeletion] Error deleting option image for option ${option.id}:`, fileError);
               }
             }
           }
         } catch (e) {
-          // imageUrl column might not exist in question_options
+          // imageUrl column might not exist in question_options - get count without imageUrl
+          const optionCountResult = await db.select({ id: schema.questionOptions.id })
+            .from(schema.questionOptions)
+            .where(inArray(schema.questionOptions.questionId, questionIds));
+          optionCount = optionCountResult.length;
         }
       }
+      deletedCounts.questionOptions = optionCount;
 
       // Get all session IDs for this exam (needed for cascading deletes)
       const examSessions = await db.select({ id: schema.examSessions.id })
@@ -1994,26 +2044,35 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.examSessions.examId, id));
       
       const sessionIds = examSessions.map((s: { id: number }) => s.id);
+      deletedCounts.sessions = sessionIds.length;
 
       // Delete in order respecting foreign key constraints
       if (sessionIds.length > 0) {
         // Delete grading tasks for these sessions
-        await db.delete(schema.gradingTasks)
-          .where(inArray(schema.gradingTasks.sessionId, sessionIds));
+        const gradingTasksResult = await db.delete(schema.gradingTasks)
+          .where(inArray(schema.gradingTasks.sessionId, sessionIds))
+          .returning();
+        deletedCounts.gradingTasks = gradingTasksResult.length;
         
         // Delete performance events for these sessions  
-        await db.delete(schema.performanceEvents)
-          .where(inArray(schema.performanceEvents.sessionId, sessionIds));
+        const perfEventsResult = await db.delete(schema.performanceEvents)
+          .where(inArray(schema.performanceEvents.sessionId, sessionIds))
+          .returning();
+        deletedCounts.performanceEvents = perfEventsResult.length;
 
         // Delete student answers by session
-        await db.delete(schema.studentAnswers)
-          .where(inArray(schema.studentAnswers.sessionId, sessionIds));
+        const answersResult = await db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.sessionId, sessionIds))
+          .returning();
+        deletedCounts.studentAnswers = answersResult.length;
       }
 
       if (questionIds.length > 0) {
         // Delete any remaining student answers by question (fallback)
-        await db.delete(schema.studentAnswers)
-          .where(inArray(schema.studentAnswers.questionId, questionIds));
+        const remainingAnswers = await db.delete(schema.studentAnswers)
+          .where(inArray(schema.studentAnswers.questionId, questionIds))
+          .returning();
+        deletedCounts.studentAnswers += remainingAnswers.length;
 
         // Delete question options for all questions in this exam  
         await db.delete(schema.questionOptions)
@@ -2025,8 +2084,10 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Delete exam results
-      await db.delete(schema.examResults)
-        .where(eq(schema.examResults.examId, id));
+      const resultsResult = await db.delete(schema.examResults)
+        .where(eq(schema.examResults.examId, id))
+        .returning();
+      deletedCounts.results = resultsResult.length;
 
       // Delete exam sessions (after their dependent records are gone)
       await db.delete(schema.examSessions)
@@ -2034,22 +2095,33 @@ export class DatabaseStorage implements IStorage {
 
       // Clear exam references from report card items (set to NULL instead of deleting)
       // This preserves historical report card data while removing the exam link
-      await db.update(schema.reportCardItems)
+      const testExamRefs = await db.update(schema.reportCardItems)
         .set({ testExamId: null })
-        .where(eq(schema.reportCardItems.testExamId, id));
+        .where(eq(schema.reportCardItems.testExamId, id))
+        .returning();
       
-      await db.update(schema.reportCardItems)
+      const examExamRefs = await db.update(schema.reportCardItems)
         .set({ examExamId: null })
-        .where(eq(schema.reportCardItems.examExamId, id));
+        .where(eq(schema.reportCardItems.examExamId, id))
+        .returning();
+      
+      deletedCounts.reportCardRefsCleared = testExamRefs.length + examExamRefs.length;
 
       // Finally delete the exam itself
       const result = await db.delete(schema.exams)
         .where(eq(schema.exams.id, id))
         .returning();
 
-      return result.length > 0;
+      const success = result.length > 0;
+
+      console.log(`[SmartDeletion] Exam ${id} deletion complete:`, {
+        success,
+        deletedCounts
+      });
+
+      return { success, deletedCounts };
     } catch (error) {
-      console.error('Error deleting exam:', error);
+      console.error('[SmartDeletion] Error deleting exam:', error);
       throw error;
     }
   }

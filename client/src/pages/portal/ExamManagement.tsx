@@ -445,16 +445,18 @@ export default function ExamManagement() {
   });
 
   // Delete exam mutation with optimistic update - instant deletion
+  // Uses smart deletion system that cascade deletes all related data
   const deleteExamMutation = useMutation({
     mutationFn: async (examId: number) => {
       const response = await apiRequest('DELETE', `/api/exams/${examId}`);
       if (!response.ok) throw new Error('Failed to delete exam');
-      if (response.status === 204) return;
+      // Handle both 204 (legacy) and 200 with deletion stats
+      if (response.status === 204) return null;
       const contentLength = response.headers.get('content-length');
       if (contentLength && parseInt(contentLength) > 0) {
         return response.json();
       }
-      return;
+      return null;
     },
     onMutate: async (examId) => {
       // Mark this deletion as pending to prevent Realtime from overriding
@@ -471,17 +473,33 @@ export default function ExamManagement() {
       
       return context;
     },
-    onSuccess: (_, examId) => {
+    onSuccess: (data, examId) => {
       // Clear pending flag immediately
       pendingDeletionsRef.current.delete(examId);
       
+      // Build detailed success message with deletion stats
+      let description = "Exam deleted successfully";
+      if (data?.deletedCounts) {
+        const { questions, studentAnswers, results, sessions } = data.deletedCounts;
+        const parts = [];
+        if (questions > 0) parts.push(`${questions} questions`);
+        if (studentAnswers > 0) parts.push(`${studentAnswers} student answers`);
+        if (results > 0) parts.push(`${results} results`);
+        if (sessions > 0) parts.push(`${sessions} sessions`);
+        if (parts.length > 0) {
+          description = `Exam and ${parts.join(', ')} permanently deleted`;
+        }
+      }
+      
       toast({
         title: "Success",
-        description: "Exam deleted successfully",
+        description,
       });
       
-      // Invalidate question counts cache since an exam was deleted
+      // Invalidate related caches since exam and its data were deleted
       queryClient.invalidateQueries({ queryKey: ['/api/exams/question-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
     },
     onError: (error: any, examId, context) => {
       // Remove from pending deletions on error
