@@ -300,7 +300,7 @@ export default function Login() {
   const isButtonDisabled = !isFormFilled || !isValid || loginMutation.isPending || isLockedOut;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-md">
           <Card 
@@ -523,7 +523,7 @@ export default function Login() {
           }`}>
             <Link
               href="/"
-              className="text-white/90 hover:text-white text-sm font-medium inline-flex items-center gap-2 transition-colors"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium inline-flex items-center gap-2 transition-colors"
               data-testid="link-back-home"
             >
               <ArrowLeft className="h-4 w-4" />
