@@ -73,6 +73,12 @@ Comprehensive real-time updates are implemented across major features including 
   - **Results only disappear**: When the exam is explicitly DELETED from the system
   - **Rationale**: Students should never see their scores "disappear" unexpectedly after submission. The previous behavior of hiding results when exams were unpublished caused confusion and data loss perception
   - **Future enhancement**: If teachers need to delay score release, a dedicated `hideResults` flag can be added to the exam schema
+  - **getExamResultsByStudent Fix (December 2025)**: The `getExamResultsByStudent` function in `server/storage.ts` was updated to:
+    - Add proper error logging with `console.log` and `console.error` to diagnose issues
+    - Use a simpler, more reliable primary query without complex SQL casts
+    - Add a robust fallback query if the primary query fails
+    - Ensure results are never silently lost due to query errors
+    - This fixes the "No Exam Results Found" issue where students couldn't see their scores after returning to the View Score page
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.

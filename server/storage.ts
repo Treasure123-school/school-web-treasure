@@ -2196,67 +2196,97 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamResultsByStudent(studentId: string): Promise<ExamResult[]> {
+    const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
+    
+    console.log(`[getExamResultsByStudent] Fetching results for student: ${studentId}`);
+    
+    // CRITICAL FIX: Use simple, reliable query without complex SQL that might fail
+    // This mirrors the approach used by getExamResultByExamAndStudent which works correctly
+    // for report cards. We fetch exam_results directly without complex JOINs or casts.
     try {
-
-      const SYSTEM_AUTO_SCORING_UUID = '00000000-0000-0000-0000-000000000001';
-
-      // Try main query first
-      try {
-        const results = await this.db.select({
-          id: schema.examResults.id,
-          examId: schema.examResults.examId,
-          studentId: schema.examResults.studentId,
-          score: schema.examResults.marksObtained,
-          maxScore: schema.exams.totalMarks,
-          marksObtained: schema.examResults.marksObtained,
-          grade: schema.examResults.grade,
-          remarks: schema.examResults.remarks,
-          recordedBy: schema.examResults.recordedBy,
-          createdAt: schema.examResults.createdAt,
-          autoScored: sql<boolean>`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
-        }).from(schema.examResults)
-          .leftJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
-          .where(eq(schema.examResults.studentId, studentId))
-          .orderBy(desc(schema.examResults.createdAt));
-
-        return results;
-      } catch (mainError: any) {
-
-        // Fallback query without autoScored column reference
-        const fallbackResults = await this.db.select({
-          id: schema.examResults.id,
-          examId: schema.examResults.examId,
-          studentId: schema.examResults.studentId,
-          marksObtained: schema.examResults.marksObtained,
-          grade: schema.examResults.grade,
-          remarks: schema.examResults.remarks,
-          recordedBy: schema.examResults.recordedBy,
-          createdAt: schema.examResults.createdAt,
-          score: schema.examResults.marksObtained,
-          maxScore: sql<number>`100`.as('maxScore'), // Default to 100 if join fails
-          autoScored: sql<boolean>`(${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as('autoScored')
-        }).from(schema.examResults)
-          .where(eq(schema.examResults.studentId, studentId))
-          .orderBy(desc(schema.examResults.createdAt));
-
-        // Try to get exam details separately for maxScore
-        for (const result of fallbackResults) {
+      // Primary query: Simple and reliable - directly query exam_results table
+      const results = await this.db.select({
+        id: schema.examResults.id,
+        examId: schema.examResults.examId,
+        studentId: schema.examResults.studentId,
+        score: schema.examResults.score,
+        maxScore: schema.examResults.maxScore,
+        marksObtained: schema.examResults.marksObtained,
+        grade: schema.examResults.grade,
+        remarks: schema.examResults.remarks,
+        autoScored: schema.examResults.autoScored,
+        recordedBy: schema.examResults.recordedBy,
+        createdAt: schema.examResults.createdAt,
+      }).from(schema.examResults)
+        .where(eq(schema.examResults.studentId, studentId))
+        .orderBy(desc(schema.examResults.createdAt));
+      
+      console.log(`[getExamResultsByStudent] Primary query returned ${results.length} results`);
+      
+      // Enrich results with exam's totalMarks if maxScore is null
+      const enrichedResults = await Promise.all(results.map(async (result: any) => {
+        // Ensure score field is populated from marksObtained if needed
+        const finalScore = result.score ?? result.marksObtained ?? 0;
+        let finalMaxScore = result.maxScore;
+        
+        // If maxScore is null, try to get it from the exam
+        if (finalMaxScore === null || finalMaxScore === undefined) {
           try {
             const exam = await this.db.select({ totalMarks: schema.exams.totalMarks })
               .from(schema.exams)
               .where(eq(schema.exams.id, result.examId))
               .limit(1);
-            if (exam[0]?.totalMarks) {
-              result.maxScore = exam[0].totalMarks;
-            }
-          } catch (examError) {
+            finalMaxScore = exam[0]?.totalMarks ?? 100;
+          } catch (examLookupError) {
+            console.warn(`[getExamResultsByStudent] Could not fetch exam totalMarks for examId ${result.examId}`);
+            finalMaxScore = 100;
           }
         }
-
-        return fallbackResults;
+        
+        // Determine autoScored from recordedBy if autoScored column is null
+        const isAutoScored = result.autoScored ?? (result.recordedBy === SYSTEM_AUTO_SCORING_UUID);
+        
+        return {
+          ...result,
+          score: finalScore,
+          maxScore: finalMaxScore,
+          autoScored: isAutoScored
+        };
+      }));
+      
+      return enrichedResults;
+    } catch (primaryError: any) {
+      console.error(`[getExamResultsByStudent] Primary query failed for student ${studentId}:`, primaryError?.message || primaryError);
+      
+      // Fallback: Even simpler query without any computed fields
+      try {
+        console.log(`[getExamResultsByStudent] Attempting fallback query...`);
+        const fallbackResults = await this.db.select()
+          .from(schema.examResults)
+          .where(eq(schema.examResults.studentId, studentId))
+          .orderBy(desc(schema.examResults.createdAt));
+        
+        console.log(`[getExamResultsByStudent] Fallback query returned ${fallbackResults.length} results`);
+        
+        // Normalize the fallback results
+        return fallbackResults.map((result: any) => ({
+          id: result.id,
+          examId: result.examId,
+          studentId: result.studentId,
+          score: result.score ?? result.marksObtained ?? 0,
+          maxScore: result.maxScore ?? 100,
+          marksObtained: result.marksObtained,
+          grade: result.grade,
+          remarks: result.remarks,
+          autoScored: result.autoScored ?? (result.recordedBy === SYSTEM_AUTO_SCORING_UUID),
+          recordedBy: result.recordedBy,
+          createdAt: result.createdAt,
+        }));
+      } catch (fallbackError: any) {
+        console.error(`[getExamResultsByStudent] CRITICAL: Fallback query also failed for student ${studentId}:`, fallbackError?.message || fallbackError);
+        // Return empty array only if ALL queries fail - but log it
+        return [];
       }
-    } catch (error: any) {
-      return [];
     }
   }
 
