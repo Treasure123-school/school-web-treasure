@@ -1305,7 +1305,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const submittedAtFormatted = formatDate(result.createdAt);
         
         // Base result that we always return (guaranteed from database)
-        const baseResult = {
+        const baseResult: {
+          id: number;
+          examId: number;
+          studentId: string;
+          score: number;
+          maxScore: number;
+          percentage: number;
+          grade: string | null;
+          remarks: string | null;
+          submittedAt: string | null;
+          timeTakenSeconds: number;
+          submissionReason: string;
+          violationCount: number;
+          examTitle: string;
+          subjectName: string;
+          className: string;
+          exam: {
+            id: number;
+            title: string;
+            totalMarks: number;
+            timeLimit: number | null;
+            date: string | null;
+          };
+        } = {
           id: result.id,
           examId: result.examId,
           studentId: result.studentId,
@@ -1349,8 +1372,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: exam.id,
               title: exam.name,
               totalMarks: exam.totalMarks,
-              timeLimit: exam.timeLimit,
-              date: exam.date
+              timeLimit: exam.timeLimit ?? null,
+              date: exam.date ?? null
             };
             
             // Try to get subject and class info
@@ -1598,7 +1621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             deletedCounts: deletionResult.deletedCounts,
             duration: `${duration}ms`
           }),
-          reason: `Exam "${existingExam.name}" permanently deleted by ${deletedBy.email || deletedBy.username}. Cascade deleted: ${deletionResult.deletedCounts.questions} questions, ${deletionResult.deletedCounts.questionOptions} options, ${deletionResult.deletedCounts.sessions} sessions, ${deletionResult.deletedCounts.studentAnswers} student answers, ${deletionResult.deletedCounts.results} results. ${deletionResult.deletedCounts.filesDeleted} files removed from storage. ${deletionResult.deletedCounts.reportCardRefsCleared} report card references cleared.`,
+          reason: `Exam "${existingExam.name}" permanently deleted by ${deletedBy.email || (deletedBy as any).username}. Cascade deleted: ${deletionResult.deletedCounts.questions} questions, ${deletionResult.deletedCounts.questionOptions} options, ${deletionResult.deletedCounts.sessions} sessions, ${deletionResult.deletedCounts.studentAnswers} student answers, ${deletionResult.deletedCounts.results} results. ${deletionResult.deletedCounts.filesDeleted} files removed from storage. ${deletionResult.deletedCounts.reportCardRefsCleared} report card references cleared.`,
           ipAddress: req.ip || req.headers['x-forwarded-for']?.toString(),
           userAgent: req.headers['user-agent']
         });
@@ -1630,7 +1653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`[SmartDeletion] Exam ${examId} "${existingExam.name}" deleted in ${duration}ms by ${deletedBy.email || deletedBy.username}`);
+      console.log(`[SmartDeletion] Exam ${examId} "${existingExam.name}" deleted in ${duration}ms by ${deletedBy.email || (deletedBy as any).username}`);
       
       res.status(200).json({ 
         message: 'Exam deleted successfully',

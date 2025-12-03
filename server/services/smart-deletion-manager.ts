@@ -149,7 +149,7 @@ export class SmartDeletionManager {
           .from(schema.exams)
           .where(and(
             eq(schema.exams.createdBy, userId),
-            eq(schema.exams.status, 'active')
+            eq(schema.exams.isPublished, true)
           ));
         
         if (activeExams.length > 0) {

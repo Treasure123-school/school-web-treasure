@@ -502,6 +502,21 @@ export interface IStorage {
   getSubjectsByCategory(category: string): Promise<Subject[]>;
   getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]>;
   autoAssignSubjectsToStudent(studentId: string, classId: number, department?: string): Promise<StudentSubjectAssignment[]>;
+
+  // Smart deletion methods
+  validateDeletion(userId: string): Promise<{
+    canDelete: boolean;
+    reason?: string;
+    blockedBy?: { type: string; description: string; count?: number }[];
+    affectedRecords?: { tableName: string; count: number }[];
+    filesToDelete?: string[];
+  }>;
+  deleteUserWithDetails(userId: string, performedBy?: string): Promise<SmartDeletionResult>;
+  bulkDeleteUsers(userIds: string[], performedBy?: string): Promise<{
+    successful: string[];
+    failed: { userId: string; error: string }[];
+  }>;
+  cleanupOrphanRecords(): Promise<{ tableName: string; deletedCount: number }[]>;
 }
 // Helper to normalize UUIDs from various formats
 function normalizeUuid(raw: any): string | undefined {
