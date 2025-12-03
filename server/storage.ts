@@ -4,6 +4,7 @@ import { getDatabase, getSchema, getPgClient, getPgPool, isPostgres, isSqlite } 
 import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGrade } from "./grading-config";
 import { deleteFile } from "./cloudinary-service";
 import { DeletionService, DeletionResult, formatDeletionLog } from "./services/deletion-service";
+import { SmartDeletionManager, cleanupOrphanRecords, bulkDeleteUsers, SmartDeletionResult } from "./services/smart-deletion-manager";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -698,7 +699,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteUser(id: string): Promise<boolean> {
+  async deleteUser(id: string, performedBy?: string): Promise<boolean> {
+    try {
+      const smartDeletionManager = new SmartDeletionManager();
+      const result = await smartDeletionManager.deleteUser(id, performedBy);
+      return result.success;
+    } catch (error: any) {
+      console.error('[Storage] Smart deletion failed:', error.message);
+      return false;
+    }
+  }
+
+  async deleteUserWithDetails(id: string, performedBy?: string): Promise<SmartDeletionResult> {
+    const smartDeletionManager = new SmartDeletionManager();
+    return await smartDeletionManager.deleteUser(id, performedBy);
+  }
+
+  async validateDeletion(id: string): Promise<{ canDelete: boolean; reason?: string; affectedRecords?: any[] }> {
+    const smartDeletionManager = new SmartDeletionManager();
+    return await smartDeletionManager.validateDeletion(id);
+  }
+
+  async cleanupOrphanRecords(): Promise<{ tableName: string; deletedCount: number }[]> {
+    return await cleanupOrphanRecords();
+  }
+
+  async bulkDeleteUsers(userIds: string[], performedBy?: string): Promise<{ successful: string[]; failed: { userId: string; error: string }[] }> {
+    return await bulkDeleteUsers(userIds, performedBy);
+  }
+
+  async deleteUserLegacy(id: string): Promise<boolean> {
     const deletionService = new DeletionService();
     deletionService.reset();
     
@@ -714,7 +744,7 @@ export class DatabaseStorage implements IStorage {
                        user.roleId === 4 ? 'Student' : 
                        user.roleId === 5 ? 'Parent' : 'Unknown';
 
-      console.log(`\n[Smart Deletion] Starting permanent deletion for ${userRole}: ${user.email || user.username}`);
+      console.log(`\n[Legacy Deletion] Starting permanent deletion for ${userRole}: ${user.email || user.username}`);
 
       const filesToDelete: (string | null | undefined)[] = [];
       
