@@ -1603,12 +1603,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             studentName: user?.firstName && user?.lastName 
               ? `${user.firstName} ${user.lastName}` 
               : user?.username || 'Unknown Student',
+            studentUsername: user?.username || null,
             admissionNumber: student?.admissionNumber || null
           };
         } catch (e) {
           return {
             ...result,
             studentName: 'Unknown Student',
+            studentUsername: null,
             admissionNumber: null
           };
         }

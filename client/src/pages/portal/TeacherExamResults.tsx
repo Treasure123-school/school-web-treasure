@@ -4,7 +4,6 @@ import { useRoute } from 'wouter';
 import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -16,10 +15,8 @@ import {
   FileText, 
   CheckCircle, 
   XCircle,
-  Save,
   RefreshCw,
-  Loader2,
-  Eye
+  Loader2
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { format } from 'date-fns';
@@ -27,7 +24,13 @@ import { useAuth } from '@/lib/auth';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
-import type { Class, ExamResult, Exam, Subject, User } from '@shared/schema';
+import type { Class, ExamResult, Exam, Subject } from '@shared/schema';
+
+interface EnrichedExamResult extends ExamResult {
+  studentName?: string;
+  studentUsername?: string;
+  admissionNumber?: string | null;
+}
 
 interface EditableScore {
   resultId: number;
@@ -57,13 +60,9 @@ export default function TeacherExamResults() {
 
   const currentExam = exams.find((e) => e.id === examId);
 
-  const { data: examResults = [], isLoading, refetch } = useQuery<ExamResult[]>({
+  const { data: examResults = [], isLoading, refetch } = useQuery<EnrichedExamResult[]>({
     queryKey: ['/api/exam-results/exam', examId],
     enabled: !!examId,
-  });
-
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
   });
 
   const { data: subjects = [] } = useQuery<Subject[]>({
@@ -223,14 +222,14 @@ export default function TeacherExamResults() {
     if (!currentExam || examResults.length === 0) return;
 
     const csvContent = [
-      ['Student Name', 'Student ID', 'Exam Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
+      ['Student Name', 'Username', 'Admission No.', 'Exam Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
       ...sortedResults.map((result) => {
-        const student = users.find((u) => u.id === result.studentId);
         const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
         const { grade } = getGrade(percentage);
         return [
-          `"${student?.firstName || ''} ${student?.lastName || ''}"`,
-          result.studentId,
+          `"${result.studentName || 'Unknown Student'}"`,
+          result.studentUsername || result.studentId,
+          result.admissionNumber || '-',
           result.score ?? 0,
           result.maxScore ?? 0,
           percentage.toFixed(1) + '%',
@@ -378,11 +377,9 @@ export default function TeacherExamResults() {
               <>
                 <div className="block sm:hidden space-y-3">
                   {sortedResults.map((result, index) => {
-                    const student = users.find((u) => u.id === result.studentId);
                     const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
                     const { grade, color } = getGrade(percentage);
                     const isPassed = percentage >= 50;
-                    const editData = editingScores.get(result.id);
                     const isSyncing = syncingResults.has(result.id);
 
                     return (
@@ -391,14 +388,29 @@ export default function TeacherExamResults() {
                         className="border rounded-lg p-3 bg-muted/30"
                         data-testid={`card-result-mobile-${index}`}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={index < 3 ? "default" : "outline"} className="text-xs" data-testid={`badge-rank-mobile-${index}`}>
-                              #{index + 1}
-                            </Badge>
-                            <span className="font-medium text-sm" data-testid={`text-student-name-mobile-${index}`}>
-                              {student?.firstName || ''} {student?.lastName || ''}
-                            </span>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant={index < 3 ? "default" : "outline"} className="text-xs" data-testid={`badge-rank-mobile-${index}`}>
+                                #{index + 1}
+                              </Badge>
+                              <span className="font-semibold text-sm" data-testid={`text-student-name-mobile-${index}`}>
+                                {result.studentName || 'Unknown Student'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span data-testid={`text-student-username-mobile-${index}`}>
+                                @{result.studentUsername || result.studentId}
+                              </span>
+                              {result.admissionNumber && (
+                                <>
+                                  <span>|</span>
+                                  <span data-testid={`text-student-adm-mobile-${index}`}>
+                                    Adm: {result.admissionNumber}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1">
                             {isPassed ? (
@@ -455,8 +467,9 @@ export default function TeacherExamResults() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs">Rank</TableHead>
-                        <TableHead className="text-xs">Student Name</TableHead>
-                        <TableHead className="text-xs hidden md:table-cell">Student ID</TableHead>
+                        <TableHead className="text-xs">Student</TableHead>
+                        <TableHead className="text-xs hidden md:table-cell">Username</TableHead>
+                        <TableHead className="text-xs hidden lg:table-cell">Adm. No.</TableHead>
                         <TableHead className="text-xs">Exam Score</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Percentage</TableHead>
                         <TableHead className="text-xs">Grade</TableHead>
@@ -467,11 +480,9 @@ export default function TeacherExamResults() {
                     </TableHeader>
                     <TableBody>
                       {sortedResults.map((result, index) => {
-                        const student = users.find((u) => u.id === result.studentId);
                         const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
                         const { grade, color } = getGrade(percentage);
                         const isPassed = percentage >= 50;
-                        const editData = editingScores.get(result.id);
                         const isSyncing = syncingResults.has(result.id);
 
                         return (
@@ -482,10 +493,13 @@ export default function TeacherExamResults() {
                               </Badge>
                             </TableCell>
                             <TableCell className="font-medium text-xs sm:text-sm py-2" data-testid={`text-student-name-${index}`}>
-                              {student?.firstName || ''} {student?.lastName || ''}
+                              {result.studentName || 'Unknown Student'}
                             </TableCell>
-                            <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-student-id-${index}`}>
-                              {result.studentId}
+                            <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-student-username-${index}`}>
+                              @{result.studentUsername || result.studentId}
+                            </TableCell>
+                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-student-adm-${index}`}>
+                              {result.admissionNumber || '-'}
                             </TableCell>
                             <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-score-${index}`}>
                               {result.score || 0} / {result.maxScore || 0}
