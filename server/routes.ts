@@ -1840,7 +1840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Emit realtime events to notify the student
       realtimeService.emitToUser(studentId, 'exam.retake.allowed', {
         examId,
-        examTitle: exam.title,
+        examTitle: exam.name,
         message: 'You have been allowed to retake this exam'
       });
 
@@ -1848,12 +1848,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createAuditLog({
         userId: teacherId,
         action: 'ALLOW_EXAM_RETAKE',
-        resourceType: 'exam',
-        resourceId: examId.toString(),
-        details: JSON.stringify({
+        entityType: 'exam',
+        entityId: examId.toString(),
+        newValue: JSON.stringify({
           examId,
           studentId,
-          examTitle: exam.title,
+          examTitle: exam.name,
           archivedSubmissionId: result.archivedSubmissionId
         })
       });

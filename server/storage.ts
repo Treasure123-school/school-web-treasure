@@ -5682,17 +5682,6 @@ export class DatabaseStorage implements IStorage {
   async getContactMessages(): Promise<ContactMessage[]> {
     return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
   }
-  // Report finalization methods
-  async getExamResultById(id: number): Promise<ExamResult | undefined> {
-    try {
-      const result = await this.db.select().from(schema.examResults)
-        .where(eq(schema.examResults.id, id))
-        .limit(1);
-      return result[0];
-    } catch (error) {
-      return undefined;
-    }
-  }
 
   async getFinalizedReportsByExams(examIds: number[], filters?: {
     classId?: number;
