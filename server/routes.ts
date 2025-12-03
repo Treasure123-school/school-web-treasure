@@ -1265,6 +1265,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get exam results for the current logged-in student - STUDENTS ONLY
   // This endpoint returns all completed exam results for the student permanently stored in the database
+  // IMPORTANT: This endpoint is designed to be robust - it always returns results from exam_results table
+  // even if exam enrichment temporarily fails, ensuring students never see their scores disappear
   app.get('/api/exam-results', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
     try {
       const studentId = req.user!.id;
@@ -1272,92 +1274,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all exam results for this student from the database (permanent storage)
       const results = await storage.getExamResultsByStudent(studentId);
       
-      // Enrich results with exam and subject information
-      const enrichedResults = await Promise.all(results.map(async (result: any) => {
+      // Pre-fetch all student sessions once for efficiency
+      let studentSessions: any[] = [];
+      try {
+        studentSessions = await storage.getExamSessionsByStudent(studentId);
+      } catch (sessionError) {
+        console.warn('[STUDENT-EXAM-RESULTS] Could not fetch sessions, continuing with results only');
+      }
+      
+      // Safely format dates - handle both Date objects and strings
+      const formatDate = (dateValue: any): string | null => {
+        if (!dateValue) return null;
         try {
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString();
+          }
+          return new Date(dateValue).toISOString();
+        } catch (e) {
+          return String(dateValue);
+        }
+      };
+      
+      // Enrich results with exam and subject information
+      // CRITICAL: Even if enrichment fails, we MUST return the core result data
+      const enrichedResults = await Promise.all(results.map(async (result: any) => {
+        // Start with guaranteed base data from exam_results table
+        const score = result.score || result.marksObtained || 0;
+        const maxScore = result.maxScore || 100;
+        const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+        const submittedAtFormatted = formatDate(result.createdAt);
+        
+        // Base result that we always return (guaranteed from database)
+        const baseResult = {
+          id: result.id,
+          examId: result.examId,
+          studentId: result.studentId,
+          score: score,
+          maxScore: maxScore,
+          percentage: percentage,
+          grade: result.grade || null,
+          remarks: result.remarks || null,
+          submittedAt: submittedAtFormatted,
+          timeTakenSeconds: 0,
+          submissionReason: 'manual',
+          violationCount: 0,
+          examTitle: `Exam #${result.examId}`,
+          subjectName: 'Unknown Subject',
+          className: 'Unknown Class',
+          exam: {
+            id: result.examId,
+            title: `Exam #${result.examId}`,
+            totalMarks: maxScore,
+            timeLimit: null,
+            date: null
+          }
+        };
+        
+        try {
+          // Try to enrich with exam details
           const exam = await storage.getExamById(result.examId);
           
-          // Only return results for published exams (if exam was unpublished, don't show)
-          if (!exam || !exam.isPublished) {
+          // Only filter out if exam is EXPLICITLY unpublished (exam exists AND isPublished is false)
+          // If exam doesn't exist (deleted), we still show the result with base data
+          if (exam && exam.isPublished === false) {
             return null;
           }
           
-          const subject = exam.subjectId ? await storage.getSubject(exam.subjectId) : null;
-          const examClass = exam.classId ? await storage.getClass(exam.classId) : null;
-          
-          // Get exam session for additional details like submission time
-          const sessions = await storage.getExamSessionsByStudent(studentId);
-          const session = sessions.find((s: any) => s.examId === result.examId && s.isCompleted);
-          
-          // Calculate percentage
-          const maxScore = result.maxScore || exam.totalMarks || 100;
-          const score = result.score || result.marksObtained || 0;
-          const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-          
-          // Parse session metadata for submission details
-          let submissionReason = 'manual';
-          let violationCount = 0;
-          let timeTakenSeconds = 0;
-          
-          if (session?.metadata) {
-            try {
-              const metadata = typeof session.metadata === 'string' 
-                ? JSON.parse(session.metadata) 
-                : session.metadata;
-              submissionReason = metadata.submissionReason || 'manual';
-              violationCount = metadata.violationCount || 0;
-              timeTakenSeconds = metadata.timeTakenSeconds || 0;
-            } catch (e) {
-              // Ignore parse errors
-            }
-          }
-          
-          // Safely format dates - handle both Date objects and strings
-          const formatDate = (dateValue: any): string | null => {
-            if (!dateValue) return null;
-            try {
-              if (dateValue instanceof Date) {
-                return dateValue.toISOString();
-              }
-              return new Date(dateValue).toISOString();
-            } catch (e) {
-              return String(dateValue);
-            }
-          };
-          
-          const submittedAtFormatted = formatDate(session?.submittedAt) || formatDate(result.createdAt);
-          
-          return {
-            id: result.id,
-            examId: result.examId,
-            studentId: result.studentId,
-            score: score,
-            maxScore: maxScore,
-            percentage: percentage,
-            grade: result.grade,
-            remarks: result.remarks,
-            submittedAt: submittedAtFormatted,
-            timeTakenSeconds: timeTakenSeconds,
-            submissionReason: submissionReason,
-            violationCount: violationCount,
-            examTitle: exam.name,
-            subjectName: subject?.name || 'Unknown Subject',
-            className: examClass?.name || 'Unknown Class',
-            exam: {
+          // If exam found, enrich the result
+          if (exam) {
+            baseResult.examTitle = exam.name;
+            baseResult.maxScore = result.maxScore || exam.totalMarks || 100;
+            baseResult.percentage = baseResult.maxScore > 0 ? Math.round((score / baseResult.maxScore) * 100) : 0;
+            baseResult.exam = {
               id: exam.id,
               title: exam.name,
               totalMarks: exam.totalMarks,
               timeLimit: exam.timeLimit,
               date: exam.date
+            };
+            
+            // Try to get subject and class info
+            try {
+              if (exam.subjectId) {
+                const subject = await storage.getSubject(exam.subjectId);
+                if (subject) baseResult.subjectName = subject.name;
+              }
+              if (exam.classId) {
+                const examClass = await storage.getClass(exam.classId);
+                if (examClass) baseResult.className = examClass.name;
+              }
+            } catch (lookupError) {
+              // Keep default values on lookup failure
             }
-          };
-        } catch (e) {
-          console.error('[STUDENT-EXAM-RESULTS] Error enriching result:', e);
-          return null;
+          }
+          
+          // Try to get session details for additional metadata
+          const session = studentSessions.find((s: any) => s.examId === result.examId && s.isCompleted);
+          if (session) {
+            if (session.submittedAt) {
+              baseResult.submittedAt = formatDate(session.submittedAt) || baseResult.submittedAt;
+            }
+            
+            // Parse session metadata for submission details
+            if (session.metadata) {
+              try {
+                const metadata = typeof session.metadata === 'string' 
+                  ? JSON.parse(session.metadata) 
+                  : session.metadata;
+                baseResult.submissionReason = metadata.submissionReason || 'manual';
+                baseResult.violationCount = metadata.violationCount || 0;
+                baseResult.timeTakenSeconds = metadata.timeTakenSeconds || 0;
+              } catch (e) {
+                // Ignore parse errors - keep defaults
+              }
+            }
+          }
+          
+          return baseResult;
+        } catch (enrichError) {
+          console.warn('[STUDENT-EXAM-RESULTS] Enrichment failed for result:', result.id, '- returning base data');
+          // On ANY enrichment error, return the base result with data we have from database
+          return baseResult;
         }
       }));
       
-      // Filter out null results (from unpublished or deleted exams)
+      // Filter out only explicitly null results (from unpublished exams only)
       const validResults = enrichedResults.filter((r: any) => r !== null);
       
       // Sort by submission date (most recent first)
