@@ -75,8 +75,22 @@ export default function StudentExamResults() {
   const [selectedResultId, setSelectedResultId] = useState<number | null>(null);
   const [latestResult, setLatestResult] = useState<ExamResult | null>(null);
   
-  // First, check sessionStorage for the most recent exam result
+  // STRICT MATCHING: Get examId from URL query parameter
+  // When student clicks "View Score" on a specific exam, we pass the examId
+  // This ensures we show ONLY the score for that exact exam - no cross-pollination
+  const urlParams = new URLSearchParams(window.location.search);
+  const specificExamId = urlParams.get('examId') ? parseInt(urlParams.get('examId')!) : null;
+  
+  // Check sessionStorage for the most recent exam result - ONLY in fallback mode
+  // STRICT MODE completely bypasses sessionStorage to prevent cross-pollination
   useEffect(() => {
+    // STRICT MODE: Never use sessionStorage when a specific examId is requested
+    // This ensures we only show the exact exam result the student clicked on
+    if (specificExamId) {
+      setLatestResult(null); // Clear any stale data
+      return;
+    }
+    
     const storedResult = sessionStorage.getItem('lastExamResult');
     if (storedResult) {
       try {
@@ -86,12 +100,37 @@ export default function StudentExamResults() {
         console.error('Failed to parse stored exam result:', e);
       }
     }
-  }, []);
+  }, [specificExamId]);
 
-  // Fetch exam results from API - This is the PRIMARY source of truth (permanent database storage)
-  // Results will persist even after browser close, logout/login, or any amount of time
-  // Results only disappear when teacher explicitly deletes the exam (not when unpublished)
-  const { data: examResults = [], isLoading, error, refetch } = useQuery<ExamResult[]>({
+  // STRICT ENDPOINT: Fetch a SINGLE exam result for the specific exam
+  // Uses /api/exam-results/student/:examId which does strict matching:
+  // WHERE exam_id = :examId AND student_id = :currentStudentId
+  const { 
+    data: specificResult, 
+    isLoading: isLoadingSpecific, 
+    error: specificError 
+  } = useQuery<ExamResult>({
+    queryKey: ['/api/exam-results/student', specificExamId],
+    queryFn: async () => {
+      if (!user?.id || !specificExamId) throw new Error('Missing parameters');
+      const response = await apiRequest('GET', `/api/exam-results/student/${specificExamId}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[StudentExamResults] Strict API error:', response.status, errorText);
+        throw new Error('Failed to fetch exam result');
+      }
+      return await response.json();
+    },
+    enabled: !!user?.id && !!specificExamId,
+    refetchOnMount: 'always',
+    staleTime: 0,
+    gcTime: 0,
+    retry: 2,
+  });
+
+  // FALLBACK: Fetch ALL exam results only when no specific examId is provided
+  // This is used for the general "Exam History" view
+  const { data: examResults = [], isLoading: isLoadingAll, error: allError, refetch } = useQuery<ExamResult[]>({
     queryKey: ['/api/exam-results', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -104,7 +143,7 @@ export default function StudentExamResults() {
       const results = await response.json();
       return results;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !specificExamId, // Only fetch all if no specific examId
     refetchOnMount: 'always',
     staleTime: 0,
     gcTime: 0,
@@ -112,6 +151,10 @@ export default function StudentExamResults() {
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
+  
+  // Determine loading state based on which mode we're in
+  const isLoading = specificExamId ? isLoadingSpecific : isLoadingAll;
+  const error = specificExamId ? specificError : allError;
 
   // Clear sessionStorage when API confirms the result is saved (prevents duplicate on refresh)
   useEffect(() => {
@@ -127,9 +170,17 @@ export default function StudentExamResults() {
     }
   }, [latestResult, examResults]);
 
-  // Combine latestResult (from sessionStorage) with API results for display
-  // Always prioritize the latestResult (freshly submitted) at the top
+  // STRICT MODE: When specificExamId is provided, we ONLY show that exact result
+  // This prevents any cross-pollination of scores between different exams/subjects
+  // NO FALLBACK TO ANY OTHER DATA SOURCE - only specificResult or empty
   const allResults = useMemo(() => {
+    // STRICT MODE: Only show the specific exam result, NO fallbacks allowed
+    if (specificExamId) {
+      // If we have the result, show it. If not (loading/error), show nothing
+      return specificResult ? [specificResult] : [];
+    }
+    
+    // FALLBACK MODE (no examId in URL): Show all results with latestResult priority
     if (!latestResult) return examResults;
     
     // Check if latestResult is already in API results (by sessionId or matching timestamp)
@@ -146,14 +197,19 @@ export default function StudentExamResults() {
     
     // Add latestResult at the beginning
     return [latestResult, ...examResults];
-  }, [latestResult, examResults]);
+  }, [latestResult, examResults, specificExamId, specificResult]);
 
   const selectedResult = useMemo(() => {
-    // Prioritize latestResult for immediate display after submission (when no selection made)
+    // STRICT MODE: Only use specificResult, NO fallbacks to other data sources
+    if (specificExamId) {
+      return specificResult || null; // Return null if no result (loading/error)
+    }
+    
+    // FALLBACK MODE (no examId in URL): Prioritize latestResult for immediate display
     if (latestResult && !selectedResultId) return latestResult;
     if (!selectedResultId) return allResults[0] || null;
     return allResults.find(r => r.id === selectedResultId) || allResults[0] || null;
-  }, [selectedResultId, allResults, latestResult]);
+  }, [selectedResultId, allResults, latestResult, specificExamId, specificResult]);
 
   const getPerformanceLevel = (percentage: number) => {
     if (percentage >= 90) return { label: 'Outstanding', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30' };
@@ -189,20 +245,24 @@ export default function StudentExamResults() {
     };
   };
 
-  // Show loading only if we don't have a latestResult from sessionStorage
-  if (isLoading && !latestResult) {
+  // STRICT MODE: Show loading when fetching specific exam result
+  // FALLBACK MODE: Show loading only if we don't have latestResult from sessionStorage
+  if (isLoading && (specificExamId || !latestResult)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader className="w-12 h-12 animate-spin mx-auto text-blue-600" />
-          <p className="text-gray-600 dark:text-gray-400">Loading your exam results...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {specificExamId ? 'Loading exam score...' : 'Loading your exam results...'}
+          </p>
         </div>
       </div>
     );
   }
 
-  // Show no results only if we don't have latestResult AND API returned empty
-  if ((error || allResults.length === 0) && !latestResult) {
+  // STRICT MODE: Error or no result for specific exam - show specific message
+  // FALLBACK MODE: Show no results if we don't have latestResult AND API returned empty
+  if ((error || allResults.length === 0) && (specificExamId || !latestResult)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
@@ -221,8 +281,15 @@ export default function StudentExamResults() {
           <Card className="text-center py-12">
             <CardContent>
               <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Exam Results Found</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">You haven't completed any exams yet.</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                {specificExamId ? 'No Result Found for This Exam' : 'No Exam Results Found'}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {specificExamId 
+                  ? 'You have not completed this specific exam yet, or no result was recorded.'
+                  : "You haven't completed any exams yet."
+                }
+              </p>
               <Button onClick={() => setLocation('/portal/student/exams')} data-testid="button-go-to-exams">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go to Exams

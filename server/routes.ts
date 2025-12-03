@@ -1438,6 +1438,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // STRICT MATCHING: Get a SINGLE exam result for the current student by exact exam ID
+  // This endpoint guarantees the score displayed corresponds to the EXACT exam clicked
+  // No fallback logic - returns 404 if no result exists for this specific exam
+  app.get('/api/exam-results/student/:examId', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const studentId = req.user!.id;
+      
+      console.log(`[STRICT-EXAM-RESULT] Student ${studentId} requesting result for exam ${examId}`);
+      
+      // Validate exam ID
+      if (isNaN(examId) || examId <= 0) {
+        return res.status(400).json({ message: 'Invalid exam ID' });
+      }
+      
+      // Get the exam to verify it exists and get subject/class info
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+      
+      // STRICT QUERY: Get ONLY the result for THIS specific exam and THIS student
+      // Uses getExamResultByExamAndStudent which queries: WHERE exam_id = ? AND student_id = ?
+      const result = await storage.getExamResultByExamAndStudent(examId, studentId);
+      
+      if (!result) {
+        console.log(`[STRICT-EXAM-RESULT] No result found for student ${studentId}, exam ${examId}`);
+        return res.status(404).json({ 
+          message: 'No result found for this exam',
+          examId: examId,
+          subjectName: exam.subjectId ? (await storage.getSubject(exam.subjectId))?.name : 'Unknown'
+        });
+      }
+      
+      console.log(`[STRICT-EXAM-RESULT] Found result ID ${result.id} for student ${studentId}, exam ${examId}`);
+      
+      // Get subject and class information for display
+      let subjectName = 'Unknown Subject';
+      let className = 'Unknown Class';
+      
+      if (exam.subjectId) {
+        const subject = await storage.getSubject(exam.subjectId);
+        subjectName = subject?.name || 'Unknown Subject';
+      }
+      
+      if (exam.classId) {
+        const classInfo = await storage.getClass(exam.classId);
+        className = classInfo?.name || 'Unknown Class';
+      }
+      
+      // Get session info for time taken and submission details
+      let timeTakenSeconds = 0;
+      let submissionReason = 'manual';
+      let violationCount = 0;
+      
+      try {
+        const sessions = await storage.getExamSessionsByStudent(studentId);
+        const matchingSession = sessions.find((s: any) => s.examId === examId && s.status === 'completed');
+        if (matchingSession) {
+          const metadata = typeof matchingSession.metadata === 'string' 
+            ? JSON.parse(matchingSession.metadata) 
+            : matchingSession.metadata;
+          timeTakenSeconds = metadata?.timeTakenSeconds || 0;
+          submissionReason = metadata?.submissionReason || 'manual';
+          violationCount = metadata?.violationCount || 0;
+        }
+      } catch (sessionError) {
+        // Session enrichment failed, use defaults
+      }
+      
+      // Calculate score values
+      const score = result.score ?? result.marksObtained ?? 0;
+      const maxScore = result.maxScore ?? exam.totalMarks ?? 100;
+      const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+      
+      // Return the EXACT result for this specific exam - no mixing with other exams
+      const enrichedResult = {
+        id: result.id,
+        examId: result.examId,
+        studentId: result.studentId,
+        score: score,
+        maxScore: maxScore,
+        percentage: percentage,
+        grade: result.grade || null,
+        remarks: result.remarks || null,
+        submittedAt: result.createdAt?.toISOString() || null,
+        timeTakenSeconds: timeTakenSeconds,
+        submissionReason: submissionReason,
+        violationCount: violationCount,
+        examTitle: exam.name,
+        subjectName: subjectName,
+        className: className,
+        // Include exam details for verification
+        exam: {
+          id: exam.id,
+          title: exam.name,
+          totalMarks: exam.totalMarks,
+          timeLimit: exam.timeLimit,
+          date: exam.date,
+          subjectId: exam.subjectId,
+          classId: exam.classId
+        }
+      };
+      
+      console.log(`[STRICT-EXAM-RESULT] Returning result: exam="${exam.name}", subject="${subjectName}", score=${score}/${maxScore}`);
+      
+      res.json(enrichedResult);
+    } catch (error: any) {
+      console.error('[STRICT-EXAM-RESULT] Error:', error?.message);
+      res.status(500).json({ message: 'Failed to fetch exam result' });
+    }
+  });
+
   // Get exam results by exam ID - TEACHERS AND ADMINS
   app.get('/api/exam-results/exam/:examId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {

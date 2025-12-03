@@ -3049,7 +3049,7 @@ export default function StudentExams() {
 
                       {examStatus.isCompleted ? (
                         <Button
-                          onClick={() => setLocation('/portal/student/exam-results')}
+                          onClick={() => setLocation(`/portal/student/exam-results?examId=${exam.id}`)}
                           className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
                           data-testid={`button-view-score-${exam.id}`}
                         >
