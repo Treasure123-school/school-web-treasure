@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { useLoginSuccess } from '@/hooks/use-login-success';
 
 
 // Component for displaying recent exam result card
@@ -80,6 +81,8 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+  
+  useLoginSuccess();
 
   // Check teacher profile status
   const { data: profileStatus, isLoading: statusLoading } = useQuery({

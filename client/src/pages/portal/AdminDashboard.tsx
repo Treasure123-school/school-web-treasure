@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef, useState } from "react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { useLoginSuccess } from '@/hooks/use-login-success';
 
 // Define DashboardStats type (assuming it's defined elsewhere or can be inferred)
 interface DashboardStats {
@@ -387,6 +388,8 @@ function NotificationSummary() {
 }
 export default function AdminDashboard() {
   const { user } = useAuth();
+  
+  useLoginSuccess();
 
   // Fetch real analytics overview data
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery<any>({

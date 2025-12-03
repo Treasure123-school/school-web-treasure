@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useSocketIORealtime } from "@/hooks/useSocketIORealtime";
+import { useLoginSuccess } from "@/hooks/use-login-success";
 
 interface DashboardStats {
   totalAdmins?: number;
@@ -17,6 +18,9 @@ interface DashboardStats {
 }
 export default function SuperAdminDashboard() {
   const { user } = useAuth();
+  
+  useLoginSuccess();
+  
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/superadmin/stats"],
   });

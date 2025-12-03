@@ -14,10 +14,13 @@ import { MiniLineChart } from '@/components/ui/mini-line-chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Exam } from '@shared/schema';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { useLoginSuccess } from '@/hooks/use-login-success';
 
 export default function StudentDashboard() {
   const { user, updateUser } = useAuth();
   const [, navigate] = useLocation();
+  
+  useLoginSuccess();
 
   if (!user) {
     return <div>Please log in to access the student portal.</div>;

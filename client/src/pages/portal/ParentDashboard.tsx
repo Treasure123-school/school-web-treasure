@@ -10,10 +10,13 @@ import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRig
 import { Link } from 'wouter';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { useLoginSuccess } from '@/hooks/use-login-success';
 
 export default function ParentDashboard() {
   const { user } = useAuth();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  
+  useLoginSuccess();
 
   // Fetch all children linked to this parent
   const { data: linkedChildren = [], isLoading: loadingChildren } = useQuery<any[]>({
