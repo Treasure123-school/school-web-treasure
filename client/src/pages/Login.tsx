@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useRef } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GraduationCap, AlertCircle, CheckCircle, Key, Clock, Ban, XCircle, Users, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Lock, User, KeyRound, ArrowLeft, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,8 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Link, useLocation } from 'wouter';
 import { getRoleNameById, getPortalByRoleId } from '@/lib/roles';
-import { useQueryClient } from '@tanstack/react-query';
-
+import schoolLogo from '@assets/school-logo.png';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Username or email is required'),
@@ -34,16 +33,25 @@ const changePasswordSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 type ChangePasswordForm = z.infer<typeof changePasswordSchema>;
 
+type ErrorType = 'validation' | 'credentials' | 'server' | 'account' | null;
+
+interface LoginError {
+  type: ErrorType;
+  message: string;
+}
+
 export default function Login() {
   const { toast } = useToast();
   const { login } = useAuth();
   const [, navigate] = useLocation();
-  const queryClient = useQueryClient();
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loginError, setLoginError] = useState<LoginError | null>(null);
+  const lastErrorRef = useRef<string | null>(null);
 
   const {
     register,
@@ -51,6 +59,10 @@ export default function Login() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      identifier: '',
+      password: '',
+    },
   });
 
   const {
@@ -60,195 +72,80 @@ export default function Login() {
     reset: resetPasswordForm,
   } = useForm<ChangePasswordForm>({
     resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
   });
+
+  const showSingleError = (type: ErrorType, message: string) => {
+    const errorKey = `${type}-${message}`;
+    if (lastErrorRef.current === errorKey) return;
+    lastErrorRef.current = errorKey;
+    setLoginError({ type, message });
+    setTimeout(() => {
+      lastErrorRef.current = null;
+    }, 5000);
+  };
+
+  const clearError = () => {
+    setLoginError(null);
+    lastErrorRef.current = null;
+  };
+
+  const getErrorDetails = (statusType: string, defaultMessage: string): { type: ErrorType; message: string } => {
+    switch (statusType) {
+      case 'invalid_credentials':
+        return { type: 'credentials', message: 'Invalid username or password. Please check your credentials and try again.' };
+      case 'pending_staff':
+        return { type: 'account', message: 'Your account is awaiting approval. You will be notified once verified.' };
+      case 'pending_setup':
+        return { type: 'account', message: 'Your account is being set up. Please check back soon.' };
+      case 'suspended_staff':
+      case 'suspended_parent':
+      case 'suspended_student':
+        return { type: 'account', message: 'Your account has been suspended. Please contact the school administrator.' };
+      default:
+        return { type: 'server', message: defaultMessage || 'An error occurred. Please try again.' };
+    }
+  };
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
+      clearError();
       const response = await apiRequest('POST', '/api/auth/login', data);
       const result = await response.json();
 
       if (!response.ok) {
-        const statusType = result.statusType;
-
-        switch (statusType) {
-          case 'invalid_credentials':
-            toast({
-              title: "Invalid Login",
-              description: (
-                <div className="text-xs sm:text-sm">
-                  <p className="mb-2 flex items-center gap-2">
-                    <XCircle className="h-4 w-4" />
-                    Invalid login. Please check your username or password and try again.
-                  </p>
-                  <p className="text-xs text-muted-foreground font-medium">Make sure CAPS LOCK is off.</p>
-                </div>
-              ),
-              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
-              duration: 10000,
-            });
-            break;
-          case 'pending_staff':
-            toast({
-              title: "Account Awaiting Approval",
-              description: (
-                <div className="text-xs sm:text-sm">
-                  <p className="mb-2 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Your Admin/Teacher account is awaiting approval. You will be notified once verified.
-                  </p>
-                  <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
-                    Contact the school administrator for urgent access.
-                  </p>
-                </div>
-              ),
-              className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
-              duration: 10000,
-            });
-            break;
-          case 'pending_setup':
-            toast({
-              title: "Account Setup Pending",
-              description: (
-                <div className="text-xs sm:text-sm">
-                  <p className="mb-2 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Your account is being set up by the school administrator. Please check back soon.
-                  </p>
-                </div>
-              ),
-              className: 'border-orange-500 bg-orange-50 dark:bg-orange-950/50',
-              duration: 8000,
-            });
-            break;
-          case 'suspended_staff':
-            toast({
-              title: "Account Suspended",
-              description: (
-                <div className="text-xs sm:text-sm">
-                  <p className="mb-2 flex items-center gap-2">
-                    <Ban className="h-4 w-4" />
-                    Access denied. Your account has been suspended by the school administrator.
-                  </p>
-                  <p className="text-xs text-red-700 dark:text-red-300 mt-2">
-                    Please contact them to resolve this issue.
-                  </p>
-                </div>
-              ),
-              className: 'border-red-500 bg-red-50 dark:bg-red-950/50',
-              duration: 10000,
-            });
-            break;
-          case 'suspended_parent':
-            toast({
-              title: "🔒 Account Suspended - Security Alert",
-              description: (
-                <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
-                  <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
-                    <p className="font-bold text-red-900 dark:text-red-100 mb-1.5 sm:mb-2 text-sm sm:text-base break-words">
-                      ⚠️ Access Blocked for Your Safety
-                    </p>
-                    <p className="text-red-800 dark:text-red-200 leading-relaxed text-xs sm:text-sm">
-                      Your parent account has been <strong>automatically suspended</strong> due to multiple failed login attempts. This security measure protects your child's information from unauthorized access.
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
-                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-2 sm:mb-3 text-sm sm:text-base flex items-center gap-1.5 sm:gap-2 break-words">
-                      📞 How to Restore Your Account:
-                    </p>
-                    <div className="space-y-1.5 sm:space-y-2 text-blue-900 dark:text-blue-200">
-                      <p className="font-semibold text-xs sm:text-sm">Contact School Administrator:</p>
-                      <div className="text-xs sm:text-sm break-all">
-                        <p className="mb-1.5 sm:mb-2">
-                          📧 <strong>Email:</strong> <span className="font-mono text-[10px] sm:text-xs">admin@treasurehomeschool.com</span>
-                        </p>
-                        <p>
-                          📱 <strong>Call:</strong> <span className="font-mono text-[10px] sm:text-xs">+234-XXX-XXX-XXXX</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-2 sm:p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md border border-gray-300 dark:border-gray-700">
-                    <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                      <strong>🔐 Why this happened:</strong> After several unsuccessful login attempts, we automatically suspend parent accounts to prevent unauthorized access to student data.
-                    </p>
-                  </div>
-                </div>
-              ),
-              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 shadow-xl max-w-[90vw] sm:max-w-md',
-              duration: 15000,
-            });
-            break;
-          case 'suspended_student':
-            toast({
-              title: "🔒 Account Suspended - Security Alert",
-              description: (
-                <div className="text-xs sm:text-sm space-y-2 sm:space-y-3">
-                  <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-md border-2 border-red-400 dark:border-red-600">
-                    <p className="font-bold text-red-900 dark:text-red-100 mb-1.5 sm:mb-2 text-sm sm:text-base break-words">
-                      ⚠️ Access Blocked for Your Safety
-                    </p>
-                    <p className="text-red-800 dark:text-red-200 leading-relaxed text-xs sm:text-sm">
-                      Your student account has been <strong>automatically suspended</strong> due to multiple failed login attempts.
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md border-2 border-blue-400 dark:border-blue-600">
-                    <p className="font-bold text-blue-900 dark:text-blue-100 mb-2 sm:mb-3 text-sm sm:text-base flex items-center gap-1.5 sm:gap-2 break-words">
-                      📞 How to Restore Your Account:
-                    </p>
-                    <div className="space-y-1.5 sm:space-y-2 text-blue-900 dark:text-blue-200">
-                      <p className="font-semibold text-xs sm:text-sm">Contact School Administrator:</p>
-                      <div className="text-xs sm:text-sm break-all">
-                        <p className="mb-1.5 sm:mb-2">
-                          📧 <strong>Email:</strong> <span className="font-mono text-[10px] sm:text-xs">admin@treasurehomeschool.com</span>
-                        </p>
-                        <p>
-                          📱 <strong>Call:</strong> <span className="font-mono text-[10px] sm:text-xs">+234-XXX-XXX-XXXX</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ),
-              className: 'border-red-600 bg-red-50 dark:bg-red-950/50 shadow-xl max-w-[90vw] sm:max-w-md',
-              duration: 12000,
-            });
-            break;
-          default:
-            toast({
-              title: "Login Failed",
-              description: result.message || 'An error occurred during login. Please try again.',
-              variant: 'destructive',
-            });
-        }
-        throw new Error(result.message || 'Login failed');
+        const { type, message } = getErrorDetails(result.statusType, result.message);
+        showSingleError(type, message);
+        throw new Error(message);
       }
       return result;
     },
     onSuccess: (data) => {
-      // Check if user must change password (applies to all newly created accounts)
+      clearError();
       if (data.mustChangePassword || data.user.mustChangePassword) {
         setTempUserData(data);
         setShowPasswordChange(true);
         return;
       }
+
       const userRole = getRoleNameById(data.user.roleId);
       const targetPath = getPortalByRoleId(data.user.roleId);
 
       toast({
         title: "Login Successful",
-        description: `Welcome back to THS Portal. Redirecting you to your ${userRole} dashboard...`,
+        description: `Welcome back! Redirecting to your ${userRole} dashboard...`,
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
+        duration: 3000,
       });
 
       login(data.user, data.token);
-
-      setTimeout(() => {
-        navigate(targetPath);
-      }, 200);
+      setTimeout(() => navigate(targetPath), 200);
     },
+    onError: () => {},
   });
 
   const changePasswordMutation = useMutation({
@@ -261,8 +158,19 @@ export default function Login() {
           currentPassword: data.currentPassword,
           newPassword: data.newPassword,
         });
-        return await response.json();
-      } catch (error) {
+        const result = await response.json();
+        
+        if (!response.ok) {
+          if (previousToken) {
+            localStorage.setItem('token', previousToken);
+          } else {
+            localStorage.removeItem('token');
+          }
+          throw new Error(result.message || 'Failed to change password');
+        }
+        
+        return result;
+      } catch (error: any) {
         if (previousToken) {
           localStorage.setItem('token', previousToken);
         } else {
@@ -281,25 +189,26 @@ export default function Login() {
       resetPasswordForm();
 
       toast({
-        title: "Password Changed Successfully",
-        description: 'Welcome to THS Portal! Your password has been updated.',
+        title: "Password Changed",
+        description: 'Your password has been updated successfully.',
         className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
+        duration: 3000,
       });
 
-      setTimeout(() => {
-        navigate(targetPath);
-      }, 100);
+      setTimeout(() => navigate(targetPath), 100);
     },
     onError: (error: any) => {
       toast({
         title: 'Password Change Failed',
         description: error.message || 'Failed to change password. Please try again.',
         variant: 'destructive',
+        duration: 5000,
       });
     },
   });
 
   const onSubmit = (data: LoginForm) => {
+    clearError();
     loginMutation.mutate(data);
   };
 
@@ -308,168 +217,180 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6 sm:mb-8 animate-fade-in">
-          <Link href="/" className="inline-flex items-center justify-center space-x-3 mb-6 group" data-testid="link-home">
-            <div className="bg-gradient-to-br from-primary to-blue-600 rounded-2xl p-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-              <GraduationCap className="text-white h-8 w-8 sm:h-10 sm:w-10" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md">
+          <Card className="shadow-2xl border-0 bg-white dark:bg-gray-900 overflow-hidden" data-testid="card-login">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center">
+              <Link href="/" className="inline-block mb-4" data-testid="link-home">
+                <img
+                  src={schoolLogo}
+                  alt="Treasure-Home School Logo"
+                  className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-1 shadow-lg"
+                  data-testid="img-school-logo"
+                />
+              </Link>
+              <h1 className="text-xl sm:text-2xl font-bold text-white" data-testid="text-school-name">
                 Treasure-Home School
               </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground italic">"Honesty and Success"</p>
+              <p className="text-blue-100 text-sm mt-1 italic">Honesty and Success</p>
             </div>
-          </Link>
-          <div className="space-y-2">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground" data-testid="text-login-title">
-              Welcome Back
-            </h2>
-            <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-login-subtitle">
-              Sign in to access your school dashboard
-            </p>
-          </div>
-        </div>
 
-        <Card className="shadow-2xl border-0 backdrop-blur-sm bg-white/95 dark:bg-gray-800/95 animate-slide-up" data-testid="card-login">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl sm:text-2xl text-center font-bold">Portal Login</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="identifier" className="text-sm font-medium">Username or Email</Label>
-                <Input
-                  id="identifier"
-                  type="text"
-                  {...register('identifier')}
-                  className="h-11 sm:h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                  placeholder="Enter your username or email"
-                  data-testid="input-identifier"
-                />
-                {errors.identifier && (
-                  <p className="text-destructive text-xs sm:text-sm mt-1 flex items-center gap-1" data-testid="error-identifier">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.identifier.message}
-                  </p>
-                )}
+            <CardContent className="p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-login-title">
+                  Portal Login
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1" data-testid="text-login-subtitle">
+                  Sign in to access your dashboard
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    {...register('password')}
-                    className="h-11 sm:h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
-                    placeholder="Enter your password"
-                    data-testid="input-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="toggle-password-visibility"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-destructive text-xs sm:text-sm mt-1 flex items-center gap-1" data-testid="error-password">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 rounded-xl border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-2 sm:gap-3">
-                  <Users className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                      For All Users
+              {loginError && (
+                <div 
+                  className={`mb-6 p-4 rounded-lg border flex items-start gap-3 ${
+                    loginError.type === 'credentials' 
+                      ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' 
+                      : loginError.type === 'account'
+                      ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'
+                      : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                  }`}
+                  data-testid="error-login-message"
+                >
+                  <AlertCircle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
+                    loginError.type === 'account' ? 'text-orange-600' : 'text-red-600'
+                  }`} />
+                  <div>
+                    <p className={`text-sm font-medium ${
+                      loginError.type === 'account' ? 'text-orange-800 dark:text-orange-200' : 'text-red-800 dark:text-red-200'
+                    }`}>
+                      {loginError.type === 'credentials' && 'Login Failed'}
+                      {loginError.type === 'account' && 'Account Status'}
+                      {loginError.type === 'server' && 'Connection Error'}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-300 leading-relaxed mb-2">
-                      Use your THS username and password to access your portal.
+                    <p className={`text-sm mt-1 ${
+                      loginError.type === 'account' ? 'text-orange-700 dark:text-orange-300' : 'text-red-700 dark:text-red-300'
+                    }`}>
+                      {loginError.message}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-300 mb-2">
-                      <span className="font-medium">Example:</span> <span className="font-mono font-medium bg-white/50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded text-[10px] sm:text-xs break-all">THS-STU-2025-PR3-001</span>
-                    </p>
-                    <div className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium space-y-1">
-                      <div className="flex items-start gap-1.5">
-                        <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="flex-1">If details are correct: Access granted</span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <span className="flex-1">If incorrect: Check your username & password</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
+              )}
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="identifier" className="text-sm font-medium flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    Username or Email
+                  </Label>
+                  <Input
+                    id="identifier"
+                    type="text"
+                    {...register('identifier')}
+                    className="h-12 text-base"
+                    placeholder="Enter your username or email"
+                    autoComplete="username"
+                    data-testid="input-identifier"
+                    onChange={() => loginError?.type === 'validation' && clearError()}
+                  />
+                  {errors.identifier && (
+                    <p className="text-destructive text-sm flex items-center gap-1" data-testid="error-identifier">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {errors.identifier.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      {...register('password')}
+                      className="h-12 text-base pr-12"
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      data-testid="input-password"
+                      onChange={() => loginError?.type === 'validation' && clearError()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      data-testid="button-toggle-password"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-destructive text-sm flex items-center gap-1" data-testid="error-password">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-end">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1.5 transition-colors"
+                    data-testid="link-forgot-password"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    Forgot Password?
+                  </Link>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700"
+                  disabled={loginMutation.isPending}
+                  data-testid="button-login"
+                >
+                  {loginMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Signing In...
+                    </span>
+                  ) : 'Sign In'}
+                </Button>
+              </form>
+
+              <div className="mt-6 pt-6 border-t text-center">
+                <p className="text-sm text-muted-foreground">
+                  Use your THS credentials to access your portal
+                </p>
               </div>
+            </CardContent>
+          </Card>
 
-              <Button
-                type="submit"
-                className="w-full h-11 sm:h-12 text-base font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                disabled={loginMutation.isPending}
-                data-testid="button-login"
-              >
-                {loginMutation.isPending ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing In...
-                  </span>
-                ) : 'Sign In to Portal'}
-              </Button>
-            </form>
-
-            <div className="text-center p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900 rounded-xl border border-gray-200 dark:border-gray-700">
-              <p className="text-xs sm:text-sm text-muted-foreground mb-3 font-medium">Need help accessing your account?</p>
-              <Link
-                href="/forgot-password"
-                className="text-primary text-sm sm:text-base font-semibold hover:text-blue-600 transition-colors inline-flex items-center gap-2 group"
-                data-testid="link-forgot-password"
-              >
-                <Key className="h-4 w-4 group-hover:rotate-12 transition-transform" />
-                Reset Your Password
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="text-center mt-6 sm:mt-8">
-          <Link
-            href="/"
-            className="text-muted-foreground text-sm sm:text-base hover:text-foreground transition-colors inline-flex items-center gap-2 group font-medium"
-            data-testid="link-back-to-website"
-          >
-            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Website
-          </Link>
+          <div className="text-center mt-6">
+            <Link
+              href="/"
+              className="text-white/90 hover:text-white text-sm font-medium inline-flex items-center gap-2 transition-colors"
+              data-testid="link-back-home"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Website
+            </Link>
+          </div>
         </div>
       </div>
 
       <Dialog open={showPasswordChange} onOpenChange={setShowPasswordChange}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" data-testid="dialog-password-change">
+        <DialogContent className="sm:max-w-md" data-testid="dialog-password-change">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" />
-              Password Change Required
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Lock className="h-5 w-5 text-orange-500" />
+              Change Your Password
             </DialogTitle>
-            <DialogDescription className="text-sm sm:text-base">
-              For security reasons, you must change your password before accessing your account.
+            <DialogDescription>
+              For security, you must change your password before accessing your account.
             </DialogDescription>
           </DialogHeader>
 
@@ -481,28 +402,21 @@ export default function Login() {
                   id="currentPassword"
                   type={showCurrentPassword ? "text" : "password"}
                   {...registerPassword('currentPassword')}
-                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
-                  placeholder="Enter your current password"
+                  className="h-11 pr-10"
+                  placeholder="Enter current password"
                   data-testid="input-current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid="toggle-current-password-visibility"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  data-testid="button-toggle-current-password"
                 >
-                  {showCurrentPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {passwordErrors.currentPassword && (
-                <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {passwordErrors.currentPassword.message}
-                </p>
+                <p className="text-destructive text-sm">{passwordErrors.currentPassword.message}</p>
               )}
             </div>
 
@@ -513,69 +427,61 @@ export default function Login() {
                   id="newPassword"
                   type={showNewPassword ? "text" : "password"}
                   {...registerPassword('newPassword')}
-                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 pr-10"
-                  placeholder="Enter a new secure password"
+                  className="h-11 pr-10"
+                  placeholder="Enter new password (min. 6 characters)"
                   data-testid="input-new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid="toggle-new-password-visibility"
-                  title={showNewPassword ? "Hide passwords" : "Show passwords"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  data-testid="button-toggle-new-password"
                 >
-                  {showNewPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {passwordErrors.newPassword && (
-                <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {passwordErrors.newPassword.message}
-                </p>
+                <p className="text-destructive text-sm">{passwordErrors.newPassword.message}</p>
               )}
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                Password must be at least 6 characters long
-              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type={showNewPassword ? "text" : "password"}
-                {...registerPassword('confirmPassword')}
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                placeholder="Re-enter your new password"
-                data-testid="input-confirm-password"
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  {...registerPassword('confirmPassword')}
+                  className="h-11 pr-10"
+                  placeholder="Confirm your new password"
+                  data-testid="input-confirm-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  data-testid="button-toggle-confirm-password"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {passwordErrors.confirmPassword && (
-                <p className="text-destructive text-xs sm:text-sm flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {passwordErrors.confirmPassword.message}
-                </p>
+                <p className="text-destructive text-sm">{passwordErrors.confirmPassword.message}</p>
               )}
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 sm:h-12 font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
+              className="w-full h-11 font-semibold"
               disabled={changePasswordMutation.isPending}
               data-testid="button-change-password"
             >
               {changePasswordMutation.isPending ? (
                 <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Changing Password...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Updating Password...
                 </span>
-              ) : 'Change Password & Continue'}
+              ) : 'Update Password'}
             </Button>
           </form>
         </DialogContent>
