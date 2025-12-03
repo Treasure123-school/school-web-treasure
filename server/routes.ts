@@ -1357,11 +1357,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Try to enrich with exam details
           const exam = await storage.getExamById(result.examId);
           
-          // Only filter out if exam is EXPLICITLY unpublished (exam exists AND isPublished is false)
-          // If exam doesn't exist (deleted), we still show the result with base data
-          if (exam && exam.isPublished === false) {
-            return null;
-          }
+          // DESIGN DECISION: Exam results ALWAYS persist and are shown to students
+          // The isPublished flag controls whether students can TAKE the exam, NOT view their results
+          // Results should only disappear if the exam is explicitly deleted from the system
+          // This ensures students never see their scores "disappear" unexpectedly
           
           // If exam found, enrich the result
           if (exam) {
@@ -1421,7 +1420,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }));
       
-      // Filter out only explicitly null results (from unpublished exams only)
+      // All results should be valid - we no longer filter based on publish status
+      // Results only disappear if explicitly deleted, not when unpublished
       const validResults = enrichedResults.filter((r: any) => r !== null);
       
       // Sort by submission date (most recent first)

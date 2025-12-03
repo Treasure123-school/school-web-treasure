@@ -90,7 +90,7 @@ export default function StudentExamResults() {
 
   // Fetch exam results from API - This is the PRIMARY source of truth (permanent database storage)
   // Results will persist even after browser close, logout/login, or any amount of time
-  // Results only disappear when teacher unpublishes or deletes the exam
+  // Results only disappear when teacher explicitly deletes the exam (not when unpublished)
   const { data: examResults = [], isLoading, error, refetch } = useQuery<ExamResult[]>({
     queryKey: ['/api/exam-results', user?.id],
     queryFn: async () => {

@@ -67,6 +67,12 @@ Comprehensive real-time updates are implemented across major features including 
   - Centralized functions: `getVisibleExamsForStudent()`, `getVisibleExamsForParent()`, `filterExamsForStudentContext()`, `canStudentAccessExam()`, `getStudentsForTeacherExam()`
   - Both `/api/exams` and `/api/realtime/sync` endpoints use the same centralized logic for consistency
   - Optimized with Promise.all for batch queries to minimize database round-trips
+- **Exam Results Persistence (December 2025 Fix)**: Critical design decision for `/api/exam-results` endpoint:
+  - **Results ALWAYS persist**: Once a student completes an exam, their score is permanently stored and visible
+  - **isPublished flag scope**: Controls only whether students can TAKE the exam, NOT view their past results
+  - **Results only disappear**: When the exam is explicitly DELETED from the system
+  - **Rationale**: Students should never see their scores "disappear" unexpectedly after submission. The previous behavior of hiding results when exams were unpublished caused confusion and data loss perception
+  - **Future enhancement**: If teachers need to delay score release, a dedicated `hideResults` flag can be added to the exam schema
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
