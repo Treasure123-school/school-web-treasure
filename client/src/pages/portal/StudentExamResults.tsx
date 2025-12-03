@@ -92,21 +92,25 @@ export default function StudentExamResults() {
   // Results will persist even after browser close, logout/login, or any amount of time
   // Results only disappear when teacher unpublishes or deletes the exam
   const { data: examResults = [], isLoading, error, refetch } = useQuery<ExamResult[]>({
-    queryKey: ['/api/exam-results'],
+    queryKey: ['/api/exam-results', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       const response = await apiRequest('GET', '/api/exam-results');
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[StudentExamResults] API error:', response.status, errorText);
         throw new Error('Failed to fetch exam results');
       }
       const results = await response.json();
-      // Backend already filters by student ID, no need to filter here
       return results;
     },
     enabled: !!user?.id,
     refetchOnMount: 'always',
     staleTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
   // Clear sessionStorage when API confirms the result is saved (prevents duplicate on refresh)

@@ -1753,10 +1753,10 @@ export default function StudentExams() {
       sessionStorage.setItem('lastExamResult', JSON.stringify(storedResult));
     }
     
-    // STEP 3: Invalidate cache
+    // STEP 3: Invalidate cache (use user ID for proper cache isolation)
     queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
     queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/exam-results', user?.id] });
     
     // STEP 4: Reset exam state completely (prevent inline UI from showing)
     setShowResults(false);
@@ -1803,10 +1803,10 @@ export default function StudentExams() {
     setPendingSaves(new Set());
     setShowTabSwitchWarning(false);
     
-    // Refresh exam list to show updated submission status
+    // Refresh exam list to show updated submission status (use user ID for proper cache isolation)
     queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
     queryClient.invalidateQueries({ queryKey: ['/api/exam-sessions'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/exam-results'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/exam-results', user?.id] });
     
     // Show confirmation message
     toast({
