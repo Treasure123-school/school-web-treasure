@@ -88,8 +88,10 @@ export default function StudentExamResults() {
     }
   }, []);
 
-  // Fetch exam results from API as fallback or for history
-  const { data: examResults = [], isLoading, error } = useQuery<ExamResult[]>({
+  // Fetch exam results from API - This is the PRIMARY source of truth (permanent database storage)
+  // Results will persist even after browser close, logout/login, or any amount of time
+  // Results only disappear when teacher unpublishes or deletes the exam
+  const { data: examResults = [], isLoading, error, refetch } = useQuery<ExamResult[]>({
     queryKey: ['/api/exam-results'],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -98,12 +100,13 @@ export default function StudentExamResults() {
         throw new Error('Failed to fetch exam results');
       }
       const results = await response.json();
-      // Filter to only show results for this student
-      return results.filter((r: any) => r.studentId === user.id);
+      // Backend already filters by student ID, no need to filter here
+      return results;
     },
     enabled: !!user?.id,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
     staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Clear sessionStorage when API confirms the result is saved (prevents duplicate on refresh)

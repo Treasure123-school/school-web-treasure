@@ -1263,6 +1263,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get exam results for the current logged-in student - STUDENTS ONLY
+  // This endpoint returns all completed exam results for the student permanently stored in the database
+  app.get('/api/exam-results', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req, res) => {
+    try {
+      const studentId = req.user!.id;
+      
+      // Get all exam results for this student from the database (permanent storage)
+      const results = await storage.getExamResultsByStudent(studentId);
+      
+      // Enrich results with exam and subject information
+      const enrichedResults = await Promise.all(results.map(async (result: any) => {
+        try {
+          const exam = await storage.getExamById(result.examId);
+          
+          // Only return results for published exams (if exam was unpublished, don't show)
+          if (!exam || !exam.isPublished) {
+            return null;
+          }
+          
+          const subject = exam.subjectId ? await storage.getSubject(exam.subjectId) : null;
+          const examClass = exam.classId ? await storage.getClass(exam.classId) : null;
+          
+          // Get exam session for additional details like submission time
+          const sessions = await storage.getExamSessionsByStudent(studentId);
+          const session = sessions.find((s: any) => s.examId === result.examId && s.isCompleted);
+          
+          // Calculate percentage
+          const maxScore = result.maxScore || exam.totalMarks || 100;
+          const score = result.score || result.marksObtained || 0;
+          const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+          
+          // Parse session metadata for submission details
+          let submissionReason = 'manual';
+          let violationCount = 0;
+          let timeTakenSeconds = 0;
+          
+          if (session?.metadata) {
+            try {
+              const metadata = typeof session.metadata === 'string' 
+                ? JSON.parse(session.metadata) 
+                : session.metadata;
+              submissionReason = metadata.submissionReason || 'manual';
+              violationCount = metadata.violationCount || 0;
+              timeTakenSeconds = metadata.timeTakenSeconds || 0;
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
+          
+          // Safely format dates - handle both Date objects and strings
+          const formatDate = (dateValue: any): string | null => {
+            if (!dateValue) return null;
+            try {
+              if (dateValue instanceof Date) {
+                return dateValue.toISOString();
+              }
+              return new Date(dateValue).toISOString();
+            } catch (e) {
+              return String(dateValue);
+            }
+          };
+          
+          const submittedAtFormatted = formatDate(session?.submittedAt) || formatDate(result.createdAt);
+          
+          return {
+            id: result.id,
+            examId: result.examId,
+            studentId: result.studentId,
+            score: score,
+            maxScore: maxScore,
+            percentage: percentage,
+            grade: result.grade,
+            remarks: result.remarks,
+            submittedAt: submittedAtFormatted,
+            timeTakenSeconds: timeTakenSeconds,
+            submissionReason: submissionReason,
+            violationCount: violationCount,
+            examTitle: exam.name,
+            subjectName: subject?.name || 'Unknown Subject',
+            className: examClass?.name || 'Unknown Class',
+            exam: {
+              id: exam.id,
+              title: exam.name,
+              totalMarks: exam.totalMarks,
+              timeLimit: exam.timeLimit,
+              date: exam.date
+            }
+          };
+        } catch (e) {
+          console.error('[STUDENT-EXAM-RESULTS] Error enriching result:', e);
+          return null;
+        }
+      }));
+      
+      // Filter out null results (from unpublished or deleted exams)
+      const validResults = enrichedResults.filter((r: any) => r !== null);
+      
+      // Sort by submission date (most recent first)
+      validResults.sort((a: any, b: any) => {
+        const dateA = new Date(a.submittedAt || 0).getTime();
+        const dateB = new Date(b.submittedAt || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      res.json(validResults);
+    } catch (error: any) {
+      console.error('[STUDENT-EXAM-RESULTS] Error fetching student exam results:', error?.message);
+      res.status(500).json({ message: 'Failed to fetch exam results' });
+    }
+  });
+
   // Get exam results by exam ID - TEACHERS AND ADMINS
   app.get('/api/exam-results/exam/:examId', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req, res) => {
     try {
