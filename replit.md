@@ -79,6 +79,14 @@ Comprehensive real-time updates are implemented across major features including 
     - Add a robust fallback query if the primary query fails
     - Ensure results are never silently lost due to query errors
     - This fixes the "No Exam Results Found" issue where students couldn't see their scores after returning to the View Score page
+- **Strict Exam Result Matching (December 2025 Fix)**: Prevents cross-pollination of scores between different exams/subjects:
+  - **Problem**: When clicking "View Score" on a specific exam, the system could display scores from a different subject if sessionStorage had stale data
+  - **Solution**: Two-mode architecture in StudentExamResults.tsx:
+    - **STRICT MODE** (examId in URL): Uses dedicated `/api/exam-results/student/:examId` endpoint that returns ONLY the exact result for exam_id + student_id. Completely bypasses sessionStorage and exam history - no fallbacks allowed.
+    - **FALLBACK MODE** (no examId): Uses original `/api/exam-results` endpoint for general exam history view with sessionStorage support
+  - **Backend endpoint**: `GET /api/exam-results/student/:examId` with strict WHERE clause on exam_id and student_id
+  - **Database index**: Composite index on (exam_id, student_id) for optimal query performance
+  - **Frontend behavior**: When examId is provided, latestResult is cleared, allResults returns only specificResult or empty array, and error messages are specific to the missing exam
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
