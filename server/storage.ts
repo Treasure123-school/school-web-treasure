@@ -382,6 +382,7 @@ export interface IStorage {
   getTeachersForClassSubject(classId: number, subjectId: number): Promise<User[]>;
   updateTeacherClassAssignment(id: number, assignment: Partial<InsertTeacherClassAssignment>): Promise<TeacherClassAssignment | undefined>;
   deleteTeacherClassAssignment(id: number): Promise<boolean>;
+  getTeacherAssignmentsForClass(teacherId: string, classId: number): Promise<Array<{ subjectId: number; subjectName: string }>>;
 
   // Teacher timetable
   createTimetableEntry(entry: InsertTimetable): Promise<Timetable>;
@@ -5867,6 +5868,32 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result.length > 0;
   }
+
+  async getTeacherAssignmentsForClass(teacherId: string, classId: number): Promise<Array<{ subjectId: number; subjectName: string }>> {
+    try {
+      const now = new Date();
+      const assignments = await this.db.select({
+        subjectId: schema.teacherClassAssignments.subjectId,
+        subjectName: schema.subjects.name
+      })
+        .from(schema.teacherClassAssignments)
+        .innerJoin(schema.subjects, eq(schema.teacherClassAssignments.subjectId, schema.subjects.id))
+        .where(and(
+          eq(schema.teacherClassAssignments.teacherId, teacherId),
+          eq(schema.teacherClassAssignments.classId, classId),
+          eq(schema.teacherClassAssignments.isActive, true),
+          or(
+            isNull(schema.teacherClassAssignments.validUntil),
+            gte(schema.teacherClassAssignments.validUntil, now)
+          )
+        ));
+      return assignments;
+    } catch (error) {
+      console.error('Error getting teacher assignments for class:', error);
+      return [];
+    }
+  }
+
   // Teacher timetable implementation
   async createTimetableEntry(entry: InsertTimetable): Promise<Timetable> {
     const result = await this.db.insert(schema.timetable).values(entry).returning();

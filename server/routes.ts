@@ -9395,6 +9395,7 @@ Treasure-Home School Administration
 
     // Get report card with all items (full details)
     // Includes canEditTest/canEditExam permissions for each item based on the logged-in user
+    // Permission is granted if teacher created the exam OR is assigned to the subject
     app.get('/api/reports/:reportCardId/full', authenticateUser, async (req: Request, res: Response) => {
       try {
         const { reportCardId } = req.params;
@@ -9410,12 +9411,26 @@ Treasure-Home School Administration
         const userRoleId = req.user!.roleId;
         const { calculateScorePermissions } = await import('@shared/score-permissions');
         
+        // Get teacher's subject assignments for this class (for non-admins)
+        // This allows teachers to edit scores for subjects they are assigned to teach
+        let teacherSubjectAssignments: Set<number> = new Set();
+        const isAdmin = [1, 2].includes(userRoleId); // Super Admin = 1, Admin = 2
+        
+        if (!isAdmin && reportCard.classId) {
+          const assignments = await storage.getTeacherAssignmentsForClass(userId, reportCard.classId);
+          teacherSubjectAssignments = new Set(assignments.map((a: any) => a.subjectId));
+        }
+        
         const enhancedItems = reportCard.items.map((item: any) => {
+          // Check if teacher is assigned to this subject for this class
+          const isAssignedToSubject = teacherSubjectAssignments.has(item.subjectId);
+          
           const permissions = calculateScorePermissions({
             loggedInUserId: userId,
             loggedInRoleId: userRoleId,
             testExamCreatedBy: item.testExamCreatedBy,
-            examExamCreatedBy: item.examExamCreatedBy
+            examExamCreatedBy: item.examExamCreatedBy,
+            assignedTeacherId: isAssignedToSubject ? userId : null
           });
           
           return {
@@ -9531,11 +9546,21 @@ Treasure-Home School Administration
         // This ensures identical logic between GET /api/reports/:id/full and this PATCH endpoint
         const { calculateScorePermissions, getPermissionDeniedMessage } = await import('@shared/score-permissions');
         
+        // Check if teacher is assigned to this subject for this class
+        const isAdminCheck = [1, 2].includes(userRoleId);
+        let isAssignedToSubject = false;
+        
+        if (!isAdminCheck && reportCard.classId) {
+          const assignments = await storage.getTeacherAssignmentsForClass(userId, reportCard.classId);
+          isAssignedToSubject = assignments.some((a: any) => a.subjectId === currentItem.subjectId);
+        }
+        
         const permissions = calculateScorePermissions({
           loggedInUserId: userId,
           loggedInRoleId: userRoleId,
           testExamCreatedBy: currentItem.testExamCreatedBy,
-          examExamCreatedBy: currentItem.examExamCreatedBy
+          examExamCreatedBy: currentItem.examExamCreatedBy,
+          assignedTeacherId: isAssignedToSubject ? userId : null
         });
         
         const isAdmin = permissions.isAdmin;
@@ -9548,13 +9573,14 @@ Treasure-Home School Administration
         const isEditingExamScore = examScore !== undefined || examMaxScore !== undefined;
         const isEditingRemarks = teacherRemarks !== undefined;
         
-        // Permission checks for teachers (ownership-based only)
+        // Permission checks for teachers (ownership or assignment based)
         // Uses shared getPermissionDeniedMessage for consistent error messaging
         const permissionContext = {
           loggedInUserId: userId,
           loggedInRoleId: userRoleId,
           testExamCreatedBy: currentItem.testExamCreatedBy,
-          examExamCreatedBy: currentItem.examExamCreatedBy
+          examExamCreatedBy: currentItem.examExamCreatedBy,
+          assignedTeacherId: isAssignedToSubject ? userId : null
         };
         
         if (!isAdmin) {

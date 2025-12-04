@@ -2,8 +2,8 @@
  * Shared utility for score editing permissions
  * Single source of truth for who can edit what scores
  * 
- * SECURITY: Permission is strictly ownership-based.
- * Class assignment does NOT grant edit rights to another teacher's exams.
+ * SECURITY: Permission is based on ownership OR assignment.
+ * A teacher can edit scores if they created the exam OR are assigned to the subject.
  */
 
 export interface ScorePermissionContext {
@@ -11,8 +11,7 @@ export interface ScorePermissionContext {
   loggedInRoleId: number;
   testExamCreatedBy: string | null;
   examExamCreatedBy: string | null;
-  // Note: assignedTeacherId was removed because class assignment
-  // should NOT grant edit rights to another teacher's exams
+  assignedTeacherId?: string | null;
 }
 
 export interface ScorePermissions {
@@ -35,17 +34,16 @@ const ADMIN_ROLE_IDS = [1, 2]; // Super Admin = 1, Admin = 2
  * 1. Admins (roleId 1 or 2) can edit ALL scores
  * 2. Teachers can edit test scores ONLY if:
  *    - They created the test exam (testExamCreatedBy matches their ID), OR
+ *    - They are assigned to teach this class/subject (assignedTeacherId matches), OR
  *    - No test exam exists yet (testExamCreatedBy is null) - allows adding new scores
  * 3. Teachers can edit exam scores ONLY if:
  *    - They created the main exam (examExamCreatedBy matches their ID), OR
+ *    - They are assigned to teach this class/subject (assignedTeacherId matches), OR
  *    - No main exam exists yet (examExamCreatedBy is null) - allows adding new scores
  * 4. Teachers can add remarks if they can edit at least one score type
- * 
- * IMPORTANT: Being assigned to a class/subject does NOT grant edit rights to another teacher's exams.
- * This ensures exam ownership is strictly enforced - only the creator can modify their exam scores.
  */
 export function calculateScorePermissions(context: ScorePermissionContext): ScorePermissions {
-  const { loggedInUserId, loggedInRoleId, testExamCreatedBy, examExamCreatedBy } = context;
+  const { loggedInUserId, loggedInRoleId, testExamCreatedBy, examExamCreatedBy, assignedTeacherId } = context;
   
   // Admins can always edit everything
   const isAdmin = ADMIN_ROLE_IDS.includes(loggedInRoleId);
@@ -59,16 +57,21 @@ export function calculateScorePermissions(context: ScorePermissionContext): Scor
     };
   }
   
-  // For teachers: check OWNERSHIP only (assignment does NOT override ownership)
+  // Check if teacher is assigned to this class/subject
+  const isAssignedTeacher = assignedTeacherId === loggedInUserId;
+  
+  // For teachers: check OWNERSHIP or ASSIGNMENT
   // Can edit test if:
   // - No test exam exists yet (null) - allows adding new test scores, OR
-  // - Teacher created the test exam (strict ownership check)
-  const canEditTest = !testExamCreatedBy || testExamCreatedBy === loggedInUserId;
+  // - Teacher created the test exam (strict ownership check), OR
+  // - Teacher is assigned to this class/subject
+  const canEditTest = !testExamCreatedBy || testExamCreatedBy === loggedInUserId || isAssignedTeacher;
   
   // Can edit exam if:
   // - No main exam exists yet (null) - allows adding new exam scores, OR
-  // - Teacher created the main exam (strict ownership check)
-  const canEditExam = !examExamCreatedBy || examExamCreatedBy === loggedInUserId;
+  // - Teacher created the main exam (strict ownership check), OR
+  // - Teacher is assigned to this class/subject
+  const canEditExam = !examExamCreatedBy || examExamCreatedBy === loggedInUserId || isAssignedTeacher;
   
   // Can add remarks if they can edit at least one score type
   const canEditRemarks = canEditTest || canEditExam;
@@ -76,11 +79,13 @@ export function calculateScorePermissions(context: ScorePermissionContext): Scor
   // Provide helpful reason for debugging
   let reason = '';
   if (!canEditTest && !canEditExam) {
-    reason = 'Not authorized: test created by another teacher, exam created by another teacher';
+    reason = 'Not authorized: You did not create the exam and are not assigned to this subject';
   } else if (!canEditTest) {
-    reason = 'Cannot edit test scores: created by another teacher';
+    reason = 'Cannot edit test scores: Created by another teacher and you are not assigned to this subject';
   } else if (!canEditExam) {
-    reason = 'Cannot edit exam scores: created by another teacher';
+    reason = 'Cannot edit exam scores: Created by another teacher and you are not assigned to this subject';
+  } else if (isAssignedTeacher) {
+    reason = 'Authorized via subject assignment';
   }
   
   return {
@@ -156,7 +161,7 @@ export function validateScoreData(data: {
 
 /**
  * Generate user-friendly error messages for permission denials
- * Note: Permission is strictly ownership-based - class assignment does NOT grant edit rights
+ * Permission is based on ownership OR assignment - teacher can edit if they created the exam or are assigned to the subject
  */
 export function getPermissionDeniedMessage(
   action: 'test' | 'exam' | 'remarks',
@@ -167,17 +172,17 @@ export function getPermissionDeniedMessage(
   switch (action) {
     case 'test':
       if (!permissions.canEditTest) {
-        return 'You cannot edit this test score because the test was created by another teacher. Only the teacher who created the test (or an administrator) can modify these scores.';
+        return 'You cannot edit this test score because you did not create the test and are not assigned to this subject. Only the teacher who created the test, the assigned teacher, or an administrator can modify these scores.';
       }
       break;
     case 'exam':
       if (!permissions.canEditExam) {
-        return 'You cannot edit this exam score because the exam was created by another teacher. Only the teacher who created the exam (or an administrator) can modify these scores.';
+        return 'You cannot edit this exam score because you did not create the exam and are not assigned to this subject. Only the teacher who created the exam, the assigned teacher, or an administrator can modify these scores.';
       }
       break;
     case 'remarks':
       if (!permissions.canEditRemarks) {
-        return 'You can only add remarks for subjects where you created an exam. Contact an administrator if you need to update remarks for another teacher\'s exam.';
+        return 'You can only add remarks for subjects where you created an exam or are assigned to teach. Contact an administrator if you need to update remarks.';
       }
       break;
   }
