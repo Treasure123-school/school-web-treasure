@@ -67,9 +67,13 @@ interface ReportCardItem {
   subjectId: number;
   subjectName: string;
   subjectCode?: string;
+  testExamId?: number | null;
+  testExamCreatedBy?: string | null;
   testScore: number | null;
   testMaxScore: number | null;
   testWeightedScore: number | null;
+  examExamId?: number | null;
+  examExamCreatedBy?: string | null;
   examScore: number | null;
   examMaxScore: number | null;
   examWeightedScore: number | null;
@@ -81,8 +85,10 @@ interface ReportCardItem {
   teacherRemarks: string | null;
   isOverridden: boolean;
   overriddenAt: string | null;
+  overriddenBy?: string | null;
   canEditTest?: boolean;
   canEditExam?: boolean;
+  canEditRemarks?: boolean;
 }
 
 interface ReportCard {

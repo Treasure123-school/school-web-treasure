@@ -9394,6 +9394,7 @@ Treasure-Home School Administration
     });
 
     // Get report card with all items (full details)
+    // Includes canEditTest/canEditExam permissions for each item based on the logged-in user
     app.get('/api/reports/:reportCardId/full', authenticateUser, async (req: Request, res: Response) => {
       try {
         const { reportCardId } = req.params;
@@ -9403,7 +9404,49 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Report card not found' });
         }
         
-        res.json(reportCard);
+        // Calculate permission flags for each item based on logged-in user
+        const userId = req.user!.id;
+        const userRoleId = req.user!.roleId;
+        const isAdmin = userRoleId === 1 || userRoleId === 2; // Super Admin or Admin
+        
+        // Enhance items with permission flags
+        // Permission rule: Teachers can ONLY edit scores if they CREATED the exam
+        // The assignment to class/subject does NOT grant edit rights to another teacher's exams
+        const enhancedItems = reportCard.items.map((item: any) => {
+          if (isAdmin) {
+            // Admins can edit everything
+            return {
+              ...item,
+              canEditTest: true,
+              canEditExam: true,
+              canEditRemarks: true
+            };
+          }
+          
+          // Teacher can edit test if:
+          // - No test exam exists yet (testExamCreatedBy is null) - allows adding new test scores, OR
+          // - They are the one who created the test exam
+          // NOTE: Being assigned to the class/subject does NOT override exam ownership
+          const canEditTest = !item.testExamCreatedBy || item.testExamCreatedBy === userId;
+          
+          // Teacher can edit exam if:
+          // - No main exam exists yet (examExamCreatedBy is null) - allows adding new exam scores, OR
+          // - They are the one who created the main exam
+          // NOTE: Being assigned to the class/subject does NOT override exam ownership
+          const canEditExam = !item.examExamCreatedBy || item.examExamCreatedBy === userId;
+          
+          // Can add remarks if they can edit at least one score type
+          const canEditRemarks = canEditTest || canEditExam;
+          
+          return {
+            ...item,
+            canEditTest,
+            canEditExam,
+            canEditRemarks
+          };
+        });
+        
+        res.json({ ...reportCard, items: enhancedItems });
       } catch (error: any) {
         console.error('Error getting report card:', error);
         res.status(500).json({ message: error.message || 'Failed to get report card' });
@@ -9457,10 +9500,10 @@ Treasure-Home School Administration
     });
 
     // Override a report card item score (Teacher override)
-    // Teachers can ONLY edit scores for exams they created:
-    // - testScore/testMaxScore: only if they created the test exam (testExamCreatedBy matches)
-    // - examScore/examMaxScore: only if they created the main exam (examExamCreatedBy matches)
-    // - teacherRemarks: only if they created at least one of the exams (test or main)
+    // Teachers can edit scores if:
+    // - They created the exam (testExamCreatedBy/examExamCreatedBy matches), OR
+    // - They are assigned to teach this class/subject, OR
+    // - No exam exists yet for this score type (null creator)
     // Admins and Super Admins can edit all scores
     app.patch('/api/reports/items/:itemId/override', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
@@ -9469,49 +9512,149 @@ Treasure-Home School Administration
         const userId = req.user!.id;
         const userRoleId = req.user!.roleId;
         
-        // Get the current report card item to check permissions
-        const currentItem = await storage.getReportCardItemById(Number(itemId));
-        if (!currentItem) {
-          return res.status(404).json({ message: 'Report card item not found' });
+        // Validate itemId
+        const parsedItemId = Number(itemId);
+        if (isNaN(parsedItemId) || parsedItemId <= 0) {
+          return res.status(400).json({ 
+            message: 'Invalid item ID provided',
+            code: 'INVALID_ITEM_ID'
+          });
         }
         
-        // Check teacher permissions - they can only edit scores for exams they created
+        // Get the current report card item to check permissions
+        const currentItem = await storage.getReportCardItemById(parsedItemId);
+        if (!currentItem) {
+          return res.status(404).json({ 
+            message: 'Report card item not found. It may have been deleted.',
+            code: 'ITEM_NOT_FOUND'
+          });
+        }
+        
+        // Get the report card to check class info
+        const reportCard = await storage.getReportCard(currentItem.reportCardId);
+        if (!reportCard) {
+          return res.status(404).json({ 
+            message: 'Report card not found',
+            code: 'REPORT_CARD_NOT_FOUND'
+          });
+        }
+        
+        // Check if report card is locked
+        if (reportCard.status === 'published') {
+          return res.status(403).json({ 
+            message: 'This report card has been published and cannot be edited. Contact an administrator to unlock it.',
+            code: 'REPORT_LOCKED'
+          });
+        }
+        
         // Admin (roleId 2) and Super Admin (roleId 1) can edit all scores
         const isAdmin = userRoleId === 1 || userRoleId === 2;
         
-        // Determine what the teacher can edit based on ownership
-        const canEditTest = !currentItem.testExamCreatedBy || currentItem.testExamCreatedBy === userId;
-        const canEditExam = !currentItem.examExamCreatedBy || currentItem.examExamCreatedBy === userId;
+        // Permission rule: Teachers can ONLY edit scores if they CREATED the exam
+        // Being assigned to the class/subject does NOT override exam ownership
+        // This ensures teachers cannot modify another teacher's exam scores
+        
+        // Determine what the teacher can edit based on OWNERSHIP only (not assignment)
+        const canEditTest = isAdmin || 
+                           !currentItem.testExamCreatedBy || 
+                           currentItem.testExamCreatedBy === userId;
+                           
+        const canEditExam = isAdmin || 
+                           !currentItem.examExamCreatedBy || 
+                           currentItem.examExamCreatedBy === userId;
+                           
         const canEditAny = canEditTest || canEditExam;
         
+        // Validate and check permissions for each score type
+        const isEditingTestScore = testScore !== undefined || testMaxScore !== undefined;
+        const isEditingExamScore = examScore !== undefined || examMaxScore !== undefined;
+        const isEditingRemarks = teacherRemarks !== undefined;
+        
+        // Permission checks for teachers (ownership-based only)
         if (!isAdmin) {
-          // Teacher trying to edit - check permissions for each score type
-          const isEditingTestScore = testScore !== undefined || testMaxScore !== undefined;
-          const isEditingExamScore = examScore !== undefined || examMaxScore !== undefined;
-          const isEditingRemarks = teacherRemarks !== undefined;
-          
-          // Teachers must have created at least one exam to add remarks
           if (isEditingRemarks && !canEditAny) {
             return res.status(403).json({ 
-              message: 'You can only add remarks for subjects where you created at least one exam.' 
+              message: 'You can only add remarks for subjects where you created an exam. Contact an administrator if you need to update remarks for another teacher\'s exam.',
+              code: 'PERMISSION_DENIED_REMARKS',
+              details: { subjectId: currentItem.subjectId }
             });
           }
           
           if (isEditingTestScore && !canEditTest) {
             return res.status(403).json({ 
-              message: 'You can only edit test scores for exams you created. This test was created by another teacher.' 
+              message: 'You cannot edit this test score because the test was created by another teacher. Only the teacher who created the test (or an administrator) can modify these scores.',
+              code: 'PERMISSION_DENIED_TEST',
+              details: { 
+                subjectId: currentItem.subjectId,
+                testCreatedBy: currentItem.testExamCreatedBy 
+              }
             });
           }
           
           if (isEditingExamScore && !canEditExam) {
             return res.status(403).json({ 
-              message: 'You can only edit exam scores for exams you created. This exam was created by another teacher.' 
+              message: 'You cannot edit this exam score because the exam was created by another teacher. Only the teacher who created the exam (or an administrator) can modify these scores.',
+              code: 'PERMISSION_DENIED_EXAM',
+              details: { 
+                subjectId: currentItem.subjectId,
+                examCreatedBy: currentItem.examExamCreatedBy 
+              }
             });
           }
         }
         
+        // Validate score values
+        const validationErrors: string[] = [];
+        
+        if (testScore !== undefined && testScore !== '' && testScore !== null) {
+          const numTestScore = Number(testScore);
+          if (isNaN(numTestScore)) {
+            validationErrors.push('Test score must be a valid number');
+          } else if (numTestScore < 0) {
+            validationErrors.push('Test score cannot be negative');
+          } else if (testMaxScore !== undefined && numTestScore > Number(testMaxScore)) {
+            validationErrors.push('Test score cannot exceed maximum score');
+          } else if (currentItem.testMaxScore && numTestScore > currentItem.testMaxScore) {
+            validationErrors.push(`Test score cannot exceed maximum of ${currentItem.testMaxScore}`);
+          }
+        }
+        
+        if (examScore !== undefined && examScore !== '' && examScore !== null) {
+          const numExamScore = Number(examScore);
+          if (isNaN(numExamScore)) {
+            validationErrors.push('Exam score must be a valid number');
+          } else if (numExamScore < 0) {
+            validationErrors.push('Exam score cannot be negative');
+          } else if (examMaxScore !== undefined && numExamScore > Number(examMaxScore)) {
+            validationErrors.push('Exam score cannot exceed maximum score');
+          } else if (currentItem.examMaxScore && numExamScore > currentItem.examMaxScore) {
+            validationErrors.push(`Exam score cannot exceed maximum of ${currentItem.examMaxScore}`);
+          }
+        }
+        
+        if (testMaxScore !== undefined && testMaxScore !== '' && testMaxScore !== null) {
+          const numTestMax = Number(testMaxScore);
+          if (isNaN(numTestMax) || numTestMax <= 0) {
+            validationErrors.push('Test maximum score must be a positive number');
+          }
+        }
+        
+        if (examMaxScore !== undefined && examMaxScore !== '' && examMaxScore !== null) {
+          const numExamMax = Number(examMaxScore);
+          if (isNaN(numExamMax) || numExamMax <= 0) {
+            validationErrors.push('Exam maximum score must be a positive number');
+          }
+        }
+        
+        if (validationErrors.length > 0) {
+          return res.status(400).json({ 
+            message: validationErrors.join('. '),
+            code: 'VALIDATION_ERROR',
+            errors: validationErrors
+          });
+        }
+        
         // Build the update payload - only include fields that were actually provided
-        // This prevents empty strings from being treated as valid values
         const updatePayload: any = { overriddenBy: userId };
         
         if (testScore !== undefined && testScore !== '') {
@@ -9526,14 +9669,25 @@ Treasure-Home School Administration
         if (examMaxScore !== undefined && examMaxScore !== '') {
           updatePayload.examMaxScore = Number(examMaxScore);
         }
-        if (teacherRemarks !== undefined && teacherRemarks !== '') {
-          updatePayload.teacherRemarks = teacherRemarks;
+        if (teacherRemarks !== undefined) {
+          updatePayload.teacherRemarks = teacherRemarks || null;
         }
         
-        const updatedItem = await storage.overrideReportCardItemScore(Number(itemId), updatePayload);
+        // Log the override attempt for audit
+        console.log(`Score override by ${userId} (roleId: ${userRoleId}) for item ${parsedItemId}:`, {
+          isAdmin,
+          canEditTest,
+          canEditExam,
+          payload: Object.keys(updatePayload)
+        });
+        
+        const updatedItem = await storage.overrideReportCardItemScore(parsedItemId, updatePayload);
         
         if (!updatedItem) {
-          return res.status(404).json({ message: 'Report card item not found' });
+          return res.status(500).json({ 
+            message: 'Failed to save score changes. Please try again.',
+            code: 'UPDATE_FAILED'
+          });
         }
         
         // Emit realtime event for score override
@@ -9552,10 +9706,18 @@ Treasure-Home School Administration
           }, userId);
         }
         
-        res.json(updatedItem);
+        res.json({
+          ...updatedItem,
+          message: 'Score updated successfully',
+          canEditTest,
+          canEditExam
+        });
       } catch (error: any) {
         console.error('Error overriding score:', error);
-        res.status(500).json({ message: error.message || 'Failed to override score' });
+        res.status(500).json({ 
+          message: error.message || 'An unexpected error occurred while saving the score. Please try again.',
+          code: 'INTERNAL_ERROR'
+        });
       }
     });
 

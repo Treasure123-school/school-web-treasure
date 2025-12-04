@@ -4397,9 +4397,13 @@ export class DatabaseStorage implements IStorage {
         subjectId: schema.reportCardItems.subjectId,
         subjectName: schema.subjects.name,
         subjectCode: schema.subjects.code,
+        testExamId: schema.reportCardItems.testExamId,
+        testExamCreatedBy: schema.reportCardItems.testExamCreatedBy,
         testScore: schema.reportCardItems.testScore,
         testMaxScore: schema.reportCardItems.testMaxScore,
         testWeightedScore: schema.reportCardItems.testWeightedScore,
+        examExamId: schema.reportCardItems.examExamId,
+        examExamCreatedBy: schema.reportCardItems.examExamCreatedBy,
         examScore: schema.reportCardItems.examScore,
         examMaxScore: schema.reportCardItems.examMaxScore,
         examWeightedScore: schema.reportCardItems.examWeightedScore,
@@ -4410,7 +4414,8 @@ export class DatabaseStorage implements IStorage {
         remarks: schema.reportCardItems.remarks,
         teacherRemarks: schema.reportCardItems.teacherRemarks,
         isOverridden: schema.reportCardItems.isOverridden,
-        overriddenAt: schema.reportCardItems.overriddenAt
+        overriddenAt: schema.reportCardItems.overriddenAt,
+        overriddenBy: schema.reportCardItems.overriddenBy
       })
         .from(schema.reportCardItems)
         .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
